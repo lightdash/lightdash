@@ -13,7 +13,7 @@ import {
 } from '@mantine/core';
 import { IconEye, IconEyeClosed } from '@tabler/icons-react';
 import { type UseMutationResult } from '@tanstack/react-query';
-import { useState, type Dispatch, type FC, type SetStateAction } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { CUSTOM_WIDTH_OPTIONS } from '../../scheduler/constants';
 
@@ -29,13 +29,13 @@ type PreviewAndCustomizeScreenshotProps = {
             isPreview?: boolean | undefined;
         }
     >;
-    previews: Record<string, string>;
-    setPreviews: Dispatch<SetStateAction<Record<string, string>>>;
     previewChoice: typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined;
     setPreviewChoice: (
         prev: typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined,
     ) => void;
     onPreviewClick?: () => Promise<void>;
+    currentPreview?: string;
+    disabled?: boolean;
 };
 
 export const PreviewAndCustomizeScreenshot: FC<
@@ -43,10 +43,11 @@ export const PreviewAndCustomizeScreenshot: FC<
 > = ({
     containerWidth,
     exportMutation,
-    previews,
     previewChoice,
     setPreviewChoice,
     onPreviewClick,
+    currentPreview,
+    disabled = false,
 }) => {
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
@@ -89,12 +90,9 @@ export const PreviewAndCustomizeScreenshot: FC<
                     <Stack>
                         <Card withBorder p={0}>
                             <Image
-                                src={previewChoice && previews[previewChoice]}
+                                src={currentPreview}
                                 onClick={() => {
-                                    if (
-                                        previewChoice &&
-                                        previews[previewChoice]
-                                    )
+                                    if (currentPreview)
                                         setIsImageModalOpen(true);
                                 }}
                                 width={350}
@@ -102,11 +100,9 @@ export const PreviewAndCustomizeScreenshot: FC<
                                 styles={{
                                     root: {
                                         objectPosition: 'top',
-                                        cursor:
-                                            previewChoice &&
-                                            previews[previewChoice]
-                                                ? 'pointer'
-                                                : 'default',
+                                        cursor: currentPreview
+                                            ? 'pointer'
+                                            : 'default',
                                     },
                                 }}
                                 withPlaceholder
@@ -132,8 +128,12 @@ export const PreviewAndCustomizeScreenshot: FC<
                             size="xs"
                             variant="default"
                             leftIcon={<MantineIcon icon={IconEye} />}
-                            disabled={!previewChoice}
-                            onClick={onPreviewClick}
+                            disabled={!previewChoice || disabled}
+                            onClick={async () => {
+                                if (onPreviewClick) {
+                                    await onPreviewClick();
+                                }
+                            }}
                         >
                             Generate preview
                         </Button>
@@ -147,7 +147,7 @@ export const PreviewAndCustomizeScreenshot: FC<
                 opened={isImageModalOpen}
             >
                 <Image
-                    src={exportMutation.data}
+                    src={currentPreview}
                     onClick={() => {
                         setIsImageModalOpen(false);
                     }}

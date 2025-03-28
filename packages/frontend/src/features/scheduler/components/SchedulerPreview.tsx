@@ -25,7 +25,6 @@ export const SchedulerPreview: FC<Props> = ({
     customViewportWidth,
     onChange,
 }) => {
-    const [previews, setPreviews] = useState<Record<string, string>>({});
     const [previewChoice, setPreviewChoice] = useState<
         typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined
     >(customViewportWidth?.toString() ?? CUSTOM_WIDTH_OPTIONS[1].value);
@@ -51,17 +50,12 @@ export const SchedulerPreview: FC<Props> = ({
     }, [dashboard.filters, schedulerFilters]);
 
     const handlePreviewClick = useCallback(async () => {
-        const url = await exportDashboardMutation.mutateAsync({
+        await exportDashboardMutation.mutateAsync({
             dashboard,
             gridWidth: previewChoice ? parseInt(previewChoice) : undefined,
             queryFilters: getSchedulerFilterOverridesQueryString(),
             isPreview: true,
         });
-
-        setPreviews((prev) => ({
-            ...prev,
-            ...(previewChoice ? { [previewChoice]: url } : {}),
-        }));
     }, [
         dashboard,
         exportDashboardMutation,
@@ -87,8 +81,6 @@ export const SchedulerPreview: FC<Props> = ({
             </Group>
             <PreviewAndCustomizeScreenshot
                 exportMutation={exportDashboardMutation}
-                previews={previews}
-                setPreviews={setPreviews}
                 previewChoice={previewChoice}
                 setPreviewChoice={(pc: string | undefined) => {
                     setPreviewChoice(() => {
