@@ -1,3 +1,11 @@
+## [0.1552.6](https://github.com/lightdash/lightdash/compare/0.1552.5...0.1552.6) (2025-03-28)
+
+
+### Bug Fixes
+
+* batch copy content for preview ([#14200](https://github.com/lightdash/lightdash/issues/14200)) ([8b656f6](https://github.com/lightdash/lightdash/commit/8b656f64e88f49757c1ed7fd57546fe0848fbe19))
+* invisible colors embed dashboard ([#14201](https://github.com/lightdash/lightdash/issues/14201)) ([fccb132](https://github.com/lightdash/lightdash/commit/fccb13299bafc414bce003a44ab6f281173836ff))
+
 ## [0.1552.5](https://github.com/lightdash/lightdash/compare/0.1552.4...0.1552.5) (2025-03-28)
 
 
