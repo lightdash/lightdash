@@ -35,6 +35,7 @@ type PreviewAndCustomizeScreenshotProps = {
     ) => void;
     onPreviewClick?: () => Promise<void>;
     currentPreview?: string;
+    disabled?: boolean;
 };
 
 export const PreviewAndCustomizeScreenshot: FC<
@@ -46,6 +47,7 @@ export const PreviewAndCustomizeScreenshot: FC<
     setPreviewChoice,
     onPreviewClick,
     currentPreview,
+    disabled = false,
 }) => {
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
@@ -126,7 +128,7 @@ export const PreviewAndCustomizeScreenshot: FC<
                             size="xs"
                             variant="default"
                             leftIcon={<MantineIcon icon={IconEye} />}
-                            disabled={!previewChoice}
+                            disabled={!previewChoice || disabled}
                             onClick={async () => {
                                 if (onPreviewClick) {
                                     await onPreviewClick();

@@ -114,6 +114,16 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
         dashboard?.tabs?.map((tab) => tab.uuid) || [],
     );
 
+    // Check if the selected tabs have tiles so we can disable the export button if not
+    const hasTilesInSelectedTabs = useCallback(() => {
+        if (allTabsSelected) {
+            return dashboard.tiles.length > 0;
+        }
+        return dashboard.tiles.some((tile) =>
+            selectedTabs.includes(tile.tabUuid || ''),
+        );
+    }, [allTabsSelected, dashboard.tiles, selectedTabs]);
+
     // Helper function to create consistent cache keys
     const getPreviewKey = useCallback(
         (width: string) => {
@@ -261,6 +271,11 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
                                 searchable
                                 onChange={setSelectedTabs}
                                 required
+                                error={
+                                    !hasTilesInSelectedTabs()
+                                        ? 'There are no tiles in the selected tab(s)'
+                                        : undefined
+                                }
                             />
                         )}
                     </Stack>
@@ -273,6 +288,7 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
                     setPreviewChoice={setPreviewChoice}
                     onPreviewClick={handlePreviewClick}
                     currentPreview={currentPreview}
+                    disabled={!hasTilesInSelectedTabs()}
                 />
             </Stack>
 
@@ -296,6 +312,7 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
                         <Button
                             loading={exportDashboardMutation.isLoading}
                             onClick={handleExportClick}
+                            disabled={!hasTilesInSelectedTabs()}
                             leftIcon={
                                 <MantineIcon
                                     icon={
