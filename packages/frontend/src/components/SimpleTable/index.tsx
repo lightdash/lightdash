@@ -1,7 +1,7 @@
 import { Box, Flex } from '@mantine/core';
 import { noop } from '@mantine/utils';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { type FC, useCallback, useMemo } from 'react';
+import { type FC, useCallback, useEffect, useMemo } from 'react';
 import { isTableVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { LoadingChart } from '../SimpleChart';
@@ -37,13 +37,29 @@ const SimpleTable: FC<SimpleTableProps> = ({
     const { columnOrder, itemsMap, visualizationConfig, resultsData } =
         useVisualizationContext();
 
-    const lazyLoadStatus = useMemo(() => {
-        if (resultsData && resultsData.rows.length > 0) {
-            return 'success';
-        } else {
+    const shouldPaginateResults = useMemo(() => {
+        return Boolean(
+            !resultsData ||
+                !isTableVisualizationConfig(visualizationConfig) ||
+                // When subtotals are disable and there is no pivot table data, we don't need to load all the rows
+                (!visualizationConfig.chartConfig.showSubtotals &&
+                    !visualizationConfig.chartConfig.pivotTableData?.data),
+        );
+    }, [resultsData, visualizationConfig]);
+
+    const loadResultsStatus = useMemo(() => {
+        if (!resultsData) {
             return 'loading';
         }
-    }, [resultsData]);
+
+        // When paginated, it's success as soon as there are rows
+        // When not paginated, it's success as soon as all rows have been fetched
+        const isSuccess = shouldPaginateResults
+            ? resultsData.rows.length > 0
+            : resultsData.hasFetchedAllRows;
+
+        return isSuccess ? 'success' : 'loading';
+    }, [resultsData, shouldPaginateResults]);
 
     const showColumnCalculation = useMemo(() => {
         if (!isTableVisualizationConfig(visualizationConfig)) {
@@ -92,6 +108,16 @@ const SimpleTable: FC<SimpleTableProps> = ({
         [isDashboard, itemsMap, minimal, tileUuid],
     );
 
+    useEffect(() => {
+        if (shouldPaginateResults) return;
+
+        // Load all the rows
+        resultsData?.setFetchAll(true);
+        return () => {
+            resultsData?.setFetchAll(false);
+        };
+    }, [shouldPaginateResults, resultsData]);
+
     if (!isTableVisualizationConfig(visualizationConfig)) return null;
 
     const {
@@ -123,7 +149,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 miw="100%"
                 h="100%"
             >
-                {pivotTableData.data ? (
+                {pivotTableData.data && resultsData?.hasFetchedAllRows ? (
                     <>
                         <PivotTable
                             className={className}
@@ -157,7 +183,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 minimal={minimal}
                 $shouldExpand={$shouldExpand}
                 className={className}
-                status={lazyLoadStatus}
+                status={loadResultsStatus}
                 data={resultsData?.rows || []}
                 totalRowsCount={resultsData?.totalResults || 0}
                 isFetchingRows={!!resultsData?.isFetchingRows}
