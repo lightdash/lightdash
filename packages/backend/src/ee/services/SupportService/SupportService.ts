@@ -208,7 +208,7 @@ export class SupportService extends BaseService {
         const googleLogsUrl = `https://console.cloud.google.com/logs/query;query=resource.labels.namespace_name%3D%22${namespace}%22%0Aresource.labels.container_name%3D%22lightdash%22%0A-jsonPayload.message%3D~%22%2Fapi%2Fv1%2Fhealth%22%0A-jsonPayload.message%3D~%22%2Fapi%2Fv1%2Flivez%22;endTime=${now}?project=lightdash-cloud-beta&authuser=0`;
         const analyticsUrl = `https://analytics.lightdash.cloud/projects/21eef0b9-5bae-40f3-851e-9554588e71a6/dashboards/c9364d94-1661-4623-be8b-2afcc8692f38?tempFilters=%7B%22dimensions%22%3A%5B%7B%22id%22%3A%22ac7cfa77-b208-4334-b3df-7e921f77cc53%22%2C%22operator%22%3A%22equals%22%2C%22target%22%3A%7B%22fieldId%22%3A%22projects_project_id%22%2C%22tableName%22%3A%22projects%22%2C%22fieldName%22%3A%22project_id%22%7D%2C%22tileTargets%22%3A%5B%5D%2C%22disabled%22%3Afalse%2C%22values%22%3A%5B%22${projectUuid}%22%5D%7D%5D%2C%22metrics%22%3A%5B%5D%2C%22tableCalculations%22%3A%5B%5D%7D`;
         const blocks = {
-            channel: '#test-slackbot-3',
+            channel: '#support-alerts',
             text: `New error report from: ${user?.firstName} ${user?.lastName} - ${organization.name}`,
             blocks: [
                 {
