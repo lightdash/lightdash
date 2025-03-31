@@ -12,7 +12,12 @@ export type SchedulerLog = {
     status: SchedulerJobStatus;
     target?: string;
     targetType?: 'email' | 'slack' | 'gsheets';
-    details?: Record<string, AnyType>;
+    details: {
+        projectUuid: string | undefined; // For project creation, this is undefined
+        organizationUuid: string;
+        createdByUserUuid: string;
+        [key: string]: AnyType;
+    };
 };
 
 export type CreateSchedulerLog = Omit<SchedulerLog, 'createdAt'>;

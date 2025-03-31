@@ -34,7 +34,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { BaseService } from '../BaseService';
 
-const RESPONSE_TIMEOUT_MS = 90000;
+const RESPONSE_TIMEOUT_MS = 180000;
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
 const nanoid = '[\\w-]{21}';
@@ -137,16 +137,23 @@ export class UnfurlService extends BaseService {
         this.downloadFileModel = downloadFileModel;
     }
 
-    static async waitForAllPaginatedResultsResponse(
+    private async waitForAllPaginatedResultsResponse(
         page: playwright.Page,
         expectedResponses: number,
         timeout: number,
     ) {
         let responseCount = 0;
 
+        this.logger.info(
+            `Waiting for ${expectedResponses} paginated responses with timeout ${timeout}ms`,
+        );
+
         const responsePromise = new Promise<void>((resolve, reject) => {
             const responseHandler = async (response: playwright.Response) => {
                 if (response.url().match(paginatedQueryEndpointRegex)) {
+                    this.logger.debug(
+                        `Received paginated response: ${response.url()}`,
+                    );
                     const body = await response.body();
                     const json = JSON.parse(body.toString()) as {
                         status: 'ok';
@@ -158,10 +165,26 @@ export class UnfurlService extends BaseService {
                         !json.results.nextPage
                     ) {
                         responseCount += 1;
+                        this.logger.info(
+                            `Paginated response is complete. Count: ${responseCount}/${expectedResponses}`,
+                        );
                         if (responseCount === expectedResponses) {
+                            this.logger.info(
+                                `All ${expectedResponses} paginated responses received, resolving promise`,
+                            );
                             page.off('response', responseHandler); // Clean up the listener
                             resolve();
                         }
+                    } else {
+                        this.logger.debug(
+                            `Paginated response is not complete. Status: ${
+                                json.results.status
+                            }, hasNextPage: ${
+                                'nextPage' in json.results
+                                    ? !!json.results.nextPage
+                                    : 'N/A'
+                            }`,
+                        );
                     }
                 }
             };
@@ -170,6 +193,9 @@ export class UnfurlService extends BaseService {
 
         const timeoutPromise = new Promise<never>((_, reject) => {
             setTimeout(() => {
+                this.logger.info(
+                    `Timeout after ${timeout}ms. Expected ${expectedResponses} but only received ${responseCount} responses.`,
+                );
                 reject(
                     new Error(
                         `Timeout after ${timeout}ms. Expected ${expectedResponses} but only received ${responseCount} responses.`,
@@ -181,15 +207,18 @@ export class UnfurlService extends BaseService {
         return Promise.race([responsePromise, timeoutPromise]);
     }
 
-    static async waitForPaginatedResultsResponse(page: playwright.Page) {
-        return UnfurlService.waitForAllPaginatedResultsResponse(
+    private async waitForPaginatedResultsResponse(page: playwright.Page) {
+        return this.waitForAllPaginatedResultsResponse(
             page,
             1,
             RESPONSE_TIMEOUT_MS,
         );
     }
 
-    async getTitleAndDescription(parsedUrl: ParsedUrl): Promise<
+    async getTitleAndDescription(
+        parsedUrl: ParsedUrl,
+        selectedTabs?: string[],
+    ): Promise<
         Pick<
             Unfurl,
             'title' | 'description' | 'chartType' | 'organizationUuid'
@@ -208,15 +237,24 @@ export class UnfurlService extends BaseService {
                 const dashboard = await this.dashboardModel.getById(
                     parsedUrl.dashboardUuid,
                 );
+
+                // Filter tiles based on selected tabs if they exist
+                const filteredTiles =
+                    selectedTabs && selectedTabs.length > 0
+                        ? dashboard.tiles.filter((tile) =>
+                              selectedTabs.includes(tile.tabUuid || ''),
+                          )
+                        : dashboard.tiles;
+
                 return {
                     title: dashboard.name,
                     description: dashboard.description,
                     organizationUuid: dashboard.organizationUuid,
                     resourceUuid: dashboard.uuid,
-                    chartTileUuids: dashboard.tiles
+                    chartTileUuids: filteredTiles
                         .filter(isDashboardChartTileType)
                         .map((t) => t.properties.savedChartUuid),
-                    sqlChartTileUuids: dashboard.tiles
+                    sqlChartTileUuids: filteredTiles
                         .filter(isDashboardSqlChartTile)
                         .map((t) => t.properties.savedSqlUuid),
                 };
@@ -257,7 +295,10 @@ export class UnfurlService extends BaseService {
         }
     }
 
-    async unfurlDetails(originUrl: string): Promise<Unfurl | undefined> {
+    async unfurlDetails(
+        originUrl: string,
+        selectedTabs: string[] = [],
+    ): Promise<Unfurl | undefined> {
         const parsedUrl = await this.parseUrl(originUrl);
 
         if (
@@ -275,7 +316,7 @@ export class UnfurlService extends BaseService {
             chartType,
             resourceUuid,
             ...rest
-        } = await this.getTitleAndDescription(parsedUrl);
+        } = await this.getTitleAndDescription(parsedUrl, selectedTabs);
 
         return {
             title,
@@ -320,6 +361,7 @@ export class UnfurlService extends BaseService {
         selector = undefined,
         context,
         contextId,
+        selectedTabs,
     }: {
         url: string;
         lightdashPage?: LightdashPage;
@@ -330,9 +372,10 @@ export class UnfurlService extends BaseService {
         selector?: string;
         context: ScreenshotContext;
         contextId?: unknown;
+        selectedTabs?: string[];
     }): Promise<{ imageUrl?: string; pdfPath?: string }> {
         const cookie = await this.getUserCookie(authUserUuid);
-        const details = await this.unfurlDetails(url);
+        const details = await this.unfurlDetails(url, selectedTabs);
 
         const buffer = await this.saveScreenshot({
             authUserUuid,
@@ -350,6 +393,7 @@ export class UnfurlService extends BaseService {
             sqlChartTileUuids: details?.sqlChartTileUuids,
             context,
             contextId,
+            selectedTabs,
         });
 
         let imageUrl;
@@ -386,6 +430,7 @@ export class UnfurlService extends BaseService {
         queryFilters: string,
         gridWidth: number | undefined,
         user: SessionUser,
+        selectedTabs?: string[],
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         const { isPrivate } = await this.spaceModel.get(dashboard.spaceUuid);
@@ -393,12 +438,33 @@ export class UnfurlService extends BaseService {
             user.userUuid,
             dashboard.spaceUuid,
         );
+
+        // Create a new URLSearchParams object for query filters
+        const selectedTabsParams = new URLSearchParams();
+        const selectedTabsList =
+            selectedTabs ??
+            dashboard.tiles
+                .map((tile) => tile.tabUuid)
+                .filter((tabUuid) => !!tabUuid);
+
+        if (selectedTabsList.length > 0)
+            selectedTabsParams.set(
+                'selectedTabs',
+                JSON.stringify(selectedTabsList),
+            );
+
         const { organizationUuid, projectUuid, name, minimalUrl, pageType } = {
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
             name: dashboard.name,
             minimalUrl: new URL(
-                `/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}${queryFilters}`,
+                `/minimal/projects/${
+                    dashboard.projectUuid
+                }/dashboards/${dashboardUuid}${queryFilters}${
+                    selectedTabsParams.toString()
+                        ? `${selectedTabsParams.toString()}`
+                        : ''
+                }`,
                 this.lightdashConfig.headlessBrowser.internalLightdashHost,
             ).href,
             pageType: LightdashPage.DASHBOARD,
@@ -418,6 +484,14 @@ export class UnfurlService extends BaseService {
             throw new ForbiddenError();
         }
 
+        this.logger.info(
+            `Exporting dashboard ${name} with minimalUrl ${minimalUrl}${
+                selectedTabs
+                    ? ` and selected tabs: ${selectedTabs.join(', ')}`
+                    : ''
+            }`,
+        );
+
         const unfurlImage = await this.unfurlImage({
             url: minimalUrl,
             lightdashPage: pageType,
@@ -425,6 +499,7 @@ export class UnfurlService extends BaseService {
             authUserUuid: user.userUuid,
             gridWidth,
             context: ScreenshotContext.EXPORT_DASHBOARD,
+            selectedTabs,
         });
         if (unfurlImage.imageUrl === undefined) {
             throw new Error('Unable to unfurl image');
@@ -449,6 +524,7 @@ export class UnfurlService extends BaseService {
         retries = SCREENSHOT_RETRIES,
         context,
         contextId,
+        selectedTabs,
     }: {
         imageId: string;
         cookie: string;
@@ -466,7 +542,32 @@ export class UnfurlService extends BaseService {
         retries?: number;
         context: ScreenshotContext;
         contextId?: unknown;
+        selectedTabs?: string[];
     }): Promise<Buffer | undefined> {
+        console.log('params', {
+            imageId,
+            cookie,
+            url,
+            lightdashPage,
+            chartType,
+            organizationUuid,
+            authUserUuid,
+            gridWidth,
+            resourceUuid,
+            resourceName,
+            selector,
+            chartTileUuids,
+            sqlChartTileUuids,
+            retries,
+            context,
+            contextId,
+            selectedTabs,
+        });
+        this.logger.info(
+            `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
+                sqlChartTileUuids,
+            )}`,
+        );
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
             this.logger.error(
                 `Can't get screenshot if HEADLESS_BROWSER_HOST env variable is not defined`,
@@ -653,11 +754,29 @@ export class UnfurlService extends BaseService {
                                 | Promise<unknown>
                                 | undefined;
                             if (chartTileUuids) {
+                                this.logger.info(
+                                    `Dashboard screenshot: Found ${
+                                        chartTileUuids.length
+                                    } chart tiles, with values: ${JSON.stringify(
+                                        chartTileUuids,
+                                    )}`,
+                                );
+
+                                const nonNullChartTileUuids =
+                                    chartTileUuids.filter((id) => id !== null);
+                                this.logger.info(
+                                    `Dashboard screenshot: ${nonNullChartTileUuids.length} non-null chart tiles out of ${chartTileUuids.length} total tiles`,
+                                );
+
                                 const legacyExploreChartResultsPromises =
                                     chartTileUuids.map((id) => {
-                                        if (page) {
+                                        if (page && id) {
                                             const responsePattern = new RegExp(
                                                 `${id}/chart-and-results`,
+                                            );
+
+                                            this.logger.debug(
+                                                `Dashboard screenshot: Waiting for response pattern ${responsePattern} for chart ID ${id}`,
                                             );
 
                                             return page?.waitForResponse(
@@ -670,10 +789,23 @@ export class UnfurlService extends BaseService {
                                         }
                                         return undefined;
                                     });
+
+                                const validPromisesCount =
+                                    legacyExploreChartResultsPromises.filter(
+                                        (p) => p !== undefined,
+                                    ).length;
+                                this.logger.info(
+                                    `Dashboard screenshot: Created ${validPromisesCount} legacy response promises out of ${legacyExploreChartResultsPromises.length} chart tiles`,
+                                );
+
                                 const expectedPaginatedResponses =
                                     chartTileUuids.length;
+                                this.logger.info(
+                                    `Dashboard screenshot: Expecting ${expectedPaginatedResponses} paginated responses`,
+                                );
+
                                 const paginatedQueryPromise =
-                                    UnfurlService.waitForAllPaginatedResultsResponse(
+                                    this.waitForAllPaginatedResultsResponse(
                                         page,
                                         expectedPaginatedResponses,
                                         expectedPaginatedResponses *
@@ -706,6 +838,14 @@ export class UnfurlService extends BaseService {
                                 sqlChartTileUuids?.filter(
                                     (id): id is string => !!id,
                                 );
+
+                            this.logger.info(
+                                `Dashboard screenshot: SQL chart tiles - original count: ${
+                                    sqlChartTileUuids?.length || 0
+                                }, filtered count: ${
+                                    filteredSqlChartTileUuids?.length || 0
+                                }`,
+                            );
 
                             const hasSqlCharts =
                                 filteredSqlChartTileUuids &&
@@ -772,9 +912,7 @@ export class UnfurlService extends BaseService {
                                 },
                             ); // NOTE: No await here
                             const paginatedQueryPromise =
-                                UnfurlService.waitForPaginatedResultsResponse(
-                                    page,
-                                ); // NOTE: No await here
+                                this.waitForPaginatedResultsResponse(page); // NOTE: No await here
 
                             chartResultsPromises = [
                                 Promise.race([
@@ -791,9 +929,7 @@ export class UnfurlService extends BaseService {
                                 },
                             ); // NOTE: No await here
                             const paginatedQueryPromise =
-                                UnfurlService.waitForPaginatedResultsResponse(
-                                    page,
-                                ); // NOTE: No await here
+                                this.waitForPaginatedResultsResponse(page); // NOTE: No await here
 
                             chartResultsPromises = [
                                 Promise.race([
@@ -940,6 +1076,7 @@ export class UnfurlService extends BaseService {
                             retries,
                             context,
                             contextId,
+                            selectedTabs,
                         });
                     }
 

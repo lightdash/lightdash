@@ -29,8 +29,13 @@ const SimpleTable: FC<SimpleTableProps> = ({
     minimal = false,
     ...rest
 }) => {
-    const { isLoading, columnOrder, itemsMap, visualizationConfig } =
-        useVisualizationContext();
+    const {
+        isLoading,
+        columnOrder,
+        itemsMap,
+        visualizationConfig,
+        resultsData,
+    } = useVisualizationContext();
 
     if (!isTableVisualizationConfig(visualizationConfig)) return null;
 
@@ -113,9 +118,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 className={className}
                 status="success"
                 data={rows}
-                totalRowsCount={rows.length || 0}
-                isFetchingRows={false}
-                fetchMoreRows={() => undefined}
+                totalRowsCount={resultsData?.totalResults || 0}
+                isFetchingRows={!!resultsData?.isFetchingRows}
+                fetchMoreRows={resultsData?.fetchMoreRows || (() => undefined)}
                 columns={columns}
                 columnOrder={columnOrder}
                 hideRowNumbers={hideRowNumbers}

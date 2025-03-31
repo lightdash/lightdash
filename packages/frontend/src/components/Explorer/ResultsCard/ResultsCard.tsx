@@ -34,8 +34,8 @@ const ResultsCard: FC = memo(() => {
         (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
 
-    const rows = useExplorerContext(
-        (context) => context.queryResults.fetchedRows,
+    const totalResults = useExplorerContext(
+        (context) => context.queryResults.totalResults,
     );
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,
@@ -48,7 +48,7 @@ const ResultsCard: FC = memo(() => {
         (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
     );
 
-    const disabled = rows.length <= 0;
+    const disabled = useMemo(() => (totalResults ?? 0) <= 0, [totalResults]);
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
@@ -139,7 +139,7 @@ const ResultsCard: FC = memo(() => {
                                 <Popover.Dropdown>
                                     <ExportSelector
                                         projectUuid={projectUuid}
-                                        rows={rows}
+                                        totalResults={totalResults}
                                         getCsvLink={getCsvLink}
                                         getGsheetLink={getGsheetLink}
                                     />

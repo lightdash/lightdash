@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     ChartType,
-    FilterOperator,
     convertFieldRefToFieldId,
+    FilterOperator,
     getDimensions,
     getFields,
     getFiltersFromGroup,
@@ -11,10 +11,9 @@ import {
     isField,
     isMetric,
     type CreateSavedChartVersion,
-    type Field,
     type FilterRule,
+    type Filters,
     type Metric,
-    type MetricQuery,
 } from '@lightdash/common';
 import { Box, Button, Group, Modal, Title } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
@@ -37,17 +36,6 @@ import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
 interface Props {}
-
-const defaultMetricQuery: MetricQuery = {
-    exploreName: '',
-    dimensions: [],
-    metrics: [],
-    filters: {},
-    sorts: [],
-    limit: 500,
-    tableCalculations: [],
-    additionalMetrics: [],
-};
 
 const UnderlyingDataModalContent: FC<Props> = () => {
     const modalContentElementSize = useElementSize();
@@ -120,31 +108,12 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         [showUnderlyingValues, allDimensions],
     );
 
-    const underlyingDataMetricQuery = useMemo<MetricQuery>(() => {
-        if (!underlyingDataConfig) return defaultMetricQuery;
-        const { item, fieldValues, pivotReference, dimensions, value } =
+    const filters = useMemo<Filters>(() => {
+        if (!underlyingDataConfig) return {};
+        const { item, fieldValues, pivotReference, value } =
             underlyingDataConfig;
 
-        if (item === undefined) return defaultMetricQuery;
-
-        // We include tables from all fields that appear on the SQL query (aka tables from all columns in results)
-        const rowFieldIds = pivotReference?.pivotValues
-            ? [
-                  ...pivotReference.pivotValues.map(({ field }) => field),
-                  ...Object.keys(fieldValues),
-              ]
-            : Object.keys(fieldValues);
-
-        // On charts, we might want to include the dimensions from SQLquery and not from rowdata, so we include those instead
-        const dimensionFieldIds = dimensions ? dimensions : rowFieldIds;
-        const fieldsInQuery = allFields.filter((field) =>
-            dimensionFieldIds.includes(getItemId(field)),
-        );
-        const availableTables = new Set([
-            ...joinedTables,
-            ...fieldsInQuery.map((field) => field.table),
-            tableName,
-        ]);
+        if (item === undefined) return {};
 
         // If we are viewing data from a metric or a table calculation, we filter using all existing dimensions in the table
         const dimensionFilters = !isDimension(item)
@@ -225,73 +194,28 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             ...metricFilters,
         ];
 
-        const allFilters = getFiltersFromGroup(
+        return getFiltersFromGroup(
             {
                 id: uuidv4(),
                 and: combinedFilters,
             },
             allFields,
         );
+    }, [underlyingDataConfig, metricQuery, allFields, allDimensions]);
 
-        const showUnderlyingTable: string | undefined = isField(item)
-            ? item.table
-            : undefined;
-        const availableDimensions = allDimensions.filter(
-            (dimension) =>
-                availableTables.has(dimension.table) &&
-                !dimension.timeInterval &&
-                !dimension.hidden &&
-                (showUnderlyingValues !== undefined
-                    ? (showUnderlyingValues.includes(dimension.name) &&
-                          showUnderlyingTable === dimension.table) ||
-                      showUnderlyingValues.includes(
-                          `${dimension.table}.${dimension.name}`,
-                      )
-                    : true),
-        );
-        const dimensionFields = availableDimensions.map(getItemId);
-        return {
-            ...defaultMetricQuery,
-            dimensions: dimensionFields,
-            filters: allFilters,
-        };
-    }, [
-        underlyingDataConfig,
-        metricQuery,
-        tableName,
-        allFields,
-        allDimensions,
-        joinedTables,
-        showUnderlyingValues,
-    ]);
-
-    const fieldsMap: Record<string, Field> = useMemo(() => {
-        const selectedDimensions = underlyingDataMetricQuery.dimensions;
-        const dimensions = explore ? getDimensions(explore) : [];
-        return dimensions.reduce((acc, dimension) => {
-            const fieldId = isField(dimension) ? getItemId(dimension) : '';
-            if (selectedDimensions.includes(fieldId))
-                return {
-                    ...acc,
-                    [fieldId]: dimension,
-                };
-            else return acc;
-        }, {});
-    }, [explore, underlyingDataMetricQuery]);
+    const {
+        error,
+        data: resultsData,
+        isInitialLoading,
+    } = useUnderlyingDataResults(filters, queryUuid, underlyingDataItemId);
 
     const exploreFromHereUrl = useMemo(() => {
-        const showDimensions =
-            showUnderlyingValues !== undefined
-                ? underlyingDataMetricQuery.dimensions
-                : [];
-
+        if (!resultsData) {
+            return undefined;
+        }
         const createSavedChartVersion: CreateSavedChartVersion = {
-            tableName,
-            metricQuery: {
-                ...underlyingDataMetricQuery,
-                dimensions: showDimensions,
-                metrics: [],
-            },
+            tableName: resultsData.metricQuery.exploreName,
+            metricQuery: resultsData.metricQuery,
             pivotConfig: undefined,
             tableConfig: {
                 columnOrder: [],
@@ -306,30 +230,14 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             createSavedChartVersion,
         );
         return `${pathname}?${search}`;
-    }, [
-        tableName,
-        underlyingDataMetricQuery,
-        projectUuid,
-        showUnderlyingValues,
-    ]);
-
-    const {
-        error,
-        data: resultsData,
-        isInitialLoading,
-    } = useUnderlyingDataResults(
-        tableName,
-        underlyingDataMetricQuery,
-        queryUuid,
-        underlyingDataItemId,
-    );
+    }, [resultsData, projectUuid]);
 
     const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
-        if (projectUuid) {
+        if (projectUuid && resultsData) {
             return downloadCsv({
                 projectUuid,
                 tableId: tableName,
-                query: underlyingDataMetricQuery,
+                query: resultsData.metricQuery,
                 csvLimit: limit,
                 onlyRaw,
                 showTableNames: true,
@@ -372,6 +280,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                                     onClick={() =>
                                         setIsCSVExportModalOpen(true)
                                     }
+                                    disabled={!resultsData}
                                 >
                                     Export CSV
                                 </Button>
@@ -386,7 +295,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                                         }
                                         opened={isCSVExportModalOpen}
                                         projectUuid={projectUuid}
-                                        rows={resultsData?.rows}
+                                        totalResults={resultsData?.rows.length}
                                     />
                                 )}
                             </Can>
@@ -399,8 +308,9 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                                 })}
                             >
                                 <LinkButton
-                                    href={exploreFromHereUrl}
+                                    href={exploreFromHereUrl || ''}
                                     forceRefresh
+                                    disabled={!exploreFromHereUrl}
                                 >
                                     Explore from here
                                 </LinkButton>
@@ -424,7 +334,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                     <UnderlyingDataResultsTable
                         isLoading={isInitialLoading}
                         resultsData={resultsData}
-                        fieldsMap={fieldsMap}
+                        fieldsMap={resultsData?.fields || {}}
                         hasJoins={joinedTables.length > 0}
                         sortByUnderlyingValues={sortByUnderlyingValues}
                     />
