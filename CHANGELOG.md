@@ -1,3 +1,10 @@
+## [0.1558.1](https://github.com/lightdash/lightdash/compare/0.1558.0...0.1558.1) (2025-03-31)
+
+
+### Bug Fixes
+
+* enable useDashboardChart regardless of feature flag value, the check is done internally ([#14224](https://github.com/lightdash/lightdash/issues/14224)) ([1fb852f](https://github.com/lightdash/lightdash/commit/1fb852f20b7decf5b961a13fb373a5c6ca359d6b))
+
 # [0.1558.0](https://github.com/lightdash/lightdash/compare/0.1557.1...0.1558.0) (2025-03-31)
 
 
