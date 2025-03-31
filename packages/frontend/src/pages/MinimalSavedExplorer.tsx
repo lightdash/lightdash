@@ -1,5 +1,5 @@
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
-import { type FC } from 'react';
+import { type FC, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
@@ -20,17 +20,38 @@ const themeOverride: MantineThemeOverride = {
 };
 const MinimalExplorer: FC = () => {
     const { health } = useApp();
-
-    const queryResults = useExplorerContext(
-        (context) => context.queryResults.data,
+    const setFetchAll = useExplorerContext(
+        (context) => context.queryResults.setFetchAll,
     );
+    const queryResults = useExplorerContext((context) => context.queryResults);
+    const resultsData = useMemo(
+        () =>
+            queryResults.hasFetchedAllRows
+                ? {
+                      metricQuery: queryResults.metricQuery,
+                      cacheMetadata: {
+                          cacheHit: false,
+                      },
+                      rows: queryResults.rows,
+                      fields: queryResults.fields,
+                  }
+                : undefined,
+        [queryResults],
+    );
+
+    useEffect(() => {
+        // TODO: next PR should support pagination for table viz
+        // Forcing to fetch all rows for now
+        setFetchAll(true);
+    }, [setFetchAll]);
 
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
 
     const isLoadingQueryResults = useExplorerContext(
-        (context) => context.queryResults.isFetching,
+        (context) =>
+            context.query.isFetching || context.queryResults.isFetchingRows,
     );
 
     if (!savedChart || health.isInitialLoading || !health.data) {
@@ -42,7 +63,7 @@ const MinimalExplorer: FC = () => {
             minimal
             chartConfig={savedChart.chartConfig}
             initialPivotDimensions={savedChart.pivotConfig?.columns}
-            resultsData={queryResults}
+            resultsData={resultsData}
             isLoading={isLoadingQueryResults}
             columnOrder={savedChart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}

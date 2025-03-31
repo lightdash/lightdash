@@ -32,7 +32,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const { projectUuid } = useParams<{ projectUuid: string }>();
 
         const queryUuid = useExplorerContext(
-            (context) => context.queryResults?.data?.queryUuid,
+            (context) => context.query?.data?.queryUuid,
         );
 
         const { data: projects } = useProjects({ refetchOnMount: false });

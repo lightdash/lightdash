@@ -35,7 +35,7 @@ type Subject =
     | 'Explore'
     | 'UnderlyingData'
     | 'ExportCsv'
-    | 'CsvJobResult'
+    | 'JobStatus'
     | 'PinnedItems'
     | 'Validation'
     | 'Group'

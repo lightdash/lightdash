@@ -379,6 +379,61 @@ describe('Project member permissions', () => {
                     ),
                 ).toEqual(false);
             });
+
+            describe('JobStatus', () => {
+                it('can view his own job status', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                createdByUserUuid: PROJECT_ADMIN.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+                it('can view job status from another user', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                projectUuid,
+                                createdByUserUuid: 'another-admin-user-4567',
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+                it('can view job status from the project', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                projectUuid,
+                                createdByUserUuid: undefined,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+                it('cannot view job status from another project', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot view job status with undefined details', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                projectUuid: undefined,
+                                organizationUuid: undefined,
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
 
         describe('when user is an editor', () => {
@@ -761,6 +816,40 @@ describe('Project member permissions', () => {
                     ),
                 ).toEqual(true);
             });
+
+            describe('JobStatus', () => {
+                it('can view his own job status', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                projectUuid,
+                                createdByUserUuid: PROJECT_VIEWER.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot view job status from the project', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                projectUuid,
+                                createdByUserUuid: undefined,
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+                it('cannot view job status from another project', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
 
         describe('when user is an developer', () => {
@@ -784,6 +873,49 @@ describe('Project member permissions', () => {
                         subject('SemanticViewer', { projectUuid }),
                     ),
                 ).toEqual(true);
+            });
+            describe('JobStatus', () => {
+                it('can view his own job status', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                projectUuid,
+                                createdByUserUuid: PROJECT_DEVELOPER.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can view job status from another user', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                projectUuid,
+                                createdByUserUuid: 'admin-user-uuid-4567',
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+                it('can view job status from the project', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                projectUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+                it('cannot view job status from another project', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
             });
         });
         describe('when user is a viewer', () => {
@@ -1180,6 +1312,39 @@ describe('Project member permissions', () => {
                         subject('UnderlyingData', { projectUuid }),
                     ),
                 ).toEqual(false);
+            });
+
+            describe('JobStatus', () => {
+                it('can view his own job status', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                createdByUserUuid: PROJECT_VIEWER.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot view job status from the project', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                projectUuid,
+                                createdByUserUuid: undefined,
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+                it('cannot view job status from another project', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
             });
         });
 

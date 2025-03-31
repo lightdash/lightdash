@@ -31,7 +31,7 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('view', 'OrganizationMemberProfile', {
             organizationUuid: member.organizationUuid,
         });
-        can('view', 'CsvJobResult', {
+        can('view', 'JobStatus', {
             createdByUserUuid: member.userUuid,
         });
         can('view', 'PinnedItems', {
@@ -252,6 +252,9 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'ContentAsCode', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'JobStatus', {
             organizationUuid: member.organizationUuid,
         });
     },

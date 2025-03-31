@@ -147,15 +147,42 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
 
         let authenticationOptions: Partial<ConnectionOptions> = {};
-        if (credentials.password) {
+
+        // if authenticationType is undefined, we assume it is a password authentication, for backwards compatibility
+        if (
+            credentials.privateKey &&
+            credentials.authenticationType === 'private_key'
+        ) {
+            if (!credentials.privateKeyPass) {
+                authenticationOptions = {
+                    privateKey: credentials.privateKey,
+                    authenticator: 'SNOWFLAKE_JWT',
+                };
+            } else {
+                /**
+                 * @ref https://docs.snowflake.com/en/developer-guide/node-js/nodejs-driver-authenticate#use-key-pair-authentication-and-key-pair-rotation
+                 */
+                const privateKeyObject = crypto.createPrivateKey({
+                    key: credentials.privateKey,
+                    format: 'pem',
+                    passphrase: credentials.privateKeyPass,
+                });
+
+                // Extract the private key from the object as a PEM-encoded string.
+                const privateKey = privateKeyObject.export({
+                    format: 'pem',
+                    type: 'pkcs8',
+                });
+
+                authenticationOptions = {
+                    privateKey: privateKey.toString(),
+                    authenticator: 'SNOWFLAKE_JWT',
+                };
+            }
+        } else if (credentials.password) {
             authenticationOptions = {
                 password: credentials.password,
                 authenticator: 'SNOWFLAKE',
-            };
-        } else if (credentials.privateKey) {
-            authenticationOptions = {
-                privateKey: credentials.privateKey,
-                authenticator: 'SNOWFLAKE_JWT',
             };
         }
 

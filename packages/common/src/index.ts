@@ -476,16 +476,18 @@ export type ApiExecuteAsyncQueryResults = {
     appliedDashboardFilters: DashboardFilters | null;
 };
 
+export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
+    queryUuid: string;
+    rows: ResultRow[];
+    fields: ItemsMap;
+    initialQueryExecutionMs: number;
+    resultsPageExecutionMs: number;
+    metricQuery: MetricQuery;
+    status: QueryHistoryStatus.READY;
+};
+
 export type ApiGetAsyncQueryResults =
-    | (ResultsPaginationMetadata<ResultRow> & {
-          queryUuid: string;
-          rows: ResultRow[];
-          fields: ItemsMap;
-          initialQueryExecutionMs: number;
-          resultsPageExecutionMs: number;
-          metricQuery: MetricQuery;
-          status: QueryHistoryStatus.READY;
-      })
+    | ReadyQueryResultsPage
     | {
           status: QueryHistoryStatus.PENDING | QueryHistoryStatus.CANCELLED;
           queryUuid: string;

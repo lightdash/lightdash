@@ -31,7 +31,7 @@ export const renderProfilesYml = (
     // Fix multiline privatekey strings
     // Prevents error: Error: error:1E08010C:DECODER routines::unsupported
     const privateKeyRegex =
-        /-----BEGIN PRIVATE KEY-----[\s\S]*?-----END PRIVATE KEY-----/g;
+        /(-----BEGIN(?:\s+ENCRYPTED)?\s+PRIVATE KEY-----[\s\S]*?-----END(?:\s+ENCRYPTED)?\s+PRIVATE KEY-----)/g;
     return rendered.replace(privateKeyRegex, (match) =>
         match.replace(/\n/g, '\\n'),
     );

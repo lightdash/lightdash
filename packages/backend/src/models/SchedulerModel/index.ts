@@ -454,7 +454,12 @@ export class SchedulerModel {
                 logDb.target_type === null
                     ? undefined
                     : (logDb.target_type as SchedulerLog['targetType']),
-            details: logDb.details === null ? undefined : logDb.details,
+            details: {
+                projectUuid: 'missing-project-uuid',
+                organizationUuid: 'missing-organization-uuid',
+                createdByUserUuid: 'missing-created-by-user-uuid',
+                ...(logDb.details || {}),
+            },
         };
     }
 

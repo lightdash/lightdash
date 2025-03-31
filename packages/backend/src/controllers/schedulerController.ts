@@ -204,7 +204,7 @@ export class SchedulerController extends BaseController {
         this.setStatus(200);
         const { status, details } = await this.services
             .getSchedulerService()
-            .getJobStatus(jobId);
+            .getJobStatus(req.user!, jobId);
         return {
             status: 'ok',
             results: {
