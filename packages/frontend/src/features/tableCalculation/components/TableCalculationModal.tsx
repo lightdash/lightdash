@@ -1,27 +1,35 @@
 import {
     CustomFormatType,
-    NumberSeparator,
-    TableCalculationType,
     getErrorMessage,
     getItemId,
+    NumberSeparator,
+    TableCalculationType,
     type CustomFormat,
     type TableCalculation,
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     Button,
+    getDefaultZIndex,
     Group,
     Modal,
+    Paper,
     Select,
     Stack,
     Tabs,
+    Text,
     TextInput,
     Tooltip,
     useMantineTheme,
     type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconMaximize, IconMinimize } from '@tabler/icons-react';
+import {
+    IconCalculator,
+    IconMaximize,
+    IconMinimize,
+} from '@tabler/icons-react';
 import { useRef, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
@@ -51,7 +59,8 @@ const TableCalculationModal: FC<Props> = ({
     onClose,
 }) => {
     const theme = useMantineTheme();
-    const [isFullscreen, toggleFullscreen] = useToggle(false);
+    const { colors } = theme;
+    const [isExpanded, toggleExpanded] = useToggle(false);
     const submitButtonRef = useRef<HTMLButtonElement>(null);
 
     const { addToastError } = useToaster();
@@ -158,141 +167,197 @@ const TableCalculationModal: FC<Props> = ({
     };
 
     return (
-        <Modal
+        <Modal.Root
             opened={opened}
-            onClose={() => onClose()}
+            onClose={onClose}
             size="xl"
-            title={
-                tableCalculation
-                    ? 'Edit table calculation'
-                    : 'Add table calculation'
-            }
+            centered
             styles={{
-                title: {
-                    fontSize: theme.fontSizes.md,
-                    fontWeight: 700,
-                },
-                body: {
-                    paddingBottom: 0,
-                },
                 content: {
-                    maxHeight: '70vh !important',
+                    minWidth: isExpanded ? '90vw' : 'auto',
+                    height: isExpanded ? '80vh' : 'auto',
                 },
             }}
-            fullScreen={isFullscreen}
         >
-            <form name="table_calculation" onSubmit={handleSubmit}>
-                <Stack>
-                    <TextInput
-                        mb="sm"
-                        label="Name"
-                        required
-                        placeholder="E.g. Cumulative order count"
-                        data-testid="table-calculation-name-input"
-                        {...form.getInputProps('name')}
-                    />
+            <Modal.Overlay />
+            <Modal.Content
+                sx={{
+                    margin: '0 auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    maxHeight: isExpanded ? '90vh' : '60vh',
+                }}
+            >
+                <Modal.Header
+                    sx={(themeProps) => ({
+                        borderBottom: `1px solid ${themeProps.colors.gray[2]}`,
+                        padding: themeProps.spacing.sm,
+                    })}
+                >
+                    <Group spacing="xs">
+                        <Paper p="xs" withBorder radius="sm">
+                            <MantineIcon icon={IconCalculator} size="sm" />
+                        </Paper>
+                        <Text color="dark.7" fw={700} fz="md">
+                            {tableCalculation ? 'Edit' : 'Create'} Table
+                            Calculation
+                            {tableCalculation ? (
+                                <Text span fw={400}>
+                                    {' '}
+                                    - {tableCalculation.displayName}
+                                </Text>
+                            ) : null}
+                        </Text>
+                    </Group>
+                    <Modal.CloseButton />
+                </Modal.Header>
 
-                    <Tabs
-                        defaultValue="sqlEditor"
-                        color="indigo"
-                        variant="outline"
-                        radius="xs"
-                        styles={{
-                            panel: {
-                                borderColor: theme.colors.gray[2],
-                                borderWidth: 1,
-                                borderStyle: 'solid',
-                                borderTop: 'none',
-                                height: isFullscreen
-                                    ? 'calc(100vh - 260px)'
-                                    : '100%',
-                            },
+                <form
+                    name="table_calculation"
+                    onSubmit={handleSubmit}
+                    style={{ display: 'contents' }}
+                >
+                    <Modal.Body
+                        p={0}
+                        sx={{
+                            flex: 1,
                         }}
                     >
-                        <Tabs.List>
-                            <Tabs.Tab value="sqlEditor">SQL</Tabs.Tab>
-                            <Tabs.Tab value="format">Format</Tabs.Tab>
-                        </Tabs.List>
-                        <Tabs.Panel value="sqlEditor">
-                            <SqlForm
-                                form={form}
-                                isFullScreen={isFullscreen}
-                                focusOnRender={true}
-                                onCmdEnter={() => {
-                                    if (submitButtonRef.current) {
-                                        submitButtonRef.current.click();
-                                    }
-                                }}
+                        <Stack p="sm" spacing="xs">
+                            <TextInput
+                                label="Name"
+                                required
+                                placeholder="E.g. Cumulative order count"
+                                data-testid="table-calculation-name-input"
+                                {...form.getInputProps('name')}
                             />
-                        </Tabs.Panel>
-                        <Tabs.Panel value="format" p="sm">
-                            <FormatForm
-                                formatInputProps={getFormatInputProps}
-                                setFormatFieldValue={setFormatFieldValue}
-                                format={form.values.format}
-                            />
-                        </Tabs.Panel>
-                    </Tabs>
-                    <Tooltip
-                        position="bottom"
-                        withArrow
-                        multiline
-                        maw={400}
-                        withinPortal
-                        label={
-                            'Manually select the type of the result of this SQL table calculation, this will help us to treat this field correctly in filters or results.'
-                        }
-                    >
-                        <Select
-                            label={'Result type'}
-                            id="download-type"
-                            {...form.getInputProps('type')}
-                            onChange={(value) => {
-                                const tcType = Object.values(
-                                    TableCalculationType,
-                                ).find((type) => type === value);
-                                if (tcType) form.setFieldValue(`type`, tcType);
-                            }}
-                            data={Object.values(TableCalculationType)}
-                        ></Select>
-                    </Tooltip>
-                    <Group
-                        position="apart"
-                        pos="sticky"
-                        bottom={0}
-                        bg="white"
-                        style={{ zIndex: 1 }}
-                        mt="sm"
-                        p={theme.spacing.md}
-                        align="flex-end"
-                    >
-                        <ActionIcon
-                            variant="outline"
-                            onClick={toggleFullscreen}
-                        >
-                            <MantineIcon
-                                icon={
-                                    isFullscreen ? IconMinimize : IconMaximize
-                                }
-                            />
-                        </ActionIcon>
 
-                        <Group>
-                            <Button variant="outline" onClick={onClose}>
-                                Cancel
-                            </Button>
-                            <Button
-                                type="submit"
-                                ref={submitButtonRef}
-                                data-testid="table-calculation-save-button"
+                            <Tabs
+                                defaultValue="sqlEditor"
+                                color="indigo"
+                                variant="outline"
+                                radius="xs"
+                                styles={{
+                                    panel: {
+                                        borderColor: colors.gray[2],
+                                        borderWidth: 1,
+                                        borderStyle: 'solid',
+                                        borderTop: 'none',
+                                        height: isExpanded
+                                            ? 'calc(90vh - 400px)'
+                                            : 'auto',
+                                    },
+                                }}
                             >
-                                Save
-                            </Button>
+                                <Tabs.List>
+                                    <Tabs.Tab value="sqlEditor">SQL</Tabs.Tab>
+                                    <Tabs.Tab value="format">Format</Tabs.Tab>
+                                </Tabs.List>
+                                <Tabs.Panel value="sqlEditor">
+                                    <SqlForm
+                                        form={form}
+                                        isFullScreen={isExpanded}
+                                        focusOnRender={true}
+                                        onCmdEnter={() => {
+                                            if (submitButtonRef.current) {
+                                                submitButtonRef.current.click();
+                                            }
+                                        }}
+                                    />
+                                </Tabs.Panel>
+                                <Tabs.Panel value="format" p="sm">
+                                    <FormatForm
+                                        formatInputProps={getFormatInputProps}
+                                        setFormatFieldValue={
+                                            setFormatFieldValue
+                                        }
+                                        format={form.values.format}
+                                    />
+                                </Tabs.Panel>
+                            </Tabs>
+
+                            <Tooltip
+                                position="right"
+                                withArrow
+                                multiline
+                                maw={400}
+                                variant="xs"
+                                withinPortal
+                                label={
+                                    'Manually select the type of the result of this SQL table calculation, this will help us to treat this field correctly in filters or results.'
+                                }
+                            >
+                                <Select
+                                    label={'Result type'}
+                                    id="download-type"
+                                    sx={{
+                                        alignSelf: 'flex-start',
+                                    }}
+                                    {...form.getInputProps('type')}
+                                    onChange={(value) => {
+                                        const tcType = Object.values(
+                                            TableCalculationType,
+                                        ).find((type) => type === value);
+                                        if (tcType)
+                                            form.setFieldValue(`type`, tcType);
+                                    }}
+                                    data={Object.values(TableCalculationType)}
+                                />
+                            </Tooltip>
+                        </Stack>
+                    </Modal.Body>
+
+                    <Box
+                        sx={(themeProps) => ({
+                            borderTop: `1px solid ${themeProps.colors.gray[2]}`,
+                            padding: themeProps.spacing.sm,
+                            backgroundColor: themeProps.white,
+                            position: 'sticky',
+                            bottom: 0,
+                            width: '100%',
+                            zIndex: getDefaultZIndex('modal'),
+                        })}
+                    >
+                        <Group position="apart">
+                            <Tooltip label="Expand/Collapse" variant="xs">
+                                <ActionIcon
+                                    variant="outline"
+                                    onClick={toggleExpanded}
+                                >
+                                    <MantineIcon
+                                        icon={
+                                            isExpanded
+                                                ? IconMinimize
+                                                : IconMaximize
+                                        }
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+
+                            <Group spacing="xs">
+                                <Button
+                                    variant="default"
+                                    h={32}
+                                    onClick={onClose}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    h={32}
+                                    type="submit"
+                                    ref={submitButtonRef}
+                                    data-testid="table-calculation-save-button"
+                                >
+                                    {tableCalculation
+                                        ? 'Save changes'
+                                        : 'Create'}
+                                </Button>
+                            </Group>
                         </Group>
-                    </Group>
-                </Stack>
-            </form>
-        </Modal>
+                    </Box>
+                </form>
+            </Modal.Content>
+        </Modal.Root>
     );
 };
 

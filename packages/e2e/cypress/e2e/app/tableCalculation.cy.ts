@@ -71,7 +71,7 @@ describe('Table calculations', () => {
         );
         cy.get(`.mantine-Select-input[value='number']`).click();
         cy.contains('string').click();
-        cy.get('form').contains('Save').click({ force: true });
+        cy.get('form').contains('Create').click({ force: true });
         // Check valid results
         cy.contains('rank_1');
         cy.contains('rank_2');
@@ -113,7 +113,7 @@ describe('Table calculations', () => {
             { parseSpecialCharSequences: false },
         );
         // Defaults to number
-        cy.get('form').contains('Save').click({ force: true });
+        cy.get('form').contains('Create').click({ force: true });
         // Check valid results
         cy.contains('100');
         cy.contains('200');

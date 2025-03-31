@@ -8,6 +8,7 @@ import {
     DbtProjectType,
     LightdashInstallType,
     LightdashMode,
+    LightdashPage,
     LightdashRequestMethodHeader,
     LightdashUser,
     OpenIdIdentityIssuerType,
@@ -1232,6 +1233,18 @@ export type DeprecatedRouteCalled = BaseTrack & {
         projectId: string;
         route: string;
         context: string;
+    };
+};
+
+export type SupportShareEvent = BaseTrack & {
+    event: 'support.share';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | undefined;
+        page: LightdashPage | undefined;
+        withScreenshot: boolean;
+        canImpersonate: boolean;
     };
 };
 

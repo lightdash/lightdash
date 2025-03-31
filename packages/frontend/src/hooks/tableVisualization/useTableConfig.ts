@@ -10,7 +10,6 @@ import {
     isSummable,
     isTableCalculation,
     itemsInMetricQuery,
-    type ApiQueryResults,
     type ColumnProperties,
     type ConditionalFormattingConfig,
     type ConditionalFormattingMinMaxMap,
@@ -29,6 +28,7 @@ import {
 } from '../../components/common/Table/types';
 import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useCalculateTotal } from '../useCalculateTotal';
+import { type InfiniteQueryResults } from '../useQueryResults';
 import getDataAndColumns from './getDataAndColumns';
 
 const createWorker = createWorkerFactory(
@@ -37,7 +37,7 @@ const createWorker = createWorkerFactory(
 
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,
-    resultsData: ApiQueryResults | undefined,
+    resultsData: InfiniteQueryResults | undefined,
     itemsMap: ItemsMap | undefined,
     columnOrder: string[],
     pivotDimensions: string[] | undefined,
@@ -211,7 +211,7 @@ const useTableConfig = (
               }
             : {
                   metricQuery: resultsData?.metricQuery,
-                  explore: resultsData?.metricQuery.exploreName,
+                  explore: resultsData?.metricQuery?.exploreName,
                   fieldIds: selectedItemIds,
                   itemsMap,
                   showColumnCalculation:
@@ -221,7 +221,7 @@ const useTableConfig = (
 
     const { data: groupedSubtotals } = useCalculateSubtotals({
         metricQuery: resultsData?.metricQuery,
-        explore: resultsData?.metricQuery.exploreName,
+        explore: resultsData?.metricQuery?.exploreName,
         showSubtotals,
         columnOrder,
         pivotDimensions,
@@ -286,7 +286,7 @@ const useTableConfig = (
         if (
             !pivotDimensions ||
             pivotDimensions.length === 0 ||
-            !resultsData ||
+            !resultsData?.metricQuery ||
             resultsData.rows.length === 0
         ) {
             setPivotTableData({
