@@ -8,7 +8,6 @@ import {
     type DateGranularity,
     DEFAULT_RESULTS_PAGE_SIZE,
     type ExecuteAsyncQueryRequestParams,
-    FeatureFlags,
     type MetricQuery,
     ParameterError,
     QueryExecutionContext,
@@ -22,7 +21,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
-import { useFeatureFlag } from './useFeatureFlagEnabled';
 import useQueryError from './useQueryError';
 
 export type QueryResultsProps = {
@@ -201,11 +199,9 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
         forceToastOnForbidden: true,
         forbiddenToastTitle: 'Error running query',
     });
-    const { data: queryPaginationEnabled } = useFeatureFlag(
-        FeatureFlags.QueryPagination,
-    );
+
     const result = useQuery<ReadyQueryResultsPage, ApiError>({
-        enabled: !!data && !!queryPaginationEnabled,
+        enabled: !!data,
         queryKey: ['create-query', data],
         queryFn: () => {
             if (data?.chartUuid && data?.chartVersionUuid) {
