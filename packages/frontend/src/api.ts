@@ -52,6 +52,7 @@ type LightdashApiProps = {
     version?: 'v1' | 'v2';
 };
 
+const MAX_NETWORK_HISTORY = 10;
 export let networkHistory: AnyType[] = [];
 
 export const lightdashApi = async <T extends ApiResponse['results']>({
@@ -109,8 +110,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
                 url,
                 body,
                 status: r.status,
-                json: JSON.stringify(js),
-                // do not care about response for now
+                json: JSON.stringify(js).substring(0, 500),
             });
             return js;
         })
@@ -133,10 +133,11 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
                 status: err.status,
                 url,
                 body,
-                error: JSON.stringify(err),
+                error: JSON.stringify(err).substring(0, 500),
             });
-            // only store last 50 requests
-            if (networkHistory.length > 50) networkHistory.shift();
+            // only store last MAX_NETWORK_HISTORY requests
+            if (networkHistory.length > MAX_NETWORK_HISTORY)
+                networkHistory.shift();
             throw handleError(err);
         });
 };

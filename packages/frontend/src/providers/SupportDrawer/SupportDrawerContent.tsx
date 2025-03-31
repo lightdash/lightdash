@@ -19,6 +19,7 @@ type SupportDrawerContentProps = {
     // Add props here
 };
 
+const MAX_LOG_LENGTH = 10;
 let logHistory: AnyType[] = [];
 
 /** This method will capture all the logs, and store it on memory
@@ -26,22 +27,20 @@ let logHistory: AnyType[] = [];
  * We only store the last 50 logs
  */
 (function () {
-    // const originalLog = console.log;
     const originalError = console.error;
     const originalWarn = console.warn;
     const originalInfo = console.info;
 
     function storeAndLog(type: AnyType, args: AnyType) {
-        const message = { type, args, timestamp: new Date().toISOString() };
+        const message = {
+            type,
+            args: JSON.stringify(args).substring(0, 500),
+            timestamp: new Date().toISOString(),
+        };
         logHistory.push(message);
-        if (logHistory.length > 50) logHistory.shift(); // keep last 50
+        if (logHistory.length > MAX_LOG_LENGTH) logHistory.shift(); // keep last 50
     }
-    /*
-  console.log = function(...args) {
-    storeAndLog('log', args);
-    originalLog.apply(console, args);
-  };
-*/
+
     console.error = function (...args) {
         storeAndLog('error', args);
         originalError.apply(console, args);
@@ -77,13 +76,13 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
     const handleShare = useCallback(async () => {
         const body = JSON.stringify({
             image: includeImage ? screenshot : undefined,
-            logs: JSON.stringify(logHistory),
-            network: JSON.stringify(networkHistory),
+            logs: JSON.stringify(logHistory).substring(0, 5000),
+            network: JSON.stringify(networkHistory).substring(0, 5000), //Limit to 5000 chars to avoid "Payload too large"
             canImpersonate: allowAccess,
-            description: moreDetails,
+            description: moreDetails.substring(0, 5000),
         });
         void lightdashApi<null>({
-            url: `/slack/share-support`,
+            url: `/support/share`,
             method: 'POST',
             body,
         }).then(() => {
@@ -133,6 +132,11 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
             <Text size="xs" color="dimmed">
                 By ticking this box, you agree to give Lightdash Support access
                 to your organization for 12 hours to investigate this issue.
+            </Text>
+
+            <Text size="xs" color="dimmed">
+                We will also share your Lightdash logs and your recent network
+                requests to help us investigate this issue.
             </Text>
             <Button
                 mt="xs"
