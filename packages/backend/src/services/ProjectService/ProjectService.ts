@@ -1910,7 +1910,6 @@ export class ProjectService extends BaseService {
         });
     }
 
-    // get results
     async getAsyncQueryResults({
         user,
         projectUuid,

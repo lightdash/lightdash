@@ -46,18 +46,39 @@ export class S3ResultsCacheStorageClient
         });
 
         const close = async () => {
-            await upload.done();
-            passThrough.end();
-            // await writer.close();
+            try {
+                passThrough.end();
+                await upload.done();
+                Logger.debug(
+                    `Successfully closed upload stream to s3://${this.configuration.bucket}/${cacheKey}.jsonl`,
+                );
+            } catch (error) {
+                Logger.error(
+                    `Error closing upload stream to s3://${
+                        this.configuration.bucket
+                    }/${cacheKey}.jsonl: ${getErrorMessage(error)}`,
+                );
+                throw error;
+            }
         };
 
         return {
             write: async (rows: WarehouseResults['rows']) => {
-                await Promise.all(
+                try {
                     rows.map((row) =>
                         passThrough.write(`${JSON.stringify(row)}\n`),
-                    ),
-                );
+                    );
+                    Logger.debug(
+                        `Successfully wrote ${rows.length} rows to cache key: ${cacheKey}`,
+                    );
+                } catch (error) {
+                    Logger.error(
+                        `Failed to write rows to cache key ${cacheKey}: ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                    throw error;
+                }
             },
             close,
         };
