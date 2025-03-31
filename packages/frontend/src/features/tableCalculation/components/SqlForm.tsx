@@ -131,12 +131,8 @@ export const SqlForm: FC<Props> = ({
                 color="violet"
                 styles={{
                     root: {
-                        paddingBottom: isFullScreen
-                            ? theme.spacing.xs
-                            : theme.spacing.sm,
-                        paddingTop: isFullScreen
-                            ? theme.spacing.xs
-                            : theme.spacing.sm,
+                        paddingBottom: theme.spacing.sm,
+                        paddingTop: theme.spacing.sm,
                     },
                     wrapper: {
                         alignItems: 'center',

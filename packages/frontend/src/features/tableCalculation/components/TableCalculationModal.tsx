@@ -60,7 +60,7 @@ const TableCalculationModal: FC<Props> = ({
 }) => {
     const theme = useMantineTheme();
     const { colors } = theme;
-    const [isFullscreen, toggleFullscreen] = useToggle(false);
+    const [isExpanded, toggleExpanded] = useToggle(false);
     const submitButtonRef = useRef<HTMLButtonElement>(null);
 
     const { addToastError } = useToaster();
@@ -174,8 +174,8 @@ const TableCalculationModal: FC<Props> = ({
             centered
             styles={{
                 content: {
-                    minWidth: isFullscreen ? '90vw' : 'auto',
-                    height: isFullscreen ? '80vh' : 'auto',
+                    minWidth: isExpanded ? '90vw' : 'auto',
+                    height: isExpanded ? '80vh' : 'auto',
                 },
             }}
         >
@@ -185,7 +185,7 @@ const TableCalculationModal: FC<Props> = ({
                     margin: '0 auto',
                     display: 'flex',
                     flexDirection: 'column',
-                    maxHeight: isFullscreen ? '90vh' : '60vh',
+                    maxHeight: isExpanded ? '90vh' : '60vh',
                 }}
             >
                 <Modal.Header
@@ -243,7 +243,7 @@ const TableCalculationModal: FC<Props> = ({
                                         borderWidth: 1,
                                         borderStyle: 'solid',
                                         borderTop: 'none',
-                                        height: isFullscreen
+                                        height: isExpanded
                                             ? 'calc(90vh - 400px)'
                                             : 'auto',
                                     },
@@ -256,7 +256,7 @@ const TableCalculationModal: FC<Props> = ({
                                 <Tabs.Panel value="sqlEditor">
                                     <SqlForm
                                         form={form}
-                                        isFullScreen={isFullscreen}
+                                        isFullScreen={isExpanded}
                                         focusOnRender={true}
                                         onCmdEnter={() => {
                                             if (submitButtonRef.current) {
@@ -277,10 +277,11 @@ const TableCalculationModal: FC<Props> = ({
                             </Tabs>
 
                             <Tooltip
-                                position="bottom"
+                                position="right"
                                 withArrow
                                 multiline
                                 maw={400}
+                                variant="xs"
                                 withinPortal
                                 label={
                                     'Manually select the type of the result of this SQL table calculation, this will help us to treat this field correctly in filters or results.'
@@ -289,6 +290,9 @@ const TableCalculationModal: FC<Props> = ({
                                 <Select
                                     label={'Result type'}
                                     id="download-type"
+                                    sx={{
+                                        alignSelf: 'flex-start',
+                                    }}
                                     {...form.getInputProps('type')}
                                     onChange={(value) => {
                                         const tcType = Object.values(
@@ -315,18 +319,20 @@ const TableCalculationModal: FC<Props> = ({
                         })}
                     >
                         <Group position="apart">
-                            <ActionIcon
-                                variant="outline"
-                                onClick={toggleFullscreen}
-                            >
-                                <MantineIcon
-                                    icon={
-                                        isFullscreen
-                                            ? IconMinimize
-                                            : IconMaximize
-                                    }
-                                />
-                            </ActionIcon>
+                            <Tooltip label="Expand/Collapse" variant="xs">
+                                <ActionIcon
+                                    variant="outline"
+                                    onClick={toggleExpanded}
+                                >
+                                    <MantineIcon
+                                        icon={
+                                            isExpanded
+                                                ? IconMinimize
+                                                : IconMaximize
+                                        }
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
 
                             <Group spacing="xs">
                                 <Button

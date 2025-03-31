@@ -20,6 +20,7 @@ import {
     Stack,
     Text,
     TextInput,
+    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -65,7 +66,7 @@ export const CustomSqlDimensionModal: FC<{
     const editCustomDimension = useExplorerContext(
         (context) => context.actions.editCustomDimension,
     );
-    const [isFullscreen, toggleFullscreen] = useToggle(false);
+    const [isExpanded, toggleExpanded] = useToggle(false);
     const submitButtonRef = useRef<HTMLButtonElement>(null);
 
     const form = useForm<FormValues>({
@@ -180,8 +181,8 @@ export const CustomSqlDimensionModal: FC<{
             centered
             styles={{
                 content: {
-                    minWidth: isFullscreen ? '90vw' : 'auto',
-                    height: isFullscreen ? '70vh' : 'auto',
+                    minWidth: isExpanded ? '90vw' : 'auto',
+                    height: isExpanded ? '70vh' : 'auto',
                 },
             }}
         >
@@ -229,7 +230,7 @@ export const CustomSqlDimensionModal: FC<{
                         sx={{
                             flex: 1,
                             overflow: 'auto',
-                            height: isFullscreen ? '100%' : 'auto',
+                            height: isExpanded ? '100%' : 'auto',
                         }}
                     >
                         <Stack p="sm" spacing="xs">
@@ -270,12 +271,12 @@ export const CustomSqlDimensionModal: FC<{
                                     theme="github"
                                     width="100%"
                                     maxLines={Infinity}
-                                    minLines={isFullscreen ? 25 : 8}
+                                    minLines={isExpanded ? 25 : 8}
                                     setOptions={{
                                         autoScrollEditorIntoView: true,
                                     }}
                                     onLoad={setAceEditor}
-                                    isFullScreen={isFullscreen}
+                                    isFullScreen={isExpanded}
                                     enableLiveAutocompletion
                                     enableBasicAutocompletion
                                     showPrintMargin={false}
@@ -299,18 +300,20 @@ export const CustomSqlDimensionModal: FC<{
                         })}
                     >
                         <Group position="apart">
-                            <ActionIcon
-                                variant="outline"
-                                onClick={toggleFullscreen}
-                            >
-                                <MantineIcon
-                                    icon={
-                                        isFullscreen
-                                            ? IconMinimize
-                                            : IconMaximize
-                                    }
-                                />
-                            </ActionIcon>
+                            <Tooltip label="Expand/Collapse" variant="xs">
+                                <ActionIcon
+                                    variant="outline"
+                                    onClick={toggleExpanded}
+                                >
+                                    <MantineIcon
+                                        icon={
+                                            isExpanded
+                                                ? IconMinimize
+                                                : IconMaximize
+                                        }
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
                             <Group spacing="xs">
                                 <Button
                                     variant="default"
