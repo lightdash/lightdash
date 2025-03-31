@@ -304,6 +304,18 @@ export class SupportService extends BaseService {
             }
         }
 
+        this.analytics.track({
+            event: 'support.share',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organization.organizationUuid,
+                projectId: project?.projectUuid,
+                page: parsedUrl?.lightdashPage,
+                withScreenshot: !!body.image,
+                canImpersonate: body.canImpersonate,
+            },
+        });
+
         const slackResponse = await fetch(
             this.lightdashConfig.slack?.supportUrl,
             {
