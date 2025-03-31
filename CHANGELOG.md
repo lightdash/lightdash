@@ -1,3 +1,10 @@
+# [0.1554.0](https://github.com/lightdash/lightdash/compare/0.1553.0...0.1554.0) (2025-03-31)
+
+
+### Features
+
+* ability to reset all Dashboard saved filters ([#14139](https://github.com/lightdash/lightdash/issues/14139)) ([49d91ea](https://github.com/lightdash/lightdash/commit/49d91ea216199f0168b8cbe45840f17ccddf32ae))
+
 # [0.1553.0](https://github.com/lightdash/lightdash/compare/0.1552.13...0.1553.0) (2025-03-31)
 
 
