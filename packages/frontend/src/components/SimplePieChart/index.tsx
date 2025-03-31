@@ -44,7 +44,7 @@ type SimplePieChartProps = Omit<EChartsReactProps, 'option'> & {
 const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
-    const { chartRef, isLoading } = useVisualizationContext();
+    const { chartRef, isLoading, resultsData } = useVisualizationContext();
 
     const pieChartOptions = useEchartsPieConfig(props.isInDashboard);
     const { user } = useApp();
@@ -55,6 +55,12 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
         value: PieChartContextMenuProps['value'];
         rows: PieChartContextMenuProps['rows'];
     }>();
+
+    useEffect(() => {
+        // Load all the rows
+        resultsData?.setFetchAll(true);
+        return () => resultsData?.setFetchAll(false);
+    }, [resultsData]);
 
     useEffect(() => {
         const listener = () => chartRef.current?.getEchartsInstance().resize();
