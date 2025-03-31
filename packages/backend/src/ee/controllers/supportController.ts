@@ -56,7 +56,7 @@ export class SupportController extends BaseController {
     }
 
     /**
-     * Convenience method to access the ai service without having
+     * Convenience method to access the support service without having
      * to specify an interface type.
      */
     protected getSupportService() {
