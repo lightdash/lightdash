@@ -20,17 +20,15 @@ const themeOverride: MantineThemeOverride = {
 };
 const MinimalExplorer: FC = () => {
     const { health } = useApp();
-
-    const queryResults = useExplorerContext(
-        (context) => context.queryResults.data,
-    );
+    const resultsData = useExplorerContext((context) => context.queryResults);
 
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
 
     const isLoadingQueryResults = useExplorerContext(
-        (context) => context.queryResults.isFetching,
+        (context) =>
+            context.query.isFetching || context.queryResults.isFetchingRows,
     );
 
     if (!savedChart || health.isInitialLoading || !health.data) {
@@ -42,7 +40,7 @@ const MinimalExplorer: FC = () => {
             minimal
             chartConfig={savedChart.chartConfig}
             initialPivotDimensions={savedChart.pivotConfig?.columns}
-            resultsData={queryResults}
+            resultsData={resultsData}
             isLoading={isLoadingQueryResults}
             columnOrder={savedChart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}

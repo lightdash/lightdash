@@ -1,0 +1,41 @@
+import { Meta, Source, Controls, Story } from '@storybook/blocks';
+import * as FormCardStories from './FormCard.stories';
+import { FormCard } from './FormCard.stories';
+
+<Meta of={FormCardStories} />
+
+# FormCard
+
+The FormCard component is a reusable form container that provides a consistent layout and styling for form elements. It includes various form inputs like text fields, select dropdowns, switches, and buttons.
+
+## Usage
+
+The FormCard component should be used when you need to:
+
+-   Create a structured form with a consistent visual style
+-   Group related form inputs together
+-   Present form elements in a clear, organized layout
+-   Provide visual feedback for form validation states
+-   Include a combination of different input types (text fields, dropdowns, switches, etc.)
+
+Example use cases:
+
+-   User registration forms
+-   Contact information forms
+-   Settings panels
+-   Data entry interfaces
+-   Profile editing forms
+
+## Props
+
+<Controls />
+
+## Examples
+
+### Default Form Card
+
+<Story of={FormCardStories.Primary} />
+
+## Source Code
+
+<Source of={FormCard} />{' '}

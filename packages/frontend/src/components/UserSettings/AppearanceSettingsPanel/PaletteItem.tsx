@@ -9,8 +9,14 @@ import {
     Menu,
     Paper,
     Text,
+    Tooltip,
 } from '@mantine/core';
-import { IconDotsVertical, IconEdit, IconTrash } from '@tabler/icons-react';
+import {
+    IconDotsVertical,
+    IconEdit,
+    IconInfoCircle,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useDeleteColorPalette } from '../../../hooks/appearance/useOrganizationAppearance';
 import MantineIcon from '../../common/MantineIcon';
@@ -18,15 +24,17 @@ import { DeletePaletteModal } from './DeletePaletteModal';
 import { EditPaletteModal } from './EditPaletteModal';
 
 type PaletteItemProps = {
-    palette: OrganizationColorPalette;
+    palette: Omit<OrganizationColorPalette, 'name'> & { name: string };
     isActive: boolean;
-    onSetActive: (uuid: string) => void;
+    onSetActive?: ((uuid: string) => void) | undefined;
+    readOnly?: boolean;
 };
 
 export const PaletteItem: FC<PaletteItemProps> = ({
     palette,
     isActive,
     onSetActive,
+    readOnly,
 }) => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -64,23 +72,44 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                             ))}
                         </Group>
                         <Text fw={500}>{palette.name}</Text>
+                        {readOnly && (
+                            <Tooltip
+                                label="This palette is read only. It has been configured as the override color palette for your organization. While this is set, you cannot update/edit, or delete this palette."
+                                position="bottom-end"
+                                multiline
+                                maw={200}
+                                variant="xs"
+                            >
+                                <Badge color="gray" variant="light">
+                                    <Group spacing={2}>
+                                        Override
+                                        <MantineIcon
+                                            size="sm"
+                                            icon={IconInfoCircle}
+                                        />
+                                    </Group>
+                                </Badge>
+                            </Tooltip>
+                        )}
                     </Group>
 
                     <Group spacing="xs">
-                        <Button
-                            onClick={() =>
-                                onSetActive(palette.colorPaletteUuid)
-                            }
-                            h={32}
-                            sx={() => ({
-                                visibility:
-                                    isHovered && !isActive
-                                        ? 'visible'
-                                        : 'hidden',
-                            })}
-                        >
-                            Use This Theme
-                        </Button>
+                        {onSetActive && (
+                            <Button
+                                onClick={() =>
+                                    onSetActive(palette.colorPaletteUuid)
+                                }
+                                h={32}
+                                sx={() => ({
+                                    visibility:
+                                        isHovered && !isActive
+                                            ? 'visible'
+                                            : 'hidden',
+                                })}
+                            >
+                                Use This Theme
+                            </Button>
+                        )}
 
                         {isActive && (
                             <Badge color="green" variant="light">
@@ -88,9 +117,13 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                             </Badge>
                         )}
 
-                        <Menu shadow="subtle" position="bottom-end">
+                        <Menu
+                            shadow="subtle"
+                            position="bottom-end"
+                            disabled={readOnly}
+                        >
                             <Menu.Target>
-                                <ActionIcon size="xs">
+                                <ActionIcon size="xs" disabled={readOnly}>
                                     <MantineIcon icon={IconDotsVertical} />
                                 </ActionIcon>
                             </Menu.Target>

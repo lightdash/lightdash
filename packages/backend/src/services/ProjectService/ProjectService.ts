@@ -1,18 +1,29 @@
 import { subject } from '@casl/ability';
 import {
+    addDashboardFiltersToMetricQuery,
     AlreadyExistsError,
     AlreadyProcessingError,
     AndFilterGroup,
     AnyType,
     ApiChartAndResults,
+    type ApiCreateProjectResults,
+    type ApiExecuteAsyncQueryResults,
+    type ApiGetAsyncQueryResults,
     ApiQueryResults,
     ApiSqlQueryResults,
+    assertUnreachable,
     CacheMetadata,
+    type CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     ChartSourceType,
     ChartSummary,
     CompiledDimension,
     ContentType,
+    convertCustomMetricToDbt,
+    countCustomDimensionsInMetricQuery,
+    countTotalFilterRules,
+    type CreateDatabricksCredentials,
+    createDimensionWithGranularity,
     CreateJob,
     CreateProject,
     CreateProjectMember,
@@ -20,7 +31,6 @@ import {
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     CustomFormatType,
-    DEFAULT_RESULTS_PAGE_SIZE,
     DashboardAvailableFilters,
     DashboardBasicDetails,
     DashboardFilters,
@@ -28,77 +38,25 @@ import {
     DbtExposure,
     DbtExposureType,
     DbtProjectType,
+    deepEqual,
+    DEFAULT_RESULTS_PAGE_SIZE,
     DefaultSupportedDbtVersion,
     DimensionType,
     DownloadFileType,
+    type ExecuteAsyncDashboardChartRequestParams,
+    type ExecuteAsyncMetricQueryRequestParams,
+    type ExecuteAsyncQueryRequestParams,
+    type ExecuteAsyncSavedChartRequestParams,
+    type ExecuteAsyncUnderlyingDataRequestParams,
     Explore,
     ExploreError,
     ExploreType,
+    FilterableDimension,
     FilterGroupItem,
     FilterOperator,
-    FilterableDimension,
-    ForbiddenError,
-    IntrinsicUserAttributes,
-    ItemsMap,
-    Job,
-    JobStatusType,
-    JobStepType,
-    JobType,
-    LightdashError,
-    MetricQuery,
-    MissingWarehouseCredentialsError,
-    MostPopularAndRecentlyUpdated,
-    NotExistsError,
-    NotFoundError,
-    ParameterError,
-    PivotChartData,
-    PivotValuesColumn,
-    Project,
-    ProjectCatalog,
-    ProjectGroupAccess,
-    ProjectMemberProfile,
-    ProjectMemberRole,
-    ProjectType,
-    QueryExecutionContext,
-    ReplaceCustomFields,
-    ReplaceCustomFieldsPayload,
-    ReplaceableCustomFields,
-    RequestMethod,
-    ResultRow,
-    SavedChartDAO,
-    SavedChartsInfoForDashboardAvailableFilters,
-    SessionUser,
-    SortByDirection,
-    SortField,
-    SpaceQuery,
-    SpaceSummary,
-    SqlRunnerPayload,
-    SqlRunnerPivotQueryPayload,
-    SummaryExplore,
-    TableSelectionType,
-    TablesConfiguration,
-    UnexpectedServerError,
-    UpdateMetadata,
-    UpdateProject,
-    UpdateProjectMember,
-    UpdateVirtualViewPayload,
-    UserAttributeValueMap,
-    UserWarehouseCredentials,
-    VizColumn,
-    WarehouseClient,
-    WarehouseCredentials,
-    WarehouseTableSchema,
-    WarehouseTablesCatalog,
-    WarehouseTypes,
-    addDashboardFiltersToMetricQuery,
-    assertUnreachable,
-    convertCustomMetricToDbt,
-    countCustomDimensionsInMetricQuery,
-    countTotalFilterRules,
-    createDimensionWithGranularity,
-    deepEqual,
     findFieldByIdInExplore,
     findReplaceableCustomMetrics,
+    ForbiddenError,
     formatRawRows,
     formatRow,
     formatRows,
@@ -115,28 +73,75 @@ import {
     getSubtotalKey,
     getTimezoneLabel,
     hasIntersection,
+    IntrinsicUserAttributes,
     isCustomSqlDimension,
     isDateItem,
     isDimension,
     isExploreError,
-    isFilterRule,
+    isField,
     isFilterableDimension,
+    isFilterRule,
+    isMetric,
     isNotNull,
     isUserWithOrg,
+    ItemsMap,
+    Job,
+    JobStatusType,
+    JobStepType,
+    JobType,
+    LightdashError,
     maybeReplaceFieldsInChartVersion,
+    MetricQuery,
+    MissingWarehouseCredentialsError,
+    MostPopularAndRecentlyUpdated,
+    NotExistsError,
+    NotFoundError,
+    ParameterError,
+    PivotChartData,
+    PivotValuesColumn,
+    Project,
+    ProjectCatalog,
+    ProjectGroupAccess,
+    ProjectMemberProfile,
+    ProjectMemberRole,
+    ProjectType,
+    QueryExecutionContext,
+    QueryHistoryStatus,
+    ReplaceableCustomFields,
+    ReplaceCustomFields,
+    ReplaceCustomFieldsPayload,
     replaceDimensionInExplore,
-    snakeCaseName,
-    type ApiCreateProjectResults,
-    type ApiPaginatedQueryResults,
-    type CalculateSubtotalsFromQuery,
-    type CreateDatabricksCredentials,
-    type PaginatedDashboardChartRequestParams,
-    type PaginatedMetricQueryRequestParams,
-    type PaginatedQueryRequestParams,
-    type PaginatedSavedChartRequestParams,
+    RequestMethod,
+    ResultRow,
     type RunQueryTags,
+    SavedChartDAO,
+    SavedChartsInfoForDashboardAvailableFilters,
     type SemanticLayerConnectionUpdate,
+    SessionUser,
+    snakeCaseName,
+    SortByDirection,
+    SortField,
+    SpaceQuery,
+    SpaceSummary,
+    SqlRunnerPayload,
+    SqlRunnerPivotQueryPayload,
+    SummaryExplore,
+    TablesConfiguration,
+    TableSelectionType,
     type Tag,
+    UnexpectedServerError,
+    UpdateMetadata,
+    UpdateProject,
+    UpdateProjectMember,
+    UpdateVirtualViewPayload,
+    UserAttributeValueMap,
+    UserWarehouseCredentials,
+    VizColumn,
+    WarehouseClient,
+    WarehouseCredentials,
+    WarehouseTablesCatalog,
+    WarehouseTableSchema,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -148,7 +153,10 @@ import { Readable } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import {
+    LightdashAnalytics,
+    MetricQueryExecutionProperties,
+} from '../../analytics/LightdashAnalytics';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -177,9 +185,9 @@ import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredent
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import {
-    CompiledQuery,
     applyLimitToSqlQuery,
     buildQuery,
+    CompiledQuery,
 } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -201,10 +209,11 @@ import {
     validatePagination,
 } from './resultsPagination';
 import {
-    type PaginateDashboardChartArgs,
-    type PaginateMetricQueryArgs,
-    type PaginateQueryUuidArgs,
-    type PaginateSavedChartArgs,
+    type ExecuteAsyncDashboardChartQueryArgs,
+    type ExecuteAsyncMetricQueryArgs,
+    type ExecuteAsyncSavedChartQueryArgs,
+    type ExecuteAsyncUnderlyingDataQueryArgs,
+    type GetAsyncQueryResultsArgs,
 } from './types';
 
 type ProjectServiceArguments = {
@@ -342,6 +351,116 @@ export class ProjectService extends BaseService {
         this.contentModel = contentModel;
         this.queryHistoryModel = queryHistoryModel;
         this.encryptionUtil = encryptionUtil;
+    }
+
+    static getMetricQueryExecutionProperties({
+        metricQuery,
+        hasExampleMetric,
+        granularity,
+        chartUuid,
+        queryTags,
+        explore,
+    }: {
+        metricQuery: MetricQuery;
+        hasExampleMetric: boolean;
+        granularity: DateGranularity | undefined;
+        chartUuid: string | undefined;
+        queryTags: Record<string, unknown>;
+        explore: Explore;
+    }): MetricQueryExecutionProperties {
+        return {
+            hasExampleMetric,
+            dimensionsCount: metricQuery.dimensions.length,
+            metricsCount: metricQuery.metrics.length,
+            filtersCount: countTotalFilterRules(metricQuery.filters),
+            sortsCount: metricQuery.sorts.length,
+            tableCalculationsCount: metricQuery.tableCalculations.length,
+            tableCalculationsPercentFormatCount:
+                metricQuery.tableCalculations.filter(
+                    (tableCalculation) =>
+                        tableCalculation.format?.type ===
+                        CustomFormatType.PERCENT,
+                ).length,
+            tableCalculationsCurrencyFormatCount:
+                metricQuery.tableCalculations.filter(
+                    (tableCalculation) =>
+                        tableCalculation.format?.type ===
+                        CustomFormatType.CURRENCY,
+                ).length,
+            tableCalculationsNumberFormatCount:
+                metricQuery.tableCalculations.filter(
+                    (tableCalculation) =>
+                        tableCalculation.format?.type ===
+                        CustomFormatType.NUMBER,
+                ).length,
+            tableCalculationCustomFormatCount:
+                metricQuery.tableCalculations.filter(
+                    (tableCalculation) =>
+                        tableCalculation.format?.type ===
+                        CustomFormatType.CUSTOM,
+                ).length,
+            additionalMetricsCount: (
+                metricQuery.additionalMetrics || []
+            ).filter((metric) =>
+                metricQuery.metrics.includes(getItemId(metric)),
+            ).length,
+            additionalMetricsFilterCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.filters &&
+                    metric.filters.length > 0,
+            ).length,
+            additionalMetricsPercentFormatCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.formatOptions &&
+                    metric.formatOptions.type === CustomFormatType.PERCENT,
+            ).length,
+            additionalMetricsCurrencyFormatCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.formatOptions &&
+                    metric.formatOptions.type === CustomFormatType.CURRENCY,
+            ).length,
+            additionalMetricsNumberFormatCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.formatOptions &&
+                    metric.formatOptions.type === CustomFormatType.NUMBER,
+            ).length,
+            additionalMetricsCustomFormatCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.formatOptions &&
+                    metric.formatOptions.type === CustomFormatType.CUSTOM,
+            ).length,
+            ...countCustomDimensionsInMetricQuery(metricQuery),
+            dateZoomGranularity: granularity || null,
+            timezone: metricQuery.timezone,
+            ...(queryTags?.dashboard_uuid
+                ? { dashboardId: queryTags.dashboard_uuid }
+                : {}),
+            chartId: chartUuid,
+            ...(explore.type === ExploreType.VIRTUAL
+                ? { virtualViewId: explore.name }
+                : {}),
+            metricOverridesCount: Object.keys(
+                metricQuery.metricOverrides || {},
+            ).filter((metricOverrideKey) =>
+                metricQuery.metrics.includes(metricOverrideKey),
+            ).length,
+            limit: metricQuery.limit,
+        };
     }
 
     private async validateProjectCreationPermissions(
@@ -1778,13 +1897,13 @@ export class ProjectService extends BaseService {
         });
     }
 
-    async runPaginatedQueryUuid({
+    async getAsyncQueryResults({
         user,
         projectUuid,
         queryUuid,
         page = 1,
         pageSize,
-    }: PaginateQueryUuidArgs): Promise<ApiPaginatedQueryResults> {
+    }: GetAsyncQueryResultsArgs): Promise<ApiGetAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -1806,13 +1925,49 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { metricQuery, context } = queryHistory;
+        const { metricQuery, context, status, totalRowCount } = queryHistory;
+
+        const defaultedPageSize =
+            pageSize ??
+            queryHistory.defaultPageSize ??
+            DEFAULT_RESULTS_PAGE_SIZE;
+
+        validatePagination({
+            pageSize: defaultedPageSize,
+            page,
+            queryMaxLimit: this.lightdashConfig.query.maxPageSize,
+            totalRowCount,
+        });
+
+        switch (status) {
+            case QueryHistoryStatus.CANCELLED:
+            case QueryHistoryStatus.PENDING:
+                return {
+                    status,
+                    queryUuid,
+                    metricQuery,
+                    fields: queryHistory.fields,
+                };
+            case QueryHistoryStatus.ERROR:
+                return {
+                    status,
+                    queryUuid,
+                    metricQuery,
+                    fields: queryHistory.fields,
+                    error: queryHistory.error,
+                };
+            case QueryHistoryStatus.READY:
+                break;
+            default:
+                return assertUnreachable(status, 'Unknown query status');
+        }
 
         const explore = await this.getExplore(
             user,
             projectUuid,
             metricQuery.exploreName,
         );
+
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
@@ -1833,80 +1988,138 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        const defaultedPageSize = pageSize ?? queryHistory.defaultPageSize;
-
-        validatePagination({
-            pageSize: defaultedPageSize,
-            page,
-            queryMaxLimit: this.lightdashConfig.query.maxPageSize,
-        });
-
         const { result, durationMs } = await measureTime(
             () =>
-                warehouseClient.getPaginatedResults(
-                    {
-                        page,
-                        pageSize: defaultedPageSize,
-                        tags: queryTags,
-                        ...(queryHistory.warehouseQueryId
-                            ? { queryId: queryHistory.warehouseQueryId }
-                            : { sql: queryHistory.compiledSql }),
-                    },
-                    formatter,
-                ),
-            'getPaginatedResults',
+                warehouseClient
+                    .getAsyncQueryResults(
+                        {
+                            page,
+                            pageSize: defaultedPageSize,
+                            tags: queryTags,
+                            queryId: queryHistory.warehouseQueryId,
+                            sql: queryHistory.compiledSql,
+                            queryMetadata: queryHistory.warehouseQueryMetadata,
+                        },
+                        formatter,
+                    )
+                    .catch((e) => ({ errorMessage: getErrorMessage(e) })),
+            'getAsyncQueryResults',
             this.logger,
             context,
         );
 
-        await sshTunnel.disconnect();
+        if ('errorMessage' in result) {
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'query.error',
+                properties: {
+                    queryId: queryHistory.queryUuid,
+                    projectId: projectUuid,
+                    warehouseType: warehouseClient.credentials.type,
+                },
+            });
+            await this.queryHistoryModel.update(
+                queryHistory.queryUuid,
+                projectUuid,
+                user.userUuid,
+                {
+                    status: QueryHistoryStatus.ERROR,
+                    error: result.errorMessage,
+                },
+            );
 
-        const {
-            rows,
-            pageCount: totalPageCount,
-            totalRows: totalResults,
-        } = result;
+            return {
+                status: QueryHistoryStatus.ERROR,
+                error: result.errorMessage,
+                queryUuid: queryHistory.queryUuid,
+                metricQuery,
+                fields: queryHistory.fields,
+            };
+        }
+
+        const roundedDurationMs = Math.round(durationMs);
+
+        /**
+         * Update the query history with non null values
+         * defaultPageSize is null when user never fetched the results - we don't send pagination params to the query execution endpoint
+         * warehouseExecutionTimeMs is null when warehouse doesn't support async queries - query is only executed when user fetches results
+         * totalRowCount is null when warehouse doesn't support async queries - query is only executed when user fetches results
+         */
+        if (
+            queryHistory.defaultPageSize === null ||
+            queryHistory.warehouseExecutionTimeMs === null ||
+            queryHistory.totalRowCount === null
+        ) {
+            await this.queryHistoryModel.update(
+                queryHistory.queryUuid,
+                projectUuid,
+                user.userUuid,
+                {
+                    ...(queryHistory.defaultPageSize === null
+                        ? { default_page_size: defaultedPageSize }
+                        : {}),
+                    ...(queryHistory.warehouseExecutionTimeMs === null
+                        ? {
+                              warehouse_execution_time_ms: roundedDurationMs,
+                          }
+                        : {}),
+                    ...(queryHistory.totalRowCount === null
+                        ? { total_row_count: result.totalRows }
+                        : {}),
+                },
+            );
+        }
+
+        await sshTunnel.disconnect();
 
         const { nextPage, previousPage } = getNextAndPreviousPage(
             page,
-            totalPageCount,
+            result.pageCount,
         );
 
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'query_page.fetched',
+            properties: {
+                queryId: queryHistory.queryUuid,
+                projectId: projectUuid,
+                warehouseType: warehouseClient.credentials.type,
+                page,
+                columnsCount: Object.keys(result.fields).length,
+                totalRowCount: result.totalRows,
+                totalPageCount: result.pageCount,
+                resultsPageSize: result.rows.length,
+                resultsPageExecutionMs: roundedDurationMs,
+            },
+        });
+
         return {
-            rows,
-            totalPageCount,
-            totalResults,
+            rows: result.rows,
+            totalPageCount: result.pageCount,
+            totalResults: result.totalRows,
             queryUuid: queryHistory.queryUuid,
             fields: queryHistory.fields,
             metricQuery,
-            pageSize: rows.length,
+            pageSize: result.rows.length,
             page,
             nextPage,
             previousPage,
-            initialQueryExecutionMs: queryHistory.warehouseExecutionTimeMs,
-            resultsPageExecutionMs: Math.round(durationMs),
+            initialQueryExecutionMs:
+                queryHistory.warehouseExecutionTimeMs ?? roundedDurationMs,
+            resultsPageExecutionMs: roundedDurationMs,
+            status,
         };
     }
 
-    private async runPaginatedQuery<
-        TFormattedRow extends Record<string, unknown>,
-    >(
-        args: PaginateMetricQueryArgs & {
-            user: SessionUser;
-            projectUuid: string;
-            invalidateCache?: boolean;
+    private async executeAsyncQuery(
+        args: ExecuteAsyncMetricQueryArgs & {
+            queryTags: RunQueryTags;
             exploreName: string;
-            granularity?: DateGranularity;
-            queryTags: RunQueryTags; // We already have context in the context parameter
         },
-        requestParameters: PaginatedQueryRequestParams,
-        rowFormatter?: (
-            row: Record<string, unknown>,
-            fields: ItemsMap,
-        ) => TFormattedRow,
+        requestParameters: ExecuteAsyncQueryRequestParams,
     ) {
         return wrapSentryTransaction(
-            'ProjectService.runPaginatedQuery',
+            'ProjectService.executeAsyncQuery',
             {},
             async (span) => {
                 const {
@@ -1914,8 +2127,6 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     context,
                     granularity,
-                    page = 1,
-                    pageSize = DEFAULT_RESULTS_PAGE_SIZE,
                     queryTags,
                     exploreName,
                 } = args;
@@ -1942,12 +2153,6 @@ export class ProjectService extends BaseService {
                         throw new ForbiddenError();
                     }
 
-                    validatePagination({
-                        pageSize,
-                        page,
-                        queryMaxLimit: this.lightdashConfig.query.maxPageSize,
-                    });
-
                     const explore = await this.getExplore(
                         user,
                         projectUuid,
@@ -1972,8 +2177,6 @@ export class ProjectService extends BaseService {
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
-                    span.setAttribute('query.page', page);
-                    span.setAttribute('query.pageSize', pageSize);
 
                     const { metricQuery } = args;
                     const userAttributes =
@@ -2002,7 +2205,11 @@ export class ProjectService extends BaseService {
                         granularity,
                     );
 
-                    const { query, fields: fieldsFromQuery } = fullQuery;
+                    const {
+                        query,
+                        fields: fieldsFromQuery,
+                        hasExampleMetric,
+                    } = fullQuery;
 
                     const fieldsWithOverrides: ItemsMap = Object.fromEntries(
                         Object.entries(fieldsFromQuery).map(([key, value]) => {
@@ -2039,74 +2246,113 @@ export class ProjectService extends BaseService {
                         );
                     }
 
-                    const formatter = (
-                        row: Record<string, unknown>,
-                    ): TFormattedRow =>
-                        rowFormatter
-                            ? rowFormatter(row, fieldsMap)
-                            : (row as TFormattedRow);
+                    const { queryUuid: queryHistoryUuid } =
+                        await this.queryHistoryModel.create({
+                            projectUuid,
+                            organizationUuid,
+                            createdByUserUuid: user.userUuid,
+                            context,
+                            fields: fieldsMap,
+                            compiledSql: query,
+                            requestParameters,
+                            metricQuery,
+                        });
 
-                    const { result, durationMs } = await measureTime(
-                        () =>
-                            warehouseClient.getPaginatedResults(
+                    this.analytics.track({
+                        userId: user.userUuid,
+                        event: 'query.executed',
+                        properties: {
+                            organizationId: organizationUuid,
+                            projectId: projectUuid,
+                            context,
+                            queryId: queryHistoryUuid,
+                            warehouseType: warehouseClient.credentials.type,
+                            ...ProjectService.getMetricQueryExecutionProperties(
                                 {
-                                    sql: query,
-                                    page,
-                                    pageSize,
-                                    tags: queryTags,
+                                    metricQuery,
+                                    hasExampleMetric,
+                                    queryTags,
+                                    granularity,
+                                    chartUuid:
+                                        'chartUuid' in requestParameters
+                                            ? requestParameters.chartUuid
+                                            : undefined,
+                                    explore,
                                 },
-                                formatter,
                             ),
-                        'getPaginatedResults',
-                        this.logger,
-                        context,
-                    );
-
-                    const {
-                        rows,
-                        pageCount: totalPageCount,
-                        totalRows: totalResults,
-                        queryId,
-                    } = result;
-
-                    await sshTunnel.disconnect();
-
-                    const { nextPage, previousPage } = getNextAndPreviousPage(
-                        page,
-                        totalPageCount,
-                    );
-
-                    const roundedDurationMs = Math.round(durationMs);
-                    const queryHistory = await this.queryHistoryModel.create({
-                        projectUuid,
-                        organizationUuid,
-                        createdByUserUuid: user.userUuid,
-                        defaultPageSize: pageSize,
-                        context,
-                        fields: fieldsMap,
-                        compiledSql: query,
-                        requestParameters,
-                        metricQuery,
-                        totalRowCount: totalResults,
-                        warehouseQueryId: queryId,
-                        warehouseExecutionTimeMs: roundedDurationMs,
-                        warehouseQueryMetadata: result.warehouseQueryMetadata,
+                        },
                     });
 
+                    // Trigger query in the background, update query history when complete
+                    warehouseClient
+                        .executeAsyncQuery({
+                            sql: query,
+                            tags: queryTags,
+                        })
+                        .then(
+                            ({
+                                queryId,
+                                queryMetadata,
+                                totalRows,
+                                durationMs,
+                            }) => {
+                                this.analytics.track({
+                                    userId: user.userUuid,
+                                    event: 'query.ready',
+                                    properties: {
+                                        queryId: queryHistoryUuid,
+                                        projectId: projectUuid,
+                                        warehouseType:
+                                            warehouseClient.credentials.type,
+                                        warehouseExecutionTimeMs: durationMs,
+                                        columnsCount:
+                                            Object.keys(fieldsMap).length,
+                                        totalRowCount: totalRows,
+                                    },
+                                });
+                                return this.queryHistoryModel.update(
+                                    queryHistoryUuid,
+                                    projectUuid,
+                                    user.userUuid,
+                                    {
+                                        warehouse_query_id: queryId,
+                                        warehouse_query_metadata: queryMetadata,
+                                        status: QueryHistoryStatus.READY,
+                                        error: null,
+                                        warehouse_execution_time_ms:
+                                            durationMs !== null
+                                                ? Math.round(durationMs)
+                                                : null,
+                                        total_row_count: totalRows,
+                                    },
+                                );
+                            },
+                        )
+                        .catch((e) => {
+                            this.analytics.track({
+                                userId: user.userUuid,
+                                event: 'query.error',
+                                properties: {
+                                    queryId: queryHistoryUuid,
+                                    projectId: projectUuid,
+                                    warehouseType:
+                                        warehouseClient.credentials.type,
+                                },
+                            });
+                            return this.queryHistoryModel.update(
+                                queryHistoryUuid,
+                                projectUuid,
+                                user.userUuid,
+                                {
+                                    status: QueryHistoryStatus.ERROR,
+                                    error: getErrorMessage(e),
+                                },
+                            );
+                        })
+                        .finally(() => sshTunnel.disconnect());
+
                     return {
-                        rows,
-                        queryUuid: queryHistory.queryUuid,
-                        totalPageCount,
-                        totalResults,
-                        page,
-                        pageSize: rows.length,
-                        nextPage,
-                        previousPage,
-                        fields: fieldsMap,
-                        metricQuery,
-                        // Since this is the initial query execution, we use the same value for both initial and query execution seconds
-                        initialQueryExecutionMs: roundedDurationMs,
-                        resultsPageExecutionMs: roundedDurationMs,
+                        queryUuid: queryHistoryUuid,
                     };
                 } catch (e) {
                     span.setStatus({
@@ -2121,15 +2367,13 @@ export class ProjectService extends BaseService {
         );
     }
 
-    async runPaginatedMetricQuery({
+    async executeAsyncMetricQuery({
         user,
         projectUuid,
-        dateZoomGranularity,
+        granularity,
         context,
         metricQuery,
-        page,
-        pageSize,
-    }: PaginateMetricQueryArgs): Promise<ApiPaginatedQueryResults> {
+    }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -2157,10 +2401,8 @@ export class ProjectService extends BaseService {
             );
         }
 
-        const requestParameters: PaginatedMetricQueryRequestParams = {
+        const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
             context,
-            page,
-            pageSize,
             query: metricQuery,
         };
 
@@ -2172,7 +2414,7 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        return this.runPaginatedQuery(
+        const { queryUuid } = await this.executeAsyncQuery(
             {
                 user,
                 metricQuery,
@@ -2180,24 +2422,24 @@ export class ProjectService extends BaseService {
                 exploreName: metricQuery.exploreName,
                 context,
                 queryTags,
-                granularity: dateZoomGranularity,
-                page,
-                pageSize,
+                granularity,
             },
             requestParameters,
-            formatRow,
         );
+
+        return {
+            queryUuid,
+            appliedDashboardFilters: null,
+        };
     }
 
-    async runPaginatedSavedChartQuery({
+    async executeAsyncSavedChartQuery({
         user,
         projectUuid,
         chartUuid,
         versionUuid,
-        page,
-        pageSize,
         context,
-    }: PaginateSavedChartArgs): Promise<ApiPaginatedQueryResults> {
+    }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         // Check user is in organization
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User does not belong to an organization');
@@ -2230,7 +2472,7 @@ export class ProjectService extends BaseService {
             user.ability.cannot(
                 'view',
                 subject('SavedChart', {
-                    savedChartOrganizationUuid,
+                    organizationUuid: savedChartOrganizationUuid,
                     projectUuid,
                     isPrivate: space.isPrivate,
                     access,
@@ -2239,7 +2481,7 @@ export class ProjectService extends BaseService {
             user.ability.cannot(
                 'view',
                 subject('Project', {
-                    savedChartOrganizationUuid,
+                    organizationUuid: savedChartOrganizationUuid,
                     projectUuid,
                 }),
             )
@@ -2252,10 +2494,8 @@ export class ProjectService extends BaseService {
             user.userUuid,
         );
 
-        const requestParameters: PaginatedSavedChartRequestParams = {
+        const requestParameters: ExecuteAsyncSavedChartRequestParams = {
             context,
-            page,
-            pageSize,
             chartUuid,
             versionUuid,
         };
@@ -2269,24 +2509,26 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        return this.runPaginatedQuery(
+        const { queryUuid } = await this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
                 exploreName: savedChartTableName,
-                page,
-                pageSize,
                 context,
                 queryTags,
                 invalidateCache: false,
                 metricQuery,
             },
             requestParameters,
-            formatRow,
         );
+
+        return {
+            queryUuid,
+            appliedDashboardFilters: null,
+        };
     }
 
-    async runPaginatedDashboardChartQuery({
+    async executeAsyncDashboardChartQuery({
         user,
         projectUuid,
         chartUuid,
@@ -2294,10 +2536,8 @@ export class ProjectService extends BaseService {
         dashboardFilters,
         dashboardSorts,
         granularity,
-        page,
-        pageSize,
         context,
-    }: PaginateDashboardChartArgs): Promise<ApiPaginatedQueryResults> {
+    }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -2352,7 +2592,7 @@ export class ProjectService extends BaseService {
         );
 
         const tables = Object.keys(explore.tables);
-        const appliedDashboardFilters = {
+        const appliedDashboardFilters: DashboardFilters = {
             dimensions: getDashboardFilterRulesForTables(
                 tables,
                 dashboardFilters.dimensions,
@@ -2399,10 +2639,8 @@ export class ProjectService extends BaseService {
             };
         }
 
-        const requestParameters: PaginatedDashboardChartRequestParams = {
+        const requestParameters: ExecuteAsyncDashboardChartRequestParams = {
             context,
-            page,
-            pageSize,
             chartUuid,
             dashboardUuid,
             dashboardFilters,
@@ -2420,7 +2658,7 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        return this.runPaginatedQuery(
+        const { queryUuid } = await this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
@@ -2429,13 +2667,152 @@ export class ProjectService extends BaseService {
                 context,
                 queryTags,
                 invalidateCache: false,
-                page,
-                pageSize,
                 granularity,
             },
             requestParameters,
-            formatRow,
         );
+
+        return {
+            queryUuid,
+            appliedDashboardFilters,
+        };
+    }
+
+    async executeAsyncUnderlyingDataQuery({
+        user,
+        projectUuid,
+        underlyingDataSourceQueryUuid,
+        filters,
+        underlyingDataItemId,
+        context,
+    }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('UnderlyingData', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { metricQuery } = await this.queryHistoryModel.get(
+            underlyingDataSourceQueryUuid,
+            projectUuid,
+            user.userUuid,
+        );
+
+        if (
+            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
+        }
+
+        const { exploreName } = metricQuery;
+
+        const explore = await this.getExplore(user, projectUuid, exploreName);
+        const { fields: metricQueryFields } = await this.compileQuery(
+            user,
+            metricQuery,
+            projectUuid,
+            exploreName,
+        );
+
+        const underlyingDataItem = underlyingDataItemId
+            ? metricQueryFields[underlyingDataItemId]
+            : undefined;
+
+        const joinedTables = explore.joinedTables.map(
+            (joinedTable) => joinedTable.table,
+        );
+
+        const availableTables = new Set([
+            ...joinedTables,
+            ...Object.values(metricQueryFields)
+                .filter(isField)
+                .map((field) => field.table),
+        ]);
+
+        const itemShowUnderlyingValues =
+            isField(underlyingDataItem) && isMetric(underlyingDataItem)
+                ? underlyingDataItem.showUnderlyingValues
+                : undefined;
+
+        const itemShowUnderlyingTable = isField(underlyingDataItem)
+            ? underlyingDataItem.table
+            : undefined;
+
+        const allDimensions = getDimensions(explore);
+
+        const availableDimensions = allDimensions.filter(
+            (dimension) =>
+                availableTables.has(dimension.table) &&
+                !dimension.timeInterval &&
+                !dimension.hidden &&
+                (itemShowUnderlyingValues !== undefined
+                    ? (itemShowUnderlyingValues.includes(dimension.name) &&
+                          itemShowUnderlyingTable === dimension.table) ||
+                      itemShowUnderlyingValues.includes(
+                          `${dimension.table}.${dimension.name}`,
+                      )
+                    : true),
+        );
+
+        const requestParameters: ExecuteAsyncUnderlyingDataRequestParams = {
+            context,
+            underlyingDataSourceQueryUuid,
+            filters,
+            underlyingDataItemId,
+        };
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            explore_name: exploreName,
+            query_context: context,
+        };
+
+        const underlyingDataMetricQuery: MetricQuery = {
+            exploreName,
+            dimensions: availableDimensions.map(getItemId),
+            filters,
+            metrics: [],
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+        };
+
+        const { queryUuid: underlyingDataQueryUuid } =
+            await this.executeAsyncQuery(
+                {
+                    user,
+                    metricQuery: underlyingDataMetricQuery,
+                    projectUuid,
+                    exploreName,
+                    context,
+                    queryTags,
+                    invalidateCache: false,
+                },
+                requestParameters,
+            );
+
+        return {
+            queryUuid: underlyingDataQueryUuid,
+            appliedDashboardFilters: null,
+        };
     }
 
     private async runQueryAndFormatRows({
@@ -2912,114 +3289,17 @@ export class ProjectService extends BaseService {
                         properties: {
                             organizationId: organizationUuid,
                             projectId: projectUuid,
-                            hasExampleMetric,
-                            dimensionsCount: metricQuery.dimensions.length,
-                            metricsCount: metricQuery.metrics.length,
-                            filtersCount: countTotalFilterRules(
-                                metricQuery.filters,
-                            ),
-                            sortsCount: metricQuery.sorts.length,
-                            tableCalculationsCount:
-                                metricQuery.tableCalculations.length,
-                            tableCalculationsPercentFormatCount:
-                                metricQuery.tableCalculations.filter(
-                                    (tableCalculation) =>
-                                        tableCalculation.format?.type ===
-                                        CustomFormatType.PERCENT,
-                                ).length,
-                            tableCalculationsCurrencyFormatCount:
-                                metricQuery.tableCalculations.filter(
-                                    (tableCalculation) =>
-                                        tableCalculation.format?.type ===
-                                        CustomFormatType.CURRENCY,
-                                ).length,
-                            tableCalculationsNumberFormatCount:
-                                metricQuery.tableCalculations.filter(
-                                    (tableCalculation) =>
-                                        tableCalculation.format?.type ===
-                                        CustomFormatType.NUMBER,
-                                ).length,
-                            tableCalculationCustomFormatCount:
-                                metricQuery.tableCalculations.filter(
-                                    (tableCalculation) =>
-                                        tableCalculation.format?.type ===
-                                        CustomFormatType.CUSTOM,
-                                ).length,
-                            additionalMetricsCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter((metric) =>
-                                metricQuery.metrics.includes(getItemId(metric)),
-                            ).length,
-                            additionalMetricsFilterCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter(
-                                (metric) =>
-                                    metricQuery.metrics.includes(
-                                        getItemId(metric),
-                                    ) &&
-                                    metric.filters &&
-                                    metric.filters.length > 0,
-                            ).length,
-                            additionalMetricsPercentFormatCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter(
-                                (metric) =>
-                                    metricQuery.metrics.includes(
-                                        getItemId(metric),
-                                    ) &&
-                                    metric.formatOptions &&
-                                    metric.formatOptions.type ===
-                                        CustomFormatType.PERCENT,
-                            ).length,
-                            additionalMetricsCurrencyFormatCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter(
-                                (metric) =>
-                                    metricQuery.metrics.includes(
-                                        getItemId(metric),
-                                    ) &&
-                                    metric.formatOptions &&
-                                    metric.formatOptions.type ===
-                                        CustomFormatType.CURRENCY,
-                            ).length,
-                            additionalMetricsNumberFormatCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter(
-                                (metric) =>
-                                    metricQuery.metrics.includes(
-                                        getItemId(metric),
-                                    ) &&
-                                    metric.formatOptions &&
-                                    metric.formatOptions.type ===
-                                        CustomFormatType.NUMBER,
-                            ).length,
-                            additionalMetricsCustomFormatCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter(
-                                (metric) =>
-                                    metricQuery.metrics.includes(
-                                        getItemId(metric),
-                                    ) &&
-                                    metric.formatOptions &&
-                                    metric.formatOptions.type ===
-                                        CustomFormatType.CUSTOM,
-                            ).length,
                             context,
-                            ...countCustomDimensionsInMetricQuery(metricQuery),
-                            dateZoomGranularity: granularity || null,
-                            timezone: metricQuery.timezone,
-                            ...(queryTags?.dashboard_uuid
-                                ? { dashboardId: queryTags.dashboard_uuid }
-                                : {}),
-                            chartId: chartUuid,
-                            ...(explore.type === ExploreType.VIRTUAL
-                                ? { virtualViewId: explore.name }
-                                : {}),
-                            metricOverridesCount: Object.keys(
-                                metricQuery.metricOverrides || {},
-                            ).filter((metricOverrideKey) =>
-                                metricQuery.metrics.includes(metricOverrideKey),
-                            ).length,
+                            ...ProjectService.getMetricQueryExecutionProperties(
+                                {
+                                    metricQuery: metricQueryWithLimit,
+                                    hasExampleMetric,
+                                    queryTags,
+                                    chartUuid,
+                                    granularity,
+                                    explore,
+                                },
+                            ),
                         },
                     });
                     this.logger.debug(
@@ -4533,16 +4813,24 @@ export class ProjectService extends BaseService {
         if (!tableName) {
             throw new ParameterError('Table name is required');
         }
-        const warehouseCatalog = await warehouseClient.getFields(
-            tableName,
-            schemaName,
-            database,
-            queryTags,
-        );
 
-        await sshTunnel.disconnect();
+        try {
+            const warehouseCatalog = await warehouseClient.getFields(
+                tableName,
+                schemaName,
+                database,
+                queryTags,
+            );
 
-        return warehouseCatalog[database][schemaName][tableName];
+            await sshTunnel.disconnect();
+
+            return warehouseCatalog[database][schemaName][tableName];
+        } catch (error) {
+            this.logger.error('Error fetching warehouse fields', { error });
+            throw new NotFoundError(
+                `Could not find table "${tableName}" in schema "${schemaName}" of database "${database}". Please verify the table exists and you have access to it.`,
+            );
+        }
     }
 
     async getTablesConfiguration(

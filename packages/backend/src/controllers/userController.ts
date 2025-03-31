@@ -235,7 +235,7 @@ export class UserController extends BaseController {
     /**
      * Get user warehouse credentials
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/warehouseCredentials')
     @OperationId('getWarehouseCredentials')
     async getWarehouseCredentials(@Request() req: express.Request): Promise<{
@@ -254,7 +254,7 @@ export class UserController extends BaseController {
     /**
      * Create user warehouse credentials
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Post('/warehouseCredentials')
     @OperationId('createWarehouseCredentials')
     async createWarehouseCredentials(
@@ -276,7 +276,7 @@ export class UserController extends BaseController {
     /**
      * Update user warehouse credentials
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Patch('/warehouseCredentials/{uuid}')
     @OperationId('updateWarehouseCredentials')
     async updateWarehouseCredentials(
@@ -299,7 +299,7 @@ export class UserController extends BaseController {
     /**
      * Delete user warehouse credentials
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Delete('/warehouseCredentials/{uuid}')
     @OperationId('deleteWarehouseCredentials')
     async deleteWarehouseCredentials(

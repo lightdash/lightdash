@@ -381,6 +381,19 @@ pnpm warehouses-build
 pnpm test
 ```
 
+The backend has several test commands for different scenarios:
+
+```bash
+# Run all tests with type checking (for CI/production)
+pnpm -F backend test
+
+# Run tests in development mode with performance optimizations
+pnpm -F backend test:dev
+
+# Run tests sequentially with type checking (for debugging)
+pnpm -F backend test-sequential
+```
+
 #### How to run e2e tests
 
 Before running e2e tests make sure you're running the app locally.

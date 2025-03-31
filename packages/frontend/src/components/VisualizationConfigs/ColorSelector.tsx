@@ -1,3 +1,4 @@
+import { isHexCodeColor } from '@lightdash/common';
 import {
     ColorSwatch,
     ColorPicker as MantineColorPicker,
@@ -8,7 +9,6 @@ import {
 } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { isHexCodeColor } from '../../utils/colorUtils';
 import MantineIcon from '../common/MantineIcon';
 
 interface Props {

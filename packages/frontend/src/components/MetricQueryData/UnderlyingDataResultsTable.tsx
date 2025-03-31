@@ -1,4 +1,8 @@
-import { type ApiQueryResults, type Field } from '@lightdash/common';
+import {
+    type ApiQueryResults,
+    type Field,
+    type ItemsMap,
+} from '@lightdash/common';
 import { Box, Center } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import useUnderlyingDataColumns from '../../hooks/useUnderlyingDataColumns';
@@ -15,7 +19,7 @@ import { type TableColumn } from '../common/Table/types';
 import CellContextMenu from './CellContextMenu';
 
 const UnderlyingDataResultsTable: FC<{
-    fieldsMap: Record<string, Field>;
+    fieldsMap: ItemsMap;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     hasJoins?: boolean;
@@ -65,6 +69,9 @@ const UnderlyingDataResultsTable: FC<{
                 <Table
                     status={'success'}
                     data={resultsData?.rows || []}
+                    totalRowsCount={resultsData?.rows.length || 0}
+                    isFetchingRows={false}
+                    fetchMoreRows={() => undefined}
                     columns={columns.sort(sortByUnderlyingValues)}
                     pagination={{
                         show: true,

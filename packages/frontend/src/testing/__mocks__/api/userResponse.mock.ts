@@ -29,7 +29,7 @@ export function mockUserResponse(
             },
             {
                 action: 'view',
-                subject: 'CsvJobResult',
+                subject: 'JobStatus',
                 conditions: {
                     createdByUserUuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
                 },

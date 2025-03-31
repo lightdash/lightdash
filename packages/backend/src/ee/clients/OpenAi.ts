@@ -12,15 +12,9 @@ import {
     ChatOpenAICallOptions,
     OpenAIEmbeddings,
 } from '@langchain/openai';
-import { UnexpectedServerError } from '@lightdash/common';
+import { sleep, UnexpectedServerError } from '@lightdash/common';
 
 const DEFAULT_RETRY_TIMEOUT_MS = 5000;
-
-async function sleep(ms: number) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
-}
 
 class TokenUsageHandler extends BaseCallbackHandler {
     tokenUsage: TokenUsage | undefined;

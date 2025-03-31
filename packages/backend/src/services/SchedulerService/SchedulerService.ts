@@ -411,7 +411,9 @@ export class SchedulerService extends BaseService {
         if (
             user.ability.cannot(
                 'view',
-                subject('CsvJobResult', {
+                subject('JobStatus', {
+                    projectUuid: job.details?.projectUuid,
+                    organizationUuid: job.details?.organizationUuid,
                     createdByUserUuid: job.details?.createdByUserUuid,
                 }),
             )
@@ -457,10 +459,22 @@ export class SchedulerService extends BaseService {
     }
 
     async getJobStatus(
+        user: SessionUser,
         jobId: string,
     ): Promise<Pick<SchedulerLogDb, 'status' | 'details'>> {
         const job = await this.schedulerModel.getJobStatus(jobId);
-
+        if (
+            user.ability.cannot(
+                'view',
+                subject('JobStatus', {
+                    organizationUuid: job.details?.organizationUuid,
+                    projectUuid: job.details?.projectUuid,
+                    createdByUserUuid: job.details?.createdByUserUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         return { status: job.status, details: job.details };
     }
 
@@ -476,7 +490,10 @@ export class SchedulerService extends BaseService {
                 'You must give a name to this scheduled delivery',
             );
         }
-        if (scheduler.targets.length === 0) {
+        if (
+            scheduler.targets.length === 0 &&
+            scheduler.format !== SchedulerFormat.GSHEETS
+        ) {
             throw new ParameterError(
                 'You must specify at least 1 destination before sending a scheduled delivery',
             );

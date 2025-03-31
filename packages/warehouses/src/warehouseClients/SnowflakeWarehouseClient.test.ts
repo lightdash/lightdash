@@ -1,7 +1,7 @@
 import {
     DimensionType,
     type ResultRow,
-    type WarehousePaginatedResults,
+    type WarehouseGetAsyncQueryResults,
 } from '@lightdash/common';
 import { createConnection } from 'snowflake-sdk';
 import { Readable } from 'stream';
@@ -55,6 +55,8 @@ jest.mock('snowflake-sdk', () => ({
         execute: executeMock,
         destroy: jest.fn((callback) => callback(null, {})),
         getResultsFromQueryId: getResultsFromQueryIdMock,
+        getQueryStatus: jest.fn(() => 'SUCCESS'),
+        isStillRunning: jest.fn(() => false),
     })),
 }));
 
@@ -83,29 +85,27 @@ describe('SnowflakeWarehouseClient', () => {
             expectedWarehouseSchema,
         );
     });
-    describe('getPaginatedResults', () => {
+    describe('getAsyncQueryResults', () => {
+        beforeEach(() => {
+            executeMock.mockClear();
+        });
+
         it('should return raw results', async () => {
             const client = new SnowflakeWarehouseClient(credentials);
 
             // Execute test
-            const result = await client.getPaginatedResults({
+            const result = await client.getAsyncQueryResults({
                 sql: 'SELECT * FROM test',
+                queryId: 'queryId',
                 page: 1,
                 pageSize: 10,
                 tags: {},
                 timezone: 'UTC',
                 values: [],
+                queryMetadata: null,
             });
 
             // Assertions
-
-            expect(executeMock).toHaveBeenLastCalledWith({
-                sqlText: 'SELECT * FROM test',
-                asyncExec: true,
-                binds: undefined,
-                complete: expect.any(Function),
-            });
-
             expect(getResultsFromQueryIdMock).toHaveBeenCalledWith({
                 sqlText: '',
                 queryId: 'queryId',
@@ -117,8 +117,7 @@ describe('SnowflakeWarehouseClient', () => {
                 queryId: 'queryId',
                 pageCount: 1,
                 totalRows: 1,
-                warehouseQueryMetadata: null,
-            } satisfies WarehousePaginatedResults<Record<string, unknown>>);
+            } satisfies WarehouseGetAsyncQueryResults<Record<string, unknown>>);
         });
 
         it('should return formatted results when using a formatter', async () => {
@@ -138,7 +137,7 @@ describe('SnowflakeWarehouseClient', () => {
                 );
             }
 
-            const result = await client.getPaginatedResults(
+            const result = await client.getAsyncQueryResults(
                 {
                     sql: 'SELECT * FROM test',
                     page: 1,
@@ -146,6 +145,8 @@ describe('SnowflakeWarehouseClient', () => {
                     tags: {},
                     timezone: 'UTC',
                     values: [],
+                    queryId: 'queryId',
+                    queryMetadata: null,
                 },
                 formatter,
             );
@@ -153,13 +154,6 @@ describe('SnowflakeWarehouseClient', () => {
             const expectedFormattedRow = formatter(expectedRow);
 
             // Assertions
-            expect(executeMock).toHaveBeenLastCalledWith({
-                sqlText: 'SELECT * FROM test',
-                asyncExec: true,
-                binds: undefined,
-                complete: expect.any(Function),
-            });
-
             expect(getResultsFromQueryIdMock).toHaveBeenCalledWith({
                 sqlText: '',
                 queryId: 'queryId',
@@ -171,30 +165,27 @@ describe('SnowflakeWarehouseClient', () => {
                 queryId: 'queryId',
                 pageCount: 1,
                 totalRows: 1,
-                warehouseQueryMetadata: null,
-            } satisfies WarehousePaginatedResults<ResultRow>);
+            } satisfies WarehouseGetAsyncQueryResults<ResultRow>);
         });
 
         it('should not execute any query when using queryId', async () => {
             const client = new SnowflakeWarehouseClient(credentials);
 
-            const result = await client.getPaginatedResults({
+            const result = await client.getAsyncQueryResults({
                 queryId: 'queryId',
+                queryMetadata: null,
                 page: 1,
                 pageSize: 10,
                 tags: {},
                 timezone: 'UTC',
                 values: [],
+                sql: 'SELECT * FROM test',
             });
 
             // Assertions
 
-            // Ensure that in this case we don't execute any query, we just fetch results
-            expect(executeMock).toHaveBeenLastCalledWith({
-                sqlText:
-                    'ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;',
-                complete: expect.any(Function),
-            });
+            // Ensure that in this case we don't execute any statement, we just fetch results
+            expect(executeMock).not.toHaveBeenCalled();
 
             expect(getResultsFromQueryIdMock).toHaveBeenCalledWith({
                 sqlText: '',
@@ -207,8 +198,7 @@ describe('SnowflakeWarehouseClient', () => {
                 queryId: 'queryId',
                 pageCount: 1,
                 totalRows: 1,
-                warehouseQueryMetadata: null,
-            } satisfies WarehousePaginatedResults<Record<string, unknown>>);
+            } satisfies WarehouseGetAsyncQueryResults<Record<string, unknown>>);
         });
     });
 });

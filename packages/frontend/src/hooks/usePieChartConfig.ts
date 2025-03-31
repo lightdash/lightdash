@@ -3,9 +3,9 @@ import {
     PieChartLegendPositionDefault,
     formatItemValue,
     isField,
+    isHexCodeColor,
     isMetric,
     isTableCalculation,
-    type ApiQueryResults,
     type CustomDimension,
     type Dimension,
     type ItemsMap,
@@ -26,7 +26,7 @@ import omitBy from 'lodash/omitBy';
 import pick from 'lodash/pick';
 import pickBy from 'lodash/pickBy';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { isHexCodeColor } from '../utils/colorUtils';
+import { type InfiniteQueryResults } from './useQueryResults';
 
 type PieChartConfig = {
     validConfig: PieChart;
@@ -85,7 +85,7 @@ type PieChartConfig = {
 };
 
 export type PieChartConfigFn = (
-    resultsData: ApiQueryResults | undefined,
+    resultsData: InfiniteQueryResults | undefined,
     pieChartConfig: PieChart | undefined,
     itemsMap: ItemsMap | undefined,
     dimensions: Record<string, CustomDimension | Dimension>,

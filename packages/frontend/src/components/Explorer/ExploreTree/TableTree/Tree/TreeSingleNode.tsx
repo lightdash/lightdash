@@ -1,6 +1,7 @@
 import {
     getItemId,
     isAdditionalMetric,
+    isCompiledMetric,
     isCustomDimension,
     isDimension,
     isField,
@@ -67,18 +68,44 @@ const TreeSingleNode: FC<Props> = memo(({ node }) => {
     const [isMenuOpen, toggleMenu] = useToggle(false);
 
     const isSelected = selectedItems.has(node.key);
-    const isVisible = !isSearching || searchResults.has(node.key);
+    const isVisible = !isSearching || searchResults.includes(node.key);
 
     const item = itemsMap[node.key];
 
     const metricInfo = useMemo(() => {
-        if (isMetric(item)) {
+        if (isCompiledMetric(item)) {
             return {
                 type: item.type,
                 sql: item.sql,
+                compiledSql: item.compiledSql,
+                filters: item.filters,
+                table: item.table,
+                name: item.name,
             };
         }
+        return undefined;
     }, [item]);
+
+    const description = isField(item) ? item.description : undefined;
+
+    const isMissing =
+        (isAdditionalMetric(item) &&
+            missingCustomMetrics &&
+            missingCustomMetrics.includes(item)) ||
+        (isCustomDimension(item) &&
+            missingCustomDimensions &&
+            missingCustomDimensions.includes(item));
+
+    const isHoverCardDisabled = useMemo(() => {
+        // Show metric info if either metric info or description is present
+        if (isCompiledMetric(item) && (!!metricInfo || !!description)) {
+            return false;
+        }
+        // Show description if it's not missing
+        if (!description && !isMissing) return true;
+
+        return false;
+    }, [description, isMissing, item, metricInfo]);
 
     if (!item || !isVisible) return null;
 
@@ -96,17 +123,7 @@ const TreeSingleNode: FC<Props> = memo(({ node }) => {
             ? timeIntervalLabel || item.label || item.name
             : item.name;
 
-    const isMissing =
-        (isAdditionalMetric(item) &&
-            missingCustomMetrics &&
-            missingCustomMetrics.includes(item)) ||
-        (isCustomDimension(item) &&
-            missingCustomDimensions &&
-            missingCustomDimensions.includes(item));
-
     const alerts = itemsAlerts?.[getItemId(item)];
-
-    const description = isField(item) ? item.description : undefined;
 
     const bgColor = getItemBgColor(item);
 
@@ -185,11 +202,11 @@ const TreeSingleNode: FC<Props> = memo(({ node }) => {
                         shadow="subtle"
                         withinPortal
                         withArrow
-                        disabled={!description && !isMissing}
+                        disabled={isHoverCardDisabled}
                         position="right"
                         radius="md"
                         /** Ensures the hover card does not overlap with the right-hand menu. */
-                        offset={isFiltered ? 80 : 40}
+                        offset={70}
                     >
                         <HoverCard.Target>
                             <Highlight
@@ -204,6 +221,11 @@ const TreeSingleNode: FC<Props> = memo(({ node }) => {
                         <HoverCard.Dropdown
                             hidden={!isHover}
                             p="xs"
+                            miw={400}
+                            mah={500}
+                            sx={{
+                                overflow: 'auto',
+                            }}
                             /**
                              * Takes up space to the right, so it's OK to go fairly wide in the interest
                              * of readability.

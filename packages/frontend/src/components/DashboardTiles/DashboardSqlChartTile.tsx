@@ -109,10 +109,14 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                 title={tile.properties.title || tile.properties.chartName || ''}
                 {...rest}
             >
-                <SuboptimalState
-                    icon={IconAlertCircle}
-                    title={chartError?.error?.message || 'Error fetching chart'}
-                />
+                {!isChartLoading && (
+                    <SuboptimalState
+                        icon={IconAlertCircle}
+                        title={
+                            chartError?.error?.message || 'Error fetching chart'
+                        }
+                    />
+                )}
             </TileBase>
         );
     }

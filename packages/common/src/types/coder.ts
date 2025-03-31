@@ -4,6 +4,8 @@ import type {
     Dashboard,
     DashboardAsCodeLanguageMap,
     DashboardChartTileProperties,
+    DashboardFilterRule,
+    DashboardFilters,
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
     DashboardTile,
@@ -59,6 +61,7 @@ export type ApiChartAsCodeUpsertResponse = {
 
 export type DashboardTileAsCode = Omit<DashboardTile, 'properties' | 'uuid'> & {
     uuid: DashboardTile['uuid'] | undefined; // Allows us to remove the uuid from the object
+    tileSlug: string | undefined;
     properties:
         | Pick<
               DashboardChartTileProperties['properties'],
@@ -70,12 +73,15 @@ export type DashboardTileAsCode = Omit<DashboardTile, 'properties' | 'uuid'> & {
 
 export type DashboardAsCode = Pick<
     Dashboard,
-    'name' | 'description' | 'updatedAt' | 'filters' | 'tabs' | 'slug'
+    'name' | 'description' | 'updatedAt' | 'tabs' | 'slug'
 > & {
     tiles: DashboardTileAsCode[];
     version: number;
     spaceSlug: string;
     downloadedAt?: Date;
+    filters: Omit<DashboardFilters, 'dimensions'> & {
+        dimensions: Omit<DashboardFilterRule, 'id'>[];
+    };
 };
 
 export type ApiDashboardAsCodeListResponse = {

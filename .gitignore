@@ -71,3 +71,4 @@ dangerfile.development.ts
 
 # Charts as code
 lightdash
+*storybook.log

@@ -1,4 +1,4 @@
-import { InvalidUser, type ApiError } from '@lightdash/common';
+import { InvalidUser, PaginationError, type ApiError } from '@lightdash/common';
 import { captureException } from '@sentry/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
@@ -36,7 +36,10 @@ const useQueryError = ({
                     }
                 } else if (statusCode === 401) {
                     await queryClient.invalidateQueries(['health']);
-                } else if (statusCode === 422) {
+                } else if (
+                    statusCode === 422 &&
+                    error.name !== PaginationError.name
+                ) {
                     // validation errors
                     // Send sentry error
                     captureException(error, {

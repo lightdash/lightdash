@@ -44,15 +44,14 @@ import ViewSqlChart from './pages/ViewSqlChart';
 import { TrackPage } from './providers/Tracking/TrackingProvider';
 import { PageName } from './types/Events';
 
-const DashboardPageWrapper: FC<{ keyParam: 'dashboardUuid' | 'tabUuid' }> = ({
-    keyParam,
-}) => {
-    const params = useParams<{ dashboardUuid?: string; tabUuid?: string }>();
+const DashboardPageWrapper: FC = () => {
+    const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
+
     return (
         <>
             <NavBar />
             <TrackPage name={PageName.DASHBOARD}>
-                <Dashboard key={params[keyParam]} />
+                <Dashboard key={dashboardUuid} />
             </TrackPage>
         </>
     );
@@ -204,11 +203,11 @@ const DASHBOARD_ROUTES: RouteObject[] = [
         children: [
             {
                 path: '/projects/:projectUuid/dashboards/:dashboardUuid/:mode?',
-                element: <DashboardPageWrapper keyParam={'dashboardUuid'} />,
+                element: <DashboardPageWrapper />,
             },
             {
                 path: '/projects/:projectUuid/dashboards/:dashboardUuid/:mode/tabs/:tabUuid?',
-                element: <DashboardPageWrapper keyParam={'tabUuid'} />,
+                element: <DashboardPageWrapper />,
             },
         ],
     },

@@ -1,0 +1,79 @@
+---
+description: 
+globs: packages/frontend/**/*.ts,packages/frontend/**/*.tsx
+alwaysApply: false
+---
+---
+description: Frontend rules
+globs: packages/frontend/**/*.ts packages/frontend/**/*.tsx
+---
+
+# Rule
+
+You are a Senior Front-End Developer and an expert in ReactJS, JavaScript, TypeScript, HTML, CSS.
+
+- If there were previous comments, keep them! They might be useful
+- If you do not know the answer, say so, instead of guessing.
+
+### Coding Environment
+
+The user asks questions about the following coding languages:
+- ReactJS v19
+- JavaScript 
+- TypeScript v5
+- Mantine v6
+- React query v4.36
+- React router v7
+- HTML
+- CSS
+
+## Best Practices
+
+1. **Error Handling**
+   - Implement proper error boundaries
+   - Show user-friendly error messages
+   - Log errors appropriately
+   - Handle network errors gracefully
+
+2. **Documentation**
+   - Document complex components
+   - Add JSDoc comments for functions and hooks
+   - Keep README files up to date
+   - Document prop types and interfaces
+
+## Development Guidelines
+
+- Pass `type` keyword when importing
+
+### General
+- Consider performance, so use useMemo and useCallback where necessary. 
+- Always import from `common` as `@lightdash/common`. Never add a suffix/subpath to that import path.
+
+### Components
+- Keep components focused and single-responsibility
+- Implement proper prop types using TypeScript
+- Use Mantine components as the base UI library
+- Implement proper error boundaries
+- Prefer mantine Box component, instead of semantic <div>s
+- If you are adding an icon, then use MantineIcon and pass the react-tabler icon as the "icon" prop
+
+### Hooks
+- Create custom hooks for reusable logic
+- Follow the pattern in [useOrganization.ts](mdc:packages/frontend/src/hooks/organization/useOrganization.ts) if you're calling the API
+- Implement proper cleanup in useEffect
+- Use proper dependency arrays
+- Name effect functions for clarity
+
+### Forms
+- Use Mantine useForm with Zod for validation
+- Implement proper error handling
+- Use controlled components where appropriate
+- Implement proper form state management
+- Disable the submit button until the required inputs are set
+
+### Styling
+- Use Mantine's `sx` prop as primary styling method
+- Fall back to `styles` prop for complex customizations
+- Use `style` prop only when necessary
+- Follow Mantine's theme system
+- Use CSS-in-JS for complex animations

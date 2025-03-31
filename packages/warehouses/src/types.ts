@@ -1,7 +1,9 @@
 export {
     WarehouseCatalog,
     WarehouseClient,
-    WarehousePaginateQueryArgs,
-    WarehousePaginatedResults,
+    WarehouseExecuteAsyncQuery,
+    WarehouseExecuteAsyncQueryArgs,
+    WarehouseGetAsyncQueryResults,
+    WarehouseGetAsyncQueryResultsArgs,
     WarehouseTableSchema,
 } from '@lightdash/common';

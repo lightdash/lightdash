@@ -264,9 +264,9 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
         process.env.SECURE_COOKIES = 'true';
 
         const config = parseConfig();
-        expect(config.security.contentSecurityPolicy.frameAncestors).toEqual([
-            'https://*',
-        ]);
+        expect(config.security.contentSecurityPolicy.frameAncestors).toEqual(
+            [],
+        );
         expect(config.cookieSameSite).toEqual('lax');
     });
 

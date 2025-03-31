@@ -12,6 +12,7 @@ import {
     DashboardDAO,
     DashboardTile,
     DashboardTileAsCode,
+    DashboardTileTarget,
     DashboardTileTypes,
     ForbiddenError,
     friendlyName,
@@ -24,6 +25,7 @@ import {
     SpaceSummary,
     UpdatedByUser,
 } from '@lightdash/common';
+import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -47,8 +49,8 @@ type CoderServiceArguments = {
 };
 
 const isChartTile = (
-    tile: DashboardTileAsCode,
-): tile is DashboardTileAsCode & {
+    tile: DashboardTileAsCode | DashboardTile,
+): tile is DashboardTile & {
     properties: { chartSlug: string; hideTitle: boolean };
 } =>
     tile.type === DashboardTileTypes.SAVED_CHART ||
@@ -130,6 +132,114 @@ export class CoderService extends BaseService {
         );
     }
 
+    static getChartSlugForTileUuid = (
+        dashboard: DashboardDAO,
+        uuid: string,
+    ) => {
+        const tile = dashboard.tiles.find((t) => t.uuid === uuid);
+        if (tile && isChartTile(tile)) {
+            const hasMultipleTilesWithSameChartSlug =
+                dashboard.tiles.filter(
+                    (t) =>
+                        isChartTile(t) &&
+                        t.properties.chartSlug === tile.properties.chartSlug,
+                ).length > 1;
+            if (hasMultipleTilesWithSameChartSlug) {
+                const chartSlugIndex = dashboard.tiles
+                    .filter(
+                        (t) =>
+                            isChartTile(t) &&
+                            t.properties.chartSlug ===
+                                tile.properties.chartSlug,
+                    )
+                    .findIndex((t) => t.uuid === uuid);
+                return `${tile.properties.chartSlug}-${chartSlugIndex + 1}`;
+            }
+            return tile.properties.chartSlug;
+        }
+        return undefined;
+    };
+
+    /* Convert dashboard filters from tile uuids to tile slugs
+     * DashboardDAO to DashboardAsCode
+     */
+    static getFiltersWithTileSlugs(
+        dashboard: DashboardDAO,
+    ): DashboardAsCode['filters'] {
+        const dimensionFiltersWithoutUuids: DashboardAsCode['filters']['dimensions'] =
+            dashboard.filters.dimensions.map((filter) => {
+                const tileTargets = Object.entries(
+                    filter.tileTargets ?? {},
+                ).reduce<Record<string, DashboardTileTarget>>(
+                    (acc, [tileUuid, target]) => {
+                        const tileSlug = CoderService.getChartSlugForTileUuid(
+                            dashboard,
+                            tileUuid,
+                        );
+                        if (!tileSlug) return acc;
+                        return {
+                            ...acc,
+                            [tileSlug]: target,
+                        };
+                    },
+                    {},
+                );
+                return {
+                    ...filter,
+                    id: undefined,
+                    tileTargets,
+                };
+            });
+
+        return {
+            ...dashboard.filters,
+            dimensions: dimensionFiltersWithoutUuids,
+        };
+    }
+
+    /* Convert dashboard filters from tile slugs to tile uuids
+     * DashboardAsCode to DashboardDAO
+     */
+    static getFiltersWithTileUuids(
+        dashboardAsCode: DashboardAsCode,
+        tilesWithUuids: DashboardTile[],
+    ): DashboardDAO['filters'] {
+        const dimensionFiltersWithUuids: DashboardDAO['filters']['dimensions'] =
+            dashboardAsCode.filters.dimensions.map((filter) => {
+                const tileTargets = Object.entries(
+                    filter.tileTargets ?? {},
+                ).reduce<Record<string, DashboardTileTarget>>(
+                    (acc, [tileSlug, target]) => {
+                        const tileUuid = tilesWithUuids.find(
+                            (t) =>
+                                isChartTile(t) &&
+                                t.properties.chartSlug === tileSlug,
+                        )?.uuid;
+                        if (!tileUuid) {
+                            console.error(
+                                `Tile with slug ${tileSlug} not found in tilesWithUuids`,
+                            );
+                            return acc;
+                        }
+                        return {
+                            ...acc,
+                            [tileUuid]: target,
+                        };
+                    },
+                    {},
+                );
+                return {
+                    ...filter,
+                    id: uuidv4(),
+                    tileTargets,
+                };
+            });
+        return {
+            ...dashboardAsCode.filters,
+            dimensions: dimensionFiltersWithUuids,
+        };
+    }
+
     private static transformDashboard(
         dashboard: DashboardDAO,
         spaceSummary: Pick<SpaceSummary, 'uuid' | 'slug'>[],
@@ -142,11 +252,15 @@ export class CoderService extends BaseService {
         }
 
         const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.map(
-            (tile) => {
+            (tile): DashboardTileAsCode => {
                 if (isChartTile(tile)) {
                     return {
                         ...tile,
                         uuid: undefined,
+                        tileSlug: CoderService.getChartSlugForTileUuid(
+                            dashboard,
+                            tile.uuid,
+                        ),
                         properties: {
                             title: tile.properties.title,
                             hideTitle: tile.properties.hideTitle,
@@ -158,6 +272,7 @@ export class CoderService extends BaseService {
                 // Markdown and loom are returned as they are
                 return {
                     ...tile,
+                    tileSlug: undefined,
                     uuid: undefined,
                 };
             },
@@ -170,7 +285,7 @@ export class CoderService extends BaseService {
             updatedAt: dashboard.updatedAt,
             tiles: tilesWithoutUuids,
 
-            filters: dashboard.filters,
+            filters: CoderService.getFiltersWithTileSlugs(dashboard),
             tabs: dashboard.tabs,
             slug: dashboard.slug,
 
@@ -212,6 +327,7 @@ export class CoderService extends BaseService {
                 }
                 return {
                     ...tile,
+                    uuid: uuidv4(),
                     properties: {
                         ...tile.properties,
                         savedChartUuid: savedChart.uuid,
@@ -783,7 +899,15 @@ export class CoderService extends BaseService {
             slug,
             projectUuid,
         });
+        const tilesWithUuids = await this.convertTileWithSlugsToUuids(
+            projectUuid,
+            dashboardAsCode.tiles,
+        );
 
+        const dashboardFilters = CoderService.getFiltersWithTileUuids(
+            dashboardAsCode,
+            tilesWithUuids,
+        );
         // If chart does not exist, we can't use promoteService,
         // since it relies on information it is not available in ChartAsCode, and other uuids
         if (dashboardSummary === undefined) {
@@ -794,16 +918,13 @@ export class CoderService extends BaseService {
                     user,
                 );
 
-            const tilesWithUuids = await this.convertTileWithSlugsToUuids(
-                projectUuid,
-                dashboardAsCode.tiles,
-            );
             const newDashboard = await this.dashboardModel.create(
                 space.uuid,
                 {
                     ...dashboardAsCode,
                     tiles: tilesWithUuids,
                     forceSlug: true,
+                    filters: dashboardFilters,
                 },
                 user,
                 projectUuid,
@@ -835,10 +956,6 @@ export class CoderService extends BaseService {
             `Updating dashboard "${dashboard.name}" on project ${projectUuid}`,
         );
 
-        const tilesWithUuids = await this.convertTileWithSlugsToUuids(
-            projectUuid,
-            dashboardAsCode.tiles,
-        );
         const dashboardWithUuids = {
             ...dashboardAsCode,
             tiles: tilesWithUuids,
@@ -849,6 +966,7 @@ export class CoderService extends BaseService {
                 {
                     ...dashboard,
                     ...dashboardWithUuids,
+                    filters: dashboardFilters,
                     projectUuid,
                     organizationUuid: project.organizationUuid,
                 },

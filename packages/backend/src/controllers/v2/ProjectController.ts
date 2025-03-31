@@ -1,21 +1,25 @@
 import {
     ApiErrorPayload,
-    isPaginatedDashboardChartRequest,
-    isPaginatedMetricQueryRequest,
-    isPaginatedQueryUuidRequest,
-    isPaginatedSavedChartRequest,
+    ApiGetAsyncQueryResults,
     ParameterError,
     QueryExecutionContext,
-    type ApiPaginatedQueryResults,
-    type PaginatedQueryRequestParams,
+    isExecuteAsyncDashboardChartRequest,
+    isExecuteAsyncMetricQueryRequest,
+    isExecuteAsyncSavedChartRequest,
+    isExecuteAsyncUnderlyingDataRequest,
+    type ApiExecuteAsyncQueryResults,
+    type ExecuteAsyncQueryRequestParams,
+    type MetricQuery,
 } from '@lightdash/common';
 import {
     Body,
+    Get,
     Hidden,
     Middlewares,
     OperationId,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -27,9 +31,14 @@ import { getContextFromHeader } from '../../analytics/LightdashAnalytics';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
 
-export type ApiRunPaginatedQueryResponse = {
+export type ApiGetAsyncQueryResultsResponse = {
     status: 'ok';
-    results: ApiPaginatedQueryResults;
+    results: ApiGetAsyncQueryResults;
+};
+
+export type ApiExecuteAsyncQueryResponse = {
+    status: 'ok';
+    results: ApiExecuteAsyncQueryResults;
 };
 
 @Route('/api/v2/projects')
@@ -39,40 +48,58 @@ export class V2ProjectController extends BaseController {
     @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/query/{queryUuid}')
+    @OperationId('getAsyncQueryResults')
+    async getAsyncQueryResults(
+        @Path()
+        projectUuid: string,
+        @Path()
+        queryUuid: string,
+        @Request() req: express.Request,
+        @Query()
+        page?: number,
+        @Query()
+        pageSize?: number,
+    ): Promise<ApiGetAsyncQueryResultsResponse> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getProjectService()
+            .getAsyncQueryResults({
+                user: req.user!,
+                projectUuid,
+                queryUuid,
+                page,
+                pageSize,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Hidden()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
     @Post('{projectUuid}/query')
-    @OperationId('query')
-    async query(
+    @OperationId('executeAsyncQuery')
+    async executeAsyncQuery(
         @Body()
-        body: PaginatedQueryRequestParams,
+        body: ExecuteAsyncQueryRequestParams,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiRunPaginatedQueryResponse> {
+    ): Promise<ApiExecuteAsyncQueryResponse> {
         this.setStatus(200);
 
         const context = body.context ?? getContextFromHeader(req);
         const commonArgs = {
             user: req.user!,
             projectUuid,
-            page: body.page,
-            pageSize: body.pageSize,
         };
 
-        if (isPaginatedQueryUuidRequest(body)) {
-            const results = await this.services
-                .getProjectService()
-                .runPaginatedQueryUuid({
-                    ...commonArgs,
-                    queryUuid: body.queryUuid,
-                });
-
-            return {
-                status: 'ok',
-                results,
-            };
-        }
-
-        if (isPaginatedMetricQueryRequest(body)) {
-            const metricQuery = {
+        if (isExecuteAsyncMetricQueryRequest(body)) {
+            const metricQuery: MetricQuery = {
                 exploreName: body.query.exploreName,
                 dimensions: body.query.dimensions,
                 metrics: body.query.metrics,
@@ -88,10 +115,11 @@ export class V2ProjectController extends BaseController {
 
             const results = await this.services
                 .getProjectService()
-                .runPaginatedMetricQuery({
+                .executeAsyncMetricQuery({
                     ...commonArgs,
                     metricQuery,
-                    context: context ?? QueryExecutionContext.EXPLORE,
+                    context: context ?? QueryExecutionContext.API,
+                    granularity: body.query.granularity,
                 });
 
             return {
@@ -100,14 +128,14 @@ export class V2ProjectController extends BaseController {
             };
         }
 
-        if (isPaginatedSavedChartRequest(body)) {
+        if (isExecuteAsyncSavedChartRequest(body)) {
             const results = await this.services
                 .getProjectService()
-                .runPaginatedSavedChartQuery({
+                .executeAsyncSavedChartQuery({
                     ...commonArgs,
                     chartUuid: body.chartUuid,
                     versionUuid: body.versionUuid,
-                    context: context ?? QueryExecutionContext.CHART,
+                    context: context ?? QueryExecutionContext.API,
                 });
 
             return {
@@ -116,17 +144,35 @@ export class V2ProjectController extends BaseController {
             };
         }
 
-        if (isPaginatedDashboardChartRequest(body)) {
+        if (isExecuteAsyncDashboardChartRequest(body)) {
             const results = await this.services
                 .getProjectService()
-                .runPaginatedDashboardChartQuery({
+                .executeAsyncDashboardChartQuery({
                     ...commonArgs,
                     chartUuid: body.chartUuid,
                     dashboardUuid: body.dashboardUuid,
                     dashboardFilters: body.dashboardFilters,
                     dashboardSorts: body.dashboardSorts,
                     granularity: body.granularity,
-                    context: context ?? QueryExecutionContext.DASHBOARD,
+                    context: context ?? QueryExecutionContext.API,
+                });
+
+            return {
+                status: 'ok',
+                results,
+            };
+        }
+
+        if (isExecuteAsyncUnderlyingDataRequest(body)) {
+            const results = await this.services
+                .getProjectService()
+                .executeAsyncUnderlyingDataQuery({
+                    ...commonArgs,
+                    underlyingDataSourceQueryUuid:
+                        body.underlyingDataSourceQueryUuid,
+                    filters: body.filters,
+                    underlyingDataItemId: body.underlyingDataItemId,
+                    context: context ?? QueryExecutionContext.API,
                 });
 
             return {
@@ -136,6 +182,6 @@ export class V2ProjectController extends BaseController {
         }
 
         this.setStatus(400);
-        throw new ParameterError('Invalid query');
+        throw new ParameterError('Invalid async query execution request');
     }
 }

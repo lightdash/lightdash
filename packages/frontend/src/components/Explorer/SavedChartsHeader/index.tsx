@@ -67,10 +67,6 @@ import ExploreFromHereButton from '../../ExploreFromHereButton';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import MantineIcon from '../../common/MantineIcon';
 import PageHeader from '../../common/Page/PageHeader';
-import {
-    PageActionsContainer,
-    PageTitleAndDetailsContainer,
-} from '../../common/PageHeader';
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
@@ -136,16 +132,12 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
     );
     const reset = useExplorerContext((context) => context.actions.reset);
 
-    const resultsData = useExplorerContext(
-        (context) => context.queryResults.data,
+    const itemsMap = useExplorerContext(
+        (context) => context.query.data?.fields,
     );
     const isValidQuery = useExplorerContext(
         (context) => context.state.isValidQuery,
     );
-
-    const itemsMap = useMemo(() => {
-        return resultsData?.fields;
-    }, [resultsData]);
 
     const { clearDashboardStorage } = useDashboardStorage();
     const [isRenamingChart, setIsRenamingChart] = useState(false);
@@ -357,7 +349,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                     py: 'xs',
                 }}
             >
-                <PageTitleAndDetailsContainer>
+                <div style={{ flex: 1 }}>
                     {savedChart && projectUuid && (
                         <>
                             <Group spacing={4}>
@@ -409,7 +401,8 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                             </Group>
                         </>
                     )}
-                </PageTitleAndDetailsContainer>
+                </div>
+
                 {userTimeZonesEnabled &&
                     savedChart?.metricQuery.timezone &&
                     !isEditMode && (
@@ -417,10 +410,11 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                             {savedChart?.metricQuery.timezone}
                         </Text>
                     )}
+
                 {(userCanManageChart ||
                     userCanCreateDeliveriesAndAlerts ||
                     userCanManageExplore) && (
-                    <PageActionsContainer>
+                    <Group spacing="xs">
                         {userCanManageExplore && !isEditMode && (
                             <ExploreFromHereButton />
                         )}
@@ -834,7 +828,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                 </ActionIcon>
                             </Menu.Target>
                         </Menu>
-                    </PageActionsContainer>
+                    </Group>
                 )}
             </PageHeader>
 

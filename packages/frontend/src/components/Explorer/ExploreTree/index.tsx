@@ -42,7 +42,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     const [search, setSearch] = useState<string>('');
     const isSearching = !!search && search !== '';
 
-    const searchHasResults = useCallback(
+    const searchResults = useCallback(
         (table: CompiledTable) => {
             const allValues = Object.values({
                 ...table.dimensions,
@@ -55,7 +55,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                 return { ...acc, [getItemId(item)]: item };
             }, {});
 
-            return getSearchResults(allFields, search).size > 0;
+            return getSearchResults(allFields, search);
         },
         [additionalMetrics, search],
     );
@@ -70,9 +70,10 @@ const ExploreTree: FC<ExploreTreeProps> = ({
             })
             .filter(
                 (table) =>
-                    !(isSearching && !searchHasResults(table)) && !table.hidden,
+                    !(isSearching && searchResults(table).length === 0) &&
+                    !table.hidden,
             );
-    }, [explore, searchHasResults, isSearching]);
+    }, [explore, isSearching, searchResults]);
 
     return (
         <>

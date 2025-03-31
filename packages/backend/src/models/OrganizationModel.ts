@@ -11,6 +11,7 @@ import {
     UserAllowedOrganization,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { LightdashConfig } from '../config/parseConfig';
 import {
     DbOrganizationColorPalette,
     OrganizationColorPaletteTableName,
@@ -179,18 +180,21 @@ export const PRESET_COLOR_PALETTES = [
 export class OrganizationModel {
     private database: Knex;
 
-    constructor(database: Knex) {
+    private lightdashConfig: LightdashConfig | undefined;
+
+    constructor(database: Knex, lightdashConfig?: LightdashConfig) {
         this.database = database;
+        this.lightdashConfig = lightdashConfig;
     }
 
     static mapDBObjectToOrganization(
         data: DbOrganization,
-        palette?: DbOrganizationColorPalette,
+        palette?: DbOrganizationColorPalette['colors'],
     ): Organization {
         return {
             organizationUuid: data.organization_uuid,
             name: data.organization_name,
-            chartColors: palette?.colors ?? undefined,
+            chartColors: palette ?? undefined,
             defaultProjectUuid: data.default_project_uuid
                 ? data.default_project_uuid
                 : undefined,
@@ -213,12 +217,27 @@ export class OrganizationModel {
             throw new NotFoundError(`No organization found`);
         }
 
-        const [palette] = await this.database(OrganizationColorPaletteTableName)
+        // If override color palette is configured, always override the active palette
+        if (
+            this.lightdashConfig?.appearance?.overrideColorPalette &&
+            this.lightdashConfig.appearance.overrideColorPalette.length > 0
+        ) {
+            return OrganizationModel.mapDBObjectToOrganization(
+                org,
+                this.lightdashConfig.appearance.overrideColorPalette,
+            );
+        }
+
+        const palette = await this.database(OrganizationColorPaletteTableName)
             .where('color_palette_uuid', org.color_palette_uuid)
             .andWhere('organization_uuid', organizationUuid)
-            .select('*');
+            .select('*')
+            .first();
 
-        return OrganizationModel.mapDBObjectToOrganization(org, palette);
+        return OrganizationModel.mapDBObjectToOrganization(
+            org,
+            palette?.colors,
+        );
     }
 
     async create(data: CreateOrganization): Promise<Organization> {
@@ -268,7 +287,10 @@ export class OrganizationModel {
                 .andWhere('organization_uuid', organizationUuid)
                 .select('*');
 
-            return OrganizationModel.mapDBObjectToOrganization(org, palette);
+            return OrganizationModel.mapDBObjectToOrganization(
+                org,
+                palette.colors,
+            );
         }
 
         return OrganizationModel.mapDBObjectToOrganization(org);
