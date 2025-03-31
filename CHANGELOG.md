@@ -1,3 +1,10 @@
+# [0.1557.0](https://github.com/lightdash/lightdash/compare/0.1556.0...0.1557.0) (2025-03-31)
+
+
+### Features
+
+* add support for HEXA color format with alpha channel ([#14048](https://github.com/lightdash/lightdash/issues/14048)) ([a6a777a](https://github.com/lightdash/lightdash/commit/a6a777abf8770037d7a65d3c762066b09e839fd1))
+
 # [0.1556.0](https://github.com/lightdash/lightdash/compare/0.1555.0...0.1556.0) (2025-03-31)
 
 
