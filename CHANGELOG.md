@@ -1,3 +1,10 @@
+# [0.1555.0](https://github.com/lightdash/lightdash/compare/0.1554.0...0.1555.0) (2025-03-31)
+
+
+### Features
+
+* lazy load explore visualization ([#14166](https://github.com/lightdash/lightdash/issues/14166)) ([beafa12](https://github.com/lightdash/lightdash/commit/beafa12faa16ffad479a57400bfb6358ce7111af))
+
 # [0.1554.0](https://github.com/lightdash/lightdash/compare/0.1553.0...0.1554.0) (2025-03-31)
 
 
