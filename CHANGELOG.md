@@ -1,3 +1,10 @@
+# [0.1553.0](https://github.com/lightdash/lightdash/compare/0.1552.13...0.1553.0) (2025-03-31)
+
+
+### Features
+
+* allow exporting a dashboard tab ([#14167](https://github.com/lightdash/lightdash/issues/14167)) ([d3bae47](https://github.com/lightdash/lightdash/commit/d3bae473d27c3ec88dcdd8ea27d9e49ec2117496))
+
 ## [0.1552.13](https://github.com/lightdash/lightdash/compare/0.1552.12...0.1552.13) (2025-03-31)
 
 
