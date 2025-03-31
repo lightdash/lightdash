@@ -9,7 +9,7 @@ jobs:
         outputs:
             frontend: ${{ steps.changes.outputs.frontend == 'true' || steps.overrides.outputs.frontend == 'true' }}
             backend: ${{ steps.changes.outputs.backend == 'true' || steps.overrides.outputs.backend == 'true' }}
-            timezone: ${{ steps.overrides.outputs.timezone == 'true' }}
+            timezone: ${{ steps.changes.outputs.timezone == 'true' || steps.overrides.outputs.timezone == 'true' }}
         steps:
             - uses: actions/checkout@v4
             - name: Check for files changes
@@ -28,7 +28,7 @@ jobs:
                   echo "Backend override: ${{contains(steps.PR.outputs.pr_body, 'test-backend')}}"
                   echo "frontend=${{ contains(steps.PR.outputs.pr_body, 'test-frontend') }}" >> "$GITHUB_OUTPUT"
                   echo "backend=${{ contains(steps.PR.outputs.pr_body, 'test-backend') }}" >> "$GITHUB_OUTPUT"
-
+                  echo "timezone=${{ contains(steps.PR.outputs.pr_body, 'test-timezone') }}" >> "$GITHUB_OUTPUT"
     prepare-preview:
         # Only trigger for correct environment and status
         runs-on: ubuntu-latest
