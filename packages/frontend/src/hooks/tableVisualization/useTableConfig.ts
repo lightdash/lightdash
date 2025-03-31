@@ -7,7 +7,6 @@ import {
     isFilterableItem,
     isMetric,
     isNumericItem,
-    isSummable,
     isTableCalculation,
     itemsInMetricQuery,
     type ApiQueryResults,
@@ -314,23 +313,6 @@ const useTableConfig = (
             );
         });
 
-        const summableMetricFieldIds = selectedItemIds?.filter((fieldId) => {
-            const field = getField(fieldId);
-
-            if (isDimension(field)) {
-                return false;
-            }
-
-            if (
-                hiddenMetricFieldIds &&
-                hiddenMetricFieldIds.includes(fieldId)
-            ) {
-                return false;
-            }
-
-            return isSummable(field);
-        });
-
         worker
             .pivotQueryResults({
                 pivotConfig: {
@@ -338,7 +320,6 @@ const useTableConfig = (
                     metricsAsRows,
                     columnOrder,
                     hiddenMetricFieldIds,
-                    summableMetricFieldIds,
                     columnTotals: tableChartConfig?.showColumnCalculation,
                     rowTotals: tableChartConfig?.showRowCalculation,
                 },
