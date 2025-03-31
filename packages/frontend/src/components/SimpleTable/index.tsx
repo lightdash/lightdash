@@ -141,7 +141,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
             />
         );
     } else if (pivotTableData.loading || pivotTableData.data) {
-        // todo: load all results for pivot table
         return (
             <Box
                 p="xs"
