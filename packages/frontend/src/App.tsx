@@ -1,3 +1,4 @@
+import { ModalsProvider } from '@mantine/modals';
 import { wrapCreateBrowserRouterV7 } from '@sentry/react';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
@@ -68,7 +69,9 @@ const App = () => (
 
         <ReactQueryProvider>
             <MantineProvider withGlobalStyles withNormalizeCSS withCSSVariables>
-                <RouterProvider router={router} />
+                <ModalsProvider>
+                    <RouterProvider router={router} />
+                </ModalsProvider>
             </MantineProvider>
             <ReactQueryDevtools initialIsOpen={false} />
         </ReactQueryProvider>

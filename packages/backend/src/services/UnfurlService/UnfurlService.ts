@@ -544,7 +544,7 @@ export class UnfurlService extends BaseService {
         contextId?: unknown;
         selectedTabs?: string[];
     }): Promise<Buffer | undefined> {
-        console.log('params', {
+        console.debug('params', {
             imageId,
             cookie,
             url,
@@ -1135,7 +1135,7 @@ export class UnfurlService extends BaseService {
         return fullUrl;
     }
 
-    private async parseUrl(linkUrl: string): Promise<ParsedUrl> {
+    async parseUrl(linkUrl: string): Promise<ParsedUrl> {
         const shareUrl = new RegExp(`/share/${nanoid}`);
         const url = linkUrl.match(shareUrl)
             ? await this.getSharedUrl(linkUrl)
