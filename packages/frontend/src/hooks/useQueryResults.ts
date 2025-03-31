@@ -6,6 +6,7 @@ import {
     assertUnreachable,
     type DashboardFilters,
     type DateGranularity,
+    DEFAULT_RESULTS_PAGE_SIZE,
     type ExecuteAsyncQueryRequestParams,
     FeatureFlags,
     type MetricQuery,
@@ -135,8 +136,6 @@ export const getQueryPaginatedResults = async (
     };
 };
 
-const DEFAULT_PAGE_SIZE = 20;
-
 /**
  * Run query & get first results page
  */
@@ -154,7 +153,7 @@ const getFirstPage = async (
     // Wait for first page
     while (!firstPage || firstPage.status === QueryHistoryStatus.PENDING) {
         firstPage = await lightdashApi<ApiGetAsyncQueryResults>({
-            url: `/projects/${projectUuid}/query/${query.queryUuid}?pageSize=${DEFAULT_PAGE_SIZE}`,
+            url: `/projects/${projectUuid}/query/${query.queryUuid}?pageSize=${DEFAULT_RESULTS_PAGE_SIZE}`,
             version: 'v2',
             method: 'GET',
             body: undefined,
@@ -247,7 +246,7 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
                     data?.projectUuid,
                     result.data.queryUuid,
                     1,
-                    DEFAULT_PAGE_SIZE,
+                    DEFAULT_RESULTS_PAGE_SIZE,
                 ],
                 result.data,
             );
@@ -387,7 +386,7 @@ export const useInfiniteQueryResults = (
         queryUuid: undefined,
         projectUuid: undefined,
         page: 1,
-        pageSize: DEFAULT_PAGE_SIZE,
+        pageSize: DEFAULT_RESULTS_PAGE_SIZE,
     });
     const [fetchedPages, setFetchedPages] = useState<ReadyQueryResultsPage[]>(
         [],
@@ -456,7 +455,7 @@ export const useInfiniteQueryResults = (
             queryUuid,
             projectUuid,
             page: 1,
-            pageSize: DEFAULT_PAGE_SIZE,
+            pageSize: DEFAULT_RESULTS_PAGE_SIZE,
         });
     }, [projectUuid, queryUuid]);
 
