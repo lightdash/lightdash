@@ -9,20 +9,23 @@ import {
     type CustomSqlDimension,
 } from '@lightdash/common';
 import {
+    ActionIcon,
+    Box,
     Button,
+    getDefaultZIndex,
     Group,
     Modal,
-    ScrollArea,
+    Paper,
     Select,
     Stack,
     Text,
     TextInput,
-    Title,
     useMantineTheme,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconSql } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { IconMaximize, IconMinimize, IconSql } from '@tabler/icons-react';
+import { useEffect, useRef, type FC } from 'react';
+import { useToggle } from 'react-use';
 import { SqlEditor } from '../../../features/tableCalculation/components/SqlForm';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
@@ -42,6 +45,7 @@ export const CustomSqlDimensionModal: FC<{
     item?: CustomSqlDimension;
 }> = ({ isEditing, table, item }) => {
     const theme = useMantineTheme();
+    const { colors } = theme;
     const { showToastSuccess, showToastError } = useToaster();
     const { setAceEditor } = useCustomDimensionsAceEditorCompleter();
     const toggleModal = useExplorerContext(
@@ -61,6 +65,8 @@ export const CustomSqlDimensionModal: FC<{
     const editCustomDimension = useExplorerContext(
         (context) => context.actions.editCustomDimension,
     );
+    const [isFullscreen, toggleFullscreen] = useToggle(false);
+    const submitButtonRef = useRef<HTMLButtonElement>(null);
 
     const form = useForm<FormValues>({
         initialValues: {
@@ -164,19 +170,40 @@ export const CustomSqlDimensionModal: FC<{
     });
 
     return (
-        <Modal
-            size="lg"
-            onClick={(e) => e.stopPropagation()}
+        <Modal.Root
             opened={true}
             onClose={() => {
                 toggleModal(undefined);
                 form.reset();
             }}
-            title={
-                <>
+            size="xl"
+            centered
+            styles={{
+                content: {
+                    minWidth: isFullscreen ? '90vw' : 'auto',
+                    height: isFullscreen ? '70vh' : 'auto',
+                },
+            }}
+        >
+            <Modal.Overlay />
+            <Modal.Content
+                sx={{
+                    margin: '0 auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}
+            >
+                <Modal.Header
+                    sx={(themeProps) => ({
+                        borderBottom: `1px solid ${themeProps.colors.gray[2]}`,
+                        padding: themeProps.spacing.sm,
+                    })}
+                >
                     <Group spacing="xs">
-                        <MantineIcon icon={IconSql} size="lg" color="gray.7" />
-                        <Title order={4}>
+                        <Paper p="xs" withBorder radius="sm">
+                            <MantineIcon icon={IconSql} size="sm" />
+                        </Paper>
+                        <Text color="dark.7" fw={700} fz="md">
                             {isEditing ? 'Edit' : 'Create'} Custom Dimension
                             {item ? (
                                 <Text span fw={400}>
@@ -184,67 +211,129 @@ export const CustomSqlDimensionModal: FC<{
                                     - {item.name}
                                 </Text>
                             ) : null}
-                        </Title>
+                        </Text>
                     </Group>
-                </>
-            }
-            styles={{
-                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
-                body: { padding: 0 },
-            }}
-        >
-            <form onSubmit={handleOnSubmit}>
-                <Stack p="md" pb="xs" spacing="xs">
-                    <Group position="apart">
-                        <TextInput
-                            label="Label"
-                            required
-                            placeholder="Enter custom dimension label"
-                            style={{ flex: 1 }}
-                            {...form.getInputProps('customDimensionLabel')}
-                        />
-                        <Select
-                            sx={{
-                                alignSelf: 'flex-start',
-                            }}
-                            withinPortal={true}
-                            label="Dimension Type"
-                            data={Object.values(DimensionType).map((type) => ({
-                                value: type,
-                                label: capitalize(type),
-                            }))}
-                            {...form.getInputProps('dimensionType')}
-                        />
-                    </Group>
-                    <ScrollArea h={'150px'}>
-                        <SqlEditor
-                            mode="sql"
-                            placeholder="Enter SQL"
-                            theme="github"
-                            width="100%"
-                            maxLines={Infinity}
-                            minLines={8}
-                            setOptions={{
-                                autoScrollEditorIntoView: true,
-                            }}
-                            onLoad={setAceEditor}
-                            isFullScreen={false}
-                            enableLiveAutocompletion
-                            enableBasicAutocompletion
-                            showPrintMargin={false}
-                            wrapEnabled={true}
-                            gutterBackgroundColor={theme.colors.gray['1']}
-                            {...form.getInputProps('sql')}
-                        />
-                    </ScrollArea>
+                    <Modal.CloseButton />
+                </Modal.Header>
 
-                    <Group>
-                        <Button ml="auto" type="submit">
-                            {isEditing ? 'Save changes' : 'Create'}
-                        </Button>
-                    </Group>
-                </Stack>
-            </form>
-        </Modal>
+                <form
+                    onSubmit={handleOnSubmit}
+                    style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        flex: 1,
+                    }}
+                >
+                    <Modal.Body
+                        p={0}
+                        sx={{
+                            flex: 1,
+                            overflow: 'auto',
+                            height: isFullscreen ? '100%' : 'auto',
+                        }}
+                    >
+                        <Stack p="sm" spacing="xs">
+                            <Group position="apart">
+                                <TextInput
+                                    label="Label"
+                                    required
+                                    placeholder="Enter custom dimension label"
+                                    style={{ flex: 1 }}
+                                    {...form.getInputProps(
+                                        'customDimensionLabel',
+                                    )}
+                                />
+                                <Select
+                                    sx={{
+                                        alignSelf: 'flex-start',
+                                    }}
+                                    withinPortal={true}
+                                    label="Dimension Type"
+                                    data={Object.values(DimensionType).map(
+                                        (type) => ({
+                                            value: type,
+                                            label: capitalize(type),
+                                        }),
+                                    )}
+                                    {...form.getInputProps('dimensionType')}
+                                />
+                            </Group>
+                            <Box
+                                sx={{
+                                    border: `1px solid ${colors.gray[2]}`,
+                                    borderRadius: theme.radius.sm,
+                                }}
+                            >
+                                <SqlEditor
+                                    mode="sql"
+                                    placeholder="Enter SQL"
+                                    theme="github"
+                                    width="100%"
+                                    maxLines={Infinity}
+                                    minLines={isFullscreen ? 25 : 8}
+                                    setOptions={{
+                                        autoScrollEditorIntoView: true,
+                                    }}
+                                    onLoad={setAceEditor}
+                                    isFullScreen={isFullscreen}
+                                    enableLiveAutocompletion
+                                    enableBasicAutocompletion
+                                    showPrintMargin={false}
+                                    wrapEnabled={true}
+                                    gutterBackgroundColor={colors.gray['1']}
+                                    {...form.getInputProps('sql')}
+                                />
+                            </Box>
+                        </Stack>
+                    </Modal.Body>
+
+                    <Box
+                        sx={(themeProps) => ({
+                            borderTop: `1px solid ${themeProps.colors.gray[2]}`,
+                            padding: themeProps.spacing.sm,
+                            backgroundColor: themeProps.white,
+                            position: 'sticky',
+                            bottom: 0,
+                            width: '100%',
+                            zIndex: getDefaultZIndex('modal'),
+                        })}
+                    >
+                        <Group position="apart">
+                            <ActionIcon
+                                variant="outline"
+                                onClick={toggleFullscreen}
+                            >
+                                <MantineIcon
+                                    icon={
+                                        isFullscreen
+                                            ? IconMinimize
+                                            : IconMaximize
+                                    }
+                                />
+                            </ActionIcon>
+                            <Group spacing="xs">
+                                <Button
+                                    variant="default"
+                                    h={32}
+                                    onClick={() => {
+                                        toggleModal(undefined);
+                                        form.reset();
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    h={32}
+                                    type="submit"
+                                    ref={submitButtonRef}
+                                >
+                                    {isEditing ? 'Save changes' : 'Create'}
+                                </Button>
+                            </Group>
+                        </Group>
+                    </Box>
+                </form>
+            </Modal.Content>
+        </Modal.Root>
     );
 };
