@@ -1756,8 +1756,13 @@ export class ProjectModel {
 
                 if (content.length === 0) return undefined;
 
-                const newContent = await trx(table)
-                    .insert(
+                Logger.debug(
+                    `Copying ${content.length} chart content on ${table} table`,
+                );
+                const batchSize = 1000;
+                const newContent = await trx
+                    .batchInsert(
+                        table,
                         content.map((d) => {
                             const createContent = {
                                 ...d,
@@ -1777,8 +1782,10 @@ export class ProjectModel {
                             });
                             return createContent;
                         }),
+                        batchSize,
                     )
-                    .returning('*');
+                    .returning('*')
+                    .transacting(trx);
 
                 return newContent;
             };

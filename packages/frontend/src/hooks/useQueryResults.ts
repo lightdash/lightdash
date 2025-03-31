@@ -6,6 +6,7 @@ import {
     assertUnreachable,
     type DashboardFilters,
     type DateGranularity,
+    DEFAULT_RESULTS_PAGE_SIZE,
     type ExecuteAsyncQueryRequestParams,
     FeatureFlags,
     type MetricQuery,
@@ -135,8 +136,6 @@ export const getQueryPaginatedResults = async (
     };
 };
 
-const DEFAULT_PAGE_SIZE = 500;
-
 /**
  * Run query & get first results page
  */
@@ -154,7 +153,7 @@ const getFirstPage = async (
     // Wait for first page
     while (!firstPage || firstPage.status === QueryHistoryStatus.PENDING) {
         firstPage = await lightdashApi<ApiGetAsyncQueryResults>({
-            url: `/projects/${projectUuid}/query/${query.queryUuid}?pageSize=${DEFAULT_PAGE_SIZE}`,
+            url: `/projects/${projectUuid}/query/${query.queryUuid}?pageSize=${DEFAULT_RESULTS_PAGE_SIZE}`,
             version: 'v2',
             method: 'GET',
             body: undefined,
@@ -247,7 +246,7 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
                     data?.projectUuid,
                     result.data.queryUuid,
                     1,
-                    DEFAULT_PAGE_SIZE,
+                    DEFAULT_RESULTS_PAGE_SIZE,
                 ],
                 result.data,
             );
@@ -356,25 +355,48 @@ const getResultsPage = async (
     }
 };
 
+export type InfiniteQueryResults = Partial<
+    Pick<
+        ReadyQueryResultsPage,
+        'metricQuery' | 'queryUuid' | 'totalResults' | 'fields'
+    >
+> & {
+    projectUuid?: string;
+    rows: ResultRow[];
+    isFetchingRows: boolean;
+    fetchMoreRows: () => void;
+    setFetchAll: (value: boolean) => void;
+};
+
 // This hook lazy load results has they are needed in the UI
 export const useInfiniteQueryResults = (
     projectUuid?: string,
     queryUuid?: string,
-) => {
+): InfiniteQueryResults => {
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
         forbiddenToastTitle: 'Error running query',
+    });
+    const [fetchArgs, setFetchArgs] = useState<{
+        queryUuid?: string;
+        projectUuid?: string;
+        page: number;
+        pageSize: number;
+    }>({
+        queryUuid: undefined,
+        projectUuid: undefined,
+        page: 1,
+        pageSize: DEFAULT_RESULTS_PAGE_SIZE,
     });
     const [fetchedPages, setFetchedPages] = useState<ReadyQueryResultsPage[]>(
         [],
     );
     const [fetchAll, setFetchAll] = useState(false);
-    const [pageToFetch, setPageToFetch] = useState<number>(1);
 
     const fetchMoreRows = useCallback(() => {
         const nextPageToFetch = fetchedPages[fetchedPages.length - 1]?.nextPage;
         if (nextPageToFetch) {
-            setPageToFetch(nextPageToFetch);
+            setFetchArgs((prev) => ({ ...prev, page: nextPageToFetch }));
         }
     }, [fetchedPages]);
 
@@ -388,25 +410,25 @@ export const useInfiniteQueryResults = (
     }, [fetchedPages]);
 
     const isFetchingRows = useMemo(() => {
-        const isFetchingPage = pageToFetch > fetchedPages.length;
+        const isFetchingPage = fetchArgs.page > fetchedPages.length;
         return !!projectUuid && !!queryUuid && isFetchingPage;
-    }, [fetchedPages, pageToFetch, projectUuid, queryUuid]);
+    }, [fetchedPages, fetchArgs.page, projectUuid, queryUuid]);
 
     const nextPage = useQuery<ReadyQueryResultsPage, ApiError>({
-        enabled: !!projectUuid && !!queryUuid,
+        enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
         queryKey: [
             'query-page',
-            projectUuid,
-            queryUuid,
-            pageToFetch,
-            DEFAULT_PAGE_SIZE,
+            fetchArgs.projectUuid,
+            fetchArgs.queryUuid,
+            fetchArgs.page,
+            fetchArgs.pageSize,
         ],
         queryFn: () => {
             return getResultsPage(
-                projectUuid!,
-                queryUuid!,
-                pageToFetch!,
-                DEFAULT_PAGE_SIZE,
+                fetchArgs.projectUuid!,
+                fetchArgs.queryUuid!,
+                fetchArgs.page,
+                fetchArgs.pageSize,
             );
         },
         staleTime: Infinity, // the data will never be considered stale
@@ -427,9 +449,14 @@ export const useInfiniteQueryResults = (
     }, [nextPage.data]);
 
     useEffect(() => {
-        // Reset pagination state
+        // Reset fetched pages before updating the fetch args
         setFetchedPages([]);
-        setPageToFetch(1);
+        setFetchArgs({
+            queryUuid,
+            projectUuid,
+            page: 1,
+            pageSize: DEFAULT_RESULTS_PAGE_SIZE,
+        });
     }, [projectUuid, queryUuid]);
 
     useEffect(() => {
@@ -439,6 +466,14 @@ export const useInfiniteQueryResults = (
         }
     }, [fetchAll, fetchMoreRows]);
 
+    const hasFetchedAllRows = useMemo(() => {
+        if (fetchedPages.length === 0) {
+            return false;
+        }
+
+        return fetchedRows.length >= fetchedPages[0].totalResults;
+    }, [fetchedRows, fetchedPages]);
+
     return useMemo(
         () => ({
             projectUuid,
@@ -446,8 +481,7 @@ export const useInfiniteQueryResults = (
             metricQuery: fetchedPages[0]?.metricQuery,
             fields: fetchedPages[0]?.fields,
             totalResults: fetchedPages[0]?.totalResults,
-            hasFetchedAllRows:
-                fetchedRows.length >= fetchedPages[0]?.totalResults,
+            hasFetchedAllRows,
             rows: fetchedRows,
             isFetchingRows,
             fetchMoreRows,
@@ -457,10 +491,10 @@ export const useInfiniteQueryResults = (
             projectUuid,
             queryUuid,
             fetchedPages,
+            hasFetchedAllRows,
             fetchedRows,
             isFetchingRows,
             fetchMoreRows,
-            setFetchAll,
         ],
     );
 };

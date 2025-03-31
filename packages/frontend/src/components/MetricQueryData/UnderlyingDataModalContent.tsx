@@ -295,7 +295,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                                         }
                                         opened={isCSVExportModalOpen}
                                         projectUuid={projectUuid}
-                                        rows={resultsData?.rows}
+                                        totalResults={resultsData?.rows.length}
                                     />
                                 )}
                             </Can>

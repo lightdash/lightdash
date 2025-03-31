@@ -148,7 +148,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
         let authenticationOptions: Partial<ConnectionOptions> = {};
 
-        if (credentials.privateKey) {
+        // if authenticationType is undefined, we assume it is a password authentication, for backwards compatibility
+        if (
+            credentials.privateKey &&
+            credentials.authenticationType === 'private_key'
+        ) {
             if (!credentials.privateKeyPass) {
                 authenticationOptions = {
                     privateKey: credentials.privateKey,
