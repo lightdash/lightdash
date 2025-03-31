@@ -55,7 +55,12 @@ const ColorSelector: FC<Props> = ({
                         swatchesPerRow={8}
                         value={color ?? defaultColor}
                         onChange={(newColor) => {
-                            if (onColorChange) {
+                            if (!onColorChange) return;
+
+                            // Only append alpha if the color has <1 opacity
+                            if (withAlpha && newColor.endsWith('ff')) {
+                                onColorChange(newColor.slice(0, 7));
+                            } else {
                                 onColorChange(newColor);
                             }
                         }}
