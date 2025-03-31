@@ -1,3 +1,10 @@
+# [0.1558.0](https://github.com/lightdash/lightdash/compare/0.1557.1...0.1558.0) (2025-03-31)
+
+
+### Features
+
+* allow expanding Custom SQL modal ([#14220](https://github.com/lightdash/lightdash/issues/14220)) ([59356e1](https://github.com/lightdash/lightdash/commit/59356e1401716bff2dd85bcddde34690feb54beb))
+
 ## [0.1557.1](https://github.com/lightdash/lightdash/compare/0.1557.0...0.1557.1) (2025-03-31)
 
 
