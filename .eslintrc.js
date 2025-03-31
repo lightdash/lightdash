@@ -16,9 +16,9 @@ module.exports = {
         // so we we are going to add these warnings on eslint to manually fix them incrementally.
         // Packages can exclude existing files and add errors for new files (eg: see common/.eslintrc.js)
         // TODO: fix these warnings and then add noUncheckedIndexedAccess to tsconfig.json
-        "@typescript-eslint/no-unsafe-member-access": "warn",
-        "@typescript-eslint/no-unsafe-assignment": "warn",
-        "@typescript-eslint/no-unsafe-call": "warn"
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-call": "off"
     },
     
 };

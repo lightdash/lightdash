@@ -1,4 +1,8 @@
-import { type RawResultRow, type VizColumnsConfig } from '@lightdash/common';
+import {
+    type RawResultRow,
+    type VizColumnsConfig,
+    applyDefaultFormat,
+} from '@lightdash/common';
 import { stringify } from 'csv-stringify/browser/esm';
 import { useCallback } from 'react';
 import { useAppSelector } from '../store/hooks';
@@ -22,7 +26,7 @@ export const downloadCsv = async (
         );
     }
     const csvBody = rows.map((row) =>
-        csvColumnIds.map((reference) => row[reference] || '-'),
+        csvColumnIds.map((reference) => applyDefaultFormat(row[reference])),
     );
     const csvContent: string = await new Promise<string>((resolve, reject) => {
         stringify(

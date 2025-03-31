@@ -10,13 +10,13 @@ import {
 import { ActionIcon, Box } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
 import { FieldReferenceSelect } from '../../../../components/DataViz/FieldReferenceSelect';
 import { type BarChartActionsType } from '../../../../components/DataViz/store/barChartSlice';
 import { type LineChartActionsType } from '../../../../components/DataViz/store/lineChartSlice';
 import { cartesianChartSelectors } from '../../../../components/DataViz/store/selectors';
 import { AddButton } from '../../../../components/VisualizationConfigs/common/AddButton';
 import { Config } from '../../../../components/VisualizationConfigs/common/Config';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,

@@ -16,6 +16,7 @@ import {
     ForbiddenError,
     getEmailDomain,
     hasInviteCode,
+    hasProperty,
     InviteLink,
     isOpenIdIdentityIssuerType,
     isOpenIdUser,
@@ -39,6 +40,7 @@ import {
     UpsertUserWarehouseCredentials,
     UserAllowedOrganization,
     validateOrganizationEmailDomains,
+    validateOrganizationNameOrThrow,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
 import { uniq } from 'lodash';
@@ -925,6 +927,9 @@ export class UserService extends BaseService {
             ) {
                 throw new ForbiddenError();
             }
+
+            validateOrganizationNameOrThrow(organizationName);
+
             await this.organizationModel.update(user.organizationUuid, {
                 name: organizationName,
             });
@@ -1523,10 +1528,13 @@ export class UserService extends BaseService {
                         return;
                     }
 
-                    const scopes: string[] =
-                        result && typeof result.scope === 'string'
-                            ? result.scope.split(' ')
-                            : [];
+                    const scopes: string[] = hasProperty<string>(
+                        result,
+                        'scope',
+                    )
+                        ? result.scope.split(' ')
+                        : [];
+
                     if (
                         scopes.includes(
                             'https://www.googleapis.com/auth/drive.file',
@@ -1553,7 +1561,7 @@ export class UserService extends BaseService {
      * @returns accessToken
      */
     async getAccessToken(user: SessionUser): Promise<string> {
-        const refreshToken = await this.userModel.getRefreshToken(
+        const refreshToken: string = await this.userModel.getRefreshToken(
             user.userUuid,
         );
         const accessToken = await UserService.generateGoogleAccessToken(

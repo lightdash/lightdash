@@ -1,8 +1,8 @@
 import {
-    assertUnreachable,
     ChartKind,
     ChartSourceType,
     DashboardTileTypes,
+    assertUnreachable,
     defaultTileSize,
     type ChartContent,
     type Dashboard,
@@ -10,7 +10,6 @@ import {
 import {
     Button,
     Flex,
-    getDefaultZIndex,
     Group,
     Loader,
     Modal,
@@ -20,6 +19,7 @@ import {
     Text,
     Title,
     Tooltip,
+    getDefaultZIndex,
     type ScrollAreaProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -52,11 +52,19 @@ interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
     chartKind: ChartKind;
     tooltipLabel?: string;
     disabled?: boolean;
+    selected?: boolean;
 }
 
 const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
     (
-        { label, tooltipLabel, chartKind, disabled, ...others }: ItemProps,
+        {
+            label,
+            tooltipLabel,
+            chartKind,
+            disabled,
+            selected,
+            ...others
+        }: ItemProps,
         ref,
     ) => (
         <div ref={ref} {...others}>
@@ -73,7 +81,13 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
                             color={disabled ? 'gray.5' : undefined}
                         />
                         <Text
-                            c={disabled ? 'dimmed' : 'gray.8'}
+                            c={
+                                disabled
+                                    ? 'dimmed'
+                                    : selected
+                                    ? 'gray.0'
+                                    : 'gray.8'
+                            }
                             fw={500}
                             fz="xs"
                         >

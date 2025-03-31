@@ -20,6 +20,7 @@ import {
     MetricType,
     OrganizationMemberRole,
     OrganizationProject,
+    PossibleAbilities,
     Project,
     ProjectSummary,
     ProjectType,
@@ -48,7 +49,7 @@ export const user: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability([
+    ability: new Ability<PossibleAbilities>([
         { subject: 'Project', action: ['update', 'view'] },
         { subject: 'Job', action: ['view'] },
         { subject: 'SqlRunner', action: ['manage'] },
@@ -406,6 +407,7 @@ export const lightdashConfigWithNoSMTP: Pick<
     smtp: undefined,
     siteUrl: 'https://test.lightdash.cloud',
     query: {
+        maxPageSize: 500,
         maxLimit: 100,
         defaultLimit: 500,
         csvCellsLimit: 100,

@@ -67,7 +67,9 @@ export const ResourceInfoPopup: FC<Props> = ({
                             <Text fz="xs" fw={600} color="gray.6">
                                 Description:{' '}
                             </Text>
-                            <Text fz="xs">{description}</Text>
+                            <Text fz="xs" style={{ whiteSpace: 'pre-line' }}>
+                                {description}
+                            </Text>
                         </Stack>
                     )}
 

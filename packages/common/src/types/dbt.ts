@@ -68,7 +68,7 @@ type DbtLightdashFieldTags = {
     tags?: string | string[];
 };
 
-type DbtModelMetadata = DbtModelLightdashConfig & {};
+export type DbtModelMetadata = DbtModelLightdashConfig & {};
 
 type DbtModelLightdashConfig = {
     label?: string;
@@ -78,6 +78,7 @@ type DbtModelLightdashConfig = {
     group_label?: string;
     sql_filter?: string;
     sql_where?: string; // alias for sql_filter
+    sql_from?: string; // overrides dbt model relation_name
     required_filters?: { [key: string]: AnyType }[];
     required_attributes?: Record<string, string | string[]>;
     group_details?: Record<string, DbtModelGroup>;
@@ -110,7 +111,7 @@ type DbtModelJoin = {
     fields?: string[];
     always?: boolean;
 };
-type DbtColumnMetadata = DbtColumnLightdashConfig & {};
+export type DbtColumnMetadata = DbtColumnLightdashConfig & {};
 type DbtColumnLightdashConfig = {
     dimension?: DbtColumnLightdashDimension;
     additional_dimensions?: {
@@ -127,9 +128,11 @@ export type DbtColumnLightdashDimension = {
     sql?: string;
     time_intervals?: boolean | 'default' | 'OFF' | TimeFrames[];
     hidden?: boolean;
+    // @deprecated Use format expression instead
     round?: number;
+    // @deprecated Use format expression instead
     compact?: CompactOrAlias;
-    format?: Format;
+    format?: Format | string; // Format type is deprecated, use format expression(string) instead
     group_label?: string;
     groups?: string[] | string;
     colors?: Record<string, string>;
@@ -137,7 +140,7 @@ export type DbtColumnLightdashDimension = {
     required_attributes?: Record<string, string | string[]>;
 } & DbtLightdashFieldTags;
 
-type DbtColumnLightdashAdditionalDimension = Omit<
+export type DbtColumnLightdashAdditionalDimension = Omit<
     DbtColumnLightdashDimension,
     'name'
 >;
@@ -148,9 +151,11 @@ export type DbtColumnLightdashMetric = {
     description?: string;
     sql?: string;
     hidden?: boolean;
-    round?: number;
+    // @deprecated Use format expression instead
     compact?: CompactOrAlias;
-    format?: Format;
+    // @deprecated Use format expression instead
+    round?: number;
+    format?: Format | string; // Format type is deprecated, use format expression(string) instead
     group_label?: string;
     groups?: string[];
     urls?: FieldUrl[];

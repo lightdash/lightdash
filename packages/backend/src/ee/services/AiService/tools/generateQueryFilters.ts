@@ -37,6 +37,7 @@ Rules for generating filters:
 - The filter's fieldIds must come from an explore. If you haven't used "findFieldsInExplore" tool, please do so before using this tool.
 - DO NOT use a fieldId that does not exist in the selected explore. Do not try to make up fieldId's.
 - Make sure you generate the right filters depending on the user's request.
+- If the field you are filtering is a timestamp/date field, ensure the values are JavaScript Date-compatible strings.
 `,
         schema,
         func: async ({ exploreName, filterGroup }: z.infer<typeof schema>) => {

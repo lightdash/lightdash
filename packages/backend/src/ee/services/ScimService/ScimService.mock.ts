@@ -4,6 +4,7 @@ import { EmailModel } from '../../../models/EmailModel';
 import { GroupsModel } from '../../../models/GroupsModel';
 import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
 import { UserModel } from '../../../models/UserModel';
+import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
 import { ScimOrganizationAccessTokenModel } from '../../models/ScimOrganizationAccessTokenModel';
 import { ScimService } from './ScimService';
 
@@ -17,4 +18,5 @@ export const ScimServiceArgumentsMock: ConstructorParameters<
     analytics: {} as LightdashAnalytics,
     groupsModel: {} as GroupsModel,
     scimOrganizationAccessTokenModel: {} as ScimOrganizationAccessTokenModel,
+    commercialFeatureFlagModel: {} as CommercialFeatureFlagModel,
 };

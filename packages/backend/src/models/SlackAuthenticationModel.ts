@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { Installation, InstallationQuery } from '@slack/bolt';
 import { Knex } from 'knex';
+import isNil from 'lodash/isNil';
 import { DbOrganization } from '../database/entities/organizations';
 import {
     DbSlackAuthTokens,
@@ -24,7 +25,9 @@ const getTeamId = (payload: Installation) => {
     if (payload.team !== undefined) {
         return payload.team.id;
     }
-    throw new Error('Could not find a valid team id in the payload request');
+    throw new NotFoundError(
+        'Could not find a valid team id in the payload request',
+    );
 };
 export class SlackAuthenticationModel {
     protected database: Knex;
@@ -35,14 +38,14 @@ export class SlackAuthenticationModel {
 
     async getOrganizationId(organizationUuid: string | undefined) {
         if (organizationUuid === undefined)
-            throw new Error(
+            throw new NotFoundError(
                 `Could not find organization with uuid ${organizationUuid}`,
             );
         const [row] = await this.database('organizations')
             .select<DbSlackAuthTokens[]>('organization_id')
             .where('organization_uuid', organizationUuid);
         if (row === undefined) {
-            throw new Error(
+            throw new NotFoundError(
                 `Could not find organization with uuid ${organizationUuid}`,
             );
         }
@@ -87,7 +90,7 @@ export class SlackAuthenticationModel {
             .select<DbSlackAuthTokens[]>('*')
             .where('slack_team_id', teamId);
         if (row === undefined) {
-            throw new Error(`Could not find slack user id ${teamId}`);
+            throw new NotFoundError(`Could not find slack user id ${teamId}`);
         }
         return row.installation.user.id;
     }
@@ -101,8 +104,8 @@ export class SlackAuthenticationModel {
             )
             .select<(DbSlackAuthTokens & DbUser)[]>('*')
             .where('slack_team_id', teamId);
-        if (row === undefined) {
-            throw new Error(`Could not find user uuid id ${teamId}`);
+        if (isNil(row?.user_uuid)) {
+            throw new NotFoundError(`Could not find user uuid id ${teamId}`);
         }
         return row.user_uuid;
     }

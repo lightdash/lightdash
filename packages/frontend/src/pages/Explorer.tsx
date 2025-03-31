@@ -3,17 +3,16 @@ import { memo } from 'react';
 import { useParams } from 'react-router';
 
 import { useHotkeys } from '@mantine/hooks';
-import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
+import Page from '../components/common/Page/Page';
 import { useExplore } from '../hooks/useExplore';
 import {
     useDateZoomGranularitySearch,
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
-import { useQueryResults } from '../hooks/useQueryResults';
 import useApp from '../providers/App/useApp';
 import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
@@ -50,8 +49,6 @@ const ExplorerPage = memo(() => {
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
 
-    const queryResults = useQueryResults({ dateZoomGranularity });
-
     const cannotViewProject = user.data?.ability?.cannot(
         'view',
         subject('Project', {
@@ -75,8 +72,8 @@ const ExplorerPage = memo(() => {
         <ExplorerProvider
             isEditMode={true}
             initialState={explorerUrlState}
-            queryResults={queryResults}
             defaultLimit={health.data?.query.defaultLimit}
+            dateZoomGranularity={dateZoomGranularity}
         >
             <ExplorerWithUrlParams />
         </ExplorerProvider>

@@ -256,32 +256,6 @@ projectRouter.patch(
     },
 );
 
-projectRouter.post(
-    '/sqlRunner/downloadCsv',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) => {
-        try {
-            const { customLabels, sql } = req.body;
-
-            const fileUrl = await req.services.getCsvService().downloadSqlCsv({
-                user: req.user!,
-                projectUuid: getObjectValue(req.params, 'projectUuid'),
-                sql,
-                customLabels,
-            });
-            res.json({
-                status: 'ok',
-                results: {
-                    url: fileUrl,
-                },
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
-
 projectRouter.get(
     '/catalog',
     allowApiKeyAuthentication,

@@ -1,6 +1,7 @@
 import {
     FilterInteractivityValues,
     getFilterInteractivityValue,
+    isDashboardUuidContent,
     type CreateEmbedJwt,
 } from '@lightdash/common';
 import { Tabs } from '@mantine/core';
@@ -21,6 +22,7 @@ const projectUuid = '{{projectUuid}}';
 const data = {
     content: {
         type: 'dashboard',
+        projectUuid: projectUuid,
         dashboardUuid: '{{dashboardUuid}}',
         dashboardFiltersInteractivity: {
             enabled: "{{dashboardFiltersInteractivityEnabled}}",
@@ -30,6 +32,7 @@ const data = {
         canExportImages: {{canExportImagesEnabled}},
         canExportPagePdf: {{canExportPagePdf}},
         canDateZoom: {{canDateZoom}},
+    },
     user: {
         externalId: {{externalId}},
         email: {{email}}
@@ -50,6 +53,7 @@ data = {
     "iat": datetime.datetime.now(tz=datetime.timezone.utc),
     "content": {
         "type": "dashboard",
+        "projectUuid": projectUuid,
         "dashboardUuid": "{{dashboardUuid}}",
         "dashboardFiltersInteractivity": {
             "enabled": "{{dashboardFiltersInteractivityEnabledPython}}",
@@ -59,14 +63,15 @@ data = {
         "canExportImages": {{canExportImagesEnabledPython}},
         "canExportPagePdf": {{canExportPagePdfPython}},
         "canDateZoom": {{canDateZoomPython}},
+    },
     "user": {
-        "externalId": {{externalIdPython}}
+        "externalId": {{externalIdPython}},
         "email": {{emailPython}}
     },
     "userAttributes": {{userAttributes}},
 };
 token = jwt.encode(data, key, algorithm="HS256")
-url = f"{{siteUrl}}/embed/{projectUuid}#{token}"  
+url = f"{{siteUrl}}/embed/{projectUuid}#{token}"
 `,
     [SnippetLanguage.GO]: `
 package main
@@ -89,6 +94,7 @@ func main() {
     type CustomClaims struct {
         Content struct {
             Type                       string \`json:"type"\`
+            ProjectUuid                string \`json:"projectUuid"\`
             DashboardUuid              string \`json:"dashboardUuid"\`
             DashboardFiltersInteractivity struct {
                 Enabled string \`json:"enabled"\`
@@ -111,6 +117,7 @@ func main() {
     claims := CustomClaims{
         Content: struct {
             Type                       string \`json:"type"\`
+            ProjectUuid                string \`json:"projectUuid"\`
             DashboardUuid              string \`json:"dashboardUuid"\`
             DashboardFiltersInteractivity struct {
                 Enabled string \`json:"enabled"\`
@@ -122,6 +129,7 @@ func main() {
             CanDateZoom bool \`json:"canDateZoom"\`
         }{
             Type:          "dashboard",
+            ProjectUuid:   projectUuid,
             DashboardUuid: "{{dashboardUuid}}",
             DashboardFiltersInteractivity: struct {
                 Enabled string \`json:"enabled"\`
@@ -183,7 +191,9 @@ const getCodeSnippet = (
         .replace('{{expiresIn}}', data.expiresIn || '1 hour')
         .replace(
             '{{dashboardUuid}}',
-            data.content.dashboardUuid || '{{your dashboard uuid}}',
+            isDashboardUuidContent(data.content)
+                ? data.content.dashboardUuid
+                : '{{your dashboard uuid}}',
         )
         .replace(
             '{{userAttributes}}',

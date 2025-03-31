@@ -41,6 +41,19 @@ export const warehouseClientMock: WarehouseClient = {
         });
         return Promise.resolve();
     },
+    executeAsyncQuery: async () => ({
+        queryId: null,
+        queryMetadata: null,
+        totalRows: null,
+        durationMs: null,
+    }),
+    getAsyncQueryResults: async () => ({
+        fields: {},
+        rows: [],
+        queryId: null,
+        pageCount: 0,
+        totalRows: 0,
+    }),
     runQuery: () =>
         Promise.resolve({
             fields: {},
@@ -105,6 +118,19 @@ export const bigqueryClientMock: WarehouseClient = {
         });
         return Promise.resolve();
     },
+    executeAsyncQuery: async () => ({
+        queryId: null,
+        queryMetadata: null,
+        totalRows: null,
+        durationMs: null,
+    }),
+    getAsyncQueryResults: async () => ({
+        fields: {},
+        rows: [],
+        queryId: null,
+        pageCount: 0,
+        totalRows: 0,
+    }),
     runQuery: () =>
         Promise.resolve({
             fields: {},

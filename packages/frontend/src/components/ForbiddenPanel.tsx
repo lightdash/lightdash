@@ -2,7 +2,7 @@ import { Anchor, Box } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
-import { Can } from './common/Authorization';
+import { Can } from '../providers/Ability';
 import SuboptimalState from './common/SuboptimalState/SuboptimalState';
 
 const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {

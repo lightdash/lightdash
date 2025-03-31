@@ -37,6 +37,7 @@ export default function mockHealthResponse(
         staticIp: '',
         posthog: undefined,
         query: {
+            maxPageSize: 2500,
             maxLimit: 1000000,
             defaultLimit: 500,
             csvCellsLimit: 100,
@@ -79,6 +80,10 @@ export default function mockHealthResponse(
         hasExtendedUsageAnalytics: false,
         hasGithub: false,
         hasCacheAutocompleResults: false,
+        appearance: {
+            overrideColorPalette: undefined,
+            overrideColorPaletteName: undefined,
+        },
         ...overrides,
     };
 }

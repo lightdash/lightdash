@@ -5,10 +5,12 @@ import {
     DbtVersionOption,
     DbtVersionOptionLatest,
     getLatestSupportDbtVersion,
+    ParameterError,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { getInstallationToken } from '../clients/github/Github';
 import Logger from '../logging/logger';
 import { CachedWarehouse, ProjectAdapter } from '../types';
 import { DbtAzureDevOpsProjectAdapter } from './dbtAzureDevOpsProjectAdapter';
@@ -72,10 +74,27 @@ export const projectAdapterFromConfig = async (
                 // TODO add selector to dbt cloud
             });
         case DbtProjectType.GITHUB:
+            const githubToken =
+                config.installation_id &&
+                config.authorization_method === 'installation_id'
+                    ? await getInstallationToken(config.installation_id)
+                    : config.personal_access_token;
+            if (githubToken === undefined) {
+                throw new ParameterError(
+                    `Missing github token for authorization method: ${
+                        config.authorization_method || 'personal access token'
+                    }`,
+                );
+            }
+            if (!config.repository) {
+                throw new ParameterError(
+                    `Missing repository for GitHub project`,
+                );
+            }
             return new DbtGithubProjectAdapter({
                 analytics,
                 warehouseClient,
-                githubPersonalAccessToken: config.personal_access_token,
+                githubPersonalAccessToken: githubToken!,
                 githubRepository: config.repository,
                 githubBranch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,

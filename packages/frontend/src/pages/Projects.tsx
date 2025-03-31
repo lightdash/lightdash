@@ -1,7 +1,7 @@
 import { type FC } from 'react';
 import { Navigate } from 'react-router';
-import ErrorState from '../components/common/ErrorState';
 import PageSpinner from '../components/PageSpinner';
+import ErrorState from '../components/common/ErrorState';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProjects } from '../hooks/useProjects';
 

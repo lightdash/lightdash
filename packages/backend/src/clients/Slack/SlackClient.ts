@@ -1,6 +1,5 @@
 import {
     friendlyName,
-    getErrorMessage,
     MissingConfigError,
     SlackAppCustomSettings,
     SlackChannel,
@@ -8,7 +7,6 @@ import {
     SlackSettings,
     UnexpectedServerError,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import { Block } from '@slack/bolt';
 import {
     ChatPostMessageArguments,
@@ -20,6 +18,7 @@ import {
     WebClient,
 } from '@slack/web-api';
 import { LightdashConfig } from '../../config/parseConfig';
+import { slackErrorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 
@@ -152,11 +151,7 @@ export class SlackClient {
                     ? [...allChannels, ...conversations.channels]
                     : allChannels;
             } catch (e) {
-                Logger.error(
-                    `Unable to fetch slack channels: ${getErrorMessage(e)}`,
-                );
-                Sentry.captureException(e);
-                break;
+                slackErrorHandler(e, 'Unable to fetch slack channels');
             }
         } while (nextCursor);
         Logger.debug(`Total slack channels ${allChannels.length}`);
@@ -178,12 +173,7 @@ export class SlackClient {
                     ? [...allUsers, ...users.members]
                     : allUsers;
             } catch (e) {
-                Logger.error(
-                    `Unable to fetch slack users: ${getErrorMessage(e)}`,
-                );
-                Sentry.captureException(e);
-
-                break;
+                slackErrorHandler(e, 'Unable to fetch slack users');
             }
         } while (nextCursor);
         Logger.debug(`Total slack users ${allUsers.length}`);
@@ -227,10 +217,9 @@ export class SlackClient {
             });
             await Promise.all(joinPromises);
         } catch (e) {
-            Logger.error(
-                `Unable to join channels ${channels} on organization ${organizationUuid}: ${getErrorMessage(
-                    e,
-                )}`,
+            slackErrorHandler(
+                e,
+                `Unable to join channels ${channels} on organization ${organizationUuid}`,
             );
         }
     }
@@ -260,9 +249,7 @@ export class SlackClient {
                 ...slackMessageArgs,
             })
             .catch((e) => {
-                Logger.error(
-                    `Unable to post message on Slack: ${getErrorMessage(e)}`,
-                );
+                slackErrorHandler(e, 'Unable to post message on Slack');
                 throw e;
             });
     }
@@ -296,10 +283,9 @@ export class SlackClient {
                         : {}),
                 })
                 .catch((e) => {
-                    Logger.error(
-                        `Unable to post message on Slack. You might need to add the Slack app to the channel you wish you sent notifications to. Error: ${getErrorMessage(
-                            e,
-                        )}`,
+                    slackErrorHandler(
+                        e,
+                        'Unable to post message on Slack. You might need to add the Slack app to the channel you wish you sent notifications to',
                     );
                     throw e;
                 });
@@ -485,9 +471,7 @@ export class SlackClient {
             });
             return { url: slackFileUrl, expiring: false };
         } catch (e) {
-            Logger.error(
-                `Failed to upload image to slack: ${getErrorMessage(e)}`,
-            );
+            slackErrorHandler(e, 'Failed to upload image to slack');
             return { url: imageUrl, expiring: true };
         }
     }

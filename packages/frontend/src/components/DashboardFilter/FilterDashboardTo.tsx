@@ -7,14 +7,19 @@ import { Menu, Text } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import isNil from 'lodash/isNil';
 import { type FC } from 'react';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = {
     filters: FilterDashboardToRule[];
-    onAddFilter: (filter: FilterDashboardToRule, isTemporary: boolean) => void;
+    onAddFilter?: (filter: FilterDashboardToRule, isTemporary: boolean) => void;
 };
 
 export const FilterDashboardTo: FC<Props> = ({ filters, onAddFilter }) => {
+    const addDimensionDashboardFilter = useDashboardContext(
+        (c) => c.addDimensionDashboardFilter,
+    );
+    const addFilterCallback = onAddFilter ?? addDimensionDashboardFilter;
     return (
         <>
             <Menu.Divider />
@@ -24,7 +29,7 @@ export const FilterDashboardTo: FC<Props> = ({ filters, onAddFilter }) => {
                 <Menu.Item
                     key={filter.id}
                     icon={<MantineIcon icon={IconFilter} />}
-                    onClick={() => onAddFilter(filter, true)}
+                    onClick={() => addFilterCallback(filter, true)}
                 >
                     {friendlyName(filter.target.tableName)} -{' '}
                     {friendlyName(filter.target.fieldName)} is{' '}

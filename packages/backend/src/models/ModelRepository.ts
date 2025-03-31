@@ -24,6 +24,7 @@ import { OrganizationModel } from './OrganizationModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PinnedListModel } from './PinnedListModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
+import { QueryHistoryModel } from './QueryHistoryModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SavedSemanticViewerChartModel } from './SavedSemanticViewerChartModel';
@@ -89,6 +90,7 @@ export type ModelManifest = {
     tagsModel: TagsModel;
     featureFlagModel: FeatureFlagModel;
     spotlightTableConfigModel: SpotlightTableConfigModel;
+    queryHistoryModel: QueryHistoryModel;
     /** An implementation signature for these models are not available at this stage */
     aiModel: unknown;
     embedModel: unknown;
@@ -312,7 +314,7 @@ export class ModelRepository
     public getOrganizationModel(): OrganizationModel {
         return this.getModel(
             'organizationModel',
-            () => new OrganizationModel(this.database),
+            () => new OrganizationModel(this.database, this.lightdashConfig),
         );
     }
 
@@ -544,6 +546,13 @@ export class ModelRepository
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
                 }),
+        );
+    }
+
+    public getQueryHistoryModel(): QueryHistoryModel {
+        return this.getModel(
+            'queryHistoryModel',
+            () => new QueryHistoryModel({ database: this.database }),
         );
     }
 

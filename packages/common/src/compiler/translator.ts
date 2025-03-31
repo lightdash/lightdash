@@ -1,10 +1,10 @@
 import {
+    SupportedDbtAdapter,
     buildModelGraph,
     convertColumnMetric,
     convertModelMetric,
     convertToGroups,
     isV9MetricRef,
-    SupportedDbtAdapter,
     type DbtColumnLightdashDimension,
     type DbtMetric,
     type DbtModelColumn,
@@ -19,11 +19,11 @@ import {
     type Table,
 } from '../types/explore';
 import {
-    defaultSql,
     DimensionType,
     FieldType,
-    friendlyName,
     MetricType,
+    defaultSql,
+    friendlyName,
     parseMetricType,
     type Dimension,
     type Metric,
@@ -552,12 +552,13 @@ export const convertTable = (
         });
     }
 
+    const sqlTable = model.meta.sql_from || model.relation_name;
     return {
         name: model.name,
         label: tableLabel,
         database: model.database,
         schema: model.schema,
-        sqlTable: model.relation_name,
+        sqlTable,
         description: model.description || `${model.name} table`,
         dimensions,
         metrics: allMetrics,
@@ -700,6 +701,7 @@ export const convertExplores = async (
     const exploreCompiler = new ExploreCompiler(warehouseClient);
     const explores: (Explore | ExploreError)[] = validModels.map((model) => {
         const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
+
         try {
             return exploreCompiler.compileExplore({
                 name: model.name,
@@ -720,6 +722,7 @@ export const convertExplores = async (
                 tables: tableLookup,
                 targetDatabase: adapterType,
                 warehouse: model.config?.snowflake_warehouse,
+                databricksCompute: model.config?.databricks_compute,
                 ymlPath: model.patch_path?.split('://')?.[1],
                 sqlPath: model.path,
                 spotlightConfig: lightdashProjectConfig.spotlight,

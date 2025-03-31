@@ -156,6 +156,10 @@ import {
     NotificationsTableName,
 } from '../database/entities/notifications';
 import {
+    OrganizationColorPaletteTable,
+    OrganizationColorPaletteTableName,
+} from '../database/entities/organizationColorPalettes';
+import {
     OrganizationAllowedEmailDomainProjectsTable,
     OrganizationAllowedEmailDomainProjectsTableName,
     OrganizationAllowedEmailDomainsTable,
@@ -165,6 +169,10 @@ import {
     ProjectGroupAccessTable,
     ProjectGroupAccessTableName,
 } from '../database/entities/projectGroupAccess';
+import {
+    QueryHistoryTable,
+    QueryHistoryTableName,
+} from '../database/entities/queryHistory';
 import {
     SavedSemanticViewerChartsTable,
     SavedSemanticViewerChartsTableName,
@@ -327,5 +335,7 @@ declare module 'knex/types/tables' {
         [ScimOrganizationAccessTokenTableName]: ScimOrganizationAccessTokenTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
+        [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
+        [QueryHistoryTableName]: QueryHistoryTable;
     }
 }

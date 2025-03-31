@@ -1,12 +1,20 @@
 import { type HealthState, type LightdashUser } from '@lightdash/common';
 import {
-    browserTracingIntegration,
     init,
+    reactRouterV7BrowserTracingIntegration,
     replayIntegration,
     setTag,
+    setTags,
     setUser,
 } from '@sentry/react';
 import { useEffect, useState } from 'react';
+import {
+    createRoutesFromChildren,
+    matchRoutes,
+    useLocation,
+    useNavigationType,
+    useParams,
+} from 'react-router';
 
 const useSentry = (
     sentryConfig: HealthState['sentry'] | undefined,
@@ -21,7 +29,13 @@ const useSentry = (
                 release: sentryConfig.release,
                 environment: sentryConfig.environment,
                 integrations: [
-                    browserTracingIntegration(),
+                    reactRouterV7BrowserTracingIntegration({
+                        useEffect,
+                        useLocation,
+                        useNavigationType,
+                        createRoutesFromChildren,
+                        matchRoutes,
+                    }),
                     replayIntegration(),
                 ],
                 tracesSampler(samplingContext) {
@@ -41,9 +55,20 @@ const useSentry = (
                 email: user.email,
                 username: user.email,
             });
-            setTag('organization', user.organizationUuid);
+            setTags({
+                'user.uuid': user.userUuid,
+                'organization.uuid': user.organizationUuid,
+            });
         }
     }, [isSentryLoaded, setIsSentryLoaded, sentryConfig, user]);
+
+    const { projectUuid } = useParams<{ projectUuid?: string }>();
+    const location = useLocation();
+    useEffect(() => {
+        if (projectUuid) {
+            setTag('project.uuid', projectUuid);
+        }
+    }, [location, projectUuid]);
 };
 
 export default useSentry;

@@ -1,5 +1,7 @@
 import {
     DimensionType,
+    FeatureFlags,
+    MetricType,
     friendlyName,
     getItemId,
     isAdditionalMetric,
@@ -7,7 +9,6 @@ import {
     isCustomSqlDimension,
     isDimension,
     isFilterableField,
-    MetricType,
     type AdditionalMetric,
     type CustomDimension,
     type Dimension,
@@ -15,6 +16,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Tooltip, type MenuProps } from '@mantine/core';
 import {
+    IconCode,
     IconCopy,
     IconDots,
     IconEdit,
@@ -23,9 +25,12 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import useToaster from '../../../../../hooks/toaster/useToaster';
+import { useFeatureFlagEnabled } from '../../../../../hooks/useFeatureFlagEnabled';
 import { useFilters } from '../../../../../hooks/useFilters';
+import useApp from '../../../../../providers/App/useApp';
 import useExplorerContext from '../../../../../providers/Explorer/useExplorerContext';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -79,6 +84,8 @@ const TreeSingleNodeActions: FC<Props> = ({
     hasDescription,
     onViewDescription,
 }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { user } = useApp();
     const { showToastSuccess } = useToaster();
     const { addFilter } = useFilters();
     const { track } = useTracking();
@@ -88,6 +95,9 @@ const TreeSingleNodeActions: FC<Props> = ({
     );
     const toggleAdditionalMetricModal = useExplorerContext(
         (context) => context.actions.toggleAdditionalMetricModal,
+    );
+    const toggleWriteBackModal = useExplorerContext(
+        (context) => context.actions.toggleWriteBackModal,
     );
     const removeCustomDimension = useExplorerContext(
         (context) => context.actions.removeCustomDimension,
@@ -107,6 +117,10 @@ const TreeSingleNodeActions: FC<Props> = ({
         }
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
+
+    const isWriteBackCustomBinDimensionsEnabled = useFeatureFlagEnabled(
+        FeatureFlags.WriteBackCustomBinDimensions,
+    );
 
     const duplicateCustomMetric = (customMetric: AdditionalMetric) => {
         const newDeepCopyItem = JSON.parse(JSON.stringify(customMetric));
@@ -209,6 +223,37 @@ const TreeSingleNodeActions: FC<Props> = ({
                         >
                             Duplicate custom metric
                         </Menu.Item>
+
+                        <Menu.Item
+                            component="button"
+                            icon={<MantineIcon icon={IconCode} />}
+                            onClick={(
+                                e: React.MouseEvent<HTMLButtonElement>,
+                            ) => {
+                                e.stopPropagation();
+                                if (
+                                    projectUuid &&
+                                    user.data?.organizationUuid
+                                ) {
+                                    track({
+                                        name: EventName.WRITE_BACK_FROM_CUSTOM_METRIC_CLICKED,
+                                        properties: {
+                                            userId: user.data.userUuid,
+                                            projectId: projectUuid,
+                                            organizationId:
+                                                user.data.organizationUuid,
+                                            customMetricsCount: 1,
+                                        },
+                                    });
+                                }
+                                toggleWriteBackModal({
+                                    items: [item],
+                                });
+                            }}
+                        >
+                            Write back to dbt
+                        </Menu.Item>
+
                         <Menu.Item
                             color="red"
                             key="custommetric"
@@ -278,6 +323,40 @@ const TreeSingleNodeActions: FC<Props> = ({
                         >
                             Duplicate custom dimension
                         </Menu.Item>
+                        {(isCustomSqlDimension(item) ||
+                            isWriteBackCustomBinDimensionsEnabled) && (
+                            <Menu.Item
+                                component="button"
+                                icon={<MantineIcon icon={IconCode} />}
+                                onClick={(
+                                    e: React.MouseEvent<HTMLButtonElement>,
+                                ) => {
+                                    e.stopPropagation();
+                                    if (
+                                        projectUuid &&
+                                        user.data?.organizationUuid
+                                    ) {
+                                        track({
+                                            name: EventName.WRITE_BACK_FROM_CUSTOM_DIMENSION_CLICKED,
+                                            properties: {
+                                                userId: user.data.userUuid,
+                                                projectId: projectUuid,
+                                                organizationId:
+                                                    user.data.organizationUuid,
+                                                customDimensionsCount: 1,
+                                            },
+                                        });
+                                    }
+
+                                    toggleWriteBackModal({
+                                        items: [item],
+                                    });
+                                }}
+                            >
+                                Write back to dbt
+                            </Menu.Item>
+                        )}
+
                         <Menu.Item
                             color="red"
                             component="button"

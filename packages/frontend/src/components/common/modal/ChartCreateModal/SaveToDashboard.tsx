@@ -5,7 +5,7 @@ import {
     type CreateDashboardChartTile,
     type CreateSavedChartVersion,
 } from '@lightdash/common';
-import { Button, Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Button, Group, Stack, Text, TextInput, Textarea } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -128,7 +128,9 @@ export const SaveToDashboard: FC<Props> = ({
 
             clearIsEditingDashboardChart();
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                activeTabUuid
+                    ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${activeTabUuid}`
+                    : `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
             );
             showToastSuccess({
                 title: `Success! ${values.name} was added to ${dashboardName}`,

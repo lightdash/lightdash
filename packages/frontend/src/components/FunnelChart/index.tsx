@@ -9,8 +9,8 @@ import useEchartsFunnelConfig, {
     type FunnelSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsFunnelConfig';
 import useApp from '../../providers/App/useApp';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import FunnelChartContextMenu, {
     type FunnelChartContextMenuProps,
 } from './FunnelChartContextMenu';
@@ -45,7 +45,7 @@ type FunnelChartProps = Omit<EChartsReactProps, 'option'> & {
 const EchartOptions: Opts = { renderer: 'svg' };
 
 const FunnelChart: FC<FunnelChartProps> = memo((props) => {
-    const { chartRef, isLoading } = useVisualizationContext();
+    const { chartRef, isLoading, resultsData } = useVisualizationContext();
 
     const funnelChartOptions = useEchartsFunnelConfig(props.isInDashboard);
     const { user } = useApp();
@@ -57,6 +57,12 @@ const FunnelChart: FC<FunnelChartProps> = memo((props) => {
         value: FunnelChartContextMenuProps['value'];
         rows: FunnelChartContextMenuProps['rows'];
     }>();
+
+    useEffect(() => {
+        // Load all the rows
+        resultsData?.setFetchAll(true);
+        return () => resultsData?.setFetchAll(false);
+    }, [resultsData]);
 
     useEffect(() => {
         const listener = () => chartRef.current?.getEchartsInstance().resize();

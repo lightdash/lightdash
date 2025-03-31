@@ -264,6 +264,7 @@ ${styles.bold('Examples:')}
     )
     .option('--verbose', undefined, false)
     .option('-y, --assume-yes', 'assume yes to prompts', false)
+    .option('-no, --assume-no', 'assume no to prompts', false)
     .action(dbtRunHandler);
 
 program
@@ -462,6 +463,11 @@ program
         '-d, --dashboards <dashboards...>',
         'specify dashboard slugs, uuids or urls to download',
         [],
+    )
+    .option(
+        '-l, --language-map',
+        'generate a language maps for the downloaded charts and dashboards',
+        false,
     )
     .option(
         '-p, --path <path>',

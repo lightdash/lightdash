@@ -6,8 +6,8 @@ import {
     Modal,
     Stack,
     Text,
-    Textarea,
     TextInput,
+    Textarea,
     type ModalProps,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
@@ -21,10 +21,10 @@ import {
     type SetStateAction,
 } from 'react';
 import { z } from 'zod';
+import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
-import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
 import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,

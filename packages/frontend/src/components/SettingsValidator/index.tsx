@@ -14,8 +14,8 @@ import {
     useValidationMutation,
 } from '../../hooks/validation/useValidation';
 import useApp from '../../providers/App/useApp';
-import MantineIcon from '../common/MantineIcon';
 import { formatTime } from '../SchedulersView/SchedulersViewUtils';
+import MantineIcon from '../common/MantineIcon';
 import { ValidatorTable } from './ValidatorTable';
 
 const MIN_ROWS_TO_ENABLE_SCROLLING = 6;

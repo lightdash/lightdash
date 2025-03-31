@@ -16,6 +16,7 @@ export type MetricQueryDataContext = {
     isDrillDownModalOpen: boolean;
     openDrillDownModal: (config: DrillDownConfig) => void;
     closeDrillDownModal: () => void;
+    queryUuid?: string;
 };
 
 export const Context = createContext<MetricQueryDataContext | undefined>(

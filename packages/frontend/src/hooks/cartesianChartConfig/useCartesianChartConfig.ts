@@ -1,10 +1,12 @@
 import {
+    assertUnreachable,
     CartesianSeriesType,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
     isNumericItem,
-    type ApiQueryResults,
+    XAxisSort,
+    XAxisSortType,
     type CartesianChart,
     type CompleteCartesianChartLayout,
     type EchartsGrid,
@@ -14,6 +16,7 @@ import {
     type Series,
     type SeriesMetadata,
     type TableCalculationMetadata,
+    type XAxis,
 } from '@lightdash/common';
 import { produce } from 'immer';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -21,6 +24,7 @@ import {
     getMarkLineAxis,
     type ReferenceLineField,
 } from '../../components/common/ReferenceLine';
+import type { InfiniteQueryResults } from '../useQueryResults';
 import {
     getExpectedSeriesMap,
     mergeExistingAndExpectedSeries,
@@ -38,7 +42,7 @@ export type CartesianTypeOptions = {
 type Args = {
     initialChartConfig: CartesianChart | undefined;
     pivotKeys: string[] | undefined;
-    resultsData: ApiQueryResults | undefined;
+    resultsData: InfiniteQueryResults | undefined;
     setPivotDimensions: React.Dispatch<
         React.SetStateAction<string[] | undefined>
     >;
@@ -107,6 +111,35 @@ const applyReferenceLines = (
         };
     });
 };
+
+function getXAxisSortConfig(
+    sort: XAxisSort,
+): Pick<XAxis, 'inverse' | 'sortType'> {
+    switch (sort) {
+        case XAxisSort.ASCENDING:
+            return {
+                inverse: false,
+                sortType: XAxisSortType.DEFAULT,
+            };
+        case XAxisSort.DESCENDING:
+            return {
+                inverse: true,
+                sortType: XAxisSortType.DEFAULT,
+            };
+        case XAxisSort.BAR_TOTALS_ASCENDING:
+            return {
+                inverse: false,
+                sortType: XAxisSortType.BAR_TOTALS,
+            };
+        case XAxisSort.BAR_TOTALS_DESCENDING:
+            return {
+                inverse: true,
+                sortType: XAxisSortType.BAR_TOTALS,
+            };
+        default:
+            return assertUnreachable(sort, `Invalid sort ${sort}`);
+    }
+}
 
 export const EMPTY_CARTESIAN_CHART_CONFIG: CartesianChart = {
     layout: {},
@@ -313,14 +346,14 @@ const useCartesianChartConfig = ({
             showGridY: show,
         }));
     }, []);
-    const setInverseX = useCallback((inverse: boolean) => {
+    const setXAxisSort = useCallback((sort: XAxisSort) => {
         setDirtyEchartsConfig((prevState) => {
             const [firstAxis, ...axes] = prevState?.xAxis || [];
-            const x = {
+            const { inverse, sortType } = getXAxisSortConfig(sort);
+            return {
                 ...prevState,
-                xAxis: [{ ...firstAxis, inverse }, ...axes],
+                xAxis: [{ ...firstAxis, inverse, sortType }, ...axes],
             };
-            return x;
         });
     }, []);
     const setXAxisLabelRotation = useCallback((rotation: number) => {
@@ -394,6 +427,15 @@ const useCartesianChartConfig = ({
                             ...series,
                             type,
                             areaStyle: hasAreaStyle ? {} : undefined,
+                        })),
+                        xAxis: prevState?.xAxis?.map((axis) => ({
+                            ...axis,
+                            // If the chart is not a bar chart, and the xAxis is sorted by bar totals, set the sort type to default ( bar totals are not applied to non-bar charts )
+                            sortType:
+                                type !== CartesianSeriesType.BAR &&
+                                axis.sortType === XAxisSortType.BAR_TOTALS
+                                    ? XAxisSortType.DEFAULT
+                                    : axis.sortType,
                         })),
                     },
             );
@@ -500,7 +542,7 @@ const useCartesianChartConfig = ({
         // This is computed on first load and also when the table calculation is updated in edit mode
         if (stacking === false) return;
         const tableCalculation =
-            resultsData?.metricQuery.tableCalculations?.find(
+            resultsData?.metricQuery?.tableCalculations?.find(
                 (tc) => tc.name === dirtyLayout?.xField,
             );
         if (tableCalculation) {
@@ -509,7 +551,7 @@ const useCartesianChartConfig = ({
         }
     }, [
         dirtyLayout?.xField,
-        resultsData?.metricQuery.tableCalculations,
+        resultsData?.metricQuery?.tableCalculations,
         stacking,
         setStacking,
     ]);
@@ -522,17 +564,17 @@ const useCartesianChartConfig = ({
 
     const sortedDimensions = useMemo(() => {
         return sortDimensions(
-            resultsData?.metricQuery.dimensions || [],
+            resultsData?.metricQuery?.dimensions || [],
             itemsMap,
             columnOrder,
         );
-    }, [resultsData?.metricQuery.dimensions, itemsMap, columnOrder]);
+    }, [resultsData?.metricQuery?.dimensions, itemsMap, columnOrder]);
 
     const [availableFields, availableDimensions, availableMetrics] =
         useMemo(() => {
-            const metrics = resultsData?.metricQuery.metrics || [];
+            const metrics = resultsData?.metricQuery?.metrics || [];
             const tableCalculations =
-                resultsData?.metricQuery.tableCalculations.map(
+                resultsData?.metricQuery?.tableCalculations.map(
                     ({ name }) => name,
                 ) || [];
 
@@ -824,7 +866,7 @@ const useCartesianChartConfig = ({
                     availableDimensions,
                     isStacked,
                     pivotKeys,
-                    resultsData,
+                    rows: resultsData.rows,
                     xField: dirtyLayout.xField,
                     yFields: dirtyLayout.yField,
                     defaultLabel,
@@ -866,11 +908,17 @@ const useCartesianChartConfig = ({
             isCompleteEchartsConfig(dirtyEchartsConfig)
             ? {
                   layout: dirtyLayout,
-                  eChartsConfig: dirtyEchartsConfig,
+                  eChartsConfig: {
+                      ...dirtyEchartsConfig,
+                      series: dirtyEchartsConfig.series.filter(
+                          (serie) => !serie.isFilteredOut,
+                      ),
+                  },
                   metadata: dirtyMetadata,
               }
             : EMPTY_CARTESIAN_CHART_CONFIG;
     }, [dirtyLayout, dirtyEchartsConfig, dirtyMetadata]);
+
     const { dirtyChartType } = useMemo(() => {
         const firstSeriesType =
             dirtyEchartsConfig?.series?.[0]?.type || CartesianSeriesType.BAR;
@@ -920,7 +968,7 @@ const useCartesianChartConfig = ({
         setGrid,
         setShowGridX,
         setShowGridY,
-        setInverseX,
+        setXAxisSort,
         setXAxisLabelRotation,
         updateSeries,
         referenceLines,

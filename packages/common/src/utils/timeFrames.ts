@@ -67,6 +67,7 @@ type WarehouseConfig = {
         timeFrame: TimeFrames,
         originalSql: string,
         type: DimensionType,
+        startOfWeek?: WeekDay | null,
     ) => string;
     getSqlForDatePartName: (
         timeFrame: TimeFrames,
@@ -75,17 +76,18 @@ type WarehouseConfig = {
     ) => string;
 };
 
+const bigqueryStartOfWeekMap: Record<WeekDay, string> = {
+    [WeekDay.MONDAY]: 'MONDAY',
+    [WeekDay.TUESDAY]: 'TUESDAY',
+    [WeekDay.WEDNESDAY]: 'WEDNESDAY',
+    [WeekDay.THURSDAY]: 'THURSDAY',
+    [WeekDay.FRIDAY]: 'FRIDAY',
+    [WeekDay.SATURDAY]: 'SATURDAY',
+    [WeekDay.SUNDAY]: 'SUNDAY',
+};
+
 const bigqueryConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame, originalSql, type, startOfWeek) => {
-        const bigqueryStartOfWeekMap: Record<WeekDay, string> = {
-            [WeekDay.MONDAY]: 'MONDAY',
-            [WeekDay.TUESDAY]: 'TUESDAY',
-            [WeekDay.WEDNESDAY]: 'WEDNESDAY',
-            [WeekDay.THURSDAY]: 'THURSDAY',
-            [WeekDay.FRIDAY]: 'FRIDAY',
-            [WeekDay.SATURDAY]: 'SATURDAY',
-            [WeekDay.SUNDAY]: 'SUNDAY',
-        };
         const datePart =
             timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)
                 ? `${timeFrame}(${bigqueryStartOfWeekMap[startOfWeek]})`
@@ -95,7 +97,12 @@ const bigqueryConfig: WarehouseConfig = {
         }
         return `DATE_TRUNC(${originalSql}, ${datePart})`;
     },
-    getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
+    getSqlForDatePart: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        _,
+        startOfWeek,
+    ) => {
         const bigqueryTimeFrameExpressions: Record<TimeFrames, string | null> =
             {
                 ...timeFrameToDatePartMap,
@@ -103,9 +110,15 @@ const bigqueryConfig: WarehouseConfig = {
                 [TimeFrames.DAY_OF_YEAR_NUM]: 'DAYOFYEAR',
             };
         const datePart = bigqueryTimeFrameExpressions[timeFrame];
+
         if (!datePart) {
             throw new ParseError(`Cannot recognise date part for ${timeFrame}`);
         }
+
+        if (timeFrame === TimeFrames.WEEK_NUM && isWeekDay(startOfWeek)) {
+            return `EXTRACT(${datePart}(${bigqueryStartOfWeekMap[startOfWeek]}) FROM ${originalSql})`;
+        }
+
         return `EXTRACT(${datePart} FROM ${originalSql})`;
     },
     getSqlForDatePartName: (
@@ -133,14 +146,17 @@ const bigqueryConfig: WarehouseConfig = {
     },
 };
 
+// Snowflake handles start of week by setting a session variable (WEEK_START)
 const snowflakeConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame, originalSql) =>
         `DATE_TRUNC('${timeFrame}', ${originalSql})`,
     getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
         const datePart = timeFrameToDatePartMap[timeFrame];
+
         if (!datePart) {
             throw new ParseError(`Cannot recognise date part for ${timeFrame}`);
         }
+
         return `DATE_PART('${datePart}', ${originalSql})`;
     },
     getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
@@ -174,11 +190,23 @@ const postgresConfig: WarehouseConfig = {
         }
         return `DATE_TRUNC('${timeFrame}', ${originalSql})`;
     },
-    getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
+    getSqlForDatePart: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        _,
+        startOfWeek,
+    ) => {
         const datePart = timeFrameToDatePartMap[timeFrame];
+
         if (!datePart) {
             throw new ParseError(`Cannot recognise date part for ${timeFrame}`);
         }
+
+        if (timeFrame === TimeFrames.WEEK_NUM && isWeekDay(startOfWeek)) {
+            const intervalDiff = `${startOfWeek} days`;
+            return `DATE_PART('${datePart}', (${originalSql} - interval '${intervalDiff}'))`;
+        }
+
         return `DATE_PART('${datePart}', ${originalSql})`;
     },
     getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
@@ -207,11 +235,23 @@ const databricksConfig: WarehouseConfig = {
         }
         return `DATE_TRUNC('${timeFrame}', ${originalSql})`;
     },
-    getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
+    getSqlForDatePart: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        _,
+        startOfWeek,
+    ) => {
         const datePart = timeFrameToDatePartMap[timeFrame];
+
         if (!datePart) {
             throw new ParseError(`Cannot recognise date part for ${timeFrame}`);
         }
+
+        if (timeFrame === TimeFrames.WEEK_NUM && isWeekDay(startOfWeek)) {
+            const intervalDiff = `${startOfWeek} days`;
+            return `DATE_PART('${datePart}', (${originalSql} - interval '${intervalDiff}'))`;
+        }
+
         return `DATE_PART('${datePart}', ${originalSql})`;
     },
     getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
@@ -240,11 +280,22 @@ const trinoConfig: WarehouseConfig = {
         }
         return `DATE_TRUNC('${timeFrame}', ${originalSql})`;
     },
-    getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
+    getSqlForDatePart: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        _,
+        startOfWeek,
+    ) => {
         const datePart = timeFrameToDatePartMap[timeFrame];
         if (!datePart) {
             throw new ParseError(`Cannot recognise date part for ${timeFrame}`);
         }
+
+        if (timeFrame === TimeFrames.WEEK_NUM && isWeekDay(startOfWeek)) {
+            const intervalDiff = `'${startOfWeek}' day`;
+            return `EXTRACT(${datePart} FROM (${originalSql} - interval ${intervalDiff}))`;
+        }
+
         return `EXTRACT(${datePart} FROM ${originalSql})`;
     },
     getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
@@ -296,11 +347,13 @@ const getSqlForDatePart: TimeFrameConfig['getSql'] = (
     timeFrame,
     originalSql,
     type,
+    startOfWeek,
 ) =>
     warehouseConfigs[adapterType].getSqlForDatePart(
         timeFrame,
         originalSql,
         type,
+        startOfWeek,
     );
 const getSqlForDatePartName: TimeFrameConfig['getSql'] = (
     adapterType,

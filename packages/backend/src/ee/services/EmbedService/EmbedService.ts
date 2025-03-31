@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    addDashboardFiltersToMetricQuery,
     AndFilterGroup,
     CommercialFeatureFlags,
     CompiledDimension,
@@ -17,34 +16,38 @@ import {
     Explore,
     ExploreError,
     FieldValueSearchResult,
-    FilterableDimension,
     FilterGroupItem,
     FilterOperator,
-    findFieldByIdInExplore,
+    FilterableDimension,
     ForbiddenError,
+    InteractivityOptions,
+    IntrinsicUserAttributes,
+    MetricQuery,
+    NotExistsError,
+    NotFoundError,
+    ParameterError,
+    QueryExecutionContext,
+    SavedChartsInfoForDashboardAvailableFilters,
+    SessionUser,
+    UserAttributeValueMap,
+    addDashboardFiltersToMetricQuery,
+    findFieldByIdInExplore,
     formatRows,
     getDashboardFiltersForTileAndTables,
     getDimensions,
     getErrorMessage,
     getFilterInteractivityValue,
     getItemId,
-    InteractivityOptions,
-    IntrinsicUserAttributes,
     isChartTile,
     isDashboardChartTileType,
+    isDashboardSlugContent,
     isDashboardSqlChartTile,
+    isDashboardUuidContent,
     isDimension,
     isExploreError,
-    isFilterableDimension,
     isFilterInteractivityEnabled,
     isFilterRule,
-    MetricQuery,
-    NotExistsError,
-    ParameterError,
-    QueryExecutionContext,
-    SavedChartsInfoForDashboardAvailableFilters,
-    SessionUser,
-    UserAttributeValueMap,
+    isFilterableDimension,
     type LightdashUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -239,18 +242,24 @@ export class EmbedService extends BaseService {
             try {
                 EmbedJwtSchema.parse(decodedToken);
             } catch (e) {
+                const errorIdentifier = isDashboardUuidContent(
+                    decodedToken.content,
+                )
+                    ? decodedToken.content.dashboardUuid
+                    : decodedToken.content.dashboardSlug;
+
                 if (e instanceof z.ZodError) {
                     const zodErrors = e.issues
                         .map((issue) => issue.message)
                         .join(', ');
                     this.logger.error(
-                        `Invalid embed token ${decodedToken.content.dashboardUuid}: ${zodErrors}`,
+                        `Invalid embed token ${errorIdentifier}: ${zodErrors}`,
                     );
                 }
                 this.logger.error(
-                    `Invalid embed token ${
-                        decodedToken.content.dashboardUuid
-                    }: ${getErrorMessage(e)}`,
+                    `Invalid embed token ${errorIdentifier}: ${getErrorMessage(
+                        e,
+                    )}`,
                 );
                 Sentry.captureException(e);
             }
@@ -290,6 +299,30 @@ export class EmbedService extends BaseService {
         if (!isEnabled.enabled) throw new ForbiddenError('Feature not enabled');
     }
 
+    private async getDashboardUuidFromContent(
+        decodedToken: EmbedJwt,
+        projectUuid: string,
+    ) {
+        if (isDashboardSlugContent(decodedToken.content)) {
+            const dashboard = (
+                await this.dashboardModel.find({
+                    projectUuid,
+                    slug: decodedToken.content.dashboardSlug,
+                })
+            )[0];
+
+            if (!dashboard) {
+                throw new NotFoundError(
+                    `Dashboard ${decodedToken.content.dashboardSlug} not found`,
+                );
+            }
+
+            return dashboard.uuid;
+        }
+
+        return decodedToken.content.dashboardUuid;
+    }
+
     async getDashboard(
         projectUuid: string,
         embedToken: string,
@@ -299,14 +332,18 @@ export class EmbedService extends BaseService {
         const { encodedSecret, dashboardUuids, user } =
             await this.embedModel.get(projectUuid);
         const decodedToken = this.decodeJwt(embedToken, encodedSecret);
+        const dashboardUuid = await this.getDashboardUuidFromContent(
+            decodedToken,
+            projectUuid,
+        );
+
         if (checkPermissions)
             await EmbedService._permissionsGetDashboard(
-                decodedToken.content.dashboardUuid,
+                dashboardUuid,
                 dashboardUuids,
             );
-        const dashboard = await this.dashboardModel.getById(
-            decodedToken.content.dashboardUuid,
-        );
+
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
         await this.isFeatureEnabled({
             userUuid: user.userUuid,
@@ -393,6 +430,11 @@ export class EmbedService extends BaseService {
             filters: CompiledDimension[];
         }[] = [];
 
+        const dashboardUuid = await this.getDashboardUuidFromContent(
+            decodedToken,
+            projectUuid,
+        );
+
         const savedQueryUuids = savedChartUuidsAndTileUuids.map(
             ({ savedChartUuid }) => savedChartUuid,
         );
@@ -403,7 +445,7 @@ export class EmbedService extends BaseService {
                     projectUuid,
                     chartUuid,
                     dashboardUuids,
-                    decodedToken.content.dashboardUuid,
+                    dashboardUuid,
                 ),
             );
 
@@ -547,6 +589,10 @@ export class EmbedService extends BaseService {
             await this.projectService._getWarehouseClient(
                 projectUuid,
                 credentials,
+                {
+                    snowflakeVirtualWarehouse: explore.warehouse,
+                    databricksCompute: explore.databricksCompute,
+                },
             );
         const orgUserAttributes = await this.userAttributesModel.find({
             organizationUuid,
@@ -627,9 +673,12 @@ export class EmbedService extends BaseService {
 
         const decodedToken = this.decodeJwt(embedToken, encodedSecret);
 
-        const dashboard = await this.dashboardModel.getById(
-            decodedToken.content.dashboardUuid,
+        const dashboardUuid = await this.getDashboardUuidFromContent(
+            decodedToken,
+            projectUuid,
         );
+
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
         const tile = dashboard.tiles
             .filter(isChartTile)
@@ -637,7 +686,7 @@ export class EmbedService extends BaseService {
 
         if (!tile) {
             throw new ParameterError(
-                `Tile ${tileUuid} not found in dashboard ${decodedToken.content.dashboardUuid}`,
+                `Tile ${tileUuid} not found in dashboard ${dashboardUuid}`,
             );
         }
         const chartUuid = tile.properties.savedChartUuid;
@@ -659,7 +708,7 @@ export class EmbedService extends BaseService {
                 projectUuid,
                 chartUuid,
                 dashboardUuids,
-                decodedToken.content.dashboardUuid,
+                dashboardUuid,
             );
 
         const exploreId = chart.tableName;
@@ -696,6 +745,7 @@ export class EmbedService extends BaseService {
             ...addDashboardFiltersToMetricQuery(
                 chart.metricQuery,
                 appliedDashboardFilters,
+                explore,
             ),
         };
 
@@ -706,7 +756,7 @@ export class EmbedService extends BaseService {
             properties: {
                 organizationId: organizationUuid,
                 projectId: projectUuid,
-                dashboardId: decodedToken.content.dashboardUuid,
+                dashboardId: dashboardUuid,
                 chartId: chartUuid,
                 externalId,
             },
@@ -742,104 +792,6 @@ export class EmbedService extends BaseService {
         };
     }
 
-    // method to be moved to project service and reused on `projectService.searchFieldUniqueValues` and `embedService.searchFilterValues`
-    async _getFieldValuesMetricQuery({
-        projectUuid,
-        table,
-        initialFieldId,
-        search,
-        limit,
-        filters,
-    }: {
-        projectUuid: string;
-        table: string;
-        initialFieldId: string;
-        search: string;
-        limit: number;
-        filters: AndFilterGroup | undefined;
-    }) {
-        if (limit > this.lightdashConfig.query.maxLimit) {
-            throw new ParameterError(
-                `Query limit can not exceed ${this.lightdashConfig.query.maxLimit}`,
-            );
-        }
-
-        let explore = await this.projectModel.findExploreByTableName(
-            projectUuid,
-            table,
-        );
-        let fieldId = initialFieldId;
-        if (!explore) {
-            // fallback: find explore by join alias and replace fieldId
-            explore = await this.projectModel.findJoinAliasExplore(
-                projectUuid,
-                table,
-            );
-            if (explore && !isExploreError(explore)) {
-                fieldId = initialFieldId.replace(table, explore.baseTable);
-            }
-        }
-
-        if (!explore) {
-            throw new NotExistsError(`Explore ${table} does not exist`);
-        } else if (isExploreError(explore)) {
-            throw new NotExistsError(`Explore ${table} has errors`);
-        }
-
-        const field = findFieldByIdInExplore(explore, fieldId);
-
-        if (!field) {
-            throw new NotExistsError(`Can't dimension with id: ${fieldId}`);
-        }
-
-        if (!isDimension(field)) {
-            throw new ParameterError(
-                `Searching by field is only available for dimensions, but ${fieldId} is a ${field.type}`,
-            );
-        }
-        const autocompleteDimensionFilters: FilterGroupItem[] = [
-            {
-                id: uuidv4(),
-                target: {
-                    fieldId,
-                },
-                operator: FilterOperator.INCLUDE,
-                values: [search],
-            },
-        ];
-        if (filters) {
-            const filtersCompatibleWithExplore = filters.and.filter(
-                (filter) =>
-                    isFilterRule(filter) &&
-                    findFieldByIdInExplore(
-                        explore as Explore,
-                        filter.target.fieldId,
-                    ),
-            );
-            autocompleteDimensionFilters.push(...filtersCompatibleWithExplore);
-        }
-        const metricQuery: MetricQuery = {
-            exploreName: explore.name,
-            dimensions: [getItemId(field)],
-            metrics: [],
-            filters: {
-                dimensions: {
-                    id: uuidv4(),
-                    and: autocompleteDimensionFilters,
-                },
-            },
-            tableCalculations: [],
-            sorts: [
-                {
-                    fieldId: getItemId(field),
-                    descending: false,
-                },
-            ],
-            limit,
-        };
-        return { metricQuery, explore, field };
-    }
-
     async searchFilterValues({
         embedToken,
         projectUuid,
@@ -860,13 +812,15 @@ export class EmbedService extends BaseService {
         const { encodedSecret, dashboardUuids, user } =
             await this.embedModel.get(projectUuid);
         const embedJwt = this.decodeJwt(embedToken, encodedSecret);
+        const dashboardUuid = await this.getDashboardUuidFromContent(
+            embedJwt,
+            projectUuid,
+        );
         await EmbedService._permissionsGetDashboard(
-            embedJwt.content.dashboardUuid,
+            dashboardUuid,
             dashboardUuids,
         );
-        const dashboard = await this.dashboardModel.getById(
-            embedJwt.content.dashboardUuid,
-        );
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
         const dashboardFilters = dashboard.filters.dimensions;
         const filter = dashboardFilters.find((f) => f.id === filterUuid);
         if (!filter) {
@@ -875,7 +829,7 @@ export class EmbedService extends BaseService {
 
         const initialFieldId = filter.target.fieldId;
         const { metricQuery, explore, field } =
-            await this._getFieldValuesMetricQuery({
+            await this.projectService._getFieldValuesMetricQuery({
                 projectUuid,
                 table: filter.target.tableName,
                 initialFieldId,

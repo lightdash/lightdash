@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/node';
 
-import { AnyType } from '@lightdash/common';
+import { AnyType, TimeoutError } from '@lightdash/common';
 
 import { Job } from 'graphile-worker';
 import Logger from '../logging/logger';
@@ -37,7 +37,9 @@ export async function tryJobOrTimeout(
             Logger.error(
                 `Worker ${job.locked_by} timed out job ${job.id} (${job.task_identifier}) after ${time}ms`,
             );
-            const timeOutError = new Error(`Job timed out after ${time}ms`);
+            const timeOutError = new TimeoutError(
+                `Job timed out after ${time}ms`,
+            );
             Sentry.captureException(timeOutError, {
                 extra: {
                     jobId: job.id,

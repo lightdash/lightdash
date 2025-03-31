@@ -8,6 +8,13 @@ import {
     DashboardTileTypes,
     ExploreType,
     ForbiddenError,
+    ParameterError,
+    SchedulerAndTargets,
+    SchedulerFormat,
+    SessionUser,
+    TogglePinnedItemInfo,
+    UpdateDashboard,
+    UpdateMultipleDashboards,
     generateSlug,
     hasChartsInDashboard,
     isChartScheduler,
@@ -18,13 +25,6 @@ import {
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
-    ParameterError,
-    SchedulerAndTargets,
-    SchedulerFormat,
-    SessionUser,
-    TogglePinnedItemInfo,
-    UpdateDashboard,
-    UpdateMultipleDashboards,
     type ChartFieldUpdates,
     type DashboardBasicDetailsWithTileTypes,
     type DuplicateDashboardParams,
@@ -1026,6 +1026,11 @@ export class DashboardService extends BaseService {
 
         await this.schedulerClient.generateDailyJobsForScheduler(
             scheduler,
+            {
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+            },
             defaultTimezone,
         );
         return scheduler;

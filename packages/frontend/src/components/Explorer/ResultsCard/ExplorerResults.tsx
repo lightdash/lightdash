@@ -35,10 +35,26 @@ export const ExplorerResults = memo(() => {
     const explorerColumnOrder = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
     );
-    const resultsData = useExplorerContext(
-        (context) => context.queryResults.data,
+    const rows = useExplorerContext((context) => context.queryResults.rows);
+    const totalRows = useExplorerContext(
+        (context) => context.queryResults.totalResults,
     );
-    const status = useExplorerContext((context) => context.queryResults.status);
+    const isFetchingRows = useExplorerContext(
+        (context) => context.queryResults.isFetchingRows,
+    );
+    const fetchMoreRows = useExplorerContext(
+        (context) => context.queryResults.fetchMoreRows,
+    );
+    const status = useExplorerContext((context) => {
+        // Don't return context.queryResults.status because we changed from mutation to query so 'loading' as a different meaning
+        if (context.query.isFetching) {
+            return 'loading';
+        } else if (context.query.status === 'loading') {
+            return 'idle';
+        } else {
+            return context.query.status;
+        }
+    });
     const setColumnOrder = useExplorerContext(
         (context) => context.actions.setColumnOrder,
     );
@@ -145,7 +161,10 @@ export const ExplorerResults = memo(() => {
             <Box px="xs" py="lg">
                 <Table
                     status={status}
-                    data={resultsData?.rows || []}
+                    data={rows || []}
+                    totalRowsCount={totalRows || 0}
+                    isFetchingRows={isFetchingRows}
+                    fetchMoreRows={fetchMoreRows}
                     columns={columns}
                     columnOrder={explorerColumnOrder}
                     onColumnOrderChange={setColumnOrder}

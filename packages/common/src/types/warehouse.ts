@@ -4,6 +4,7 @@ import { type AnyType } from './any';
 import { type SupportedDbtAdapter } from './dbt';
 import { type DimensionType, type Metric } from './field';
 import { type CreateWarehouseCredentials } from './projects';
+import type { WarehouseQueryMetadata } from './queryHistory';
 
 export type RunQueryTags = {
     project_uuid?: string;
@@ -47,6 +48,44 @@ export type WarehouseResults = {
     rows: Record<string, AnyType>[];
 };
 
+export type WarehousePaginationArgs = {
+    page: number;
+    pageSize: number;
+};
+
+export type WarehouseExecuteAsyncQueryArgs = {
+    tags: Record<string, string>;
+    timezone?: string;
+    values?: AnyType[];
+    sql: string;
+};
+
+export type WarehouseExecuteAsyncQuery = {
+    queryId: string | null;
+    queryMetadata: WarehouseQueryMetadata | null;
+    totalRows: number | null;
+    durationMs: number | null;
+};
+
+export type WarehouseGetAsyncQueryResultsArgs = WarehousePaginationArgs &
+    WarehouseExecuteAsyncQueryArgs & {
+        queryId: string | null;
+        queryMetadata: WarehouseQueryMetadata | null;
+    };
+
+type WarehouseAsyncQueryCommonResults = {
+    queryId: string | null;
+};
+
+export type WarehouseGetAsyncQueryResults<
+    TFormattedRow extends Record<string, unknown>,
+> = WarehouseAsyncQueryCommonResults & {
+    fields: Record<string, { type: DimensionType }>;
+    pageCount: number;
+    totalRows: number;
+    rows: TFormattedRow[];
+};
+
 export interface WarehouseClient {
     credentials: CreateWarehouseCredentials;
     getCatalog: (
@@ -66,6 +105,15 @@ export interface WarehouseClient {
             timezone?: string;
         },
     ): Promise<void>;
+
+    executeAsyncQuery(
+        args: WarehouseExecuteAsyncQueryArgs,
+    ): Promise<WarehouseExecuteAsyncQuery>;
+
+    getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
+        args: WarehouseGetAsyncQueryResultsArgs,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>>;
 
     /**
      * Runs a query and returns all the results

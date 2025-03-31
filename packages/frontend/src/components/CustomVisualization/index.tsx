@@ -1,5 +1,5 @@
 import { Center, Loader, Text } from '@mantine/core';
-import { lazy, Suspense, type FC } from 'react';
+import { Suspense, lazy, useEffect, type FC } from 'react';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
@@ -14,7 +14,14 @@ type Props = {
 };
 
 const CustomVisualization: FC<Props> = (props) => {
-    const { isLoading, visualizationConfig } = useVisualizationContext();
+    const { isLoading, visualizationConfig, resultsData } =
+        useVisualizationContext();
+
+    useEffect(() => {
+        // Load all the rows
+        resultsData?.setFetchAll(true);
+        return () => resultsData?.setFetchAll(false);
+    }, [resultsData]);
 
     if (isLoading) {
         return <Text>Loading...</Text>;

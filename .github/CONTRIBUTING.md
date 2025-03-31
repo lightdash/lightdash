@@ -288,6 +288,7 @@ docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env
 To setup Development Environment without Docker you need following pre-requisites before running Lightdash:
 
 -   node >= v18.x (20 is preferred)
+-   python >= 3.3
 -   pnpm
 -   postgres >= 12
 -   dbt 1.4.x or 1.5.x
@@ -309,17 +310,25 @@ nvm install v20.8.0
 nvm alias default v20.8.0
 
 # 4 Install postgres (https://wiki.postgresql.org/wiki/Homebrew) and pgvector
-
-# pgvector is an extension for postgres we use in Lightdash, it needs to be installed separately 
-# More info about this extension and a detailed installation guide available here: https://github.com/pgvector/pgvector
-# on Linux, you can install `postgresql-14-pgvector`, available on apt
-git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git && cd pgvector && make && sudo make install && cd .. 
 brew install postgresql@14
 brew services start postgresql@14
 
-# 5 Install dbt (https://docs.getdbt.com/dbt-cli/install/homebrew)
-brew tap dbt-labs/dbt
-brew install dbt-postgres@1.5.4
+# pgvector is an extension for postgres we use in Lightdash, it needs to be installed separately
+# More info about this extension and a detailed installation guide available here: https://github.com/pgvector/pgvector
+# on Linux, you can install `postgresql-14-pgvector`, available on apt
+# You might need to point pgvector to a correct postgres instance if you have multiple versions installed
+# export PG_CONFIG=/opt/homebrew/opt/postgresql@14/bin/pg_config
+git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git && cd pgvector && make && sudo make install && cd ..
+
+# 5 Install dbt using pip
+# Detailed installation guide available here: https://docs.getdbt.com/docs/core/pip-install
+# Create python virtual env
+python3 -m venv env-lightdash # or your preferred env name
+# Activate the env
+# You can deactivate python virtual env by running `deactivate` later
+source env-lightdash/bin/activate
+
+python -m pip install dbt-postgres==1.4.9
 
 # 6 Clone the repo and open it in your IDE
 git clone https://github.com/lightdash/lightdash.git
@@ -372,6 +381,19 @@ pnpm warehouses-build
 pnpm test
 ```
 
+The backend has several test commands for different scenarios:
+
+```bash
+# Run all tests with type checking (for CI/production)
+pnpm -F backend test
+
+# Run tests in development mode with performance optimizations
+pnpm -F backend test:dev
+
+# Run tests sequentially with type checking (for debugging)
+pnpm -F backend test-sequential
+```
+
 #### How to run e2e tests
 
 Before running e2e tests make sure you're running the app locally.
@@ -407,7 +429,7 @@ then registered in `packages/backend/src/index.ts` but in order to be made avail
 `routes.ts` file by executing:
 
 ```shell
-pnpm -F backend run tsoa routes
+pnpm generate-api
 ```
 
 ### Running headless browser locally

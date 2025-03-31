@@ -16,6 +16,7 @@ type SnowflakeTarget = {
     user: string;
     password?: string;
     private_key_path?: string;
+    private_key?: string;
     private_key_passphrase?: string;
     role?: string;
     database: string;
@@ -48,6 +49,10 @@ const snowflakeSchema: JSONSchemaType<SnowflakeTarget> = {
             nullable: true,
         },
         private_key_path: {
+            type: 'string',
+            nullable: true,
+        },
+        private_key: {
             type: 'string',
             nullable: true,
         },
@@ -117,6 +122,9 @@ export const convertSnowflakeSchema = async (
                 );
             }
         }
+        if (target.private_key) {
+            privateKey = target.private_key;
+        }
 
         return {
             type: WarehouseTypes.SNOWFLAKE,
@@ -125,6 +133,7 @@ export const convertSnowflakeSchema = async (
             password: target.password,
             privateKey,
             privateKeyPass: target.private_key_passphrase,
+            authenticationType: privateKey ? 'private_key' : 'password',
             role: target.role,
             warehouse: target.warehouse,
             database: target.database,

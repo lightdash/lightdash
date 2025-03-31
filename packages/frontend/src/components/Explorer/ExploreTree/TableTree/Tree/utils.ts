@@ -7,145 +7,179 @@ import {
 } from '@lightdash/common';
 import Fuse from 'fuse.js';
 import { MAX_GROUP_DEPTH } from './constants';
-import { type Node, type NodeItem, type NodeMap } from './types';
+import {
+    isGroupNode,
+    type GroupNode,
+    type Node,
+    type NodeItem,
+    type NodeMap,
+} from './types';
 
 export const getSearchResults = (
     itemsMap: Record<string, NodeItem>,
     searchQuery?: string,
-): Set<string> => {
-    const results = new Set<string>();
-    if (searchQuery && searchQuery !== '') {
-        new Fuse(Object.entries(itemsMap), {
-            keys: ['1.label', '1.groupLabel'],
-            ignoreLocation: true,
-            threshold: 0.3,
-        })
-            .search(searchQuery)
-            .forEach((res) => results.add(res.item[0]));
+): string[] => {
+    if (!searchQuery || searchQuery === '') {
+        return [];
     }
-    return results;
-};
-const isBaseDimensionWithIntervalDefined = (item: NodeItem): boolean => {
-    if (isDimension(item) && item.isIntervalBase) {
-        return item.isIntervalBase;
-    } else {
-        return false;
-    }
+
+    return new Fuse(Object.entries(itemsMap), {
+        keys: ['1.label', '1.groupLabel'],
+        ignoreLocation: true,
+        threshold: 0.3,
+    })
+        .search(searchQuery)
+        .map((res) => res.item[0]);
 };
 
-const addNodeToGroup = (
-    node: NodeMap,
+const isBaseDimensionWithIntervalDefined = (item: NodeItem): boolean => {
+    return isDimension(item) && item.isIntervalBase === true;
+};
+
+const createNodeWithGroup = (
+    existingNode: NodeMap,
     item: Node,
     groups: string[],
     groupDetails: Record<string, GroupType>,
     isLegacyInterval: boolean,
-): void => {
+): NodeMap => {
     if (groups.length === 0) {
-        node[item.key] = item;
-    } else {
-        const [head, ...tail] = groups;
-        const groupDefinition = groupDetails[head] || {
-            label: head,
+        return {
+            ...existingNode,
+            [item.key]: item,
         };
-
-        if (!node[groupDefinition.label]) {
-            node[groupDefinition.label] = {
-                key: groupDefinition.label,
-                label: groupDefinition.label,
-                description: groupDefinition.description,
-                children: {},
-                index: item.index ?? Number.MAX_SAFE_INTEGER,
-            };
-        }
-        let children = node[groupDefinition.label].children;
-        if (isLegacyInterval && tail.length === 0) {
-            /*
-             * This is a dimension time interval from deprecated legacy cached model
-             */
-            node[groupDefinition.label].children = {
-                ...(children || {}),
-                [item.key]: item,
-            };
-        } else if (children) {
-            addNodeToGroup(
-                children,
-                item,
-                tail,
-                groupDetails,
-                isLegacyInterval,
-            );
-        }
     }
+
+    const [head, ...tail] = groups;
+    const groupDefinition = groupDetails[head] || {
+        label: head,
+    };
+
+    const groupLabel = groupDefinition.label;
+
+    // Create or retrieve the group node
+    const existingGroupNode: NodeMap[string] | undefined =
+        existingNode[groupLabel];
+
+    if (existingGroupNode && !isGroupNode(existingGroupNode)) {
+        throw new Error('Existing group node is not a group node');
+    }
+
+    const groupNode =
+        existingGroupNode ||
+        ({
+            key: groupLabel,
+            label: groupLabel,
+            description: groupDefinition.description ?? '',
+            children: {},
+            index: item.index ?? Number.MAX_SAFE_INTEGER,
+        } satisfies GroupNode);
+
+    // Process children based on conditions
+    const updatedChildren: NodeMap =
+        isLegacyInterval && tail.length === 0
+            ? {
+                  ...(groupNode.children || {}),
+                  [item.key]: item,
+              }
+            : createNodeWithGroup(
+                  groupNode.children || {},
+                  item,
+                  tail,
+                  groupDetails,
+                  isLegacyInterval,
+              );
+
+    // Create updated group node
+    const updatedGroupNode: GroupNode = {
+        ...groupNode,
+        children: updatedChildren,
+    };
+
+    // Return updated node map with the updated group
+    return {
+        ...existingNode,
+        [groupLabel]: updatedGroupNode,
+    };
 };
 
 export const getNodeMapFromItemsMap = (
     itemsMap: Record<string, NodeItem>,
     selectedItems: Set<string>,
-    groupDetails?: Record<string, GroupType>,
+    groupDetails: Record<string, GroupType> = {},
 ): NodeMap => {
-    const root: NodeMap = {};
-    Object.entries(itemsMap)
-        .filter(([itemId, item]) =>
-            isCustomDimension(item)
-                ? true
-                : !item.hidden || selectedItems.has(itemId),
-        )
-        .forEach(([itemId, item]) => {
-            const node: Node = isCustomDimension(item)
-                ? {
-                      key: itemId,
-                      label: item.name,
-                      index: Number.MAX_SAFE_INTEGER,
-                  }
-                : {
-                      key: itemId,
-                      label: item.label || item.name,
-                      index: item.index ?? Number.MAX_SAFE_INTEGER,
-                  };
-            let isLegacyInterval = false;
-            if (isField(item)) {
-                const groups: string[] = item.groups || [];
-                /*
-                 * Deprecated groupLabel and group properties
-                 * will only have values for legacy cached models
-                 */
-                if (item.groupLabel) {
-                    groups.push(item.groupLabel);
-                }
-                if (isDimension(item) && item.group) {
-                    // We need to clean the baseDimensionNode
-                    const groupName = getItemId({
-                        table: item.table,
-                        name: item.group,
-                    });
-                    groups.push(groupName);
-                    isLegacyInterval = true;
-                }
-                const tableGroupDetails = groupDetails || {};
+    // Filter items first
+    const filteredItems = Object.entries(itemsMap).filter(([itemId, item]) =>
+        isCustomDimension(item)
+            ? true
+            : !item.hidden || selectedItems.has(itemId),
+    );
 
-                if (!isBaseDimensionWithIntervalDefined(item)) {
-                    // Limit group nesting levels
-                    const groupsWithMaxDepth = groups.slice(0, MAX_GROUP_DEPTH);
-                    if (
-                        groups.length > MAX_GROUP_DEPTH &&
-                        isDimension(item) &&
-                        item.timeInterval
-                    ) {
-                        // append time interval group
-                        groupsWithMaxDepth.push(groups[groups.length - 1]);
-                    }
+    // Use reduce to build the node map without mutations
+    return filteredItems.reduce<NodeMap>((acc, [itemId, item]) => {
+        // Create the node
+        const node: Node = isCustomDimension(item)
+            ? {
+                  key: itemId,
+                  label: item.name,
+                  index: Number.MAX_SAFE_INTEGER,
+              }
+            : {
+                  key: itemId,
+                  label: item.label || item.name,
+                  index: item.index ?? Number.MAX_SAFE_INTEGER,
+              };
 
-                    addNodeToGroup(
-                        root,
-                        node,
-                        groupsWithMaxDepth,
-                        tableGroupDetails,
-                        isLegacyInterval,
-                    );
-                }
-            } else {
-                root[node.key] = node;
-            }
-        });
-    return root;
+        // For non-field items, simply add to the root
+        if (!isField(item)) {
+            return {
+                ...acc,
+                [node.key]: node,
+            };
+        }
+
+        // Skip base dimensions with interval defined
+        if (isBaseDimensionWithIntervalDefined(item)) {
+            return acc;
+        }
+
+        // Gather groups
+        let groups: string[] = [...(item.groups || [])];
+
+        // Handle legacy cases
+        let isLegacyInterval = false;
+
+        if (item.groupLabel) {
+            groups.push(item.groupLabel);
+        }
+
+        if (isDimension(item) && item.group) {
+            const groupName = getItemId({
+                table: item.table,
+                name: item.group,
+            });
+            groups.push(groupName);
+            isLegacyInterval = true;
+        }
+
+        // Limit group nesting depth
+        const groupsWithMaxDepth = groups.slice(0, MAX_GROUP_DEPTH);
+        if (
+            groups.length > MAX_GROUP_DEPTH &&
+            isDimension(item) &&
+            item.timeInterval
+        ) {
+            // Append time interval group
+            groupsWithMaxDepth.push(groups[groups.length - 1]);
+        }
+
+        // Add node to the appropriate group(s)
+        return createNodeWithGroup(
+            acc,
+            node,
+            groupsWithMaxDepth,
+            groupDetails,
+            isLegacyInterval,
+        );
+    }, {});
 };

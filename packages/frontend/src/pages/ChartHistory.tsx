@@ -23,7 +23,6 @@ import {
 } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Can } from '../components/common/Authorization';
 import { EmptyState } from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -31,13 +30,13 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
-import { useChartVersionResultsMutation } from '../hooks/useQueryResults';
 import {
     useChartHistory,
     useChartVersion,
     useChartVersionRollbackMutation,
     useSavedQuery,
 } from '../hooks/useSavedQuery';
+import { Can } from '../providers/Ability';
 import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
 import { ExplorerSection } from '../providers/Explorer/types';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
@@ -63,11 +62,6 @@ const ChartHistory = () => {
     }, [selectedVersionUuid, historyQuery.data]);
 
     const chartVersionQuery = useChartVersion(
-        savedQueryUuid,
-        selectedVersionUuid,
-    );
-
-    const queryResults = useChartVersionResultsMutation(
         savedQueryUuid,
         selectedVersionUuid,
     );
@@ -252,7 +246,14 @@ const ChartHistory = () => {
             {chartVersionQuery.data && (
                 <ExplorerProvider
                     key={selectedVersionUuid}
-                    queryResults={queryResults}
+                    viewModeQueryArgs={
+                        savedQueryUuid && selectedVersionUuid
+                            ? {
+                                  chartUuid: savedQueryUuid,
+                                  chartVersionUuid: selectedVersionUuid,
+                              }
+                            : undefined
+                    }
                     initialState={{
                         shouldFetchResults: true,
                         previouslyFetchedState: undefined,
@@ -266,6 +267,9 @@ const ChartHistory = () => {
                                 isOpen: false,
                             },
                             customDimension: {
+                                isOpen: false,
+                            },
+                            writeBack: {
                                 isOpen: false,
                             },
                         },

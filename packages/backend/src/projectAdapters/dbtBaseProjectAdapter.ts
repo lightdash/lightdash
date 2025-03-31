@@ -1,31 +1,31 @@
 import {
     AnyType,
-    attachTypesToModels,
-    convertExplores,
+    DEFAULT_SPOTLIGHT_CONFIG,
     DbtManifestVersion,
     DbtMetric,
     DbtModelNode,
     DbtPackages,
     DbtRawModelNode,
-    DEFAULT_SPOTLIGHT_CONFIG,
     Explore,
     ExploreError,
+    InlineError,
+    InlineErrorType,
+    ManifestValidator,
+    MissingCatalogEntryError,
+    NotFoundError,
+    ParseError,
+    SupportedDbtAdapter,
+    SupportedDbtVersions,
+    attachTypesToModels,
+    convertExplores,
     friendlyName,
     getCompiledModels,
     getDbtManifestVersion,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
-    InlineError,
-    InlineErrorType,
     isSupportedDbtAdapter,
     loadLightdashProjectConfig,
-    ManifestValidator,
-    MissingCatalogEntryError,
     normaliseModelDatabase,
-    NotFoundError,
-    ParseError,
-    SupportedDbtAdapter,
-    SupportedDbtVersions,
     type LightdashProjectConfig,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
@@ -105,9 +105,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             const config = await loadLightdashProjectConfig(
                 fileContents,
                 async (lightdashConfig) => {
-                    Logger.debug('Track lightdash config loaded');
-                    Logger.debug(trackingParams);
-                    Logger.debug(this.analytics);
                     if (trackingParams) {
                         void this.analytics?.track({
                             event: 'lightdashconfig.loaded',

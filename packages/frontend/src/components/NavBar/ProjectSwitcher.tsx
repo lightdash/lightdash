@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import {
-    assertUnreachable,
     ProjectType,
+    assertUnreachable,
     type OrganizationProject,
 } from '@lightdash/common';
 import { Badge, Box, Button, Group, Menu, Text, Tooltip } from '@mantine/core';

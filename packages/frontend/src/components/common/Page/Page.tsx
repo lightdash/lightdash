@@ -2,12 +2,13 @@ import { ProjectType } from '@lightdash/common';
 import { Box, createStyles } from '@mantine/core';
 import { useDisclosure, useElementSize } from '@mantine/hooks';
 import { type FC } from 'react';
-import { ErrorBoundary } from '../../../features/errorBoundary';
+import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
+import Sidebar from './Sidebar';
 import {
     BANNER_HEIGHT,
     FOOTER_HEIGHT,
@@ -18,7 +19,6 @@ import {
     PAGE_HEADER_HEIGHT,
     PAGE_MIN_CONTENT_WIDTH,
 } from './constants';
-import Sidebar from './Sidebar';
 import { SidebarPosition, type SidebarWidthProps } from './types';
 
 type StyleProps = {

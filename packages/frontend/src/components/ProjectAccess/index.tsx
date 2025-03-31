@@ -5,8 +5,8 @@ import { IconPlus, IconUser, IconUsersGroup } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { ProjectGroupAccess } from '../../features/projectGroupAccess';
 import { useFeatureFlag } from '../../hooks/useFeatureFlagEnabled';
+import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
-import { Can } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
 import ProjectAccess from './ProjectAccess';
 

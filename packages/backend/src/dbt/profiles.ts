@@ -139,15 +139,18 @@ const credentialsTarget = (
                     [envVar('user')]: credentials.user,
                 },
             };
-            if (credentials.password) {
+            if (
+                (!credentials.authenticationType ||
+                    credentials.authenticationType === 'password') &&
+                credentials.password
+            ) {
                 result.target.password = envVarReference('password');
                 result.environment[envVar('password')] = credentials.password;
             } else if (credentials.privateKey) {
-                const privateKeyPath = path.join(profilesDir, 'rsa_key.p8');
-                result.target.private_key_path =
-                    envVarReference('privateKeyPath');
-                result.environment[envVar('privateKeyPath')] = privateKeyPath;
-                result.files = { [privateKeyPath]: credentials.privateKey };
+                result.target.private_key = envVarReference('privateKey');
+                result.environment[envVar('privateKey')] =
+                    credentials.privateKey;
+
                 if (credentials.privateKeyPass) {
                     result.target.private_key_passphrase =
                         envVarReference('privateKeyPass');

@@ -14,13 +14,14 @@ import { memo, useState, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useSemanticLayerInfo } from '../../features/semanticViewer/api/hooks';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
+import useCreateInAnySpaceAccess from '../../hooks/user/useCreateInAnySpaceAccess';
+import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
-import { Can } from '../common/Authorization';
 import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
-import DashboardCreateModal from '../common/modal/DashboardCreateModal';
 import SpaceActionModal from '../common/SpaceActionModal';
 import { ActionType } from '../common/SpaceActionModal/types';
+import DashboardCreateModal from '../common/modal/DashboardCreateModal';
 
 type Props = {
     projectUuid: string;
@@ -30,11 +31,16 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const navigate = useNavigate();
     const location = useLocation();
 
+    const { user } = useApp();
+
+    const userCanCreateDashboards = useCreateInAnySpaceAccess(
+        projectUuid,
+        'Dashboard',
+    );
+
     const isSemanticLayerEnabled = useFeatureFlagEnabled(
         FeatureFlags.SemanticLayerEnabled,
     );
-
-    const { user } = useApp();
 
     const semanticLayerInfoQuery = useSemanticLayerInfo(
         { projectUuid },
@@ -93,7 +99,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             semanticLayerInfoQuery.isSuccess &&
                             semanticLayerInfoQuery.data !== null && (
                                 <Can
-                                    I="manage"
+                                    I="view"
                                     this={subject('SemanticViewer', {
                                         organizationUuid:
                                             user.data?.organizationUuid,
@@ -141,13 +147,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             />
                         </Can>
 
-                        <Can
-                            I="create"
-                            this={subject('Dashboard', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
+                        {userCanCreateDashboards && (
                             <LargeMenuItem
                                 title="Dashboard"
                                 description="Arrange multiple charts into a single view."
@@ -155,7 +155,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 icon={IconLayoutDashboard}
                                 data-testid="ExploreMenu/NewDashboardButton"
                             />
-                        </Can>
+                        )}
 
                         <Can
                             I="create"

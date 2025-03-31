@@ -22,6 +22,7 @@ export const TableScrollableWrapper = styled.div`
 interface TableContainerProps {
     $shouldExpand?: boolean;
     $padding?: number;
+    $tableFont?: string;
 }
 
 export const TableContainer = styled.div<
@@ -32,7 +33,7 @@ export const TableContainer = styled.div<
     min-width: 100%;
     overflow: hidden;
 
-    font-family: 'Inter', sans-serif;
+    font-family: ${({ $tableFont }) => $tableFont ?? 'Inter, sans-serif'};
     font-feature-settings: 'tnum';
 
     padding: ${({ $padding = 0 }) => `${$padding}px`};
@@ -135,18 +136,20 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
     }
 
     .sticky-column {
-        position: sticky !important;
         left: 1px;
         z-index: 1;
-        background-color: white !important;
         word-break: break-word;
         :hover {
             white-space: normal;
             background-color: white;
         }
     }
+    th.sticky-column {
+        background: white !important;
+    }
+
     .last-sticky-column {
-        border-right: 2px solid darkgray;
+        border-right: 1.4px solid rgb(189, 189, 189);
     }
 `;
 
@@ -204,25 +207,42 @@ export const Td = styled.td<{
     $hasData: boolean;
     $isLargeText: boolean;
     $isMinimal: boolean;
+    $hasNewlines: boolean;
+    $hasUrls: boolean;
 }>`
     max-width: 300px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    box-sizing: border-box;
     height: ${ROW_HEIGHT_PX}px;
 
-    ${({ $isLargeText, $isSelected, $isMinimal }) =>
+    ${({ $isLargeText, $isSelected, $isMinimal, $hasNewlines }) =>
         $isLargeText
             ? `
                 min-width: 300px;
-                white-space: ${$isSelected || $isMinimal ? 'normal' : 'nowrap'};
+                white-space: ${
+                    $isSelected || $isMinimal
+                        ? $hasNewlines
+                            ? 'pre-line'
+                            : 'normal'
+                        : 'nowrap'
+                };
                 :hover {
-                    white-space: normal;
+                    white-space: ${$hasNewlines ? 'pre-line' : 'normal'};
                 }
             `
             : ''}
 
     ${CellStyles}
+
+    ${({ $hasUrls }) =>
+        $hasUrls
+            ? `
+                text-decoration: underline;
+                text-decoration-style: dotted;
+            `
+            : ''}
 
     ${({ $isInteractive, $hasData }) =>
         $isInteractive && $hasData

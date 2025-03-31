@@ -108,6 +108,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     groupsModel: models.getGroupsModel(),
                     scimOrganizationAccessTokenModel:
                         models.getScimOrganizationAccessTokenModel(),
+                    commercialFeatureFlagModel:
+                        models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                 }),
             slackIntegrationService: ({ models, context }) =>
                 new CommercialSlackIntegrationService({

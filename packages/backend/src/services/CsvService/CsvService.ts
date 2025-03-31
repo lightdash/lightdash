@@ -11,6 +11,7 @@ import {
     DownloadCsvPayload,
     DownloadFileType,
     DownloadMetricCsv,
+    ExportCsvDashboardPayload,
     ForbiddenError,
     formatItemValue,
     formatRows,
@@ -18,6 +19,7 @@ import {
     getCustomLabelsFromTableConfig,
     getDashboardFiltersForTileAndTables,
     getErrorMessage,
+    getFulfilledValues,
     getHiddenTableFields,
     getItemLabel,
     getItemLabelWithoutTableName,
@@ -36,6 +38,7 @@ import {
     PivotConfig,
     pivotResultsAsCsv,
     QueryExecutionContext,
+    SCHEDULER_TASKS,
     SchedulerCsvOptions,
     SchedulerFilterRule,
     SchedulerFormat,
@@ -56,7 +59,7 @@ import {
     LightdashAnalytics,
     parseAnalyticsLimit,
 } from '../../analytics/LightdashAnalytics';
-import { S3Client } from '../../clients/Aws/s3';
+import { S3Client } from '../../clients/Aws/S3Client';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -457,6 +460,7 @@ This method can be memory intensive
         onlyRaw: boolean;
         truncated: boolean;
         customLabels: Record<string, string> | undefined;
+        metricsAsRows?: boolean;
     }) {
         return wrapSentryTransaction<AttachmentUrl>(
             'downloadPivotTableCsv',
@@ -570,6 +574,7 @@ This method can be memory intensive
             ? addDashboardFiltersToMetricQuery(
                   metricQuery,
                   dashboardFiltersForTile,
+                  explore,
               )
             : metricQuery;
 
@@ -820,6 +825,9 @@ This method can be memory intensive
                 chartUuid: tile.properties.savedSqlUuid!,
             }));
 
+        this.logger.info(
+            `Downloading ${chartTileUuidsWithChartUuids.length} chart CSVs for dashboard ${dashboardUuid}`,
+        );
         const csvForChartPromises = chartTileUuidsWithChartUuids.map(
             ({ tileUuid, chartUuid }) =>
                 this.getCsvForChart(
@@ -832,7 +840,9 @@ This method can be memory intensive
                     dateZoomGranularity,
                 ),
         );
-
+        this.logger.info(
+            `Downloading ${sqlChartTileUuids.length} sql chart CSVs for dashboard ${dashboardUuid}`,
+        );
         const csvForSqlChartPromises = sqlChartTileUuids.map(({ chartUuid }) =>
             this.getCsvForSqlChart({
                 user,
@@ -842,107 +852,11 @@ This method can be memory intensive
             }),
         );
 
-        const csvUrls = await Promise.all([
+        const csvUrls = await Promise.allSettled([
             ...csvForChartPromises,
             ...csvForSqlChartPromises,
-        ]);
+        ]).then(getFulfilledValues);
         return csvUrls;
-    }
-
-    async downloadSqlCsv({
-        user,
-        projectUuid,
-        sql,
-        customLabels,
-    }: {
-        user: SessionUser;
-        projectUuid: string;
-        sql: string;
-        customLabels: Record<string, string> | undefined;
-    }) {
-        const jobId = nanoid();
-        const analyticsProperties: DownloadCsv['properties'] = {
-            jobId,
-            userId: user.userUuid,
-            organizationId: user.organizationUuid,
-            projectId: projectUuid,
-            tableId: 'sql_runner',
-            values: 'raw',
-            context: 'sql runner',
-            fileType: SchedulerFormat.CSV,
-            storage: this.s3Client.isEnabled() ? 's3' : 'local',
-        };
-        try {
-            const { organizationUuid } = user;
-
-            if (
-                user.ability.cannot(
-                    'manage',
-                    subject('ExportCsv', { organizationUuid, projectUuid }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
-
-            this.analytics.track({
-                event: 'download_results.started',
-                userId: user.userUuid,
-                properties: {
-                    ...analyticsProperties,
-                },
-            });
-
-            const results: ApiSqlQueryResults =
-                await this.projectService.runSqlQuery(user!, projectUuid, sql);
-
-            const csvContent = await CsvService.convertSqlQueryResultsToCsv(
-                results,
-                customLabels,
-            );
-
-            const fileId = `csv-${jobId}.csv`;
-
-            let fileUrl;
-            if (this.s3Client.isEnabled()) {
-                fileUrl = await this.s3Client.uploadCsv(csvContent, fileId);
-            } else {
-                // storing locally
-                const filePath = `/tmp/${fileId}`;
-                await fsPromise.writeFile(filePath, csvContent, 'utf-8');
-                const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
-                await this.downloadFileModel.createDownloadFile(
-                    downloadFileId,
-                    filePath,
-                    DownloadFileType.CSV,
-                );
-                fileUrl = new URL(
-                    `/api/v1/projects/${projectUuid}/csv/${downloadFileId}`,
-                    this.lightdashConfig.siteUrl,
-                ).href;
-            }
-
-            this.analytics.track({
-                event: 'download_results.completed',
-                userId: user.userUuid,
-                properties: {
-                    ...analyticsProperties,
-                    numRows: results.rows.length,
-                    numColumns: Object.keys(results.fields).length,
-                },
-            });
-
-            return fileUrl;
-        } catch (e) {
-            this.analytics.track({
-                event: 'download_results.error',
-                userId: user.userUuid,
-                properties: {
-                    ...analyticsProperties,
-                    error: `${e}`,
-                },
-            });
-            throw e;
-        }
     }
 
     /**
@@ -967,7 +881,6 @@ This method can be memory intensive
             metricQuery,
             tableConfig,
             chartConfig,
-            pivotConfig,
         } = chart;
         const explore = await this.projectService.getExplore(
             user,
@@ -994,18 +907,10 @@ This method can be memory intensive
             ? addDashboardFiltersToMetricQuery(
                   metricQuery,
                   dashboardFiltersForTile,
+                  explore,
               )
             : metricQuery;
 
-        const csvPivotConfig: PivotConfig | undefined =
-            chartConfig.type === ChartType.TABLE && pivotConfig !== undefined
-                ? {
-                      pivotDimensions: pivotConfig.columns,
-                      metricsAsRows: false,
-                      hiddenMetricFieldIds: hiddenFields,
-                      columnOrder: tableConfig.columnOrder,
-                  }
-                : undefined;
         return this.scheduleDownloadCsv(user, {
             userUuid: user.userUuid,
             projectUuid,
@@ -1015,11 +920,11 @@ This method can be memory intensive
             csvLimit,
             showTableNames,
             customLabels,
-            columnOrder: tableConfig.columnOrder,
-            hiddenFields,
             chartName: name,
             fromSavedChart: true,
-            pivotConfig: csvPivotConfig,
+            hiddenFields,
+            columnOrder: tableConfig.columnOrder,
+            pivotConfig: getPivotConfig(chart),
         });
     }
 
@@ -1070,11 +975,12 @@ This method can be memory intensive
         )
             ? undefined
             : csvOptions.csvLimit;
-
         const payload: DownloadCsvPayload = {
             ...csvOptions,
             csvLimit,
             userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid || '',
+            projectUuid: csvOptions.projectUuid,
         };
         const { jobId } = await this.schedulerClient.downloadCsvJob(payload);
 
@@ -1265,20 +1171,16 @@ This method can be memory intensive
         }
     }
 
-    async exportCsvDashboard(
+    /**
+     * This method is used to schedule a CSV download for a dashboard.
+     * Method in scheduler: `runScheduledExportCsvDashboard`
+     */
+    async scheduleExportCsvDashboard(
         user: SessionUser,
         dashboardUuid: string,
         dashboardFilters: DashboardFilters,
         dateZoomGranularity?: DateGranularity,
     ) {
-        if (!this.s3Client.isEnabled()) {
-            throw new MissingConfigError('Cloud storage is not enabled');
-        }
-        const options: SchedulerCsvOptions = {
-            formatted: true,
-            limit: 'table',
-        };
-
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         if (
             user.ability.cannot(
@@ -1291,6 +1193,51 @@ This method can be memory intensive
         ) {
             throw new ForbiddenError();
         }
+
+        const payload: ExportCsvDashboardPayload = {
+            dashboardUuid,
+            dashboardFilters,
+            dateZoomGranularity,
+            // TraceTaskBase
+            organizationUuid: user.organizationUuid!,
+            projectUuid: dashboard.projectUuid,
+            userUuid: user.userUuid,
+            schedulerUuid: undefined,
+        };
+        const { jobId } = await this.schedulerClient.scheduleTask(
+            SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD,
+            payload,
+        );
+
+        return { jobId };
+    }
+
+    /**
+     * This method is running on scheduler
+     * Method triggered by `scheduleExportCsvDashboard`
+     */
+    async runScheduledExportCsvDashboard({
+        dashboardUuid,
+        dashboardFilters,
+        dateZoomGranularity,
+        userUuid,
+        organizationUuid,
+    }: ExportCsvDashboardPayload) {
+        if (!this.s3Client.isEnabled()) {
+            throw new MissingConfigError('Cloud storage is not enabled');
+        }
+        const options: SchedulerCsvOptions = {
+            formatted: true,
+            limit: 'table',
+        };
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        this.logger.info(`Exporting CSVs for dashboard ${dashboardUuid}`);
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+
         const analyticProperties: DownloadCsv['properties'] = {
             jobId: '', // not a job
             userId: user.userUuid,
@@ -1342,6 +1289,9 @@ This method can be memory intensive
             dateZoomGranularity,
         }).then((urls) => urls.filter((url) => url.path !== '#no-results'));
 
+        this.logger.info(
+            `Writing ${csvFiles.length} CSV files to zip file for dashboard ${dashboardUuid}`,
+        );
         const zipFile = await writeZipFile(csvFiles);
 
         this.analytics.track({
@@ -1352,12 +1302,15 @@ This method can be memory intensive
                 numCharts: csvFiles.length,
             },
         });
-
-        const zipFileName = CsvService.sanitizeFileName(dashboard.name);
-        const timestamp = moment().format('YYYY-MM-DD-HH-mm-ss-SSSS');
+        const zipFileName = `${CsvService.sanitizeFileName(
+            dashboard.name,
+        )}-${moment().format('YYYY-MM-DD-HH-mm-ss-SSSS')}.zip`;
+        this.logger.info(
+            `Uploading zip file to S3 for dashboard ${dashboardUuid}: ${zipFileName}`,
+        );
         return this.s3Client.uploadZip(
             fs.createReadStream(zipFile),
-            `${zipFileName}-${timestamp}.zip`,
+            zipFileName,
         );
     }
 }

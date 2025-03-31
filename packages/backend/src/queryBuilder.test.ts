@@ -11,7 +11,7 @@ import {
     buildQuery,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
-    replaceUserAttributes,
+    replaceUserAttributesAsStrings,
     sortDayOfWeekName,
     sortMonthName,
 } from './queryBuilder';
@@ -338,54 +338,60 @@ describe('Query builder', () => {
 describe('replaceUserAttributes', () => {
     it('method with no user attribute should return same sqlFilter', async () => {
         expect(
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 '${dimension} > 1',
                 INTRINSIC_USER_ATTRIBUTES,
                 {},
+                warehouseClientMock,
             ),
         ).toEqual('${dimension} > 1');
         expect(
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 '${table.dimension} = 1',
                 INTRINSIC_USER_ATTRIBUTES,
                 {},
+                warehouseClientMock,
             ),
         ).toEqual('${table.dimension} = 1');
         expect(
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 '${dimension} = ${TABLE}.dimension',
                 INTRINSIC_USER_ATTRIBUTES,
                 {},
+                warehouseClientMock,
             ),
         ).toEqual('${dimension} = ${TABLE}.dimension');
     });
 
     it('method with missing user attribute should throw error', async () => {
         expect(() =>
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 '${lightdash.attribute.test} > 1',
                 INTRINSIC_USER_ATTRIBUTES,
                 {},
+                warehouseClientMock,
             ),
         ).toThrowError(ForbiddenError);
 
         expect(() =>
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 '${ld.attr.test} > 1',
                 INTRINSIC_USER_ATTRIBUTES,
                 {},
+                warehouseClientMock,
             ),
         ).toThrowError(ForbiddenError);
     });
 
     it('method with no user attribute value should throw error', async () => {
         expect(() =>
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 '${lightdash.attribute.test} > 1',
                 INTRINSIC_USER_ATTRIBUTES,
                 {
                     test: [],
                 },
+                warehouseClientMock,
             ),
         ).toThrowError(ForbiddenError);
     });
@@ -394,30 +400,33 @@ describe('replaceUserAttributes', () => {
         const userAttributes = { test: ['1'] };
         const expected = "('1' > 1)";
         expect(
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 '${lightdash.attribute.test} > 1',
                 INTRINSIC_USER_ATTRIBUTES,
                 userAttributes,
+                warehouseClientMock,
             ),
         ).toEqual(expected);
 
         expect(
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 '${ld.attr.test} > 1',
                 INTRINSIC_USER_ATTRIBUTES,
                 userAttributes,
+                warehouseClientMock,
             ),
         ).toEqual(expected);
     });
 
     it('method should replace sqlFilter with user attribute with multiple values', async () => {
         expect(
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 "'1' IN (${lightdash.attribute.test})",
                 INTRINSIC_USER_ATTRIBUTES,
                 {
                     test: ['1', '2'],
                 },
+                warehouseClientMock,
             ),
         ).toEqual("('1' IN ('1', '2'))");
     });
@@ -428,10 +437,11 @@ describe('replaceUserAttributes', () => {
             '${dimension} IS NOT NULL OR (${lightdash.attribute.test} > 1 AND ${lightdash.attribute.another} = 2)';
         const expected = "(${dimension} IS NOT NULL OR ('1' > 1 AND '2' = 2))";
         expect(
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 sqlFilter,
                 INTRINSIC_USER_ATTRIBUTES,
                 userAttributes,
+                warehouseClientMock,
             ),
         ).toEqual(expected);
     });
@@ -440,52 +450,58 @@ describe('replaceUserAttributes', () => {
         const userAttributes = { test: ['1'], another: ['2'] };
         const expected = "('1' > 1)";
         expect(
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 '${ld.attribute.test} > 1',
                 INTRINSIC_USER_ATTRIBUTES,
                 userAttributes,
+                warehouseClientMock,
             ),
         ).toEqual(expected);
         expect(
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 '${lightdash.attr.test} > 1',
                 INTRINSIC_USER_ATTRIBUTES,
                 userAttributes,
+                warehouseClientMock,
             ),
         ).toEqual(expected);
         expect(
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 '${ld.attr.test} > 1',
                 INTRINSIC_USER_ATTRIBUTES,
                 userAttributes,
+                warehouseClientMock,
             ),
         ).toEqual(expected);
 
         expect(
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 '${lightdash.attributes.test} > 1',
                 INTRINSIC_USER_ATTRIBUTES,
                 userAttributes,
+                warehouseClientMock,
             ),
         ).toEqual(expected);
     });
 
     it('method should not replace any invalid attribute', async () => {
         expect(
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 '${lightdash.foo.test} > 1',
                 INTRINSIC_USER_ATTRIBUTES,
                 {},
+                warehouseClientMock,
             ),
         ).toEqual('${lightdash.foo.test} > 1');
     });
 
     it('should replace `email` intrinsic user attribute', async () => {
         expect(
-            replaceUserAttributes(
+            replaceUserAttributesAsStrings(
                 '${lightdash.user.email} = "mock@lightdash.com"',
                 INTRINSIC_USER_ATTRIBUTES,
                 {},
+                warehouseClientMock,
             ),
         ).toEqual('(\'mock@lightdash.com\' = "mock@lightdash.com")');
     });
@@ -554,6 +570,7 @@ describe('with custom dimensions', () => {
                 explore: EXPLORE,
                 customDimensions: undefined,
                 userAttributes: {},
+                intrinsicUserAttributes: {},
                 sorts: [],
             }),
         ).toStrictEqual(undefined);
@@ -582,6 +599,7 @@ describe('with custom dimensions', () => {
                         isCustomBinDimension,
                     ),
                 userAttributes: {},
+                intrinsicUserAttributes: {},
                 sorts: [],
             }),
         ).toStrictEqual({
@@ -627,6 +645,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                     },
                 ],
                 userAttributes: {},
+                intrinsicUserAttributes: {},
                 sorts: [],
             }),
         ).toStrictEqual({
@@ -791,6 +810,7 @@ LIMIT 10`);
                         isCustomBinDimension,
                     ),
                 userAttributes: {},
+                intrinsicUserAttributes: {},
                 sorts: [{ fieldId: 'age_range', descending: true }],
             }),
         ).toStrictEqual({

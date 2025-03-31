@@ -10,9 +10,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
+    TOAST_KEY_FOR_REFRESH_JOB,
     jobStatusLabel,
     runningStepsInfo,
-    TOAST_KEY_FOR_REFRESH_JOB,
     useJob,
 } from '../../hooks/useRefreshServer';
 import Context from './context';

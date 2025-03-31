@@ -14,8 +14,8 @@ import useHealth from '../hooks/health/useHealth';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
-import MantineIcon from './common/MantineIcon';
 import LimitButton from './LimitButton';
+import MantineIcon from './common/MantineIcon';
 
 export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const health = useHealth();
@@ -31,9 +31,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const isValidQuery = useExplorerContext(
         (context) => context.state.isValidQuery,
     );
-    const isLoading = useExplorerContext(
-        (context) => context.queryResults.isLoading,
-    );
+    const isLoading = useExplorerContext((context) => context.query.isFetching);
     const fetchResults = useExplorerContext(
         (context) => context.actions.fetchResults,
     );

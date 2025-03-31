@@ -5,18 +5,24 @@ export const measureTime = async <T, C>(
     name: string,
     logger: Logger,
     context?: C,
-): Promise<T> => {
+    logDuration = true,
+): Promise<{ result: T; durationMs: number }> => {
     const start = performance.now();
     const result = await fn();
     const end = performance.now();
     const duration = end - start;
 
-    logger.info(
-        `${name} - operation completed in ${duration.toFixed(
-            2,
-        )}ms - Context: ${JSON.stringify(context)}`,
-        { name, duration, context },
-    );
+    if (logDuration) {
+        logger.info(
+            `${name} - operation completed in ${duration.toFixed(
+                2,
+            )}ms - Context: ${JSON.stringify(context)}`,
+            { name, duration, context },
+        );
+    }
 
-    return result;
+    return {
+        result,
+        durationMs: duration,
+    };
 };

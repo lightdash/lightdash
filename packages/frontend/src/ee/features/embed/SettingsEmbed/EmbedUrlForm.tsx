@@ -113,6 +113,7 @@ const EmbedUrlForm: FC<{
                 expiresIn: values.expiresIn,
                 content: {
                     type: 'dashboard',
+                    projectUuid,
                     dashboardUuid: values.dashboardUuid!,
                     dashboardFiltersInteractivity: {
                         enabled: values.dashboardFiltersInteractivity?.enabled,
@@ -144,7 +145,7 @@ const EmbedUrlForm: FC<{
                 },
             };
         },
-        [],
+        [projectUuid],
     );
 
     const handlePreview = useCallback(async () => {

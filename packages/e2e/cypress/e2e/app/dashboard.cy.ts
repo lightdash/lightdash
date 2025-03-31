@@ -267,4 +267,40 @@ describe('Dashboard', () => {
         cy.findAllByText('No chart available').should('have.length', 0);
         cy.findAllByText('No data available').should('have.length', 0);
     });
+
+    it('Should preview a dashboard image export', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
+        // create dashboard with title small
+        cy.contains('Create dashboard').click();
+        cy.findByLabelText('Name your dashboard *').type('Small');
+        cy.findByText('Create').click();
+
+        // Create chart within dashboard
+        cy.findAllByText('Add tile').click({ multiple: true });
+        cy.findByText('New chart').click();
+        cy.findByText('You are creating this chart from within "Small"').should(
+            'exist',
+        );
+        cy.findByText('Payments').click();
+        cy.findByText('Payment method').click();
+        cy.findByText('Unique payment count').click();
+        cy.findByText('Save chart').click();
+        cy.findByTestId('ChartCreateModal/NameInput').type(
+            `What's the number of unique payments per payment method?`,
+        );
+        cy.findByText('Save').click();
+
+        cy.findByText('Save changes').click();
+
+        cy.contains('Dashboard was updated');
+
+        cy.wait(2000);
+
+        // get the fourth button with class  mantine-ActionIcon-root
+        cy.get('.mantine-ActionIcon-root').eq(4).click();
+        cy.contains('Export dashboard').click();
+        cy.findByText('Generate preview').click();
+
+        cy.get('div').contains('Success', { timeout: 20000 }).should('exist');
+    });
 });

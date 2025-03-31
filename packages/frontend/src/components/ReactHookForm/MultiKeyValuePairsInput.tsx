@@ -9,8 +9,8 @@ import {
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
-import MantineIcon from '../common/MantineIcon';
 import DocumentationHelpButton from '../DocumentationHelpButton';
+import MantineIcon from '../common/MantineIcon';
 
 type Props = {
     name: string;

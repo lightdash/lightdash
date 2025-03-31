@@ -2,14 +2,16 @@ import {
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
+    getItemId,
     isNumericItem,
+    type ConditionalFormattingRowFields,
     type ResultRow,
 } from '@lightdash/common';
 import { Button, Group } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import React, { type FC } from 'react';
+import React, { useMemo, type FC } from 'react';
 import { getColorFromRange, readableColor } from '../../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../../Filters/FilterInputs/utils';
 import MantineIcon from '../../MantineIcon';
@@ -44,6 +46,7 @@ interface TableRowProps {
 
     cellContextMenu?: TableContext['cellContextMenu'];
     conditionalFormattings: TableContext['conditionalFormattings'];
+    minMaxMap: TableContext['minMaxMap'];
     minimal?: boolean;
 }
 
@@ -52,8 +55,30 @@ const TableRow: FC<TableRowProps> = ({
     index,
     cellContextMenu,
     conditionalFormattings,
+    minMaxMap,
     minimal = false,
 }) => {
+    const rowFields = useMemo(
+        () =>
+            row
+                .getVisibleCells()
+                .reduce<ConditionalFormattingRowFields>((acc, cell) => {
+                    const meta = cell.column.columnDef.meta;
+                    if (meta?.item) {
+                        const cellValue = cell.getValue() as
+                            | ResultRow[0]
+                            | undefined;
+
+                        acc[getItemId(meta.item)] = {
+                            field: meta.item,
+                            value: cellValue?.value?.raw,
+                        };
+                    }
+                    return acc;
+                }, {}),
+        [row],
+    );
+
     return (
         <Tr $index={index}>
             {row.getVisibleCells().map((cell) => {
@@ -62,23 +87,35 @@ const TableRow: FC<TableRowProps> = ({
                 const cellValue = cell.getValue() as ResultRow[0] | undefined;
 
                 const conditionalFormattingConfig =
-                    getConditionalFormattingConfig(
+                    getConditionalFormattingConfig({
                         field,
-                        cellValue?.value?.raw,
+                        value: cellValue?.value?.raw,
+                        minMaxMap,
                         conditionalFormattings,
-                    );
+                        rowFields,
+                    });
 
                 const conditionalFormattingColor =
-                    getConditionalFormattingColor(
+                    getConditionalFormattingColor({
                         field,
-                        cellValue?.value?.raw,
-                        conditionalFormattingConfig,
+                        value: cellValue?.value?.raw,
+                        minMaxMap,
+                        config: conditionalFormattingConfig,
                         getColorFromRange,
-                    );
+                    });
+
+                // Frozen/locked rows should have a white background, unless there is a conditional formatting color
+                let backgroundColor: string | undefined;
+                if (conditionalFormattingColor) {
+                    backgroundColor = conditionalFormattingColor;
+                } else if (meta?.frozen) {
+                    backgroundColor = 'white';
+                }
 
                 const tooltipContent = getConditionalFormattingDescription(
                     field,
                     conditionalFormattingConfig,
+                    rowFields,
                     getConditionalRuleLabel,
                 );
 
@@ -97,7 +134,7 @@ const TableRow: FC<TableRowProps> = ({
                         minimal={minimal}
                         key={cell.id}
                         style={meta?.style}
-                        backgroundColor={conditionalFormattingColor}
+                        backgroundColor={backgroundColor}
                         fontColor={fontColor}
                         className={meta?.className}
                         index={index}
@@ -179,14 +216,14 @@ const TableRow: FC<TableRowProps> = ({
 const VirtualizedTableBody: FC<{
     tableContainerRef: React.RefObject<HTMLDivElement | null>;
 }> = ({ tableContainerRef }) => {
-    const { table, cellContextMenu, conditionalFormattings } =
+    const { table, cellContextMenu, conditionalFormattings, minMaxMap } =
         useTableContext();
     const { rows } = table.getRowModel();
 
     const rowVirtualizer = useVirtualizer({
         getScrollElement: () => tableContainerRef.current,
         count: rows.length,
-        estimateSize: () => ROW_HEIGHT_PX,
+        estimateSize: (_index) => ROW_HEIGHT_PX,
         overscan: 25,
     });
 
@@ -213,6 +250,7 @@ const VirtualizedTableBody: FC<{
                         row={rows[index]}
                         cellContextMenu={cellContextMenu}
                         conditionalFormattings={conditionalFormattings}
+                        minMaxMap={minMaxMap}
                     />
                 );
             })}
@@ -227,7 +265,7 @@ const VirtualizedTableBody: FC<{
 };
 
 const NormalTableBody: FC = () => {
-    const { table, cellContextMenu, conditionalFormattings } =
+    const { table, cellContextMenu, conditionalFormattings, minMaxMap } =
         useTableContext();
     const { rows } = table.getRowModel();
 
@@ -241,6 +279,7 @@ const NormalTableBody: FC = () => {
                     row={row}
                     cellContextMenu={cellContextMenu}
                     conditionalFormattings={conditionalFormattings}
+                    minMaxMap={minMaxMap}
                 />
             ))}
         </tbody>

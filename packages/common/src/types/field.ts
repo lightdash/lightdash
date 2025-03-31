@@ -37,6 +37,7 @@ export enum NumberSeparator {
 type CompactConfig = {
     compact: Compact;
     alias: Array<typeof CompactAlias[number]>;
+    orderOfMagnitude: number;
     convertFn: (value: number) => number;
     label: string;
     suffix: string;
@@ -48,6 +49,7 @@ export const CompactConfigMap: Record<Compact, CompactConfig> = {
     [Compact.THOUSANDS]: {
         compact: Compact.THOUSANDS,
         alias: ['K', 'thousand'],
+        orderOfMagnitude: 3,
         convertFn: (value: number) => value / 1000,
         label: 'thousands (K)',
         suffix: 'K',
@@ -55,6 +57,7 @@ export const CompactConfigMap: Record<Compact, CompactConfig> = {
     [Compact.MILLIONS]: {
         compact: Compact.MILLIONS,
         alias: ['M', 'million'],
+        orderOfMagnitude: 6,
         convertFn: (value: number) => value / 1000000,
         label: 'millions (M)',
         suffix: 'M',
@@ -62,6 +65,7 @@ export const CompactConfigMap: Record<Compact, CompactConfig> = {
     [Compact.BILLIONS]: {
         compact: Compact.BILLIONS,
         alias: ['B', 'billion'],
+        orderOfMagnitude: 9,
         convertFn: (value: number) => value / 1000000000,
         label: 'billions (B)',
         suffix: 'B',
@@ -69,6 +73,7 @@ export const CompactConfigMap: Record<Compact, CompactConfig> = {
     [Compact.TRILLIONS]: {
         compact: Compact.TRILLIONS,
         alias: ['T', 'trillion'],
+        orderOfMagnitude: 12,
         convertFn: (value: number) => value / 1000000000000,
         label: 'trillions (T)',
         suffix: 'T',
@@ -172,6 +177,7 @@ export interface CustomFormat {
     prefix?: string | undefined;
     suffix?: string | undefined;
     timeInterval?: TimeFrames;
+    custom?: string | undefined;
 }
 
 export enum CustomFormatType {
@@ -182,6 +188,7 @@ export enum CustomFormatType {
     ID = 'id',
     DATE = 'date',
     TIMESTAMP = 'timestamp',
+    CUSTOM = 'custom',
 }
 
 export enum TableCalculationType {
@@ -245,9 +252,11 @@ export interface Field {
     description?: string;
     source?: Source | undefined;
     hidden: boolean;
+    // @deprecated Use format expression instead
     compact?: CompactOrAlias;
+    // @deprecated Use format expression instead
     round?: number;
-    format?: Format;
+    format?: Format | string; // Format type is deprecated, use format expression(string) instead
     /**
      * @deprecated Use groups property instead.
      */
@@ -447,6 +456,10 @@ export const isMetric = (
 
 export const isNonAggregateMetric = (field: Field): boolean =>
     isMetric(field) && NonAggregateMetricTypes.includes(field.type);
+
+export const isCompiledMetric = (
+    field: ItemsMap[string] | AdditionalMetric | undefined,
+): field is CompiledMetric => isMetric(field) && 'compiledSql' in field;
 
 export interface Metric extends Field {
     fieldType: FieldType.METRIC;

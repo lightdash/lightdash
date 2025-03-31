@@ -1,9 +1,9 @@
 import {
     CustomFormatType,
-    getErrorMessage,
-    getItemId,
     NumberSeparator,
     TableCalculationType,
+    getErrorMessage,
+    getItemId,
     type CustomFormat,
     type TableCalculation,
 } from '@lightdash/common';
@@ -25,8 +25,8 @@ import { IconMaximize, IconMinimize } from '@tabler/icons-react';
 import { useRef, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
-import MantineIcon from '../../../components/common/MantineIcon';
 import { FormatForm } from '../../../components/Explorer/FormatForm';
+import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import { getUniqueTableCalculationName } from '../utils';
@@ -81,6 +81,7 @@ const TableCalculationModal: FC<Props> = ({
                 compact: tableCalculation?.format?.compact,
                 prefix: tableCalculation?.format?.prefix,
                 suffix: tableCalculation?.format?.suffix,
+                custom: tableCalculation?.format?.custom,
             },
         },
         validate: {

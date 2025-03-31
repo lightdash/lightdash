@@ -84,6 +84,7 @@ export type UncompiledExplore = {
     joinAliases?: Record<string, Record<string, string>>;
     spotlightConfig?: LightdashProjectConfig['spotlight'];
     meta: DbtRawModelNode['meta'];
+    databricksCompute?: string;
 };
 
 const getReferencedTable = (
@@ -118,6 +119,7 @@ export class ExploreCompiler {
         sqlPath,
         spotlightConfig,
         meta,
+        databricksCompute,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -275,6 +277,7 @@ export class ExploreCompiler {
             warehouse,
             ymlPath,
             sqlPath,
+            databricksCompute,
             ...getSpotlightConfigurationForResource(
                 spotlightVisibility,
                 spotlightCategories,
@@ -642,9 +645,15 @@ export class ExploreCompiler {
                 tablesReferences: new Set([currentTable]),
             };
         }
-        const { refTable, refName } = getParsedReference(ref, currentTable);
 
-        const referencedMetric = tables[refTable]?.metrics[refName];
+        const { refTable: refTableName, refName } = getParsedReference(
+            ref,
+            currentTable,
+        );
+
+        const referencedTable = getReferencedTable(refTableName, tables);
+        const referencedMetric = referencedTable?.metrics[refName];
+
         if (referencedMetric === undefined) {
             throw new CompileError(
                 `Model "${currentTable}" has a metric reference: \${${ref}} which matches no metric`,
@@ -657,7 +666,7 @@ export class ExploreCompiler {
         return {
             sql: `(${compiledMetric.sql})`,
             tablesReferences: new Set([
-                refTable,
+                referencedTable?.name || refTableName,
                 ...compiledMetric.tablesReferences,
             ]),
         };

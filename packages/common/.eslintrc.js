@@ -44,7 +44,7 @@ module.exports = {
         },
 
         {
-            // Only throw warning for existing files, new files should be error
+            // Do not check this rule for existing files, new files should be error
             files: [
                 'src/compiler/exploreCompiler.ts',
                 'src/compiler/translator.ts',
@@ -60,12 +60,13 @@ module.exports = {
                 'src/utils/convertToDbt.ts',
                 'src/utils/filters.ts',
                 'src/visualizations/CartesianChartDataModel.ts',
-                'src/visualizations/TableDataModel.ts'
+                'src/visualizations/TableDataModel.ts',
+                'src/types/filterGrammarConversion.ts'
             ], 
             rules: {
-                "@typescript-eslint/no-unsafe-member-access": "warn",
-                "@typescript-eslint/no-unsafe-assignment": "warn",
-                "@typescript-eslint/no-unsafe-call": "warn"
+                "@typescript-eslint/no-unsafe-member-access": "off",
+                "@typescript-eslint/no-unsafe-assignment": "off",
+                "@typescript-eslint/no-unsafe-call": "off"
             }
         },
         {

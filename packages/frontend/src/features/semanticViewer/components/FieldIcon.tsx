@@ -1,7 +1,7 @@
 import {
-    assertUnreachable,
     FieldType as FieldKind,
     SemanticLayerFieldType,
+    assertUnreachable,
     type SemanticLayerField,
 } from '@lightdash/common';
 import {

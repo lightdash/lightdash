@@ -1,10 +1,10 @@
 import { Group, Input, NumberInput } from '@mantine/core';
 import React, { type FC } from 'react';
+import TimePicker from './TimePicker';
 import {
     getMonthlyCronExpression,
     parseCronExpression,
 } from './cronInputUtils';
-import TimePicker from './TimePicker';
 
 const MonthlyInputs: FC<{
     disabled?: boolean;

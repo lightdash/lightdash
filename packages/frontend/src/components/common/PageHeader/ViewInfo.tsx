@@ -1,8 +1,9 @@
 import { Tooltip } from '@mantine/core';
 import { IconEye } from '@tabler/icons-react';
 import dayjs from 'dayjs';
+
 import { type FC } from 'react';
-import { InfoContainer } from '.';
+import InfoContainer from './InfoContainer';
 
 interface ViewInfoProps {
     views?: number;
@@ -22,10 +23,7 @@ const ViewInfo: FC<ViewInfoProps> = ({ views, firstViewedAt }) => {
             label={label}
             disabled={!views || !firstViewedAt}
         >
-            <InfoContainer>
-                <IconEye size={16} />
-                <span>{views || '0'} views</span>
-            </InfoContainer>
+            <InfoContainer icon={IconEye}>{views || '0'} views</InfoContainer>
         </Tooltip>
     );
 };

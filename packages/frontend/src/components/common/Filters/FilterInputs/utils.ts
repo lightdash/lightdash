@@ -1,8 +1,8 @@
 import {
-    assertUnreachable,
     DimensionType,
     FilterOperator,
     FilterType,
+    assertUnreachable,
     formatBoolean,
     formatDate,
     getFilterTypeFromItem,
@@ -12,8 +12,8 @@ import {
     isDashboardFilterRule,
     isDimension,
     isField,
-    isFilterableItem,
     isFilterRule,
+    isFilterableItem,
     isMomentInput,
     type ConditionalRule,
     type ConditionalRuleLabels,
@@ -28,7 +28,7 @@ import uniq from 'lodash/uniq';
 import { type MomentInput } from 'moment';
 import { filterOperatorLabel } from './constants';
 
-const getFilterOptions = <T extends FilterOperator>(
+export const getFilterOptions = <T extends FilterOperator>(
     operators: Array<T>,
 ): Array<{ value: T; label: string }> =>
     operators.map((operator) => ({
@@ -81,6 +81,8 @@ export const getFilterOperatorOptions = (
                 FilterOperator.NOT_EQUALS,
                 FilterOperator.LESS_THAN,
                 FilterOperator.GREATER_THAN,
+                FilterOperator.IN_BETWEEN,
+                FilterOperator.NOT_IN_BETWEEN,
             ]);
         case FilterType.DATE:
             return timeFilterOptions;
@@ -110,7 +112,13 @@ const getValueAsString = (
     switch (filterType) {
         case FilterType.STRING:
         case FilterType.NUMBER:
-            return values?.join(', ');
+            switch (operator) {
+                case FilterOperator.IN_BETWEEN:
+                case FilterOperator.NOT_IN_BETWEEN:
+                    return `${firstValue || 0}, ${secondValue || 0}`;
+                default:
+                    return values?.join(', ');
+            }
         case FilterType.BOOLEAN:
             return values?.map(formatBoolean).join(', ');
         case FilterType.DATE:
@@ -124,6 +132,20 @@ const getValueAsString = (
                         rule.settings?.completed ? 'completed ' : ''
                     }${rule.settings?.unitOfTime}`;
                 case FilterOperator.IN_BETWEEN:
+                    if (
+                        isDimension(field) &&
+                        isMomentInput(firstValue) &&
+                        isMomentInput(secondValue) &&
+                        field.type === DimensionType.DATE
+                    ) {
+                        return `${formatDate(
+                            firstValue as MomentInput,
+                            field.timeInterval,
+                        )} and ${formatDate(
+                            secondValue as MomentInput,
+                            field.timeInterval,
+                        )}`;
+                    }
                     return `${getLocalTimeDisplay(
                         firstValue as MomentInput,
                         false,
@@ -167,6 +189,8 @@ const getValueAsString = (
                             }
                         })
                         .join(', ');
+                case FilterOperator.NOT_IN_BETWEEN:
+                    throw new Error('Not implemented');
                 default:
                     return assertUnreachable(
                         operator,
@@ -227,4 +251,10 @@ export const getFilterRuleTables = (
     } else {
         return [field.tableLabel];
     }
+};
+
+export const formatDisplayValue = (value: string): string => {
+    return value
+        .replace(/^\s+|\s+$/g, (match) => '␣'.repeat(match.length))
+        .replace(/\n/g, '↵');
 };

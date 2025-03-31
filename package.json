@@ -1,23 +1,24 @@
 {
     "name": "lightdash",
-    "version": "0.1477.4",
+    "version": "0.1555.0",
     "main": "index.js",
     "license": "MIT",
     "private": true,
-    "dependencies": {
-        "tslib": "^2.6.2"
-    },
     "workspaces": [
         "packages/*"
     ],
     "resolutions": {
         "react-is": "19.0.0",
         "@types/react": "19.0.2",
-        "@types/react-dom": "19.0.2"
+        "@types/react-dom": "19.0.2",
+        "typescript": "5.5.4"
+    },
+    "dependencies": {
+        "tslib": "^2.8.1"
     },
     "devDependencies": {
         "@types/jest": "^29.5.5",
-        "@types/node": "^20.8.0",
+        "@types/node": "^22.13.1",
         "@types/pegjs": "^0.10.3",
         "@typescript-eslint/eslint-plugin": "^5.45.0",
         "@typescript-eslint/parser": "^5.45.0",
@@ -37,14 +38,15 @@
         "eslint-plugin-prettier": "^4.2.1",
         "eslint-plugin-react-hooks": "^4.6.0",
         "eslint-plugin-testing-library": "^5.6.3",
-        "husky": "^7.0.0",
+        "husky": "^9.0.0",
         "jest": "^29.7.0",
+        "jest-watch-typeahead": "^2.2.2",
         "lint-staged": "^12.1.2",
         "prettier": "2.8.1",
         "prettier-plugin-organize-imports": "^3.1.1",
         "ts-jest": "^29.1.1",
-        "tsx": "4.11.0",
-        "typescript": "^4.9.5"
+        "tsx": "^4.19.2",
+        "typescript": "5.5.4"
     },
     "scripts": {
         "preinstall": "node -e \"require('fs').existsSync('./scripts/only-allow-pnpm.js') && require('./scripts/only-allow-pnpm.js')\"",
@@ -63,13 +65,16 @@
         "backend-fix-lint": "pnpm -F backend fix-lint",
         "backend-fix-format": "pnpm -F backend fix-format",
         "backend-test": "pnpm -F backend test",
+        "backend-test-sequential": "pnpm -F backend test-sequential",
         "frontend-dev": "pnpm -F frontend dev",
         "frontend-build": "pnpm -F frontend build",
+        "frontend-build-lib": "pnpm -F frontend build-lib",
         "frontend-lint": "pnpm -F frontend lint",
         "frontend-format": "pnpm -F frontend format",
         "frontend-fix-lint": "pnpm -F frontend fix-lint",
         "frontend-fix-format": "pnpm -F frontend fix-format",
         "frontend-test": "pnpm -F frontend test",
+        "sdk-build": "pnpm -F frontend build-lib && pnpm -F sdk build",
         "e2e-open": "pnpm -F e2e cypress:open",
         "e2e-run": "pnpm -F e2e cypress:run",
         "e2e-lint": "pnpm -F e2e lint",
@@ -95,18 +100,20 @@
         "fix-format": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend -F e2e -F @lightdash/cli fix-format",
         "test": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend -F e2e -F @lightdash/cli test",
         "dev": "pnpm -r --stream --parallel -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend run dev",
-        "clean": "./scripts/clean-repo.sh",
         "build": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend build",
-        "clean-build": "pnpm clean && pnpm install && pnpm build",
         "build-published-packages": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F @lightdash/cli build",
         "release-packages": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F @lightdash/cli release",
         "start": "pnpm run backend-start",
-        "prepare": "husky install || true",
+        "prepare": "husky || true",
         "load:env": "dotenv -c -e .env.development.local",
         "generate-api": "pnpm run common-build && pnpm -F backend generate-api && pnpm -F backend formatter --write ./src/generated",
         "generate-api-dev": "pnpm run common-build && pnpm -F backend generate-api-dev",
         "danger-local-lint": "danger -b main -f",
-        "danger-ci-lint": "[[ -n $GITHUB_TOKEN ]] && danger ci --use-github-checks || echo 'Skipped - no GITHUB_TOKEN' present"
+        "danger-ci-lint": "[[ -n $GITHUB_TOKEN ]] && danger ci --use-github-checks || echo 'Skipped - no GITHUB_TOKEN' present",
+        "clean-node-modules": "./scripts/clean-node-modules.sh && pnpm install",
+        "clean-build-cache": "./scripts/clean-build-cache.sh",
+        "clean": "pnpm clean-build-cache && pnpm clean-node-modules",
+        "clean-and-build": "pnpm clean && pnpm build"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
@@ -134,5 +141,5 @@
             "pnpm -F @lightdash/warehouses run formatter --write"
         ]
     },
-    "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
+    "packageManager": "pnpm@9.15.5+sha512.845196026aab1cc3f098a0474b64dfbab2afe7a1b4e91dd86895d8e4aa32a7a6d03049e2d0ad770bbe4de023a7122fb68c1a1d6e0d033c7076085f9d5d4800d4"
 }

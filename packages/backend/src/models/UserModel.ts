@@ -967,7 +967,7 @@ export class UserModel {
         return this.getUserDetailsByUuid(userUuid);
     }
 
-    async getRefreshToken(userUuid: string) {
+    async getRefreshToken(userUuid: string): Promise<string> {
         const [row] = await this.database(UserTableName)
             .leftJoin(
                 'openid_identities',

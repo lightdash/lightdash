@@ -1,11 +1,11 @@
 import {
-    assertUnreachable,
     DimensionType,
     FieldType,
     SemanticLayerFieldType,
+    VIZ_DEFAULT_AGGREGATION,
     VizAggregationOptions,
     VizIndexType,
-    VIZ_DEFAULT_AGGREGATION,
+    assertUnreachable,
     type IResultsRunner,
     type PivotChartData,
     type RawResultRow,

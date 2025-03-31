@@ -6,10 +6,14 @@ import {
     AndFilterGroup,
     AnyType,
     ApiChartAndResults,
+    type ApiCreateProjectResults,
+    type ApiExecuteAsyncQueryResults,
+    type ApiGetAsyncQueryResults,
     ApiQueryResults,
     ApiSqlQueryResults,
     assertUnreachable,
     CacheMetadata,
+    type CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     ChartSourceType,
     ChartSummary,
@@ -18,6 +22,7 @@ import {
     convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
+    type CreateDatabricksCredentials,
     createDimensionWithGranularity,
     CreateJob,
     CreateProject,
@@ -34,18 +39,26 @@ import {
     DbtExposureType,
     DbtProjectType,
     deepEqual,
+    DEFAULT_RESULTS_PAGE_SIZE,
     DefaultSupportedDbtVersion,
     DimensionType,
     DownloadFileType,
+    type ExecuteAsyncDashboardChartRequestParams,
+    type ExecuteAsyncMetricQueryRequestParams,
+    type ExecuteAsyncQueryRequestParams,
+    type ExecuteAsyncSavedChartRequestParams,
+    type ExecuteAsyncUnderlyingDataRequestParams,
     Explore,
     ExploreError,
     ExploreType,
-    FieldValueSearchResult,
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
     findFieldByIdInExplore,
+    findReplaceableCustomMetrics,
     ForbiddenError,
+    formatRawRows,
+    formatRow,
     formatRows,
     getAggregatedField,
     getDashboardFilterRulesForTables,
@@ -57,6 +70,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
+    getSubtotalKey,
     getTimezoneLabel,
     hasIntersection,
     IntrinsicUserAttributes,
@@ -64,8 +78,11 @@ import {
     isDateItem,
     isDimension,
     isExploreError,
+    isField,
     isFilterableDimension,
     isFilterRule,
+    isMetric,
+    isNotNull,
     isUserWithOrg,
     ItemsMap,
     Job,
@@ -73,6 +90,7 @@ import {
     JobStepType,
     JobType,
     LightdashError,
+    maybeReplaceFieldsInChartVersion,
     MetricQuery,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
@@ -88,10 +106,17 @@ import {
     ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
+    QueryHistoryStatus,
+    ReplaceableCustomFields,
+    ReplaceCustomFields,
+    ReplaceCustomFieldsPayload,
     replaceDimensionInExplore,
     RequestMethod,
     ResultRow,
+    type RunQueryTags,
+    SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
+    type SemanticLayerConnectionUpdate,
     SessionUser,
     snakeCaseName,
     SortByDirection,
@@ -103,6 +128,7 @@ import {
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
+    type Tag,
     UnexpectedServerError,
     UpdateMetadata,
     UpdateProject,
@@ -116,10 +142,6 @@ import {
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
-    type ApiCreateProjectResults,
-    type RunQueryTags,
-    type SemanticLayerConnectionUpdate,
-    type Tag,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -131,9 +153,12 @@ import { Readable } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { S3Client } from '../../clients/Aws/s3';
+import {
+    LightdashAnalytics,
+    MetricQueryExecutionProperties,
+} from '../../analytics/LightdashAnalytics';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
+import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import type { DbTagUpdate } from '../../database/entities/tags';
@@ -150,6 +175,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -178,6 +204,17 @@ import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
+import {
+    getNextAndPreviousPage,
+    validatePagination,
+} from './resultsPagination';
+import {
+    type ExecuteAsyncDashboardChartQueryArgs,
+    type ExecuteAsyncMetricQueryArgs,
+    type ExecuteAsyncSavedChartQueryArgs,
+    type ExecuteAsyncUnderlyingDataQueryArgs,
+    type GetAsyncQueryResultsArgs,
+} from './types';
 
 type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -203,6 +240,7 @@ type ProjectServiceArguments = {
     tagsModel: TagsModel;
     catalogModel: CatalogModel;
     contentModel: ContentModel;
+    queryHistoryModel: QueryHistoryModel;
     encryptionUtil: EncryptionUtil;
 };
 
@@ -255,6 +293,8 @@ export class ProjectService extends BaseService {
 
     contentModel: ContentModel;
 
+    queryHistoryModel: QueryHistoryModel;
+
     encryptionUtil: EncryptionUtil;
 
     constructor({
@@ -281,6 +321,7 @@ export class ProjectService extends BaseService {
         tagsModel,
         catalogModel,
         contentModel,
+        queryHistoryModel,
         encryptionUtil,
     }: ProjectServiceArguments) {
         super();
@@ -308,7 +349,118 @@ export class ProjectService extends BaseService {
         this.tagsModel = tagsModel;
         this.catalogModel = catalogModel;
         this.contentModel = contentModel;
+        this.queryHistoryModel = queryHistoryModel;
         this.encryptionUtil = encryptionUtil;
+    }
+
+    static getMetricQueryExecutionProperties({
+        metricQuery,
+        hasExampleMetric,
+        granularity,
+        chartUuid,
+        queryTags,
+        explore,
+    }: {
+        metricQuery: MetricQuery;
+        hasExampleMetric: boolean;
+        granularity: DateGranularity | undefined;
+        chartUuid: string | undefined;
+        queryTags: Record<string, unknown>;
+        explore: Explore;
+    }): MetricQueryExecutionProperties {
+        return {
+            hasExampleMetric,
+            dimensionsCount: metricQuery.dimensions.length,
+            metricsCount: metricQuery.metrics.length,
+            filtersCount: countTotalFilterRules(metricQuery.filters),
+            sortsCount: metricQuery.sorts.length,
+            tableCalculationsCount: metricQuery.tableCalculations.length,
+            tableCalculationsPercentFormatCount:
+                metricQuery.tableCalculations.filter(
+                    (tableCalculation) =>
+                        tableCalculation.format?.type ===
+                        CustomFormatType.PERCENT,
+                ).length,
+            tableCalculationsCurrencyFormatCount:
+                metricQuery.tableCalculations.filter(
+                    (tableCalculation) =>
+                        tableCalculation.format?.type ===
+                        CustomFormatType.CURRENCY,
+                ).length,
+            tableCalculationsNumberFormatCount:
+                metricQuery.tableCalculations.filter(
+                    (tableCalculation) =>
+                        tableCalculation.format?.type ===
+                        CustomFormatType.NUMBER,
+                ).length,
+            tableCalculationCustomFormatCount:
+                metricQuery.tableCalculations.filter(
+                    (tableCalculation) =>
+                        tableCalculation.format?.type ===
+                        CustomFormatType.CUSTOM,
+                ).length,
+            additionalMetricsCount: (
+                metricQuery.additionalMetrics || []
+            ).filter((metric) =>
+                metricQuery.metrics.includes(getItemId(metric)),
+            ).length,
+            additionalMetricsFilterCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.filters &&
+                    metric.filters.length > 0,
+            ).length,
+            additionalMetricsPercentFormatCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.formatOptions &&
+                    metric.formatOptions.type === CustomFormatType.PERCENT,
+            ).length,
+            additionalMetricsCurrencyFormatCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.formatOptions &&
+                    metric.formatOptions.type === CustomFormatType.CURRENCY,
+            ).length,
+            additionalMetricsNumberFormatCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.formatOptions &&
+                    metric.formatOptions.type === CustomFormatType.NUMBER,
+            ).length,
+            additionalMetricsCustomFormatCount: (
+                metricQuery.additionalMetrics || []
+            ).filter(
+                (metric) =>
+                    metricQuery.metrics.includes(getItemId(metric)) &&
+                    metric.formatOptions &&
+                    metric.formatOptions.type === CustomFormatType.CUSTOM,
+            ).length,
+            ...countCustomDimensionsInMetricQuery(metricQuery),
+            dateZoomGranularity: granularity || null,
+            timezone: metricQuery.timezone,
+            ...(queryTags?.dashboard_uuid
+                ? { dashboardId: queryTags.dashboard_uuid }
+                : {}),
+            chartId: chartUuid,
+            ...(explore.type === ExploreType.VIRTUAL
+                ? { virtualViewId: explore.name }
+                : {}),
+            metricOverridesCount: Object.keys(
+                metricQuery.metricOverrides || {},
+            ).filter((metricOverrideKey) =>
+                metricQuery.metrics.includes(metricOverrideKey),
+            ).length,
+            limit: metricQuery.limit,
+        };
     }
 
     private async validateProjectCreationPermissions(
@@ -457,16 +609,25 @@ export class ProjectService extends BaseService {
     async _getWarehouseClient(
         projectUuid: string,
         credentials: CreateWarehouseCredentials,
-        snowflakeVirtualWarehouse?: string,
+        overrides?: {
+            snowflakeVirtualWarehouse?: string;
+            databricksCompute?: string;
+        },
     ): Promise<{
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
     }> {
+        Sentry.setTag('warehouse.type', credentials.type);
         // Setup SSH tunnel for client (user needs to close this)
         const sshTunnel = new SshTunnel(credentials);
         const warehouseSshCredentials = await sshTunnel.connect();
 
-        const cacheKey = `${projectUuid}${snowflakeVirtualWarehouse || ''}`;
+        const { snowflakeVirtualWarehouse, databricksCompute } =
+            overrides || {};
+
+        const cacheKey = `${projectUuid}${snowflakeVirtualWarehouse || ''}${
+            databricksCompute || ''
+        }`;
         // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[cacheKey] as
             | typeof this.warehouseClients[string]
@@ -491,15 +652,50 @@ export class ProjectService extends BaseService {
             return snowflakeVirtualWarehouse || snowflakeCredentials.warehouse;
         };
 
-        const credentialsWithWarehouse =
-            credentials.type === WarehouseTypes.SNOWFLAKE
-                ? {
-                      ...warehouseSshCredentials,
-                      warehouse: getSnowflakeWarehouse(credentials),
-                  }
-                : warehouseSshCredentials;
+        const credsType = warehouseSshCredentials.type;
+        let credentialsWithOverrides: CreateWarehouseCredentials;
+
+        switch (credsType) {
+            case WarehouseTypes.SNOWFLAKE:
+                credentialsWithOverrides = {
+                    ...warehouseSshCredentials,
+                    warehouse: getSnowflakeWarehouse(warehouseSshCredentials),
+                };
+                break;
+            case WarehouseTypes.DATABRICKS:
+                const getDatabricksHttpPath = (
+                    databricksCredentials: CreateDatabricksCredentials,
+                ): string => {
+                    if (databricksCredentials.compute) {
+                        return (
+                            databricksCredentials.compute.find(
+                                (compute) => compute.name === databricksCompute,
+                            )?.httpPath ?? databricksCredentials.httpPath
+                        );
+                    }
+                    return databricksCredentials.httpPath;
+                };
+
+                credentialsWithOverrides = {
+                    ...warehouseSshCredentials,
+                    httpPath: getDatabricksHttpPath(warehouseSshCredentials),
+                };
+                break;
+            case WarehouseTypes.REDSHIFT:
+            case WarehouseTypes.POSTGRES:
+            case WarehouseTypes.BIGQUERY:
+            case WarehouseTypes.TRINO:
+                credentialsWithOverrides = warehouseSshCredentials;
+                break;
+            default:
+                return assertUnreachable(
+                    credsType,
+                    `Unknown warehouse type: ${credsType}`,
+                );
+        }
+
         const client = this.projectModel.getWarehouseClientFromCredentials(
-            credentialsWithWarehouse,
+            credentialsWithOverrides,
         );
         this.warehouseClients[cacheKey] = client;
         return { warehouseClient: client, sshTunnel };
@@ -526,14 +722,17 @@ export class ProjectService extends BaseService {
 
         const { cachedExploreUuids } =
             await this.projectModel.saveExploresToCache(projectUuid, explores);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         this.logger.info(
             `Saved ${cachedExploreUuids.length} explores to cache for project ${projectUuid}`,
         );
-
-        await this.schedulerClient.indexCatalog({
+        return this.schedulerClient.indexCatalog({
             projectUuid,
             userUuid,
+            organizationUuid,
             prevCatalogItemsWithTags,
             prevCatalogItemsWithIcons,
             prevMetricTreeEdges,
@@ -680,6 +879,8 @@ export class ProjectService extends BaseService {
             requestMethod: method,
             jobUuid: job.jobUuid,
             data: encryptedData,
+            userUuid: user.userUuid,
+            projectUuid: undefined,
         });
         return { jobUuid: job.jobUuid };
     }
@@ -840,7 +1041,7 @@ export class ProjectService extends BaseService {
             userUuid: user.userUuid,
             projectUuid,
             context: 'cli',
-            organizationUuid: user.organizationUuid,
+            organizationUuid,
         });
     }
 
@@ -898,6 +1099,7 @@ export class ProjectService extends BaseService {
                 requestMethod: method,
                 jobUuid: job.jobUuid,
                 isPreview: savedProject.type === ProjectType.PREVIEW,
+                userUuid: user.userUuid,
             });
         } else {
             // Nothing to test and compile, just update the job status
@@ -1264,7 +1466,10 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
-            explore.warehouse,
+            {
+                snowflakeVirtualWarehouse: explore.warehouse,
+                databricksCompute: explore.databricksCompute,
+            },
         );
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
@@ -1560,6 +1765,7 @@ export class ProjectService extends BaseService {
             ...addDashboardFiltersToMetricQuery(
                 savedChart.metricQuery,
                 appliedDashboardFilters,
+                explore,
             ),
             sorts:
                 dashboardSorts && dashboardSorts.length > 0
@@ -1691,6 +1897,924 @@ export class ProjectService extends BaseService {
         });
     }
 
+    async getAsyncQueryResults({
+        user,
+        projectUuid,
+        queryUuid,
+        page = 1,
+        pageSize,
+    }: GetAsyncQueryResultsArgs): Promise<ApiGetAsyncQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            user.userUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { metricQuery, context, status, totalRowCount } = queryHistory;
+
+        const defaultedPageSize =
+            pageSize ??
+            queryHistory.defaultPageSize ??
+            DEFAULT_RESULTS_PAGE_SIZE;
+
+        validatePagination({
+            pageSize: defaultedPageSize,
+            page,
+            queryMaxLimit: this.lightdashConfig.query.maxPageSize,
+            totalRowCount,
+        });
+
+        switch (status) {
+            case QueryHistoryStatus.CANCELLED:
+            case QueryHistoryStatus.PENDING:
+                return {
+                    status,
+                    queryUuid,
+                    metricQuery,
+                    fields: queryHistory.fields,
+                };
+            case QueryHistoryStatus.ERROR:
+                return {
+                    status,
+                    queryUuid,
+                    metricQuery,
+                    fields: queryHistory.fields,
+                    error: queryHistory.error,
+                };
+            case QueryHistoryStatus.READY:
+                break;
+            default:
+                return assertUnreachable(status, 'Unknown query status');
+        }
+
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            metricQuery.exploreName,
+        );
+
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+            {
+                snowflakeVirtualWarehouse: explore.warehouse,
+                databricksCompute: explore.databricksCompute,
+            },
+        );
+
+        const formatter = (row: Record<string, unknown>) =>
+            formatRow(row, queryHistory.fields);
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            explore_name: metricQuery.exploreName,
+            query_context: context,
+        };
+
+        const { result, durationMs } = await measureTime(
+            () =>
+                warehouseClient
+                    .getAsyncQueryResults(
+                        {
+                            page,
+                            pageSize: defaultedPageSize,
+                            tags: queryTags,
+                            queryId: queryHistory.warehouseQueryId,
+                            sql: queryHistory.compiledSql,
+                            queryMetadata: queryHistory.warehouseQueryMetadata,
+                        },
+                        formatter,
+                    )
+                    .catch((e) => ({ errorMessage: getErrorMessage(e) })),
+            'getAsyncQueryResults',
+            this.logger,
+            context,
+        );
+
+        if ('errorMessage' in result) {
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'query.error',
+                properties: {
+                    queryId: queryHistory.queryUuid,
+                    projectId: projectUuid,
+                    warehouseType: warehouseClient.credentials.type,
+                },
+            });
+            await this.queryHistoryModel.update(
+                queryHistory.queryUuid,
+                projectUuid,
+                user.userUuid,
+                {
+                    status: QueryHistoryStatus.ERROR,
+                    error: result.errorMessage,
+                },
+            );
+
+            return {
+                status: QueryHistoryStatus.ERROR,
+                error: result.errorMessage,
+                queryUuid: queryHistory.queryUuid,
+                metricQuery,
+                fields: queryHistory.fields,
+            };
+        }
+
+        const roundedDurationMs = Math.round(durationMs);
+
+        /**
+         * Update the query history with non null values
+         * defaultPageSize is null when user never fetched the results - we don't send pagination params to the query execution endpoint
+         * warehouseExecutionTimeMs is null when warehouse doesn't support async queries - query is only executed when user fetches results
+         * totalRowCount is null when warehouse doesn't support async queries - query is only executed when user fetches results
+         */
+        if (
+            queryHistory.defaultPageSize === null ||
+            queryHistory.warehouseExecutionTimeMs === null ||
+            queryHistory.totalRowCount === null
+        ) {
+            await this.queryHistoryModel.update(
+                queryHistory.queryUuid,
+                projectUuid,
+                user.userUuid,
+                {
+                    ...(queryHistory.defaultPageSize === null
+                        ? { default_page_size: defaultedPageSize }
+                        : {}),
+                    ...(queryHistory.warehouseExecutionTimeMs === null
+                        ? {
+                              warehouse_execution_time_ms: roundedDurationMs,
+                          }
+                        : {}),
+                    ...(queryHistory.totalRowCount === null
+                        ? { total_row_count: result.totalRows }
+                        : {}),
+                },
+            );
+        }
+
+        await sshTunnel.disconnect();
+
+        const { nextPage, previousPage } = getNextAndPreviousPage(
+            page,
+            result.pageCount,
+        );
+
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'query_page.fetched',
+            properties: {
+                queryId: queryHistory.queryUuid,
+                projectId: projectUuid,
+                warehouseType: warehouseClient.credentials.type,
+                page,
+                columnsCount: Object.keys(result.fields).length,
+                totalRowCount: result.totalRows,
+                totalPageCount: result.pageCount,
+                resultsPageSize: result.rows.length,
+                resultsPageExecutionMs: roundedDurationMs,
+            },
+        });
+
+        return {
+            rows: result.rows,
+            totalPageCount: result.pageCount,
+            totalResults: result.totalRows,
+            queryUuid: queryHistory.queryUuid,
+            fields: queryHistory.fields,
+            metricQuery,
+            pageSize: result.rows.length,
+            page,
+            nextPage,
+            previousPage,
+            initialQueryExecutionMs:
+                queryHistory.warehouseExecutionTimeMs ?? roundedDurationMs,
+            resultsPageExecutionMs: roundedDurationMs,
+            status,
+        };
+    }
+
+    private async executeAsyncQuery(
+        args: ExecuteAsyncMetricQueryArgs & {
+            queryTags: RunQueryTags;
+            exploreName: string;
+        },
+        requestParameters: ExecuteAsyncQueryRequestParams,
+    ) {
+        return wrapSentryTransaction(
+            'ProjectService.executeAsyncQuery',
+            {},
+            async (span) => {
+                const {
+                    user,
+                    projectUuid,
+                    context,
+                    granularity,
+                    queryTags,
+                    exploreName,
+                } = args;
+
+                try {
+                    if (!isUserWithOrg(user)) {
+                        throw new ForbiddenError(
+                            'User is not part of an organization',
+                        );
+                    }
+
+                    const { organizationUuid } =
+                        await this.projectModel.getSummary(projectUuid);
+
+                    if (
+                        user.ability.cannot(
+                            'view',
+                            subject('Project', {
+                                organizationUuid,
+                                projectUuid,
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError();
+                    }
+
+                    const explore = await this.getExplore(
+                        user,
+                        projectUuid,
+                        exploreName,
+                    );
+
+                    const { warehouseClient, sshTunnel } =
+                        await this._getWarehouseClient(
+                            projectUuid,
+                            await this.getWarehouseCredentials(
+                                projectUuid,
+                                user.userUuid,
+                            ),
+                            {
+                                snowflakeVirtualWarehouse: explore.warehouse,
+                                databricksCompute: explore.databricksCompute,
+                            },
+                        );
+
+                    span.setAttribute('lightdash.projectUuid', projectUuid);
+                    span.setAttribute(
+                        'warehouse.type',
+                        warehouseClient.credentials.type,
+                    );
+
+                    const { metricQuery } = args;
+                    const userAttributes =
+                        await this.userAttributesModel.getAttributeValuesForOrgMember(
+                            {
+                                organizationUuid,
+                                userUuid: user.userUuid,
+                            },
+                        );
+
+                    const emailStatus =
+                        await this.emailModel.getPrimaryEmailStatus(
+                            user.userUuid,
+                        );
+                    const intrinsicUserAttributes = emailStatus.isVerified
+                        ? getIntrinsicUserAttributes(user)
+                        : {};
+
+                    const fullQuery = await ProjectService._compileQuery(
+                        metricQuery,
+                        explore,
+                        warehouseClient,
+                        intrinsicUserAttributes,
+                        userAttributes,
+                        this.lightdashConfig.query.timezone || 'UTC',
+                        granularity,
+                    );
+
+                    const {
+                        query,
+                        fields: fieldsFromQuery,
+                        hasExampleMetric,
+                    } = fullQuery;
+
+                    const fieldsWithOverrides: ItemsMap = Object.fromEntries(
+                        Object.entries(fieldsFromQuery).map(([key, value]) => {
+                            if (
+                                metricQuery.metricOverrides &&
+                                metricQuery.metricOverrides[key]
+                            ) {
+                                return [
+                                    key,
+                                    {
+                                        ...value,
+                                        ...metricQuery.metricOverrides[key],
+                                    },
+                                ];
+                            }
+                            return [key, value];
+                        }),
+                    );
+
+                    const fieldsMap = fieldsWithOverrides;
+                    span.setAttribute('generatedSql', query);
+
+                    const onboardingRecord =
+                        await this.onboardingModel.getByOrganizationUuid(
+                            user.organizationUuid,
+                        );
+
+                    if (!onboardingRecord.ranQueryAt) {
+                        await this.onboardingModel.update(
+                            user.organizationUuid,
+                            {
+                                ranQueryAt: new Date(),
+                            },
+                        );
+                    }
+
+                    const { queryUuid: queryHistoryUuid } =
+                        await this.queryHistoryModel.create({
+                            projectUuid,
+                            organizationUuid,
+                            createdByUserUuid: user.userUuid,
+                            context,
+                            fields: fieldsMap,
+                            compiledSql: query,
+                            requestParameters,
+                            metricQuery,
+                        });
+
+                    this.analytics.track({
+                        userId: user.userUuid,
+                        event: 'query.executed',
+                        properties: {
+                            organizationId: organizationUuid,
+                            projectId: projectUuid,
+                            context,
+                            queryId: queryHistoryUuid,
+                            warehouseType: warehouseClient.credentials.type,
+                            ...ProjectService.getMetricQueryExecutionProperties(
+                                {
+                                    metricQuery,
+                                    hasExampleMetric,
+                                    queryTags,
+                                    granularity,
+                                    chartUuid:
+                                        'chartUuid' in requestParameters
+                                            ? requestParameters.chartUuid
+                                            : undefined,
+                                    explore,
+                                },
+                            ),
+                        },
+                    });
+
+                    // Trigger query in the background, update query history when complete
+                    warehouseClient
+                        .executeAsyncQuery({
+                            sql: query,
+                            tags: queryTags,
+                        })
+                        .then(
+                            ({
+                                queryId,
+                                queryMetadata,
+                                totalRows,
+                                durationMs,
+                            }) => {
+                                this.analytics.track({
+                                    userId: user.userUuid,
+                                    event: 'query.ready',
+                                    properties: {
+                                        queryId: queryHistoryUuid,
+                                        projectId: projectUuid,
+                                        warehouseType:
+                                            warehouseClient.credentials.type,
+                                        warehouseExecutionTimeMs: durationMs,
+                                        columnsCount:
+                                            Object.keys(fieldsMap).length,
+                                        totalRowCount: totalRows,
+                                    },
+                                });
+                                return this.queryHistoryModel.update(
+                                    queryHistoryUuid,
+                                    projectUuid,
+                                    user.userUuid,
+                                    {
+                                        warehouse_query_id: queryId,
+                                        warehouse_query_metadata: queryMetadata,
+                                        status: QueryHistoryStatus.READY,
+                                        error: null,
+                                        warehouse_execution_time_ms:
+                                            durationMs !== null
+                                                ? Math.round(durationMs)
+                                                : null,
+                                        total_row_count: totalRows,
+                                    },
+                                );
+                            },
+                        )
+                        .catch((e) => {
+                            this.analytics.track({
+                                userId: user.userUuid,
+                                event: 'query.error',
+                                properties: {
+                                    queryId: queryHistoryUuid,
+                                    projectId: projectUuid,
+                                    warehouseType:
+                                        warehouseClient.credentials.type,
+                                },
+                            });
+                            return this.queryHistoryModel.update(
+                                queryHistoryUuid,
+                                projectUuid,
+                                user.userUuid,
+                                {
+                                    status: QueryHistoryStatus.ERROR,
+                                    error: getErrorMessage(e),
+                                },
+                            );
+                        })
+                        .finally(() => sshTunnel.disconnect());
+
+                    return {
+                        queryUuid: queryHistoryUuid,
+                    };
+                } catch (e) {
+                    span.setStatus({
+                        code: 2, // ERROR
+                        message: getErrorMessage(e),
+                    });
+                    throw e;
+                } finally {
+                    span.end();
+                }
+            },
+        );
+    }
+
+    async executeAsyncMetricQuery({
+        user,
+        projectUuid,
+        granularity,
+        context,
+        metricQuery,
+    }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
+        }
+
+        const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
+            context,
+            query: metricQuery,
+        };
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            explore_name: metricQuery.exploreName,
+            query_context: context,
+        };
+
+        const { queryUuid } = await this.executeAsyncQuery(
+            {
+                user,
+                metricQuery,
+                projectUuid,
+                exploreName: metricQuery.exploreName,
+                context,
+                queryTags,
+                granularity,
+            },
+            requestParameters,
+        );
+
+        return {
+            queryUuid,
+            appliedDashboardFilters: null,
+        };
+    }
+
+    async executeAsyncSavedChartQuery({
+        user,
+        projectUuid,
+        chartUuid,
+        versionUuid,
+        context,
+    }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
+        // Check user is in organization
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User does not belong to an organization');
+        }
+
+        const {
+            uuid: savedChartUuid,
+            organizationUuid: savedChartOrganizationUuid,
+            projectUuid: savedChartProjectUuid,
+            spaceUuid: savedChartSpaceUuid,
+            tableName: savedChartTableName,
+            metricQuery,
+        } = await this.savedChartModel.get(chartUuid, versionUuid);
+
+        // Check chart belongs to project
+        if (savedChartProjectUuid !== projectUuid) {
+            throw new ForbiddenError('Chart does not belong to project');
+        }
+
+        const space = await this.spaceModel.getSpaceSummary(
+            savedChartSpaceUuid,
+        );
+
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            space.uuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: savedChartOrganizationUuid,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            ) ||
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: savedChartOrganizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.analyticsModel.addChartViewEvent(
+            savedChartUuid,
+            user.userUuid,
+        );
+
+        const requestParameters: ExecuteAsyncSavedChartRequestParams = {
+            context,
+            chartUuid,
+            versionUuid,
+        };
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: savedChartOrganizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            chart_uuid: chartUuid,
+            explore_name: savedChartTableName,
+            query_context: context,
+        };
+
+        const { queryUuid } = await this.executeAsyncQuery(
+            {
+                user,
+                projectUuid,
+                exploreName: savedChartTableName,
+                context,
+                queryTags,
+                invalidateCache: false,
+                metricQuery,
+            },
+            requestParameters,
+        );
+
+        return {
+            queryUuid,
+            appliedDashboardFilters: null,
+        };
+    }
+
+    async executeAsyncDashboardChartQuery({
+        user,
+        projectUuid,
+        chartUuid,
+        dashboardUuid,
+        dashboardFilters,
+        dashboardSorts,
+        granularity,
+        context,
+    }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const savedChart = await this.savedChartModel.get(chartUuid);
+        const { organizationUuid, projectUuid: savedChartProjectUuid } =
+            savedChart;
+
+        if (savedChartProjectUuid !== projectUuid) {
+            throw new ForbiddenError('Dashboard does not belong to project');
+        }
+
+        const [space, explore] = await Promise.all([
+            this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
+            this.getExplore(
+                user,
+                projectUuid,
+                savedChart.tableName,
+                organizationUuid,
+            ),
+        ]);
+
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            space.uuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            ) ||
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.analyticsModel.addChartViewEvent(
+            savedChart.uuid,
+            user.userUuid,
+        );
+
+        const tables = Object.keys(explore.tables);
+        const appliedDashboardFilters: DashboardFilters = {
+            dimensions: getDashboardFilterRulesForTables(
+                tables,
+                dashboardFilters.dimensions,
+            ),
+            metrics: getDashboardFilterRulesForTables(
+                tables,
+                dashboardFilters.metrics,
+            ),
+            tableCalculations: getDashboardFilterRulesForTables(
+                tables,
+                dashboardFilters.tableCalculations,
+            ),
+        };
+
+        const metricQueryWithDashboardOverrides: MetricQuery = {
+            ...addDashboardFiltersToMetricQuery(
+                savedChart.metricQuery,
+                appliedDashboardFilters,
+                explore,
+            ),
+            sorts:
+                dashboardSorts && dashboardSorts.length > 0
+                    ? dashboardSorts
+                    : savedChart.metricQuery.sorts,
+        };
+
+        const exploreDimensions = getDimensions(explore);
+
+        const metricQueryDimensions = [
+            ...metricQueryWithDashboardOverrides.dimensions,
+            ...(metricQueryWithDashboardOverrides.customDimensions ?? []),
+        ];
+        const hasADateDimension = exploreDimensions.find(
+            (c) =>
+                metricQueryDimensions.includes(getItemId(c)) && isDateItem(c),
+        );
+
+        if (hasADateDimension) {
+            metricQueryWithDashboardOverrides.metadata = {
+                hasADateDimension: {
+                    name: hasADateDimension.name,
+                    label: hasADateDimension.label,
+                },
+            };
+        }
+
+        const requestParameters: ExecuteAsyncDashboardChartRequestParams = {
+            context,
+            chartUuid,
+            dashboardUuid,
+            dashboardFilters,
+            dashboardSorts,
+            granularity,
+        };
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            chart_uuid: chartUuid,
+            dashboard_uuid: dashboardUuid,
+            explore_name: explore.name,
+            query_context: context,
+        };
+
+        const { queryUuid } = await this.executeAsyncQuery(
+            {
+                user,
+                projectUuid,
+                exploreName: savedChart.tableName,
+                metricQuery: metricQueryWithDashboardOverrides,
+                context,
+                queryTags,
+                invalidateCache: false,
+                granularity,
+            },
+            requestParameters,
+        );
+
+        return {
+            queryUuid,
+            appliedDashboardFilters,
+        };
+    }
+
+    async executeAsyncUnderlyingDataQuery({
+        user,
+        projectUuid,
+        underlyingDataSourceQueryUuid,
+        filters,
+        underlyingDataItemId,
+        context,
+    }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('UnderlyingData', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { metricQuery } = await this.queryHistoryModel.get(
+            underlyingDataSourceQueryUuid,
+            projectUuid,
+            user.userUuid,
+        );
+
+        if (
+            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
+        }
+
+        const { exploreName } = metricQuery;
+
+        const explore = await this.getExplore(user, projectUuid, exploreName);
+        const { fields: metricQueryFields } = await this.compileQuery(
+            user,
+            metricQuery,
+            projectUuid,
+            exploreName,
+        );
+
+        const underlyingDataItem = underlyingDataItemId
+            ? metricQueryFields[underlyingDataItemId]
+            : undefined;
+
+        const joinedTables = explore.joinedTables.map(
+            (joinedTable) => joinedTable.table,
+        );
+
+        const availableTables = new Set([
+            ...joinedTables,
+            ...Object.values(metricQueryFields)
+                .filter(isField)
+                .map((field) => field.table),
+        ]);
+
+        const itemShowUnderlyingValues =
+            isField(underlyingDataItem) && isMetric(underlyingDataItem)
+                ? underlyingDataItem.showUnderlyingValues
+                : undefined;
+
+        const itemShowUnderlyingTable = isField(underlyingDataItem)
+            ? underlyingDataItem.table
+            : undefined;
+
+        const allDimensions = getDimensions(explore);
+
+        const availableDimensions = allDimensions.filter(
+            (dimension) =>
+                availableTables.has(dimension.table) &&
+                !dimension.timeInterval &&
+                !dimension.hidden &&
+                (itemShowUnderlyingValues !== undefined
+                    ? (itemShowUnderlyingValues.includes(dimension.name) &&
+                          itemShowUnderlyingTable === dimension.table) ||
+                      itemShowUnderlyingValues.includes(
+                          `${dimension.table}.${dimension.name}`,
+                      )
+                    : true),
+        );
+
+        const requestParameters: ExecuteAsyncUnderlyingDataRequestParams = {
+            context,
+            underlyingDataSourceQueryUuid,
+            filters,
+            underlyingDataItemId,
+        };
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            explore_name: exploreName,
+            query_context: context,
+        };
+
+        const underlyingDataMetricQuery: MetricQuery = {
+            exploreName,
+            dimensions: availableDimensions.map(getItemId),
+            filters,
+            metrics: [],
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+        };
+
+        const { queryUuid: underlyingDataQueryUuid } =
+            await this.executeAsyncQuery(
+                {
+                    user,
+                    metricQuery: underlyingDataMetricQuery,
+                    projectUuid,
+                    exploreName,
+                    context,
+                    queryTags,
+                    invalidateCache: false,
+                },
+                requestParameters,
+            );
+
+        return {
+            queryUuid: underlyingDataQueryUuid,
+            appliedDashboardFilters: null,
+        };
+    }
+
     private async runQueryAndFormatRows({
         user,
         metricQuery,
@@ -1740,6 +2864,11 @@ export class ProjectService extends BaseService {
                     });
                 span.setAttribute('rows', rows.length);
 
+                this.logger.info(
+                    `Query returned ${rows.length} rows and ${
+                        Object.keys(rows?.[0] || {}).length
+                    } columns with querytags ${JSON.stringify(queryTags)}`,
+                );
                 const { warehouseConnection } =
                     await this.projectModel.getWithSensitiveFields(projectUuid);
                 if (warehouseConnection) {
@@ -1755,7 +2884,8 @@ export class ProjectService extends BaseService {
                     },
                     async (formatRowsSpan) => {
                         const useWorker = rows.length > 500;
-                        return measureTime(
+                        this.logger.info(`Formatting ${rows.length} rows`);
+                        const { result } = await measureTime(
                             async () => {
                                 formatRowsSpan.setAttribute(
                                     'useWorker',
@@ -1782,9 +2912,16 @@ export class ProjectService extends BaseService {
                                 useWorker,
                             },
                         );
+
+                        return result;
                     },
                 );
 
+                this.logger.info(
+                    `Formatted rows returned ${formattedRows.length} rows and ${
+                        Object.keys(formattedRows?.[0] || {}).length
+                    } columns`,
+                );
                 return {
                     rows: formattedRows,
                     metricQuery,
@@ -1801,7 +2938,7 @@ export class ProjectService extends BaseService {
         exploreName: string,
         metricQuery: MetricQuery,
     ) {
-        return measureTime(
+        const { result } = await measureTime(
             () =>
                 this.runMetricQuery({
                     user,
@@ -1820,6 +2957,8 @@ export class ProjectService extends BaseService {
                 metricQuery,
             },
         );
+
+        return result;
     }
 
     async getResultsForChart(
@@ -1917,7 +3056,7 @@ export class ProjectService extends BaseService {
                         this.logger.debug(
                             `Getting data from cache, key: ${queryHash}`,
                         );
-                        const cacheEntry = await measureTime(
+                        const { result: cacheEntry } = await measureTime(
                             () => this.s3CacheClient.getResults(queryHash),
                             'getResultsFromCache',
                             this.logger,
@@ -1960,7 +3099,7 @@ export class ProjectService extends BaseService {
                     },
                     async () => {
                         try {
-                            return await measureTime(
+                            const { result } = await measureTime(
                                 () =>
                                     warehouseClient.runQuery(
                                         query,
@@ -1969,7 +3108,10 @@ export class ProjectService extends BaseService {
                                     ),
                                 'runWarehouseQuery',
                                 this.logger,
+                                context,
                             );
+
+                            return result;
                         } catch (e) {
                             this.logger.warn(
                                 `Error running "${
@@ -2076,7 +3218,10 @@ export class ProjectService extends BaseService {
                                 projectUuid,
                                 user.userUuid,
                             ),
-                            explore.warehouse,
+                            {
+                                snowflakeVirtualWarehouse: explore.warehouse,
+                                databricksCompute: explore.databricksCompute,
+                            },
                         );
 
                     const userAttributes =
@@ -2144,97 +3289,17 @@ export class ProjectService extends BaseService {
                         properties: {
                             organizationId: organizationUuid,
                             projectId: projectUuid,
-                            hasExampleMetric,
-                            dimensionsCount: metricQuery.dimensions.length,
-                            metricsCount: metricQuery.metrics.length,
-                            filtersCount: countTotalFilterRules(
-                                metricQuery.filters,
-                            ),
-                            sortsCount: metricQuery.sorts.length,
-                            tableCalculationsCount:
-                                metricQuery.tableCalculations.length,
-                            tableCalculationsPercentFormatCount:
-                                metricQuery.tableCalculations.filter(
-                                    (tableCalculation) =>
-                                        tableCalculation.format?.type ===
-                                        CustomFormatType.PERCENT,
-                                ).length,
-                            tableCalculationsCurrencyFormatCount:
-                                metricQuery.tableCalculations.filter(
-                                    (tableCalculation) =>
-                                        tableCalculation.format?.type ===
-                                        CustomFormatType.CURRENCY,
-                                ).length,
-                            tableCalculationsNumberFormatCount:
-                                metricQuery.tableCalculations.filter(
-                                    (tableCalculation) =>
-                                        tableCalculation.format?.type ===
-                                        CustomFormatType.NUMBER,
-                                ).length,
-                            additionalMetricsCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter((metric) =>
-                                metricQuery.metrics.includes(getItemId(metric)),
-                            ).length,
-                            additionalMetricsFilterCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter(
-                                (metric) =>
-                                    metricQuery.metrics.includes(
-                                        getItemId(metric),
-                                    ) &&
-                                    metric.filters &&
-                                    metric.filters.length > 0,
-                            ).length,
-                            additionalMetricsPercentFormatCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter(
-                                (metric) =>
-                                    metricQuery.metrics.includes(
-                                        getItemId(metric),
-                                    ) &&
-                                    metric.formatOptions &&
-                                    metric.formatOptions.type ===
-                                        CustomFormatType.PERCENT,
-                            ).length,
-                            additionalMetricsCurrencyFormatCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter(
-                                (metric) =>
-                                    metricQuery.metrics.includes(
-                                        getItemId(metric),
-                                    ) &&
-                                    metric.formatOptions &&
-                                    metric.formatOptions.type ===
-                                        CustomFormatType.CURRENCY,
-                            ).length,
-                            additionalMetricsNumberFormatCount: (
-                                metricQuery.additionalMetrics || []
-                            ).filter(
-                                (metric) =>
-                                    metricQuery.metrics.includes(
-                                        getItemId(metric),
-                                    ) &&
-                                    metric.formatOptions &&
-                                    metric.formatOptions.type ===
-                                        CustomFormatType.NUMBER,
-                            ).length,
                             context,
-                            ...countCustomDimensionsInMetricQuery(metricQuery),
-                            dateZoomGranularity: granularity || null,
-                            timezone: metricQuery.timezone,
-                            ...(queryTags?.dashboard_uuid
-                                ? { dashboardId: queryTags.dashboard_uuid }
-                                : {}),
-                            chartId: chartUuid,
-                            ...(explore.type === ExploreType.VIRTUAL
-                                ? { virtualViewId: explore.name }
-                                : {}),
-                            metricOverridesCount: Object.keys(
-                                metricQuery.metricOverrides || {},
-                            ).filter((metricOverrideKey) =>
-                                metricQuery.metrics.includes(metricOverrideKey),
-                            ).length,
+                            ...ProjectService.getMetricQueryExecutionProperties(
+                                {
+                                    metricQuery: metricQueryWithLimit,
+                                    hasExampleMetric,
+                                    queryTags,
+                                    chartUuid,
+                                    granularity,
+                                    explore,
+                                },
+                            ),
                         },
                     });
                     this.logger.debug(
@@ -2682,29 +3747,22 @@ export class ProjectService extends BaseService {
         }
     }
 
-    async searchFieldUniqueValues(
-        user: SessionUser,
-        projectUuid: string,
-        table: string,
-        initialFieldId: string,
-        search: string,
-        limit: number,
-        filters: AndFilterGroup | undefined,
-        forceRefresh: boolean = false,
-    ) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
-
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
+    // Note: can't be private method as it is used in EE
+    async _getFieldValuesMetricQuery({
+        projectUuid,
+        table,
+        initialFieldId,
+        search,
+        limit,
+        filters,
+    }: {
+        projectUuid: string;
+        table: string;
+        initialFieldId: string;
+        search: string;
+        limit: number;
+        filters: AndFilterGroup | undefined;
+    }) {
         if (limit > this.lightdashConfig.query.maxLimit) {
             throw new ParameterError(
                 `Query limit can not exceed ${this.lightdashConfig.query.maxLimit}`,
@@ -2784,11 +3842,49 @@ export class ProjectService extends BaseService {
             ],
             limit,
         };
+        return { metricQuery, explore, field };
+    }
+
+    async searchFieldUniqueValues(
+        user: SessionUser,
+        projectUuid: string,
+        table: string,
+        initialFieldId: string,
+        search: string,
+        limit: number,
+        filters: AndFilterGroup | undefined,
+        forceRefresh: boolean = false,
+    ) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { metricQuery, explore, field } =
+            await this._getFieldValuesMetricQuery({
+                projectUuid,
+                table,
+                initialFieldId,
+                search,
+                limit,
+                filters,
+            });
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
-            explore.warehouse,
+            {
+                snowflakeVirtualWarehouse: explore.warehouse,
+                databricksCompute: explore.databricksCompute,
+            },
         );
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
@@ -2863,7 +3959,7 @@ export class ProjectService extends BaseService {
             userId: user.userUuid,
             properties: {
                 projectId: projectUuid,
-                fieldId,
+                fieldId: getItemId(field),
                 searchCharCount: search.length,
                 resultsCount: rows.length,
                 searchLimit: limit,
@@ -3160,6 +4256,7 @@ export class ProjectService extends BaseService {
             requestMethod,
             jobUuid: job.jobUuid,
             isPreview: type === ProjectType.PREVIEW,
+            userUuid: user.userUuid,
         });
 
         return { jobUuid: job.jobUuid };
@@ -3207,7 +4304,7 @@ export class ProjectService extends BaseService {
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.RUNNING,
                 });
-                await this.jobModel.tryJobStep(
+                const indexCatalogJobUuid = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
@@ -3240,7 +4337,7 @@ export class ProjectService extends BaseService {
                                 color: category.color ?? 'gray',
                             })),
                         );
-                        await this.saveExploresToCacheAndIndexCatalog(
+                        return this.saveExploresToCacheAndIndexCatalog(
                             user.userUuid,
                             projectUuid,
                             explores,
@@ -3250,6 +4347,9 @@ export class ProjectService extends BaseService {
 
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
+                    jobResults: {
+                        indexCatalogJobUuid,
+                    },
                 });
             } catch (e) {
                 await this.jobModel.update(job.jobUuid, {
@@ -3666,6 +4766,7 @@ export class ProjectService extends BaseService {
         queryContext: QueryExecutionContext,
         tableName?: string,
         schemaName?: string,
+        databaseName?: string,
     ): Promise<WarehouseTableSchema> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -3694,7 +4795,9 @@ export class ProjectService extends BaseService {
             user_uuid: user.userUuid,
             query_context: queryContext,
         };
-        let database = ProjectService.getWarehouseDatabase(credentials);
+
+        let database =
+            databaseName ?? ProjectService.getWarehouseDatabase(credentials);
         if (!database) {
             throw new NotFoundError(
                 'Database not found in warehouse credentials',
@@ -3710,16 +4813,24 @@ export class ProjectService extends BaseService {
         if (!tableName) {
             throw new ParameterError('Table name is required');
         }
-        const warehouseCatalog = await warehouseClient.getFields(
-            tableName,
-            schemaName,
-            database,
-            queryTags,
-        );
 
-        await sshTunnel.disconnect();
+        try {
+            const warehouseCatalog = await warehouseClient.getFields(
+                tableName,
+                schemaName,
+                database,
+                queryTags,
+            );
 
-        return warehouseCatalog[database][schemaName][tableName];
+            await sshTunnel.disconnect();
+
+            return warehouseCatalog[database][schemaName][tableName];
+        } catch (error) {
+            this.logger.error('Error fetching warehouse fields', { error });
+            throw new NotFoundError(
+                `Could not find table "${tableName}" in schema "${schemaName}" of database "${database}". Please verify the table exists and you have access to it.`,
+            );
+        }
     }
 
     async getTablesConfiguration(
@@ -4605,7 +5716,10 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
-            explore.warehouse,
+            {
+                snowflakeVirtualWarehouse: explore.warehouse,
+                databricksCompute: explore.databricksCompute,
+            },
         );
 
         const { query } = await this._getCalculateTotalQuery(
@@ -4640,7 +5754,10 @@ export class ProjectService extends BaseService {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
-            explore.warehouse,
+            {
+                snowflakeVirtualWarehouse: explore.warehouse,
+                databricksCompute: explore.databricksCompute,
+            },
         );
 
         const { query, totalQuery } = await this._getCalculateTotalQuery(
@@ -4801,6 +5918,166 @@ export class ProjectService extends BaseService {
             organizationUuid,
         );
         return results.row;
+    }
+
+    async _calculateSubtotals(
+        user: SessionUser,
+        projectUuid: string,
+        data: CalculateSubtotalsFromQuery,
+        organizationUuid: string,
+    ) {
+        const {
+            explore: exploreName,
+            metricQuery,
+            columnOrder,
+            pivotDimensions,
+        } = data;
+
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            exploreName,
+            organizationUuid,
+        );
+
+        // Order dimensions according to columnOrder
+        const orderedDimensions = metricQuery.dimensions.sort((a, b) => {
+            const aIndex = columnOrder.indexOf(a);
+            const bIndex = columnOrder.indexOf(b);
+            // Handle cases where dimension isn't in columnOrder
+            if (aIndex === -1) return 1;
+            if (bIndex === -1) return -1;
+            return aIndex - bIndex;
+        });
+
+        // Pivot dimensions always need to be in the query, therefore we need to remove them before calculating the subtotal groupings by order
+        const orderedDimensionsWithoutPivot = orderedDimensions.filter(
+            (dimension) => !pivotDimensions?.includes(dimension),
+        );
+
+        // Remove the last dimension since it will not be used for subtotals, would produce the most detailed row
+        const dimensionsToSubtotal = orderedDimensionsWithoutPivot.slice(0, -1);
+
+        // Create a list of all the dimension groups to subtotal, starting with the first dimension, then the first two dimensions, then the first three dimensions, etc.
+        const dimensionGroupsToSubtotal = dimensionsToSubtotal.map(
+            (dimension, index) => {
+                if (index === 0) {
+                    return [dimension];
+                }
+
+                return [...dimensionsToSubtotal.slice(0, index), dimension];
+            },
+        );
+
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'query.subtotal',
+            properties: {
+                context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                exploreName,
+                subtotalDimensionGroups: dimensionGroupsToSubtotal.map(
+                    (group) => group.join(','),
+                ),
+                subtotalQueryCount: dimensionGroupsToSubtotal.length,
+            },
+        });
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: user.organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            explore_name: exploreName,
+            query_context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+        };
+
+        // Run the query for each dimension group and format the raw rows, this is needed because we apply raw formatting to date dimensions, and we need to compare values in the same format in the frontend
+        const runQueryAndFormatRaw = async (
+            subtotalMetricQuery: MetricQuery,
+        ) => {
+            const { rows, fields } = await this.runMetricQuery({
+                user,
+                metricQuery: subtotalMetricQuery,
+                explore,
+                queryTags,
+                projectUuid,
+                exploreName,
+                context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+                csvLimit: null,
+                chartUuid: undefined,
+            });
+
+            return formatRawRows(rows, fields);
+        };
+
+        const subtotalsPromises = dimensionGroupsToSubtotal.map(
+            async (subtotalDimensions) => {
+                let subtotals: Record<string, unknown>[] = [];
+
+                try {
+                    subtotals = await runQueryAndFormatRaw({
+                        ...metricQuery,
+                        dimensions: [
+                            ...subtotalDimensions,
+                            ...(pivotDimensions || []), // we always need to include the pivot dimensions in the subtotal query
+                        ],
+                    });
+                } catch (e) {
+                    this.logger.error(
+                        `Error running subtotal query for dimensions ${subtotalDimensions.join(
+                            ',',
+                        )}`,
+                    );
+                }
+
+                return [getSubtotalKey(subtotalDimensions), subtotals];
+            },
+        );
+
+        const subtotalsEntries = await Promise.all(subtotalsPromises);
+        return Object.fromEntries(subtotalsEntries);
+    }
+
+    async calculateSubtotalsFromQuery(
+        user: SessionUser,
+        projectUuid: string,
+        data: CalculateSubtotalsFromQuery,
+    ) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
+        }
+
+        // Reuse the _calculateTotal method by passing the explore, metricQuery, and organizationUuid
+        return this._calculateSubtotals(
+            user,
+            projectUuid,
+            data,
+            organizationUuid,
+        );
     }
 
     async getDbtExposures(
@@ -5372,5 +6649,112 @@ export class ProjectService extends BaseService {
                 },
             });
         });
+    }
+
+    async findReplaceableCustomFields({
+        projectUuid,
+    }: ReplaceCustomFieldsPayload): Promise<ReplaceableCustomFields> {
+        const charts = await this.savedChartModel.findChartsWithCustomFields(
+            projectUuid,
+        );
+        const explores = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            charts.map((chart) => chart.tableName),
+        );
+        const replaceableFields = charts.reduce<ReplaceableCustomFields>(
+            (acc, chart) => {
+                const explore = explores[chart.tableName];
+                if (!explore || isExploreError(explore)) {
+                    return acc;
+                }
+                const replaceableCustomMetrics = findReplaceableCustomMetrics({
+                    customMetrics: chart.customMetrics,
+                    metrics: getMetrics(explore),
+                });
+                if (Object.keys(replaceableCustomMetrics).length > 0) {
+                    acc[chart.uuid] = {
+                        uuid: chart.uuid,
+                        label: chart.name,
+                        customMetrics: replaceableCustomMetrics,
+                    };
+                }
+                return acc;
+            },
+            {},
+        );
+
+        this.logger.info(
+            `Found ${
+                Object.keys(replaceableFields).length
+            } charts with replaceable/suggested fields in project ${projectUuid}`,
+        );
+        return replaceableFields;
+    }
+
+    async replaceCustomFields({
+        userUuid,
+        projectUuid,
+        organizationUuid,
+        replaceFields,
+        skipChartsUpdatedAfter,
+    }: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        replaceFields: ReplaceCustomFields;
+        skipChartsUpdatedAfter: Date;
+    }): Promise<Array<Pick<SavedChartDAO, 'uuid' | 'name'>>> {
+        const updatedChartPromises = Object.entries(replaceFields).map(
+            async ([chartUuid, fieldsToReplace]) => {
+                const chart = await this.savedChartModel.get(chartUuid);
+                if (chart.updatedAt > skipChartsUpdatedAfter) {
+                    this.logger.info(
+                        `Skipped replace custom fields in chart ${chart.uuid} as it was recently updated.`,
+                    );
+                    return null;
+                }
+                const { hasChanges, chartVersion, skippedFields } =
+                    maybeReplaceFieldsInChartVersion({
+                        fieldsToReplace,
+                        chartVersion: chart,
+                    });
+                if (Object.keys(skippedFields.customMetrics).length > 0) {
+                    const skippedReasons: string[] = Object.entries(
+                        skippedFields.customMetrics,
+                    ).map(([key, { reason }]) => `[${key}] ${reason}`);
+                    this.logger.info(
+                        `Skipped replace custom fields in chart ${
+                            chart.uuid
+                        }:\n ${skippedReasons.join('\n')}`,
+                    );
+                }
+                // create new version if any fields were replaced
+                if (hasChanges) {
+                    await this.savedChartModel.createVersion(
+                        chartUuid,
+                        chartVersion,
+                        undefined,
+                    );
+                    return { uuid: chart.uuid, name: chart.name };
+                }
+                return null;
+            },
+        );
+        const updatedCharts = (await Promise.all(updatedChartPromises)).filter(
+            isNotNull,
+        );
+        this.logger.info(
+            `Replaced fields in ${updatedCharts.length} charts in project ${projectUuid}`,
+        );
+        this.analytics.track({
+            event: 'custom_fields.replaced',
+            userId: userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                chartsCount: Object.keys(updatedCharts).length,
+            },
+        });
+        return updatedCharts;
     }
 }

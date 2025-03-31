@@ -19,7 +19,11 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
     const [isCancelling, setIsCancelling] = useState(false);
 
     const { getEditingDashboardInfo } = useDashboardStorage();
-    const { name: dashboardName, dashboardUuid } = getEditingDashboardInfo();
+    const {
+        name: dashboardName,
+        dashboardUuid,
+        activeTabUuid,
+    } = getEditingDashboardInfo();
 
     const action = useMemo(() => {
         if (!savedQueryUuid) {
@@ -74,17 +78,21 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
         // so do not clear the storage here
         setIsCancelling(true);
 
-        void navigate(
-            `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
-                savedQueryUuid ? 'view' : 'edit'
-            }`,
-        );
+        let returnUrl = `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
+            savedQueryUuid ? 'view' : 'edit'
+        }`;
+
+        if (activeTabUuid) {
+            returnUrl += `/tabs/${activeTabUuid}`;
+        }
+
+        void navigate(returnUrl);
 
         setTimeout(() => {
             // Clear the banner after navigating back to dashboard, but only after a delay so that the user can see the banner change
             setIsCancelling(false);
         }, 1000);
-    }, [dashboardUuid, navigate, projectUuid, savedQueryUuid]);
+    }, [dashboardUuid, activeTabUuid, navigate, projectUuid, savedQueryUuid]);
 
     return (
         <>

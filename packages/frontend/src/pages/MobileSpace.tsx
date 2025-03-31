@@ -8,6 +8,7 @@ import { IconLayoutDashboard, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
+import ForbiddenPanel from '../components/ForbiddenPanel';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -15,7 +16,6 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import { ResourceSortDirection } from '../components/common/ResourceView/types';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useSpace } from '../hooks/useSpaces';
 import useApp from '../providers/App/useApp';
 

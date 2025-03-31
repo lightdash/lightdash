@@ -1,6 +1,5 @@
 import {
     formatItemValue,
-    friendlyName,
     getItemMap,
     isAdditionalMetric,
     isCustomDimension,
@@ -20,7 +19,8 @@ import {
 import { Group, Tooltip } from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
+import { formatRowValueFromWarehouse } from '../components/DataViz/formatters/formatRowValueFromWarehouse';
 import MantineIcon from '../components/common/MantineIcon';
 import {
     TableHeaderBoldLabel,
@@ -31,7 +31,6 @@ import {
     columnHelper,
     type TableColumn,
 } from '../components/common/Table/types';
-import { formatRowValueFromWarehouse } from '../components/DataViz/formatters/formatRowValueFromWarehouse';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
@@ -47,19 +46,13 @@ export const getItemBgColor = (
     }
 };
 
+export const formatCellContent = (data?: { value: ResultValue }) => {
+    return data?.value.formatted ?? '-';
+};
+
 export const getFormattedValueCell = (
     info: CellContext<ResultRow, { value: ResultValue }>,
-) => <span>{info.getValue()?.value.formatted || '-'}</span>;
-
-export const getRawValueCell = (
-    info: CellContext<ResultRow, { value: ResultValue }>,
-) => {
-    let raw = info.getValue()?.value.raw;
-    if (raw === null) return '∅';
-    if (raw === undefined) return '-';
-    if (raw instanceof Date) return <span>{raw.toISOString()}</span>;
-    return <span>{`${raw}`}</span>;
-};
+) => formatCellContent(info.getValue());
 
 export const getValueCell = (info: CellContext<RawResultRow, string>) => {
     const value = info.getValue();
@@ -89,8 +82,11 @@ export const useColumns = (): TableColumn[] => {
     const sorts = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
-    const resultsData = useExplorerContext(
-        (context) => context.queryResults.data,
+    const resultsMetricQuery = useExplorerContext(
+        (context) => context.query.data?.metricQuery,
+    );
+    const resultsFields = useExplorerContext(
+        (context) => context.query.data?.fields,
     );
 
     const { data: exploreData } = useExplore(tableName, {
@@ -107,11 +103,11 @@ export const useColumns = (): TableColumn[] => {
                     tableCalculations,
                     customDimensions,
                 ),
-                ...(resultsData?.fields || {}),
+                ...(resultsFields || {}),
             };
         }
     }, [
-        resultsData,
+        resultsFields,
         exploreData,
         additionalMetrics,
         tableCalculations,
@@ -152,10 +148,10 @@ export const useColumns = (): TableColumn[] => {
     }, [itemsMap, activeFields]);
 
     const { data: totals } = useCalculateTotal({
-        metricQuery: resultsData?.metricQuery,
+        metricQuery: resultsMetricQuery,
         explore: exploreData?.baseTable,
-        fieldIds: resultsData
-            ? itemsInMetricQuery(resultsData.metricQuery)
+        fieldIds: resultsMetricQuery
+            ? itemsInMetricQuery(resultsMetricQuery)
             : undefined,
         itemsMap: activeItemsMap,
     });
@@ -186,11 +182,15 @@ export const useColumns = (): TableColumn[] => {
                                         {item.label}
                                     </TableHeaderBoldLabel>
                                 </>
+                            ) : isCustomDimension(item) ? (
+                                <TableHeaderBoldLabel>
+                                    {item.name}
+                                </TableHeaderBoldLabel>
                             ) : (
                                 <TableHeaderBoldLabel>
-                                    {('displayName' in item &&
-                                        item.displayName) ||
-                                        friendlyName(item.name)}
+                                    {item && 'displayName' in item
+                                        ? item.displayName
+                                        : 'Undefined'}
                                 </TableHeaderBoldLabel>
                             )}
                         </TableHeaderLabelContainer>

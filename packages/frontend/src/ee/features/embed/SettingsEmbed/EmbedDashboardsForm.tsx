@@ -31,15 +31,22 @@ const EmbedDashboardsForm: FC<{
                         value: dashboard.uuid,
                         label: dashboard.name,
                     }))}
-                    disabled={disabled}
+                    disabled={disabled || dashboards.length === 0}
                     defaultValue={[]}
-                    placeholder="Select a dashboard..."
+                    placeholder={
+                        dashboards.length === 0
+                            ? 'No dashboards available to embed'
+                            : 'Select a dashboard...'
+                    }
                     searchable
                     withinPortal
                     {...form.getInputProps('dashboardUuids')}
                 />
                 <Flex justify="flex-end" gap="sm">
-                    <Button type="submit" disabled={disabled}>
+                    <Button
+                        type="submit"
+                        disabled={disabled || dashboards.length === 0}
+                    >
                         Save changes
                     </Button>
                 </Flex>

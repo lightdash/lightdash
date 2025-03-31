@@ -4,12 +4,12 @@ import {
     Box,
     Flex,
     Group,
+    Menu,
     Text,
     Tooltip,
     type AccordionControlProps as MantineAccordionControlProps,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
-import { IconTrash } from '@tabler/icons-react';
+import { IconDots, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 
@@ -28,11 +28,8 @@ export const AccordionControl: FC<Props> = ({
     extraControlElements,
     ...props
 }) => {
-    const { ref, hovered } = useHover<HTMLDivElement>();
-
     return (
         <Flex
-            ref={ref}
             px="xs"
             pos="relative"
             align="center"
@@ -69,14 +66,24 @@ export const AccordionControl: FC<Props> = ({
                     position="right"
                     withinPortal
                 >
-                    <ActionIcon
-                        onClick={onRemove}
-                        sx={{
-                            visibility: hovered ? 'visible' : 'hidden',
-                        }}
-                    >
-                        <MantineIcon icon={IconTrash} />
-                    </ActionIcon>
+                    <Menu withArrow offset={-2}>
+                        <Menu.Target>
+                            <ActionIcon variant="transparent">
+                                <MantineIcon icon={IconDots} />
+                            </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Item
+                                icon={<MantineIcon icon={IconTrash} />}
+                                color="red"
+                                onClick={onRemove}
+                            >
+                                <Text fz="xs" fw={500}>
+                                    Delete
+                                </Text>
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
                 </Tooltip>
                 <Accordion.Control
                     w="sm"

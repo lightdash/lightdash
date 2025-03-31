@@ -28,8 +28,8 @@ import { useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
 import {
-    type FieldsWithSuggestions,
     type FieldWithSuggestions,
+    type FieldsWithSuggestions,
 } from '../../Explorer/FiltersCard/useFieldsWithSuggestions';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';

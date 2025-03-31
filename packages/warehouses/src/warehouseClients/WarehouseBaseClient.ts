@@ -8,8 +8,14 @@ import {
     WarehouseCatalog,
     WarehouseResults,
     WeekDay,
+    type WarehouseExecuteAsyncQuery,
+    type WarehouseExecuteAsyncQueryArgs,
 } from '@lightdash/common';
-import { WarehouseClient } from '../types';
+import {
+    type WarehouseClient,
+    type WarehouseGetAsyncQueryResults,
+    type WarehouseGetAsyncQueryResultsArgs,
+} from '../types';
 import { getDefaultMetricSql } from '../utils/sql';
 
 export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
@@ -52,6 +58,51 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         },
     ): Promise<void> {
         throw new Error('Warehouse method not implemented.');
+    }
+
+    async executeAsyncQuery(
+        args: WarehouseExecuteAsyncQueryArgs,
+    ): Promise<WarehouseExecuteAsyncQuery> {
+        return {
+            queryId: null,
+            queryMetadata: null,
+            durationMs: null,
+            totalRows: null,
+        };
+    }
+
+    async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
+        { tags, timezone, values, ...args }: WarehouseGetAsyncQueryResultsArgs,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
+        // When warehouse doesn't support async queries we run the compiled sql and return all the results
+        let fields: WarehouseResults['fields'] = {};
+        const rows: TFormattedRow[] = [];
+
+        await this.streamQuery(
+            args.sql,
+            (data) => {
+                fields = data.fields;
+                rows.push(
+                    ...((rowFormatter
+                        ? data.rows.map(rowFormatter)
+                        : data.rows) as TFormattedRow[]),
+                );
+            },
+            {
+                values,
+                tags,
+                timezone,
+            },
+        );
+
+        return {
+            fields,
+            rows,
+            queryId: null,
+            pageCount: 1,
+            totalRows: rows.length,
+        };
     }
 
     async runQuery(

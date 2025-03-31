@@ -4,9 +4,9 @@ import {
     getItemId,
     getSeriesId,
     isDimension,
-    type ApiQueryResults,
     type CartesianSeriesType,
     type ItemsMap,
+    type ResultRow,
     type Series,
 } from '@lightdash/common';
 import { getPivotedData } from '../plottedData/getPlottedData';
@@ -17,7 +17,7 @@ export type GetExpectedSeriesMapArgs = {
     defaultCartesianType: CartesianSeriesType;
     defaultAreaStyle: Series['areaStyle'];
     isStacked: boolean;
-    resultsData: ApiQueryResults;
+    rows: ResultRow[];
     pivotKeys: string[] | undefined;
     yFields: string[];
     xField: string;
@@ -31,7 +31,7 @@ export const getExpectedSeriesMap = ({
     defaultCartesianType,
     defaultAreaStyle,
     isStacked,
-    resultsData,
+    rows,
     pivotKeys,
     yFields,
     xField,
@@ -50,7 +50,7 @@ export const getExpectedSeriesMap = ({
     };
     if (pivotKeys && pivotKeys.length > 0) {
         const { rowKeyMap } = getPivotedData(
-            resultsData.rows,
+            rows,
             pivotKeys,
             yFields.filter((yField) => !availableDimensions.includes(yField)),
             yFields.filter((yField) => availableDimensions.includes(yField)),
@@ -125,20 +125,43 @@ export const mergeExistingAndExpectedSeries = ({
         }>(
             (sum, series) => {
                 const id = getSeriesId(series);
-                if (!Object.keys(expectedSeriesMap).includes(id)) {
+
+                // this results in a string without the pivot values
+                //e.g. 'orders_order_date_month|orders_average_order_size.orders_is_completed.true' -> 'orders_order_date_month|orders_average_order_size.orders_is_completed'
+                // used to check if the series is not expected but part of the same pivot of expected series
+                const idWithoutPivotValues = id.replace(/\.[^.]+$/, '');
+
+                const isSeriesExpected =
+                    Object.keys(expectedSeriesMap).includes(id);
+
+                const isSeriesFilteredOut =
+                    Object.keys(expectedSeriesMap).some((expectedId) =>
+                        expectedId.startsWith(idWithoutPivotValues),
+                    ) && !isSeriesExpected;
+
+                if (!isSeriesExpected && !isSeriesFilteredOut) {
                     return { ...sum };
                 }
+
                 return {
                     ...sum,
-                    existingValidSeries: [...sum.existingValidSeries, series],
+                    existingValidSeries: [
+                        ...sum.existingValidSeries,
+                        {
+                            ...series,
+                            isFilteredOut: isSeriesFilteredOut,
+                        },
+                    ],
                     existingValidSeriesIds: [...sum.existingValidSeriesIds, id],
                 };
             },
             { existingValidSeries: [], existingValidSeriesIds: [] },
         );
+
     if (existingValidSeries.length <= 0) {
         return Object.values(expectedSeriesMap);
     }
+
     // add missing series in the correct order (next to series of the same group)
     return Object.entries(expectedSeriesMap).reduce<Series[]>(
         (acc, [expectedSeriesId, expectedSeries]) => {

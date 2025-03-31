@@ -59,7 +59,7 @@ export const TitleWrapper = styled.div<TileTitleProps>`
                       z-index: 10;
 
                       a {
-                          outline: 8px solid #fff;
+                          outline: 4px solid #fff;
                           background-color: #fff;
                       }
                   `

@@ -341,11 +341,11 @@ export class NotEnoughResults extends LightdashError {
     }
 }
 
-export class KnexPaginationError extends LightdashError {
+export class PaginationError extends LightdashError {
     constructor(message: string) {
         super({
             message,
-            name: 'KnexPaginationError',
+            name: 'PaginationError',
             statusCode: 422,
             data: {},
         });
@@ -359,6 +359,20 @@ export class SlackInstallationNotFoundError extends LightdashError {
             name: 'SlackInstallationNotFoundError',
             statusCode: 404,
             data: {},
+        });
+    }
+}
+
+export class SlackError extends LightdashError {
+    constructor(
+        message: string = 'Slack API error occurred',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'SlackError',
+            statusCode: 400,
+            data,
         });
     }
 }
@@ -390,6 +404,76 @@ export class GoogleSheetsTransientError extends LightdashError {
         });
     }
 }
-
+export class NotImplementedError extends LightdashError {
+    constructor(message = 'Not implemented') {
+        super({
+            message,
+            name: 'NotImplemented',
+            statusCode: 501,
+            data: {},
+        });
+    }
+}
 export const getErrorMessage = (e: unknown) =>
     e instanceof Error ? e.message : `Unknown ${typeof e} error`;
+
+export class ScreenshotError extends LightdashError {
+    constructor(
+        message = 'Error capturing screenshot',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'ScreenshotError',
+            statusCode: 500,
+            data,
+        });
+    }
+}
+
+export class SshTunnelError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'SshTunnelError',
+            statusCode: 400,
+            data: {},
+        });
+    }
+}
+
+export class ReadFileError extends LightdashError {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
+        super({
+            message,
+            name: 'ReadFileError',
+            statusCode: 404,
+            data,
+        });
+    }
+}
+
+export class S3Error extends LightdashError {
+    constructor(
+        message = 'Error occurred while interacting with S3',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'S3Error',
+            statusCode: 500,
+            data,
+        });
+    }
+}
+
+export class TimeoutError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'TimeoutError',
+            statusCode: 400,
+            data: {},
+        });
+    }
+}

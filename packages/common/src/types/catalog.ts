@@ -11,6 +11,7 @@ import {
 } from './field';
 import type { KnexPaginatedData } from './knex-paginate';
 import { type ChartSummary } from './savedCharts';
+import { type TraceTaskBase } from './scheduler';
 import { type TableBase } from './table';
 import type { Tag } from './tags';
 
@@ -231,9 +232,7 @@ export type CatalogItemWithTagUuids = CatalogItemSummary & {
 export type CatalogItemsWithIcons = CatalogItemSummary &
     Pick<CatalogItem, 'icon'>;
 
-export type SchedulerIndexCatalogJobPayload = {
-    projectUuid: string;
-    userUuid: string;
+export type SchedulerIndexCatalogJobPayload = TraceTaskBase & {
     prevCatalogItemsWithTags: CatalogItemWithTagUuids[];
     prevCatalogItemsWithIcons: CatalogItemsWithIcons[];
     prevMetricTreeEdges: CatalogMetricsTreeEdge[];
@@ -275,8 +274,6 @@ export type ChartFieldUsageChanges = {
 export type ChartUsageIn = CatalogFieldWhere & {
     chartUsage: number;
 };
-
-export const indexCatalogJob = 'indexCatalog';
 
 export type ApiMetricsWithAssociatedTimeDimensionResponse = {
     status: 'ok';

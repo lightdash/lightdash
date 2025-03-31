@@ -53,7 +53,9 @@ export type BaseJob = {
 
 type CompileJob = BaseJob & {
     jobType: JobType.COMPILE_PROJECT;
-    jobResults?: undefined;
+    jobResults?: {
+        indexCatalogJobUuid: string;
+    };
 };
 
 type CreateProjectJob = BaseJob & {
@@ -64,6 +66,24 @@ type CreateProjectJob = BaseJob & {
 };
 
 export type Job = CompileJob | CreateProjectJob;
+
+export function isCompileJob(value: unknown): value is CompileJob {
+    return (
+        typeof value === 'object' &&
+        value != null &&
+        'jobType' in value &&
+        value.jobType === JobType.COMPILE_PROJECT
+    );
+}
+
+export function isCreateProjectJob(value: unknown): value is CreateProjectJob {
+    return (
+        typeof value === 'object' &&
+        value != null &&
+        'jobType' in value &&
+        value.jobType === JobType.CREATE_PROJECT
+    );
+}
 
 export type CreateJob = Pick<
     Job,

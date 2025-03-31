@@ -65,6 +65,7 @@ export const BaseResponse: HealthState = {
     query: {
         csvCellsLimit: 100000,
         maxLimit: 5000,
+        maxPageSize: 2500,
         defaultLimit: 500,
     },
     rudder: {
@@ -81,6 +82,10 @@ export const BaseResponse: HealthState = {
         profilesSampleRate: 0,
     },
     hasCacheAutocompleResults: false,
+    appearance: {
+        overrideColorPalette: undefined,
+        overrideColorPaletteName: undefined,
+    },
 };
 
 export const userMock = {

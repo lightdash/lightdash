@@ -1,6 +1,5 @@
 import {
     AnyType,
-    assertUnreachable,
     CompileProjectPayload,
     CreateProject,
     CreateSchedulerAndTargets,
@@ -8,8 +7,46 @@ import {
     CreateSchedulerTarget,
     DownloadCsvPayload,
     EmailNotificationPayload,
+    ExportCsvDashboardPayload,
+    FeatureFlags,
     FieldReferenceError,
     ForbiddenError,
+    GsheetsNotificationPayload,
+    LightdashPage,
+    MissingConfigError,
+    NotEnoughResults,
+    NotificationFrequency,
+    NotificationPayloadBase,
+    QueryExecutionContext,
+    ReadFileError,
+    ReplaceCustomFields,
+    ReplaceCustomFieldsPayload,
+    ReplaceableCustomFields,
+    SCHEDULER_TASKS,
+    SavedChartDAO,
+    ScheduledDeliveryPayload,
+    SchedulerAndTargets,
+    SchedulerCreateProjectWithCompilePayload,
+    SchedulerFilterRule,
+    SchedulerFormat,
+    SchedulerJobStatus,
+    SchedulerLog,
+    SchedulerTaskName,
+    SemanticLayerQueryPayload,
+    SessionUser,
+    SlackInstallationNotFoundError,
+    SlackNotificationPayload,
+    SqlRunnerPayload,
+    SqlRunnerPivotQueryPayload,
+    ThresholdOperator,
+    ThresholdOptions,
+    UnexpectedGoogleSheetsError,
+    UnexpectedServerError,
+    UploadMetricGsheetPayload,
+    ValidateProjectPayload,
+    VizColumn,
+    assertUnreachable,
+    convertReplaceableFieldMatchMapToReplaceCustomFields,
     formatRows,
     friendlyName,
     getCustomLabelsFromTableConfig,
@@ -20,8 +57,6 @@ import {
     getPivotConfig,
     getRequestMethod,
     getSchedulerUuid,
-    GsheetsNotificationPayload,
-    indexCatalogJob,
     isChartValidationError,
     isCreateScheduler,
     isCreateSchedulerSlackTarget,
@@ -32,37 +67,8 @@ import {
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isTableChartConfig,
-    LightdashPage,
-    MissingConfigError,
-    NotEnoughResults,
-    NotificationFrequency,
-    NotificationPayloadBase,
     operatorActionValue,
     pivotResultsAsCsv,
-    QueryExecutionContext,
-    ScheduledDeliveryPayload,
-    SchedulerAndTargets,
-    SchedulerCreateProjectWithCompilePayload,
-    SchedulerFilterRule,
-    SchedulerFormat,
-    SchedulerJobStatus,
-    SchedulerLog,
-    semanticLayerQueryJob,
-    SemanticLayerQueryPayload,
-    SessionUser,
-    SlackInstallationNotFoundError,
-    SlackNotificationPayload,
-    sqlRunnerJob,
-    SqlRunnerPayload,
-    sqlRunnerPivotQueryJob,
-    SqlRunnerPivotQueryPayload,
-    ThresholdOperator,
-    ThresholdOptions,
-    UnexpectedGoogleSheetsError,
-    UnexpectedServerError,
-    UploadMetricGsheetPayload,
-    ValidateProjectPayload,
-    VizColumn,
     type RunQueryTags,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
@@ -74,7 +80,7 @@ import {
     LightdashAnalytics,
     parseAnalyticsLimit,
 } from '../analytics/LightdashAnalytics';
-import { S3Client } from '../clients/Aws/s3';
+import { S3Client } from '../clients/Aws/S3Client';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../clients/Slack/SlackClient';
@@ -86,8 +92,8 @@ import {
     getNotificationChannelErrorBlocks,
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
-import { AiService } from '../ee/services/AiService/AiService';
 import Logger from '../logging/logger';
+import { isFeatureFlagEnabled } from '../postHog';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
 import { CsvService } from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
@@ -499,7 +505,7 @@ export default class SchedulerTask {
             } = scheduler;
 
             await this.schedulerService.logSchedulerJob({
-                task: 'sendSlackNotification',
+                task: SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
                 schedulerUuid,
                 jobId,
                 jobGroup: notification.jobGroup,
@@ -507,6 +513,11 @@ export default class SchedulerTask {
                 target: channel,
                 targetType: 'slack',
                 status: SchedulerJobStatus.STARTED,
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
             });
 
             // Backwards compatibility for old scheduled deliveries
@@ -618,18 +629,34 @@ export default class SchedulerTask {
                 });
 
                 if (pdfFile && message.ts) {
-                    // Add the pdf to the thread
-                    const pdfBuffer = await fs.readFile(pdfFile);
+                    try {
+                        // Add the pdf to the thread
+                        const pdfBuffer = await fs.readFile(pdfFile);
 
-                    await this.slackClient.postFileToThread({
-                        organizationUuid,
-                        file: pdfBuffer,
-                        title: name,
-                        channelId: channel,
-                        threadTs: message.ts,
-                        filename: `${name}.pdf`,
-                        fileType: 'pdf',
-                    });
+                        await this.slackClient.postFileToThread({
+                            organizationUuid,
+                            file: pdfBuffer,
+                            title: name,
+                            channelId: channel,
+                            threadTs: message.ts,
+                            filename: `${name}.pdf`,
+                            fileType: 'pdf',
+                        });
+                    } catch (err) {
+                        if (
+                            err instanceof Error &&
+                            'code' in err &&
+                            err.code === 'ENOENT'
+                        ) {
+                            throw new ReadFileError(
+                                `PDF file not found for ${name}`,
+                                {
+                                    filePath: pdfFile,
+                                },
+                            );
+                        }
+                        throw err;
+                    }
                 }
             } else {
                 let blocks;
@@ -681,7 +708,7 @@ export default class SchedulerTask {
                 },
             });
             await this.schedulerService.logSchedulerJob({
-                task: 'sendSlackNotification',
+                task: SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
                 schedulerUuid,
                 jobId,
                 jobGroup: notification.jobGroup,
@@ -690,6 +717,11 @@ export default class SchedulerTask {
                 target: channel,
                 targetType: 'slack',
                 status: SchedulerJobStatus.COMPLETED,
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
             });
         } catch (e) {
             this.analytics.track({
@@ -707,7 +739,7 @@ export default class SchedulerTask {
             });
 
             await this.schedulerService.logSchedulerJob({
-                task: 'sendSlackNotification',
+                task: SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
                 schedulerUuid,
                 jobId,
                 jobGroup: notification.jobGroup,
@@ -715,7 +747,12 @@ export default class SchedulerTask {
                 scheduledTime,
                 targetType: 'slack',
                 status: SchedulerJobStatus.ERROR,
-                details: { error: getErrorMessage(e) },
+                details: {
+                    error: getErrorMessage(e),
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
             });
 
             if (e instanceof SlackInstallationNotFoundError) {
@@ -744,7 +781,7 @@ export default class SchedulerTask {
     ) {
         const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
             {
-                task: 'compileProject',
+                task: SCHEDULER_TASKS.COMPILE_PROJECT,
                 jobId,
                 scheduledTime,
             };
@@ -755,7 +792,11 @@ export default class SchedulerTask {
 
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
-                details: { createdByUserUuid: payload.createdByUserUuid },
+                details: {
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.createdByUserUuid,
+                },
                 status: SchedulerJobStatus.STARTED,
             });
 
@@ -768,7 +809,11 @@ export default class SchedulerTask {
 
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
-                details: {},
+                details: {
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.createdByUserUuid,
+                },
                 status: SchedulerJobStatus.COMPLETED,
             });
             if (process.env.IS_PULL_REQUEST !== 'true' && !payload.isPreview) {
@@ -776,7 +821,7 @@ export default class SchedulerTask {
                     userUuid: payload.createdByUserUuid,
                     projectUuid: payload.projectUuid,
                     context: 'test_and_compile',
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: payload.organizationUuid,
                 });
             }
         } catch (e) {
@@ -786,6 +831,8 @@ export default class SchedulerTask {
                 details: {
                     createdByUserUuid: payload.createdByUserUuid,
                     error: getErrorMessage(e),
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
                 },
             });
             throw e;
@@ -799,7 +846,7 @@ export default class SchedulerTask {
     ) {
         const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
             {
-                task: 'createProjectWithCompile',
+                task: SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE,
                 jobId,
                 scheduledTime,
             };
@@ -811,7 +858,11 @@ export default class SchedulerTask {
 
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
-                details: { createdByUserUuid: payload.createdByUserUuid },
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    projectUuid: undefined,
+                    organizationUuid: payload.organizationUuid,
+                },
                 status: SchedulerJobStatus.STARTED,
             });
 
@@ -837,6 +888,8 @@ export default class SchedulerTask {
                 ...baseLog,
                 details: {
                     projectUuid: projectCreationResult.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.createdByUserUuid,
                 },
                 status: SchedulerJobStatus.COMPLETED,
             });
@@ -846,6 +899,8 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.createdByUserUuid,
+                    projectUuid: undefined,
+                    organizationUuid: payload.organizationUuid,
                     error: e,
                 },
             });
@@ -862,7 +917,7 @@ export default class SchedulerTask {
     ) {
         const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
             {
-                task: 'compileProject',
+                task: SCHEDULER_TASKS.COMPILE_PROJECT,
                 jobId,
                 scheduledTime,
             };
@@ -873,7 +928,11 @@ export default class SchedulerTask {
 
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
-                details: { createdByUserUuid: payload.createdByUserUuid },
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
                 status: SchedulerJobStatus.STARTED,
             });
 
@@ -885,7 +944,11 @@ export default class SchedulerTask {
             );
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
-                details: {},
+                details: {
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.createdByUserUuid,
+                },
                 status: SchedulerJobStatus.COMPLETED,
             });
             if (process.env.IS_PULL_REQUEST !== 'true' && !payload.isPreview) {
@@ -893,7 +956,25 @@ export default class SchedulerTask {
                     projectUuid: payload.projectUuid,
                     context: 'dbt_refresh',
                     userUuid: payload.createdByUserUuid,
+                    organizationUuid: payload.organizationUuid,
+                });
+            }
+            const canReplaceCustomMetrics = await isFeatureFlagEnabled(
+                FeatureFlags.ReplaceCustomMetricsOnCompile,
+                {
+                    userUuid: user.userUuid,
                     organizationUuid: user.organizationUuid,
+                },
+                {
+                    throwOnTimeout: false,
+                },
+            );
+            if (canReplaceCustomMetrics) {
+                // Don't wait for replaceCustomFields response
+                void this.schedulerClient.replaceCustomFields({
+                    userUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
                 });
             }
         } catch (e) {
@@ -901,8 +982,11 @@ export default class SchedulerTask {
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
                 details: {
-                    createdByUserUuid: payload.createdByUserUuid,
+                    userUuid: payload.userUuid,
                     error: getErrorMessage(e),
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.createdByUserUuid,
                 },
             });
             throw e;
@@ -915,10 +999,15 @@ export default class SchedulerTask {
         payload: ValidateProjectPayload,
     ) {
         await this.schedulerService.logSchedulerJob({
-            task: 'validateProject',
+            task: SCHEDULER_TASKS.VALIDATE_PROJECT,
             jobId,
             scheduledTime,
             status: SchedulerJobStatus.STARTED,
+            details: {
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
+                createdByUserUuid: payload.userUuid,
+            },
         });
 
         this.analytics.track({
@@ -966,10 +1055,15 @@ export default class SchedulerTask {
             });
 
             await this.schedulerService.logSchedulerJob({
-                task: 'validateProject',
+                task: SCHEDULER_TASKS.VALIDATE_PROJECT,
                 jobId,
                 scheduledTime,
                 status: SchedulerJobStatus.COMPLETED,
+                details: {
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.userUuid,
+                },
             });
         } catch (e) {
             this.analytics.track({
@@ -984,11 +1078,16 @@ export default class SchedulerTask {
             });
 
             await this.schedulerService.logSchedulerJob({
-                task: 'validateProject',
+                task: SCHEDULER_TASKS.VALIDATE_PROJECT,
                 jobId,
                 scheduledTime,
                 status: SchedulerJobStatus.ERROR,
-                details: { error: getErrorMessage(e) },
+                details: {
+                    error: getErrorMessage(e),
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.userUuid,
+                },
             });
             throw e;
         }
@@ -1001,14 +1100,18 @@ export default class SchedulerTask {
     ) {
         const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
             {
-                task: 'downloadCsv',
+                task: SCHEDULER_TASKS.DOWNLOAD_CSV,
                 jobId,
                 scheduledTime,
             };
         try {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
-                details: { createdByUserUuid: payload.userUuid },
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
                 status: SchedulerJobStatus.STARTED,
             });
 
@@ -1020,6 +1123,8 @@ export default class SchedulerTask {
                 ...baseLog,
                 details: {
                     fileUrl,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
                     createdByUserUuid: payload.userUuid,
                     truncated,
                 },
@@ -1032,6 +1137,8 @@ export default class SchedulerTask {
                 details: {
                     createdByUserUuid: payload.userUuid,
                     error: getErrorMessage(e),
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
                 },
             });
             throw e; // Cascade error to it can be retried by graphile
@@ -1082,10 +1189,14 @@ export default class SchedulerTask {
     ) {
         await this.logWrapper(
             {
-                task: semanticLayerQueryJob,
+                task: SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY,
                 jobId,
                 scheduledTime,
-                details: { createdByUserUuid: payload.userUuid },
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
             },
             async () => this.semanticLayerService.streamQueryIntoFile(payload),
         );
@@ -1098,10 +1209,14 @@ export default class SchedulerTask {
     ) {
         await this.logWrapper<string | VizColumn[]>(
             {
-                task: sqlRunnerJob,
+                task: SCHEDULER_TASKS.SQL_RUNNER,
                 jobId,
                 scheduledTime,
-                details: { createdByUserUuid: payload.userUuid },
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
             },
             async () => {
                 const { fileUrl, columns } =
@@ -1118,10 +1233,14 @@ export default class SchedulerTask {
     ) {
         await this.logWrapper(
             {
-                task: sqlRunnerPivotQueryJob,
+                task: SCHEDULER_TASKS.SQL_RUNNER_PIVOT_QUERY,
                 jobId,
                 scheduledTime,
-                details: { createdByUserUuid: payload.userUuid },
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
             },
             async () => this.projectService.pivotQueryWorkerTask(payload),
         );
@@ -1134,7 +1253,7 @@ export default class SchedulerTask {
     ) {
         const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
             {
-                task: 'uploadGsheetFromQuery',
+                task: SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY,
                 jobId,
                 scheduledTime,
             };
@@ -1155,7 +1274,11 @@ export default class SchedulerTask {
             }
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
-                details: { createdByUserUuid: payload.userUuid },
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
                 status: SchedulerJobStatus.STARTED,
             });
 
@@ -1252,6 +1375,8 @@ export default class SchedulerTask {
                     fileUrl: spreadsheetUrl,
                     createdByUserUuid: payload.userUuid,
                     truncated,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
                 },
                 status: SchedulerJobStatus.COMPLETED,
             });
@@ -1268,6 +1393,8 @@ export default class SchedulerTask {
                 details: {
                     createdByUserUuid: payload.userUuid,
                     error: getErrorMessage(e),
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
                 },
             });
 
@@ -1317,11 +1444,15 @@ export default class SchedulerTask {
             } = scheduler;
 
             await this.schedulerService.logSchedulerJob({
-                task: 'sendEmailNotification',
+                task: SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION,
                 schedulerUuid,
                 jobId,
                 jobGroup: notification.jobGroup,
-
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
                 scheduledTime,
                 target: recipient,
                 targetType: 'email',
@@ -1482,11 +1613,15 @@ export default class SchedulerTask {
                 },
             });
             await this.schedulerService.logSchedulerJob({
-                task: 'sendEmailNotification',
+                task: SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION,
                 schedulerUuid,
                 jobId,
                 jobGroup: notification.jobGroup,
-
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
                 scheduledTime,
                 target: recipient,
                 targetType: 'email',
@@ -1507,14 +1642,19 @@ export default class SchedulerTask {
                 },
             });
             await this.schedulerService.logSchedulerJob({
-                task: 'sendEmailNotification',
+                task: SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION,
                 schedulerUuid,
                 jobId,
                 jobGroup: notification.jobGroup,
                 scheduledTime,
                 targetType: 'email',
                 status: SchedulerJobStatus.ERROR,
-                details: { error: getErrorMessage(e) },
+                details: {
+                    error: getErrorMessage(e),
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
             });
 
             throw e; // Cascade error to it can be retried by graphile
@@ -1639,7 +1779,7 @@ export default class SchedulerTask {
                 : undefined;
 
             await this.schedulerService.logSchedulerJob({
-                task: 'uploadGsheets',
+                task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
                 schedulerUuid,
                 jobId,
                 jobGroup: notification.jobGroup,
@@ -1647,6 +1787,11 @@ export default class SchedulerTask {
                 target: gdriveId,
                 targetType: 'gsheets',
                 status: SchedulerJobStatus.STARTED,
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
             });
             user = await this.userService.getSessionByUserUuid(
                 scheduler.createdBy,
@@ -1917,7 +2062,7 @@ export default class SchedulerTask {
                 },
             });
             await this.schedulerService.logSchedulerJob({
-                task: 'uploadGsheets',
+                task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
                 schedulerUuid,
                 jobId,
                 jobGroup: notification.jobGroup,
@@ -1925,6 +2070,11 @@ export default class SchedulerTask {
                 target: gdriveId,
                 targetType: 'gsheets',
                 status: SchedulerJobStatus.COMPLETED,
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
             });
         } catch (e) {
             this.analytics.track({
@@ -1940,14 +2090,19 @@ export default class SchedulerTask {
                 },
             });
             await this.schedulerService.logSchedulerJob({
-                task: 'uploadGsheets',
+                task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
                 schedulerUuid,
                 jobId,
                 jobGroup: notification.jobGroup,
                 scheduledTime,
                 targetType: 'gsheets',
                 status: SchedulerJobStatus.ERROR,
-                details: { error: getErrorMessage(e) },
+                details: {
+                    error: getErrorMessage(e),
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
             });
             const shouldDisableSync =
                 e instanceof ForbiddenError ||
@@ -2003,10 +2158,15 @@ export default class SchedulerTask {
         schedulerUuid: string | undefined,
         jobId: string,
         scheduledTime: Date,
+        details: {
+            projectUuid: string;
+            organizationUuid: string;
+            createdByUserUuid: string;
+        },
     ) {
         if (format === SchedulerFormat.GSHEETS) {
             await this.schedulerService.logSchedulerJob({
-                task: 'uploadGsheets',
+                task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
                 target: undefined,
                 targetType: 'gsheets',
                 jobId: targetJobId,
@@ -2014,6 +2174,7 @@ export default class SchedulerTask {
                 jobGroup: jobId,
                 scheduledTime,
                 status: SchedulerJobStatus.SCHEDULED,
+                details,
             });
             return;
         }
@@ -2027,13 +2188,13 @@ export default class SchedulerTask {
         > => {
             if (isCreateSchedulerSlackTarget(target)) {
                 return {
-                    task: 'sendSlackNotification',
+                    task: SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
                     target: target.channel,
                     targetType: 'slack',
                 };
             }
             return {
-                task: 'sendEmailNotification',
+                task: SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION,
                 target: target.recipient,
                 targetType: 'email',
             };
@@ -2049,6 +2210,7 @@ export default class SchedulerTask {
             jobGroup: jobId,
             scheduledTime,
             status: SchedulerJobStatus.SCHEDULED,
+            details,
         });
     }
 
@@ -2065,6 +2227,7 @@ export default class SchedulerTask {
                 : await this.schedulerService.schedulerModel.getSchedulerAndTargets(
                       schedulerPayload.schedulerUuid,
                   );
+
         if (!scheduler.enabled) {
             // This should not happen, if schedulers are not enabled, we should remove the scheduled jobs from the queue
             throw new Error('Scheduler is disabled');
@@ -2081,13 +2244,24 @@ export default class SchedulerTask {
             },
         });
         await this.schedulerService.logSchedulerJob({
-            task: 'handleScheduledDelivery',
+            task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
             schedulerUuid,
             jobId,
             jobGroup: jobId,
             scheduledTime,
             status: SchedulerJobStatus.STARTED,
+            details: {
+                projectUuid: schedulerPayload.projectUuid,
+                organizationUuid: schedulerPayload.organizationUuid,
+                createdByUserUuid: schedulerPayload.userUuid,
+            },
         });
+
+        const traceProperties = {
+            organizationUuid: schedulerPayload.organizationUuid,
+            projectUuid: schedulerPayload.projectUuid,
+            userUuid: schedulerPayload.userUuid,
+        };
 
         const {
             createdBy: userUuid,
@@ -2156,6 +2330,7 @@ export default class SchedulerTask {
                     scheduler,
                     page,
                     jobId,
+                    traceProperties,
                 );
 
             // Create scheduled jobs for targets
@@ -2168,17 +2343,27 @@ export default class SchedulerTask {
                         schedulerUuid,
                         jobId,
                         scheduledTime,
+                        {
+                            projectUuid: schedulerPayload.projectUuid,
+                            organizationUuid: schedulerPayload.organizationUuid,
+                            createdByUserUuid: schedulerPayload.userUuid,
+                        },
                     ),
                 ),
             );
 
             await this.schedulerService.logSchedulerJob({
-                task: 'handleScheduledDelivery',
+                task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
                 schedulerUuid,
                 jobId,
                 jobGroup: jobId,
                 scheduledTime,
                 status: SchedulerJobStatus.COMPLETED,
+                details: {
+                    projectUuid: schedulerPayload.projectUuid,
+                    organizationUuid: schedulerPayload.organizationUuid,
+                    createdByUserUuid: schedulerPayload.userUuid,
+                },
             });
 
             this.analytics.track({
@@ -2200,13 +2385,18 @@ export default class SchedulerTask {
                 },
             });
             await this.schedulerService.logSchedulerJob({
-                task: 'handleScheduledDelivery',
+                task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
                 schedulerUuid,
                 jobId,
                 jobGroup: jobId,
                 scheduledTime,
                 status: SchedulerJobStatus.ERROR,
-                details: { error: getErrorMessage(e) },
+                details: {
+                    error: getErrorMessage(e),
+                    projectUuid: schedulerPayload.projectUuid,
+                    organizationUuid: schedulerPayload.organizationUuid,
+                    createdByUserUuid: schedulerPayload.userUuid,
+                },
             });
 
             if (e instanceof NotEnoughResults) {
@@ -2243,12 +2433,13 @@ export default class SchedulerTask {
     ) {
         await this.logWrapper(
             {
-                task: indexCatalogJob,
+                task: SCHEDULER_TASKS.INDEX_CATALOG,
                 jobId,
                 scheduledTime,
                 details: {
                     createdByUserUuid: payload.userUuid,
                     projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
                 },
             },
             async () => {
@@ -2279,6 +2470,79 @@ export default class SchedulerTask {
                 );
 
                 return {}; // Don't pollute with more details
+            },
+        );
+    }
+
+    protected async exportCsvDashboard(
+        jobId: string,
+        scheduledTime: Date,
+        payload: ExportCsvDashboardPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
+            },
+            async () => {
+                const url =
+                    await this.csvService.runScheduledExportCsvDashboard(
+                        payload,
+                    );
+                return { url };
+            },
+        );
+    }
+
+    protected async replaceCustomFields(
+        jobId: string,
+        scheduledTime: Date,
+        payload: ReplaceCustomFieldsPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS,
+                jobId,
+                scheduledTime,
+                details: {
+                    userUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.userUuid,
+                },
+            },
+            async (): Promise<{
+                replaceableCustomFields: ReplaceableCustomFields;
+                replaceFields: ReplaceCustomFields;
+                updatedCharts: Array<Pick<SavedChartDAO, 'uuid' | 'name'>>;
+            }> => {
+                const replaceableCustomFields =
+                    await this.projectService.findReplaceableCustomFields(
+                        payload,
+                    );
+                const replaceFields =
+                    convertReplaceableFieldMatchMapToReplaceCustomFields(
+                        replaceableCustomFields,
+                    );
+                const updatedCharts =
+                    await this.projectService.replaceCustomFields({
+                        userUuid: payload.userUuid,
+                        projectUuid: payload.projectUuid,
+                        organizationUuid: payload.organizationUuid,
+                        replaceFields,
+                        skipChartsUpdatedAfter: scheduledTime,
+                    });
+                return {
+                    replaceableCustomFields,
+                    replaceFields,
+                    updatedCharts,
+                };
             },
         );
     }

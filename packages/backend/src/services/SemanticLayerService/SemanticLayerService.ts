@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     AnyType,
-    assertUnreachable,
     ForbiddenError,
     MissingConfigError,
     ParameterError,
@@ -14,10 +13,11 @@ import {
     SemanticLayerType,
     SemanticLayerView,
     SessionUser,
+    assertUnreachable,
     type AbilityAction,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { S3Client } from '../../clients/Aws/s3';
+import { S3Client } from '../../clients/Aws/S3Client';
 import CubeClient from '../../clients/cube/CubeClient';
 import DbtCloudGraphqlClient from '../../clients/dbtCloud/DbtCloudGraphqlClient';
 import { LightdashConfig } from '../../config/parseConfig';

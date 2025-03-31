@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     AlreadyExistsError,
+    CommercialFeatureFlags,
     CreateScimOrganizationAccessToken,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     GroupWithMembers,
@@ -28,9 +28,9 @@ import * as Sentry from '@sentry/node';
 import { groupBy } from 'lodash';
 import {
     InvalidScimPatchRequest,
+    ScimResource as PatchLibScimResource,
     ScimPatch,
     scimPatch,
-    ScimResource as PatchLibScimResource,
 } from 'scim-patch';
 import { parse } from 'scim2-parse-filter';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -40,12 +40,12 @@ import { EmailModel } from '../../../models/EmailModel';
 import { GroupsModel } from '../../../models/GroupsModel';
 import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
 import { UserModel } from '../../../models/UserModel';
-import { isFeatureFlagEnabled } from '../../../postHog';
 import { BaseService } from '../../../services/BaseService';
 import {
     ScimAccessTokenAuthenticationEvent,
     ScimAccessTokenEvent,
 } from '../../analytics';
+import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
 import { ScimOrganizationAccessTokenModel } from '../../models/ScimOrganizationAccessTokenModel';
 
 type ScimServiceArguments = {
@@ -56,6 +56,7 @@ type ScimServiceArguments = {
     analytics: LightdashAnalytics;
     groupsModel: GroupsModel;
     scimOrganizationAccessTokenModel: ScimOrganizationAccessTokenModel;
+    commercialFeatureFlagModel: CommercialFeatureFlagModel;
 };
 
 export class ScimService extends BaseService {
@@ -73,6 +74,8 @@ export class ScimService extends BaseService {
 
     private readonly scimOrganizationAccessTokenModel: ScimOrganizationAccessTokenModel;
 
+    private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
+
     constructor({
         lightdashConfig,
         organizationMemberProfileModel,
@@ -81,6 +84,7 @@ export class ScimService extends BaseService {
         analytics,
         groupsModel,
         scimOrganizationAccessTokenModel,
+        commercialFeatureFlagModel,
     }: ScimServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -91,6 +95,7 @@ export class ScimService extends BaseService {
         this.groupsModel = groupsModel;
         this.scimOrganizationAccessTokenModel =
             scimOrganizationAccessTokenModel;
+        this.commercialFeatureFlagModel = commercialFeatureFlagModel;
     }
 
     private static throwForbiddenErrorOnNoPermission(user: SessionUser) {
@@ -106,16 +111,14 @@ export class ScimService extends BaseService {
         }
     }
 
-    private static async throwErrorOnFeatureDisabled(user: SessionUser) {
-        const isScimTokenManagementEnabled = await isFeatureFlagEnabled(
-            'scim-token-management' as FeatureFlags,
-            user,
-            {
-                throwOnTimeout: true,
-            },
-        );
+    private async throwErrorOnFeatureDisabled(user: SessionUser) {
+        const isScimTokenManagementEnabled =
+            await this.commercialFeatureFlagModel.get({
+                user,
+                featureFlagId: CommercialFeatureFlags.Scim,
+            });
 
-        if (!isScimTokenManagementEnabled) {
+        if (!isScimTokenManagementEnabled.enabled) {
             throw new Error('SCIM token management feature not enabled!');
         }
     }
@@ -249,11 +252,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to retrieve SCIM user: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: getErrorMessage(error),
                 status: ScimService.getErrorStatus(error) ?? 404,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -392,11 +396,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to create SCIM user: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: 'Failed to create SCIM user',
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -522,11 +527,12 @@ export class ScimService extends BaseService {
                                 error,
                             )}`,
                         );
-                        Sentry.captureException(error);
-                        throw new ScimError({
+                        const scimError = new ScimError({
                             detail: 'Failed to patch SCIM user',
                             status: ScimService.getErrorStatus(error) ?? 500,
                         });
+                        Sentry.captureException(scimError);
+                        throw scimError;
                 }
             }
             throw new ScimError({
@@ -596,11 +602,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to delete SCIM user: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: 'Failed to delete SCIM user',
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -632,11 +639,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to retrieve SCIM user: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: getErrorMessage(error),
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -704,11 +712,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to retrieve SCIM groups: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: getErrorMessage(error),
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -768,11 +777,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to replace SCIM group: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: getErrorMessage(error),
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -847,11 +857,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to replace SCIM group: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: getErrorMessage(error),
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -932,11 +943,12 @@ export class ScimService extends BaseService {
                                 error,
                             )}`,
                         );
-                        Sentry.captureException(error);
-                        throw new ScimError({
+                        const scimError = new ScimError({
                             detail: 'Failed to patch SCIM group',
                             status: ScimService.getErrorStatus(error) ?? 500,
                         });
+                        Sentry.captureException(scimError);
+                        throw scimError;
                 }
             }
             throw new ScimError({
@@ -984,11 +996,12 @@ export class ScimService extends BaseService {
             Logger.error(
                 `Failed to delete SCIM group: ${getErrorMessage(error)}`,
             );
-            Sentry.captureException(error);
-            throw new ScimError({
+            const scimError = new ScimError({
                 detail: getErrorMessage(error),
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
@@ -1000,7 +1013,7 @@ export class ScimService extends BaseService {
         tokenDetails: CreateScimOrganizationAccessToken;
     }): Promise<ScimOrganizationAccessToken> {
         try {
-            await ScimService.throwErrorOnFeatureDisabled(user);
+            await this.throwErrorOnFeatureDisabled(user);
             ScimService.throwForbiddenErrorOnNoPermission(user);
             const token = await this.scimOrganizationAccessTokenModel.create({
                 user,
@@ -1034,7 +1047,7 @@ export class ScimService extends BaseService {
         tokenUuid: string;
     }): Promise<void> {
         try {
-            await ScimService.throwErrorOnFeatureDisabled(user);
+            await this.throwErrorOnFeatureDisabled(user);
             ScimService.throwForbiddenErrorOnNoPermission(user);
             const organizationUuid = user.organizationUuid as string;
             // get by uuid to check if token exists
@@ -1081,7 +1094,7 @@ export class ScimService extends BaseService {
         tokenUuid: string;
         update: { expiresAt: Date };
     }): Promise<ScimOrganizationAccessTokenWithToken> {
-        await ScimService.throwErrorOnFeatureDisabled(user);
+        await this.throwErrorOnFeatureDisabled(user);
         ScimService.throwForbiddenErrorOnNoPermission(user);
 
         if (update.expiresAt.getTime() < Date.now()) {
@@ -1137,7 +1150,7 @@ export class ScimService extends BaseService {
         user: SessionUser;
         tokenUuid: string;
     }): Promise<ScimOrganizationAccessToken> {
-        await ScimService.throwErrorOnFeatureDisabled(user);
+        await this.throwErrorOnFeatureDisabled(user);
         ScimService.throwForbiddenErrorOnNoPermission(user);
 
         // get by uuid to check if token exists
@@ -1159,7 +1172,7 @@ export class ScimService extends BaseService {
         user: SessionUser,
     ): Promise<ScimOrganizationAccessToken[]> {
         try {
-            await ScimService.throwErrorOnFeatureDisabled(user);
+            await this.throwErrorOnFeatureDisabled(user);
             ScimService.throwForbiddenErrorOnNoPermission(user);
             const organizationUuid = user.organizationUuid as string;
             const tokens =

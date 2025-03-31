@@ -6,8 +6,6 @@ import {
     ChartKind,
     ChartType,
     DbtProjectType,
-    getErrorMessage,
-    getRequestMethod,
     LightdashInstallType,
     LightdashMode,
     LightdashRequestMethodHeader,
@@ -23,6 +21,8 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    getErrorMessage,
+    getRequestMethod,
     type SemanticLayerType,
 } from '@lightdash/common';
 import Analytics, {
@@ -202,7 +202,7 @@ export const getContextFromQueryOrHeader = (
     return getContextFromHeader(req);
 };
 
-type MetricQueryExecutionProperties = {
+export type MetricQueryExecutionProperties = {
     chartId?: string;
     metricsCount: number;
     dimensionsCount: number;
@@ -210,6 +210,7 @@ type MetricQueryExecutionProperties = {
     tableCalculationsPercentFormatCount: number;
     tableCalculationsCurrencyFormatCount: number;
     tableCalculationsNumberFormatCount: number;
+    tableCalculationCustomFormatCount: number;
     filtersCount: number;
     sortsCount: number;
     hasExampleMetric: boolean;
@@ -218,6 +219,7 @@ type MetricQueryExecutionProperties = {
     additionalMetricsPercentFormatCount: number;
     additionalMetricsCurrencyFormatCount: number;
     additionalMetricsNumberFormatCount: number;
+    additionalMetricsCustomFormatCount: number;
     numFixedWidthBinCustomDimensions: number;
     numFixedBinsBinCustomDimensions: number;
     numCustomRangeBinCustomDimensions: number;
@@ -226,7 +228,14 @@ type MetricQueryExecutionProperties = {
     timezone?: string;
     virtualViewId?: string;
     metricOverridesCount: number;
+    limit: number;
 };
+
+type PaginatedMetricQueryExecutionProperties =
+    MetricQueryExecutionProperties & {
+        queryId: string;
+        warehouseType: WarehouseTypes;
+    };
 
 type SqlExecutionProperties = {
     sqlChartId?: string;
@@ -246,10 +255,59 @@ type QueryExecutionEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
     } & (
+        | PaginatedMetricQueryExecutionProperties
         | MetricQueryExecutionProperties
         | SqlExecutionProperties
         | SemanticViewerExecutionProperties
     );
+};
+
+type QueryReadyEvent = BaseTrack & {
+    event: 'query.ready';
+    properties: {
+        queryId: string;
+        projectId: string;
+        warehouseType: WarehouseTypes;
+        warehouseExecutionTimeMs: number | null;
+        totalRowCount: number | null;
+        columnsCount: number | null;
+    };
+};
+
+type QueryErrorEvent = BaseTrack & {
+    event: 'query.error';
+    properties: {
+        queryId: string;
+        projectId: string;
+        warehouseType: WarehouseTypes;
+    };
+};
+
+type QueryPageEvent = BaseTrack & {
+    event: 'query_page.fetched';
+    properties: {
+        queryId: string;
+        projectId: string;
+        warehouseType: WarehouseTypes;
+        page: number;
+        columnsCount: number;
+        totalRowCount: number;
+        totalPageCount: number;
+        resultsPageSize: number;
+        resultsPageExecutionMs: number;
+    };
+};
+
+type SubtotalQueryEvent = BaseTrack & {
+    event: 'query.subtotal';
+    properties: {
+        context: QueryExecutionContext.CALCULATE_SUBTOTAL;
+        organizationId: string;
+        projectId: string;
+        exploreName: string;
+        subtotalDimensionGroups: string[];
+        subtotalQueryCount: number;
+    };
 };
 
 type CreateOrganizationEvent = BaseTrack & {
@@ -611,6 +669,7 @@ type ProjectSearch = BaseTrack & {
         sqlChartsResultsCount: number;
         tablesResultsCount: number;
         fieldsResultsCount: number;
+        dashboardTabsResultsCount: number;
     };
 };
 type DashboardUpdateMultiple = BaseTrack & {
@@ -994,7 +1053,6 @@ export type Validation = BaseTrack & {
         organizationId?: string;
         projectId: string;
         validationRunId?: number;
-
         context?: ValidateProjectPayload['context'];
         numErrorsDetected?: number;
         numContentAffected?: number;
@@ -1111,13 +1169,26 @@ export type GithubInstallEvent = BaseTrack & {
 };
 
 export type WriteBackEvent = BaseTrack & {
-    event: 'write_back.created';
+    event: 'write_back.created' | 'write_back.previewed';
     userId: string;
     properties: {
         name: string;
         organizationId: string;
         projectId: string;
         context: QueryExecutionContext;
+        customMetricsCount?: number;
+    };
+};
+
+export type WriteBackErrorEvent = BaseTrack & {
+    event: 'write_back.error';
+    userId: string;
+    properties: {
+        name: string;
+        organizationId: string;
+        projectId: string;
+        context: QueryExecutionContext;
+        error: string;
     };
 };
 
@@ -1143,6 +1214,27 @@ export type CategoriesAppliedEvent = BaseTrack & {
     };
 };
 
+export type CustomFieldsReplaced = BaseTrack & {
+    event: 'custom_fields.replaced';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        chartsCount: number;
+    };
+};
+
+export type DeprecatedRouteCalled = BaseTrack & {
+    event: 'deprecated_route.called';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        route: string;
+        context: string;
+    };
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -1151,6 +1243,9 @@ type TypedEvent =
     | VerifiedUserEvent
     | UserJoinOrganizationEvent
     | QueryExecutionEvent
+    | QueryReadyEvent
+    | QueryErrorEvent
+    | QueryPageEvent
     | ModeDashboardChartEvent
     | UpdateSavedChartEvent
     | DeleteSavedChartEvent
@@ -1218,9 +1313,13 @@ type TypedEvent =
     | VirtualViewEvent
     | GithubInstallEvent
     | WriteBackEvent
+    | WriteBackErrorEvent
     | SchedulerTimezoneUpdateEvent
     | CreateTagEvent
-    | CategoriesAppliedEvent;
+    | CategoriesAppliedEvent
+    | CustomFieldsReplaced
+    | SubtotalQueryEvent
+    | DeprecatedRouteCalled;
 
 type WrapTypedEvent = SemanticLayerView;
 

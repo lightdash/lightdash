@@ -529,11 +529,10 @@ export class PromoteService extends BaseService {
                                   slug: changeChart.slug,
                               };
                     return this.savedChartModel
-                        .create(
-                            changeChart.projectUuid,
-                            user.userUuid,
-                            chartData,
-                        )
+                        .create(changeChart.projectUuid, user.userUuid, {
+                            ...chartData,
+                            forceSlug: true,
+                        })
                         .then((chart) => ({
                             ...chart,
                             oldUuid: changeChart.oldUuid,
@@ -747,7 +746,10 @@ export class PromoteService extends BaseService {
         // Update dashboard with new space if it was created
         const newDashboard = await this.dashboardModel.create(
             promotedDashboard.spaceUuid,
-            promotedDashboard,
+            {
+                ...promotedDashboard,
+                forceSlug: true,
+            },
             user,
             promotedDashboard.projectUuid,
         );

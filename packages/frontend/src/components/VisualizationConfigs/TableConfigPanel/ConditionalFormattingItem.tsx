@@ -1,15 +1,21 @@
 import {
-    assertUnreachable,
+    ConditionalFormattingComparisonType,
     ConditionalFormattingConfigType,
-    createConditionalFormatingRule,
+    assertUnreachable,
     createConditionalFormattingConfigWithColorRange,
     createConditionalFormattingConfigWithSingleColor,
+    createConditionalFormattingRuleWithCompareTarget,
+    createConditionalFormattingRuleWithCompareTargetValues,
+    createConditionalFormattingRuleWithValues,
     getConditionalFormattingConfigType,
     getItemId,
     getItemLabelWithoutTableName,
-    hasPercentageFormat,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isConditionalFormattingWithCompareTarget,
+    isNumericItem,
+    isStringDimension,
+    type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithColorRange,
     type ConditionalFormattingWithConditionalOperator,
@@ -25,16 +31,17 @@ import {
     SegmentedControl,
     Stack,
 } from '@mantine/core';
-import { IconPercentage, IconPlus } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
-import FilterNumberInput from '../../common/Filters/FilterInputs/FilterNumberInput';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
 import { Config } from '../common/Config';
+import ConditionalFormattingItemColorRange from './ConditionalFormattingItemColorRange';
 import ConditionalFormattingRule from './ConditionalFormattingRule';
 
 type Props = {
@@ -67,6 +74,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
 }) => {
     const [isAddingRule, setIsAddingRule] = useState(false);
     const [config, setConfig] = useState<ConditionalFormattingConfig>(value);
+    const { itemsMap } = useVisualizationContext();
 
     const field = useMemo(
         () => fields.find((f) => getItemId(f) === config?.target?.fieldId),
@@ -89,13 +97,62 @@ export const ConditionalFormattingItem: FC<Props> = ({
         (newField: FilterableItem | undefined) => {
             handleChange(
                 produce(config, (draft) => {
-                    draft.target = newField
-                        ? { fieldId: getItemId(newField) }
-                        : null;
+                    const currentField = draft.target?.fieldId
+                        ? itemsMap?.[draft.target?.fieldId]
+                        : undefined;
+                    // Reset the config if the field type changes
+                    // TODO: move to a helper function
+                    const shouldReset =
+                        (isNumericItem(currentField) &&
+                            isStringDimension(newField)) ||
+                        (isStringDimension(currentField) &&
+                            isNumericItem(newField));
+
+                    if (shouldReset && newField) {
+                        // Reset the config if the field type changes
+                        return createConditionalFormattingConfigWithSingleColor(
+                            colorPalette[0],
+                            { fieldId: getItemId(newField) },
+                        );
+                    } else if (newField) {
+                        // Update the target if the field is changed
+                        draft.target = { fieldId: getItemId(newField) };
+
+                        if (
+                            isConditionalFormattingConfigWithSingleColor(draft)
+                        ) {
+                            draft.rules = draft.rules.map((rule) => {
+                                // When we're changing the field, we need to be sure that the compareTarget is set to null if it matches the new field
+                                // We cannot compare to the same field
+                                if (
+                                    isConditionalFormattingWithCompareTarget(
+                                        rule,
+                                    )
+                                ) {
+                                    if (
+                                        getItemId(newField) ===
+                                        rule.compareTarget?.fieldId
+                                    ) {
+                                        return {
+                                            ...rule,
+                                            compareTarget: null,
+                                        };
+                                    }
+                                }
+
+                                return rule;
+                            });
+                        }
+                    } else {
+                        // Reset the config if the field is removed
+                        return createConditionalFormattingConfigWithSingleColor(
+                            colorPalette[0],
+                        );
+                    }
                 }),
             );
         },
-        [handleChange, config],
+        [handleChange, config, colorPalette, itemsMap],
     );
 
     const handleConfigTypeChange = useCallback(
@@ -131,7 +188,9 @@ export const ConditionalFormattingItem: FC<Props> = ({
         if (isConditionalFormattingConfigWithSingleColor(config)) {
             handleChange(
                 produce(config, (draft) => {
-                    draft.rules.push(createConditionalFormatingRule());
+                    draft.rules.push(
+                        createConditionalFormattingRuleWithValues(),
+                    );
                 }),
             );
         }
@@ -166,6 +225,40 @@ export const ConditionalFormattingItem: FC<Props> = ({
         [handleChange, config],
     );
 
+    const handleChangeRuleComparisonType = useCallback(
+        (
+            index: number,
+            comparisonType: ConditionalFormattingComparisonType,
+        ) => {
+            if (isConditionalFormattingConfigWithSingleColor(config)) {
+                handleChange(
+                    produce(config, (draft) => {
+                        switch (comparisonType) {
+                            case ConditionalFormattingComparisonType.VALUES:
+                                draft.rules[index] =
+                                    createConditionalFormattingRuleWithValues();
+                                break;
+                            case ConditionalFormattingComparisonType.TARGET_FIELD:
+                                draft.rules[index] =
+                                    createConditionalFormattingRuleWithCompareTarget();
+                                break;
+                            case ConditionalFormattingComparisonType.TARGET_TO_VALUES:
+                                draft.rules[index] =
+                                    createConditionalFormattingRuleWithCompareTargetValues();
+                                break;
+                            default:
+                                assertUnreachable(
+                                    comparisonType,
+                                    'Unknown comparison type',
+                                );
+                        }
+                    }),
+                );
+            }
+        },
+        [handleChange, config],
+    );
+
     const handleChangeRule = useCallback(
         (
             index: number,
@@ -174,16 +267,12 @@ export const ConditionalFormattingItem: FC<Props> = ({
             if (isConditionalFormattingConfigWithSingleColor(config)) {
                 handleChange(
                     produce(config, (draft) => {
-                        // FIXME: check if we can fix this problem in number input
-                        draft.rules[index] = {
-                            ...newRule,
-                            values: newRule.values.map((v) => Number(v)),
-                        };
+                        draft.rules[index] = newRule;
                     }),
                 );
             }
         },
-        [handleChange, config],
+        [config, handleChange],
     );
 
     const handleChangeSingleColor = useCallback(
@@ -200,11 +289,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
     );
 
     const handleChangeColorRangeColor = useCallback(
-        (
-            newColor: Partial<
-                ConditionalFormattingConfigWithColorRange['color']
-            >,
-        ) => {
+        (newColor: Partial<ConditionalFormattingColorRange>) => {
             if (isConditionalFormattingConfigWithColorRange(config)) {
                 handleChange(
                     produce(config, (draft) => {
@@ -265,7 +350,6 @@ export const ConditionalFormattingItem: FC<Props> = ({
                 onControlClick={onControlClick}
                 onRemove={handleRemove}
             />
-
             <Accordion.Panel>
                 <Stack spacing="xs">
                     <FiltersProvider>
@@ -296,6 +380,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                             ConditionalFormattingConfigType
                                                 .Range
                                         ],
+                                        disabled: !isNumericItem(field),
                                     },
                                 ]}
                                 value={getConditionalFormattingConfigType(
@@ -340,7 +425,8 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                             hasRemove={config.rules.length > 1}
                                             ruleIndex={ruleIndex}
                                             rule={rule}
-                                            field={field || fields[0]}
+                                            field={field}
+                                            fields={fields}
                                             onChangeRule={(newRule) =>
                                                 handleChangeRule(
                                                     ruleIndex,
@@ -353,6 +439,14 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                                 handleChangeRuleOperator(
                                                     ruleIndex,
                                                     newOperator,
+                                                )
+                                            }
+                                            onChangeRuleComparisonType={(
+                                                newComparisonType,
+                                            ) =>
+                                                handleChangeRuleComparisonType(
+                                                    ruleIndex,
+                                                    newComparisonType,
                                                 )
                                             }
                                             onRemoveRule={() =>
@@ -378,76 +472,13 @@ export const ConditionalFormattingItem: FC<Props> = ({
                         ) : isConditionalFormattingConfigWithColorRange(
                               config,
                           ) ? (
-                            <Group spacing="xs" noWrap grow>
-                                <Group>
-                                    <Stack spacing="one">
-                                        <Config.Label>Start</Config.Label>
-                                        <ColorSelector
-                                            color={config.color.start}
-                                            swatches={colorPalette}
-                                            onColorChange={(newStartColor) => {
-                                                handleChangeColorRangeColor({
-                                                    start: newStartColor,
-                                                });
-                                            }}
-                                        />
-                                    </Stack>
-                                    <Stack spacing="one">
-                                        <Config.Label>End</Config.Label>
-                                        <ColorSelector
-                                            color={config.color.end}
-                                            swatches={colorPalette}
-                                            onColorChange={(newEndColor) => {
-                                                handleChangeColorRangeColor({
-                                                    end: newEndColor,
-                                                });
-                                            }}
-                                        />
-                                    </Stack>
-                                </Group>
-
-                                {/* FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7 */}
-                                {/* INFO: mantine v6 NumberInput does not handle decimal values properly */}
-                                <FilterNumberInput
-                                    label="Min"
-                                    icon={
-                                        hasPercentageFormat(field) ? (
-                                            <MantineIcon
-                                                icon={IconPercentage}
-                                            />
-                                        ) : null
-                                    }
-                                    value={config.rule.min}
-                                    onChange={(newMin) => {
-                                        if (newMin === null) return;
-
-                                        handleChangeColorRangeRule({
-                                            min: newMin,
-                                        });
-                                    }}
-                                />
-
-                                {/* FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7 */}
-                                {/* INFO: mantine v6 NumberInput does not handle decimal values properly */}
-                                <FilterNumberInput
-                                    label="Max"
-                                    icon={
-                                        hasPercentageFormat(field) ? (
-                                            <MantineIcon
-                                                icon={IconPercentage}
-                                            />
-                                        ) : null
-                                    }
-                                    value={config.rule.max}
-                                    onChange={(newMax) => {
-                                        if (newMax === null) return;
-
-                                        handleChangeColorRangeRule({
-                                            max: newMax,
-                                        });
-                                    }}
-                                />
-                            </Group>
+                            <ConditionalFormattingItemColorRange
+                                config={config}
+                                field={field}
+                                colorPalette={colorPalette}
+                                onChangeColorRange={handleChangeColorRangeColor}
+                                onChangeMinMax={handleChangeColorRangeRule}
+                            />
                         ) : (
                             assertUnreachable(config, 'Unknown config type')
                         )}

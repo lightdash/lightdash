@@ -60,13 +60,24 @@ export const EmbedJwtSchema = z
                 email: z.string().optional(),
             })
             .optional(),
-        content: z
-            .object({
-                type: z.literal('dashboard'),
-                dashboardUuid: z.string(),
-                isPreview: z.boolean().optional(),
-            })
-            .merge(InteractivityOptionsSchema),
+        content: z.union([
+            z
+                .object({
+                    type: z.literal('dashboard'),
+                    projectUuid: z.string().optional(),
+                    dashboardUuid: z.string(),
+                    isPreview: z.boolean().optional(),
+                })
+                .merge(InteractivityOptionsSchema),
+            z
+                .object({
+                    type: z.literal('dashboard'),
+                    projectUuid: z.string().optional(),
+                    dashboardSlug: z.string(),
+                    isPreview: z.boolean().optional(),
+                })
+                .merge(InteractivityOptionsSchema),
+        ]),
         iat: z.number().optional(),
         exp: z.number(),
     })
@@ -77,20 +88,31 @@ export const EmbedJwtSchema = z
 export type EmbedJwt = z.infer<typeof EmbedJwtSchema>;
 
 // Note: we can't extend zod types since tsoa doesn't support it
-export type CreateEmbedJwt = {
-    content: {
-        type: 'dashboard';
-        dashboardUuid: string;
-        isPreview?: boolean;
-        dashboardFiltersInteractivity?: {
-            enabled: FilterInteractivityValues | boolean;
-            allowedFilters?: string[];
-        };
-        canExportCsv?: boolean;
-        canExportImages?: boolean;
-        canDateZoom?: boolean;
-        canExportPagePdf?: boolean;
+
+type CommonEmbedJwtContent = {
+    type: 'dashboard';
+    projectUuid?: string;
+    isPreview?: boolean;
+    dashboardFiltersInteractivity?: {
+        enabled: FilterInteractivityValues | boolean;
+        allowedFilters?: string[];
     };
+    canExportCsv?: boolean;
+    canExportImages?: boolean;
+    canDateZoom?: boolean;
+    canExportPagePdf?: boolean;
+};
+
+type EmbedJwtContentDashboardUuid = CommonEmbedJwtContent & {
+    dashboardUuid: string;
+};
+
+type EmbedJwtContentDashboardSlug = CommonEmbedJwtContent & {
+    dashboardSlug: string;
+};
+
+export type CreateEmbedJwt = {
+    content: EmbedJwtContentDashboardUuid | EmbedJwtContentDashboardSlug;
     userAttributes?: { [key: string]: string };
     user?: {
         email?: string;
@@ -98,6 +120,18 @@ export type CreateEmbedJwt = {
     };
     expiresIn?: string;
 };
+
+export function isDashboardUuidContent(
+    content: CreateEmbedJwt['content'],
+): content is EmbedJwtContentDashboardUuid {
+    return 'dashboardUuid' in content;
+}
+
+export function isDashboardSlugContent(
+    content: CreateEmbedJwt['content'],
+): content is EmbedJwtContentDashboardSlug {
+    return 'dashboardSlug' in content;
+}
 
 export type EmbedUrl = {
     url: string;

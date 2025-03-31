@@ -1,7 +1,5 @@
 import { QueryClient, type DefaultOptions } from '@tanstack/react-query';
 
-// used in test mocks
-// ts-unused-exports:disable-next-line
 export const createQueryClient = (options?: DefaultOptions) => {
     const queryClient = new QueryClient({
         defaultOptions: {

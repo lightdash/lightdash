@@ -1,9 +1,10 @@
+import {
+    isHexCodeColor,
+    type ConditionalFormattingColorRange,
+    type ConditionalFormattingMinMax,
+} from '@lightdash/common';
 import Color from 'colorjs.io';
 
-const IS_HEX_CODE_COLOR_REGEX = /^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/;
-export const isHexCodeColor = (color: string): boolean => {
-    return IS_HEX_CODE_COLOR_REGEX.test(color);
-};
 export const readableColor = (backgroundColor: string) => {
     if (!isHexCodeColor(backgroundColor)) {
         return 'black';
@@ -13,11 +14,9 @@ export const readableColor = (backgroundColor: string) => {
     return onWhite > onBlack ? 'white' : 'black';
 };
 
-const getColorRange = (colorConfig: {
-    start: string;
-    end: string;
-    steps: number;
-}): string[] | undefined => {
+const getColorRange = (
+    colorConfig: ConditionalFormattingColorRange,
+): string[] | undefined => {
     if (
         !isHexCodeColor(colorConfig.start) ||
         !isHexCodeColor(colorConfig.end)
@@ -39,25 +38,16 @@ const getColorRange = (colorConfig: {
 
 export const getColorFromRange = (
     value: number,
-    config: {
-        color: {
-            start: string;
-            end: string;
-            steps: number;
-        };
-        rule: {
-            min: number;
-            max: number;
-        };
-    },
+    colorRange: ConditionalFormattingColorRange,
+    minMaxRange: ConditionalFormattingMinMax,
 ): string | undefined => {
-    const colors = getColorRange(config.color);
+    const colors = getColorRange(colorRange);
     if (!colors) return undefined;
 
-    const min = config.rule.min;
-    const inclusiveMax = config.rule.max + 1;
+    const min = minMaxRange.min;
+    const inclusiveMax = minMaxRange.max + 1;
 
-    const step = (inclusiveMax - min) / config.color.steps;
+    const step = (inclusiveMax - min) / colorRange.steps;
     const index = Math.floor((value - min) / step);
 
     return colors[index];

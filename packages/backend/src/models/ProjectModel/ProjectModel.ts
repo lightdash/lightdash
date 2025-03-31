@@ -1,17 +1,13 @@
 import {
     AlreadyExistsError,
     AnyType,
-    assertUnreachable,
     CreateProject,
-    createVirtualView,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     DbtProjectConfig,
     Explore,
     ExploreError,
     ExploreType,
-    generateSlug,
-    isExploreError,
     NotExistsError,
     NotFoundError,
     OrganizationProject,
@@ -24,8 +20,6 @@ import {
     ProjectSummary,
     ProjectType,
     SemanticLayerType,
-    sensitiveCredentialsFieldNames,
-    sensitiveDbtCredentialsFieldNames,
     SpaceSummary,
     SupportedDbtAdapter,
     SupportedDbtVersions,
@@ -37,6 +31,12 @@ import {
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
+    assertUnreachable,
+    createVirtualView,
+    generateSlug,
+    isExploreError,
+    sensitiveCredentialsFieldNames,
+    sensitiveDbtCredentialsFieldNames,
     type CubeSemanticLayerConnection,
     type DbtSemanticLayerConnection,
     type SemanticLayerConnection,
@@ -71,8 +71,8 @@ import {
     ProjectMembershipsTableName,
 } from '../../database/entities/projectMemberships';
 import {
-    CachedExploresTableName,
     CachedExploreTableName,
+    CachedExploresTableName,
     CachedWarehouseTableName,
     DbCachedWarehouse,
     DbProject,
@@ -139,28 +139,36 @@ export class ProjectModel {
         };
     }
 
-    static mergeMissingWarehouseSecrets(
-        incompleteConfig: CreateWarehouseCredentials,
-        completeConfig: CreateWarehouseCredentials,
-    ): CreateWarehouseCredentials {
+    static mergeMissingWarehouseSecrets<
+        T extends CreateWarehouseCredentials = CreateWarehouseCredentials,
+    >(incompleteConfig: T, completeConfig: CreateWarehouseCredentials): T {
         if (incompleteConfig.type !== completeConfig.type) {
             return incompleteConfig;
         }
         return {
             ...incompleteConfig,
-            ...sensitiveCredentialsFieldNames.reduce(
-                (sum, secretKey) =>
-                    !(incompleteConfig as AnyType)[secretKey] &&
-                    (completeConfig as AnyType)[secretKey]
-                        ? {
-                              ...sum,
-                              [secretKey]: (completeConfig as AnyType)[
-                                  secretKey
-                              ],
-                          }
-                        : sum,
-                {},
-            ),
+            ...sensitiveCredentialsFieldNames.reduce((sum, secretKey) => {
+                const newConfigSecretValue = (incompleteConfig as AnyType)[
+                    secretKey
+                ];
+                const isSecretMissingInNewConfig =
+                    newConfigSecretValue === undefined ||
+                    newConfigSecretValue === ''; // Null values are not considered missing
+                const isSecretPresentInSavedConfig = !!(
+                    completeConfig as AnyType
+                )[secretKey];
+                if (
+                    isSecretMissingInNewConfig &&
+                    isSecretPresentInSavedConfig
+                ) {
+                    // merge missing secret
+                    return {
+                        ...sum,
+                        [secretKey]: (completeConfig as AnyType)[secretKey],
+                    };
+                }
+                return sum;
+            }, {}),
         };
     }
 
@@ -975,57 +983,65 @@ export class ProjectModel {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
             {},
-            async () => {
-                // Get custom explores/virtual views before deleting them
-                const virtualViews = await this.database(CachedExploreTableName)
-                    .select('explore')
-                    .where('project_uuid', projectUuid)
-                    .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL]);
+            async () =>
+                this.database.transaction(async (trx) => {
+                    // Get custom explores/virtual views before deleting them
+                    const virtualViews = await trx(CachedExploreTableName)
+                        .select('explore')
+                        .where('project_uuid', projectUuid)
+                        .whereRaw("explore->>'type' = ?", [
+                            ExploreType.VIRTUAL,
+                        ]);
 
-                // delete previous individually cached explores
-                await this.database(CachedExploreTableName)
-                    .where('project_uuid', projectUuid)
-                    .delete();
+                    // Delete previous individually cached explores
+                    await trx(CachedExploreTableName)
+                        .where('project_uuid', projectUuid)
+                        .delete();
 
-                // We don't support multiple explores with the same name at the moment
-                const uniqueExplores = uniqWith(
-                    [...explores, ...virtualViews.map((e) => e.explore)],
-                    (a, b) => a.name === b.name,
-                );
+                    // NOTE: virtual views with the same name as explores will override the explore.
+                    // This isn't new behavior, but it's still a bit of a bug. However, it's
+                    // not clear what a better approach would be at the moment.
+                    const exploresMap = new Map(
+                        explores.map((e) => [e.name, e]),
+                    );
+                    virtualViews.forEach((e) =>
+                        exploresMap.set(e.explore.name, e.explore),
+                    );
+                    const uniqueExplores = Array.from(exploresMap.values());
 
-                if (uniqueExplores.length <= 0) {
-                    throw new ParameterError('No explores to save');
-                }
+                    if (uniqueExplores.length <= 0) {
+                        throw new ParameterError('No explores to save');
+                    }
 
-                // cache explores individually
-                const individualCachedExplores = await this.database
-                    .batchInsert<DbCachedExplore>(
-                        CachedExploreTableName,
-                        uniqueExplores.map((explore) => ({
+                    // Cache explores individually
+                    const individualCachedExplores = await trx
+                        .batchInsert<DbCachedExplore>(
+                            CachedExploreTableName,
+                            uniqueExplores.map((explore) => ({
+                                project_uuid: projectUuid,
+                                name: explore.name,
+                                table_names: Object.keys(explore.tables || {}),
+                                explore: JSON.stringify(explore),
+                            })),
+                        )
+                        .returning('cached_explore_uuid');
+
+                    // Cache explores together
+                    await trx(CachedExploresTableName)
+                        .insert({
                             project_uuid: projectUuid,
-                            name: explore.name,
-                            table_names: Object.keys(explore.tables || {}),
-                            explore: JSON.stringify(explore),
-                        })),
-                    )
-                    .returning('cached_explore_uuid');
+                            explores: JSON.stringify(uniqueExplores),
+                        })
+                        .onConflict('project_uuid')
+                        .merge()
+                        .returning('*');
 
-                // cache explores together
-                await this.database(CachedExploresTableName)
-                    .insert({
-                        project_uuid: projectUuid,
-                        explores: JSON.stringify(uniqueExplores),
-                    })
-                    .onConflict('project_uuid')
-                    .merge()
-                    .returning('*');
-
-                return {
-                    cachedExploreUuids: individualCachedExplores.map(
-                        (explore) => explore.cached_explore_uuid,
-                    ),
-                };
-            },
+                    return {
+                        cachedExploreUuids: individualCachedExplores.map(
+                            (explore) => explore.cached_explore_uuid,
+                        ),
+                    };
+                }),
         );
     }
 
@@ -1740,8 +1756,13 @@ export class ProjectModel {
 
                 if (content.length === 0) return undefined;
 
-                const newContent = await trx(table)
-                    .insert(
+                Logger.debug(
+                    `Copying ${content.length} chart content on ${table} table`,
+                );
+                const batchSize = 1000;
+                const newContent = await trx
+                    .batchInsert(
+                        table,
                         content.map((d) => {
                             const createContent = {
                                 ...d,
@@ -1761,8 +1782,10 @@ export class ProjectModel {
                             });
                             return createContent;
                         }),
+                        batchSize,
                     )
-                    .returning('*');
+                    .returning('*')
+                    .transacting(trx);
 
                 return newContent;
             };

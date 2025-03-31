@@ -1,7 +1,6 @@
 import {
     AlreadyExistsError,
     CreateGroup,
-    getErrorMessage,
     Group,
     GroupMember,
     GroupMembership,
@@ -12,6 +11,7 @@ import {
     ProjectGroupAccess,
     UnexpectedDatabaseError,
     UpdateGroupWithMembers,
+    getErrorMessage,
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';

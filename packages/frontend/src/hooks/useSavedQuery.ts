@@ -11,9 +11,9 @@ import {
 import { IconArrowRight } from '@tabler/icons-react';
 import {
     useMutation,
+    type UseMutationOptions,
     useQuery,
     useQueryClient,
-    type UseMutationOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
@@ -73,7 +73,7 @@ const updateSavedQuery = async (
     });
 };
 
-const getSavedQuery = async (id: string): Promise<SavedChart> =>
+export const getSavedQuery = async (id: string): Promise<SavedChart> =>
     lightdashApi<SavedChart>({
         url: `/saved/${id}`,
         method: 'GET',

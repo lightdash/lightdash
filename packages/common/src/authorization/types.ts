@@ -35,7 +35,7 @@ type Subject =
     | 'Explore'
     | 'UnderlyingData'
     | 'ExportCsv'
-    | 'CsvJobResult'
+    | 'JobStatus'
     | 'PinnedItems'
     | 'Validation'
     | 'Group'
@@ -50,9 +50,10 @@ type Subject =
     | 'PersonalAccessToken'
     | 'MetricsTree'
     | 'SpotlightTableConfig'
+    | 'ContentAsCode'
     | 'all';
 
-type PossibleAbilities = [
+export type PossibleAbilities = [
     AbilityAction,
     Subject | ForcedSubject<Exclude<Subject, 'all'>>,
 ];
