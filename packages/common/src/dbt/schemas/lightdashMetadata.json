@@ -31,8 +31,7 @@
             ]
         },
         "Format": {
-            "type": "string",
-            "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"]
+            "type": "string"
         },
         "Urls": {
             "type": "array",
@@ -295,6 +294,9 @@
                     "type": "string"
                 },
                 "sql_filter": {
+                    "type": "string"
+                },
+                "sql_from": {
                     "type": "string"
                 },
                 "required_attributes": {

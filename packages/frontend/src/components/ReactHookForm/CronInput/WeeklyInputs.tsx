@@ -1,8 +1,8 @@
 import { Group, Input } from '@mantine/core';
 import React, { type FC } from 'react';
-import { getWeeklyCronExpression, parseCronExpression } from './cronInputUtils';
 import TimePicker from './TimePicker';
 import WeekDaySelect from './WeekDaySelect';
+import { getWeeklyCronExpression, parseCronExpression } from './cronInputUtils';
 
 const WeeklyInputs: FC<{
     disabled?: boolean;

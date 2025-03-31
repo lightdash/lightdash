@@ -86,3 +86,6 @@ export const validateOrganizationEmailDomains = (domains: string[]) => {
         invalidDomains.length === 1 ? 'is' : 'are'
     } not allowed as organization email(s)`;
 };
+
+export const isValidEmailAddress = (email: string): boolean =>
+    /^[\w.+-]+@[\w-]+\.[A-Za-z]{2,}(?:\.[A-Za-z]{2,})*$/.test(email);

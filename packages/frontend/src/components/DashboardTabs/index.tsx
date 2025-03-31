@@ -1,8 +1,8 @@
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import {
-    type Dashboard as IDashboard,
     type DashboardTab,
     type DashboardTile,
+    type Dashboard as IDashboard,
 } from '@lightdash/common';
 import { ActionIcon, Group, ScrollArea, Tabs } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
@@ -15,18 +15,18 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import '../../styles/droppable.css';
 import { SectionName } from '../../types/Events';
+import EmptyStateNoTiles from '../DashboardTiles/EmptyStateNoTiles';
 import MantineIcon from '../common/MantineIcon';
 import { LockedDashboardModal } from '../common/modal/LockedDashboardModal';
-import EmptyStateNoTiles from '../DashboardTiles/EmptyStateNoTiles';
 import { TabAddModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import { TabEditModal } from './EditTabModal';
 import GridTile from './GridTile';
+import DraggableTab from './Tab';
 import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
 } from './gridUtils';
-import DraggableTab from './Tab';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -225,14 +225,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     );
                                     if (tab) {
                                         setActiveTab(tab);
-                                    }
-                                    if (!isEditMode) {
                                         const newParams = new URLSearchParams(
                                             search,
                                         );
                                         void navigate(
                                             {
-                                                pathname: `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
+                                                pathname: isEditMode
+                                                    ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
+                                                    : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
                                                 search: newParams.toString(),
                                             },
                                             { replace: true },

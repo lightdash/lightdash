@@ -1,7 +1,7 @@
 import {
+    VIZ_DEFAULT_AGGREGATION,
     isApiSqlRunnerJobPivotQuerySuccessResponse,
     isErrorDetails,
-    VIZ_DEFAULT_AGGREGATION,
     type ApiJobScheduledResponse,
     type PivotChartData,
     type RawResultRow,
@@ -171,7 +171,9 @@ export const getPivotQueryFunctionForSqlRunner = ({
             ...(pivotResults.indexColumn?.reference
                 ? [pivotResults.indexColumn.reference]
                 : []),
-            ...pivotResults.valuesColumns,
+            ...pivotResults.valuesColumns.map(
+                (valueColumn) => valueColumn.pivotColumnName,
+            ),
         ].map((field) => ({
             reference: field,
         }));

@@ -1,3 +1,5 @@
+import { getErrorMessage } from '@lightdash/common';
+
 export const copyImageToClipboard = async (
     base64Image: string,
 ): Promise<void> => {
@@ -30,7 +32,9 @@ export const copyImageToClipboard = async (
         const item = new ClipboardItem({ 'image/png': blob });
         await navigator.clipboard.write([item]);
     } catch (error) {
-        console.error('Failed to copy image to clipboard:', error);
+        console.error(
+            `Failed to copy image to clipboard: ${getErrorMessage(error)}`,
+        );
         throw error;
     }
 };

@@ -1,3 +1,4 @@
+import { type AnyType } from './any';
 import { ConditionalOperator, type ConditionalRule } from './conditionalRule';
 import type { SchedulerFilterRule } from './scheduler';
 
@@ -61,8 +62,8 @@ export type FieldTarget = {
 export interface FilterRule<
     O = ConditionalOperator,
     T = FieldTarget,
-    V = any,
-    S = any,
+    V = AnyType,
+    S = AnyType,
 > extends ConditionalRule<O, V> {
     id: string;
     target: T;
@@ -84,11 +85,12 @@ export type DashboardTileTarget = DashboardFieldTarget | false;
 export type DashboardFilterRule<
     O = ConditionalOperator,
     T extends DashboardFieldTarget = DashboardFieldTarget,
-    V = any,
-    S = any,
+    V = AnyType,
+    S = AnyType,
 > = FilterRule<O, T, V, S> & {
     tileTargets?: Record<string, DashboardTileTarget>;
     label: undefined | string;
+    singleValue?: boolean;
 };
 
 export type FilterDashboardToRule = DashboardFilterRule & {
@@ -110,9 +112,18 @@ export type DateFilterSettings = {
 export type DateFilterRule = FilterRule<
     ConditionalOperator,
     unknown,
-    any,
+    AnyType,
     DateFilterSettings
 >;
+
+export const isDateFilterRule = (
+    filter: FilterRule<
+        ConditionalOperator,
+        FieldTarget | unknown,
+        AnyType,
+        AnyType
+    >,
+): filter is DateFilterRule => 'unitOfTime' in (filter.settings || {});
 
 export type FilterGroupItem = FilterGroup | FilterRule;
 
@@ -454,5 +465,17 @@ export const isFilterRuleDefinedForFieldId = (
     // If the filter rule was not found in the filter group, return false
     return filterGroupItems.some(isFilterRulePresent);
 };
+
+/**
+ * Type tracking time-based filter overrides using an external map instead of modifying filter rules
+ * Maps dashboard filter rule IDs to their override configurations
+ */
+export type TimeBasedOverrideMap = Record<
+    string,
+    {
+        baseTimeDimensionName: string;
+        fieldsToChange: string[];
+    }
+>;
 
 export { ConditionalOperator as FilterOperator };

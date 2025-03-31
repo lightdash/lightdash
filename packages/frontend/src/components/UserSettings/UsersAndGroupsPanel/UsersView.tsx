@@ -1,8 +1,8 @@
 import {
     FeatureFlags,
+    OrganizationMemberRole,
     getRoleDescription,
     isOrganizationMemberProfileWithGroups,
-    OrganizationMemberRole,
     type OrganizationMemberProfile,
     type OrganizationMemberProfileWithGroups,
 } from '@lightdash/common';
@@ -53,8 +53,8 @@ import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { DEFAULT_PAGE_SIZE } from '../../common/Table/constants';
-import InvitesModal from './InvitesModal';
 import InviteSuccess from './InviteSuccess';
+import InvitesModal from './InvitesModal';
 
 const UserNameDisplay: FC<{
     user: OrganizationMemberProfile;
@@ -353,8 +353,11 @@ const UsersView: FC = () => {
     const { classes } = useTableStyles();
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
+    const debouncedValue = useMemo(() => {
+        return { search, page };
+    }, [search, page]);
     const [debouncedSearchQueryAndPage] = useDebouncedValue(
-        { search, page },
+        debouncedValue,
         300,
     );
 

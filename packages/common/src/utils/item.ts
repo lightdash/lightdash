@@ -1,6 +1,8 @@
 import { type Explore } from '../types/explore';
 import {
     DimensionType,
+    MetricType,
+    TableCalculationType,
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
@@ -8,8 +10,6 @@ import {
     isField,
     isMetric,
     isTableCalculation,
-    MetricType,
-    TableCalculationType,
     type CompiledDimension,
     type CustomDimension,
     type CustomSqlDimension,
@@ -101,6 +101,20 @@ export function isNumericItem(
     }
     return isNumericType(getItemType(item));
 }
+
+export const isStringDimension = (
+    item:
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | undefined,
+): boolean => {
+    if (!item) {
+        return false;
+    }
+    return isDimension(item) && getItemType(item) === DimensionType.STRING;
+};
 
 export const getItemIcon = (
     item: Field | TableCalculation | AdditionalMetric | CustomDimension,

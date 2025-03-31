@@ -73,7 +73,7 @@ const MinimalDashboard: FC = () => {
         return undefined;
     }, [scheduler, schedulerUuid, sendNowSchedulerFilters]);
 
-    const selectedTabs = useMemo(() => {
+    const schedulerTabsSelected = useMemo(() => {
         if (schedulerTabs) {
             return JSON.parse(schedulerTabs);
         }
@@ -105,6 +105,34 @@ const MinimalDashboard: FC = () => {
         });
     }, [sortedTabs, generateTabUrl]);
 
+    const layouts = useMemo(() => {
+        return {
+            lg:
+                dashboard?.tiles
+                    .filter((tile) =>
+                        // If there are selected tabs when sending now/scheduling, aggregate ALL tiles into one view.
+                        schedulerTabsSelected
+                            ? schedulerTabsSelected.includes(tile.tabUuid)
+                            : // This is when viewed a dashboard with tabs in mobile mode - you can navigate between tabs.
+                              !activeTab || activeTab.uuid === tile.tabUuid,
+                    )
+                    .map<Layout>((tile) => getReactGridLayoutConfig(tile)) ??
+                [],
+        };
+    }, [dashboard?.tiles, schedulerTabsSelected, activeTab]);
+
+    const filteredDashboardTiles = useMemo(() => {
+        return (
+            dashboard?.tiles.filter((tile) =>
+                // If there are selected tabs when sending now/scheduling, aggregate ALL tiles into one view.
+                schedulerTabsSelected
+                    ? schedulerTabsSelected.includes(tile.tabUuid)
+                    : // This is when viewed a dashboard with tabs in mobile mode - you can navigate between tabs.
+                      !activeTab || activeTab.uuid === tile.tabUuid,
+            ) ?? []
+        );
+    }, [dashboard?.tiles, schedulerTabsSelected, activeTab]);
+
     if (isDashboardError || isSchedulerError) {
         if (dashboardError) return <>{dashboardError.error.message}</>;
         if (schedulerError) return <>{schedulerError.error.message}</>;
@@ -122,26 +150,20 @@ const MinimalDashboard: FC = () => {
         return <>No tiles</>;
     }
 
-    const layouts = {
-        lg: dashboard.tiles
-            .filter(
-                (tile) =>
-                    (!selectedTabs || selectedTabs.includes(tile.tabUuid)) &&
-                    (!activeTab || activeTab.uuid === tile.tabUuid),
-            )
-            .map<Layout>((tile) => getReactGridLayoutConfig(tile)),
-    };
-
     const isTabEmpty =
         activeTab &&
         !dashboard.tiles.find((tile) => tile.tabUuid === activeTab.uuid);
+
+    const canNavigateBetweenTabs =
+        !schedulerTabsSelected && tabsWithUrls.length > 0;
 
     return (
         <DashboardProvider
             schedulerFilters={schedulerFilters}
             dateZoom={dateZoom}
         >
-            {tabsWithUrls.length > 0 && (
+            {/* This is when viewing a dashboard with tabs in mobile mode - you can navigate between tabs. */}
+            {canNavigateBetweenTabs && (
                 <MinimalDashboardTabs
                     tabs={tabsWithUrls}
                     activeTabId={activeTab?.uuid || null}
@@ -161,68 +183,58 @@ const MinimalDashboard: FC = () => {
                     })}
                     layouts={layouts}
                 >
-                    {dashboard.tiles
-                        .filter(
-                            (tile) =>
-                                (!selectedTabs ||
-                                    selectedTabs.includes(tile.tabUuid)) &&
-                                (!activeTab || activeTab.uuid === tile.tabUuid),
-                        )
-                        .map((tile) => (
-                            <div key={tile.uuid}>
-                                {tile.type ===
-                                DashboardTileTypes.SAVED_CHART ? (
-                                    <ChartTile
-                                        key={tile.uuid}
-                                        minimal
-                                        tile={tile}
-                                        isEditMode={false}
-                                        onDelete={() => {}}
-                                        onEdit={() => {}}
-                                    />
-                                ) : tile.type ===
-                                  DashboardTileTypes.MARKDOWN ? (
-                                    <MarkdownTile
-                                        key={tile.uuid}
-                                        tile={tile}
-                                        isEditMode={false}
-                                        onDelete={() => {}}
-                                        onEdit={() => {}}
-                                    />
-                                ) : tile.type === DashboardTileTypes.LOOM ? (
-                                    <LoomTile
-                                        key={tile.uuid}
-                                        tile={tile}
-                                        isEditMode={false}
-                                        onDelete={() => {}}
-                                        onEdit={() => {}}
-                                    />
-                                ) : tile.type ===
-                                  DashboardTileTypes.SQL_CHART ? (
-                                    <SqlChartTile
-                                        key={tile.uuid}
-                                        tile={tile}
-                                        isEditMode={false}
-                                        onDelete={() => {}}
-                                        onEdit={() => {}}
-                                    />
-                                ) : tile.type ===
-                                  DashboardTileTypes.SEMANTIC_VIEWER_CHART ? (
-                                    <SemanticViewerChartTile
-                                        key={tile.uuid}
-                                        tile={tile}
-                                        isEditMode={false}
-                                        onDelete={() => {}}
-                                        onEdit={() => {}}
-                                    />
-                                ) : (
-                                    assertUnreachable(
-                                        tile,
-                                        `Dashboard tile type is not recognised`,
-                                    )
-                                )}
-                            </div>
-                        ))}
+                    {filteredDashboardTiles.map((tile) => (
+                        <div key={tile.uuid}>
+                            {tile.type === DashboardTileTypes.SAVED_CHART ? (
+                                <ChartTile
+                                    key={tile.uuid}
+                                    minimal
+                                    tile={tile}
+                                    isEditMode={false}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                />
+                            ) : tile.type === DashboardTileTypes.MARKDOWN ? (
+                                <MarkdownTile
+                                    key={tile.uuid}
+                                    tile={tile}
+                                    isEditMode={false}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                />
+                            ) : tile.type === DashboardTileTypes.LOOM ? (
+                                <LoomTile
+                                    key={tile.uuid}
+                                    tile={tile}
+                                    isEditMode={false}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                />
+                            ) : tile.type === DashboardTileTypes.SQL_CHART ? (
+                                <SqlChartTile
+                                    key={tile.uuid}
+                                    tile={tile}
+                                    isEditMode={false}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                />
+                            ) : tile.type ===
+                              DashboardTileTypes.SEMANTIC_VIEWER_CHART ? (
+                                <SemanticViewerChartTile
+                                    key={tile.uuid}
+                                    tile={tile}
+                                    isEditMode={false}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                />
+                            ) : (
+                                assertUnreachable(
+                                    tile,
+                                    `Dashboard tile type is not recognised`,
+                                )
+                            )}
+                        </div>
+                    ))}
                 </ResponsiveGridLayout>
             )}
         </DashboardProvider>

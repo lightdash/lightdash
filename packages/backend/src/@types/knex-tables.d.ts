@@ -156,6 +156,10 @@ import {
     NotificationsTableName,
 } from '../database/entities/notifications';
 import {
+    OrganizationColorPaletteTable,
+    OrganizationColorPaletteTableName,
+} from '../database/entities/organizationColorPalettes';
+import {
     OrganizationAllowedEmailDomainProjectsTable,
     OrganizationAllowedEmailDomainProjectsTableName,
     OrganizationAllowedEmailDomainsTable,
@@ -165,6 +169,10 @@ import {
     ProjectGroupAccessTable,
     ProjectGroupAccessTableName,
 } from '../database/entities/projectGroupAccess';
+import {
+    QueryHistoryTable,
+    QueryHistoryTableName,
+} from '../database/entities/queryHistory';
 import {
     SavedSemanticViewerChartsTable,
     SavedSemanticViewerChartsTableName,
@@ -187,6 +195,10 @@ import {
     SchedulerTable,
     SchedulerTableName,
 } from '../database/entities/scheduler';
+import {
+    SpotlightTableConfigTable,
+    SpotlightTableConfigTableName,
+} from '../database/entities/spotlightTableConfig';
 import {
     SshKeyPairTable,
     SshKeyPairTableName,
@@ -214,6 +226,28 @@ import {
     WarehouseAvailableTablesTable,
     WarehouseAvailableTablesTableName,
 } from '../database/entities/warehouseAvailableTables';
+import {
+    AiPromptTable,
+    AiPromptTableName,
+    AiSlackPromptTable,
+    AiSlackPromptTableName,
+    AiSlackThreadTable,
+    AiSlackThreadTableName,
+    AiThreadTable,
+    AiThreadTableName,
+} from '../ee/database/entities/ai';
+import {
+    DashboardSummariesTable,
+    DashboardSummariesTableName,
+} from '../ee/database/entities/dashboardSummaries';
+import {
+    ScimOrganizationAccessTokenTable,
+    ScimOrganizationAccessTokenTableName,
+} from '../ee/database/entities/scim';
+import {
+    SlackChannelProjectMappingsTable,
+    SlackChannelProjectMappingsTableName,
+} from '../ee/database/entities/slackChannelProjectMappings';
 
 declare module 'knex/types/tables' {
     interface Tables {
@@ -286,12 +320,22 @@ declare module 'knex/types/tables' {
         [DownloadFileTableName]: DownloadFileTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
+        [AiThreadTableName]: AiThreadTable;
+        [AiSlackThreadTableName]: AiSlackThreadTable;
+        [AiPromptTableName]: AiPromptTable;
+        [AiSlackPromptTableName]: AiSlackPromptTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
+        [DashboardSummariesTableName]: DashboardSummariesTable;
         [CatalogTableName]: CatalogTable;
+        [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
         [TagsTableName]: TagsTable;
         [CatalogTagsTableName]: CatalogTagsTable;
+        [ScimOrganizationAccessTokenTableName]: ScimOrganizationAccessTokenTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
+        [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
+        [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
+        [QueryHistoryTableName]: QueryHistoryTable;
     }
 }

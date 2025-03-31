@@ -1,115 +1,23 @@
 import {
-    indexCatalogJob,
+    getErrorMessage,
+    getSchedulerUuid,
+    SCHEDULER_TASKS,
     SchedulerJobStatus,
-    semanticLayerQueryJob,
-    sqlRunnerJob,
-    sqlRunnerPivotQueryJob,
 } from '@lightdash/common';
 import {
-    JobHelpers,
     Logger as GraphileLogger,
     parseCronItems,
     run as runGraphileWorker,
     Runner,
-    Task,
-    TaskList,
 } from 'graphile-worker';
 import moment from 'moment';
-import ExecutionContext from 'node-execution-context';
 import Logger from '../logging/logger';
-import { ExecutionContextInfo } from '../logging/winston';
-import { wrapSentryTransaction } from '../utils';
 import { SchedulerClient } from './SchedulerClient';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import SchedulerTask from './SchedulerTask';
+import { traceTasks } from './SchedulerTaskTracer';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
-
-const traceTask = (taskName: string, task: Task): Task => {
-    const tracedTask: Task = async (payload, helpers) => {
-        await wrapSentryTransaction(
-            `worker.task.${taskName}`,
-            {},
-            async (span) => {
-                const { job } = helpers;
-
-                // TODO: have clearer types for payload
-                let organizationUuidAttribute = {};
-                if (
-                    typeof payload === 'object' &&
-                    payload !== null &&
-                    'organizationUuid' in payload
-                ) {
-                    organizationUuidAttribute = {
-                        'worker.task.organization_id': payload.organizationUuid,
-                    };
-                }
-
-                span.setAttributes({
-                    'worker.task.name': taskName,
-                    'worker.job.id': job.id,
-                    'worker.job.task_identifier': job.task_identifier,
-                    'worker.job.attempts': job.attempts,
-                    'worker.job.max_attempts': job.max_attempts,
-                    ...organizationUuidAttribute,
-                });
-                if (job.locked_at) {
-                    span.setAttribute(
-                        'worker.job.locked_at',
-                        moment(job.locked_at).toISOString(),
-                    );
-                }
-                if (job.created_at) {
-                    span.setAttribute(
-                        'worker.job.created_at',
-                        job.created_at.toISOString(),
-                    );
-                }
-                if (job.locked_by) {
-                    span.setAttribute('worker.job.locked_by', job.locked_by);
-                }
-                if (job.key) {
-                    span.setAttribute('worker.job.key', job.key);
-                }
-
-                try {
-                    const executionContext: ExecutionContextInfo = {
-                        worker: {
-                            id: job.locked_by,
-                        },
-                        job: {
-                            id: job.id,
-                            queue_name: job.queue_name,
-                            task_identifier: job.task_identifier,
-                            priority: job.priority,
-                            attempts: job.attempts,
-                        },
-                    };
-                    await ExecutionContext.run(
-                        () => task(payload, helpers),
-                        executionContext,
-                    );
-                } catch (e) {
-                    span.setStatus({
-                        code: 2, // Error
-                    });
-                    throw e;
-                }
-            },
-        );
-    };
-    return tracedTask;
-};
-
-const traceTasks = (tasks: TaskList) => {
-    const tracedTasks = Object.keys(tasks).reduce<TaskList>(
-        (accTasks, taskName) => ({
-            ...accTasks,
-            [taskName]: traceTask(taskName, tasks[taskName]),
-        }),
-        {} as TaskList,
-    );
-    return tracedTasks;
-};
+import { TypedTaskList } from './types';
 
 const workerLogger = new GraphileLogger(
     (scope) => (logLevel, message, meta) => {
@@ -159,9 +67,9 @@ export class SchedulerWorker extends SchedulerTask {
         });
     }
 
-    protected getTaskList(): TaskList {
+    protected getTaskList(): TypedTaskList {
         return {
-            generateDailyJobs: async () => {
+            [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: async () => {
                 const currentDateStartOfDay = moment()
                     .utc()
                     .startOf('day')
@@ -175,9 +83,18 @@ export class SchedulerWorker extends SchedulerTask {
                         await this.schedulerService.getSchedulerDefaultTimezone(
                             scheduler.schedulerUuid,
                         );
+                    const { organizationUuid, projectUuid } =
+                        await this.schedulerService.getCreateSchedulerResource(
+                            scheduler,
+                        );
 
                     await this.schedulerClient.generateDailyJobsForScheduler(
                         scheduler,
+                        {
+                            organizationUuid,
+                            projectUuid,
+                            userUuid: scheduler.createdBy,
+                        },
                         defaultTimezone,
                         currentDateStartOfDay,
                     );
@@ -185,14 +102,13 @@ export class SchedulerWorker extends SchedulerTask {
 
                 await Promise.all(promises);
             },
-
-            handleScheduledDelivery: async (
-                payload: any,
-                helpers: JobHelpers,
+            [SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY]: async (
+                payload,
+                helpers,
             ) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
-                        'handleScheduledDelivery',
+                        SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
@@ -208,24 +124,28 @@ export class SchedulerWorker extends SchedulerTask {
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
                         await this.schedulerService.logSchedulerJob({
-                            task: 'handleScheduledDelivery',
-                            schedulerUuid: payload.schedulerUuid,
+                            task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
+                            schedulerUuid: getSchedulerUuid(payload),
                             jobId: job.id,
                             scheduledTime: job.run_at,
-                            jobGroup: payload.jobGroup,
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: e.message },
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                            },
                         });
                     },
                 );
             },
-            sendSlackNotification: async (
-                payload: any,
-                helpers: JobHelpers,
+            [SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION]: async (
+                payload,
+                helpers,
             ) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
-                        'sendSlackNotification',
+                        SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
@@ -240,25 +160,30 @@ export class SchedulerWorker extends SchedulerTask {
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
                         await this.schedulerService.logSchedulerJob({
-                            task: 'sendSlackNotification',
+                            task: SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
                             schedulerUuid: payload.schedulerUuid,
                             jobId: job.id,
                             scheduledTime: job.run_at,
                             jobGroup: payload.jobGroup,
                             targetType: 'slack',
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: e.message },
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                            },
                         });
                     },
                 );
             },
-            sendEmailNotification: async (
-                payload: any,
-                helpers: JobHelpers,
+            [SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION]: async (
+                payload,
+                helpers,
             ) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
-                        'sendEmailNotification',
+                        SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION,
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
@@ -273,22 +198,27 @@ export class SchedulerWorker extends SchedulerTask {
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
                         await this.schedulerService.logSchedulerJob({
-                            task: 'sendEmailNotification',
+                            task: SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION,
                             schedulerUuid: payload.schedulerUuid,
                             jobId: job.id,
                             scheduledTime: job.run_at,
                             jobGroup: payload.jobGroup,
                             targetType: 'email',
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: e.message },
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                            },
                         });
                     },
                 );
             },
-            uploadGsheets: async (payload: any, helpers: JobHelpers) => {
+            [SCHEDULER_TASKS.UPLOAD_GSHEETS]: async (payload, helpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
-                        'uploadGsheets',
+                        SCHEDULER_TASKS.UPLOAD_GSHEETS,
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
@@ -300,22 +230,27 @@ export class SchedulerWorker extends SchedulerTask {
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
                         await this.schedulerService.logSchedulerJob({
-                            task: 'uploadGsheets',
+                            task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
                             schedulerUuid: payload.schedulerUuid,
                             jobId: job.id,
                             scheduledTime: job.run_at,
                             jobGroup: payload.jobGroup,
                             targetType: 'gsheets',
                             status: SchedulerJobStatus.ERROR,
-                            details: { error: e.message },
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                            },
                         });
                     },
                 );
             },
-            downloadCsv: async (payload: any, helpers: JobHelpers) => {
+            [SCHEDULER_TASKS.DOWNLOAD_CSV]: async (payload, helpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
-                        'downloadCsv',
+                        SCHEDULER_TASKS.DOWNLOAD_CSV,
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
@@ -327,30 +262,31 @@ export class SchedulerWorker extends SchedulerTask {
                             );
                         },
                     ),
-
                     helpers.job,
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
                         await this.schedulerService.logSchedulerJob({
-                            task: 'downloadCsv',
+                            task: SCHEDULER_TASKS.DOWNLOAD_CSV,
                             jobId: job.id,
                             scheduledTime: job.run_at,
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
                             },
                         });
                     },
                 );
             },
-            uploadGsheetFromQuery: async (
-                payload: any,
-                helpers: JobHelpers,
+            [SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY]: async (
+                payload,
+                helpers,
             ) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
-                        'uploadGsheetFromQuery',
+                        SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY,
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
@@ -362,29 +298,30 @@ export class SchedulerWorker extends SchedulerTask {
                             );
                         },
                     ),
-
                     helpers.job,
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
                         await this.schedulerService.logSchedulerJob({
-                            task: 'uploadGsheetFromQuery',
+                            task: SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY,
                             jobId: job.id,
                             scheduledTime: job.run_at,
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
                             },
                         });
                     },
                 );
             },
-            createProjectWithCompile: async (
-                payload: any,
-                helpers: JobHelpers,
+            [SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE]: async (
+                payload,
+                helpers,
             ) => {
                 await SchedulerClient.processJob(
-                    'createProjectWithCompile',
+                    SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE,
                     helpers.job.id,
                     helpers.job.run_at,
                     payload,
@@ -397,9 +334,9 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            compileProject: async (payload: any, helpers: JobHelpers) => {
+            [SCHEDULER_TASKS.COMPILE_PROJECT]: async (payload, helpers) => {
                 await SchedulerClient.processJob(
-                    'compileProject',
+                    SCHEDULER_TASKS.COMPILE_PROJECT,
                     helpers.job.id,
                     helpers.job.run_at,
                     payload,
@@ -412,12 +349,12 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            testAndCompileProject: async (
-                payload: any,
-                helpers: JobHelpers,
+            [SCHEDULER_TASKS.TEST_AND_COMPILE_PROJECT]: async (
+                payload,
+                helpers,
             ) => {
                 await SchedulerClient.processJob(
-                    'testAndCompileProject',
+                    SCHEDULER_TASKS.TEST_AND_COMPILE_PROJECT,
                     helpers.job.id,
                     helpers.job.run_at,
                     payload,
@@ -430,9 +367,9 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            validateProject: async (payload: any, helpers: JobHelpers) => {
+            [SCHEDULER_TASKS.VALIDATE_PROJECT]: async (payload, helpers) => {
                 await SchedulerClient.processJob(
-                    'validateProject',
+                    SCHEDULER_TASKS.VALIDATE_PROJECT,
                     helpers.job.id,
                     helpers.job.run_at,
                     payload,
@@ -445,10 +382,10 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            [sqlRunnerJob]: async (payload: any, helpers: JobHelpers) => {
+            [SCHEDULER_TASKS.SQL_RUNNER]: async (payload, helpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
-                        sqlRunnerJob,
+                        SCHEDULER_TASKS.SQL_RUNNER,
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
@@ -464,25 +401,27 @@ export class SchedulerWorker extends SchedulerTask {
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
                         await this.schedulerService.logSchedulerJob({
-                            task: sqlRunnerJob,
+                            task: SCHEDULER_TASKS.SQL_RUNNER,
                             jobId: job.id,
                             scheduledTime: job.run_at,
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
                             },
                         });
                     },
                 );
             },
-            [sqlRunnerPivotQueryJob]: async (
-                payload: any,
-                helpers: JobHelpers,
+            [SCHEDULER_TASKS.SQL_RUNNER_PIVOT_QUERY]: async (
+                payload,
+                helpers,
             ) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
-                        sqlRunnerPivotQueryJob,
+                        SCHEDULER_TASKS.SQL_RUNNER_PIVOT_QUERY,
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
@@ -498,25 +437,27 @@ export class SchedulerWorker extends SchedulerTask {
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
                         await this.schedulerService.logSchedulerJob({
-                            task: sqlRunnerPivotQueryJob,
+                            task: SCHEDULER_TASKS.SQL_RUNNER_PIVOT_QUERY,
                             jobId: job.id,
                             scheduledTime: job.run_at,
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
                             },
                         });
                     },
                 );
             },
-            [semanticLayerQueryJob]: async (
-                payload: any,
-                helpers: JobHelpers,
+            [SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY]: async (
+                payload,
+                helpers,
             ) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
-                        semanticLayerQueryJob,
+                        SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY,
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
@@ -532,22 +473,24 @@ export class SchedulerWorker extends SchedulerTask {
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
                         await this.schedulerService.logSchedulerJob({
-                            task: semanticLayerQueryJob,
+                            task: SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY,
                             jobId: job.id,
                             scheduledTime: job.run_at,
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
                             },
                         });
                     },
                 );
             },
-            [indexCatalogJob]: async (payload: any, helpers: JobHelpers) => {
+            [SCHEDULER_TASKS.INDEX_CATALOG]: async (payload, helpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
-                        indexCatalogJob,
+                        SCHEDULER_TASKS.INDEX_CATALOG,
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
@@ -563,13 +506,89 @@ export class SchedulerWorker extends SchedulerTask {
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
                         await this.schedulerService.logSchedulerJob({
-                            task: indexCatalogJob,
+                            task: SCHEDULER_TASKS.INDEX_CATALOG,
                             jobId: job.id,
                             scheduledTime: job.run_at,
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 createdByUserUuid: payload.userUuid,
-                                error: e.message,
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                            },
+                        });
+                    },
+                );
+            },
+            [SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.replaceCustomFields(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                userUuid: payload.userUuid,
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                error: getErrorMessage(e),
+                                createdByUserUuid: payload.userUuid,
+                            },
+                        });
+                    },
+                );
+            },
+            [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.exportCsvDashboard(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                userUuid: payload.userUuid,
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                error: getErrorMessage(e),
+                                createdByUserUuid: payload.userUuid,
                             },
                         });
                     },

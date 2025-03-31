@@ -426,6 +426,40 @@ describe('Organization member permissions', () => {
                     ),
                 ).toEqual(true);
             });
+
+            describe('JobStatus', () => {
+                it('can view his own job status', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                createdByUserUuid: ORGANIZATION_ADMIN.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot view job status from the organization', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                organizationUuid:
+                                    ORGANIZATION_ADMIN.organizationUuid,
+                                createdByUserUuid: undefined,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+                it('cannot view job status from another organization', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', { organizationUuid: '54678' }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
 
         describe('when user is an editor', () => {
@@ -836,6 +870,40 @@ describe('Organization member permissions', () => {
             it('can use the SemanticViewer', () => {
                 expect(ability.can('manage', 'SemanticViewer')).toEqual(true);
             });
+
+            describe('JobStatus', () => {
+                it('can view his own job status', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                createdByUserUuid: ORGANIZATION_EDITOR.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot view job status from the organization', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                organizationUuid:
+                                    ORGANIZATION_EDITOR.organizationUuid,
+                                createdByUserUuid: undefined,
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+                it('cannot view job status from another organization', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', { organizationUuid: '54678' }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
 
         describe('when user is an developer', () => {
@@ -851,6 +919,41 @@ describe('Organization member permissions', () => {
 
             it('can use the SemanticViewer', () => {
                 expect(ability.can('manage', 'SemanticViewer')).toEqual(true);
+            });
+
+            describe('JobStatus', () => {
+                it('can view his own job status', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                createdByUserUuid:
+                                    ORGANIZATION_DEVELOPER.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot view job status from the organization', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                organizationUuid:
+                                    ORGANIZATION_DEVELOPER.organizationUuid,
+                                createdByUserUuid: undefined,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+                it('cannot view job status from another organization', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', { organizationUuid: '54678' }),
+                        ),
+                    ).toEqual(false);
+                });
             });
         });
 
@@ -876,6 +979,41 @@ describe('Organization member permissions', () => {
 
             it('cannot view charts', () => {
                 expect(ability.can('view', 'SavedChart')).toEqual(false);
+            });
+
+            describe('JobStatus', () => {
+                it('can view his own job status', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                createdByUserUuid:
+                                    ORGANIZATION_DEVELOPER.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot view job status from the organization', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', {
+                                organizationUuid:
+                                    ORGANIZATION_DEVELOPER.organizationUuid,
+                                createdByUserUuid: undefined,
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+                it('cannot view job status from another organization', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('JobStatus', { organizationUuid: '54678' }),
+                        ),
+                    ).toEqual(false);
+                });
             });
         });
 

@@ -2,16 +2,19 @@ import {
     assertUnreachable,
     FilterOperator,
     FilterType,
+    NotImplementedError,
 } from '@lightdash/common';
 
 export const getPlaceholderByFilterTypeAndOperator = ({
     type,
     operator,
     disabled,
+    singleValue,
 }: {
     type: FilterType;
     operator: FilterOperator;
     disabled?: boolean;
+    singleValue?: boolean;
 }) => {
     if (disabled) return 'any value';
 
@@ -20,12 +23,17 @@ export const getPlaceholderByFilterTypeAndOperator = ({
             switch (operator) {
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
-                    return 'Enter value(s)';
+                    return singleValue ? 'Enter value' : 'Enter value(s)';
                 case FilterOperator.LESS_THAN:
                 case FilterOperator.GREATER_THAN:
-                    return 'Enter value';
+                    return 'Enter value(s)';
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
+                    return '';
+                case FilterOperator.IN_BETWEEN:
+                case FilterOperator.NOT_IN_BETWEEN:
+                    // in between is a special case since it displays two separate number inputs
+                    // by default it shows a correct placeholder which is "Min value" and "Max value"
                     return '';
                 case FilterOperator.ENDS_WITH:
                 case FilterOperator.STARTS_WITH:
@@ -38,7 +46,6 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.IN_THE_NEXT:
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.NOT_IN_THE_CURRENT:
-                case FilterOperator.IN_BETWEEN:
                     // This can happen if a filter was added using an old table calculation without type, as we default to number
                     console.warn(
                         `Unexpected operator ${type} for number filter type. If you are using a table calculation, please update its result type to string.`,
@@ -54,9 +61,10 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                     return 'Start typing to filter results';
                 case FilterOperator.STARTS_WITH:
                 case FilterOperator.ENDS_WITH:
+                    return 'Enter value(s)';
                 case FilterOperator.INCLUDE:
                 case FilterOperator.NOT_INCLUDE:
-                    return 'Enter value(s)';
+                    return singleValue ? 'Enter value' : 'Enter value(s)';
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                     return '';
@@ -70,7 +78,10 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.NOT_IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
-                    throw new Error('Not implemented');
+                case FilterOperator.NOT_IN_BETWEEN:
+                    throw new NotImplementedError(
+                        `Filter type ${type} with operator ${operator} is not implemented`,
+                    );
                 default:
                     return assertUnreachable(operator, 'unknown operator');
             }
@@ -100,7 +111,10 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.ENDS_WITH:
                 case FilterOperator.INCLUDE:
                 case FilterOperator.NOT_INCLUDE:
-                    throw new Error('Not implemented');
+                case FilterOperator.NOT_IN_BETWEEN:
+                    throw new NotImplementedError(
+                        `Filter type ${type} with operator ${operator} is not implemented`,
+                    );
                 default:
                     return assertUnreachable(operator, 'unknown operator');
             }
@@ -126,7 +140,10 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.NOT_IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
-                    throw new Error('Not implemented');
+                case FilterOperator.NOT_IN_BETWEEN:
+                    throw new NotImplementedError(
+                        `Filter type ${type} with operator ${operator} is not implemented`,
+                    );
                 default:
                     return assertUnreachable(operator, 'unknown operator');
             }

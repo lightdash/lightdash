@@ -25,6 +25,10 @@ import {
     IconRotate2,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    hasSavedFilterValueChanged,
+    isFilterEnabled,
+} from '../../../components/DashboardFilter/FilterConfiguration/utils';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
@@ -35,10 +39,6 @@ import {
 import FiltersProvider from '../../../components/common/Filters/FiltersProvider';
 import useFiltersContext from '../../../components/common/Filters/useFiltersContext';
 import MantineIcon from '../../../components/common/MantineIcon';
-import {
-    hasSavedFilterValueChanged,
-    isFilterEnabled,
-} from '../../../components/DashboardFilter/FilterConfiguration/utils';
 import { useProject } from '../../../hooks/useProject';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 

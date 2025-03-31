@@ -1,0 +1,111 @@
+---
+description: 
+globs: packages/backend/**/*.ts
+alwaysApply: false
+---
+---
+description: Backend rules
+globs: packages/backend/**/*.ts
+---
+
+## Architecture Overview
+
+read @README.md so you know the guidelines
+
+The backend follows a layered architecture pattern with clear separation of concerns:
+
+```
+controllers -> services -> models -> database
+```
+
+### Key Performance Considerations
+
+1. **Database Operations**
+   - Use appropriate indexes for frequently queried columns
+   - Implement query optimization for large datasets
+   - Leverage database connection pooling (using `pg`)
+   - Consider materialized views for complex aggregations
+   - Use batch operations for bulk data operations - batchInsert where it makes sense
+
+2. **API Performance**
+   - Use pagination for large result sets see @paginateResults.ts
+   - Implement rate limiting for API endpoints
+
+3. **Error handling and logging**
+   - Look at @errors.ts to categorise errors correctly. See @winston.ts and also @sentry.ts to see what errors are ignored in sentry
+   - If you can't find a suitable error class instance, create it. 
+
+3. **Background Jobs**
+   - Use `graphile-worker` for handling long-running tasks - see @SchedulerApp.ts and @SchedulerWorker.ts to form your code
+   - Implement proper job retry mechanisms if the default isn't sufficient
+   - Monitor job queue performance
+   - Ensure the necessary payload properties are set so that I can filter errors easily in sentry - see @SchedulerTaskTracer.ts
+
+## Development Guidelines
+
+When building a new endpoint see [routes.ts](mdc:packages/backend/src/generated/routes.ts) and [swagger.json](mdc:packages/backend/src/generated/swagger.json), ensure that you make changes to the controller, service, model, but also update types in packages/common. 
+Remind user to call `pnpm generate-api` to rebuild tsoa. 
+
+### Controllers
+- Keep controllers thin - delegate business logic to services
+- Implement proper request validation using `zod`
+- Use TypeScript types for request/response
+- Generate API documentation using `tsoa` - good example in @savedChartController.ts
+
+### Services
+- Implement proper error handling and logging
+- Use appropriate transaction management
+- Implement proper authorization checks and figure out if project or organization should be the base of the permission
+
+### Models
+- Use Knex query builder efficiently and strongly typed
+- Implement proper database constraints
+- Use appropriate data types for columns
+- Implement proper indexing strategy
+
+### Database
+- Follow migration naming conventions - this is a good example @20250310151004_create_query_history_table.ts
+- Implement proper rollback strategies
+- Use appropriate database constraints
+- Implement proper indexing strategy
+- Add types for the database in entitie 
+
+## Performance Monitoring
+
+1. **Metrics Collection**
+   - Use Prometheus metrics for monitoring
+   - Track API response times
+   - Monitor database query performance
+   - Track background job execution times
+
+2. **Logging**
+   - Use structured logging with Winston
+   - Implement proper log levels
+   - Include relevant context in logs
+   - Use appropriate log rotation
+
+3. **Error Tracking**
+   - Use Sentry for error tracking
+   - Implement proper error categorization
+   - Track error rates and patterns
+   - Monitor error impact on performance
+
+## Security Considerations
+
+1. **Authorization**
+   - Use CASL for permission management
+   - Implement proper role-based access control
+   - Validate user permissions at service level
+   - Implement proper audit logging
+
+
+## Dependencies
+
+see @package.json for the dependencies we use.
+
+Key performance-related dependencies:
+- `graphile-worker`: For background job processing
+- `prom-client`: For performance monitoring
+- `winston`: For structured logging
+- `knex`: For database operations
+- `pg`: For PostgreSQL operations

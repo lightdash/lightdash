@@ -1,14 +1,15 @@
 import {
-    canApplyFormattingToCustomMetric,
     CustomFormatType,
+    MetricType,
+    NumberSeparator,
+    canApplyFormattingToCustomMetric,
     friendlyName,
     getFilterableDimensionsFromItemsMap,
     getItemId,
+    getMetrics,
     isAdditionalMetric,
     isCustomDimension,
     isDimension,
-    MetricType,
-    NumberSeparator,
     type AdditionalMetric,
     type CustomFormat,
     type Dimension,
@@ -97,6 +98,7 @@ export const CustomMetricModal = () => {
         }
     >({
         validateInputOnChange: true,
+        validateInputOnBlur: true,
         initialValues: {
             customMetricLabel: '',
             percentile: 50,
@@ -126,6 +128,17 @@ export const CustomMetricModal = () => {
                         ? item.baseDimensionName
                         : item.name,
                 );
+
+                const metricIds = exploreData
+                    ? getMetrics(exploreData).map(getItemId)
+                    : [];
+                if (
+                    metricIds.includes(
+                        getItemId({ table: item.table, name: metricName }),
+                    )
+                ) {
+                    return 'Metric with this ID already exists';
+                }
 
                 if (isEditing && metricName === item.name) {
                     return null;
@@ -361,7 +374,12 @@ export const CustomMetricModal = () => {
                             </Accordion.Panel>
                         </Accordion.Item>
                     </Accordion>
-                    <Button display="block" ml="auto" type="submit">
+                    <Button
+                        display="block"
+                        ml="auto"
+                        type="submit"
+                        disabled={!form.isValid()}
+                    >
                         {isEditing ? 'Save changes' : 'Create'}
                     </Button>
                 </Stack>

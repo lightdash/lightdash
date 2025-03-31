@@ -13,10 +13,10 @@ import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import useToaster from '../../hooks/toaster/useToaster';
+import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { Can } from '../common/Authorization';
 import MantineIcon from '../common/MantineIcon';
 import { type CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
@@ -76,9 +76,9 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
 
     return (
         <>
-            {item && value.raw && isField(item) && (
+            {item && value.raw && isField(item) ? (
                 <UrlMenuItems urls={item.urls} cell={cell} />
-            )}
+            ) : null}
 
             {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
 

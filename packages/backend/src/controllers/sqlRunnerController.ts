@@ -1,4 +1,5 @@
 import {
+    AnyType,
     ApiCreateSqlChart,
     ApiCreateVirtualView,
     ApiErrorPayload,
@@ -12,6 +13,7 @@ import {
     ApiWarehouseTablesCatalog,
     CreateSqlChart,
     CreateVirtualViewPayload,
+    QueryExecutionContext,
     SqlRunnerBody,
     SqlRunnerPivotQueryBody,
     UpdateSqlChart,
@@ -79,6 +81,7 @@ export class SqlRunnerController extends BaseController {
         @Request() req: express.Request,
         @Query() tableName?: string,
         @Query() schemaName?: string,
+        @Query() databaseName?: string,
     ): Promise<ApiWarehouseTableFields> {
         this.setStatus(200);
 
@@ -89,8 +92,10 @@ export class SqlRunnerController extends BaseController {
                 .getWarehouseFields(
                     req.user!,
                     projectUuid,
+                    QueryExecutionContext.SQL_RUNNER,
                     tableName,
                     schemaName,
+                    databaseName,
                 ),
         };
     }
@@ -165,7 +170,7 @@ export class SqlRunnerController extends BaseController {
         @Path() fileId: string,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<any> {
+    ): Promise<AnyType> {
         this.setStatus(200);
         this.setHeader('Content-Type', 'application/json');
 

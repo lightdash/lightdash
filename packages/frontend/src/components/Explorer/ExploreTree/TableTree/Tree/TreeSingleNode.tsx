@@ -1,5 +1,7 @@
 import {
+    getItemId,
     isAdditionalMetric,
+    isCompiledMetric,
     isCustomDimension,
     isDimension,
     isField,
@@ -20,9 +22,13 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
+import {
+    IconAlertTriangle,
+    IconFilter,
+    IconInfoCircle,
+} from '@tabler/icons-react';
 import { darken, lighten } from 'polished';
-import { type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
 import { useFilters } from '../../../../../hooks/useFilters';
@@ -40,7 +46,7 @@ type Props = {
     node: Node;
 };
 
-const TreeSingleNode: FC<Props> = ({ node }) => {
+const TreeSingleNode: FC<Props> = memo(({ node }) => {
     const {
         itemsMap,
         selectedItems,
@@ -48,6 +54,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
         searchResults,
         searchQuery,
         missingCustomMetrics,
+        itemsAlerts,
         missingCustomDimensions,
         onItemClick,
     } = useTableTreeContext();
@@ -61,9 +68,44 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
     const [isMenuOpen, toggleMenu] = useToggle(false);
 
     const isSelected = selectedItems.has(node.key);
-    const isVisible = !isSearching || searchResults.has(node.key);
+    const isVisible = !isSearching || searchResults.includes(node.key);
 
     const item = itemsMap[node.key];
+
+    const metricInfo = useMemo(() => {
+        if (isCompiledMetric(item)) {
+            return {
+                type: item.type,
+                sql: item.sql,
+                compiledSql: item.compiledSql,
+                filters: item.filters,
+                table: item.table,
+                name: item.name,
+            };
+        }
+        return undefined;
+    }, [item]);
+
+    const description = isField(item) ? item.description : undefined;
+
+    const isMissing =
+        (isAdditionalMetric(item) &&
+            missingCustomMetrics &&
+            missingCustomMetrics.includes(item)) ||
+        (isCustomDimension(item) &&
+            missingCustomDimensions &&
+            missingCustomDimensions.includes(item));
+
+    const isHoverCardDisabled = useMemo(() => {
+        // Show metric info if either metric info or description is present
+        if (isCompiledMetric(item) && (!!metricInfo || !!description)) {
+            return false;
+        }
+        // Show description if it's not missing
+        if (!description && !isMissing) return true;
+
+        return false;
+    }, [description, isMissing, item, metricInfo]);
 
     if (!item || !isVisible) return null;
 
@@ -81,15 +123,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
             ? timeIntervalLabel || item.label || item.name
             : item.name;
 
-    const isMissing =
-        (isAdditionalMetric(item) &&
-            missingCustomMetrics &&
-            missingCustomMetrics.includes(item)) ||
-        (isCustomDimension(item) &&
-            missingCustomDimensions &&
-            missingCustomDimensions.includes(item));
-
-    const description = isField(item) ? item.description : undefined;
+    const alerts = itemsAlerts?.[getItemId(item)];
 
     const bgColor = getItemBgColor(item);
 
@@ -161,17 +195,18 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
             onMouseEnter={() => toggleHover(true)}
             onMouseLeave={() => toggleHover(false)}
             label={
-                <Group noWrap>
+                <Group noWrap spacing={'xs'}>
                     <HoverCard
                         openDelay={300}
                         keepMounted={false}
-                        shadow="sm"
+                        shadow="subtle"
                         withinPortal
                         withArrow
-                        disabled={!description && !isMissing}
+                        disabled={isHoverCardDisabled}
                         position="right"
+                        radius="md"
                         /** Ensures the hover card does not overlap with the right-hand menu. */
-                        offset={isFiltered ? 80 : 40}
+                        offset={70}
                     >
                         <HoverCard.Target>
                             <Highlight
@@ -186,6 +221,11 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                         <HoverCard.Dropdown
                             hidden={!isHover}
                             p="xs"
+                            miw={400}
+                            mah={500}
+                            sx={{
+                                overflow: 'auto',
+                            }}
                             /**
                              * Takes up space to the right, so it's OK to go fairly wide in the interest
                              * of readability.
@@ -203,11 +243,53 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                                 <ItemDetailPreview
                                     onViewDescription={onOpenDescriptionView}
                                     description={description}
+                                    metricInfo={metricInfo}
                                 />
                             )}
                         </HoverCard.Dropdown>
                     </HoverCard>
-
+                    {alerts?.infos && alerts.infos.length > 0 ? (
+                        <Tooltip
+                            withinPortal
+                            maw={300}
+                            multiline
+                            label={alerts.infos.join('\n')}
+                        >
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                color="blue.6"
+                                style={{ flexShrink: 0 }}
+                            />
+                        </Tooltip>
+                    ) : null}
+                    {alerts?.warnings && alerts.warnings.length > 0 ? (
+                        <Tooltip
+                            withinPortal
+                            maw={300}
+                            multiline
+                            label={alerts.warnings.join('\n')}
+                        >
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                color="yellow.9"
+                                style={{ flexShrink: 0 }}
+                            />
+                        </Tooltip>
+                    ) : null}
+                    {alerts?.errors && alerts.errors.length > 0 ? (
+                        <Tooltip
+                            withinPortal
+                            maw={300}
+                            multiline
+                            label={alerts.errors.join('\n')}
+                        >
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                color="red.6"
+                                style={{ flexShrink: 0 }}
+                            />
+                        </Tooltip>
+                    ) : null}
                     {(isFiltered || isHover) &&
                     !isAdditionalMetric(item) &&
                     isFilterableField(item) ? (
@@ -267,6 +349,6 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
             data-testid={`tree-single-node-${label}`}
         />
     );
-};
+});
 
 export default TreeSingleNode;

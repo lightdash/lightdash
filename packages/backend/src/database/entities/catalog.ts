@@ -1,7 +1,7 @@
 import {
-    assertUnreachable,
     CatalogItemIcon,
     CatalogType,
+    assertUnreachable,
     type CatalogItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -21,6 +21,7 @@ export type DbCatalog = {
     chart_usage: number | null;
     icon: CatalogItemIcon | null;
     table_name: string;
+    spotlight_show: boolean;
 };
 
 export type DbCatalogIn = Pick<
@@ -35,6 +36,7 @@ export type DbCatalogIn = Pick<
     | 'required_attributes'
     | 'chart_usage'
     | 'table_name'
+    | 'spotlight_show'
 >;
 export type DbCatalogRemove = Pick<DbCatalog, 'project_uuid' | 'name'>;
 export type DbCatalogUpdate =
@@ -89,12 +91,10 @@ export type DbCatalogTag = {
     tag_uuid: string;
     created_at: Date;
     created_by_user_uuid: string | null;
+    is_from_yaml: boolean;
 };
 
-export type DbCatalogTagIn = Pick<
-    DbCatalogTag,
-    'catalog_search_uuid' | 'tag_uuid' | 'created_by_user_uuid'
->;
+export type DbCatalogTagIn = Omit<DbCatalogTag, 'created_at'>;
 
 export type CatalogTagsTable = Knex.CompositeTableType<
     DbCatalogTag,

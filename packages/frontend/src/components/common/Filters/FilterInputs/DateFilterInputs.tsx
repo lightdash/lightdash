@@ -1,12 +1,12 @@
 import {
     DimensionType,
     FilterOperator,
+    TimeFrames,
     formatDate,
     isCustomSqlDimension,
     isDimension,
     isFilterRule,
     parseDate,
-    TimeFrames,
     timeframeToUnitOfTime,
     type ConditionalRule,
     type DateFilterRule,
@@ -32,6 +32,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
 ) => {
     const { field, rule, onChange, popoverProps, disabled, filterType } = props;
     const { startOfWeek } = useFiltersContext();
+
     const isTimestamp =
         (isCustomSqlDimension(field) ? field.dimensionType : field.type) ===
         DimensionType.TIMESTAMP;
@@ -142,7 +143,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 // @ts-ignore
                                 placeholder={placeholder}
                                 autoFocus={true}
-                                defaultOpened={true}
                                 popoverProps={popoverProps}
                                 value={
                                     rule.values && rule.values[0]

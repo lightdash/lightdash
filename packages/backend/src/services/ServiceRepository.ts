@@ -18,6 +18,7 @@ import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
 import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
+import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
@@ -34,12 +35,12 @@ import { SemanticLayerService } from './SemanticLayerService/SemanticLayerServic
 import { ShareService } from './ShareService/ShareService';
 import { SlackIntegrationService } from './SlackIntegrationService/SlackIntegrationService';
 import { SpaceService } from './SpaceService/SpaceService';
+import { SpotlightService } from './SpotlightService/SpotlightService';
 import { SshKeyPairService } from './SshKeyPairService';
 import { UnfurlService } from './UnfurlService/UnfurlService';
 import { UserAttributesService } from './UserAttributesService/UserAttributesService';
 import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
-
 /**
  * Interface outlining all services available under the `ServiceRepository`. Add new services to
  * this list (in alphabetical order, please!) to have typescript help ensure you've updated the
@@ -81,9 +82,12 @@ interface ServiceManifest {
     savedSemanticViewerChartService: SavedSemanticViewerChartService;
     coderService: CoderService;
     featureFlagService: FeatureFlagService;
+    spotlightService: SpotlightService;
+    lightdashAnalyticsService: LightdashAnalyticsService;
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
+    scimService: unknown;
 }
 
 /**
@@ -456,6 +460,7 @@ export class ServiceRepository
                     catalogModel: this.models.getCatalogModel(),
                     contentModel: this.models.getContentModel(),
                     encryptionUtil: this.utils.getEncryptionUtil(),
+                    queryHistoryModel: this.models.getQueryHistoryModel(),
                 }),
         );
     }
@@ -776,6 +781,34 @@ export class ServiceRepository
 
     public getAiService<AiServiceImplT>(): AiServiceImplT {
         return this.getService('aiService');
+    }
+
+    public getScimService<ScimServiceImplT>(): ScimServiceImplT {
+        return this.getService('scimService');
+    }
+
+    public getSpotlightService(): SpotlightService {
+        return this.getService(
+            'spotlightService',
+            () =>
+                new SpotlightService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    spotlightTableConfigModel:
+                        this.models.getSpotlightTableConfigModel(),
+                }),
+        );
+    }
+
+    public getLightdashAnalyticsService(): LightdashAnalyticsService {
+        return this.getService(
+            'lightdashAnalyticsService',
+            () =>
+                new LightdashAnalyticsService({
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                }),
+        );
     }
 
     /**

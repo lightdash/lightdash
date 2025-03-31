@@ -3,16 +3,21 @@ import {
     ApiChartAsCodeListResponse,
     ApiDashboardAsCodeListResponse,
     ChartAsCode,
+    ChartAsCodeInternalization,
+    ChartSummary,
     CreateSavedChart,
     currentVersion,
     DashboardAsCode,
+    DashboardAsCodeInternalization,
     DashboardDAO,
     DashboardTile,
     DashboardTileAsCode,
+    DashboardTileTarget,
     DashboardTileTypes,
     ForbiddenError,
     friendlyName,
     NotFoundError,
+    Project,
     PromotionAction,
     PromotionChanges,
     SavedChartDAO,
@@ -20,6 +25,7 @@ import {
     SpaceSummary,
     UpdatedByUser,
 } from '@lightdash/common';
+import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -29,6 +35,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { PromoteService } from '../PromoteService/PromoteService';
+import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type CoderServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -42,8 +49,8 @@ type CoderServiceArguments = {
 };
 
 const isChartTile = (
-    tile: DashboardTileAsCode,
-): tile is DashboardTileAsCode & {
+    tile: DashboardTileAsCode | DashboardTile,
+): tile is DashboardTile & {
     properties: { chartSlug: string; hideTitle: boolean };
 } =>
     tile.type === DashboardTileTypes.SAVED_CHART ||
@@ -107,12 +114,12 @@ export class CoderService extends BaseService {
             updatedAt: chart.updatedAt,
             metricQuery: chart.metricQuery,
             chartConfig: chart.chartConfig,
+            pivotConfig: chart.pivotConfig,
             dashboardSlug: chart.dashboardUuid
                 ? dashboardSlugs[chart.dashboardUuid]
                 : undefined,
             slug: chart.slug,
             tableConfig: chart.tableConfig,
-
             spaceSlug,
             version: currentVersion,
             downloadedAt: new Date(),
@@ -123,6 +130,114 @@ export class CoderService extends BaseService {
         return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
             id,
         );
+    }
+
+    static getChartSlugForTileUuid = (
+        dashboard: DashboardDAO,
+        uuid: string,
+    ) => {
+        const tile = dashboard.tiles.find((t) => t.uuid === uuid);
+        if (tile && isChartTile(tile)) {
+            const hasMultipleTilesWithSameChartSlug =
+                dashboard.tiles.filter(
+                    (t) =>
+                        isChartTile(t) &&
+                        t.properties.chartSlug === tile.properties.chartSlug,
+                ).length > 1;
+            if (hasMultipleTilesWithSameChartSlug) {
+                const chartSlugIndex = dashboard.tiles
+                    .filter(
+                        (t) =>
+                            isChartTile(t) &&
+                            t.properties.chartSlug ===
+                                tile.properties.chartSlug,
+                    )
+                    .findIndex((t) => t.uuid === uuid);
+                return `${tile.properties.chartSlug}-${chartSlugIndex + 1}`;
+            }
+            return tile.properties.chartSlug;
+        }
+        return undefined;
+    };
+
+    /* Convert dashboard filters from tile uuids to tile slugs
+     * DashboardDAO to DashboardAsCode
+     */
+    static getFiltersWithTileSlugs(
+        dashboard: DashboardDAO,
+    ): DashboardAsCode['filters'] {
+        const dimensionFiltersWithoutUuids: DashboardAsCode['filters']['dimensions'] =
+            dashboard.filters.dimensions.map((filter) => {
+                const tileTargets = Object.entries(
+                    filter.tileTargets ?? {},
+                ).reduce<Record<string, DashboardTileTarget>>(
+                    (acc, [tileUuid, target]) => {
+                        const tileSlug = CoderService.getChartSlugForTileUuid(
+                            dashboard,
+                            tileUuid,
+                        );
+                        if (!tileSlug) return acc;
+                        return {
+                            ...acc,
+                            [tileSlug]: target,
+                        };
+                    },
+                    {},
+                );
+                return {
+                    ...filter,
+                    id: undefined,
+                    tileTargets,
+                };
+            });
+
+        return {
+            ...dashboard.filters,
+            dimensions: dimensionFiltersWithoutUuids,
+        };
+    }
+
+    /* Convert dashboard filters from tile slugs to tile uuids
+     * DashboardAsCode to DashboardDAO
+     */
+    static getFiltersWithTileUuids(
+        dashboardAsCode: DashboardAsCode,
+        tilesWithUuids: DashboardTile[],
+    ): DashboardDAO['filters'] {
+        const dimensionFiltersWithUuids: DashboardDAO['filters']['dimensions'] =
+            dashboardAsCode.filters.dimensions.map((filter) => {
+                const tileTargets = Object.entries(
+                    filter.tileTargets ?? {},
+                ).reduce<Record<string, DashboardTileTarget>>(
+                    (acc, [tileSlug, target]) => {
+                        const tileUuid = tilesWithUuids.find(
+                            (t) =>
+                                isChartTile(t) &&
+                                t.properties.chartSlug === tileSlug,
+                        )?.uuid;
+                        if (!tileUuid) {
+                            console.error(
+                                `Tile with slug ${tileSlug} not found in tilesWithUuids`,
+                            );
+                            return acc;
+                        }
+                        return {
+                            ...acc,
+                            [tileUuid]: target,
+                        };
+                    },
+                    {},
+                );
+                return {
+                    ...filter,
+                    id: uuidv4(),
+                    tileTargets,
+                };
+            });
+        return {
+            ...dashboardAsCode.filters,
+            dimensions: dimensionFiltersWithUuids,
+        };
     }
 
     private static transformDashboard(
@@ -137,11 +252,15 @@ export class CoderService extends BaseService {
         }
 
         const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.map(
-            (tile) => {
+            (tile): DashboardTileAsCode => {
                 if (isChartTile(tile)) {
                     return {
                         ...tile,
                         uuid: undefined,
+                        tileSlug: CoderService.getChartSlugForTileUuid(
+                            dashboard,
+                            tile.uuid,
+                        ),
                         properties: {
                             title: tile.properties.title,
                             hideTitle: tile.properties.hideTitle,
@@ -153,18 +272,20 @@ export class CoderService extends BaseService {
                 // Markdown and loom are returned as they are
                 return {
                     ...tile,
+                    tileSlug: undefined,
                     uuid: undefined,
                 };
             },
             [],
         );
-        return {
+
+        const dashboardAsCode: DashboardAsCode = {
             name: dashboard.name,
             description: dashboard.description,
             updatedAt: dashboard.updatedAt,
             tiles: tilesWithoutUuids,
 
-            filters: dashboard.filters,
+            filters: CoderService.getFiltersWithTileSlugs(dashboard),
             tabs: dashboard.tabs,
             slug: dashboard.slug,
 
@@ -172,6 +293,8 @@ export class CoderService extends BaseService {
             version: currentVersion,
             downloadedAt: new Date(),
         };
+
+        return dashboardAsCode;
     }
 
     async convertTileWithSlugsToUuids(
@@ -204,6 +327,7 @@ export class CoderService extends BaseService {
                 }
                 return {
                     ...tile,
+                    uuid: uuidv4(),
                     properties: {
                         ...tile.properties,
                         savedChartUuid: savedChart.uuid,
@@ -214,7 +338,7 @@ export class CoderService extends BaseService {
         });
     }
 
-    /* 
+    /*
     Dashboard or chart ids can be uuids or slugs
      We need to convert uuids to slugs before making the query
     */
@@ -260,7 +384,50 @@ export class CoderService extends BaseService {
             : [];
     }
 
-    /* 
+    private async filterPrivateContent<
+        T extends
+            | DashboardDAO
+            | SavedChartDAO
+            | (ChartSummary & { updatedAt: Date })
+            | Pick<
+                  DashboardDAO,
+                  'uuid' | 'name' | 'spaceUuid' | 'description' | 'slug'
+              >,
+    >(
+        user: SessionUser,
+        project: Project,
+        content: T[],
+        spaces: Omit<SpaceSummary, 'userAccess'>[],
+    ): Promise<T[]> {
+        if (
+            user.ability.can(
+                'manage',
+                subject('Project', {
+                    projectUuid: project.projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            // User is an admin, return all content
+            return content;
+        }
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaces.map((s) => s.uuid),
+        );
+
+        return content.filter((c) => {
+            const space = spaces.find((s) => s.uuid === c.spaceUuid);
+            if (!space) return false;
+            return hasViewAccessToSpace(
+                user,
+                space,
+                spacesAccess[space.uuid] ?? [],
+            );
+        });
+    }
+
+    /*
     @param dashboardIds: Dashboard ids can be uuids or slugs, if undefined return all dashboards, if [] we return no dashboards
     @returns: DashboardAsCode[]
     */
@@ -269,24 +436,25 @@ export class CoderService extends BaseService {
         projectUuid: string,
         dashboardIds: string[] | undefined,
         offset?: number,
+        languageMap?: boolean,
     ): Promise<ApiDashboardAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
             throw new NotFoundError(`Project ${projectUuid} not found`);
         }
 
-        // TODO allow more than just admins
-        // Filter dashboards based on user permissions (from private spaces)
         if (
             user.ability.cannot(
                 'manage',
-                subject('Project', {
+                subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
             )
         ) {
-            throw new ForbiddenError();
+            throw new ForbiddenError(
+                'You are not allowed to download dashboards',
+            );
         }
 
         const slugs = await this.convertIdsToSlugs('dashboard', dashboardIds);
@@ -299,6 +467,7 @@ export class CoderService extends BaseService {
             );
             return {
                 dashboards: [],
+                languageMap: undefined,
                 missingIds: dashboardIds || [],
                 total: 0,
                 offset: 0,
@@ -309,14 +478,24 @@ export class CoderService extends BaseService {
             projectUuid,
             slugs,
         });
+        const spaceUuids = dashboardSummaries.map((chart) => chart.spaceUuid);
+        // get all spaces to map  spaceSlug
+        const spaces = await this.spaceModel.find({ spaceUuids });
 
+        const dashboardSummariesWithAccess = await this.filterPrivateContent(
+            user,
+            project,
+            dashboardSummaries,
+            spaces,
+        );
         const maxResults = this.lightdashConfig.contentAsCode.maxDownloads;
         const offsetIndex = offset || 0;
         const newOffset = Math.min(
             offsetIndex + maxResults,
-            dashboardSummaries.length,
+            dashboardSummariesWithAccess.length,
         );
-        const limitedDashboardSummaries = dashboardSummaries.slice(
+
+        const limitedDashboardSummaries = dashboardSummariesWithAccess.slice(
             offsetIndex,
             newOffset,
         );
@@ -334,16 +513,37 @@ export class CoderService extends BaseService {
                 )}`,
             );
         }
-        // get all spaces to map  spaceSlug
-        const spaceUuids = dashboards.map((dashboard) => dashboard.spaceUuid);
-        const spaces = await this.spaceModel.find({ spaceUuids });
+
+        const dashboardsWithAccess = await this.filterPrivateContent(
+            user,
+            project,
+            dashboards,
+            spaces,
+        );
+
+        const transformedDashboards = dashboardsWithAccess.map((dashboard) =>
+            CoderService.transformDashboard(dashboard, spaces),
+        );
 
         return {
-            dashboards: dashboards.map((dashboard) =>
-                CoderService.transformDashboard(dashboard, spaces),
-            ),
+            dashboards: transformedDashboards,
+            languageMap: languageMap
+                ? transformedDashboards.map((dashboard) => {
+                      try {
+                          return new DashboardAsCodeInternalization().getLanguageMap(
+                              dashboard,
+                          );
+                      } catch (e: unknown) {
+                          this.logger.error(
+                              `Error getting language map for dashboard ${dashboard.slug}`,
+                              e,
+                          );
+                          return undefined;
+                      }
+                  })
+                : undefined,
             missingIds,
-            total: dashboardSummaries.length,
+            total: dashboardSummariesWithAccess.length,
             offset: newOffset,
         };
     }
@@ -353,24 +553,24 @@ export class CoderService extends BaseService {
         projectUuid: string,
         chartIds?: string[],
         offset?: number,
+        languageMap?: boolean,
     ): Promise<ApiChartAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
             throw new NotFoundError(`Project ${projectUuid} not found`);
         }
 
-        // TODO allow more than just admins
         // Filter charts based on user permissions (from private spaces)
         if (
             user.ability.cannot(
                 'manage',
-                subject('Project', {
+                subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
             )
         ) {
-            throw new ForbiddenError();
+            throw new ForbiddenError('You are not allowed to download charts');
         }
 
         const slugs = await this.convertIdsToSlugs('chart', chartIds);
@@ -382,6 +582,7 @@ export class CoderService extends BaseService {
             );
             return {
                 charts: [],
+                languageMap: undefined,
                 missingIds: chartIds || [],
                 total: 0,
                 offset: 0,
@@ -398,23 +599,30 @@ export class CoderService extends BaseService {
 
         // Apply offset and limit to chart summaries
         const offsetIndex = offset || 0;
+        const spaceUuids = chartSummaries.map((chart) => chart.spaceUuid);
+        // get all spaces to map  spaceSlug
+        const spaces = await this.spaceModel.find({ spaceUuids });
+        const chartsSummariesWithAccess = await this.filterPrivateContent(
+            user,
+            project,
+            chartSummaries,
+            spaces,
+        );
         const newOffset = Math.min(
             offsetIndex + maxResults,
-            chartSummaries.length,
+            chartsSummariesWithAccess.length,
         );
-        const limitedChartSummaries = chartSummaries.slice(
+        const limitedChartSummaries = chartsSummariesWithAccess.slice(
             offsetIndex,
             newOffset,
         );
+
         const chartPromises = limitedChartSummaries.map((chart) =>
             this.savedChartModel.get(chart.uuid),
         );
         const charts = await Promise.all(chartPromises);
         const missingIds = CoderService.getMissingIds(chartIds, charts);
 
-        // get all spaces to map  spaceSlug
-        const spaceUuids = charts.map((chart) => chart.spaceUuid);
-        const spaces = await this.spaceModel.find({ spaceUuids });
         // get all spaces to map  dashboardSlug
         const dashboardUuids = charts.reduce<string[]>((acc, chart) => {
             if (chart.dashboardUuid) {
@@ -426,12 +634,29 @@ export class CoderService extends BaseService {
             dashboardUuids,
         );
 
+        const transformedCharts = charts.map((chart) =>
+            CoderService.transformChart(chart, spaces, dashboards),
+        );
+
         return {
-            charts: charts.map((chart) =>
-                CoderService.transformChart(chart, spaces, dashboards),
-            ),
+            charts: transformedCharts,
+            languageMap: languageMap
+                ? transformedCharts.map((chart) => {
+                      try {
+                          return new ChartAsCodeInternalization().getLanguageMap(
+                              chart,
+                          );
+                      } catch (e: unknown) {
+                          this.logger.error(
+                              `Error getting language map for chart ${chart.slug}`,
+                              e,
+                          );
+                          return undefined;
+                      }
+                  })
+                : undefined,
             missingIds,
-            total: chartSummaries.length,
+            total: chartsSummariesWithAccess.length,
             offset: newOffset,
         };
     }
@@ -442,14 +667,12 @@ export class CoderService extends BaseService {
         slug: string,
         chartAsCode: ChartAsCode,
     ) {
-        // TODO handle permissions in spaces
-        // TODO allow more than just admins
         const project = await this.projectModel.get(projectUuid);
 
         if (
             user.ability.cannot(
                 'manage',
-                subject('Project', {
+                subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
@@ -614,7 +837,24 @@ export class CoderService extends BaseService {
             projectUuid,
         });
 
-        if (space !== undefined) return { space, created: false };
+        if (space !== undefined) {
+            const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+                user.userUuid,
+                [space.uuid],
+            );
+            if (
+                hasViewAccessToSpace(
+                    user,
+                    space,
+                    spacesAccess[space.uuid] ?? [],
+                )
+            ) {
+                return { space, created: false };
+            }
+            throw new ForbiddenError(
+                "You don't have access to a private space",
+            );
+        }
 
         console.info(`Creating new public space with slug ${spaceSlug}`);
         const newSpace = await this.spaceModel.createSpace(
@@ -642,15 +882,12 @@ export class CoderService extends BaseService {
         slug: string,
         dashboardAsCode: DashboardAsCode,
     ): Promise<PromotionChanges> {
-        // TODO handle permissions in spaces
-        // TODO allow more than just admins
-
         const project = await this.projectModel.get(projectUuid);
 
         if (
             user.ability.cannot(
                 'manage',
-                subject('Project', {
+                subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
@@ -662,7 +899,15 @@ export class CoderService extends BaseService {
             slug,
             projectUuid,
         });
+        const tilesWithUuids = await this.convertTileWithSlugsToUuids(
+            projectUuid,
+            dashboardAsCode.tiles,
+        );
 
+        const dashboardFilters = CoderService.getFiltersWithTileUuids(
+            dashboardAsCode,
+            tilesWithUuids,
+        );
         // If chart does not exist, we can't use promoteService,
         // since it relies on information it is not available in ChartAsCode, and other uuids
         if (dashboardSummary === undefined) {
@@ -673,16 +918,13 @@ export class CoderService extends BaseService {
                     user,
                 );
 
-            const tilesWithUuids = await this.convertTileWithSlugsToUuids(
-                projectUuid,
-                dashboardAsCode.tiles,
-            );
             const newDashboard = await this.dashboardModel.create(
                 space.uuid,
                 {
                     ...dashboardAsCode,
                     tiles: tilesWithUuids,
                     forceSlug: true,
+                    filters: dashboardFilters,
                 },
                 user,
                 projectUuid,
@@ -714,10 +956,6 @@ export class CoderService extends BaseService {
             `Updating dashboard "${dashboard.name}" on project ${projectUuid}`,
         );
 
-        const tilesWithUuids = await this.convertTileWithSlugsToUuids(
-            projectUuid,
-            dashboardAsCode.tiles,
-        );
         const dashboardWithUuids = {
             ...dashboardAsCode,
             tiles: tilesWithUuids,
@@ -728,6 +966,7 @@ export class CoderService extends BaseService {
                 {
                     ...dashboard,
                     ...dashboardWithUuids,
+                    filters: dashboardFilters,
                     projectUuid,
                     organizationUuid: project.organizationUuid,
                 },

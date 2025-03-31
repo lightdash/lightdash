@@ -175,6 +175,7 @@ dashboardRouter.post(
                     req.body.queryFilters,
                     req.body.gridWidth,
                     req.user!,
+                    req.body.selectedTabs,
                 );
 
             res.json({
@@ -195,7 +196,7 @@ dashboardRouter.post(
         try {
             const results = await req.services
                 .getCsvService()
-                .exportCsvDashboard(
+                .scheduleExportCsvDashboard(
                     req.user!,
                     req.params.dashboardUuid,
                     req.body.filters,

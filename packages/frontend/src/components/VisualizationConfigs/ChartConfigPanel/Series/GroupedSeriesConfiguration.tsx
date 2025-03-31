@@ -293,7 +293,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                     {...dropProps.droppableProps}
                                     ref={dropProps.innerRef}
                                 >
-                                    {seriesGroup?.map((singleSeries, i) => {
+                                    {seriesGroup.map((singleSeries, i) => {
                                         const pivotLabel =
                                             singleSeries.encode.yRef.pivotValues!.reduce(
                                                 (acc, { field, value }) => {
@@ -394,6 +394,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                             </Draggable>
                                         );
                                     })}
+                                    {dropProps.placeholder}
                                 </div>
                             )}
                         </Droppable>

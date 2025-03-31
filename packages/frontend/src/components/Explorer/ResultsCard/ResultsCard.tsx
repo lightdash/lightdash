@@ -5,19 +5,19 @@ import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import { downloadCsv } from '../../../api/csv';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
+import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import AddColumnButton from '../../AddColumnButton';
-import { Can } from '../../common/Authorization';
+import ExportSelector from '../../ExportSelector';
+import SortButton from '../../SortButton';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import {
     COLLAPSABLE_CARD_ACTION_ICON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
-import ExportSelector from '../../ExportSelector';
-import SortButton from '../../SortButton';
 import { ExplorerResults } from './ExplorerResults';
 
 const ResultsCard: FC = memo(() => {
@@ -34,11 +34,8 @@ const ResultsCard: FC = memo(() => {
         (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
 
-    const rows = useExplorerContext(
-        (context) => context.queryResults.data?.rows,
-    );
-    const resultsData = useExplorerContext(
-        (context) => context.queryResults.data,
+    const totalResults = useExplorerContext(
+        (context) => context.queryResults.totalResults,
     );
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,
@@ -51,7 +48,7 @@ const ResultsCard: FC = memo(() => {
         (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
     );
 
-    const disabled = !resultsData || resultsData.rows.length <= 0;
+    const disabled = useMemo(() => (totalResults ?? 0) <= 0, [totalResults]);
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
@@ -64,7 +61,7 @@ const ResultsCard: FC = memo(() => {
                 onlyRaw,
                 columnOrder,
                 showTableNames: true,
-                pivotColumns: undefined, // results are always unpivoted
+                pivotConfig: undefined, // results are always unpivoted
             });
         } else {
             throw new Error('Project UUID is missing');
@@ -142,7 +139,7 @@ const ResultsCard: FC = memo(() => {
                                 <Popover.Dropdown>
                                     <ExportSelector
                                         projectUuid={projectUuid}
-                                        rows={rows}
+                                        totalResults={totalResults}
                                         getCsvLink={getCsvLink}
                                         getGsheetLink={getGsheetLink}
                                     />

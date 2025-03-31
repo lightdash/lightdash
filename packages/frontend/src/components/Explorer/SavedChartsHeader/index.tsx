@@ -1,10 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    DashboardTileTypes,
-    FeatureFlags,
-    type ApiError,
-    type PullRequestCreated,
-} from '@lightdash/common';
+import { DashboardTileTypes, FeatureFlags } from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
@@ -22,13 +17,11 @@ import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconArrowBack,
-    IconArrowRight,
     IconBell,
     IconCheck,
     IconChevronRight,
     IconCirclePlus,
     IconCirclesRelation,
-    IconCodePlus,
     IconCopy,
     IconDatabaseExport,
     IconDots,
@@ -42,10 +35,8 @@ import {
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
-import { useMutation } from '@tanstack/react-query';
 import { Fragment, useEffect, useMemo, useState, type FC } from 'react';
 import { useBlocker, useLocation, useNavigate, useParams } from 'react-router';
-import { lightdashApi } from '../../../api';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteChartDiffMutation,
@@ -60,8 +51,6 @@ import {
 import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
-import { useGitIntegration } from '../../../hooks/gitIntegration/useGitIntegration';
-import useToaster from '../../../hooks/toaster/useToaster';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
 import {
@@ -74,22 +63,18 @@ import useApp from '../../../providers/App/useApp';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import ExploreFromHereButton from '../../ExploreFromHereButton';
+import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import MantineIcon from '../../common/MantineIcon';
+import PageHeader from '../../common/Page/PageHeader';
+import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
+import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
+import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartDuplicateModal from '../../common/modal/ChartDuplicateModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
 import MoveChartThatBelongsToDashboardModal from '../../common/modal/MoveChartThatBelongsToDashboardModal';
-import PageHeader from '../../common/Page/PageHeader';
-import {
-    PageActionsContainer,
-    PageTitleAndDetailsContainer,
-} from '../../common/PageHeader';
-import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
-import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
-import ShareShortLinkButton from '../../common/ShareShortLinkButton';
-import ExploreFromHereButton from '../../ExploreFromHereButton';
-import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import SaveChartButton from '../SaveChartButton';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 
@@ -101,57 +86,6 @@ enum SpaceType {
 const SpaceTypeLabels = {
     [SpaceType.SharedWithMe]: 'Shared with me',
     [SpaceType.AdminContentView]: 'Public content view',
-};
-
-const createPullRequestForChartFields = async (
-    projectUuid: string,
-    chartUuid: string,
-) =>
-    lightdashApi<any>({
-        url: `/projects/${projectUuid}/git-integration/pull-requests/chart/${chartUuid}/fields`,
-        method: 'GET',
-        body: undefined,
-    });
-
-const useCreatePullRequestForChartFieldsMutation = (
-    projectUuid: string | undefined,
-    chartUuid: string | undefined,
-) => {
-    /* useMutation<GitIntegrationConfiguration, ApiError>(
-        ['git-integration', 'pull-request'],
-        () => createPullRequestForChartFields(projectUuid, chartUuid!),
-
-    );*/
-    const { showToastSuccess, showToastApiError } = useToaster();
-
-    return useMutation<PullRequestCreated, ApiError>(
-        () =>
-            projectUuid && chartUuid
-                ? createPullRequestForChartFields(projectUuid, chartUuid)
-                : Promise.reject(),
-        {
-            mutationKey: ['git-integration', 'pull-request'],
-            retry: false,
-            onSuccess: async (pullRequest) => {
-                showToastSuccess({
-                    title: `Success! Create branch with changes: '${pullRequest.prTitle}'`,
-                    action: {
-                        children: 'Open Pull Request',
-                        icon: IconArrowRight,
-                        onClick: () => {
-                            window.open(pullRequest.prUrl, '_blank');
-                        },
-                    },
-                });
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: `Failed to create pull request`,
-                    apiError: error,
-                });
-            },
-        },
-    );
 };
 
 type SavedChartsHeaderProps = {
@@ -198,18 +132,14 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
     );
     const reset = useExplorerContext((context) => context.actions.reset);
 
-    const resultsData = useExplorerContext(
-        (context) => context.queryResults.data,
+    const itemsMap = useExplorerContext(
+        (context) => context.query.data?.fields,
     );
     const isValidQuery = useExplorerContext(
         (context) => context.state.isValidQuery,
     );
 
-    const itemsMap = useMemo(() => {
-        return resultsData?.fields;
-    }, [resultsData]);
-
-    const { clearIsEditingDashboardChart } = useDashboardStorage();
+    const { clearDashboardStorage } = useDashboardStorage();
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const [isMovingChart, setIsMovingChart] = useState(false);
     const [isQueryModalOpen, queryModalHandlers] = useDisclosure();
@@ -233,11 +163,6 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
         savedChart?.uuid,
     );
     const chartViewStats = useChartViewStats(savedChart?.uuid);
-    const { data: gitIntegration } = useGitIntegration(projectUuid);
-    const createPullRequest = useCreatePullRequestForChartFieldsMutation(
-        projectUuid,
-        savedChart?.uuid,
-    );
     const chartBelongsToDashboard: boolean = !!savedChart?.dashboardUuid;
 
     const hasGoogleDriveEnabled =
@@ -424,7 +349,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                     py: 'xs',
                 }}
             >
-                <PageTitleAndDetailsContainer>
+                <div style={{ flex: 1 }}>
                     {savedChart && projectUuid && (
                         <>
                             <Group spacing={4}>
@@ -476,7 +401,8 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                             </Group>
                         </>
                     )}
-                </PageTitleAndDetailsContainer>
+                </div>
+
                 {userTimeZonesEnabled &&
                     savedChart?.metricQuery.timezone &&
                     !isEditMode && (
@@ -484,10 +410,11 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                             {savedChart?.metricQuery.timezone}
                         </Text>
                     )}
+
                 {(userCanManageChart ||
                     userCanCreateDeliveriesAndAlerts ||
                     userCanManageExplore) && (
-                    <PageActionsContainer>
+                    <Group spacing="xs">
                         {userCanManageExplore && !isEditMode && (
                             <ExploreFromHereButton />
                         )}
@@ -868,18 +795,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                         Google Sheets Sync
                                     </Menu.Item>
                                 ) : null}
-                                {gitIntegration?.enabled && (
-                                    <Menu.Item
-                                        icon={
-                                            <MantineIcon icon={IconCodePlus} />
-                                        }
-                                        onClick={() =>
-                                            createPullRequest.mutate()
-                                        }
-                                    >
-                                        Add custom metrics to dbt project
-                                    </Menu.Item>
-                                )}
+
                                 {userCanManageChart && (
                                     <>
                                         <Menu.Divider />
@@ -912,7 +828,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                 </ActionIcon>
                             </Menu.Target>
                         </Menu>
-                    </PageActionsContainer>
+                    </Group>
                 )}
             </PageHeader>
 
@@ -947,7 +863,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                         } else {
                             void navigate(`/`);
                         }
-                        clearIsEditingDashboardChart();
+                        clearDashboardStorage();
                         deleteModalHandlers.close();
                     }}
                 />
@@ -987,7 +903,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                     opened={isMovingChart}
                     onClose={() => setIsMovingChart(false)}
                     onConfirm={() => {
-                        clearIsEditingDashboardChart();
+                        clearDashboardStorage();
                         void navigate(
                             `/projects/${projectUuid}/saved/${savedChart.uuid}/edit`,
                         );

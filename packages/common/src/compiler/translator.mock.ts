@@ -6,6 +6,7 @@ import {
 } from '../types/dbt';
 import { type Table } from '../types/explore';
 import { DimensionType, FieldType, MetricType } from '../types/field';
+import type { LightdashProjectConfig } from '../types/lightdashProjectConfig';
 import { OrderFieldsByStrategy } from '../types/table';
 import { TimeFrames } from '../types/timeFrames';
 
@@ -353,6 +354,10 @@ export const LIGHTDASH_TABLE_WITH_GROUP_BLOCK: Omit<Table, 'lineageGraph'> = {
             table: 'myTable',
             tableLabel: 'My table',
             type: MetricType.COUNT_DISTINCT,
+            spotlight: {
+                visibility: 'show',
+                categories: [],
+            },
         },
     },
     groupDetails: {
@@ -439,6 +444,10 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             groups: [],
             filters: [],
             index: 0,
+            spotlight: {
+                visibility: 'show',
+                categories: [],
+            },
         },
         dbt_metric_2: {
             description: 'Description',
@@ -460,6 +469,10 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             groups: [],
             filters: [],
             index: 1,
+            spotlight: {
+                visibility: 'show',
+                categories: [],
+            },
         },
         dbt_metric_3: {
             description: 'Description',
@@ -481,6 +494,10 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             groups: [],
             filters: [],
             index: 2,
+            spotlight: {
+                visibility: 'show',
+                categories: [],
+            },
         },
         dbt_metric_4: {
             description: 'Description',
@@ -502,6 +519,10 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             groups: [],
             filters: [],
             index: 3,
+            spotlight: {
+                visibility: 'show',
+                categories: [],
+            },
         },
         dbt_metric_5: {
             description: 'Description',
@@ -523,6 +544,10 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             groups: [],
             filters: [],
             index: 4,
+            spotlight: {
+                visibility: 'show',
+                categories: [],
+            },
         },
     },
 };
@@ -551,6 +576,10 @@ export const LIGHTDASH_TABLE_WITH_DBT_V9_METRICS: Omit<Table, 'lineageGraph'> =
                 groups: [],
                 filters: [],
                 index: 0,
+                spotlight: {
+                    visibility: 'show',
+                    categories: [],
+                },
             },
         },
     };
@@ -678,6 +707,10 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             index: 0,
             dimensionReference: 'myTable_user_id',
             requiredAttributes: undefined,
+            spotlight: {
+                visibility: 'show',
+                categories: [],
+            },
         },
         total_num_participating_athletes: {
             fieldType: FieldType.METRIC,
@@ -701,6 +734,10 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             index: 1,
             dimensionReference: 'myTable_num_participating_athletes',
             requiredAttributes: undefined,
+            spotlight: {
+                visibility: 'show',
+                categories: [],
+            },
         },
     },
 };
@@ -1438,4 +1475,143 @@ export const LIGHTDASH_TABLE_WITH_ADDITIONAL_DIMENSIONS: Omit<
             type: DimensionType.DATE,
         },
     },
+};
+
+export const SPOTLIGHT_CONFIG_WITH_CATEGORIES_AND_HIDE: LightdashProjectConfig =
+    {
+        spotlight: {
+            default_visibility: 'show',
+            categories: {
+                category_1: { label: 'Category 1' },
+                category_2: { label: 'Category 2', color: 'red' },
+            },
+        },
+    };
+
+export const MODEL_WITH_NO_CATEGORIES: DbtModelNode = {
+    ...MODEL_WITH_METRIC,
+    meta: {
+        spotlight: {
+            visibility: 'hide',
+        },
+    },
+};
+
+export const LIGHTDASH_TABLE_WITH_NO_CATEGORIES: Omit<Table, 'lineageGraph'> = {
+    ...LIGHTDASH_TABLE_WITH_METRICS,
+    metrics: {
+        ...{
+            dbt_metric_1: {
+                ...LIGHTDASH_TABLE_WITH_DBT_METRICS.metrics.dbt_metric_1,
+                spotlight: {
+                    ...LIGHTDASH_TABLE_WITH_DBT_METRICS.metrics.dbt_metric_1
+                        .spotlight,
+                    visibility: 'hide',
+                },
+            },
+        },
+        ...Object.fromEntries(
+            Object.entries(LIGHTDASH_TABLE_WITH_METRICS.metrics).map(
+                ([key, metric]) => [
+                    key,
+                    {
+                        ...metric,
+                        spotlight: { ...metric.spotlight, visibility: 'hide' },
+                        index: (metric.index ?? 0) + 1,
+                    },
+                ],
+            ),
+        ),
+    },
+    dimensions: LIGHTDASH_TABLE_WITH_METRICS.dimensions,
+};
+
+export const MODEL_WITH_MODEL_LEVEL_CATEGORIES: DbtModelNode = {
+    ...MODEL_WITH_METRIC,
+    meta: {
+        spotlight: {
+            visibility: 'hide',
+            categories: ['category_1'],
+        },
+    },
+};
+
+export const LIGHTDASH_TABLE_WITH_MODEL_LEVEL_CATEGORIES: Omit<
+    Table,
+    'lineageGraph'
+> = {
+    ...LIGHTDASH_TABLE_WITH_NO_CATEGORIES,
+    metrics: Object.fromEntries(
+        Object.entries(LIGHTDASH_TABLE_WITH_NO_CATEGORIES.metrics).map(
+            ([key, metric]) => [
+                key,
+                {
+                    ...metric,
+                    spotlight: {
+                        visibility: 'hide',
+                        categories: ['category_1'],
+                    },
+                },
+            ],
+        ),
+    ),
+};
+
+export const MODEL_WITH_METRIC_LEVEL_CATEGORIES: DbtModelNode = {
+    ...MODEL_WITH_MODEL_LEVEL_CATEGORIES,
+    columns: {
+        user_id: {
+            name: 'user_id',
+            data_type: DimensionType.STRING,
+            meta: {
+                metrics: {
+                    user_count: {
+                        type: MetricType.COUNT_DISTINCT,
+                        spotlight: {
+                            visibility: 'hide',
+                            categories: ['category_2'],
+                        },
+                    },
+                },
+            },
+        },
+        num_participating_athletes: {
+            name: 'num_participating_athletes',
+            data_type: DimensionType.NUMBER,
+            meta: {
+                dimension: {
+                    sql: 'num_participating_men + num_participating_women',
+                },
+                metrics: {
+                    total_num_participating_athletes: {
+                        type: MetricType.SUM,
+                    },
+                },
+            },
+        },
+    },
+};
+
+export const LIGHTDASH_TABLE_WITH_METRIC_LEVEL_CATEGORIES: Omit<
+    Table,
+    'lineageGraph'
+> = {
+    ...LIGHTDASH_TABLE_WITH_MODEL_LEVEL_CATEGORIES,
+    metrics: Object.fromEntries(
+        Object.entries(LIGHTDASH_TABLE_WITH_MODEL_LEVEL_CATEGORIES.metrics).map(
+            ([key, metric]) => [
+                key,
+                {
+                    ...metric,
+                    spotlight: {
+                        visibility: 'hide',
+                        categories: [
+                            'category_1',
+                            ...(key === 'user_count' ? ['category_2'] : []),
+                        ],
+                    },
+                },
+            ],
+        ),
+    ),
 };

@@ -1,0 +1,9 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "sourceMap": true,
+        "inlineSources": true,
+        // This will improve issue grouping in Sentry
+        "sourceRoot": "/"
+    }
+}

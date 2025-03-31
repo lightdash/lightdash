@@ -29,10 +29,10 @@ import {
     useUserAttributesDeleteMutation,
 } from '../../../hooks/useUserAttributes';
 import useApp from '../../../providers/App/useApp';
+import ForbiddenPanel from '../../ForbiddenPanel';
 import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
-import ForbiddenPanel from '../../ForbiddenPanel';
 import UserAttributeModal from './UserAttributeModal';
 
 const UserListItem: FC<{

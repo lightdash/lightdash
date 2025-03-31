@@ -119,10 +119,10 @@ git checkout main
 git pull upstream main
 ```
 
-4. Install the dependencies with yarn (npm isn't supported):
+4. Install the dependencies with pnpm (npm/yarn isn't supported):
 
 ```sh
-yarn install
+pnpm install
 ```
 
 5. Create a new topic branch:
@@ -206,11 +206,11 @@ Once connected run the following commands in the VS Code terminal:
 
 ```shell
 # Setup the database
-yarn workspace backend migrate
-yarn workspace backend seed
+pnpm -F backend migrate
+pnpm -F backend seed
 
 # Run Lightdash frontend and backend in dev mode
-yarn dev
+pnpm dev
 ```
 
 #### using Docker compose
@@ -251,7 +251,7 @@ export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=true
 ./scripts/seed-lightdash.sh
 
 # Run Lightdash frontend and backend in dev mode
-yarn dev # http://localhost:3000
+pnpm dev # http://localhost:3000
 
 # Log in dev mode
 # When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
@@ -260,14 +260,14 @@ yarn dev # http://localhost:3000
 # Password: demo_password!
 
 # Or run in production mode
-# yarn build
-# yarn start # http://localhost:8080
+# pnpm build
+# pnpm start # http://localhost:8080
 ```
 
 Notes:
 
--   If you change files inside `/packages/common` you should run `yarn common-build` before `yarn dev`
--   If you change files inside `/packages/warehouses` you should run `yarn warehouses-build` before `yarn dev`
+-   If you change files inside `/packages/common` you should run `pnpm common-build` before `pnpm dev`
+-   If you change files inside `/packages/warehouses` you should run `pnpm warehouses-build` before `pnpm dev`
 -   If you rename files the container might not recognise the changes. To fix this, stop the containers and start again.
 -   If you need to change any of the environment variables, you can do so by editing `.env.development.local` and re-run the `docker compose up` command mentioned above
 
@@ -288,7 +288,8 @@ docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env
 To setup Development Environment without Docker you need following pre-requisites before running Lightdash:
 
 -   node >= v18.x (20 is preferred)
--   yarn
+-   python >= 3.3
+-   pnpm
 -   postgres >= 12
 -   dbt 1.4.x or 1.5.x
 
@@ -298,22 +299,36 @@ eg. on MacOS you can follow this instructions:
 # 1 Install Homebrew (https://brew.sh)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# 2 Install nvm (https://github.com/nvm-sh/nvm#troubleshooting-on-macos)
+# 2 Install nvm (https://github.com/nvm-sh/nvm#troubleshooting-on-macos) and other required dependencies
 brew update
 brew install nvm
+brew install pkg-config cairo pango libpng jpeg giflib librsvg pixman python-setuptools
 
 # 3 Install specified node version using NVM (https://github.com/nvm-sh/nvm)
 
 nvm install v20.8.0
 nvm alias default v20.8.0
 
-# 4 Install postgres (https://wiki.postgresql.org/wiki/Homebrew)
+# 4 Install postgres (https://wiki.postgresql.org/wiki/Homebrew) and pgvector
 brew install postgresql@14
 brew services start postgresql@14
 
-# 5 Install dbt (https://docs.getdbt.com/dbt-cli/install/homebrew)
-brew tap dbt-labs/dbt
-brew install dbt-postgres@1.5.4
+# pgvector is an extension for postgres we use in Lightdash, it needs to be installed separately
+# More info about this extension and a detailed installation guide available here: https://github.com/pgvector/pgvector
+# on Linux, you can install `postgresql-14-pgvector`, available on apt
+# You might need to point pgvector to a correct postgres instance if you have multiple versions installed
+# export PG_CONFIG=/opt/homebrew/opt/postgresql@14/bin/pg_config
+git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git && cd pgvector && make && sudo make install && cd ..
+
+# 5 Install dbt using pip
+# Detailed installation guide available here: https://docs.getdbt.com/docs/core/pip-install
+# Create python virtual env
+python3 -m venv env-lightdash # or your preferred env name
+# Activate the env
+# You can deactivate python virtual env by running `deactivate` later
+source env-lightdash/bin/activate
+
+python -m pip install dbt-postgres==1.4.9
 
 # 6 Clone the repo and open it in your IDE
 git clone https://github.com/lightdash/lightdash.git
@@ -334,16 +349,16 @@ PGDATABASE=postgres
 DBT_DEMO_DIR=$PWD/examples/full-jaffle-shop-demo
 
 # 9 Install packages
-yarn
+pnpm install
 
 # 10 Build / migrate / seed
-yarn load:env ./scripts/build.sh
-yarn load:env ./scripts/seed-jaffle.sh
-yarn load:env ./scripts/migrate.sh
-yarn load:env ./scripts/seed-lightdash.sh
+pnpm load:env ./scripts/build.sh
+pnpm load:env ./scripts/seed-jaffle.sh
+pnpm load:env ./scripts/migrate.sh
+pnpm load:env ./scripts/seed-lightdash.sh
 
 # Run
-yarn load:env yarn dev
+pnpm load:env pnpm dev
 
 # Log in dev mode
 When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
@@ -352,18 +367,31 @@ Username: demo@lightdash.com
 Password: demo_password!
 ```
 
-> ⚠️ you can add env variables to your system and ignore running `yarn load:env` before each command
+> ⚠️ you can add env variables to your system and ignore running `pnpm load:env` before each command
 
 #### How to run unit tests
 
 ```shell
 # Prepare dependencies
-yarn install
-yarn common-build
-yarn warehouses-build
+pnpm install
+pnpm common-build
+pnpm warehouses-build
 
 # Run unit tests
-yarn test
+pnpm test
+```
+
+The backend has several test commands for different scenarios:
+
+```bash
+# Run all tests with type checking (for CI/production)
+pnpm -F backend test
+
+# Run tests in development mode with performance optimizations
+pnpm -F backend test:dev
+
+# Run tests sequentially with type checking (for debugging)
+pnpm -F backend test-sequential
 ```
 
 #### How to run e2e tests
@@ -372,15 +400,15 @@ Before running e2e tests make sure you're running the app locally.
 
 ```shell
 # Prepare dependencies
-yarn install
-yarn common-build
-yarn warehouses-build
+pnpm install
+pnpm common-build
+pnpm warehouses-build
 
 # Run cypress in interactive mode
-yarn e2e-open
+pnpm e2e-open
 
 # Or run cypress in cli mode
-yarn e2e-run
+pnpm e2e-run
 ```
 
 Note:
@@ -390,8 +418,8 @@ Note:
 #### How to check code quality
 
 ```shell
-yarn lint
-yarn format
+pnpm lint
+pnpm format
 ```
 
 #### Developing API endpoints
@@ -401,7 +429,7 @@ then registered in `packages/backend/src/index.ts` but in order to be made avail
 `routes.ts` file by executing:
 
 ```shell
-yarn workspace backend run tsoa routes
+pnpm generate-api
 ```
 
 ### Running headless browser locally
@@ -421,7 +449,7 @@ If you are running lightdash without docker, you will have to run headless brows
 to your lightdash endpoint in localhost. You can achive this on Linux by doing:
 
 ```shell
-docker run -e PORT=3001 --name=lightdash-headless --network 'host' -it --rm browserless/chrome
+docker run -e PORT=3001 --name=lightdash-headless --network 'host' -it --rm ghcr.io/browserless/chromium:v2.24.3
 ```
 
 Then make sure to configure the following ENV variables:
@@ -438,7 +466,7 @@ If you are running Lightdash without docker on Mac, you will have to run docker 
 lightdash because it can't use localhost.
 
 ```shell
-docker run -e PORT=3001 -p 3001:3001 --name=lightdash-headless --add-host=lightdash-dev:host-gateway -it --rm browserless/chrome
+docker run -e PORT=3001 -p 3001:3001 --name=lightdash-headless --add-host=lightdash-dev:host-gateway -it --rm ghcr.io/browserless/chromium:v2.24.3
 ```
 
 Make sure to add the following line to your `/etc/hosts` file:

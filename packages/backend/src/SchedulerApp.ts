@@ -13,6 +13,7 @@ import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import PrometheusMetrics from './prometheus';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
+import { IGNORE_ERRORS } from './sentry';
 import {
     OperationContext,
     ServiceProviderMap,
@@ -33,7 +34,37 @@ type SchedulerAppArguments = {
     clientProviders?: ClientProviderMap;
     modelProviders?: ModelProviderMap;
     utilProviders?: UtilProviderMap;
+    schedulerWorkerFactory?: typeof schedulerWorkerFactory;
 };
+
+const schedulerWorkerFactory = (context: {
+    lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
+    serviceRepository: ServiceRepository;
+    models: ModelRepository;
+    clients: ClientRepository;
+    utils: UtilRepository;
+}) =>
+    new SchedulerWorker({
+        lightdashConfig: context.lightdashConfig,
+        analytics: context.analytics,
+        unfurlService: context.serviceRepository.getUnfurlService(),
+        csvService: context.serviceRepository.getCsvService(),
+        dashboardService: context.serviceRepository.getDashboardService(),
+        projectService: context.serviceRepository.getProjectService(),
+        schedulerService: context.serviceRepository.getSchedulerService(),
+        validationService: context.serviceRepository.getValidationService(),
+        userService: context.serviceRepository.getUserService(),
+        emailClient: context.clients.getEmailClient(),
+        googleDriveClient: context.clients.getGoogleDriveClient(),
+        s3Client: context.clients.getS3Client(),
+        schedulerClient: context.clients.getSchedulerClient(),
+        slackClient: context.clients.getSlackClient(),
+        semanticLayerService:
+            context.serviceRepository.getSemanticLayerService(),
+        catalogService: context.serviceRepository.getCatalogService(),
+        encryptionUtil: context.utils.getEncryptionUtil(),
+    });
 
 export default class SchedulerApp {
     private readonly serviceRepository: ServiceRepository;
@@ -51,6 +82,10 @@ export default class SchedulerApp {
     private readonly utils: UtilRepository;
 
     private readonly prometheusMetrics: PrometheusMetrics;
+
+    private readonly models: ModelRepository;
+
+    private readonly schedulerWorkerFactory: typeof schedulerWorkerFactory;
 
     constructor(args: SchedulerAppArguments) {
         this.lightdashConfig = args.lightdashConfig;
@@ -79,7 +114,7 @@ export default class SchedulerApp {
             utilProviders: args.utilProviders,
             lightdashConfig: this.lightdashConfig,
         });
-        const models = new ModelRepository({
+        this.models = new ModelRepository({
             modelProviders: args.modelProviders,
             lightdashConfig: this.lightdashConfig,
             database,
@@ -93,7 +128,7 @@ export default class SchedulerApp {
                 lightdashAnalytics: this.analytics,
                 lightdashConfig: this.lightdashConfig,
             }),
-            models,
+            models: this.models,
         });
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
@@ -103,12 +138,14 @@ export default class SchedulerApp {
                 operationId: 'SchedulerApp#ctor',
             }),
             clients: this.clients,
-            models,
+            models: this.models,
             utils,
         });
         this.prometheusMetrics = new PrometheusMetrics(
             this.lightdashConfig.prometheus,
         );
+        this.schedulerWorkerFactory =
+            args.schedulerWorkerFactory || schedulerWorkerFactory;
         this.utils = utils;
     }
 
@@ -134,36 +171,18 @@ export default class SchedulerApp {
                     ? 'development'
                     : this.lightdashConfig.mode,
             integrations: [],
-            ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
+            ignoreErrors: IGNORE_ERRORS,
         });
     }
 
     private async initWorker() {
-        const worker = new SchedulerWorker({
+        const worker = this.schedulerWorkerFactory({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
-            // TODO: Do not use serviceRepository singleton:
-            ...{
-                unfurlService: this.serviceRepository.getUnfurlService(),
-                csvService: this.serviceRepository.getCsvService(),
-                dashboardService: this.serviceRepository.getDashboardService(),
-                projectService: this.serviceRepository.getProjectService(),
-                schedulerService: this.serviceRepository.getSchedulerService(),
-                validationService:
-                    this.serviceRepository.getValidationService(),
-                userService: this.serviceRepository.getUserService(),
-                semanticLayerService:
-                    this.serviceRepository.getSemanticLayerService(),
-                catalogService: this.serviceRepository.getCatalogService(),
-            },
-            ...{
-                emailClient: this.clients.getEmailClient(),
-                googleDriveClient: this.clients.getGoogleDriveClient(),
-                s3Client: this.clients.getS3Client(),
-                schedulerClient: this.clients.getSchedulerClient(),
-                slackClient: this.clients.getSlackClient(),
-            },
-            encryptionUtil: this.utils.getEncryptionUtil(),
+            serviceRepository: this.serviceRepository,
+            models: this.models,
+            clients: this.clients,
+            utils: this.utils,
         });
         await worker.run();
         return worker;

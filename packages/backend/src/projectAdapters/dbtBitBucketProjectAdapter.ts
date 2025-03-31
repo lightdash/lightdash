@@ -4,6 +4,7 @@ import {
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { CachedWarehouse } from '../types';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
@@ -23,10 +24,13 @@ type Args = {
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     useDbtLs: boolean;
+    selector?: string;
+    analytics?: LightdashAnalytics;
 };
 
 export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
     constructor({
+        analytics,
         warehouseClient,
         username,
         branch,
@@ -40,11 +44,13 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
         cachedWarehouse,
         dbtVersion,
         useDbtLs,
+        selector,
     }: Args) {
         const remoteRepositoryUrl = `https://${username}:${personalAccessToken}@${
             hostDomain || DEFAULT_HOST_DOMAIN
         }/${repository}.git`;
         super({
+            analytics,
             warehouseClient,
             gitBranch: branch,
             remoteRepositoryUrl,
@@ -56,6 +62,7 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
             cachedWarehouse,
             dbtVersion,
             useDbtLs,
+            selector,
         });
     }
 }

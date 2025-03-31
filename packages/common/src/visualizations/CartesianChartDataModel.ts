@@ -1,4 +1,5 @@
 import { intersectionBy } from 'lodash';
+import { type AnyType } from '../types/any';
 import {
     capitalize,
     CustomFormatType,
@@ -19,6 +20,7 @@ import {
     SortByDirection,
     VizAggregationOptions,
     VizIndexType,
+    type AxisSide,
     type PivotChartData,
     type PivotChartLayout,
     type VizCartesianChartConfig,
@@ -83,7 +85,7 @@ export class CartesianChartDataModel {
     static getValueFormatter(format: Format | undefined) {
         if (format === Format.PERCENT) {
             // Echarts doesn't export the types for this function
-            return (params: any) => {
+            return (params: AnyType) => {
                 const value =
                     params.value[params.dimensionNames[params.encode.y[0]]];
 
@@ -468,7 +470,9 @@ export class CartesianChartDataModel {
         return {
             columns: [
                 transformedData.indexColumn.reference,
-                ...transformedData.valuesColumns,
+                ...transformedData.valuesColumns.map(
+                    (valueColumn) => valueColumn.pivotColumnName,
+                ),
             ],
             rows: transformedData.results,
         };
@@ -486,7 +490,7 @@ export class CartesianChartDataModel {
     getSpec(
         display?: CartesianChartDisplay,
         colors?: Organization['chartColors'],
-    ): Record<string, any> {
+    ): Record<string, AnyType> {
         const transformedData = this.pivotedChartData;
 
         if (!transformedData) {
@@ -510,9 +514,14 @@ export class CartesianChartDataModel {
 
         const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
-                const seriesDisplay = Object.values(display?.series || {}).find(
-                    (s) => s.yAxisIndex === index,
-                );
+                const seriesColumnId = seriesColumn.pivotColumnName;
+
+                // NOTE: seriesColumnId is the post pivoted column name and we now store the display based on that.
+                // If there is no display object for the seriesColumnId, we also referenceField for compatibility with
+                // the old display object that stored display info by the field, not the ID.
+                const seriesDisplay =
+                    display?.series?.[seriesColumnId] ??
+                    display?.series?.[seriesColumn.referenceField];
 
                 const seriesColor = seriesDisplay?.color;
                 const seriesValueLabelPosition =
@@ -534,27 +543,27 @@ export class CartesianChartDataModel {
                 const seriesLabel = singleYAxisLabel ?? seriesDisplay?.label;
 
                 if (whichYAxis === 1) {
-                    rightYAxisSeriesReferences.push(seriesColumn);
+                    rightYAxisSeriesReferences.push(seriesColumnId);
                 } else {
-                    leftYAxisSeriesReferences.push(seriesColumn);
+                    leftYAxisSeriesReferences.push(seriesColumnId);
                 }
 
                 return {
-                    dimensions: [xAxisReference, seriesColumn],
+                    dimensions: [xAxisReference, seriesColumnId],
                     type: seriesType ?? defaultSeriesType,
                     stack:
                         shouldStack && seriesType === 'bar'
-                            ? 'stack-all-series'
-                            : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
+                            ? `stack-${seriesColumn.referenceField}` // Use referenceField for stack ID
+                            : undefined,
                     name:
                         seriesLabel ||
-                        capitalize(seriesColumn.toLowerCase()).replaceAll(
+                        capitalize(seriesColumnId.toLowerCase()).replaceAll(
                             '_',
                             ' ',
                         ), // similar to friendlyName, but this will preserve special characters
                     encode: {
                         x: xAxisReference,
-                        y: seriesColumn,
+                        y: seriesColumnId,
                     },
                     // NOTE: this yAxisIndex is the echarts option, NOT the yAxisIndex
                     // we had been storing in the display object.
@@ -586,7 +595,6 @@ export class CartesianChartDataModel {
                             index,
                             orgColors,
                         ),
-                    // this.getSeriesColor( seriesColumn, possibleXAxisValues, orgColors),
                 };
             },
         );
@@ -731,7 +739,7 @@ export type CartesianChartDisplay = {
             // Value labels maps to 'label' in ECharts
             valueLabelPosition?: ValueLabelPositionOptions;
             // whichAxis maps to the yAxis index in Echarts.
-            whichYAxis?: number;
+            whichYAxis?: AxisSide;
         };
     };
     legend?: {

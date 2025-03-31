@@ -1,9 +1,12 @@
 import {
+    AnyType,
     CreatePostgresCredentials,
     CreatePostgresLikeCredentials,
     DimensionType,
+    getErrorMessage,
     Metric,
     MetricType,
+    SslConfiguration,
     SupportedDbtAdapter,
     WarehouseCatalog,
     WarehouseQueryError,
@@ -17,11 +20,6 @@ import { Writable } from 'stream';
 import { rootCertificates } from 'tls';
 import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
-
-const POSTGRES_CA_BUNDLES = [
-    ...rootCertificates,
-    readFileSync(path.resolve(__dirname, './ca-bundle-aws-rds-global.pem')),
-];
 
 types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
 types.setTypeParser(types.builtins.INT8, BigInt);
@@ -155,7 +153,7 @@ export class PostgresClient<
     }
 
     static convertQueryResultFields(
-        fields: QueryResult<any>['fields'],
+        fields: QueryResult<AnyType>['fields'],
     ): Record<string, { type: DimensionType }> {
         return fields.reduce(
             (acc, { name, dataTypeID }) => ({
@@ -172,7 +170,7 @@ export class PostgresClient<
         sql: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
-            values?: any[];
+            values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -188,7 +186,7 @@ export class PostgresClient<
             });
 
             pool.on('error', (err) => {
-                console.error(`Postgres pool error ${err.message}`);
+                console.error(`Postgres pool error ${getErrorMessage(err)}`);
                 reject(err);
             });
 
@@ -196,7 +194,7 @@ export class PostgresClient<
                 // On each new client initiated, need to register for error(this is a serious bug on pg, the client throw errors although it should not)
                 _client.on('error', (err: Error) => {
                     console.error(
-                        `Postgres client connect error ${err.message}`,
+                        `Postgres client connect error ${getErrorMessage(err)}`,
                     );
                     reject(err);
                 });
@@ -214,7 +212,9 @@ export class PostgresClient<
                 }
 
                 client.on('error', (e) => {
-                    console.error(`Postgres client error ${e.message}`);
+                    console.error(
+                        `Postgres client error ${getErrorMessage(e)}`,
+                    );
                     reject(e);
                     done();
                 });
@@ -250,8 +250,8 @@ export class PostgresClient<
                                 objectMode: true,
                                 write(
                                     chunk: {
-                                        row: any;
-                                        fields: QueryResult<any>['fields'];
+                                        row: AnyType;
+                                        fields: QueryResult<AnyType>['fields'];
                                     },
                                     encoding,
                                     callback,
@@ -350,7 +350,7 @@ export class PostgresClient<
 
             UNION ALL
 
-            SELECT mv.matviewowner AS table_catalog,
+            SELECT current_database() AS table_catalog,
                 n.nspname AS table_schema,
                 c.relname AS table_name,
                 a.attname AS column_name,
@@ -360,7 +360,7 @@ export class PostgresClient<
             JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
             JOIN pg_catalog.pg_matviews mv ON n.nspname = mv.schemaname AND c.relname = mv.matviewname
             WHERE c.relkind = 'm'
-            AND mv.matviewowner IN (${Array.from(databases)})
+            AND current_database() IN (${Array.from(databases)})
             AND n.nspname IN (${Array.from(schemas)})
             AND c.relname IN (${Array.from(tables)})
             AND a.attnum > 0
@@ -546,7 +546,17 @@ export class PostgresClient<
 }
 
 // Mimics behaviour in https://github.com/brianc/node-postgres/blob/master/packages/pg-connection-string/index.js
-const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
+const getSSLConfigFromMode = ({
+    sslcert,
+    sslkey,
+    sslmode,
+    sslrootcert,
+}: SslConfiguration): PoolConfig['ssl'] => {
+    const mode = sslmode || 'prefer';
+    const ca = sslrootcert || [
+        ...rootCertificates,
+        readFileSync(path.resolve(__dirname, './ca-bundle-aws-rds-global.pem')),
+    ];
     switch (mode) {
         case 'disable':
             return false;
@@ -556,10 +566,12 @@ const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
         case 'verify-ca':
         case 'verify-full':
             return {
-                ca: POSTGRES_CA_BUNDLES,
+                ca,
+                cert: sslcert ?? undefined,
+                key: sslkey ?? undefined,
             };
         case 'no-verify':
-            return { rejectUnauthorized: false, ca: POSTGRES_CA_BUNDLES };
+            return { rejectUnauthorized: false, ca };
         default:
             throw new Error(`Unknown sslmode for postgres: ${mode}`);
     }
@@ -567,7 +579,7 @@ const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
 
 export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCredentials> {
     constructor(credentials: CreatePostgresCredentials) {
-        const ssl = getSSLConfigFromMode(credentials.sslmode || 'prefer');
+        const ssl = getSSLConfigFromMode(credentials);
         super(credentials, {
             connectionString: `postgres://${encodeURIComponent(
                 credentials.user,

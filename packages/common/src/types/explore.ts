@@ -10,6 +10,7 @@ import {
     type Metric,
     type Source,
 } from './field';
+import { type LightdashProjectConfig } from './lightdashProjectConfig';
 import { type TableBase } from './table';
 
 export type ExploreJoin = {
@@ -50,12 +51,19 @@ export type Explore = {
     groupLabel?: string;
     baseTable: string; // Must match a tableName in tables
     joinedTables: CompiledExploreJoin[]; // Must match a tableName in tables
-    tables: { [tableName: string]: CompiledTable }; // All tables in this explore
+    tables: { [tableName: string]: CompiledTable }; // All tables in this explore, potentially filtered by user attributes
+    unfilteredTables?: { [tableName: string]: CompiledTable }; // All tables, without user attribute filters, for error handling
     targetDatabase: SupportedDbtAdapter; // Type of target database e.g. postgres/redshift/bigquery/snowflake/databricks
     warehouse?: string;
+    databricksCompute?: string;
     ymlPath?: string;
     sqlPath?: string;
     type?: ExploreType;
+    // Spotlight config for this explore
+    spotlight?: {
+        visibility: LightdashProjectConfig['spotlight']['default_visibility'];
+        categories?: string[]; // yaml_reference
+    };
 };
 
 export enum InlineErrorType {

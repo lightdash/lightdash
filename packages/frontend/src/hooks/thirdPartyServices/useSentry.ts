@@ -1,6 +1,20 @@
 import { type HealthState, type LightdashUser } from '@lightdash/common';
-import * as Sentry from '@sentry/react';
+import {
+    init,
+    reactRouterV7BrowserTracingIntegration,
+    replayIntegration,
+    setTag,
+    setTags,
+    setUser,
+} from '@sentry/react';
 import { useEffect, useState } from 'react';
+import {
+    createRoutesFromChildren,
+    matchRoutes,
+    useLocation,
+    useNavigationType,
+    useParams,
+} from 'react-router';
 
 const useSentry = (
     sentryConfig: HealthState['sentry'] | undefined,
@@ -10,13 +24,19 @@ const useSentry = (
 
     useEffect(() => {
         if (sentryConfig && !isSentryLoaded && sentryConfig.frontend.dsn) {
-            Sentry.init({
+            init({
                 dsn: sentryConfig.frontend.dsn,
                 release: sentryConfig.release,
                 environment: sentryConfig.environment,
                 integrations: [
-                    Sentry.browserTracingIntegration(),
-                    Sentry.replayIntegration(),
+                    reactRouterV7BrowserTracingIntegration({
+                        useEffect,
+                        useLocation,
+                        useNavigationType,
+                        createRoutesFromChildren,
+                        matchRoutes,
+                    }),
+                    replayIntegration(),
                 ],
                 tracesSampler(samplingContext) {
                     if (samplingContext.parentSampled !== undefined) {
@@ -30,14 +50,25 @@ const useSentry = (
             setIsSentryLoaded(true);
         }
         if (user) {
-            Sentry.setUser({
+            setUser({
                 id: user.userUuid,
                 email: user.email,
                 username: user.email,
             });
-            Sentry.setTag('organization', user.organizationUuid);
+            setTags({
+                'user.uuid': user.userUuid,
+                'organization.uuid': user.organizationUuid,
+            });
         }
     }, [isSentryLoaded, setIsSentryLoaded, sentryConfig, user]);
+
+    const { projectUuid } = useParams<{ projectUuid?: string }>();
+    const location = useLocation();
+    useEffect(() => {
+        if (projectUuid) {
+            setTag('project.uuid', projectUuid);
+        }
+    }, [location, projectUuid]);
 };
 
 export default useSentry;

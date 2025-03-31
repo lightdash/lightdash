@@ -1,13 +1,15 @@
 import {
-    applyCustomFormat,
     Compact,
     CompactConfigMap,
-    currencies,
     CustomFormatType,
     NumberSeparator,
+    applyCustomFormat,
+    convertCustomFormatToFormatExpression,
+    currencies,
     type CustomFormat,
 } from '@lightdash/common';
 import {
+    Anchor,
     Flex,
     NumberInput,
     Select,
@@ -35,6 +37,7 @@ const formatTypeOptions = [
     CustomFormatType.PERCENT,
     CustomFormatType.CURRENCY,
     CustomFormatType.NUMBER,
+    CustomFormatType.CUSTOM,
 ];
 
 const formatSeparatorOptions = [
@@ -82,7 +85,7 @@ export const FormatForm: FC<Props> = ({
     const formatType = format.type;
 
     return (
-        <Stack p="sm">
+        <Stack>
             <Flex>
                 <Select
                     withinPortal
@@ -93,19 +96,52 @@ export const FormatForm: FC<Props> = ({
                 />
 
                 {formatType !== CustomFormatType.DEFAULT && (
-                    <Text ml="md" mt={30} color="gray.6">
+                    <Text ml="md" mt={30} w={200} color="gray.6">
                         {'Looks like: '}
                         {applyCustomFormat(
                             CustomFormatType.PERCENT === formatType
-                                ? '0.75'
-                                : '1234.56',
+                                ? '0.754321'
+                                : '1234.56789',
                             format,
                         )}
                     </Text>
                 )}
+                {[
+                    CustomFormatType.CURRENCY,
+                    CustomFormatType.NUMBER,
+                    CustomFormatType.PERCENT,
+                ].includes(formatType) && (
+                    <Text ml="md" mt={30} w={200} color="gray.6">
+                        {'Format: '}
+                        {convertCustomFormatToFormatExpression(format)}
+                    </Text>
+                )}
             </Flex>
-
-            {formatType !== CustomFormatType.DEFAULT && (
+            {formatType === CustomFormatType.CUSTOM && (
+                <TextInput
+                    label="Format expression"
+                    placeholder="E.g. #.#0"
+                    description={
+                        <p>
+                            To help you build your format expression, we
+                            recommend using{' '}
+                            <Anchor
+                                href="https://customformats.com"
+                                target="_blank"
+                            >
+                                https://customformats.com
+                            </Anchor>
+                            .
+                        </p>
+                    }
+                    {...formatInputProps('custom')}
+                />
+            )}
+            {[
+                CustomFormatType.CURRENCY,
+                CustomFormatType.NUMBER,
+                CustomFormatType.PERCENT,
+            ].includes(formatType) && (
                 <Flex>
                     {formatType === CustomFormatType.CURRENCY && (
                         <Select
@@ -146,8 +182,9 @@ export const FormatForm: FC<Props> = ({
                     />
                 </Flex>
             )}
-            {(formatType === CustomFormatType.CURRENCY ||
-                formatType === CustomFormatType.NUMBER) && (
+            {[CustomFormatType.CURRENCY, CustomFormatType.NUMBER].includes(
+                formatType,
+            ) && (
                 <Flex>
                     <Select
                         withinPortal

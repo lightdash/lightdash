@@ -1,4 +1,8 @@
-import { CreatePostgresCredentials, WarehouseTypes } from '@lightdash/common';
+import {
+    AnyType,
+    CreatePostgresCredentials,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { PostgresTypes } from './PostgresWarehouseClient';
 import { config } from './WarehouseClient.mock';
 
@@ -18,7 +22,7 @@ const columnBase = {
     table_name: config[0].table,
 };
 
-export const columns: Record<string, any>[] = [
+export const columns: Record<string, AnyType>[] = [
     {
         ...columnBase,
         column_name: 'myStringColumn',

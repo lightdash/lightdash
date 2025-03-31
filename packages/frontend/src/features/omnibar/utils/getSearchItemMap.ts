@@ -34,6 +34,16 @@ export const getSearchItemMap = (
         },
     }));
 
+    const dashboardTabs = results.dashboardTabs.map<SearchItem>((item) => ({
+        type: SearchItemType.DASHBOARD_TAB,
+        title: item.name,
+        description: `Dashboard: ${item.dashboardName}`,
+        item: item,
+        location: {
+            pathname: `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/tabs/${item.uuid}`,
+        },
+    }));
+
     const savedCharts = results.savedCharts.map<SearchItem>((item) => ({
         type: SearchItemType.CHART,
         icon: 'chart',
@@ -164,5 +174,6 @@ export const getSearchItemMap = (
         tables,
         fields,
         pages,
+        dashboardTabs,
     };
 };

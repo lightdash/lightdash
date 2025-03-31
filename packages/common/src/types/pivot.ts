@@ -69,6 +69,7 @@ export type PivotData = {
         allCombinedData: ResultRow[];
         pivotColumnInfo: PivotColumn[];
     };
+    groupedSubtotals?: Record<string, Record<string, number>[]>;
 };
 
 export const getPivotConfig = (
@@ -78,7 +79,8 @@ export const getPivotConfig = (
     savedChart.pivotConfig !== undefined
         ? {
               pivotDimensions: savedChart.pivotConfig.columns,
-              metricsAsRows: false,
+              metricsAsRows:
+                  savedChart.chartConfig.config?.metricsAsRows ?? false,
               hiddenMetricFieldIds: getHiddenTableFields(
                   savedChart.chartConfig,
               ),

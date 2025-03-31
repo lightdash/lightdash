@@ -1,11 +1,12 @@
-import {
-    type ConditionalFormattingConfig,
-    type CustomDimension,
-    type Field,
-    type PivotReference,
-    type ResultRow,
-    type SortField,
-    type TableCalculation,
+import type {
+    ConditionalFormattingConfig,
+    ConditionalFormattingMinMaxMap,
+    CustomDimension,
+    Field,
+    PivotReference,
+    ResultRow,
+    SortField,
+    TableCalculation,
 } from '@lightdash/common';
 import {
     createColumnHelper,
@@ -51,6 +52,9 @@ export const columnHelper = createColumnHelper<ResultRow>();
 
 export type ProviderProps = {
     data: ResultRow[];
+    totalRowsCount: number;
+    isFetchingRows: boolean;
+    fetchMoreRows: () => void;
     columns: Array<TableColumn | TableHeader>;
     headerContextMenu?: FC<React.PropsWithChildren<HeaderProps>>;
     cellContextMenu?: FC<React.PropsWithChildren<CellContextMenuProps>>;
@@ -63,6 +67,7 @@ export type ProviderProps = {
     hideRowNumbers?: boolean;
     showColumnCalculation?: boolean;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    minMaxMap?: ConditionalFormattingMinMaxMap;
     footer?: {
         show?: boolean;
     };

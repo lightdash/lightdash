@@ -1,7 +1,11 @@
 import {
     AlreadyExistsError,
+    ForbiddenError,
+    getErrorMessage,
+    LightdashError,
     NotFoundError,
     ParameterError,
+    UnexpectedGitError,
 } from '@lightdash/common';
 import { App } from '@octokit/app';
 import { Octokit as OctokitRest } from '@octokit/rest';
@@ -44,6 +48,7 @@ export const getOctokitRestForUser = (authToken: string) => {
         headers,
     };
 };
+
 export const getOctokitRestForApp = (installationId: string) => {
     if (appId === undefined)
         throw new Error('Github integration not configured');
@@ -56,6 +61,21 @@ export const getOctokitRestForApp = (installationId: string) => {
             installationId,
         },
     });
+};
+
+/** Wrapper to get the right octokit client for the authentication provided
+ * If available, use the installation id as a bot
+ * otherwise use the token as a user
+ * The token can be generated using the installation id
+ */
+export const getOctokit = (installationId?: string, token?: string) => {
+    if (installationId) {
+        return {
+            octokit: getOctokitRestForApp(installationId),
+            headers: undefined,
+        };
+    }
+    return getOctokitRestForUser(token!);
 };
 
 export const getOrRefreshToken = async (
@@ -84,6 +104,7 @@ export const getOrRefreshToken = async (
         refreshToken: auth.data.refresh_token,
     };
 };
+
 export const getLastCommit = async ({
     owner,
     repo,
@@ -93,15 +114,14 @@ export const getLastCommit = async ({
     owner: string;
     repo: string;
     branch: string;
-    token: string; // TODO use installationId instead, to act as a bot
+    token: string;
 }) => {
-    const response = await new OctokitRest().rest.repos.listCommits({
+    const { octokit, headers } = getOctokitRestForUser(token);
+    const response = await octokit.rest.repos.listCommits({
         owner,
         repo,
         ref: branch,
-        headers: {
-            authorization: `Bearer ${token}`,
-        },
+        headers,
     });
 
     return response.data[0];
@@ -121,46 +141,76 @@ export const getFileContent = async ({
     token: string;
 }) => {
     const { octokit, headers } = getOctokitRestForUser(token);
-    const response = await octokit.rest.repos.getContent({
-        owner,
-        repo,
-        path: fileName,
-        ref: branch,
-        headers,
-    });
+    try {
+        const response = await octokit.rest.repos.getContent({
+            owner,
+            repo,
+            path: fileName,
+            ref: branch,
+            headers,
+        });
 
-    if ('content' in response.data) {
-        const content = Buffer.from(response.data.content, 'base64').toString(
-            'utf-8',
-        );
-        return { content, sha: response.data.sha };
+        if ('content' in response.data) {
+            const content = Buffer.from(
+                response.data.content,
+                'base64',
+            ).toString('utf-8');
+            return { content, sha: response.data.sha };
+        }
+
+        throw new NotFoundError('file not found');
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            `status` in error &&
+            error.status === 404
+        ) {
+            throw new NotFoundError(`file ${fileName} not found in Github`);
+        }
+        throw new UnexpectedGitError(getErrorMessage(error));
     }
-
-    throw new NotFoundError('file not found');
 };
 
 export const createBranch = async ({
     owner,
     repo,
     sha,
-    branchName,
-    installationId,
+    branch,
+    token,
 }: {
     owner: string;
     repo: string;
     sha: string;
-    branchName: string;
-    installationId: string;
+    branch: string;
+    token: string;
 }) => {
-    const octokit = getOctokitRestForApp(installationId);
+    const { octokit, headers } = getOctokitRestForUser(token);
 
-    const response = await octokit.rest.git.createRef({
-        owner,
-        repo,
-        ref: `refs/heads/${branchName}`,
-        sha,
-    });
-    return response;
+    try {
+        const response = await octokit.rest.git.createRef({
+            owner,
+            repo,
+            ref: `refs/heads/${branch}`,
+            sha,
+            headers,
+        });
+        return response;
+    } catch (error) {
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
+};
+export const getInstallationToken = async (
+    installationId: string,
+): Promise<string> => {
+    try {
+        const octokit = getOctokitRestForApp(installationId);
+        const response = await octokit.rest.apps.createInstallationAccessToken({
+            installation_id: parseInt(installationId, 10),
+        });
+        return response.data.token;
+    } catch (error) {
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
 };
 
 export const updateFile = async ({
@@ -183,26 +233,29 @@ export const updateFile = async ({
     token: string;
 }) => {
     const { octokit, headers } = getOctokitRestForUser(token);
-
-    const response = await octokit.rest.repos.createOrUpdateFileContents({
-        owner,
-        repo,
-        path: fileName,
-        message,
-        content: Buffer.from(content, 'utf-8').toString('base64'),
-        sha: fileSha,
-        branch: branchName,
-        headers,
-        committer: {
-            name: 'Lightdash',
-            email: 'developers@glightdash.com',
-        },
-        author: {
-            name: 'Lightdash',
-            email: 'developers@glightdash.com',
-        },
-    });
-    return response;
+    try {
+        const response = await octokit.rest.repos.createOrUpdateFileContents({
+            owner,
+            repo,
+            path: fileName,
+            message,
+            content: Buffer.from(content, 'utf-8').toString('base64'),
+            sha: fileSha,
+            branch: branchName,
+            headers,
+            committer: {
+                name: 'Lightdash',
+                email: 'developers@glightdash.com',
+            },
+            author: {
+                name: 'Lightdash',
+                email: 'developers@glightdash.com',
+            },
+        });
+        return response;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
 };
 
 export const createFile = async ({
@@ -212,7 +265,7 @@ export const createFile = async ({
     content,
     branch,
     message,
-    installationId,
+    token,
 }: {
     owner: string;
     repo: string;
@@ -220,19 +273,24 @@ export const createFile = async ({
     content: string;
     branch: string;
     message: string;
-    installationId: string;
+    token: string;
 }) => {
-    const octokit = getOctokitRestForApp(installationId);
+    const { octokit, headers } = getOctokitRestForUser(token);
 
-    const response = await octokit.rest.repos.createOrUpdateFileContents({
-        owner,
-        repo,
-        path: fileName,
-        message,
-        content: Buffer.from(content, 'utf-8').toString('base64'),
-        branch,
-    });
-    return response;
+    try {
+        const response = await octokit.rest.repos.createOrUpdateFileContents({
+            owner,
+            repo,
+            path: fileName,
+            message,
+            content: Buffer.from(content, 'utf-8').toString('base64'),
+            branch,
+            headers,
+        });
+        return response;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
 };
 
 export const createPullRequest = async ({
@@ -243,6 +301,7 @@ export const createPullRequest = async ({
     head,
     base,
     installationId,
+    token,
 }: {
     owner: string;
     repo: string;
@@ -250,36 +309,42 @@ export const createPullRequest = async ({
     body: string;
     head: string;
     base: string;
-    installationId: string;
+    installationId?: string;
+    token?: string;
 }) => {
-    const octokit = getOctokitRestForApp(installationId);
+    const { octokit, headers } = getOctokit(installationId, token);
 
-    const response = await octokit.rest.pulls.create({
-        owner,
-        repo,
-        title,
-        body,
-        head,
-        base,
-    });
+    try {
+        const response = await octokit.rest.pulls.create({
+            owner,
+            repo,
+            title,
+            body,
+            head,
+            base,
+            headers,
+        });
 
-    return response.data;
+        return response.data;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
 };
 
 export const checkFileDoesNotExist = async ({
     owner,
     repo,
     path,
-    installationId,
+    token,
     branch,
 }: {
     owner: string;
     repo: string;
     path: string;
-    installationId: string;
+    token: string;
     branch: string;
 }): Promise<boolean> => {
-    const octokit = getOctokitRestForApp(installationId);
+    const { octokit, headers } = getOctokitRestForUser(token);
 
     try {
         await octokit.rest.repos.getContent({
@@ -287,10 +352,15 @@ export const checkFileDoesNotExist = async ({
             repo,
             path,
             branch,
+            headers,
         });
         throw new AlreadyExistsError(`File "${path}" already exists in Github`);
     } catch (error) {
-        if (error.status === 404) {
+        if (
+            error instanceof Error &&
+            `status` in error &&
+            error.status === 404
+        ) {
             return true;
         }
         throw error;

@@ -18,14 +18,14 @@ import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFilters } from '../../../hooks/useFilters';
+import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import { Can } from '../../common/Authorization';
-import MantineIcon from '../../common/MantineIcon';
-import { type CellContextMenuProps } from '../../common/Table/types';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
+import MantineIcon from '../../common/MantineIcon';
+import { type CellContextMenuProps } from '../../common/Table/types';
 import UrlMenuItems from './UrlMenuItems';
 
 const CellContextMenu: FC<

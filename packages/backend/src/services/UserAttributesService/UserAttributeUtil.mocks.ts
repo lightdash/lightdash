@@ -165,6 +165,9 @@ export const EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES: Explore = {
             },
         },
     },
+    unfilteredTables: {
+        ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables,
+    },
 };
 
 export const EXPLORE_WITH_DIMENSION_REQUIRED_ATTRIBUTES: Explore = {
@@ -231,6 +234,9 @@ export const EXPLORE_FILTERED_WITH_ACCESS_LEVEL_2: Explore = {
             },
         },
     },
+    unfilteredTables: {
+        ...EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES.tables,
+    },
 };
 
 export const EXPLORE_FILTERED_WITH_ACCESS_LEVEL_1_2: Explore = {
@@ -250,8 +256,14 @@ export const EXPLORE_FILTERED_WITH_ACCESS_LEVEL_1_2: Explore = {
             },
         },
     },
+    unfilteredTables: {
+        ...EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES.tables,
+    },
 };
 
 export const EXPLORE_FILTERED_WITH_ACCESS_LEVEL_1_2_3: Explore = {
     ...EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES,
+    unfilteredTables: {
+        ...EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES.tables,
+    },
 };

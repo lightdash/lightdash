@@ -1,12 +1,10 @@
 import {
     DashboardSearchResult,
+    DashboardTabResult,
     Explore,
     ExploreError,
     ExploreType,
     FieldSearchResult,
-    hasIntersection,
-    isDimension,
-    isExploreError,
     NotExistsError,
     SavedChartSearchResult,
     SearchFilters,
@@ -17,12 +15,16 @@ import {
     TableErrorSearchResult,
     TableSearchResult,
     TableSelectionType,
+    hasIntersection,
+    isDimension,
+    isExploreError,
     type SemanticViewerChartSearchResults,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
-    DashboardsTableName,
+    DashboardTabsTableName,
     DashboardVersionsTableName,
+    DashboardsTableName,
 } from '../../database/entities/dashboards';
 import {
     CachedExploresTableName,
@@ -195,6 +197,45 @@ export class SearchModel {
             ...dashboard,
             validationErrors: validationErrors[dashboard.uuid] || [],
         }));
+    }
+
+    private async searchDashboardTabs(
+        projectUuid: string,
+        query: string,
+        filters?: SearchFilters,
+    ): Promise<DashboardTabResult[]> {
+        if (!shouldSearchForType(SearchItemType.DASHBOARD_TAB, filters?.type)) {
+            return [];
+        }
+
+        const dashboardTabs = await this.database(DashboardTabsTableName)
+            .innerJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardTabsTableName}.dashboard_id`,
+            )
+            .leftJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .column<DashboardTabResult[]>(
+                { uuid: `${DashboardTabsTableName}.uuid` },
+                { name: `${DashboardTabsTableName}.name` },
+                { dashboardUuid: `${DashboardsTableName}.dashboard_uuid` },
+                { dashboardName: `${DashboardsTableName}.name` },
+                { spaceUuid: `${SpaceTableName}.space_uuid` },
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .andWhere(`${DashboardTabsTableName}.name`, 'ilike', `%${query}%`)
+            .distinctOn(`${DashboardTabsTableName}.uuid`);
+
+        return dashboardTabs;
     }
 
     private async searchCharts(
@@ -641,6 +682,11 @@ export class SearchModel {
             query,
             filters,
         );
+        const dashboardTabs = await this.searchDashboardTabs(
+            projectUuid,
+            query,
+            filters,
+        );
         const semanticViewerCharts = await this.searchSemanticViewerCharts(
             projectUuid,
             query,
@@ -670,6 +716,7 @@ export class SearchModel {
             tables: tablesAndErrors,
             fields,
             pages,
+            dashboardTabs,
         };
     }
 }

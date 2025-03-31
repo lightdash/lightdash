@@ -31,7 +31,7 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('view', 'OrganizationMemberProfile', {
             organizationUuid: member.organizationUuid,
         });
-        can('view', 'CsvJobResult', {
+        can('view', 'JobStatus', {
             createdByUserUuid: member.userUuid,
         });
         can('view', 'PinnedItems', {
@@ -86,6 +86,9 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('view', 'MetricsTree', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'SpotlightTableConfig', {
             organizationUuid: member.organizationUuid,
         });
     },
@@ -183,9 +186,6 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'PinnedItems', {
             organizationUuid: member.organizationUuid,
         });
-        can('update', 'Project', {
-            organizationUuid: member.organizationUuid,
-        });
         can('manage', 'ScheduledDeliveries', {
             organizationUuid: member.organizationUuid,
         });
@@ -241,10 +241,21 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
             type: ProjectType.PREVIEW,
         });
-
+        can('update', 'Project', {
+            organizationUuid: member.organizationUuid,
+        });
         can('delete', 'Project', {
             organizationUuid: member.organizationUuid,
             type: ProjectType.PREVIEW,
+        });
+        can('manage', 'SpotlightTableConfig', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'ContentAsCode', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'JobStatus', {
+            organizationUuid: member.organizationUuid,
         });
     },
     admin(member, { can }) {

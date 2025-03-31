@@ -2,16 +2,15 @@ import { useParams } from 'react-router';
 
 import { ResourceViewItemType } from '@lightdash/common';
 import { useCallback, useEffect, useMemo } from 'react';
-import ErrorState from '../components/common/ErrorState';
-import Page from '../components/common/Page/Page';
-import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
+import ErrorState from '../components/common/ErrorState';
+import Page from '../components/common/Page/Page';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useChartPinningMutation } from '../hooks/pinning/useChartPinningMutation';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
-import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
 import ExplorerProvider from '../providers/Explorer/ExplorerProvider';
@@ -32,11 +31,6 @@ const SavedExplorer = () => {
 
     const { data, isInitialLoading, error } = useSavedQuery({
         id: savedQueryUuid,
-    });
-
-    const queryResults = useQueryResults({
-        chartUuid: savedQueryUuid,
-        isViewOnly: !isEditMode,
     });
 
     const { mutate: togglePinChart } = useChartPinningMutation();
@@ -84,8 +78,10 @@ const SavedExplorer = () => {
 
     return (
         <ExplorerProvider
-            queryResults={queryResults}
             isEditMode={isEditMode}
+            viewModeQueryArgs={
+                savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined
+            }
             initialState={
                 data
                     ? {
@@ -106,6 +102,9 @@ const SavedExplorer = () => {
                                   isOpen: false,
                               },
                               customDimension: {
+                                  isOpen: false,
+                              },
+                              writeBack: {
                                   isOpen: false,
                               },
                           },

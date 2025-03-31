@@ -1,0 +1,86 @@
+### Login
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+
+### Create a pull request with custom metrics
+POST http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/git-integration/pull-requests/custom-metrics
+Content-Type: application/json
+
+{
+    "customMetrics": [{
+                    "name": "customer_id_count_of_customer_id",
+                    "label": "Count of Customer id",
+                    "description": "Count of Customer id on the table Customers ",
+                    "uuid": "543e97e6-5781-47e6-8bc7-1b639890f4b7",
+                    "sql": "${TABLE}.customer_id",
+                    "table": "customers",
+                    "type": "count",
+                    "baseDimensionName": "customer_id",
+                    "formatOptions": {
+                        "type": "default",
+                        "separator": "default"
+                    }
+                }]
+}
+
+### Create a pull request with custom metrics with filters
+POST http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/git-integration/pull-requests/custom-metrics
+Content-Type: application/json
+
+{
+    "customMetrics": [{
+                     
+                    "name": "customer_id_sum_of_customer_id",
+                    "label": "Sum of Customer id",
+                    "description": "Sum of Customer id on the table Customers with filters customers.customer_id",
+                    "uuid": "bd351a1d-64c8-42fa-ae76-39ef748a4a16",
+                    "sql": "${TABLE}.customer_id",
+                    "table": "customers",
+                    "type": "sum",
+                    "baseDimensionName": "customer_id",
+                    "filters": [
+                        {
+                            "id": "aa4d2925-53d6-4ef3-b297-d8be269b0c62",
+                            "target": {
+                                "fieldRef": "customers.customer_id"
+                            },
+                            "values": [
+                                50
+                            ],
+                            "operator": "greaterThan"
+                        },
+                        {
+                            "id": "aa4d2925-53d6-4ef3-b297-d8be269b0c62",
+                            "target": {
+                                "fieldRef": "customers.customer_id"
+                            },
+                            "values": [
+                                1,2,3,4,5
+                            ],
+                            "operator": "equals"
+                        },
+                        {
+                            "id": "7e89437f-50ed-4d91-b4e4-a6aafffc959a",
+                            "target": {
+                                "fieldRef": "customers.first_name"
+                            },
+                            "values": [
+                                "A"
+                            ],
+                            "operator": "startsWith"
+                        }
+                    ],
+                    "formatOptions": {
+                        "type": "default",
+                        "separator": "default"
+                    }
+                }]
+}
+
+

@@ -2,17 +2,18 @@
 // Not needed when viewing a cartesian chart on a dashboard
 import {
     ChartKind,
-    isFormat,
-    VizAggregationOptions,
     VIZ_DEFAULT_AGGREGATION,
+    VizAggregationOptions,
+    isFormat,
     type CartesianChartDisplay,
+    type PivotValuesColumn,
     type SortByDirection,
     type ValueLabelPositionOptions,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
     type VizConfigErrors,
 } from '@lightdash/common';
-import type { PayloadAction } from '@reduxjs/toolkit';
+import type { PayloadAction, SerializedError } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { type prepareAndFetchChartData } from '../../../features/sqlRunner/store/thunks';
 
@@ -33,8 +34,8 @@ export type CartesianChartState = {
           >
         | undefined;
     chartDataLoading: boolean;
-    chartDataError: Error | null | undefined;
-    series?: string[];
+    chartDataError: SerializedError | null | undefined;
+    series?: PivotValuesColumn[];
 };
 
 const initialState: CartesianChartState = {
@@ -193,14 +194,12 @@ export const cartesianChartConfigSlice = createSlice({
             action: PayloadAction<{
                 reference: string;
                 label: string;
-                index: number;
             }>,
         ) => {
             if (!display) display = {};
             display.series = display.series || {};
             display.series[action.payload.reference] = {
                 ...display.series[action.payload.reference],
-                yAxisIndex: action.payload.index,
                 label: action.payload.label,
             };
         },
@@ -255,23 +254,6 @@ export const cartesianChartConfigSlice = createSlice({
             if (state.display) {
                 if (state.display.yAxis) {
                     state.display.yAxis.splice(index, 1);
-                }
-
-                if (state.display.series) {
-                    Object.entries(state.display.series).forEach(
-                        ([key, series]) => {
-                            if (series.yAxisIndex === index) {
-                                // NOTE: Delete series from display object when it's removed from yAxis
-                                delete state.display?.series?.[key];
-                            } else if (
-                                // NOTE: Decrease yAxisIndex for series that are after the removed yAxis
-                                series.yAxisIndex &&
-                                series.yAxisIndex > index
-                            ) {
-                                series.yAxisIndex--;
-                            }
-                        },
-                    );
                 }
             }
         },
@@ -355,7 +337,6 @@ export const cartesianChartConfigSlice = createSlice({
             display.series[reference] = {
                 ...display.series[reference],
                 format: validFormat,
-                yAxisIndex: index,
             };
 
             if (index === 0) {
@@ -369,7 +350,6 @@ export const cartesianChartConfigSlice = createSlice({
         setSeriesChartType: (
             { display },
             action: PayloadAction<{
-                index: number;
                 type: NonNullable<
                     CartesianChartDisplay['series']
                 >[number]['type'];
@@ -380,17 +360,15 @@ export const cartesianChartConfigSlice = createSlice({
             display = display || {};
             display.series = display.series || {};
 
-            const { index, type, reference } = action.payload;
+            const { type, reference } = action.payload;
             display.series[reference] = {
                 ...display.series[reference],
-                yAxisIndex: index,
                 type,
             };
         },
         setSeriesYAxis: (
             { display },
             action: PayloadAction<{
-                index: number;
                 whichYAxis: NonNullable<
                     CartesianChartDisplay['series']
                 >[number]['whichYAxis'];
@@ -401,10 +379,9 @@ export const cartesianChartConfigSlice = createSlice({
             display = display || {};
             display.series = display.series || {};
 
-            const { index, whichYAxis, reference } = action.payload;
+            const { whichYAxis, reference } = action.payload;
             display.series[reference] = {
                 ...display.series[reference],
-                yAxisIndex: index,
                 whichYAxis,
             };
         },
@@ -413,7 +390,6 @@ export const cartesianChartConfigSlice = createSlice({
             action: PayloadAction<{
                 reference: string;
                 color: string;
-                index?: number;
             }>,
         ) => {
             if (!fieldConfig) return;
@@ -421,13 +397,9 @@ export const cartesianChartConfigSlice = createSlice({
             display.yAxis = display.yAxis || [];
             display.series = display.series || {};
 
-            if (
-                action.payload.index !== undefined &&
-                action.payload.reference !== undefined
-            ) {
+            if (action.payload.reference !== undefined) {
                 display.series[action.payload.reference] = {
                     ...display.series[action.payload.reference],
-                    yAxisIndex: action.payload.index, // TODO: Why set the index here?
                     color: action.payload.color,
                 };
             }
@@ -437,7 +409,6 @@ export const cartesianChartConfigSlice = createSlice({
             action: PayloadAction<{
                 reference: string;
                 valueLabelPosition: ValueLabelPositionOptions;
-                index?: number;
             }>,
         ) => {
             if (!fieldConfig) return;
@@ -445,13 +416,9 @@ export const cartesianChartConfigSlice = createSlice({
             display.yAxis = display.yAxis || [];
             display.series = display.series || {};
 
-            if (
-                action.payload.index !== undefined &&
-                action.payload.reference !== undefined
-            ) {
+            if (action.payload.reference !== undefined) {
                 display.series[action.payload.reference] = {
                     ...display.series[action.payload.reference],
-                    yAxisIndex: action.payload.index, // TODO: Why set the index here?
                     valueLabelPosition: action.payload.valueLabelPosition,
                 };
             }

@@ -6,8 +6,8 @@ import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import ColumnConfiguration from './ColumnConfiguration';
-import { MAX_PIVOTS } from './constants';
 import DroppableItemsList from './DroppableItemsList';
+import { MAX_PIVOTS } from './constants';
 
 enum DroppableIds {
     COLUMNS = 'COLUMNS',
@@ -23,9 +23,9 @@ const GeneralSettings: FC = () => {
     } = useVisualizationContext();
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const { showToastError } = useToaster();
-    const {
-        metricQuery: { dimensions },
-    } = resultsData || { metricQuery: { dimensions: [] as string[] } };
+    const { dimensions } = resultsData?.metricQuery || {
+        dimensions: [] as string[],
+    };
 
     const isTableConfig = isTableVisualizationConfig(visualizationConfig);
 

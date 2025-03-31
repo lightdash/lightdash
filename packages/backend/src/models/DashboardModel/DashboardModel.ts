@@ -1,5 +1,4 @@
 import {
-    assertUnreachable,
     CreateDashboard,
     CreateDashboardChartTile,
     CreateDashboardLoomTile,
@@ -18,25 +17,25 @@ import {
     DashboardUnversionedFields,
     DashboardVersionedFields,
     HTML_SANITIZE_MARKDOWN_TILE_RULES,
+    LightdashUser,
+    NotFoundError,
+    SavedChart,
+    SessionUser,
+    UnexpectedServerError,
+    UpdateMultipleDashboards,
+    assertUnreachable,
     isDashboardChartTileType,
     isDashboardLoomTileType,
     isDashboardMarkdownTileType,
     isDashboardSemanticViewerChartTile,
     isDashboardSqlChartTile,
-    LightdashUser,
-    NotFoundError,
     sanitizeHtml,
-    SavedChart,
-    SessionUser,
-    UnexpectedServerError,
-    UpdateMultipleDashboards,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardFilters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 import {
-    DashboardsTableName,
     DashboardTable,
     DashboardTabsTableName,
     DashboardTileChartTable,
@@ -46,9 +45,10 @@ import {
     DashboardTileSemanticViewerChartTableName,
     DashboardTileSqlChartTableName,
     DashboardTilesTableName,
-    DashboardVersionsTableName,
     DashboardVersionTable,
+    DashboardVersionsTableName,
     DashboardViewsTableName,
+    DashboardsTableName,
 } from '../../database/entities/dashboards';
 import {
     OrganizationTable,
@@ -65,8 +65,8 @@ import {
     ProjectTableName,
 } from '../../database/entities/projects';
 import {
-    SavedChartsTableName,
     SavedChartTable,
+    SavedChartsTableName,
 } from '../../database/entities/savedCharts';
 import { SavedSemanticViewerChartsTableName } from '../../database/entities/savedSemanticViewerCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
@@ -1188,6 +1188,11 @@ export class DashboardModel {
         return this.getById(dashboardUuid);
     }
 
+    /* 
+    backend will only delete orphans if, and only if, they do not belong to any tile.
+    This means that version reverting will now work for charts created within the dashboard, 
+    even if they get removed from the tile in the next dashboard version save.
+    */
     async getOrphanedCharts(
         dashboardUuid: string,
     ): Promise<Pick<SavedChart, 'uuid'>[]> {

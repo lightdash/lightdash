@@ -8,9 +8,7 @@ import {
     renderStringFilterSql,
 } from './filtersCompiler';
 import {
-    adapterType,
     DimensionSqlMock,
-    disabledFilterMock,
     ExpectedInTheCurrentFilterSQL,
     ExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek,
     ExpectedInTheNextCompleteFilterSQL,
@@ -18,7 +16,6 @@ import {
     ExpectedInTheNextFilterSQL,
     ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek,
     ExpectedNumberFilterSQL,
-    filterInTheCurrentDayTimezoneMocks,
     InBetweenPastTwoYearsFilter,
     InBetweenPastTwoYearsFilterSQL,
     InBetweenPastTwoYearsTimestampFilterSQL,
@@ -51,8 +48,8 @@ import {
     InThePastFilterBase,
     NumberDimensionMock,
     NumberFilterBase,
-    stringFilterDimension,
-    stringFilterRuleMocks,
+    NumberFilterBaseWithMultiValues,
+    NumberOperatorsWithMultipleValues,
     TrinoExpectedInTheCurrentFilterSQL,
     TrinoExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek,
     TrinoExpectedInTheNextCompleteFilterSQL,
@@ -73,6 +70,11 @@ import {
     TrinoInTheLast1MonthFilterSQL,
     TrinoInTheLast1WeekFilterSQL,
     TrinoInTheLast1YearFilterSQL,
+    adapterType,
+    disabledFilterMock,
+    filterInTheCurrentDayTimezoneMocks,
+    stringFilterDimension,
+    stringFilterRuleMocks,
 } from './filtersCompiler.mock';
 
 const formatTimestamp = (date: Date): string =>
@@ -89,21 +91,33 @@ describe('Filter SQL', () => {
     test.each(Object.values(FilterOperator))(
         'should return number filter sql for operator %s',
         (operator) => {
-            if (ExpectedNumberFilterSQL[operator]) {
-                expect(
-                    renderNumberFilterSql(NumberDimensionMock, {
-                        ...NumberFilterBase,
-                        operator,
-                    }),
-                ).toStrictEqual(ExpectedNumberFilterSQL[operator]);
-            } else {
+            if (!ExpectedNumberFilterSQL[operator]) {
                 expect(() => {
                     renderNumberFilterSql(NumberDimensionMock, {
                         ...NumberFilterBase,
                         operator,
                     });
                 }).toThrow();
+                return;
             }
+
+            if (NumberOperatorsWithMultipleValues.includes(operator)) {
+                expect(
+                    renderNumberFilterSql(NumberDimensionMock, {
+                        ...NumberFilterBaseWithMultiValues,
+                        operator,
+                    }),
+                ).toStrictEqual(ExpectedNumberFilterSQL[operator]);
+
+                return;
+            }
+
+            expect(
+                renderNumberFilterSql(NumberDimensionMock, {
+                    ...NumberFilterBase,
+                    operator,
+                }),
+            ).toStrictEqual(ExpectedNumberFilterSQL[operator]);
         },
     );
     test.each(Object.values(UnitOfTime))(

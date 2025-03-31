@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import {
-    assertUnreachable,
     DashboardTileTypes,
+    assertUnreachable,
     getDefaultChartTileSize,
     type CreateSavedChartVersion,
     type DashboardChartTile,
@@ -16,12 +16,12 @@ import {
     Radio,
     Stack,
     Text,
-    Textarea,
     TextInput,
+    Textarea,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { uuid4 } from '@sentry/utils';
 import { useCallback, useEffect, useState, type FC } from 'react';
+import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
 import {
     appendNewTilesToBottom,

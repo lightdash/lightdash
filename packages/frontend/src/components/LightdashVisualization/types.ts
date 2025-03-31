@@ -1,6 +1,5 @@
 import {
     ChartType,
-    type ApiQueryResults,
     type CustomDimension,
     type DashboardFilters,
     type Dimension,
@@ -17,9 +16,10 @@ import type useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import type useCustomVisualizationConfig from '../../hooks/useCustomVisualizationConfig';
 import type useFunnelChartConfig from '../../hooks/useFunnelChartConfig';
 import type usePieChartConfig from '../../hooks/usePieChartConfig';
+import type { InfiniteQueryResults } from '../../hooks/useQueryResults';
 
 export type VisualizationConfigCommon<T extends VisualizationConfig> = {
-    resultsData: ApiQueryResults | undefined;
+    resultsData: InfiniteQueryResults | undefined;
     initialChartConfig: T['chartConfig']['validConfig'] | undefined;
     onChartConfigChange?: (chartConfig: {
         type: T['chartType'];

@@ -1,7 +1,10 @@
-import { ParseError } from '@lightdash/common';
+import {
+    getErrorMessage,
+    getModelsFromManifest,
+    ParseError,
+} from '@lightdash/common';
 import { promises as fs } from 'fs';
 import inquirer from 'inquirer';
-import * as yaml from 'js-yaml';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
@@ -10,10 +13,8 @@ import { loadManifest } from '../dbt/manifest';
 import {
     findAndUpdateModelYaml,
     getCompiledModels,
-    getModelsFromManifest,
     getWarehouseTableForModel,
 } from '../dbt/models';
-import { getFileHeadComments } from '../dbt/schema';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { CompileHandlerOptions } from './compile';
@@ -135,13 +136,6 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                     }
                 }
 
-                const existingHeadComments = await getFileHeadComments(
-                    outputFilePath,
-                );
-                const ymlString = yaml.dump(updatedYml, {
-                    quotingType: '"',
-                });
-
                 const outputDirPath = path.dirname(outputFilePath);
                 // Create a directory if it doesn't exist
                 try {
@@ -152,12 +146,12 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
 
                 await fs.writeFile(
                     outputFilePath,
-                    existingHeadComments
-                        ? `${existingHeadComments}\n${ymlString}`
-                        : ymlString,
+                    updatedYml.toString({
+                        quoteChar: '"',
+                    }),
                 );
             } catch (e) {
-                const msg = e instanceof Error ? e.message : '-';
+                const msg = getErrorMessage(e);
                 throw new ParseError(
                     `Failed to write file ${outputFilePath}\n ${msg}`,
                 );
@@ -168,7 +162,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                 )}`,
             );
         } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : '-';
+            const msg = getErrorMessage(e);
             await LightdashAnalytics.track({
                 event: 'generate.error',
                 properties: {

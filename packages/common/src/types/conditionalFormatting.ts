@@ -2,17 +2,42 @@ import {
     type ConditionalOperator,
     type ConditionalRule,
 } from './conditionalRule';
+import type { ItemsMap } from './field';
 import { type FieldTarget } from './filter';
 
-export type ConditionalFormattingWithConditionalOperator<T = number> =
+export type ConditionalFormattingMinMax<T = number> = {
+    min: T;
+    max: T;
+};
+
+export type ConditionalFormattingColorRange = {
+    start: string;
+    end: string;
+    steps: number;
+};
+
+export type ConditionalFormattingWithValues<T = number | string> =
     ConditionalRule<ConditionalOperator, T> & {
         values: T[];
     };
 
-export type ConditionalFormattingWithRange<T = number> = {
-    min: T;
-    max: T;
-};
+export type ConditionalFormattingWithCompareTarget<T = number | string> =
+    ConditionalRule<ConditionalOperator, T> & {
+        compareTarget: FieldTarget | null;
+        values?: T[];
+    };
+
+export type ConditionalFormattingWithConditionalOperator<T = number | string> =
+    | ConditionalFormattingWithValues<T>
+    | ConditionalFormattingWithCompareTarget<T>;
+
+export const isConditionalFormattingWithValues = (
+    rule: ConditionalFormattingWithConditionalOperator,
+): rule is ConditionalFormattingWithValues => 'values' in rule;
+
+export const isConditionalFormattingWithCompareTarget = (
+    rule: ConditionalFormattingWithConditionalOperator,
+): rule is ConditionalFormattingWithCompareTarget => 'compareTarget' in rule;
 
 export type ConditionalFormattingConfigWithSingleColor = {
     target: FieldTarget | null;
@@ -27,12 +52,8 @@ export const isConditionalFormattingConfigWithSingleColor = (
 
 export type ConditionalFormattingConfigWithColorRange = {
     target: FieldTarget | null;
-    color: {
-        start: string;
-        end: string;
-        steps: 5;
-    };
-    rule: ConditionalFormattingWithRange;
+    color: ConditionalFormattingColorRange;
+    rule: ConditionalFormattingMinMax<number | 'auto'>;
 };
 
 export const isConditionalFormattingConfigWithColorRange = (
@@ -64,3 +85,22 @@ export const getConditionalFormattingConfigType = (
 
     throw new Error('Invalid conditional formatting rule');
 };
+
+export type ConditionalFormattingMinMaxMap = Record<
+    string,
+    ConditionalFormattingMinMax
+>;
+
+export type ConditionalFormattingRowFields = Record<
+    string,
+    {
+        field: ItemsMap[string];
+        value: unknown;
+    }
+>;
+
+export enum ConditionalFormattingComparisonType {
+    VALUES = 'values',
+    TARGET_FIELD = 'target_field',
+    TARGET_TO_VALUES = 'target_to_values',
+}

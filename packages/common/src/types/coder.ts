@@ -1,6 +1,11 @@
+import { type PartialDeep } from 'type-fest';
 import type {
+    ChartAsCodeLanguageMap,
     Dashboard,
+    DashboardAsCodeLanguageMap,
     DashboardChartTileProperties,
+    DashboardFilterRule,
+    DashboardFilters,
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
     DashboardTile,
@@ -20,6 +25,7 @@ export type ChartAsCode = Pick<
     | 'metricQuery'
     | 'chartConfig'
     | 'tableConfig'
+    | 'pivotConfig'
     | 'slug'
     | 'updatedAt' // Not modifiable by user, but useful to know if it has been updated
 > & {
@@ -33,6 +39,15 @@ export type ApiChartAsCodeListResponse = {
     status: 'ok';
     results: {
         charts: ChartAsCode[];
+        languageMap:
+            | Array<
+                  | PartialDeep<
+                        ChartAsCodeLanguageMap,
+                        { recurseIntoArrays: true }
+                    >
+                  | undefined
+              >
+            | undefined;
         missingIds: string[];
         total: number;
         offset: number;
@@ -46,6 +61,7 @@ export type ApiChartAsCodeUpsertResponse = {
 
 export type DashboardTileAsCode = Omit<DashboardTile, 'properties' | 'uuid'> & {
     uuid: DashboardTile['uuid'] | undefined; // Allows us to remove the uuid from the object
+    tileSlug: string | undefined;
     properties:
         | Pick<
               DashboardChartTileProperties['properties'],
@@ -57,18 +73,30 @@ export type DashboardTileAsCode = Omit<DashboardTile, 'properties' | 'uuid'> & {
 
 export type DashboardAsCode = Pick<
     Dashboard,
-    'name' | 'description' | 'updatedAt' | 'filters' | 'tabs' | 'slug'
+    'name' | 'description' | 'updatedAt' | 'tabs' | 'slug'
 > & {
     tiles: DashboardTileAsCode[];
     version: number;
     spaceSlug: string;
     downloadedAt?: Date;
+    filters: Omit<DashboardFilters, 'dimensions'> & {
+        dimensions: Omit<DashboardFilterRule, 'id'>[];
+    };
 };
 
 export type ApiDashboardAsCodeListResponse = {
     status: 'ok';
     results: {
         dashboards: DashboardAsCode[];
+        languageMap:
+            | Array<
+                  | PartialDeep<
+                        DashboardAsCodeLanguageMap,
+                        { recurseIntoArrays: true }
+                    >
+                  | undefined
+              >
+            | undefined;
         missingIds: string[];
         total: number;
         offset: number;

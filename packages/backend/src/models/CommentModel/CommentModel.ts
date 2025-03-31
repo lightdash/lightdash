@@ -10,9 +10,9 @@ import {
     DbDashboardTileComments,
 } from '../../database/entities/comments';
 import {
-    DashboardsTableName,
     DashboardTilesTableName,
     DashboardVersionsTableName,
+    DashboardsTableName,
 } from '../../database/entities/dashboards';
 import { DbUser, UserTableName } from '../../database/entities/users';
 

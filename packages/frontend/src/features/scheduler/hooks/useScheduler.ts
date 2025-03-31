@@ -1,5 +1,6 @@
 import {
     SchedulerJobStatus,
+    type AnyType,
     type ApiError,
     type ApiJobStatusResponse,
     type ApiTestSchedulerResponse,
@@ -69,13 +70,13 @@ export const useSchedulerLogs = (projectUuid: string) =>
 
 const getJobStatus = async (
     jobId: string,
-    onComplete: () => void,
+    onComplete: (response: Record<string, AnyType> | null) => void,
     onError: (error: Error) => void,
 ) => {
     getSchedulerJobStatus(jobId)
         .then((data) => {
             if (data.status === SchedulerJobStatus.COMPLETED) {
-                return onComplete();
+                return onComplete(data.details);
             } else if (data.status === SchedulerJobStatus.ERROR) {
                 onError(new Error(data.details?.error || 'Job failed'));
             } else {
@@ -91,10 +92,10 @@ const getJobStatus = async (
 };
 
 export const pollJobStatus = async (jobId: string) => {
-    return new Promise<void>((resolve, reject) =>
+    return new Promise<Record<string, AnyType> | null>((resolve, reject) =>
         getJobStatus(
             jobId,
-            () => resolve(),
+            (details) => resolve(details),
             (error) => reject(error),
         ),
     );

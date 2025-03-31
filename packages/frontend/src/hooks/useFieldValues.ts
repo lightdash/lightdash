@@ -11,8 +11,32 @@ import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDebounce } from 'react-use';
 import { lightdashApi } from '../api';
+import useEmbed from '../ee/providers/Embed/useEmbed';
 
 export const MAX_AUTOCOMPLETE_RESULTS = 100;
+
+const getEmbedFilterValues = async (options: {
+    embedToken: string;
+    projectId: string;
+    filterId: string;
+    search: string;
+    forceRefresh: boolean;
+    filters: AndFilterGroup | undefined;
+}) => {
+    return lightdashApi<FieldValueSearchResult>({
+        url: `/embed/${options.projectId}/filter/${options.filterId}/search`,
+        method: 'POST',
+        headers: {
+            'Lightdash-Embed-Token': options.embedToken!,
+        },
+        body: JSON.stringify({
+            search: options.search,
+            limit: MAX_AUTOCOMPLETE_RESULTS,
+            filters: options.filters,
+            forceRefresh: options.forceRefresh,
+        }),
+    });
+};
 
 const getFieldValues = async (
     projectId: string,
@@ -45,11 +69,13 @@ export const useFieldValues = (
     initialData: string[],
     projectId: string | undefined,
     field: FilterableItem,
+    filterId: string | undefined,
     filters: AndFilterGroup | undefined,
     debounce: boolean = true,
     forceRefresh: boolean = false,
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
 ) => {
+    const { embedToken } = useEmbed();
     const [fieldName, setFieldName] = useState<string>(field.name);
     const [debouncedSearch, setDebouncedSearch] = useState<string>(search);
     const [searches, setSearches] = useState(new Set<string>());
@@ -102,15 +128,27 @@ export const useFieldValues = (
     ];
     const query = useQuery<FieldValueSearchResult, ApiError>(
         cachekey,
-        () =>
-            getFieldValues(
-                projectId!,
-                tableName,
-                fieldId,
-                debouncedSearch,
-                forceRefresh,
-                filters,
-            ),
+        () => {
+            if (embedToken && filterId && projectId) {
+                return getEmbedFilterValues({
+                    embedToken,
+                    projectId,
+                    filterId,
+                    search: debouncedSearch,
+                    forceRefresh,
+                    filters,
+                });
+            } else {
+                return getFieldValues(
+                    projectId!,
+                    tableName,
+                    fieldId,
+                    debouncedSearch,
+                    forceRefresh,
+                    filters,
+                );
+            }
+        },
         {
             // make sure we don't cache for too long
             cacheTime: 60 * 1000, // 1 minute

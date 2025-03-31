@@ -4,6 +4,7 @@ import {
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { CachedWarehouse } from '../types';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
@@ -22,6 +23,8 @@ type DbtGitlabProjectAdapterArgs = {
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     useDbtLs: boolean;
+    selector?: string;
+    analytics?: LightdashAnalytics;
 };
 
 export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
@@ -38,6 +41,8 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
         cachedWarehouse,
         dbtVersion,
         useDbtLs,
+        selector,
+        analytics,
     }: DbtGitlabProjectAdapterArgs) {
         const remoteRepositoryUrl = `https://lightdash:${gitlabPersonalAccessToken}@${
             hostDomain || DEFAULT_GITLAB_HOST_DOMAIN
@@ -54,6 +59,8 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
             cachedWarehouse,
             dbtVersion,
             useDbtLs,
+            selector,
+            analytics,
         });
     }
 }

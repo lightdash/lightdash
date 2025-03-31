@@ -1,8 +1,8 @@
 import * as fs from 'fs/promises';
 import moment from 'moment';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
-import { S3Client } from '../../clients/Aws/s3';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
+import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
@@ -15,6 +15,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -64,6 +65,7 @@ describe('Csv service', () => {
             catalogModel: {} as CatalogModel,
             contentModel: {} as ContentModel,
             encryptionUtil: {} as EncryptionUtil,
+            queryHistoryModel: {} as QueryHistoryModel,
         }),
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,

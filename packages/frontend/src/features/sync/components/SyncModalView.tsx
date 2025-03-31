@@ -1,6 +1,6 @@
 import {
-    getHumanReadableCronExpression,
     SchedulerFormat,
+    getHumanReadableCronExpression,
     type Scheduler,
 } from '@lightdash/common';
 import {
@@ -22,6 +22,7 @@ import {
     IconDots,
     IconInfoCircle,
     IconPencil,
+    IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
@@ -29,6 +30,9 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useChartSchedulers } from '../../../features/scheduler/hooks/useChartSchedulers';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
+import { useSendNowScheduler } from '../../scheduler/hooks/useScheduler';
 import { useSchedulersEnabledUpdateMutation } from '../../scheduler/hooks/useSchedulersUpdateMutation';
 import { SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
@@ -74,6 +78,10 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
 
+    const { mutate: mutateSendNow, isLoading: isSendingNowLoading } =
+        useSendNowScheduler();
+    const { track } = useTracking();
+
     if (!project) return null;
 
     return (
@@ -111,6 +119,25 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                         </Flex>
                                     </Stack>
                                     <Group mr="lg">
+                                        <Tooltip withinPortal label="Sync now">
+                                            <ActionIcon
+                                                color="gray.7"
+                                                p="xs"
+                                                size="lg"
+                                                disabled={isSendingNowLoading}
+                                                onClick={() => {
+                                                    track({
+                                                        name: EventName.SCHEDULER_SEND_NOW_BUTTON,
+                                                    });
+                                                    mutateSendNow(sync);
+                                                }}
+                                            >
+                                                <MantineIcon
+                                                    icon={IconRefresh}
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
+
                                         <ToggleSyncEnabled scheduler={sync} />
                                     </Group>
                                 </Flex>
@@ -137,6 +164,7 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
 
                                     <Menu.Dropdown>
                                         <Menu.Item
+                                            disabled={isSendingNowLoading}
                                             icon={
                                                 <MantineIcon
                                                     icon={IconPencil}

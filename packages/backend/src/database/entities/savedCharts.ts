@@ -1,4 +1,5 @@
 import {
+    AnyType,
     BinRange,
     ChartConfig,
     ChartKind,
@@ -84,7 +85,7 @@ export type DbSavedChartVersion = {
     saved_queries_version_uuid: string;
     created_at: Date;
     explore_name: string;
-    filters: any;
+    filters: AnyType;
     row_limit: number;
     metric_overrides: MetricOverrides | null; // JSONB
     chart_type: ChartType;

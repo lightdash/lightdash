@@ -1,4 +1,10 @@
-import { ForbiddenError } from '@lightdash/common';
+import {
+    AnyType,
+    ForbiddenError,
+    getErrorMessage,
+    getObjectValue,
+} from '@lightdash/common';
+import { sign } from 'cookie-signature';
 import { createHmac } from 'crypto';
 import express from 'express';
 import playwright from 'playwright';
@@ -13,12 +19,13 @@ export const getAuthenticationToken = (value: string) =>
 
 headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
     try {
-        const { userUuid } = req.params;
+        const userUuid = getObjectValue(req.params, 'userUuid');
         const hash = getAuthenticationToken(userUuid);
 
         if (hash !== req.body.token) {
             throw new ForbiddenError();
         }
+
         const sessionUser = await req.services
             .getUserService()
             .getSessionByUserUuid(userUuid);
@@ -27,9 +34,39 @@ headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
             if (err) {
                 next(err);
             }
+
+            const internalHost = new URL(
+                lightdashConfig.headlessBrowser.internalLightdashHost,
+            );
+
+            /**
+             * We need to set a secure cookie if:
+             * - secure cookies are enabled
+             * - the internal host is http (can't set session cookie because of policies set in App.ts)
+             *
+             * This is because 'express-session' middleware does not allow us to set multiple domain's cookie sessions
+             */
+            const shouldSetSecureCookie =
+                lightdashConfig.secureCookies === true &&
+                internalHost.protocol === 'http:' &&
+                lightdashConfig.siteUrl !==
+                    lightdashConfig.headlessBrowser.internalLightdashHost;
+
+            if (shouldSetSecureCookie) {
+                const value = `s:${sign(
+                    req.session.id,
+                    lightdashConfig.lightdashSecret,
+                )}`;
+
+                res.setHeader('Set-Cookie', [
+                    `connect.sid=${value}; Path=/; HttpOnly; SameSite=Lax; Domain=${internalHost.host}; Secure`,
+                ]);
+            }
             res.json({
                 status: 'ok',
-                results: sessionUser,
+                results: {
+                    userUuid: sessionUser.userUuid,
+                },
             });
         });
     } catch (e) {
@@ -86,7 +123,7 @@ if (
             });
         } catch (e) {
             console.error(e);
-            next(e.message);
+            next(getErrorMessage(e));
         } finally {
             if (browser) await browser.close();
         }
@@ -126,7 +163,7 @@ if (
                 'analytics.lightdash.com',
                 'intercom.io',
             ];
-            page.on('request', (request: any) => {
+            page.on('request', (request: AnyType) => {
                 const requestUrl = request.url();
                 if (blockedUrls.includes(requestUrl)) {
                     request.abort();
@@ -145,7 +182,7 @@ if (
             await page.waitForSelector(selector);
             const element = await page.$(selector);
             if (isDashboard) {
-                await page.evaluate((sel: any) => {
+                await page.evaluate((sel: AnyType) => {
                     // @ts-ignore
                     const elements = document.querySelectorAll(sel);
                     elements.forEach((el) => el.parentNode.removeChild(el));
@@ -175,7 +212,7 @@ if (
             res.end(imageBuffer);
         } catch (e) {
             console.error(e);
-            next(e.message);
+            next(getErrorMessage(e));
         } finally {
             if (browser) await browser.close();
         }

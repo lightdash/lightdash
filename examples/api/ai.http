@@ -1,0 +1,19 @@
+
+### Login
+// @no-log
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+
+### Dashboard summary
+POST http://localhost:8080/api/v1/ai/3675b69e-8324-4110-bdca-059031aa8da3/dashboard/426236b6-06c4-44de-b6ac-1843d53c87da/summary
+Content-Type: application/json
+
+{
+    "context": "say something interesting"
+}

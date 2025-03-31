@@ -1,14 +1,15 @@
 import {
     ChartKind,
-    isVizPieChartConfig,
     VIZ_DEFAULT_AGGREGATION,
+    isVizPieChartConfig,
+    type PivotValuesColumn,
     type VizAggregationOptions,
     type VizConfigErrors,
     type VizIndexType,
     type VizPieChartConfig,
     type VizPieChartOptions,
 } from '@lightdash/common';
-import type { PayloadAction } from '@reduxjs/toolkit';
+import type { PayloadAction, SerializedError } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { prepareAndFetchChartData } from '../../../features/sqlRunner/store/thunks';
 import {
@@ -28,7 +29,7 @@ export type PieChartState = {
     options: VizPieChartOptions;
     errors: VizConfigErrors | undefined;
     chartDataLoading: boolean;
-    chartDataError: Error | undefined;
+    chartDataError: SerializedError | null | undefined;
     chartData:
         | Awaited<
               ReturnType<
@@ -36,7 +37,7 @@ export type PieChartState = {
               >['payload']
           >
         | undefined;
-    series: string[] | undefined;
+    series: PivotValuesColumn[] | undefined;
 };
 
 const initialState: PieChartState = {
@@ -125,7 +126,7 @@ export const pieChartConfigSlice = createSlice({
         builder.addCase(prepareAndFetchChartData.rejected, (state, action) => {
             state.chartDataLoading = false;
             state.chartData = undefined;
-            state.chartDataError = new Error(action.error.message);
+            state.chartDataError = action.error;
         });
         builder.addCase(setChartOptionsAndConfig, (state, action) => {
             if (action.payload.type !== ChartKind.PIE) {

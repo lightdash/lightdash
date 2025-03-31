@@ -1,6 +1,6 @@
 import {
-    attachTypesToModels,
-    convertExplores,
+    AnyType,
+    DEFAULT_SPOTLIGHT_CONFIG,
     DbtManifestVersion,
     DbtMetric,
     DbtModelNode,
@@ -8,20 +8,30 @@ import {
     DbtRawModelNode,
     Explore,
     ExploreError,
-    friendlyName,
-    getDbtManifestVersion,
-    getSchemaStructureFromDbtModels,
     InlineError,
     InlineErrorType,
-    isSupportedDbtAdapter,
     ManifestValidator,
     MissingCatalogEntryError,
-    normaliseModelDatabase,
+    NotFoundError,
     ParseError,
     SupportedDbtAdapter,
     SupportedDbtVersions,
+    attachTypesToModels,
+    convertExplores,
+    friendlyName,
+    getCompiledModels,
+    getDbtManifestVersion,
+    getModelsFromManifest,
+    getSchemaStructureFromDbtModels,
+    isSupportedDbtAdapter,
+    loadLightdashProjectConfig,
+    normaliseModelDatabase,
+    type LightdashProjectConfig,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
+import fs from 'fs/promises';
+import path from 'path';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
 
@@ -34,16 +44,24 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     dbtVersion: SupportedDbtVersions;
 
+    private readonly analytics: LightdashAnalytics | undefined;
+
+    dbtProjectDir?: string;
+
     constructor(
         dbtClient: DbtClient,
         warehouseClient: WarehouseClient,
         cachedWarehouse: CachedWarehouse,
         dbtVersion: SupportedDbtVersions,
+        dbtProjectDir?: string,
+        analytics?: LightdashAnalytics,
     ) {
         this.dbtClient = dbtClient;
         this.warehouseClient = warehouseClient;
         this.cachedWarehouse = cachedWarehouse;
         this.dbtVersion = dbtVersion;
+        this.dbtProjectDir = dbtProjectDir;
+        this.analytics = analytics;
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -66,7 +84,69 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
+    public async getLightdashProjectConfig(trackingParams?: {
+        projectUuid: string;
+        organizationUuid: string;
+        userUuid: string;
+    }): Promise<LightdashProjectConfig> {
+        if (!this.dbtProjectDir) {
+            return {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            };
+        }
+
+        const configPath = path.join(
+            this.dbtProjectDir,
+            'lightdash.config.yml',
+        );
+
+        try {
+            const fileContents = await fs.readFile(configPath, 'utf8');
+            const config = await loadLightdashProjectConfig(
+                fileContents,
+                async (lightdashConfig) => {
+                    if (trackingParams) {
+                        void this.analytics?.track({
+                            event: 'lightdashconfig.loaded',
+                            userId: trackingParams.userUuid,
+                            properties: {
+                                projectId: trackingParams.projectUuid,
+                                userId: trackingParams.userUuid,
+                                organizationId: trackingParams.organizationUuid,
+                                categories_count: Number(
+                                    Object.keys(
+                                        lightdashConfig.spotlight.categories ??
+                                            {},
+                                    ).length,
+                                ),
+                                default_visibility:
+                                    lightdashConfig.spotlight
+                                        .default_visibility,
+                            },
+                        });
+                    }
+                },
+            );
+            return config;
+        } catch (e) {
+            Logger.debug(`No lightdash.config.yml found in ${configPath}`);
+
+            if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
+                // Return default config if file doesn't exist
+                return {
+                    spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+                };
+            }
+            throw e;
+        }
+    }
+
     public async compileAllExplores(
+        trackingParams?: {
+            userUuid: string;
+            organizationUuid: string;
+            projectUuid: string;
+        },
         loadSources: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');
@@ -76,7 +156,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         }
         Logger.debug('Get dbt manifest');
         const { manifest } = await this.dbtClient.getDbtManifest();
-
         // Type of the target warehouse
         if (!isSupportedDbtAdapter(manifest.metadata)) {
             throw new ParseError(
@@ -84,16 +163,42 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 {},
             );
         }
+        let models: DbtRawModelNode[] = [];
+
+        if (this.dbtClient.getSelector()) {
+            Logger.info(
+                `Manifest generated with selector "${this.dbtClient.getSelector()}"`,
+            );
+            // If selector is provided, we use compile to get the models that match the selector
+            const manifestModels = getModelsFromManifest(manifest);
+            Logger.info(`Manifest models ${manifestModels.length}`);
+            const compiledModels = getCompiledModels(manifestModels, undefined);
+            Logger.info(`Compiled models ${compiledModels.length}`);
+            models = compiledModels.filter(
+                (node: AnyType) => node.resource_type === 'model' && node.meta, // check that node.meta exists
+            ) as DbtRawModelNode[];
+            Logger.info(`Filtered models ${models.length}`);
+        } else {
+            const nodes = Object.values(manifest.nodes);
+            Logger.info(`Manifest models ${nodes.length}`);
+            // If selector is not provided, we use all the models from the manifest
+            // models with invalid metadata will compile to failed Explores
+            models = nodes.filter(
+                (node: AnyType) => node.resource_type === 'model' && node.meta, // check that node.meta exists
+            ) as DbtRawModelNode[];
+            Logger.info(`Filtered models ${models.length}`);
+        }
+
         const adapterType = manifest.metadata.adapter_type;
 
-        // Validate models in the manifest - models with invalid metadata will compile to failed Explores
-        const models = Object.values(manifest.nodes).filter(
-            (node: any) => node.resource_type === 'model' && node.meta, // check that node.meta exists
-        ) as DbtRawModelNode[];
         const manifestVersion = getDbtManifestVersion(manifest);
         Logger.debug(
             `Validate ${models.length} models in manifest with version ${manifestVersion}`,
         );
+
+        if (models.length === 0) {
+            throw new NotFoundError(`No models found`);
+        }
 
         const [validModels, failedExplores] =
             DbtBaseProjectAdapter._validateDbtModel(
@@ -112,6 +217,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             ].includes(manifestVersion)
                 ? []
                 : Object.values(manifest.metrics),
+        );
+
+        const lightdashProjectConfig = await this.getLightdashProjectConfig(
+            trackingParams,
         );
 
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
@@ -136,6 +245,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 adapterType,
                 metrics,
                 this.warehouseClient,
+                lightdashProjectConfig,
             );
             return [...lazyExplores, ...failedExplores];
         } catch (e) {
@@ -173,6 +283,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     adapterType,
                     metrics,
                     this.warehouseClient,
+                    lightdashProjectConfig,
                 );
                 return [...explores, ...failedExplores];
             }

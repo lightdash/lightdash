@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     CreateWarehouseCredentials,
+    getErrorMessage,
     isSupportedDbtAdapterType,
     isWeekDay,
     ParseError,
@@ -24,16 +25,18 @@ type GetTableCatalogProps = {
     projectUuid: string;
     tableName: string;
     schemaName: string;
+    databaseName?: string;
 };
 
 export const getTableSchema = async ({
     projectUuid,
     tableName,
     schemaName,
+    databaseName,
 }: GetTableCatalogProps) =>
     lightdashApi<WarehouseTableSchema>({
         method: 'GET',
-        url: `/api/v1/projects/${projectUuid}/sqlRunner/fields?tableName=${tableName}&schemaName=${schemaName}`,
+        url: `/api/v1/projects/${projectUuid}/sqlRunner/fields?tableName=${tableName}&schemaName=${schemaName}&databaseName=${databaseName}`,
         body: undefined,
     });
 
@@ -59,8 +62,9 @@ const getDbtCloudConnectionType = async (): Promise<SupportedDbtAdapter> => {
         }
         return connectionType[1];
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
-        throw new ParseError(`Failed to get connection type:\n  ${msg}`);
+        throw new ParseError(
+            `Failed to get connection type:\n  ${getErrorMessage(e)}`,
+        );
     }
 };
 
@@ -193,6 +197,7 @@ export default async function getWarehouseClient(
                         projectUuid: config.context.project,
                         tableName: ref.table,
                         schemaName: ref.schema,
+                        databaseName: ref.database,
                     });
                     acc[ref.database] = {
                         [ref.schema]: {
@@ -245,7 +250,7 @@ export default async function getWarehouseClient(
             profileName: options.profile,
             targetName: options.target,
         });
-        GlobalState.debug(`> Using target ${target}`);
+        GlobalState.debug(`> Using target ${target.type}`);
         credentials = await warehouseCredentialsFromDbtTarget(target);
         warehouseClient = warehouseClientFromCredentials({
             ...credentials,

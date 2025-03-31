@@ -16,23 +16,23 @@ import {
     ExploreError,
     FieldType,
     ForbiddenError,
-    getAvailableCompareMetrics,
-    getAvailableSegmentDimensions,
-    getAvailableTimeDimensionsFromTables,
-    getDefaultTimeDimension,
-    hasIntersection,
     InlineErrorType,
-    isExploreError,
     MAX_METRICS_TREE_NODE_COUNT,
     MetricWithAssociatedTimeDimension,
     NotFoundError,
     ParameterError,
     SessionUser,
     SummaryExplore,
-    TablesConfiguration,
     TableSelectionType,
+    TablesConfiguration,
     TimeFrames,
     UserAttributeValueMap,
+    getAvailableCompareMetrics,
+    getAvailableSegmentDimensions,
+    getAvailableTimeDimensionsFromTables,
+    getDefaultTimeDimension,
+    hasIntersection,
+    isExploreError,
     type ApiMetricsTreeEdgePayload,
     type ApiSort,
     type CatalogFieldMap,
@@ -50,7 +50,10 @@ import type {
     DbCatalogTagsMigrateIn,
     DbMetricsTreeEdgeIn,
 } from '../../database/entities/catalog';
-import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import {
+    CatalogModel,
+    type CatalogSearchContext,
+} from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -228,6 +231,7 @@ export class CatalogService<
         projectUuid: string,
         userAttributes: UserAttributeValueMap,
         catalogSearch: ApiCatalogSearch,
+        context: CatalogSearchContext,
         paginateArgs?: KnexPaginateArgs,
         sortArgs?: ApiSort,
     ): Promise<KnexPaginatedData<CatalogItem[]>> {
@@ -253,6 +257,7 @@ export class CatalogService<
                             tablesConfiguration,
                             userAttributes,
                             sortArgs,
+                            context,
                         }),
                 ),
         );
@@ -263,11 +268,13 @@ export class CatalogService<
         organizationUuid: string,
         projectUuid: string,
     ) {
-        const explores = await this.projectModel.getExploresFromCache(
+        const cachedExplores = await this.projectModel.findExploresFromCache(
             projectUuid,
         );
 
-        if (!explores) return [];
+        if (!cachedExplores) return [];
+
+        const explores = Object.values(cachedExplores);
 
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
@@ -308,20 +315,41 @@ export class CatalogService<
         return filteredExplores;
     }
 
-    async indexCatalog(
-        projectUuid: string,
-        explores: (Explore | ExploreError)[],
-    ) {
-        const exploresWithCachedExploreUuid =
-            await this.projectModel.getCachedExploresWithUuid(
-                projectUuid,
-                explores,
-            );
+    async indexCatalog(projectUuid: string, userUuid: string | undefined) {
+        const cachedExploresMap =
+            await this.projectModel.getAllExploresFromCache(projectUuid);
 
-        return this.catalogModel.indexCatalog(
+        const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
-            exploresWithCachedExploreUuid,
         );
+
+        const projectYamlTags = await this.tagsModel.getYamlTags(projectUuid);
+
+        const result = await this.catalogModel.indexCatalog(
+            projectUuid,
+            cachedExploresMap,
+            projectYamlTags,
+            userUuid,
+        );
+
+        if (
+            userUuid &&
+            result.numberOfCategoriesApplied &&
+            result.numberOfCategoriesApplied > 0
+        ) {
+            this.analytics.track({
+                event: 'categories.applied',
+                userId: userUuid,
+                properties: {
+                    count: result.numberOfCategoriesApplied,
+                    projectId: projectUuid,
+                    organizationId: organizationUuid,
+                    context: 'yaml',
+                },
+            });
+        }
+
+        return result;
     }
 
     /**
@@ -384,11 +412,13 @@ export class CatalogService<
                                 tagUuid: prevCatalogTagUuid,
                                 createdByUserUuid: prevCreatedByUserUuid,
                                 createdAt: prevCreatedAt,
+                                taggedViaYaml: prevTaggedViaYaml,
                             }) => ({
                                 catalog_search_uuid: currentCatalogSearchUuid,
                                 tag_uuid: prevCatalogTagUuid,
                                 created_by_user_uuid: prevCreatedByUserUuid,
                                 created_at: prevCreatedAt,
+                                is_from_yaml: prevTaggedViaYaml,
                             }),
                         );
                     }
@@ -503,6 +533,7 @@ export class CatalogService<
         user: SessionUser,
         projectUuid: string,
         catalogSearch: ApiCatalogSearch,
+        context: CatalogSearchContext,
     ): Promise<KnexPaginatedData<(CatalogField | CatalogTable)[]>> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -534,6 +565,7 @@ export class CatalogService<
                 projectUuid,
                 userAttributes,
                 catalogSearch,
+                context,
             );
         }
 
@@ -714,6 +746,7 @@ export class CatalogService<
     async getMetricsCatalog(
         user: SessionUser,
         projectUuid: string,
+        context: CatalogSearchContext,
         paginateArgs?: KnexPaginateArgs,
         { searchQuery, catalogTags }: ApiCatalogSearch = {},
         sortArgs?: ApiSort,
@@ -746,6 +779,7 @@ export class CatalogService<
                 filter: CatalogFilter.Metrics,
                 catalogTags,
             },
+            context,
             paginateArgs,
             sortArgs,
         );
@@ -840,7 +874,19 @@ export class CatalogService<
             user,
             catalogSearchUuid,
             tagUuid,
+            false,
         );
+
+        this.analytics.track({
+            event: 'categories.applied',
+            userId: user.userUuid,
+            properties: {
+                count: 1,
+                projectId: tag.projectUuid,
+                organizationId: tagOrganizationUuid,
+                context: 'ui',
+            },
+        });
     }
 
     async untagCatalogItem(
@@ -1162,6 +1208,7 @@ export class CatalogService<
     async getAllCatalogMetricsWithTimeDimensions(
         user: SessionUser,
         projectUuid: string,
+        context: CatalogSearchContext,
     ): Promise<MetricWithAssociatedTimeDimension[]> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -1184,6 +1231,7 @@ export class CatalogService<
         const allCatalogMetrics = await this.catalogModel.search({
             projectUuid,
             userAttributes,
+            context,
             catalogSearch: {
                 type: CatalogType.Field,
                 filter: CatalogFilter.Metrics,
@@ -1215,6 +1263,7 @@ export class CatalogService<
         user: SessionUser,
         projectUuid: string,
         tableName: string,
+        context: CatalogSearchContext,
     ): Promise<CompiledDimension[]> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -1244,6 +1293,7 @@ export class CatalogService<
             projectUuid,
             userAttributes,
             exploreName: tableName,
+            context,
             catalogSearch: {
                 type: CatalogType.Field,
                 filter: CatalogFilter.Dimensions,
@@ -1287,5 +1337,26 @@ export class CatalogService<
             source_metric_catalog_search_uuid: sourceCatalogSearchUuid,
             target_metric_catalog_search_uuid: targetCatalogSearchUuid,
         });
+    }
+
+    async hasMetricsInCatalog(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // NOTE: No need to add user attribute filtering here since the catalog search already handles this for us. This is project-wide, not user-specific.
+        return this.catalogModel.hasMetricsInCatalog(projectUuid);
     }
 }

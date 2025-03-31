@@ -1,4 +1,5 @@
 import {
+    AnyType,
     BinType,
     CompiledCustomSqlDimension,
     CompiledDimension,
@@ -40,6 +41,19 @@ export const warehouseClientMock: WarehouseClient = {
         });
         return Promise.resolve();
     },
+    executeAsyncQuery: async () => ({
+        queryId: null,
+        queryMetadata: null,
+        totalRows: null,
+        durationMs: null,
+    }),
+    getAsyncQueryResults: async () => ({
+        fields: {},
+        rows: [],
+        queryId: null,
+        pageCount: 0,
+        totalRows: 0,
+    }),
     runQuery: () =>
         Promise.resolve({
             fields: {},
@@ -74,7 +88,7 @@ export const warehouseClientMock: WarehouseClient = {
         throw new Error('Function not implemented.');
     },
     parseWarehouseCatalog(
-        rows: Record<string, any>[],
+        rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog {
         throw new Error('Function not implemented.');
@@ -104,6 +118,19 @@ export const bigqueryClientMock: WarehouseClient = {
         });
         return Promise.resolve();
     },
+    executeAsyncQuery: async () => ({
+        queryId: null,
+        queryMetadata: null,
+        totalRows: null,
+        durationMs: null,
+    }),
+    getAsyncQueryResults: async () => ({
+        fields: {},
+        rows: [],
+        queryId: null,
+        pageCount: 0,
+        totalRows: 0,
+    }),
     runQuery: () =>
         Promise.resolve({
             fields: {},
@@ -131,7 +158,7 @@ export const bigqueryClientMock: WarehouseClient = {
         throw new Error('Function not implemented.');
     },
     parseWarehouseCatalog(
-        rows: Record<string, any>[],
+        rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog {
         throw new Error('Function not implemented.');

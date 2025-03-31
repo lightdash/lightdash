@@ -1,4 +1,4 @@
-import { type TimeFrames } from '@lightdash/common';
+import { type SearchItemType, type TimeFrames } from '@lightdash/common';
 import { type FormState } from 'react-hook-form';
 import type * as rudderSDK from 'rudder-sdk-js';
 import {
@@ -55,7 +55,6 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_CLICKED
         | EventName.METRICS_CATALOG_CHART_USAGE_CLICKED
         | EventName.METRICS_CATALOG_EXPLORE_CLICKED
-        | EventName.METRICS_CATALOG_METRIC_NAME_CLICKED
         | EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED
         | EventName.METRICS_CATALOG_CATEGORY_CLICKED
         | EventName.METRICS_CATALOG_CATEGORY_FILTER_APPLIED
@@ -66,7 +65,10 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_EXPLORE_GRANULARITY_APPLIED
         | EventName.METRICS_CATALOG_EXPLORE_SEGMENT_BY_APPLIED
         | EventName.METRICS_CATALOG_EXPLORE_TIME_DIMENSION_OVERRIDE_APPLIED
-        | EventName.METRICS_CATALOG_SEARCH_APPLIED;
+        | EventName.METRICS_CATALOG_SEARCH_APPLIED
+        | EventName.METRICS_CATALOG_TREES_EDGE_CREATED
+        | EventName.METRICS_CATALOG_TREES_EDGE_REMOVED
+        | EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED;
     properties?: {};
 };
 
@@ -113,15 +115,7 @@ export type SetupStepClickedEvent = {
 export type SearchResultClickedEvent = {
     name: EventName.SEARCH_RESULT_CLICKED;
     properties: {
-        type:
-            | 'space'
-            | 'dashboard'
-            | 'saved_chart'
-            | 'table'
-            | 'field'
-            | 'sql_chart'
-            | 'semantic_viewer_chart'
-            | 'page';
+        type: SearchItemType;
         id: string;
     };
 };
@@ -189,6 +183,7 @@ export type DashboardAutoRefreshUpdateEvent = {
 type MetricsCatalogClickedEvent = {
     name: EventName.METRICS_CATALOG_CLICKED;
     properties: {
+        userId: string;
         organizationId: string;
         projectId: string;
     };
@@ -197,6 +192,7 @@ type MetricsCatalogClickedEvent = {
 type MetricsCatalogChartUsageClickedEvent = {
     name: EventName.METRICS_CATALOG_CHART_USAGE_CLICKED;
     properties: {
+        userId: string;
         organizationId: string;
         projectId: string;
         metricName: string;
@@ -208,16 +204,7 @@ type MetricsCatalogChartUsageClickedEvent = {
 type MetricsCatalogExploreClickedEvent = {
     name: EventName.METRICS_CATALOG_EXPLORE_CLICKED;
     properties: {
-        organizationId: string;
-        projectId: string;
-        metricName: string;
-        tableName: string;
-    };
-};
-
-type MetricsCatalogMetricNameClickedEvent = {
-    name: EventName.METRICS_CATALOG_METRIC_NAME_CLICKED;
-    properties: {
+        userId: string;
         organizationId: string;
         projectId: string;
         metricName: string;
@@ -228,6 +215,7 @@ type MetricsCatalogMetricNameClickedEvent = {
 type MetricsCatalogChartUsageChartClickedEvent = {
     name: EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED;
     properties: {
+        userId: string;
         organizationId: string;
         projectId: string;
         metricName: string;
@@ -239,6 +227,7 @@ type MetricsCatalogChartUsageChartClickedEvent = {
 type MetricsCatalogCategoryClickedEvent = {
     name: EventName.METRICS_CATALOG_CATEGORY_CLICKED;
     properties: {
+        userId: string;
         organizationId: string;
         projectId: string;
         tagName: string;
@@ -249,6 +238,7 @@ type MetricsCatalogCategoryClickedEvent = {
 type MetricsCatalogCategoryFilterAppliedEvent = {
     name: EventName.METRICS_CATALOG_CATEGORY_FILTER_APPLIED;
     properties: {
+        userId: string;
         organizationId: string;
         projectId: string;
     };
@@ -257,6 +247,7 @@ type MetricsCatalogCategoryFilterAppliedEvent = {
 type MetricsCatalogIconAppliedEvent = {
     name: EventName.METRICS_CATALOG_ICON_APPLIED;
     properties: {
+        userId: string;
         organizationId: string;
         projectId: string;
     };
@@ -265,6 +256,7 @@ type MetricsCatalogIconAppliedEvent = {
 type MetricsCatalogExploreCompareLastPeriodEvent = {
     name: EventName.METRICS_CATALOG_EXPLORE_COMPARE_LAST_PERIOD;
     properties: {
+        userId: string;
         organizationId: string;
         projectId: string;
         metricName: string;
@@ -275,6 +267,7 @@ type MetricsCatalogExploreCompareLastPeriodEvent = {
 type MetricsCatalogExploreCompareAnotherMetricEvent = {
     name: EventName.METRICS_CATALOG_EXPLORE_COMPARE_ANOTHER_METRIC;
     properties: {
+        userId: string;
         organizationId: string;
         projectId: string;
         metricName: string;
@@ -287,6 +280,7 @@ type MetricsCatalogExploreCompareAnotherMetricEvent = {
 type MetricsCatalogExploreDateFilterAppliedEvent = {
     name: EventName.METRICS_CATALOG_EXPLORE_DATE_FILTER_APPLIED;
     properties: {
+        userId: string;
         organizationId: string;
         projectId: string;
     };
@@ -295,6 +289,7 @@ type MetricsCatalogExploreDateFilterAppliedEvent = {
 type MetricsCatalogExploreGranularityAppliedEvent = {
     name: EventName.METRICS_CATALOG_EXPLORE_GRANULARITY_APPLIED;
     properties: {
+        userId: string;
         organizationId: string;
         projectId: string;
         metricName: string;
@@ -306,6 +301,7 @@ type MetricsCatalogExploreGranularityAppliedEvent = {
 type MetricsCatalogExploreSegmentByAppliedEvent = {
     name: EventName.METRICS_CATALOG_EXPLORE_SEGMENT_BY_APPLIED;
     properties: {
+        userId: string;
         organizationId: string;
         projectId: string;
         metricName: string;
@@ -317,6 +313,7 @@ type MetricsCatalogExploreSegmentByAppliedEvent = {
 type MetricsCatalogExploreTimeDimensionOverrideAppliedEvent = {
     name: EventName.METRICS_CATALOG_EXPLORE_TIME_DIMENSION_OVERRIDE_APPLIED;
     properties: {
+        userId: string;
         organizationId: string;
         projectId: string;
         metricName: string;
@@ -327,8 +324,62 @@ type MetricsCatalogExploreTimeDimensionOverrideAppliedEvent = {
 type MetricsCatalogSearchAppliedEvent = {
     name: EventName.METRICS_CATALOG_SEARCH_APPLIED;
     properties: {
+        userId: string;
         organizationId: string;
         projectId: string;
+    };
+};
+
+type MetricsCatalogTreesEdgeCreatedEvent = {
+    name: EventName.METRICS_CATALOG_TREES_EDGE_CREATED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+    };
+};
+
+type MetricsCatalogTreesEdgeRemovedEvent = {
+    name: EventName.METRICS_CATALOG_TREES_EDGE_REMOVED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+    };
+};
+
+type MetricsCatalogTreesCanvasModeClickedEvent = {
+    name: EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+    };
+};
+
+type WriteBackEvent = {
+    name:
+        | EventName.WRITE_BACK_FROM_CUSTOM_METRIC_HEADER_CLICKED
+        | EventName.WRITE_BACK_FROM_CUSTOM_METRIC_CLICKED
+        | EventName.WRITE_BACK_FROM_CUSTOM_DIMENSION_HEADER_CLICKED
+        | EventName.WRITE_BACK_FROM_CUSTOM_DIMENSION_CLICKED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        customMetricsCount?: number;
+        customDimensionsCount?: number;
+    };
+};
+
+type CustomMetricReplacementEvent = {
+    name: EventName.CUSTOM_FIELDS_REPLACEMENT_APPLIED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        chartId?: string;
+        customMetricIds: string[];
     };
 };
 
@@ -352,7 +403,6 @@ export type EventData =
     | MetricsCatalogCategoryClickedEvent
     | MetricsCatalogCategoryFilterAppliedEvent
     | MetricsCatalogIconAppliedEvent
-    | MetricsCatalogMetricNameClickedEvent
     | MetricsCatalogExploreCompareLastPeriodEvent
     | MetricsCatalogExploreCompareAnotherMetricEvent
     | MetricsCatalogExploreDateFilterAppliedEvent
@@ -360,7 +410,12 @@ export type EventData =
     | MetricsCatalogExploreSegmentByAppliedEvent
     | MetricsCatalogExploreTimeDimensionOverrideAppliedEvent
     | MetricsCatalogSearchAppliedEvent
-    | LandingRunQueryClickedEvent;
+    | LandingRunQueryClickedEvent
+    | MetricsCatalogTreesEdgeCreatedEvent
+    | MetricsCatalogTreesEdgeRemovedEvent
+    | MetricsCatalogTreesCanvasModeClickedEvent
+    | WriteBackEvent
+    | CustomMetricReplacementEvent;
 
 export type IdentifyData = {
     id: string;

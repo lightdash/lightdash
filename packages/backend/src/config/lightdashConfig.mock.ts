@@ -94,7 +94,7 @@ export const lightdashConfigMock: LightdashConfig = {
     logging: {
         level: 'debug',
         format: 'pretty',
-        outputs: [],
+        outputs: ['console'],
         consoleFormat: undefined,
         consoleLevel: undefined,
         fileFormat: undefined,
@@ -136,6 +136,9 @@ export const lightdashConfigMock: LightdashConfig = {
     staticIp: '',
     trustProxy: false,
     mode: LightdashMode.DEFAULT,
+    license: {
+        licenseKey: null,
+    },
     groups: {
         enabled: false,
     },
@@ -145,14 +148,31 @@ export const lightdashConfigMock: LightdashConfig = {
     smtp: undefined,
     siteUrl: 'https://test.lightdash.cloud',
     query: {
+        maxPageSize: 2500,
         maxLimit: 5000,
         defaultLimit: 500,
         csvCellsLimit: 100000,
         timezone: undefined,
     },
+    ai: {
+        copilot: {
+            enabled: false,
+        },
+    },
+    embedding: {
+        enabled: false,
+    },
+    scim: {
+        enabled: false,
+    },
     security: {
         contentSecurityPolicy: {
             reportOnly: false,
+            allowedDomains: [],
+            frameAncestors: [],
+        },
+        crossOriginResourceSharingPolicy: {
+            enabled: false,
             allowedDomains: [],
         },
     },
@@ -166,4 +186,5 @@ export const lightdashConfigMock: LightdashConfig = {
     contentAsCode: {
         maxDownloads: 100,
     },
+    appearance: {},
 };

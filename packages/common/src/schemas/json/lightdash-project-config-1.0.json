@@ -1,0 +1,49 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://schemas.lightdash.com/lightdash/config.json",
+    "type": ["object", "null"],
+    "properties": {
+        "spotlight": {
+            "type": ["object", "null"],
+            "properties": {
+                "default_visibility": {
+                    "type": "string",
+                    "enum": ["show", "hide"],
+                    "default": "show",
+                    "description": "The visibility of Spotlight metrics by default - if not provided, it will be set to 'show'"
+                },
+                "categories": {
+                    "type": "object",
+                    "description": "Define the categories that can be used in Spotlight on your model yml files",
+                    "patternProperties": {
+                        "^[a-zA-Z0-9_-]+$": {
+                            "type": "object",
+                            "properties": {
+                                "label": {
+                                    "description": "The label of the category as it will be displayed in Spotlight",
+                                    "type": "string"
+                                },
+                                "color": {
+                                    "description": "The color of the category, if not provided, it will be set to gray",
+                                    "type": "string",
+                                    "enum": [
+                                        "gray",
+                                        "violet",
+                                        "red",
+                                        "orange",
+                                        "green",
+                                        "blue",
+                                        "indigo",
+                                        "pink",
+                                        "yellow"
+                                    ]
+                                }
+                            },
+                            "required": ["label"]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

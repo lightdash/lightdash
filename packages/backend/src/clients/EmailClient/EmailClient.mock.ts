@@ -15,6 +15,7 @@ export const lightdashConfigWithNoSMTP: Pick<
     smtp: undefined,
     siteUrl: 'https://test.lightdash.cloud',
     query: {
+        maxPageSize: 500,
         maxLimit: 100,
         defaultLimit: 500,
         csvCellsLimit: 100,
@@ -26,6 +27,7 @@ const smtpBase: SmtpConfig = {
     host: 'host',
     secure: true,
     port: 587,
+    useAuth: true,
     auth: {
         user: 'user',
         pass: 'pass',
@@ -47,6 +49,7 @@ export const lightdashConfigWithBasicSMTP: Pick<
     },
     siteUrl: 'https://test.lightdash.cloud',
     query: {
+        maxPageSize: 500,
         maxLimit: 100,
         defaultLimit: 500,
         csvCellsLimit: 100,
@@ -68,6 +71,7 @@ export const lightdashConfigWithOauth2SMTP: Pick<
     },
     siteUrl: 'https://test.lightdash.cloud',
     query: {
+        maxPageSize: 500,
         maxLimit: 100,
         defaultLimit: 500,
         csvCellsLimit: 100,
@@ -85,6 +89,7 @@ export const lightdashConfigWithSecurePortSMTP: Pick<
     },
     siteUrl: 'https://test.lightdash.cloud',
     query: {
+        maxPageSize: 500,
         maxLimit: 100,
         defaultLimit: 500,
         csvCellsLimit: 100,

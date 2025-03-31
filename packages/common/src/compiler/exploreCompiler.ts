@@ -1,4 +1,4 @@
-import { type SupportedDbtAdapter } from '../types/dbt';
+import { type DbtRawModelNode, type SupportedDbtAdapter } from '../types/dbt';
 import { CompileError } from '../types/errors';
 import {
     type CompiledExploreJoin,
@@ -20,15 +20,19 @@ import {
     type Dimension,
     type Metric,
 } from '../types/field';
-import { type WarehouseClient } from '../types/warehouse';
-
+import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 import {
     dateGranularityToTimeFrameMap,
     type DateGranularity,
 } from '../types/timeFrames';
+import { type WarehouseClient } from '../types/warehouse';
 import { timeFrameConfigs } from '../utils/timeFrames';
 import { getFieldQuoteChar } from '../utils/warehouse';
 import { renderFilterRuleSql } from './filtersCompiler';
+import {
+    getCategoriesFromResource,
+    getSpotlightConfigurationForResource,
+} from './lightdashProjectConfig';
 
 // exclude lightdash prefix from variable pattern
 export const lightdashVariablePattern =
@@ -78,6 +82,9 @@ export type UncompiledExplore = {
     ymlPath?: string;
     sqlPath?: string;
     joinAliases?: Record<string, Record<string, string>>;
+    spotlightConfig?: LightdashProjectConfig['spotlight'];
+    meta: DbtRawModelNode['meta'];
+    databricksCompute?: string;
 };
 
 const getReferencedTable = (
@@ -110,6 +117,9 @@ export class ExploreCompiler {
         warehouse,
         ymlPath,
         sqlPath,
+        spotlightConfig,
+        meta,
+        databricksCompute,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -245,6 +255,16 @@ export class ExploreCompiler {
             this.compileJoin(j, includedTables),
         );
 
+        const spotlightVisibility =
+            meta.spotlight?.visibility ?? spotlightConfig?.default_visibility;
+
+        const spotlightCategories = getCategoriesFromResource(
+            'explore',
+            name,
+            spotlightConfig,
+            meta.spotlight?.categories,
+        );
+
         return {
             name,
             label,
@@ -257,6 +277,11 @@ export class ExploreCompiler {
             warehouse,
             ymlPath,
             sqlPath,
+            databricksCompute,
+            ...getSpotlightConfigurationForResource(
+                spotlightVisibility,
+                spotlightCategories,
+            ),
         };
     }
 
@@ -620,9 +645,15 @@ export class ExploreCompiler {
                 tablesReferences: new Set([currentTable]),
             };
         }
-        const { refTable, refName } = getParsedReference(ref, currentTable);
 
-        const referencedMetric = tables[refTable]?.metrics[refName];
+        const { refTable: refTableName, refName } = getParsedReference(
+            ref,
+            currentTable,
+        );
+
+        const referencedTable = getReferencedTable(refTableName, tables);
+        const referencedMetric = referencedTable?.metrics[refName];
+
         if (referencedMetric === undefined) {
             throw new CompileError(
                 `Model "${currentTable}" has a metric reference: \${${ref}} which matches no metric`,
@@ -635,7 +666,7 @@ export class ExploreCompiler {
         return {
             sql: `(${compiledMetric.sql})`,
             tablesReferences: new Set([
-                refTable,
+                referencedTable?.name || refTableName,
                 ...compiledMetric.tablesReferences,
             ]),
         };

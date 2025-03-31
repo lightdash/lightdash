@@ -80,12 +80,12 @@ export class AnalyticsModel {
             });
             await trx(SavedChartsTableName)
                 .update({
-                    // @ts-expect-error knex types don't support raw queries
-                    views_count: trx.raw('views_count + 1'),
-                    // @ts-expect-error knex types don't support raw queries
+                    views_count: trx.raw(
+                        'views_count + 1',
+                    ) as unknown as number,
                     first_viewed_at: trx.raw(
                         'COALESCE(first_viewed_at, NOW())',
-                    ), // update first_viewed_at if it is null
+                    ) as unknown as Date, // update first_viewed_at if it is null
                 })
                 .where('saved_query_uuid', chartUuid);
         });
@@ -103,13 +103,13 @@ export class AnalyticsModel {
             }); */
             await trx(`saved_sql`)
                 .update({
-                    // @ts-expect-error knex types don't support raw queries
-                    views_count: trx.raw('views_count + 1'),
-                    // @ts-expect-error knex types don't support raw queries
+                    views_count: trx.raw(
+                        'views_count + 1',
+                    ) as unknown as number,
                     first_viewed_at: trx.raw(
                         'COALESCE(first_viewed_at, NOW())',
-                    ), // update first_viewed_at if it is null
-                    last_viewed_at: trx.raw('NOW()'),
+                    ) as unknown as Date,
+                    last_viewed_at: trx.raw('NOW()') as unknown as Date,
                 })
                 .where('saved_sql_uuid', sqlChartUuid);
         });
@@ -119,6 +119,7 @@ export class AnalyticsModel {
         const [{ count }] = await this.database(
             AnalyticsDashboardViewsTableName,
         )
+            .select('count')
             .count('dashboard_uuid')
             .where('dashboard_uuid', dashboardUuid);
 
@@ -136,12 +137,12 @@ export class AnalyticsModel {
             });
             await trx(DashboardsTableName)
                 .update({
-                    // @ts-expect-error knex types don't support raw queries
-                    views_count: trx.raw('views_count + 1'),
-                    // @ts-expect-error knex types don't support raw queries
+                    views_count: trx.raw(
+                        'views_count + 1',
+                    ) as unknown as number,
                     first_viewed_at: trx.raw(
                         'COALESCE(first_viewed_at, NOW())',
-                    ), // update first_viewed_at if it is null
+                    ) as unknown as Date, // update first_viewed_at if it is null
                 })
                 .where('dashboard_uuid', dashboardUuid);
         });
@@ -190,9 +191,15 @@ export class AnalyticsModel {
             dashboardViewsSql(projectUuid),
         );
 
-        const userMostViewedDashboards = await this.database.raw(
-            userMostViewedDashboardSql(projectUuid),
-        );
+        const userMostViewedDashboards = await this.database.raw<{
+            rows: {
+                user_uuid: string;
+                first_name: string;
+                last_name: string;
+                dashboard_name: string;
+                count: number;
+            }[];
+        }>(userMostViewedDashboardSql(projectUuid));
         const chartViews = await this.database.raw(chartViewsSql(projectUuid));
         const parseUsersWithCount = (
             userData: DbUserWithCount,
@@ -229,7 +236,7 @@ export class AnalyticsModel {
             chartWeeklyAverageQueries: chartWeeklyAverageQueries.rows,
             dashboardViews: dashboardViews.rows,
             userMostViewedDashboards: userMostViewedDashboards.rows.map(
-                (row: any) => ({
+                (row) => ({
                     userUuid: row.user_uuid,
                     firstName: row.first_name,
                     lastName: row.last_name,

@@ -45,6 +45,7 @@ export async function up(knex: Knex): Promise<void> {
         OrganizationAllowedEmailDomainsTableName,
     ).select();
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const insertPromises: Promise<any>[] = [];
     allowedEmailDomains.forEach((allowedEmailDomain) => {
         // @ts-ignore

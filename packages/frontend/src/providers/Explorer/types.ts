@@ -15,6 +15,7 @@ import {
     type MetricQuery,
     type MetricType,
     type PieChartConfig,
+    type ReplaceCustomFields,
     type SavedChart,
     type SortField,
     type TableCalculation,
@@ -23,7 +24,7 @@ import {
     type TimeZone,
 } from '@lightdash/common';
 import {
-    type useChartVersionResultsMutation,
+    type useInfiniteQueryResults,
     type useQueryResults,
 } from '../../hooks/useQueryResults';
 
@@ -64,6 +65,7 @@ export enum ActionType {
     EDIT_ADDITIONAL_METRIC,
     REMOVE_ADDITIONAL_METRIC,
     TOGGLE_ADDITIONAL_METRIC_MODAL,
+    TOGGLE_WRITE_BACK_MODAL,
     SET_PIVOT_FIELDS,
     SET_CHART_TYPE,
     SET_CHART_CONFIG,
@@ -74,6 +76,7 @@ export enum ActionType {
     TOGGLE_CUSTOM_DIMENSION_MODAL,
     TOGGLE_FORMAT_MODAL,
     UPDATE_METRIC_FORMAT,
+    REPLACE_FIELDS,
 }
 
 export type ConfigCacheMap = {
@@ -169,6 +172,10 @@ export type Action =
           >;
       }
     | {
+          type: ActionType.TOGGLE_WRITE_BACK_MODAL;
+          payload?: Omit<ExplorerReduceState['modals']['writeBack'], 'isOpen'>;
+      }
+    | {
           type: ActionType.SET_PIVOT_FIELDS;
           payload: FieldId[];
       }
@@ -215,6 +222,12 @@ export type Action =
     | {
           type: ActionType.UPDATE_METRIC_FORMAT;
           payload: { metric: Metric; formatOptions: CustomFormat | undefined };
+      }
+    | {
+          type: ActionType.REPLACE_FIELDS;
+          payload: {
+              fieldsToReplace: ReplaceCustomFields[string];
+          };
       };
 
 export interface ExplorerReduceState {
@@ -243,6 +256,10 @@ export interface ExplorerReduceState {
             table?: string;
             item?: Dimension | CustomDimension;
         };
+        writeBack: {
+            isOpen: boolean;
+            items?: CustomDimension[] | AdditionalMetric[];
+        };
     };
 }
 
@@ -256,9 +273,8 @@ export interface ExplorerState extends ExplorerReduceState {
 
 export interface ExplorerContextType {
     state: ExplorerState;
-    queryResults: ReturnType<
-        typeof useQueryResults | typeof useChartVersionResultsMutation
-    >;
+    query: ReturnType<typeof useQueryResults>;
+    queryResults: ReturnType<typeof useInfiniteQueryResults>;
     actions: {
         clearExplore: () => void;
         clearQuery: () => void;
@@ -316,10 +332,17 @@ export interface ExplorerContextType {
                 'isOpen'
             >,
         ) => void;
+        toggleWriteBackModal: (
+            writeBackModalData?: Omit<
+                ExplorerReduceState['modals']['writeBack'],
+                'isOpen'
+            >,
+        ) => void;
         toggleFormatModal: (args?: { metric: Metric }) => void;
         updateMetricFormat: (args: {
             metric: Metric;
             formatOptions: CustomFormat | undefined;
         }) => void;
+        replaceFields: (fieldsToReplace: ReplaceCustomFields[string]) => void;
     };
 }

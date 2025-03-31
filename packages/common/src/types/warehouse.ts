@@ -1,7 +1,20 @@
 import { type WeekDay } from '../utils/timeFrames';
+import { type QueryExecutionContext } from './analytics';
+import { type AnyType } from './any';
 import { type SupportedDbtAdapter } from './dbt';
 import { type DimensionType, type Metric } from './field';
 import { type CreateWarehouseCredentials } from './projects';
+import type { WarehouseQueryMetadata } from './queryHistory';
+
+export type RunQueryTags = {
+    project_uuid?: string;
+    user_uuid?: string;
+    organization_uuid?: string;
+    chart_uuid?: string;
+    dashboard_uuid?: string;
+    explore_name?: string;
+    query_context: QueryExecutionContext;
+};
 
 export type WarehouseTableSchema = {
     [column: string]: DimensionType;
@@ -32,7 +45,45 @@ export type WarehouseTables = {
 
 export type WarehouseResults = {
     fields: Record<string, { type: DimensionType }>;
-    rows: Record<string, any>[];
+    rows: Record<string, AnyType>[];
+};
+
+export type WarehousePaginationArgs = {
+    page: number;
+    pageSize: number;
+};
+
+export type WarehouseExecuteAsyncQueryArgs = {
+    tags: Record<string, string>;
+    timezone?: string;
+    values?: AnyType[];
+    sql: string;
+};
+
+export type WarehouseExecuteAsyncQuery = {
+    queryId: string | null;
+    queryMetadata: WarehouseQueryMetadata | null;
+    totalRows: number | null;
+    durationMs: number | null;
+};
+
+export type WarehouseGetAsyncQueryResultsArgs = WarehousePaginationArgs &
+    WarehouseExecuteAsyncQueryArgs & {
+        queryId: string | null;
+        queryMetadata: WarehouseQueryMetadata | null;
+    };
+
+type WarehouseAsyncQueryCommonResults = {
+    queryId: string | null;
+};
+
+export type WarehouseGetAsyncQueryResults<
+    TFormattedRow extends Record<string, unknown>,
+> = WarehouseAsyncQueryCommonResults & {
+    fields: Record<string, { type: DimensionType }>;
+    pageCount: number;
+    totalRows: number;
+    rows: TFormattedRow[];
 };
 
 export interface WarehouseClient {
@@ -49,11 +100,20 @@ export interface WarehouseClient {
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
-            values?: any[];
+            values?: AnyType[];
             tags: Record<string, string>;
             timezone?: string;
         },
     ): Promise<void>;
+
+    executeAsyncQuery(
+        args: WarehouseExecuteAsyncQueryArgs,
+    ): Promise<WarehouseExecuteAsyncQuery>;
+
+    getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
+        args: WarehouseGetAsyncQueryResultsArgs,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>>;
 
     /**
      * Runs a query and returns all the results
@@ -67,7 +127,7 @@ export interface WarehouseClient {
         sql: string,
         tags: Record<string, string>,
         timezone?: string,
-        values?: any[],
+        values?: AnyType[],
     ): Promise<WarehouseResults>;
 
     test(): Promise<void>;
@@ -97,7 +157,7 @@ export interface WarehouseClient {
     ): Promise<WarehouseCatalog>;
 
     parseWarehouseCatalog(
-        rows: Record<string, any>[],
+        rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog;
 

@@ -1,15 +1,19 @@
 import { subject } from '@casl/ability';
 import {
+    ApiGetAsyncQueryResults,
     assertUnreachable,
     AuthorizationError,
     ChartType,
     DownloadFileType,
     ForbiddenError,
+    getErrorMessage,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     LightdashPage,
     LightdashRequestMethodHeader,
+    QueryHistoryStatus,
     RequestMethod,
+    ScreenshotError,
     SessionUser,
     snakeCaseName,
 } from '@lightdash/common';
@@ -19,7 +23,7 @@ import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
 import playwright from 'playwright';
-import { S3Client } from '../../clients/Aws/s3';
+import { S3Client } from '../../clients/Aws/S3Client';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
@@ -28,13 +32,19 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
-import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 
+const RESPONSE_TIMEOUT_MS = 180000;
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
 const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
+const legacyMetricQueryEndpointRegex = /\/runQuery/;
+const createQueryEndpointRegex = /\/query/;
+const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}`);
+const legacyChartAndResultsEndpointRegex =
+    /\/saved\/[a-f0-9-]+\/chart-and-results/;
+const legacyChartResultsEndpointRegex = /\/saved\/[a-f0-9-]+\/results/;
 
 const viewport = {
     width: 1400,
@@ -127,7 +137,88 @@ export class UnfurlService extends BaseService {
         this.downloadFileModel = downloadFileModel;
     }
 
-    async getTitleAndDescription(parsedUrl: ParsedUrl): Promise<
+    private async waitForAllPaginatedResultsResponse(
+        page: playwright.Page,
+        expectedResponses: number,
+        timeout: number,
+    ) {
+        let responseCount = 0;
+
+        this.logger.info(
+            `Waiting for ${expectedResponses} paginated responses with timeout ${timeout}ms`,
+        );
+
+        const responsePromise = new Promise<void>((resolve, reject) => {
+            const responseHandler = async (response: playwright.Response) => {
+                if (response.url().match(paginatedQueryEndpointRegex)) {
+                    this.logger.debug(
+                        `Received paginated response: ${response.url()}`,
+                    );
+                    const body = await response.body();
+                    const json = JSON.parse(body.toString()) as {
+                        status: 'ok';
+                        results: ApiGetAsyncQueryResults;
+                    };
+                    // Check if is last page (aka has no next page)
+                    if (
+                        json.results.status === QueryHistoryStatus.READY &&
+                        !json.results.nextPage
+                    ) {
+                        responseCount += 1;
+                        this.logger.info(
+                            `Paginated response is complete. Count: ${responseCount}/${expectedResponses}`,
+                        );
+                        if (responseCount === expectedResponses) {
+                            this.logger.info(
+                                `All ${expectedResponses} paginated responses received, resolving promise`,
+                            );
+                            page.off('response', responseHandler); // Clean up the listener
+                            resolve();
+                        }
+                    } else {
+                        this.logger.debug(
+                            `Paginated response is not complete. Status: ${
+                                json.results.status
+                            }, hasNextPage: ${
+                                'nextPage' in json.results
+                                    ? !!json.results.nextPage
+                                    : 'N/A'
+                            }`,
+                        );
+                    }
+                }
+            };
+            page.on('response', responseHandler);
+        });
+
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => {
+                this.logger.info(
+                    `Timeout after ${timeout}ms. Expected ${expectedResponses} but only received ${responseCount} responses.`,
+                );
+                reject(
+                    new Error(
+                        `Timeout after ${timeout}ms. Expected ${expectedResponses} but only received ${responseCount} responses.`,
+                    ),
+                );
+            }, timeout);
+        });
+
+        return Promise.race([responsePromise, timeoutPromise]);
+    }
+
+    private async waitForPaginatedResultsResponse(page: playwright.Page) {
+        return this.waitForAllPaginatedResultsResponse(
+            page,
+            1,
+            RESPONSE_TIMEOUT_MS,
+        );
+    }
+
+    async getTitleAndDescription(
+        parsedUrl: ParsedUrl,
+        selectedTabs?: string[],
+    ): Promise<
         Pick<
             Unfurl,
             'title' | 'description' | 'chartType' | 'organizationUuid'
@@ -146,15 +237,24 @@ export class UnfurlService extends BaseService {
                 const dashboard = await this.dashboardModel.getById(
                     parsedUrl.dashboardUuid,
                 );
+
+                // Filter tiles based on selected tabs if they exist
+                const filteredTiles =
+                    selectedTabs && selectedTabs.length > 0
+                        ? dashboard.tiles.filter((tile) =>
+                              selectedTabs.includes(tile.tabUuid || ''),
+                          )
+                        : dashboard.tiles;
+
                 return {
                     title: dashboard.name,
                     description: dashboard.description,
                     organizationUuid: dashboard.organizationUuid,
                     resourceUuid: dashboard.uuid,
-                    chartTileUuids: dashboard.tiles
+                    chartTileUuids: filteredTiles
                         .filter(isDashboardChartTileType)
                         .map((t) => t.properties.savedChartUuid),
-                    sqlChartTileUuids: dashboard.tiles
+                    sqlChartTileUuids: filteredTiles
                         .filter(isDashboardSqlChartTile)
                         .map((t) => t.properties.savedSqlUuid),
                 };
@@ -195,7 +295,10 @@ export class UnfurlService extends BaseService {
         }
     }
 
-    async unfurlDetails(originUrl: string): Promise<Unfurl | undefined> {
+    async unfurlDetails(
+        originUrl: string,
+        selectedTabs: string[] = [],
+    ): Promise<Unfurl | undefined> {
         const parsedUrl = await this.parseUrl(originUrl);
 
         if (
@@ -213,7 +316,7 @@ export class UnfurlService extends BaseService {
             chartType,
             resourceUuid,
             ...rest
-        } = await this.getTitleAndDescription(parsedUrl);
+        } = await this.getTitleAndDescription(parsedUrl, selectedTabs);
 
         return {
             title,
@@ -225,24 +328,26 @@ export class UnfurlService extends BaseService {
             chartType,
             resourceUuid,
             chartTileUuids: rest.chartTileUuids,
-            // TODO: Add this back once FIXME is solved in saveScreenshot
-            // sqlChartTileUuids: rest.sqlChartTileUuids,
+            sqlChartTileUuids: rest.sqlChartTileUuids,
         };
     }
 
-    static async createImagePdf(
-        imageId: string,
-        buffer: Buffer,
-    ): Promise<string> {
+    private async createImagePdf(id: string, buffer: Buffer): Promise<string> {
         // Converts an image to PDF format,
         // The PDF has the size of the image, not DIN A4
         const pdfDoc = await PDFDocument.create();
         const pngImage = await pdfDoc.embedPng(buffer);
         const page = pdfDoc.addPage([pngImage.width, pngImage.height]);
         page.drawImage(pngImage);
-        const path = `/tmp/${imageId}.pdf`;
         const pdfBytes = await pdfDoc.save();
-        await fsPromise.writeFile(path, pdfBytes);
+
+        let path: string;
+        if (this.s3Client.isEnabled()) {
+            path = await this.s3Client.uploadPdf(Buffer.from(pdfBytes), id);
+        } else {
+            path = `/tmp/${id}.pdf`;
+            await fsPromise.writeFile(path, pdfBytes);
+        }
         return path;
     }
 
@@ -256,6 +361,7 @@ export class UnfurlService extends BaseService {
         selector = undefined,
         context,
         contextId,
+        selectedTabs,
     }: {
         url: string;
         lightdashPage?: LightdashPage;
@@ -266,11 +372,13 @@ export class UnfurlService extends BaseService {
         selector?: string;
         context: ScreenshotContext;
         contextId?: unknown;
+        selectedTabs?: string[];
     }): Promise<{ imageUrl?: string; pdfPath?: string }> {
         const cookie = await this.getUserCookie(authUserUuid);
-        const details = await this.unfurlDetails(url);
+        const details = await this.unfurlDetails(url, selectedTabs);
 
         const buffer = await this.saveScreenshot({
+            authUserUuid,
             imageId,
             cookie,
             url,
@@ -285,13 +393,15 @@ export class UnfurlService extends BaseService {
             sqlChartTileUuids: details?.sqlChartTileUuids,
             context,
             contextId,
+            selectedTabs,
         });
 
         let imageUrl;
         let pdfPath;
         if (buffer !== undefined) {
-            if (withPdf)
-                pdfPath = await UnfurlService.createImagePdf(imageId, buffer);
+            if (withPdf) {
+                pdfPath = await this.createImagePdf(imageId, buffer);
+            }
 
             if (this.s3Client.isEnabled()) {
                 imageUrl = await this.s3Client.uploadImage(buffer, imageId);
@@ -320,6 +430,7 @@ export class UnfurlService extends BaseService {
         queryFilters: string,
         gridWidth: number | undefined,
         user: SessionUser,
+        selectedTabs?: string[],
     ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         const { isPrivate } = await this.spaceModel.get(dashboard.spaceUuid);
@@ -327,12 +438,33 @@ export class UnfurlService extends BaseService {
             user.userUuid,
             dashboard.spaceUuid,
         );
+
+        // Create a new URLSearchParams object for query filters
+        const selectedTabsParams = new URLSearchParams();
+        const selectedTabsList =
+            selectedTabs ??
+            dashboard.tiles
+                .map((tile) => tile.tabUuid)
+                .filter((tabUuid) => !!tabUuid);
+
+        if (selectedTabsList.length > 0)
+            selectedTabsParams.set(
+                'selectedTabs',
+                JSON.stringify(selectedTabsList),
+            );
+
         const { organizationUuid, projectUuid, name, minimalUrl, pageType } = {
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
             name: dashboard.name,
             minimalUrl: new URL(
-                `/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}${queryFilters}`,
+                `/minimal/projects/${
+                    dashboard.projectUuid
+                }/dashboards/${dashboardUuid}${queryFilters}${
+                    selectedTabsParams.toString()
+                        ? `${selectedTabsParams.toString()}`
+                        : ''
+                }`,
                 this.lightdashConfig.headlessBrowser.internalLightdashHost,
             ).href,
             pageType: LightdashPage.DASHBOARD,
@@ -352,6 +484,14 @@ export class UnfurlService extends BaseService {
             throw new ForbiddenError();
         }
 
+        this.logger.info(
+            `Exporting dashboard ${name} with minimalUrl ${minimalUrl}${
+                selectedTabs
+                    ? ` and selected tabs: ${selectedTabs.join(', ')}`
+                    : ''
+            }`,
+        );
+
         const unfurlImage = await this.unfurlImage({
             url: minimalUrl,
             lightdashPage: pageType,
@@ -359,6 +499,7 @@ export class UnfurlService extends BaseService {
             authUserUuid: user.userUuid,
             gridWidth,
             context: ScreenshotContext.EXPORT_DASHBOARD,
+            selectedTabs,
         });
         if (unfurlImage.imageUrl === undefined) {
             throw new Error('Unable to unfurl image');
@@ -373,6 +514,7 @@ export class UnfurlService extends BaseService {
         lightdashPage,
         chartType,
         organizationUuid,
+        authUserUuid,
         gridWidth = undefined,
         resourceUuid = undefined,
         resourceName = undefined,
@@ -382,6 +524,7 @@ export class UnfurlService extends BaseService {
         retries = SCREENSHOT_RETRIES,
         context,
         contextId,
+        selectedTabs,
     }: {
         imageId: string;
         cookie: string;
@@ -389,6 +532,7 @@ export class UnfurlService extends BaseService {
         lightdashPage?: LightdashPage;
         chartType?: string;
         organizationUuid?: string;
+        authUserUuid: string;
         gridWidth?: number | undefined;
         resourceUuid?: string;
         resourceName?: string;
@@ -398,7 +542,32 @@ export class UnfurlService extends BaseService {
         retries?: number;
         context: ScreenshotContext;
         contextId?: unknown;
+        selectedTabs?: string[];
     }): Promise<Buffer | undefined> {
+        console.log('params', {
+            imageId,
+            cookie,
+            url,
+            lightdashPage,
+            chartType,
+            organizationUuid,
+            authUserUuid,
+            gridWidth,
+            resourceUuid,
+            resourceName,
+            selector,
+            chartTileUuids,
+            sqlChartTileUuids,
+            retries,
+            context,
+            contextId,
+            selectedTabs,
+        });
+        this.logger.info(
+            `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
+                sqlChartTileUuids,
+            )}`,
+        );
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
             this.logger.error(
                 `Can't get screenshot if HEADLESS_BROWSER_HOST env variable is not defined`,
@@ -413,10 +582,22 @@ export class UnfurlService extends BaseService {
         // eslint-disable-next-line no-param-reassign
         retries -= 1;
 
-        return wrapSentryTransaction(
-            'UnfurlService.saveScreenshot',
-            {},
+        return Sentry.startSpan(
+            {
+                name: 'UnfurlService.saveScreenshot',
+                op: 'saveScreenshot',
+            },
             async (span) => {
+                Sentry.setTags({
+                    'page.type': lightdashPage ?? 'undefined',
+                    'page.context': context ?? 'undefined',
+                    'page.minimalUrl': url ?? 'undefined',
+                    'page.resourceUuid': resourceUuid ?? 'undefined',
+                    'page.resourceName': resourceName ?? 'undefined',
+                    'page.chartType': chartType ?? 'undefined',
+                    'page.organizationUuid': organizationUuid ?? 'undefined',
+                    'page.userUuid': authUserUuid ?? 'undefined',
+                });
                 let browser: playwright.Browser | undefined;
                 let page: playwright.Page | undefined;
 
@@ -427,6 +608,30 @@ export class UnfurlService extends BaseService {
 
                     browser = await playwright.chromium.connectOverCDP(
                         browserWSEndpoint,
+                        {
+                            timeout: 1000 * 60 * 30, // 30 minutes
+                            logger: {
+                                isEnabled() {
+                                    return true;
+                                },
+                                log: (name, severity, message, args): void => {
+                                    const logMessage = `[${name}] ${message} ${JSON.stringify(
+                                        args,
+                                    )}`;
+                                    switch (severity) {
+                                        case 'warning':
+                                            this.logger.warn(logMessage);
+                                            break;
+                                        case 'error':
+                                            this.logger.error(logMessage);
+                                            break;
+                                        default:
+                                            this.logger.debug(logMessage);
+                                            break;
+                                    }
+                                },
+                            },
+                        },
                     );
 
                     page = await browser.newPage({
@@ -483,18 +688,22 @@ export class UnfurlService extends BaseService {
                         }
                     });
 
-                    let chartRequests = 0;
-                    let chartRequestErrors = 0;
-
+                    // Log all query results errors
                     page.on('response', async (response) => {
                         const responseUrl = response.url();
-                        const regexUrlToMatch =
-                            lightdashPage === LightdashPage.EXPLORE ||
-                            lightdashPage === LightdashPage.CHART
-                                ? /\/saved\/[a-f0-9-]+\/results/
-                                : /\/saved\/[a-f0-9-]+\/chart-and-results/; // NOTE: Chart endpoint in Dashboards is different
-                        if (responseUrl.match(regexUrlToMatch)) {
-                            chartRequests += 1;
+                        const resultsEndpointRegexes = [
+                            legacyMetricQueryEndpointRegex, // legacy endpoint for explorer page
+                            legacyChartResultsEndpointRegex, // legacy endpoint for chart view page
+                            legacyChartAndResultsEndpointRegex, // legacy endpoint for dashboard page
+                            createQueryEndpointRegex, // create query
+                            paginatedQueryEndpointRegex, // get paginated results
+                        ];
+                        const isResultsEndpointMatch =
+                            resultsEndpointRegexes.some((regex) =>
+                                regex.test(responseUrl),
+                            );
+
+                        if (isResultsEndpointMatch) {
                             response.body().then(
                                 (buffer) => {
                                     const status = response.status();
@@ -502,81 +711,231 @@ export class UnfurlService extends BaseService {
                                         this.logger.error(
                                             `Headless browser response error - url: ${responseUrl}, code: ${response.status()}, text: ${buffer}`,
                                         );
-                                        chartRequestErrors += 1;
+                                    } else if (
+                                        paginatedQueryEndpointRegex.test(
+                                            responseUrl,
+                                        )
+                                    ) {
+                                        const json = JSON.parse(
+                                            buffer.toString(),
+                                        ) as {
+                                            status: 'ok';
+                                            results: ApiGetAsyncQueryResults;
+                                        };
+                                        if (
+                                            json.results.status ===
+                                            QueryHistoryStatus.ERROR
+                                        ) {
+                                            this.logger.error(
+                                                `Headless browser response error while fetching paginated results - url: ${responseUrl}, text: ${json.results.error}`,
+                                            );
+                                        }
                                     }
                                 },
                                 (error) => {
                                     this.logger.error(
-                                        `Headless browser response buffer error: ${error.message}`,
+                                        `Headless browser response buffer error: ${getErrorMessage(
+                                            error,
+                                        )}`,
                                     );
-                                    chartRequestErrors += 1;
                                 },
                             );
                         }
                     });
-                    let timeout = false;
+
                     try {
                         let chartResultsPromises:
-                            | (Promise<playwright.Response> | undefined)[]
+                            | (Promise<unknown> | undefined)[]
                             | undefined;
 
                         if (lightdashPage === LightdashPage.DASHBOARD) {
                             // Wait for the all charts to load if we are in a dashboard
-                            const exploreChartResultsPromises =
-                                chartTileUuids?.map((id) => {
-                                    const responsePattern = new RegExp(
-                                        `${id}/chart-and-results`,
-                                    );
-
-                                    return page?.waitForResponse(
-                                        responsePattern,
-                                        {
-                                            timeout: 60000,
-                                        },
-                                    ); // NOTE: No await here
-                                });
-                            // We wait for the sql charts to load and for the query to finish
-                            /*
-                             * FIXME: wait for /sqlRunner/saved/${id} and /\/sqlRunner\/runPivotQuery/, so that we can successfully capture the SQL charts visualizations
-                             *
-                             * We need to wait for /sqlRunner/saved/${id} so that we can successfully capture the SQL charts visualizations
-                             * We need to wait for /\/sqlRunner\/runPivotQuery/, so that we can successfully capture the SQL charts visualizations
-                             * Figure out how to wait for the Streamed query results from the warehouse when scheduling a dashboard of image type - this works already when exporting a dashboard, but not when scheduling it
-                             */
-                            const sqlChartResultsPromises =
-                                sqlChartTileUuids?.map(
-                                    (id) =>
-                                        page?.waitForResponse(
-                                            /\/sqlRunner\/results/,
-                                            {
-                                                timeout: 60000,
-                                            },
-                                        ), // NOTE: No await here
+                            let exploreChartResultsPromise:
+                                | Promise<unknown>
+                                | undefined;
+                            if (chartTileUuids) {
+                                this.logger.info(
+                                    `Dashboard screenshot: Found ${
+                                        chartTileUuids.length
+                                    } chart tiles, with values: ${JSON.stringify(
+                                        chartTileUuids,
+                                    )}`,
                                 );
 
+                                const nonNullChartTileUuids =
+                                    chartTileUuids.filter((id) => id !== null);
+                                this.logger.info(
+                                    `Dashboard screenshot: ${nonNullChartTileUuids.length} non-null chart tiles out of ${chartTileUuids.length} total tiles`,
+                                );
+
+                                const legacyExploreChartResultsPromises =
+                                    chartTileUuids.map((id) => {
+                                        if (page && id) {
+                                            const responsePattern = new RegExp(
+                                                `${id}/chart-and-results`,
+                                            );
+
+                                            this.logger.debug(
+                                                `Dashboard screenshot: Waiting for response pattern ${responsePattern} for chart ID ${id}`,
+                                            );
+
+                                            return page?.waitForResponse(
+                                                responsePattern,
+                                                {
+                                                    timeout:
+                                                        RESPONSE_TIMEOUT_MS,
+                                                },
+                                            ); // NOTE: No await here
+                                        }
+                                        return undefined;
+                                    });
+
+                                const validPromisesCount =
+                                    legacyExploreChartResultsPromises.filter(
+                                        (p) => p !== undefined,
+                                    ).length;
+                                this.logger.info(
+                                    `Dashboard screenshot: Created ${validPromisesCount} legacy response promises out of ${legacyExploreChartResultsPromises.length} chart tiles`,
+                                );
+
+                                const expectedPaginatedResponses =
+                                    chartTileUuids.length;
+                                this.logger.info(
+                                    `Dashboard screenshot: Expecting ${expectedPaginatedResponses} paginated responses`,
+                                );
+
+                                const paginatedQueryPromise =
+                                    this.waitForAllPaginatedResultsResponse(
+                                        page,
+                                        expectedPaginatedResponses,
+                                        expectedPaginatedResponses *
+                                            RESPONSE_TIMEOUT_MS,
+                                    ); // NOTE: No await here
+
+                                exploreChartResultsPromise = Promise.race([
+                                    Promise.allSettled(
+                                        legacyExploreChartResultsPromises,
+                                    ),
+                                    paginatedQueryPromise,
+                                ]);
+                            }
+
+                            // Create separate arrays for each type of SQL response
+                            let sqlInitialLoadPromises:
+                                | (Promise<playwright.Response> | undefined)[]
+                                | undefined;
+                            let sqlResultsJobPromises:
+                                | (Promise<playwright.Response> | undefined)[]
+                                | undefined;
+                            let sqlResultsPromises:
+                                | (Promise<playwright.Response> | undefined)[]
+                                | undefined;
+                            let sqlPivotPromises:
+                                | (Promise<playwright.Response> | undefined)[]
+                                | undefined;
+
+                            const filteredSqlChartTileUuids =
+                                sqlChartTileUuids?.filter(
+                                    (id): id is string => !!id,
+                                );
+
+                            this.logger.info(
+                                `Dashboard screenshot: SQL chart tiles - original count: ${
+                                    sqlChartTileUuids?.length || 0
+                                }, filtered count: ${
+                                    filteredSqlChartTileUuids?.length || 0
+                                }`,
+                            );
+
+                            const hasSqlCharts =
+                                filteredSqlChartTileUuids &&
+                                filteredSqlChartTileUuids.length > 0;
+                            if (hasSqlCharts && page) {
+                                sqlInitialLoadPromises =
+                                    filteredSqlChartTileUuids.map((id) => {
+                                        const responsePattern = new RegExp(
+                                            `/sqlRunner/saved/${id}`,
+                                        );
+                                        return page?.waitForResponse(
+                                            responsePattern,
+                                            { timeout: RESPONSE_TIMEOUT_MS },
+                                        );
+                                    });
+
+                                sqlResultsJobPromises =
+                                    filteredSqlChartTileUuids.map(
+                                        (id) =>
+                                            page?.waitForResponse(
+                                                new RegExp(
+                                                    `/sqlRunner/saved/${id}/results-job`,
+                                                ),
+                                                {
+                                                    timeout:
+                                                        RESPONSE_TIMEOUT_MS,
+                                                },
+                                            ), // NOTE: No await here
+                                    );
+
+                                // These are shared responses for all SQL charts
+                                sqlResultsPromises = [
+                                    page?.waitForResponse(
+                                        /\/sqlRunner\/results/,
+                                        { timeout: RESPONSE_TIMEOUT_MS },
+                                    ), // NOTE: No await here
+                                ];
+
+                                sqlPivotPromises = [
+                                    page?.waitForResponse(
+                                        /\/sqlRunner\/runPivotQuery/,
+                                        { timeout: RESPONSE_TIMEOUT_MS },
+                                    ), // NOTE: No await here
+                                ];
+                            }
+
                             chartResultsPromises = [
-                                ...(exploreChartResultsPromises || []),
-                                ...(sqlChartResultsPromises || []),
+                                exploreChartResultsPromise,
+                                ...(sqlInitialLoadPromises || []),
+                                ...(sqlResultsJobPromises || []),
+                                ...(sqlResultsPromises || []),
+                                ...(sqlPivotPromises || []),
                             ];
                         } else if (lightdashPage === LightdashPage.CHART) {
                             // Wait for the visualization to load if we are in an saved explore page
                             const responsePattern = new RegExp(
                                 `${resourceUuid}/results`,
                             );
+                            // Wait for the visualization to load if we are in an unsaved explore page
+                            const legacyQueryPromise = page?.waitForResponse(
+                                responsePattern,
+                                {
+                                    timeout: RESPONSE_TIMEOUT_MS,
+                                },
+                            ); // NOTE: No await here
+                            const paginatedQueryPromise =
+                                this.waitForPaginatedResultsResponse(page); // NOTE: No await here
 
                             chartResultsPromises = [
-                                page?.waitForResponse(responsePattern, {
-                                    timeout: 60000,
-                                }), // NOTE: No await here
+                                Promise.race([
+                                    legacyQueryPromise,
+                                    paginatedQueryPromise,
+                                ]),
                             ];
                         } else if (lightdashPage === LightdashPage.EXPLORE) {
                             // Wait for the visualization to load if we are in an unsaved explore page
-                            const responsePattern = /\/runQuery/;
+                            const legacyQueryPromise = page?.waitForResponse(
+                                legacyMetricQueryEndpointRegex,
+                                {
+                                    timeout: RESPONSE_TIMEOUT_MS,
+                                },
+                            ); // NOTE: No await here
+                            const paginatedQueryPromise =
+                                this.waitForPaginatedResultsResponse(page); // NOTE: No await here
 
                             chartResultsPromises = [
-                                page?.waitForResponse(responsePattern, {
-                                    timeout: 60000,
-                                }), // NOTE: No await here
+                                Promise.race([
+                                    legacyQueryPromise,
+                                    paginatedQueryPromise,
+                                ]),
                             ];
                         }
 
@@ -589,13 +948,21 @@ export class UnfurlService extends BaseService {
                             await Promise.allSettled(chartResultsPromises);
                         }
                     } catch (e) {
-                        timeout = true;
                         this.logger.warn(
                             `Got a timeout when waiting for the page to load, returning current content`,
                         );
                     }
 
                     if (lightdashPage === LightdashPage.DASHBOARD) {
+                        // Wait for markdown tiles specifically
+                        const markdownTiles = await page
+                            .locator('.markdown-tile')
+                            .all();
+                        await Promise.all(
+                            markdownTiles.map((tile) =>
+                                tile.waitFor({ state: 'attached' }),
+                            ),
+                        );
                         const loadingChartOverlays = await page
                             .locator('.loading_chart_overlay')
                             .all();
@@ -603,7 +970,7 @@ export class UnfurlService extends BaseService {
                             loadingChartOverlays.map((loadingChartOverlay) =>
                                 loadingChartOverlay.waitFor({
                                     state: 'hidden',
-                                    timeout: 60000,
+                                    timeout: RESPONSE_TIMEOUT_MS,
                                 }),
                             ),
                         );
@@ -618,7 +985,7 @@ export class UnfurlService extends BaseService {
                         loadingCharts.map((loadingChart) =>
                             loadingChart.waitFor({
                                 state: 'hidden',
-                                timeout: 60000,
+                                timeout: RESPONSE_TIMEOUT_MS,
                             }),
                         ),
                     );
@@ -633,12 +1000,13 @@ export class UnfurlService extends BaseService {
                         finalSelector = '.react-grid-layout';
                     }
 
-                    const fullPage = await page.$(finalSelector);
+                    const fullPage = await page.locator(finalSelector);
 
                     if (chartType === ChartType.BIG_NUMBER) {
                         await page.setViewportSize(bigNumberViewport);
                     } else {
                         const fullPageSize = await fullPage?.boundingBox();
+
                         await page.setViewportSize({
                             width: gridWidth ?? viewport.width,
                             height: fullPageSize?.height
@@ -646,15 +1014,6 @@ export class UnfurlService extends BaseService {
                                 : viewport.height,
                         });
                     }
-
-                    span.setAttributes({
-                        'chart.requests.total': chartRequests,
-                        'chart.requests.error': chartRequestErrors,
-                        'page.type': lightdashPage,
-                        url,
-                        chartType: chartType || 'undefined',
-                        organization_uuid: organizationUuid || 'undefined',
-                    });
 
                     if (
                         lightdashPage === LightdashPage.DASHBOARD ||
@@ -665,6 +1024,7 @@ export class UnfurlService extends BaseService {
                             .screenshot({
                                 path,
                                 animations: 'disabled',
+                                timeout: RESPONSE_TIMEOUT_MS,
                             });
 
                         return imageBuffer;
@@ -676,37 +1036,31 @@ export class UnfurlService extends BaseService {
                         fullPage: true,
                         animations: 'disabled',
                     });
+
                     return imageBuffer;
                 } catch (e) {
+                    const errorMessage = getErrorMessage(e);
                     const isRetryableError =
                         e instanceof playwright.errors.TimeoutError ||
                         // Following error messages were taken from the Playwright source code
-                        e.message.includes('Protocol error') ||
-                        e.message.includes('Target crashed') ||
-                        e.message.includes(
+                        errorMessage.includes('Protocol error') ||
+                        errorMessage.includes('Target crashed') ||
+                        errorMessage.includes(
                             'Target page, context or browser has been closed',
                         );
 
                     if (isRetryableError && retries) {
                         this.logger.info(
-                            `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
+                            `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${getErrorMessage(
+                                e,
+                            )}`,
                         );
-                        span.addEvent(e);
-                        span.setAttributes({
-                            'page.type': lightdashPage,
-                            url,
-                            chartType: chartType || 'undefined',
-                            organization_uuid: organizationUuid || 'undefined',
-                            uuid: resourceUuid ?? 'undefined',
-                            title: resourceName ?? 'undefined',
-                            is_retrying: true,
-                            custom_width: `${gridWidth}`,
-                        });
-                        span.setStatus({
-                            code: 2, // Error
-                        });
 
+                        span.setAttributes({
+                            is_retrying: true,
+                        });
                         return await this.saveScreenshot({
+                            authUserUuid,
                             imageId,
                             cookie,
                             url,
@@ -722,29 +1076,35 @@ export class UnfurlService extends BaseService {
                             retries,
                             context,
                             contextId,
+                            selectedTabs,
                         });
                     }
 
-                    Sentry.captureException(e);
                     hasError = true;
-                    span.addEvent(e);
-                    span.setAttributes({
-                        'page.type': lightdashPage,
-                        url,
-                        chartType: chartType || 'undefined',
-                        organization_uuid: organizationUuid || 'undefined',
-                        uuid: resourceUuid ?? 'undefined',
-                        title: resourceName ?? 'undefined',
-                        custom_width: `${gridWidth}`,
-                    });
+
+                    this.logger.error(
+                        `Unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+
+                    const errorType =
+                        e instanceof playwright.errors.TimeoutError
+                            ? 'timeout'
+                            : 'failed';
                     span.setStatus({
                         code: 2, // Error
                     });
 
-                    this.logger.error(
-                        `Unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
+                    throw new ScreenshotError(
+                        `Screenshot ${errorType}: ${errorMessage}`,
+                        {
+                            url,
+                            lightdashPage,
+                            context,
+                            originalError: errorMessage,
+                        },
                     );
-                    throw e;
                 } finally {
                     if (page) await page.close();
                     if (browser) await browser.close(); // clears all created contexts belonging to this browser and disconnects from the browser server.
@@ -844,30 +1204,34 @@ export class UnfurlService extends BaseService {
 
     private async getUserCookie(userUuid: string): Promise<string> {
         const token = getAuthenticationToken(userUuid);
-
-        const response = await fetch(
-            new URL(
-                `/api/v1/headless-browser/login/${userUuid}`,
-                this.lightdashConfig.headlessBrowser.internalLightdashHost,
-            ).href,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ token }),
-            },
+        // Use internal URL for the request (could be the same as the site URL)
+        const internalUrl = new URL(
+            `/api/v1/headless-browser/login/${userUuid}`,
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
         );
+
+        const response = await fetch(internalUrl.href, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ token }),
+        });
         if (response.status !== 200) {
-            throw new Error(
+            throw new AuthorizationError(
                 `Unable to get cookie for user ${userUuid}: ${await response.text()}`,
             );
         }
         const header = response.headers.get('set-cookie');
         if (header === null) {
-            const loginBody = await response.json();
+            const loginBody = (await response.json()) as {
+                status: string;
+                results: SessionUser;
+            };
             throw new AuthorizationError(
-                `Cannot sign in:\n${JSON.stringify(loginBody)}`,
+                `Cannot sign in user before taking screenshot:\n${
+                    'results' in loginBody ? loginBody.results?.userUuid : ''
+                }`,
             );
         }
         return header;

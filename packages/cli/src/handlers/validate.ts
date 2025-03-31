@@ -9,6 +9,7 @@ import {
     isTableValidationError,
     ParameterError,
     SchedulerJobStatus,
+    UnexpectedServerError,
     ValidationTarget,
 } from '@lightdash/common';
 import columnify from 'columnify';
@@ -64,7 +65,9 @@ const waitUntilFinished = async (jobUuid: string): Promise<string> => {
         return job.status;
     }
     if (job.status === SchedulerJobStatus.ERROR) {
-        throw new Error(`Validation failed`);
+        throw new UnexpectedServerError(
+            `\nValidation failed: ${job.details?.error || 'unknown error'}`,
+        );
     }
 
     return delay(REFETCH_JOB_INTERVAL).then(() => waitUntilFinished(jobUuid));

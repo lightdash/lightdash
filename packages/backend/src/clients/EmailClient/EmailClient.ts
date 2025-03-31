@@ -25,6 +25,15 @@ type EmailClientArguments = {
     lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl' | 'query'>;
 };
 
+type EmailTemplate = {
+    template: string;
+    context: Record<
+        string,
+        string | boolean | number | AttachmentUrl[] | undefined
+    >;
+    attachments?: (Mail.Attachment | AttachmentUrl)[] | undefined;
+};
+
 export default class EmailClient {
     lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl' | 'query'>;
 
@@ -36,24 +45,29 @@ export default class EmailClient {
         if (this.lightdashConfig.smtp) {
             Logger.debug(`Create email transporter`);
 
-            const auth: AuthenticationType = this.lightdashConfig.smtp.auth
-                .accessToken
-                ? {
-                      type: 'OAuth2',
-                      user: this.lightdashConfig.smtp.auth.user,
-                      accessToken: this.lightdashConfig.smtp.auth.accessToken,
-                  }
-                : {
-                      user: this.lightdashConfig.smtp.auth.user,
-                      pass: this.lightdashConfig.smtp.auth.pass,
-                  };
+            let auth: AuthenticationType | undefined;
+
+            if (this.lightdashConfig.smtp.useAuth) {
+                if (this.lightdashConfig.smtp.auth.accessToken) {
+                    auth = {
+                        type: 'OAuth2',
+                        user: this.lightdashConfig.smtp.auth.user,
+                        accessToken: this.lightdashConfig.smtp.auth.accessToken,
+                    };
+                } else {
+                    auth = {
+                        user: this.lightdashConfig.smtp.auth.user,
+                        pass: this.lightdashConfig.smtp.auth.pass,
+                    };
+                }
+            }
 
             this.transporter = nodemailer.createTransport(
                 {
                     host: this.lightdashConfig.smtp.host,
                     port: this.lightdashConfig.smtp.port,
                     secure: this.lightdashConfig.smtp.port === 465, // false for any port beside 465, other ports use STARTTLS instead.
-                    auth,
+                    ...(auth ? { auth } : {}),
                     requireTLS: this.lightdashConfig.smtp.secure,
                     tls: this.lightdashConfig.smtp.allowInvalidCertificate
                         ? { rejectUnauthorized: false }
@@ -63,8 +77,7 @@ export default class EmailClient {
                     from: `"${this.lightdashConfig.smtp.sender.name}" <${this.lightdashConfig.smtp.sender.email}>`,
                 },
             );
-
-            this.transporter.verify((error: any) => {
+            this.transporter.verify((error) => {
                 if (error) {
                     throw new SmptError(
                         `Failed to verify email transporter. ${error}`,
@@ -82,7 +95,7 @@ export default class EmailClient {
                 hbs({
                     viewEngine: {
                         partialsDir: path.join(__dirname, './templates/'),
-                        defaultLayout: false,
+                        defaultLayout: undefined,
                         extname: '.html',
                     },
                     viewPath: path.join(__dirname, './templates/'),
@@ -93,11 +106,8 @@ export default class EmailClient {
     }
 
     private async sendEmail(
-        options: Mail.Options & {
-            template: string;
-            context: Record<string, any>;
-        },
-    ) {
+        options: Mail.Options & EmailTemplate,
+    ): Promise<void> {
         if (this.transporter) {
             try {
                 const info = await this.transporter.sendMail(options);
@@ -120,6 +130,25 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
             },
             text: `Forgotten your password? No worries! Just click on the link below within the next 24 hours to create a new one: ${link.url}`,
+        });
+    }
+
+    public async sendGoogleSheetsErrorNotificationEmail(
+        recipient: string,
+        schedulerName: string,
+        schedulerUrl: string,
+    ) {
+        return this.sendEmail({
+            to: recipient,
+            subject: `Google Sheets sync: "${schedulerName}" disabled due to error`,
+            template: 'googleSheetsSyncDisabledNotification',
+            context: {
+                host: this.lightdashConfig.siteUrl,
+                subject: 'Google Sheets Sync disabled',
+                description: `There's an error with your Google Sheets "${schedulerName}" sync. We've disabled it to prevent further errors.`,
+                schedulerUrl,
+            },
+            text: `Your Google Sheets ${schedulerName} sync has been disabled due to an error`,
         });
     }
 

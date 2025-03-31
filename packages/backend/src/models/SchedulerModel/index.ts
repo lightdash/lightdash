@@ -1,12 +1,6 @@
 import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
-    isChartScheduler,
-    isCreateSchedulerSlackTarget,
-    isDashboardScheduler,
-    isSlackTarget,
-    isUpdateSchedulerEmailTarget,
-    isUpdateSchedulerSlackTarget,
     NotFoundError,
     Scheduler,
     SchedulerAndTargets,
@@ -16,9 +10,16 @@ import {
     SchedulerSlackTarget,
     SchedulerWithLogs,
     UpdateSchedulerAndTargets,
+    isChartScheduler,
+    isCreateSchedulerSlackTarget,
+    isDashboardScheduler,
+    isSlackTarget,
+    isUpdateSchedulerEmailTarget,
+    isUpdateSchedulerSlackTarget,
     type SchedulerCronUpdate,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { DatabaseError } from 'pg';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import { ProjectTableName } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
@@ -453,7 +454,12 @@ export class SchedulerModel {
                 logDb.target_type === null
                     ? undefined
                     : (logDb.target_type as SchedulerLog['targetType']),
-            details: logDb.details === null ? undefined : logDb.details,
+            details: {
+                projectUuid: 'missing-project-uuid',
+                organizationUuid: 'missing-organization-uuid',
+                createdByUserUuid: 'missing-created-by-user-uuid',
+                ...(logDb.details || {}),
+            },
         };
     }
 
@@ -620,6 +626,7 @@ export class SchedulerModel {
 
             if (
                 !(
+                    error instanceof DatabaseError &&
                     error.code === FOREIGN_KEY_VIOLATION_ERROR_CODE &&
                     error.constraint === 'scheduler_log_scheduler_uuid_foreign'
                 )

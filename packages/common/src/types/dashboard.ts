@@ -260,10 +260,8 @@ export type DashboardAvailableFilters = {
 };
 
 export type SavedChartsInfoForDashboardAvailableFilters = {
-    tileUuid: DashboardChartTile['uuid'];
-    savedChartUuid: NonNullable<
-        DashboardChartTile['properties']['savedChartUuid']
-    >;
+    tileUuid: string;
+    savedChartUuid: string;
 }[];
 
 export const isDashboardUnversionedFields = (

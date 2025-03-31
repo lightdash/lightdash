@@ -8,6 +8,7 @@ import {
     startWithSlash,
 } from '../../../utils/fieldValidators';
 import { useProjectFormContext } from '../useProjectFormContext';
+import DbtVersionSelect from '../WarehouseForms/Inputs/DbtVersion';
 
 const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
@@ -63,6 +64,8 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 disabled={disabled}
                 placeholder="org/project"
             />
+            <DbtVersionSelect disabled={disabled} />
+
             <TextInput
                 label="Branch"
                 description={

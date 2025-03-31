@@ -2,7 +2,8 @@
 import {
     assertUnreachable,
     CreateWarehouseCredentials,
-    WarehouseConnectionError,
+    getErrorMessage,
+    SshTunnelError,
     WarehouseTypes,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
@@ -269,13 +270,13 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
                             host: '127.0.0.1',
                             port: this.localPort,
                         };
-                    } catch (e) {
+                    } catch (e: unknown) {
                         console.error(
                             `Failed to connect to remote host: ${this.originalCredentials.host}:${this.originalCredentials.port}`,
                         );
 
-                        throw new WarehouseConnectionError(
-                            `Could not open SSH tunnel: ${e.message}`,
+                        throw new SshTunnelError(
+                            `Could not open SSH tunnel: ${getErrorMessage(e)}`,
                         );
                     }
                 }

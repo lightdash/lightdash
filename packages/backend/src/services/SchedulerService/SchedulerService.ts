@@ -7,8 +7,10 @@ import {
     ForbiddenError,
     getTimezoneLabel,
     getTzMinutesOffset,
+    isChartCreateScheduler,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
+    isDashboardCreateScheduler,
     isDashboardScheduler,
     isUserWithOrg,
     isValidFrequency,
@@ -106,6 +108,18 @@ export class SchedulerService extends BaseService {
         return isChartScheduler(scheduler)
             ? this.savedChartModel.getSummary(scheduler.savedChartUuid)
             : this.dashboardModel.getById(scheduler.dashboardUuid);
+    }
+
+    public async getCreateSchedulerResource(
+        scheduler: CreateSchedulerAndTargets,
+    ): Promise<ChartSummary | DashboardDAO> {
+        if (isChartCreateScheduler(scheduler)) {
+            return this.savedChartModel.getSummary(scheduler.savedChartUuid);
+        }
+        if (isDashboardCreateScheduler(scheduler)) {
+            return this.dashboardModel.getById(scheduler.dashboardUuid);
+        }
+        throw new ParameterError('Invalid scheduler type');
     }
 
     private async checkUserCanUpdateSchedulerResource(
@@ -298,6 +312,11 @@ export class SchedulerService extends BaseService {
 
             await this.schedulerClient.generateDailyJobsForScheduler(
                 scheduler,
+                {
+                    organizationUuid,
+                    projectUuid,
+                    userUuid: user.userUuid,
+                },
                 defaultTimezone,
             );
         }
@@ -328,10 +347,17 @@ export class SchedulerService extends BaseService {
             const defaultTimezone = await this.getSchedulerDefaultTimezone(
                 schedulerUuid,
             );
+            const { organizationUuid, projectUuid } =
+                await this.getCreateSchedulerResource(scheduler);
 
             // If the scheduler is enabled, we need to generate the daily jobs
             await this.schedulerClient.generateDailyJobsForScheduler(
                 scheduler,
+                {
+                    organizationUuid,
+                    projectUuid,
+                    userUuid: scheduler.createdBy,
+                },
                 defaultTimezone,
             );
         }
@@ -385,7 +411,9 @@ export class SchedulerService extends BaseService {
         if (
             user.ability.cannot(
                 'view',
-                subject('CsvJobResult', {
+                subject('JobStatus', {
+                    projectUuid: job.details?.projectUuid,
+                    organizationUuid: job.details?.organizationUuid,
                     createdByUserUuid: job.details?.createdByUserUuid,
                 }),
             )
@@ -431,10 +459,22 @@ export class SchedulerService extends BaseService {
     }
 
     async getJobStatus(
+        user: SessionUser,
         jobId: string,
     ): Promise<Pick<SchedulerLogDb, 'status' | 'details'>> {
         const job = await this.schedulerModel.getJobStatus(jobId);
-
+        if (
+            user.ability.cannot(
+                'view',
+                subject('JobStatus', {
+                    organizationUuid: job.details?.organizationUuid,
+                    projectUuid: job.details?.projectUuid,
+                    createdByUserUuid: job.details?.createdByUserUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         return { status: job.status, details: job.details };
     }
 
@@ -450,7 +490,10 @@ export class SchedulerService extends BaseService {
                 'You must give a name to this scheduled delivery',
             );
         }
-        if (scheduler.targets.length === 0) {
+        if (
+            scheduler.targets.length === 0 &&
+            scheduler.format !== SchedulerFormat.GSHEETS
+        ) {
             throw new ParameterError(
                 'You must specify at least 1 destination before sending a scheduled delivery',
             );
@@ -469,9 +512,17 @@ export class SchedulerService extends BaseService {
             slackChannels,
         );
 
+        const { organizationUuid, projectUuid } =
+            await this.getCreateSchedulerResource(scheduler);
+
         return this.schedulerClient.addScheduledDeliveryJob(
             new Date(),
-            scheduler,
+            {
+                ...scheduler,
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+            },
             undefined,
         );
     }

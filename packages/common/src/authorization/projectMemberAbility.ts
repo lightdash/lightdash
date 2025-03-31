@@ -18,6 +18,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
             isPrivate: false,
         });
+        can('view', 'JobStatus', {
+            createdByUserUuid: member.userUuid,
+        });
         can('view', 'SavedChart', {
             projectUuid: member.projectUuid,
             isPrivate: false,
@@ -62,6 +65,9 @@ export const projectMemberAbilities: Record<
         can('view', 'MetricsTree', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'SpotlightTableConfig', {
+            projectUuid: member.projectUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
@@ -93,15 +99,6 @@ export const projectMemberAbilities: Record<
             },
         });
         can('manage', 'SavedChart', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
-        });
-        can('manage', 'SemanticViewer', {
             projectUuid: member.projectUuid,
             access: {
                 $elemMatch: {
@@ -153,16 +150,10 @@ export const projectMemberAbilities: Record<
         can('manage', 'PinnedItems', {
             projectUuid: member.projectUuid,
         });
-        can('update', 'Project', {
-            projectUuid: member.projectUuid,
-        });
         can('manage', 'ScheduledDeliveries', {
             projectUuid: member.projectUuid,
         });
         can('manage', 'DashboardComments', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'SemanticViewer', {
             projectUuid: member.projectUuid,
         });
         can('manage', 'Tags', {
@@ -187,25 +178,6 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
 
-        can('promote', 'SavedChart', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
-        });
-        can('promote', 'Dashboard', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
-        });
-
         can('manage', 'CompileProject', {
             projectUuid: member.projectUuid,
         });
@@ -218,6 +190,19 @@ export const projectMemberAbilities: Record<
         can('create', 'Project', {
             upstreamProjectUuid: member.projectUuid,
             type: ProjectType.PREVIEW,
+        });
+
+        can('update', 'Project', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'SpotlightTableConfig', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'ContentAsCode', {
+            projectUuid: member.projectUuid,
+        });
+        can('view', 'JobStatus', {
+            projectUuid: member.projectUuid,
         });
     },
     admin(member, { can }) {

@@ -8,6 +8,7 @@ import {
     AuthorizationError,
     ChartAsCode,
     DashboardAsCode,
+    getErrorMessage,
     PromotionAction,
     PromotionChanges,
 } from '@lightdash/common';
@@ -27,6 +28,7 @@ export type DownloadHandlerOptions = {
     force: boolean;
     path?: string; // New optional path parameter
     project?: string;
+    languageMap: boolean;
 };
 
 const getDownloadFolder = (customPath?: string): string => {
@@ -58,24 +60,53 @@ const parseContentFilters = (items: string[]): string => {
     ).toString()}`;
 };
 
-const dumpIntoFiles = async (
-    folder: 'charts' | 'dashboards',
+// TODO: translations should be partials of ChartAsCode and DashboardAsCode
+type ContentAsCodeType =
+    | {
+          type: 'chart';
+          content: ChartAsCode;
+          translationMap: object | undefined;
+      }
+    | {
+          type: 'dashboard';
+          content: DashboardAsCode;
+          translationMap: object | undefined;
+      };
+
+const createDirForContent = async (
     items: (ChartAsCode | DashboardAsCode)[],
-    customPath?: string,
+    folder: 'charts' | 'dashboards',
+    customPath: string | undefined,
 ) => {
     const outputDir = path.join(getDownloadFolder(customPath), folder);
 
     GlobalState.debug(`Writing ${items.length} ${folder} into ${outputDir}`);
-    // Make directory
     const created = await fs.mkdir(outputDir, { recursive: true });
     if (created) console.info(`\nCreated new folder: ${outputDir} `);
 
-    for (const item of items) {
-        const itemPath = path.join(outputDir, `${item.slug}.yml`);
-        const chartYml = yaml.dump(item, {
-            quotingType: '"',
-        });
-        await fs.writeFile(itemPath, chartYml);
+    return outputDir;
+};
+
+const writeContent = async (
+    contentAsCode: ContentAsCodeType,
+    outputDir: string,
+    languageMap: boolean,
+) => {
+    const itemPath = path.join(outputDir, `${contentAsCode.content.slug}.yml`);
+    const chartYml = yaml.dump(contentAsCode.content, {
+        quotingType: '"',
+    });
+    await fs.writeFile(itemPath, chartYml);
+
+    if (contentAsCode.translationMap && languageMap) {
+        const translationPath = path.join(
+            outputDir,
+            `${contentAsCode.content.slug}.language.map.yml`,
+        );
+        await fs.writeFile(
+            translationPath,
+            yaml.dump(contentAsCode.translationMap),
+        );
     }
 };
 
@@ -91,10 +122,12 @@ const readCodeFiles = async <T extends ChartAsCode | DashboardAsCode>(
         // Read all files from the lightdash directory
         // if folder does not exist, this throws an error
         const files = await fs.readdir(inputDir);
-        const jsonFiles = files.filter((file) => file.endsWith('.yml'));
+        const yamlFiles = files
+            .filter((file) => file.endsWith('.yml'))
+            .filter((file) => !file.endsWith('.language.map.yml'));
 
         // Load each JSON file
-        for (const file of jsonFiles) {
+        for (const file of yamlFiles) {
             const filePath = path.join(inputDir, file);
             const fileContent = await fs.readFile(filePath, 'utf-8');
             const item = yaml.load(fileContent) as T;
@@ -141,6 +174,7 @@ export const downloadContent = async (
     type: 'charts' | 'dashboards',
     projectId: string,
     customPath?: string,
+    languageMap: boolean = false,
 ): Promise<[number, string[]]> => {
     const spinner = GlobalState.getActiveSpinner();
     const contentFilters = parseContentFilters(ids);
@@ -154,9 +188,11 @@ export const downloadContent = async (
             `Downloading ${type} with offset "${offset}" and filters "${contentFilters}"`,
         );
 
+        const commonParams = `offset=${offset}&languageMap=${languageMap}`;
+
         const queryParams = contentFilters
-            ? `${contentFilters}&offset=${offset}`
-            : `?offset=${offset}`;
+            ? `${contentFilters}&${commonParams}`
+            : `?${commonParams}`;
         contentAsCode = await lightdashApi({
             method: 'GET',
             url: `/api/v1/projects/${projectId}/${type}/code${queryParams}`,
@@ -170,11 +206,27 @@ export const downloadContent = async (
         });
 
         if ('dashboards' in contentAsCode) {
-            await dumpIntoFiles(
-                'dashboards',
+            const outputDir = await createDirForContent(
                 contentAsCode.dashboards,
+                'dashboards',
                 customPath,
             );
+
+            for (const [
+                index,
+                dashboard,
+            ] of contentAsCode.dashboards.entries()) {
+                await writeContent(
+                    {
+                        type: 'dashboard',
+                        content: dashboard,
+                        translationMap: contentAsCode.languageMap?.[index],
+                    },
+                    outputDir,
+                    languageMap,
+                );
+            }
+
             // Extract chart slugs from dashboards
             chartSlugs = contentAsCode.dashboards.reduce<string[]>(
                 (acc, dashboard) => {
@@ -193,7 +245,22 @@ export const downloadContent = async (
                 chartSlugs,
             );
         } else {
-            await dumpIntoFiles('charts', contentAsCode.charts, customPath);
+            const outputDir = await createDirForContent(
+                contentAsCode.charts,
+                'charts',
+                customPath,
+            );
+            for (const [index, chart] of contentAsCode.charts.entries()) {
+                await writeContent(
+                    {
+                        type: 'chart',
+                        content: chart,
+                        translationMap: contentAsCode.languageMap?.[index],
+                    },
+                    outputDir,
+                    languageMap,
+                );
+            }
         }
         offset = contentAsCode.offset;
     } while (contentAsCode.offset < contentAsCode.total);
@@ -252,6 +319,7 @@ export const downloadHandler = async (
                 'charts',
                 projectId,
                 options.path,
+                options.languageMap,
             );
             spinner.succeed(`Downloaded ${chartTotal} charts`);
         }
@@ -269,6 +337,7 @@ export const downloadHandler = async (
                 'dashboards',
                 projectId,
                 options.path,
+                options.languageMap,
             );
 
             spinner.succeed(`Downloaded ${dashboardTotal} dashboards`);
@@ -285,6 +354,7 @@ export const downloadHandler = async (
                     'charts',
                     projectId,
                     options.path,
+                    options.languageMap,
                 );
 
                 spinner.succeed(
@@ -450,7 +520,11 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
         } catch (error) {
             changes[`${type} with errors`] =
                 (changes[`${type} with errors`] ?? 0) + 1;
-            console.error(styles.error(`Error upserting ${type}: ${error}`));
+            console.error(
+                styles.error(
+                    `Error upserting ${type}: ${getErrorMessage(error)}`,
+                ),
+            );
 
             await LightdashAnalytics.track({
                 event: 'download.error',
@@ -459,7 +533,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                     organizationId: config.user?.organizationUuid,
                     projectId,
                     type,
-                    error: `${error}`,
+                    error: getErrorMessage(error),
                 },
             });
         }
@@ -558,14 +632,16 @@ export const uploadHandler = async (
 
         logUploadChanges(changes);
     } catch (error) {
-        console.error(styles.error(`\nError downloading ${error}`));
+        console.error(
+            styles.error(`\nError downloading: ${getErrorMessage(error)}`),
+        );
         await LightdashAnalytics.track({
             event: 'download.error',
             properties: {
                 userId: config.user?.userUuid,
                 organizationId: config.user?.organizationUuid,
                 projectId,
-                error: `${error}`,
+                error: getErrorMessage(error),
             },
         });
     }

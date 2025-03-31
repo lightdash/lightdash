@@ -3,7 +3,7 @@ import { IconFolder } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 
-import { InfoContainer } from '.';
+import InfoContainer from './InfoContainer';
 
 interface Props {
     space: {
@@ -21,8 +21,8 @@ const SpaceAndDashboardInfo: FC<Props> = ({
     dashboard,
 }) => {
     return (
-        <InfoContainer>
-            <IconFolder size={16} />
+        <InfoContainer icon={IconFolder}>
+            Space:{' '}
             <Anchor component={Link} to={link}>
                 {name}
             </Anchor>

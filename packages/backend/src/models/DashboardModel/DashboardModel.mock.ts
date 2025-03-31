@@ -3,7 +3,6 @@ import {
     ChartKind,
     CreateDashboard,
     CreateDashboardChartTile,
-    DashboardBasicDetails,
     DashboardChartTile,
     DashboardDAO,
     DashboardLoomTile,
@@ -12,6 +11,7 @@ import {
     DashboardUnversionedFields,
     DashboardVersionedFields,
     OrganizationMemberRole,
+    PossibleAbilities,
     SessionUser,
     type DashboardBasicDetailsWithTileTypes,
 } from '@lightdash/common';
@@ -351,7 +351,7 @@ export const user: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability([
+    ability: new Ability<PossibleAbilities>([
         { subject: 'Dashboard', action: ['update', 'delete', 'create'] },
     ]),
     isActive: true,

@@ -2,7 +2,7 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { type ViewStatistics } from './analytics';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type ChartSourceType } from './content';
-import { type CompactOrAlias } from './field';
+import { type CompactOrAlias, type FieldId } from './field';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 // eslint-disable-next-line import/no-cycle
 import { type SpaceShare } from './space';
@@ -226,6 +226,7 @@ export type Series = {
     showSymbol?: boolean;
     smooth?: boolean;
     markLine?: MarkLine;
+    isFilteredOut?: boolean;
 };
 
 export type EchartsLegend = {
@@ -264,7 +265,7 @@ export type CompleteEChartsConfig = {
     legend?: EchartsLegend;
     grid?: EchartsGrid;
     series: Series[];
-    xAxis: Axis[];
+    xAxis: XAxis[];
     yAxis: Axis[];
 };
 
@@ -279,6 +280,37 @@ type Axis = {
     inverse?: boolean;
     rotate?: number;
 };
+
+export type XAxis = Axis & {
+    sortType?: XAxisSortType;
+};
+
+export enum XAxisSortType {
+    DEFAULT = 'default',
+    BAR_TOTALS = 'bar_totals',
+}
+
+export enum XAxisSort {
+    ASCENDING = 'ascending',
+    DESCENDING = 'descending',
+    BAR_TOTALS_ASCENDING = 'bar_totals_ascending',
+    BAR_TOTALS_DESCENDING = 'bar_totals_descending',
+}
+
+export function getXAxisSort(
+    xAxis: Pick<XAxis, 'sortType' | 'inverse'> | undefined,
+): XAxisSort {
+    if (!xAxis) return XAxisSort.ASCENDING;
+
+    switch (xAxis.sortType) {
+        case XAxisSortType.BAR_TOTALS:
+            return xAxis.inverse
+                ? XAxisSort.BAR_TOTALS_DESCENDING
+                : XAxisSort.BAR_TOTALS_ASCENDING;
+        default:
+            return xAxis.inverse ? XAxisSort.DESCENDING : XAxisSort.ASCENDING;
+    }
+}
 
 export type CompleteCartesianChartLayout = {
     xField: string;
@@ -691,4 +723,62 @@ export type CalculateTotalFromQuery = {
 export type ApiCalculateTotalResponse = {
     status: 'ok';
     results: Record<string, number>;
+};
+
+export type CalculateSubtotalsFromQuery = CalculateTotalFromQuery & {
+    columnOrder: string[];
+    pivotDimensions?: string[];
+};
+
+export type ApiCalculateSubtotalsResponse = {
+    status: 'ok';
+    results: {
+        [subtotalDimensions: string]: {
+            [key: string]: number;
+        }[];
+    };
+};
+
+export type ReplaceableFieldMatchMap = {
+    [fieldId: string]: {
+        fieldId: string;
+        label: string;
+        match: {
+            fieldId: FieldId;
+            fieldLabel: string;
+        } | null;
+        suggestedMatches: Array<{
+            fieldId: FieldId;
+            fieldLabel: string;
+        }>;
+    };
+};
+
+export type ReplaceableCustomFields = {
+    [chartUuid: string]: {
+        uuid: string;
+        label: string;
+        customMetrics: ReplaceableFieldMatchMap;
+    };
+};
+
+export type ReplaceCustomFields = {
+    [chartUuid: string]: {
+        customMetrics: {
+            [customMetricId: string]: {
+                replaceWithFieldId: string;
+            };
+        };
+    };
+};
+
+export type SkippedReplaceCustomFields = {
+    [chartUuid: string]: {
+        customMetrics: {
+            [customMetricId: string]: {
+                replaceWithFieldId: string;
+                reason: string;
+            };
+        };
+    };
 };

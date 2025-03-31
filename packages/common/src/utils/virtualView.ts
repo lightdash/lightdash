@@ -60,6 +60,7 @@ export const createVirtualView = (
         joinedTables: [],
         tables: { [virtualViewName]: compiledTable },
         targetDatabase: warehouseClient.getAdapterType(),
+        meta: {},
     });
 
     const virtualView = {
@@ -90,6 +91,19 @@ export const createTemporaryVirtualView = (
         },
         getCatalog: async () => ({}),
         streamQuery: async () => {},
+        executeAsyncQuery: async () => ({
+            queryId: null,
+            queryMetadata: null,
+            totalRows: null,
+            durationMs: null,
+        }),
+        getAsyncQueryResults: async () => ({
+            fields: {},
+            rows: [],
+            queryId: null,
+            pageCount: 0,
+            totalRows: 0,
+        }),
         runQuery: async () => ({ fields: {}, rows: [] }),
         test: async () => {},
         getStartOfWeek: () => WeekDay.MONDAY,

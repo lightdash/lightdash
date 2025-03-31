@@ -1,4 +1,5 @@
 import {
+    AnyType,
     DbtProjectType,
     ProjectType,
     TableSelectionType,
@@ -65,7 +66,7 @@ export type ProjectTable = Knex.CompositeTableType<
 
 export type DbCachedExplores = {
     project_uuid: string;
-    explores: any;
+    explores: AnyType;
 };
 
 export type CachedExploresTable = Knex.CompositeTableType<DbCachedExplores>;
@@ -75,7 +76,7 @@ export type DbCachedExplore = {
     project_uuid: string;
     name: string;
     table_names: string[];
-    explore: any;
+    explore: AnyType;
 };
 
 export type CachedExploreTable = Knex.CompositeTableType<
@@ -85,7 +86,7 @@ export type CachedExploreTable = Knex.CompositeTableType<
 
 export type DbCachedWarehouse = {
     project_uuid: string;
-    warehouse: any;
+    warehouse: AnyType;
 };
 
 export type CachedWarehouseTable = Knex.CompositeTableType<DbCachedWarehouse>;

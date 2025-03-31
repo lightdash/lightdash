@@ -10,8 +10,8 @@ import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useHealth from '../../hooks/health/useHealth';
-import MantineIcon from '../common/MantineIcon';
 import LimitButton from '../LimitButton';
+import MantineIcon from '../common/MantineIcon';
 
 const RunSqlQueryButton: FC<{
     isLoading: boolean;

@@ -1,4 +1,5 @@
 declare module 'passport-openidconnect' {
+    import { AnyType } from '@lightdash/common';
     import { Strategy as PassportStrategy } from 'passport-strategy';
     import express = require('express');
 
@@ -34,16 +35,24 @@ declare module 'passport-openidconnect' {
         (
             req: express.Request,
             issuer: string,
-            profile: any,
-            done: (error: any, user?: any, options?: IVerifyOptions) => void,
+            profile: AnyType,
+            done: (
+                error: AnyType,
+                user?: AnyType,
+                options?: IVerifyOptions,
+            ) => void,
         ): void;
     }
 
     interface VerifyFunction {
         (
             issuer: string,
-            profile: any,
-            done: (error: any, user?: any, options?: IVerifyOptions) => void,
+            profile: AnyType,
+            done: (
+                error: AnyType,
+                user?: AnyType,
+                options?: IVerifyOptions,
+            ) => void,
         ): void;
     }
     export declare class Strategy extends PassportStrategy {

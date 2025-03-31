@@ -1,9 +1,19 @@
 import { subject } from '@casl/ability';
 import {
-    assertUnreachable,
+    AnyType,
     Dimension,
     FilterRule,
     ForbiddenError,
+    ItemsMap,
+    MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
+    MetricExploreDataPoint,
+    MetricExplorerComparison,
+    MetricExplorerQuery,
+    MetricTotalComparisonType,
+    MetricTotalResults,
+    MetricsExplorerQueryResults,
+    TimeFrames,
+    assertUnreachable,
     getDateCalcUtils,
     getDateRangeFromString,
     getFieldIdForDateDimension,
@@ -14,16 +24,7 @@ import {
     getMetricExplorerDateRangeFilters,
     getMetricsExplorerSegmentFilters,
     isDimension,
-    ItemsMap,
-    MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
-    MetricExploreDataPoint,
-    MetricExplorerComparison,
-    MetricExplorerQuery,
-    MetricsExplorerQueryResults,
-    MetricTotalComparisonType,
-    MetricTotalResults,
     parseMetricValue,
-    TimeFrames,
     type MetricExplorerDateRange,
     type MetricQuery,
     type MetricWithAssociatedTimeDimension,
@@ -242,7 +243,7 @@ export class MetricsExplorerService<
         timeDimensionOverride: TimeDimensionConfig | undefined,
         filter: FilterRule | undefined,
     ): Promise<MetricsExplorerQueryResults> {
-        return measureTime(
+        const { result } = await measureTime(
             () =>
                 this._runMetricExplorerQuery(
                     user,
@@ -264,6 +265,8 @@ export class MetricsExplorerService<
                 timeDimensionOverride,
             },
         );
+
+        return result;
     }
 
     private async _getTopNSegments(
@@ -567,7 +570,7 @@ export class MetricsExplorerService<
         endDate: string,
         comparisonType: MetricTotalComparisonType = MetricTotalComparisonType.NONE,
     ): Promise<MetricTotalResults> {
-        return measureTime(
+        const { result } = await measureTime(
             () =>
                 this._getMetricTotal(
                     user,
@@ -586,6 +589,8 @@ export class MetricsExplorerService<
                 comparisonType,
             },
         );
+
+        return result;
     }
 
     private async _getMetricTotal(
@@ -640,7 +645,7 @@ export class MetricsExplorerService<
                 metricQuery,
             );
 
-        let compareRows: Record<string, any>[] | undefined;
+        let compareRows: Record<string, AnyType>[] | undefined;
         let compareDateRange: MetricExplorerDateRange | undefined;
 
         if (comparisonType === MetricTotalComparisonType.PREVIOUS_PERIOD) {

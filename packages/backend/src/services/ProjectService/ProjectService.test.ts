@@ -1,14 +1,19 @@
 import {
     ConditionalOperator,
+    DEFAULT_RESULTS_PAGE_SIZE,
     defineUserAbility,
+    FieldType,
+    formatRow,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
+    QueryExecutionContext,
     SessionUser,
+    type ItemsMap,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
-import { S3Client } from '../../clients/Aws/s3';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
+import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
@@ -21,6 +26,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -59,7 +65,7 @@ import {
 
 jest.mock('@lightdash/warehouses', () => ({
     SshTunnel: jest.fn(() => ({
-        connect: jest.fn(() => ({})),
+        connect: jest.fn(() => warehouseClientMock.credentials),
         disconnect: jest.fn(),
     })),
 }));
@@ -70,11 +76,8 @@ const projectModel = {
     getSummary: jest.fn(async () => projectSummary),
     getTablesConfiguration: jest.fn(async () => tablesConfiguration),
     updateTablesConfiguration: jest.fn(),
-    getExploresFromCache: jest.fn(async () => allExplores),
     getExploreFromCache: jest.fn(async () => validExplore),
-    findExploresFromCache: jest.fn(async () => ({
-        [validExplore.name]: validExplore,
-    })),
+    findExploresFromCache: jest.fn(async () => allExplores),
     lockProcess: jest.fn((projectUuid, fun) => fun()),
     getWarehouseCredentialsForProject: jest.fn(
         async () => warehouseClientMock.credentials,
@@ -139,6 +142,10 @@ describe('ProjectService', () => {
         catalogModel: {} as CatalogModel,
         contentModel: {} as ContentModel,
         encryptionUtil: {} as EncryptionUtil,
+        queryHistoryModel: {
+            create: jest.fn(async () => ({ queryUuid: 'queryUuid' })),
+            get: jest.fn(async () => undefined),
+        } as unknown as QueryHistoryModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
@@ -342,6 +349,12 @@ describe('ProjectService', () => {
     describe('searchFieldUniqueValues', () => {
         const replaceWhitespace = (str: string) =>
             str.replace(/\s+/g, ' ').trim();
+
+        beforeEach(() => {
+            // Clear the warehouse clients cache
+            service.warehouseClients = {};
+        });
+
         afterEach(() => {
             jest.clearAllMocks();
         });

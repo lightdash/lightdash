@@ -6,6 +6,7 @@ export type Tag = {
     name: string;
     color: string;
     createdAt: Date;
+    yamlReference: string | null;
     createdBy: Pick<
         LightdashUser,
         'userUuid' | 'firstName' | 'lastName'
@@ -20,4 +21,9 @@ export type ApiGetTagsResponse = {
 export type ApiCreateTagResponse = {
     status: 'ok';
     results: { tagUuid: string };
+};
+
+export type ApiReplaceYamlTagsResponse = {
+    status: 'ok';
+    results: undefined;
 };

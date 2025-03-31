@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import { Knex } from 'knex';
 import { nanoid } from 'nanoid';
 import { PassThrough } from 'stream';
-import { S3Client } from '../clients/Aws/s3';
+import { S3Client } from '../clients/Aws/S3Client';
 import { DownloadFileTableName } from '../database/entities/downloadFile';
 import Logger from '../logging/logger';
 

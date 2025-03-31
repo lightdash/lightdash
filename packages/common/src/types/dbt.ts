@@ -1,6 +1,11 @@
 import { DepGraph } from 'dependency-graph';
+import {
+    getCategoriesFromResource,
+    getSpotlightConfigurationForResource,
+} from '../compiler/lightdashProjectConfig';
 import assertUnreachable from '../utils/assertUnreachable';
 import { getItemId } from '../utils/item';
+import { type AnyType } from './any';
 import {
     type ColumnInfo,
     type CompiledModelNode,
@@ -19,6 +24,7 @@ import {
     type Source,
 } from './field';
 import { parseFilters } from './filterGrammar';
+import { type LightdashProjectConfig } from './lightdashProjectConfig';
 import { type OrderFieldsByStrategy } from './table';
 import { type DefaultTimeDimension, type TimeFrames } from './timeFrames';
 
@@ -62,7 +68,7 @@ type DbtLightdashFieldTags = {
     tags?: string | string[];
 };
 
-type DbtModelMetadata = DbtModelLightdashConfig & {};
+export type DbtModelMetadata = DbtModelLightdashConfig & {};
 
 type DbtModelLightdashConfig = {
     label?: string;
@@ -72,12 +78,19 @@ type DbtModelLightdashConfig = {
     group_label?: string;
     sql_filter?: string;
     sql_where?: string; // alias for sql_filter
-    required_filters?: { [key: string]: any }[];
+    sql_from?: string; // overrides dbt model relation_name
+    required_filters?: { [key: string]: AnyType }[];
     required_attributes?: Record<string, string | string[]>;
     group_details?: Record<string, DbtModelGroup>;
     default_time_dimension?: {
         field: string;
         interval: TimeFrames;
+    };
+    spotlight?: {
+        visibility?: NonNullable<
+            LightdashProjectConfig['spotlight']
+        >['default_visibility'];
+        categories?: string[]; // yaml_reference
     };
 };
 
@@ -98,7 +111,7 @@ type DbtModelJoin = {
     fields?: string[];
     always?: boolean;
 };
-type DbtColumnMetadata = DbtColumnLightdashConfig & {};
+export type DbtColumnMetadata = DbtColumnLightdashConfig & {};
 type DbtColumnLightdashConfig = {
     dimension?: DbtColumnLightdashDimension;
     additional_dimensions?: {
@@ -115,9 +128,11 @@ export type DbtColumnLightdashDimension = {
     sql?: string;
     time_intervals?: boolean | 'default' | 'OFF' | TimeFrames[];
     hidden?: boolean;
+    // @deprecated Use format expression instead
     round?: number;
+    // @deprecated Use format expression instead
     compact?: CompactOrAlias;
-    format?: Format;
+    format?: Format | string; // Format type is deprecated, use format expression(string) instead
     group_label?: string;
     groups?: string[] | string;
     colors?: Record<string, string>;
@@ -125,7 +140,7 @@ export type DbtColumnLightdashDimension = {
     required_attributes?: Record<string, string | string[]>;
 } & DbtLightdashFieldTags;
 
-type DbtColumnLightdashAdditionalDimension = Omit<
+export type DbtColumnLightdashAdditionalDimension = Omit<
     DbtColumnLightdashDimension,
     'name'
 >;
@@ -136,16 +151,24 @@ export type DbtColumnLightdashMetric = {
     description?: string;
     sql?: string;
     hidden?: boolean;
-    round?: number;
+    // @deprecated Use format expression instead
     compact?: CompactOrAlias;
-    format?: Format;
+    // @deprecated Use format expression instead
+    round?: number;
+    format?: Format | string; // Format type is deprecated, use format expression(string) instead
     group_label?: string;
     groups?: string[];
     urls?: FieldUrl[];
     show_underlying_values?: string[];
-    filters?: { [key: string]: any }[];
+    filters?: { [key: string]: AnyType }[];
     percentile?: number;
     default_time_dimension?: DefaultTimeDimension;
+    spotlight?: {
+        visibility?: NonNullable<
+            LightdashProjectConfig['spotlight']
+        >['default_visibility'];
+        categories?: string[]; // yaml_reference
+    };
 } & DbtLightdashFieldTags;
 
 export type DbtModelLightdashMetric = DbtColumnLightdashMetric &
@@ -249,7 +272,7 @@ export interface DbtRpcDocsGenerateResults {
 }
 
 export const isDbtRpcDocsGenerateResults = (
-    results: Record<string, any>,
+    results: Record<string, AnyType>,
 ): results is DbtRpcDocsGenerateResults =>
     'nodes' in results &&
     typeof results.nodes === 'object' &&
@@ -272,7 +295,7 @@ export interface DbtPackages {
 }
 
 export const isDbtPackages = (
-    results: Record<string, any>,
+    results: Record<string, AnyType>,
 ): results is DbtPackages => 'packages' in results;
 
 export type V9MetricRef = {
@@ -285,7 +308,7 @@ export const isV9MetricRef = (x: string[] | V9MetricRef): x is V9MetricRef =>
     typeof x === 'object' && x !== null && 'name' in x;
 
 export type DbtMetric = Omit<ParsedMetric, 'refs'> & {
-    meta?: Record<string, any> & DbtMetricLightdashMetadata;
+    meta?: Record<string, AnyType> & DbtMetricLightdashMetadata;
     refs?: string[][] | V9MetricRef[];
 };
 
@@ -294,7 +317,7 @@ export type DbtMetricLightdashMetadata = {
     group_label?: string;
     groups?: string[];
     show_underlying_values?: string[];
-    filters: Record<string, any>[];
+    filters: Record<string, AnyType>[];
 };
 
 export type DbtDoc = {
@@ -320,7 +343,7 @@ export interface DbtManifestMetadata extends DbtRawManifestMetadata {
     adapter_type: SupportedDbtAdapter;
 }
 
-const isDbtRawManifestMetadata = (x: any): x is DbtRawManifestMetadata =>
+const isDbtRawManifestMetadata = (x: AnyType): x is DbtRawManifestMetadata =>
     typeof x === 'object' &&
     x !== null &&
     'dbt_schema_version' in x &&
@@ -342,7 +365,7 @@ export interface DbtRpcGetManifestResults {
 }
 
 export const isDbtRpcManifestResults = (
-    results: Record<string, any>,
+    results: Record<string, AnyType>,
 ): results is DbtRpcGetManifestResults =>
     'manifest' in results &&
     typeof results.manifest === 'object' &&
@@ -357,7 +380,7 @@ export interface DbtRpcCompileResults {
 }
 
 export const isDbtRpcCompileResults = (
-    results: Record<string, any>,
+    results: Record<string, AnyType>,
 ): results is DbtRpcCompileResults =>
     'results' in results &&
     Array.isArray(results.results) &&
@@ -374,7 +397,7 @@ export const isDbtRpcCompileResults = (
 
 export interface DbtRpcRunSqlResults {
     results: {
-        table: { column_names: string[]; rows: any[][] };
+        table: { column_names: string[]; rows: AnyType[][] };
     }[];
 }
 
@@ -396,6 +419,7 @@ export const convertToGroups = (
 };
 
 export const isDbtRpcRunSqlResults = (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     results: Record<string, any>,
 ): results is DbtRpcRunSqlResults =>
     'results' in results &&
@@ -412,6 +436,7 @@ export const isDbtRpcRunSqlResults = (
             'rows' in result.table &&
             Array.isArray(result.table.rows),
     );
+
 type ConvertModelMetricArgs = {
     modelName: string;
     name: string;
@@ -420,6 +445,8 @@ type ConvertModelMetricArgs = {
     tableLabel: string;
     dimensionReference?: string;
     requiredAttributes?: Record<string, string | string[]>;
+    spotlightConfig?: LightdashProjectConfig['spotlight'];
+    modelCategories?: string[];
 };
 export const convertModelMetric = ({
     modelName,
@@ -429,8 +456,23 @@ export const convertModelMetric = ({
     tableLabel,
     dimensionReference,
     requiredAttributes,
+    spotlightConfig,
+    modelCategories = [],
 }: ConvertModelMetricArgs): Metric => {
     const groups = convertToGroups(metric.groups, metric.group_label);
+    const spotlightVisibility =
+        metric.spotlight?.visibility ?? spotlightConfig?.default_visibility;
+    const metricCategories = Array.from(
+        new Set([...modelCategories, ...(metric.spotlight?.categories || [])]),
+    );
+
+    const spotlightCategories = getCategoriesFromResource(
+        'metric',
+        name,
+        spotlightConfig,
+        metricCategories,
+    );
+
     return {
         fieldType: FieldType.METRIC,
         name,
@@ -468,14 +510,21 @@ export const convertModelMetric = ({
                   },
               }
             : null),
+        ...getSpotlightConfigurationForResource(
+            spotlightVisibility,
+            spotlightCategories,
+        ),
     };
 };
+
 type ConvertColumnMetricArgs = Omit<ConvertModelMetricArgs, 'metric'> & {
     metric: DbtColumnLightdashMetric;
     dimensionName?: string;
     dimensionSql: string;
     requiredAttributes?: Record<string, string | string[]>;
+    modelCategories?: string[];
 };
+
 export const convertColumnMetric = ({
     modelName,
     dimensionName,
@@ -485,6 +534,8 @@ export const convertColumnMetric = ({
     source,
     tableLabel,
     requiredAttributes,
+    spotlightConfig,
+    modelCategories = [],
 }: ConvertColumnMetricArgs): Metric =>
     convertModelMetric({
         modelName,
@@ -514,6 +565,8 @@ export const convertColumnMetric = ({
                   },
               }
             : null),
+        spotlightConfig,
+        modelCategories,
     });
 
 export enum DbtManifestVersion {
@@ -571,3 +624,41 @@ export type DbtExposure = {
     url?: string;
     tags?: string[];
 };
+
+export const getModelsFromManifest = (
+    manifest: DbtManifest,
+): DbtModelNode[] => {
+    const models = Object.values(manifest.nodes).filter(
+        (node) =>
+            node.resource_type === 'model' &&
+            node.config?.materialized !== 'ephemeral',
+    ) as DbtRawModelNode[];
+
+    if (!isSupportedDbtAdapter(manifest.metadata)) {
+        throw new ParseError(
+            `dbt adapter not supported. Lightdash does not support adapter ${manifest.metadata.adapter_type}`,
+            {},
+        );
+    }
+    const adapterType = manifest.metadata.adapter_type;
+    return models
+        .filter(
+            (model) =>
+                model.config?.materialized &&
+                model.config.materialized !== 'ephemeral',
+        )
+        .map((model) => normaliseModelDatabase(model, adapterType));
+};
+
+export function getCompiledModels(
+    manifestModels: DbtModelNode[],
+    compiledModelIds?: string[],
+) {
+    return manifestModels.filter((model) => {
+        if (compiledModelIds) {
+            return compiledModelIds.includes(model.unique_id);
+        }
+
+        return model.compiled;
+    });
+}

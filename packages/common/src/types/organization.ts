@@ -1,3 +1,4 @@
+import { type AnyType } from './any';
 import { OrganizationMemberRole } from './organizationMemberProfile';
 import { ProjectMemberRole } from './projectMemberRole';
 import { type ProjectType, type WarehouseTypes } from './projects';
@@ -20,6 +21,12 @@ export type Organization = {
      * The default color palette for all projects in the organization
      */
     chartColors?: string[];
+
+    /**
+     * The active color palette uuid for all projects in the organization
+     */
+    colorPaletteUuid?: string;
+
     /**
      * The organization needs a project if it doesn't have at least one project.
      */
@@ -96,7 +103,7 @@ export const AllowedEmailDomainsRoles: Array<AllowedEmailDomainsRole> = [
 export function isAllowedEmailDomainsRole(
     role: OrganizationMemberRole,
 ): role is AllowedEmailDomainsRole {
-    return AllowedEmailDomainsRoles.includes(role as any);
+    return AllowedEmailDomainsRoles.includes(role as AnyType);
 }
 
 export type AllowedEmailDomainProjectsRole =
@@ -135,4 +142,42 @@ export type UpdateAllowedEmailDomains = Omit<
 export type ApiOrganizationAllowedEmailDomains = {
     status: 'ok';
     results: AllowedEmailDomains;
+};
+
+export type OrganizationColorPalette = {
+    colorPaletteUuid: string;
+    organizationUuid: string;
+    name: string;
+    colors: string[];
+    createdAt: Date;
+};
+
+export type OrganizationColorPaletteWithIsActive = OrganizationColorPalette & {
+    isActive: boolean;
+};
+
+export type CreateColorPalette = {
+    name: string;
+    colors: string[];
+};
+
+export type UpdateColorPalette = {
+    uuid: string;
+    name?: string;
+    colors?: string[];
+};
+
+export type ApiColorPaletteResponse = {
+    status: 'ok';
+    results: OrganizationColorPalette;
+};
+
+export type ApiColorPalettesResponse = {
+    status: 'ok';
+    results: OrganizationColorPaletteWithIsActive[];
+};
+
+export type ApiCreatedColorPaletteResponse = {
+    status: 'ok';
+    results: OrganizationColorPalette;
 };

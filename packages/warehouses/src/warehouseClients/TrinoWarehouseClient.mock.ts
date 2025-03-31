@@ -20,37 +20,37 @@ export const credentials: CreateTrinoCredentials = {
 export const queryResponse = {
     columns: [
         {
-            name: 'myStringColumn',
+            name: 'mystringcolumn',
             type: 'varchar',
             typeSignature: { rawType: 'varchar' },
         },
         {
-            name: 'myNumberColumn',
+            name: 'mynumbercolumn',
             type: 'integer',
             typeSignature: { rawType: 'integer' },
         },
         {
-            name: 'myDateColumn',
+            name: 'mydatecolumn',
             type: 'date',
             typeSignature: { rawType: 'date' },
         },
         {
-            name: 'myTimestampColumn',
+            name: 'mytimestampcolumn',
             type: 'timestamp',
             typeSignature: { rawType: 'timestamp' },
         },
         {
-            name: 'myBooleanColumn',
+            name: 'mybooleancolumn',
             type: 'boolean',
             typeSignature: { rawType: 'boolean' },
         },
         {
-            name: 'myArrayColumn',
+            name: 'myarraycolumn',
             type: 'array',
             typeSignature: { rawType: 'array' },
         },
         {
-            name: 'myObjectColumn',
+            name: 'myobjectcolumn',
             type: 'json',
             typeSignature: { rawType: 'json' },
         },

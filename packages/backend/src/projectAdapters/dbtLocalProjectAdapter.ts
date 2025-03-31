@@ -1,5 +1,6 @@
 import { SupportedDbtVersions } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { DbtCliClient } from '../dbt/dbtCliClient';
 import { CachedWarehouse } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
@@ -14,10 +15,13 @@ type DbtLocalProjectAdapterArgs = {
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     useDbtLs: boolean;
+    selector?: string;
+    analytics?: LightdashAnalytics;
 };
 
 export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
     constructor({
+        analytics,
         warehouseClient,
         projectDir,
         profilesDir,
@@ -27,6 +31,7 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
         cachedWarehouse,
         dbtVersion,
         useDbtLs,
+        selector,
     }: DbtLocalProjectAdapterArgs) {
         const dbtClient = new DbtCliClient({
             dbtProjectDirectory: projectDir,
@@ -36,7 +41,15 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
             target,
             dbtVersion,
             useDbtLs,
+            selector,
         });
-        super(dbtClient, warehouseClient, cachedWarehouse, dbtVersion);
+        super(
+            dbtClient,
+            warehouseClient,
+            cachedWarehouse,
+            dbtVersion,
+            projectDir,
+            analytics,
+        );
     }
 }

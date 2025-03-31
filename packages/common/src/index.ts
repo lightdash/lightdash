@@ -41,6 +41,7 @@ import {
 } from './types/personalAccessToken';
 import { type ProjectMemberProfile } from './types/projectMemberProfile';
 import {
+    type ApiCalculateSubtotalsResponse,
     type ApiCalculateTotalResponse,
     type ChartHistory,
     type ChartVersion,
@@ -97,7 +98,6 @@ import {
     type ApiJobStatusResponse,
     type SchedulerAndTargets,
     type SchedulerJobStatus,
-    type SchedulerWithLogs,
 } from './types/scheduler';
 import { type ApiSlackChannelsResponse } from './types/slack';
 import { type Space } from './types/space';
@@ -111,6 +111,15 @@ import {
 import { type UserWarehouseCredentials } from './types/userWarehouseCredentials';
 import { type ValidationResponse } from './types/validation';
 
+import type {
+    ApiAiConversationMessages,
+    ApiAiConversationResponse,
+    ApiAiConversations,
+    DecodedEmbed,
+    EmbedUrl,
+} from './ee';
+import { type AnyType } from './types/any';
+import { type ApiGetSpotlightTableConfig } from './types/api/spotlight';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
@@ -131,7 +140,10 @@ import type {
     ApiMetricsExplorerQueryResults,
     ApiMetricsExplorerTotalResults,
 } from './types/metricsExplorer';
+import type { ResultsPaginationMetadata } from './types/paginateResults';
 import { type ApiPromotionChangesResponse } from './types/promotion';
+import type { QueryHistoryStatus } from './types/queryHistory';
+import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
     type ApiSemanticLayerClientInfo,
     type ApiSemanticViewerChartCreate,
@@ -152,25 +164,31 @@ import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
+import { getOrganizationNameSchema } from './utils/organization';
 
 dayjs.extend(utc);
-
 export * from './authorization/index';
 export * from './authorization/types';
 export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
 export * from './compiler/translator';
+export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
 export * from './dbt/validation';
+export * from './ee/index';
 export * from './pivotTable/pivotQueryResults';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
+export { default as lightdashProjectConfigSchema } from './schemas/json/lightdash-project-config-1.0.json';
 export * from './templating/template';
 export * from './types/analytics';
+export * from './types/any';
 export * from './types/api';
 export * from './types/api/comments';
 export * from './types/api/errors';
 export * from './types/api/notifications';
+export * from './types/api/paginatedQuery';
 export * from './types/api/share';
 export * from './types/api/sort';
+export * from './types/api/spotlight';
 export * from './types/api/success';
 export * from './types/api/uuid';
 export * from './types/catalog';
@@ -196,12 +214,14 @@ export * from './types/gitIntegration';
 export * from './types/groups';
 export * from './types/job';
 export * from './types/knex-paginate';
+export * from './types/lightdashProjectConfig';
 export * from './types/metricQuery';
 export * from './types/metricsExplorer';
 export * from './types/notifications';
 export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
+export * from './types/paginateResults';
 export * from './types/personalAccessToken';
 export * from './types/pinning';
 export * from './types/pivot';
@@ -210,16 +230,20 @@ export * from './types/projectMemberProfile';
 export * from './types/projectMemberRole';
 export * from './types/projects';
 export * from './types/promotion';
+export * from './types/queryHistory';
 export * from './types/resourceViewItem';
 export * from './types/results';
 export * from './types/savedCharts';
 export * from './types/scheduler';
+export * from './types/schedulerLog';
+export * from './types/schedulerTaskList';
 export * from './types/search';
 export * from './types/semanticLayer';
 export * from './types/share';
 export * from './types/slack';
 export * from './types/slackSettings';
 export * from './types/space';
+export * from './types/spotlightTableConfig';
 export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
 export * from './types/table';
@@ -231,25 +255,38 @@ export * from './types/userAttributes';
 export * from './types/userWarehouseCredentials';
 export * from './types/validation';
 export * from './types/warehouse';
+export * from './types/yamlSchema';
+export * from './utils/accessors';
 export * from './utils/additionalMetrics';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/catalogMetricsTree';
+export * from './utils/charts';
+export * from './utils/colors';
 export * from './utils/conditionalFormatting';
-export * from './utils/convertToDbt';
+export * from './utils/convertCustomDimensionsToYaml';
+export * from './utils/convertCustomMetricsToYaml';
+export * from './utils/customDimensions';
 export * from './utils/dashboard';
+export * from './utils/dbt';
 export * from './utils/email';
 export * from './utils/fields';
 export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
+export * from './utils/i18n';
 export * from './utils/item';
+export * from './utils/loadLightdashProjectConfig';
 export * from './utils/metricsExplorer';
+export * from './utils/organization';
 export * from './utils/projectMemberRole';
+export * from './utils/promises';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
 export * from './utils/semanticLayer';
+export * from './utils/sleep';
 export * from './utils/slugs';
+export * from './utils/subtotals';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/virtualView';
@@ -379,6 +416,8 @@ export const SEED_ORG_2_ADMIN_PASSWORD = {
     password: 'demo_password!',
 };
 
+export const SEED_EMBED_SECRET = 'zU3h50saDOO20czNFNRok';
+
 export const SEED_PROJECT = {
     project_uuid: '3675b69e-8324-4110-bdca-059031aa8da3',
     name: 'Jaffle shop',
@@ -398,7 +437,7 @@ export const SEED_GROUP = {
 
 export type ArgumentsOf<F extends Function> = F extends (
     ...args: infer A
-) => any
+) => AnyType
     ? A
     : never;
 
@@ -431,6 +470,37 @@ export type ApiQueryResults = {
     rows: ResultRow[];
     fields: ItemsMap;
 };
+
+export type ApiExecuteAsyncQueryResults = {
+    queryUuid: string;
+    appliedDashboardFilters: DashboardFilters | null;
+};
+
+export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
+    queryUuid: string;
+    rows: ResultRow[];
+    fields: ItemsMap;
+    initialQueryExecutionMs: number;
+    resultsPageExecutionMs: number;
+    metricQuery: MetricQuery;
+    status: QueryHistoryStatus.READY;
+};
+
+export type ApiGetAsyncQueryResults =
+    | ReadyQueryResultsPage
+    | {
+          status: QueryHistoryStatus.PENDING | QueryHistoryStatus.CANCELLED;
+          queryUuid: string;
+          metricQuery: MetricQuery;
+          fields: ItemsMap;
+      }
+    | {
+          status: QueryHistoryStatus.ERROR;
+          queryUuid: string;
+          error: string | null;
+          metricQuery: MetricQuery;
+          fields: ItemsMap;
+      };
 
 export type ApiChartAndResults = {
     chart: SavedChart;
@@ -494,7 +564,7 @@ export type ApiCompiledQueryResults = string;
 
 export type ApiExploresResults = SummaryExplore[];
 
-export type ApiExploreResults = Explore;
+export type ApiExploreResults = Omit<Explore, 'unfilteredTables'>;
 
 export type ApiStatusResults = 'loading' | 'ready' | 'error';
 
@@ -544,13 +614,15 @@ export const hasInviteCode = (
     data: RegisterOrActivateUser,
 ): data is ActivateUserWithInviteCode => 'inviteCode' in data;
 
-export type CompleteUserArgs = {
-    organizationName?: string;
-    jobTitle: string;
-    isMarketingOptedIn: boolean;
-    isTrackingAnonymized: boolean;
-    enableEmailDomainAccess: boolean;
-};
+export const CompleteUserSchema = z.object({
+    organizationName: getOrganizationNameSchema().optional(),
+    jobTitle: z.string().min(0),
+    enableEmailDomainAccess: z.boolean().default(false),
+    isMarketingOptedIn: z.boolean().default(true),
+    isTrackingAnonymized: z.boolean().default(false),
+});
+
+export type CompleteUserArgs = z.infer<typeof CompleteUserSchema>;
 
 export type UpdateUserArgs = {
     firstName: string;
@@ -671,6 +743,8 @@ type ApiResults =
     | ValidationResponse[]
     | ChartHistory
     | ChartVersion
+    | EmbedUrl
+    | DecodedEmbed
     | Array<GitRepo>
     | PullRequestCreated
     | GitIntegrationConfiguration
@@ -690,6 +764,9 @@ type ApiResults =
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiCatalogMetadataResults
     | ApiCatalogAnalyticsResults
+    | ApiAiConversations['results']
+    | ApiAiConversationMessages['results']
+    | ApiAiConversationResponse['results']
     | ApiPromotionChangesResponse['results']
     | ApiWarehouseTableFields['results']
     | ApiTogglePinnedItem['results']
@@ -714,7 +791,11 @@ type ApiResults =
     | ApiDashboardAsCodeListResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
-    | ApiMetricsExplorerTotalResults['results'];
+    | ApiMetricsExplorerTotalResults['results']
+    | ApiGetSpotlightTableConfig['results']
+    | ApiCalculateSubtotalsResponse['results']
+    | ApiExecuteAsyncQueryResults
+    | ApiGetAsyncQueryResults;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -726,7 +807,8 @@ export type ApiErrorDetail = {
     statusCode: number;
     message: string;
     data: { [key: string]: string };
-    id?: string;
+    sentryTraceId?: string;
+    sentryEventId?: string;
 };
 export type ApiError = {
     status: 'error';
@@ -789,8 +871,8 @@ export type HealthState = {
         version?: string;
     };
     rudder: {
-        writeKey: string;
-        dataPlaneUrl: string;
+        writeKey: string | undefined;
+        dataPlaneUrl: string | undefined;
     };
     sentry: Pick<
         SentryConfig,
@@ -849,6 +931,7 @@ export type HealthState = {
         maxLimit: number;
         defaultLimit: number;
         csvCellsLimit: number;
+        maxPageSize: number;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -859,6 +942,10 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
+    appearance: {
+        overrideColorPalette: string[] | undefined;
+        overrideColorPaletteName: string | undefined;
+    };
 };
 
 export enum DBFieldTypes {
@@ -991,15 +1078,14 @@ export const getAxisName = ({
     series?: Series[];
     itemsMap: ItemsMap | undefined;
 }): string | undefined => {
-    const defaultItem = itemsMap
-        ? itemsMap[(series || [])[0]?.encode[axisReference].field]
-        : undefined;
+    const itemIndex = (series || [])[0]?.encode[axisReference].field;
+    const defaultItem = itemsMap && itemIndex ? itemsMap[itemIndex] : undefined;
     const dateGroupName = defaultItem
         ? getDateGroupLabel(defaultItem)
         : undefined;
     const fallbackSeriesName: string | undefined =
         series && series.length === 1
-            ? series[0].name ||
+            ? series[0]?.name ||
               (defaultItem && getItemLabelWithoutTableName(defaultItem))
             : undefined;
 
@@ -1114,7 +1200,7 @@ export function itemsInMetricQuery(
 
 function formatRawValue(
     field: Field | Metric | TableCalculation | CustomDimension | undefined,
-    value: any,
+    value: AnyType,
 ) {
     const isTimestamp =
         isField(field) &&
@@ -1129,10 +1215,11 @@ function formatRawValue(
     return value;
 }
 
-export function formatRows(
-    rows: { [col: string]: any }[],
+// ! We format raw values so we can't use the values directly from the warehouse to compare with subtotals of date dimensions
+export function formatRawRows(
+    rows: { [col: string]: AnyType }[],
     itemsMap: ItemsMap,
-): ResultRow[] {
+): Record<string, unknown>[] {
     return rows.map((row) => {
         const resultRow: ResultRow = {};
         const columnNames = Object.keys(row || {});
@@ -1141,21 +1228,46 @@ export function formatRows(
             const value = row[columnName];
             const item = itemsMap[columnName];
 
-            resultRow[columnName] = {
-                value: {
-                    raw: formatRawValue(item, value),
-                    formatted: formatItemValue(item, value),
-                },
-            };
+            resultRow[columnName] = formatRawValue(item, value);
         }
 
         return resultRow;
     });
 }
 
-const isObject = (object: any) => object != null && typeof object === 'object';
-export const removeEmptyProperties = (object: Record<string, any>) => {
-    const newObj: Record<string, any> = {};
+export function formatRow(
+    row: { [col: string]: AnyType },
+    itemsMap: ItemsMap,
+): ResultRow {
+    const resultRow: ResultRow = {};
+    const columnNames = Object.keys(row || {});
+
+    for (const columnName of columnNames) {
+        const value = row[columnName];
+        const item = itemsMap[columnName];
+
+        resultRow[columnName] = {
+            value: {
+                raw: formatRawValue(item, value),
+                formatted: formatItemValue(item, value),
+            },
+        };
+    }
+
+    return resultRow;
+}
+
+export function formatRows(
+    rows: { [col: string]: AnyType }[],
+    itemsMap: ItemsMap,
+): ResultRow[] {
+    return rows.map((row) => formatRow(row, itemsMap));
+}
+
+const isObject = (object: AnyType) =>
+    object != null && typeof object === 'object';
+export const removeEmptyProperties = (object: Record<string, AnyType>) => {
+    const newObj: Record<string, AnyType> = {};
     Object.keys(object).forEach((key) => {
         if (object[key] === Object(object[key]))
             newObj[key] = removeEmptyProperties(object[key]);
@@ -1165,8 +1277,8 @@ export const removeEmptyProperties = (object: Record<string, any>) => {
     return newObj;
 };
 export const deepEqual = (
-    object1: Record<string, any>,
-    object2: Record<string, any>,
+    object1: Record<string, AnyType>,
+    object2: Record<string, AnyType>,
 ): boolean => {
     const keys1 = Object.keys(object1);
     const keys2 = Object.keys(object2);
@@ -1174,8 +1286,8 @@ export const deepEqual = (
         return false;
     }
     return keys1.every((key) => {
-        const val1: any = object1[key];
-        const val2: any = object2[key];
+        const val1: AnyType = object1[key];
+        const val2: AnyType = object2[key];
         const areObjects = isObject(val1) && isObject(val2);
         return !(
             (areObjects && !deepEqual(val1, val2)) ||
@@ -1204,3 +1316,7 @@ export const getProjectDirectory = (
             return undefined;
     }
 };
+
+export function isNotNull<T>(arg: T): arg is Exclude<T, null> {
+    return arg !== null;
+}

@@ -1,6 +1,7 @@
 import {
-    getEmailDomain,
+    CompleteUserSchema,
     LightdashMode,
+    getEmailDomain,
     validateOrganizationEmailDomains,
     type CompleteUserArgs,
 } from '@lightdash/common';
@@ -17,6 +18,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import shuffle from 'lodash/shuffle';
+import { zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, type FC } from 'react';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import useApp from '../../providers/App/useApp';
@@ -42,6 +44,16 @@ const jobTitles = [
 const UserCompletionModal: FC = () => {
     const { health, user } = useApp();
 
+    const canEnterOrganizationName = user.data?.organizationName === '';
+
+    const validate = zodResolver(
+        canEnterOrganizationName
+            ? CompleteUserSchema
+            : // User is not creating org, just accepting invite
+              // They cannot input org name so don't validate it for backwards compat reasons
+              CompleteUserSchema.omit({ organizationName: true }),
+    );
+
     const form = useForm<CompleteUserArgs>({
         initialValues: {
             organizationName: '',
@@ -50,6 +62,7 @@ const UserCompletionModal: FC = () => {
             isMarketingOptedIn: true,
             isTrackingAnonymized: false,
         },
+        validate,
     });
 
     const { isLoading, mutate, isSuccess } = useUserCompleteMutation();
@@ -72,8 +85,6 @@ const UserCompletionModal: FC = () => {
             getEmailDomain(user.data.email),
         ]);
     }, [user.data?.email]);
-
-    const canEnterOrganizationName = user.data?.organizationName === '';
 
     const canEnableEmailDomainAccess =
         canEnterOrganizationName && isValidOrganizationDomain;
@@ -196,4 +207,14 @@ const UserCompletionModal: FC = () => {
     );
 };
 
-export default UserCompletionModal;
+const UserCompletionModalWithUser = () => {
+    const { user } = useApp();
+
+    if (!user.isSuccess) {
+        return null;
+    }
+
+    return <UserCompletionModal />;
+};
+
+export default UserCompletionModalWithUser;

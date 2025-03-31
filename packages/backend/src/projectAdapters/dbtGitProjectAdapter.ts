@@ -2,6 +2,7 @@ import {
     AuthorizationError,
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    getErrorMessage,
     NotFoundError,
     SupportedDbtVersions,
     UnexpectedGitError,
@@ -16,8 +17,9 @@ import simpleGit, {
     SimpleGit,
     SimpleGitProgressEvent,
 } from 'simple-git';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
-import { CachedWarehouse } from '../types';
+import { CachedWarehouse, ProjectAdapter } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 
 export type DbtGitProjectAdapterArgs = {
@@ -32,6 +34,8 @@ export type DbtGitProjectAdapterArgs = {
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     useDbtLs: boolean;
+    selector?: string;
+    analytics?: LightdashAnalytics;
 };
 
 const stripTokensFromUrls = (raw: string) => {
@@ -39,7 +43,12 @@ const stripTokensFromUrls = (raw: string) => {
     return raw.replace(pattern, '//*****@');
 };
 
-const gitErrorHandler = (e: Error, repository: string) => {
+const gitErrorHandler = (e: unknown, repository: string) => {
+    if (!(e instanceof Error)) {
+        throw new UnexpectedServerError(
+            `Unexpected git error: ${getErrorMessage(e)}`,
+        );
+    }
     if (e.message.includes('Authentication failed')) {
         throw new AuthorizationError(
             'Git credentials not recognized for this repository',
@@ -63,7 +72,10 @@ const gitErrorHandler = (e: Error, repository: string) => {
     );
 };
 
-export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
+export class DbtGitProjectAdapter
+    extends DbtLocalCredentialsProjectAdapter
+    implements ProjectAdapter
+{
     localRepositoryDir: string;
 
     remoteRepositoryUrl: string;
@@ -88,6 +100,8 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         cachedWarehouse,
         dbtVersion,
         useDbtLs,
+        selector,
+        analytics,
     }: DbtGitProjectAdapterArgs) {
         const localRepositoryDir = fs.mkdtempSync('/tmp/git_');
         const projectDir = path.join(
@@ -103,6 +117,8 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             cachedWarehouse,
             dbtVersion,
             useDbtLs,
+            selector,
+            analytics,
         });
         this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;
@@ -200,9 +216,13 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         }
     }
 
-    public async compileAllExplores() {
+    public async compileAllExplores(trackingParams?: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    }) {
         await this._refreshRepo();
-        return super.compileAllExplores();
+        return super.compileAllExplores(trackingParams);
     }
 
     public async test() {

@@ -8,8 +8,8 @@ import useEchartsPieConfig, {
     type PieSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsPieConfig';
 import useApp from '../../providers/App/useApp';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import PieChartContextMenu, {
     type PieChartContextMenuProps,
 } from './PieChartContextMenu';
@@ -44,7 +44,7 @@ type SimplePieChartProps = Omit<EChartsReactProps, 'option'> & {
 const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
-    const { chartRef, isLoading } = useVisualizationContext();
+    const { chartRef, isLoading, resultsData } = useVisualizationContext();
 
     const pieChartOptions = useEchartsPieConfig(props.isInDashboard);
     const { user } = useApp();
@@ -55,6 +55,12 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
         value: PieChartContextMenuProps['value'];
         rows: PieChartContextMenuProps['rows'];
     }>();
+
+    useEffect(() => {
+        // Load all the rows
+        resultsData?.setFetchAll(true);
+        return () => resultsData?.setFetchAll(false);
+    }, [resultsData]);
 
     useEffect(() => {
         const listener = () => chartRef.current?.getEchartsInstance().resize();

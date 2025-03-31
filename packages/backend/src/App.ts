@@ -3,8 +3,11 @@
 import './sentry'; // Sentry has to be initialized before anything else
 
 import {
+    AnyType,
+    ApiError,
     LightdashError,
     LightdashMode,
+    SessionServiceAccount,
     LightdashVersionHeader,
     SessionUser,
     UnexpectedServerError,
@@ -22,6 +25,8 @@ import refresh from 'passport-oauth2-refresh';
 import path from 'path';
 import reDoc from 'redoc-express';
 import { URL } from 'url';
+import cors from 'cors';
+import { produce } from 'immer';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import {
     ClientProviderMap,
@@ -34,6 +39,7 @@ import {
     createAzureAdPassportStrategy,
     createGenericOidcPassportStrategy,
     googlePassportStrategy,
+    inviteLinkErrorHandler,
     isAzureAdPassportStrategyAvailableToUse,
     isGenericOidcPassportStrategyAvailableToUse,
     isOktaPassportStrategyAvailableToUse,
@@ -41,7 +47,7 @@ import {
     oneLoginPassportStrategy,
     OpenIDClientOktaStrategy,
 } from './controllers/authentication';
-import { errorHandler } from './errors';
+import { errorHandler, scimErrorHandler } from './errors';
 import { RegisterRoutes } from './generated/routes';
 import apiSpec from './generated/swagger.json';
 import Logger from './logging/logger';
@@ -61,7 +67,6 @@ import {
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 import PrometheusMetrics from './prometheus';
-
 // We need to override this interface to have our user typing
 declare global {
     namespace Express {
@@ -72,6 +77,7 @@ declare global {
          */
         interface Request {
             services: ServiceRepository;
+            serviceAccount?: SessionServiceAccount;
             /**
              * @deprecated Clients should be used inside services. This will be removed soon.
              */
@@ -116,6 +122,7 @@ const slackBotFactory = (context: {
     analytics: LightdashAnalytics;
     serviceRepository: ServiceRepository;
     models: ModelRepository;
+    clients: ClientRepository;
 }) =>
     new SlackBot({
         lightdashConfig: context.lightdashConfig,
@@ -124,7 +131,7 @@ const slackBotFactory = (context: {
         unfurlService: context.serviceRepository.getUnfurlService(),
     });
 
-type AppArguments = {
+export type AppArguments = {
     lightdashConfig: LightdashConfig;
     port: string | number;
     environment?: 'production' | 'development';
@@ -265,10 +272,45 @@ export default class App {
     }
 
     private async initExpress(expressApp: Express) {
+        // Cross-Origin Resource Sharing policy (CORS)
+        // WARNING: this middleware should be mounted before the helmet middleware
+        // (ideally at the top of the middleware stack)
+        if (
+            this.lightdashConfig.security.crossOriginResourceSharingPolicy
+                .enabled &&
+            this.lightdashConfig.security.crossOriginResourceSharingPolicy
+                .allowedDomains.length > 0
+        ) {
+            const allowedOrigins: Array<string | RegExp> = [
+                this.lightdashConfig.siteUrl,
+            ];
+
+            for (const allowedDomain of this.lightdashConfig.security
+                .crossOriginResourceSharingPolicy.allowedDomains) {
+                if (
+                    allowedDomain.startsWith('/') &&
+                    allowedDomain.endsWith('/')
+                ) {
+                    allowedOrigins.push(new RegExp(allowedDomain.slice(1, -1)));
+                } else {
+                    allowedOrigins.push(allowedDomain);
+                }
+            }
+
+            expressApp.use(
+                cors({
+                    methods: 'OPTIONS, GET, HEAD, PUT, PATCH, POST, DELETE',
+                    allowedHeaders: '*',
+                    credentials: false,
+                    origin: allowedOrigins,
+                }),
+            );
+        }
+
         const KnexSessionStore = connectSessionKnex(expressSession);
 
         const store = new KnexSessionStore({
-            knex: this.database as any,
+            knex: this.database as AnyType,
             createtable: false,
             tablename: 'sessions',
             sidfieldname: 'sid',
@@ -333,63 +375,77 @@ export default class App {
                 .allowedDomains,
         ];
 
-        expressApp.use(
-            helmet({
-                contentSecurityPolicy: {
-                    directives: {
-                        'default-src': [
-                            "'self'",
-                            ...contentSecurityPolicyAllowedDomains,
-                        ],
-                        'img-src': ["'self'", 'data:', 'https://*'],
-                        'frame-src': ["'self'", 'https://*'],
-                        'frame-ancestors': ["'self'", 'https://*'],
-                        'worker-src': [
-                            "'self'",
-                            'blob:',
-                            ...contentSecurityPolicyAllowedDomains,
-                        ],
-                        'child-src': [
-                            // Fallback of worker-src for safari older than 15.5
-                            "'self'",
-                            'blob:',
-                            ...contentSecurityPolicyAllowedDomains,
-                        ],
-                        'script-src': [
-                            "'self'",
-                            "'unsafe-eval'",
-                            ...contentSecurityPolicyAllowedDomains,
-                        ],
-                        'script-src-elem': [
-                            "'self'",
-                            "'unsafe-inline'",
-                            ...contentSecurityPolicyAllowedDomains,
-                        ],
-                        'report-uri': reportUris.map((uri) => uri.href),
-                    },
-                    reportOnly:
-                        this.lightdashConfig.security.contentSecurityPolicy
-                            .reportOnly,
+        const helmetConfig = {
+            contentSecurityPolicy: {
+                directives: {
+                    'default-src': [
+                        "'self'",
+                        ...contentSecurityPolicyAllowedDomains,
+                    ],
+                    'img-src': ["'self'", 'data:', 'https://*'],
+                    'frame-src': ["'self'", 'https://*'],
+                    'frame-ancestors': [
+                        "'self'",
+                        ...this.lightdashConfig.security.contentSecurityPolicy
+                            .frameAncestors,
+                    ],
+                    'worker-src': [
+                        "'self'",
+                        'blob:',
+                        ...contentSecurityPolicyAllowedDomains,
+                    ],
+                    'child-src': [
+                        // Fallback of worker-src for safari older than 15.5
+                        "'self'",
+                        'blob:',
+                        ...contentSecurityPolicyAllowedDomains,
+                    ],
+                    'script-src': [
+                        "'self'",
+                        "'unsafe-eval'",
+                        ...contentSecurityPolicyAllowedDomains,
+                    ],
+                    'script-src-elem': [
+                        "'self'",
+                        "'unsafe-inline'",
+                        ...contentSecurityPolicyAllowedDomains,
+                    ],
+                    'report-uri': reportUris.map((uri) => uri.href),
                 },
-                strictTransportSecurity: {
-                    maxAge: 31536000,
-                    includeSubDomains: true,
-                    preload: true,
-                },
-                referrerPolicy: {
-                    policy: 'strict-origin-when-cross-origin',
-                },
-                noSniff: true,
-                xFrameOptions: false,
-                crossOriginOpenerPolicy: {
-                    policy: [LightdashMode.DEMO, LightdashMode.PR].includes(
-                        this.lightdashConfig.mode,
-                    )
-                        ? 'unsafe-none'
-                        : 'same-origin',
-                },
-            }),
-        );
+                reportOnly:
+                    this.lightdashConfig.security.contentSecurityPolicy
+                        .reportOnly,
+            },
+            strictTransportSecurity: {
+                maxAge: 31536000,
+                includeSubDomains: true,
+                preload: true,
+            },
+            referrerPolicy: {
+                policy: 'strict-origin-when-cross-origin',
+            },
+            noSniff: true,
+            xFrameOptions: false,
+            crossOriginOpenerPolicy: {
+                policy: [LightdashMode.DEMO, LightdashMode.PR].includes(
+                    this.lightdashConfig.mode,
+                )
+                    ? 'unsafe-none'
+                    : 'same-origin',
+            },
+        } as const;
+
+        expressApp.use(helmet(helmetConfig));
+
+        const helmetConfigForEmbeds = produce(helmetConfig, (draft) => {
+            // eslint-disable-next-line no-param-reassign
+            draft.contentSecurityPolicy.directives['frame-ancestors'] = [
+                "'self'",
+                'https://*',
+            ];
+        });
+
+        expressApp.use('/embed/*', helmet(helmetConfigForEmbeds));
 
         expressApp.use((req, res, next) => {
             // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
@@ -414,7 +470,7 @@ export default class App {
                         1000, // in ms
                     secure: this.lightdashConfig.secureCookies,
                     httpOnly: true,
-                    sameSite: 'lax',
+                    sameSite: this.lightdashConfig.cookieSameSite,
                 },
                 resave: false,
                 saveUninitialized: false,
@@ -424,6 +480,9 @@ export default class App {
         expressApp.use(flash());
         expressApp.use(passport.initialize());
         expressApp.use(passport.session());
+
+        // Error handler for InvalidUser errors that occur when a user tries to access an invite link.
+        expressApp.use(inviteLinkErrorHandler);
 
         expressApp.use(expressWinstonPreResponseMiddleware); // log request before response is sent
         expressApp.use(expressWinstonMiddleware); // log request + response
@@ -446,6 +505,18 @@ export default class App {
         expressApp.use((req, res, next) => {
             req.services = this.serviceRepository;
             req.clients = this.clients;
+            next();
+        });
+
+        expressApp.use((req, res, next) => {
+            if (req.user) {
+                Sentry.setUser({
+                    id: req.user.userUuid,
+                    organization: req.user.organizationUuid,
+                    email: req.user.email,
+                    username: req.user.email,
+                });
+            }
             next();
         });
 
@@ -516,6 +587,7 @@ export default class App {
 
         // Errors
         Sentry.setupExpressErrorHandler(expressApp);
+        expressApp.use(scimErrorHandler); // SCIM error check before general error handler
         expressApp.use(
             (error: Error, req: Request, res: Response, _: NextFunction) => {
                 const errorResponse = errorHandler(error);
@@ -542,19 +614,27 @@ export default class App {
                         method: req.method,
                     },
                 });
-                res.status(errorResponse.statusCode).send({
+
+                const apiErrorResponse: ApiError = {
                     status: 'error',
                     error: {
                         statusCode: errorResponse.statusCode,
                         name: errorResponse.name,
                         message: errorResponse.message,
                         data: errorResponse.data,
-                        id:
+                        sentryTraceId:
+                            // Only return the Sentry trace ID for unexpected server errors
+                            errorResponse.statusCode === 500
+                                ? Sentry.getActiveSpan()?.spanContext().traceId
+                                : undefined,
+                        sentryEventId:
+                            // Only return the Sentry event ID for unexpected server errors
                             errorResponse.statusCode === 500
                                 ? Sentry.lastEventId()
                                 : undefined,
                     },
-                });
+                };
+                res.status(errorResponse.statusCode).send(apiErrorResponse);
             },
         );
 
@@ -598,8 +678,6 @@ export default class App {
                 passportUser: { id: string; organization: string },
                 done,
             ) => {
-                // Set the organization tag so we can filter by it in Sentry
-                Sentry.setTag('organization', passportUser.organization);
                 // Convert to a full user profile
                 try {
                     done(null, await userService.findSessionUser(passportUser));
@@ -618,6 +696,7 @@ export default class App {
             analytics: this.analytics,
             serviceRepository: this.serviceRepository,
             models: this.models,
+            clients: this.clients,
         });
         await slackBot.start(expressApp);
     }

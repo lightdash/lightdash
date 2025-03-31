@@ -1,4 +1,5 @@
 import {
+    AnyType,
     CreateWarehouseCredentials,
     DimensionType,
     Metric,
@@ -7,8 +8,14 @@ import {
     WarehouseCatalog,
     WarehouseResults,
     WeekDay,
+    type WarehouseExecuteAsyncQuery,
+    type WarehouseExecuteAsyncQueryArgs,
 } from '@lightdash/common';
-import { WarehouseClient } from '../types';
+import {
+    type WarehouseClient,
+    type WarehouseGetAsyncQueryResults,
+    type WarehouseGetAsyncQueryResultsArgs,
+} from '../types';
 import { getDefaultMetricSql } from '../utils/sql';
 
 export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
@@ -45,7 +52,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
-            values?: any[];
+            values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -53,11 +60,56 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         throw new Error('Warehouse method not implemented.');
     }
 
+    async executeAsyncQuery(
+        args: WarehouseExecuteAsyncQueryArgs,
+    ): Promise<WarehouseExecuteAsyncQuery> {
+        return {
+            queryId: null,
+            queryMetadata: null,
+            durationMs: null,
+            totalRows: null,
+        };
+    }
+
+    async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
+        { tags, timezone, values, ...args }: WarehouseGetAsyncQueryResultsArgs,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
+        // When warehouse doesn't support async queries we run the compiled sql and return all the results
+        let fields: WarehouseResults['fields'] = {};
+        const rows: TFormattedRow[] = [];
+
+        await this.streamQuery(
+            args.sql,
+            (data) => {
+                fields = data.fields;
+                rows.push(
+                    ...((rowFormatter
+                        ? data.rows.map(rowFormatter)
+                        : data.rows) as TFormattedRow[]),
+                );
+            },
+            {
+                values,
+                tags,
+                timezone,
+            },
+        );
+
+        return {
+            fields,
+            rows,
+            queryId: null,
+            pageCount: 1,
+            totalRows: rows.length,
+        };
+    }
+
     async runQuery(
         sql: string,
         tags?: Record<string, string>,
         timezone?: string,
-        values?: any[],
+        values?: AnyType[],
     ) {
         let fields: WarehouseResults['fields'] = {};
         const rows: WarehouseResults['rows'] = [];
@@ -115,7 +167,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
     }
 
     parseWarehouseCatalog(
-        rows: Record<string, any>[],
+        rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog {
         return rows.reduce(

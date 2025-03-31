@@ -2,17 +2,15 @@ import {
     getItemId,
     isSummable,
     type ApiQueryResults,
-    type Field,
     type FieldId,
     type ItemsMap,
     type ResultRow,
-    type TableCalculation,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 
 type Args = {
     resultsData: ApiQueryResults | undefined;
-    itemsMap: Record<FieldId, Field | TableCalculation>;
+    itemsMap: ItemsMap;
 };
 
 const getResultColumnTotals = (

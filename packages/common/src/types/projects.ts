@@ -62,6 +62,9 @@ export const sensitiveCredentialsFieldNames = [
     'privateKey',
     'privateKeyPass',
     'sshTunnelPrivateKey',
+    'sslcert',
+    'sslkey',
+    'sslrootcert',
 ] as const;
 export type SensitiveCredentialsFieldNames =
     typeof sensitiveCredentialsFieldNames[number];
@@ -79,28 +82,43 @@ export type CreateDatabricksCredentials = {
     personalAccessToken: string;
     requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
+    compute?: Array<{
+        name: string;
+        httpPath: string;
+    }>;
 };
 export type DatabricksCredentials = Omit<
     CreateDatabricksCredentials,
     SensitiveCredentialsFieldNames
 >;
-export type CreatePostgresCredentials = SshTunnelConfiguration & {
-    type: WarehouseTypes.POSTGRES;
-    host: string;
-    user: string;
-    password: string;
-    requireUserCredentials?: boolean;
-    port: number;
-    dbname: string;
-    schema: string;
-    threads?: number;
-    keepalivesIdle?: number;
-    searchPath?: string;
-    role?: string;
+
+export type SslConfiguration = {
     sslmode?: string;
-    startOfWeek?: WeekDay | null;
-    timeoutSeconds?: number;
+    sslcertFileName?: string;
+    sslcert?: string | null; // file content
+    sslkeyFileName?: string;
+    sslkey?: string | null; // file content
+    sslrootcertFileName?: string;
+    sslrootcert?: string | null; // file content
 };
+
+export type CreatePostgresCredentials = SshTunnelConfiguration &
+    SslConfiguration & {
+        type: WarehouseTypes.POSTGRES;
+        host: string;
+        user: string;
+        password: string;
+        requireUserCredentials?: boolean;
+        port: number;
+        dbname: string;
+        schema: string;
+        threads?: number;
+        keepalivesIdle?: number;
+        searchPath?: string;
+        role?: string;
+        startOfWeek?: WeekDay | null;
+        timeoutSeconds?: number;
+    };
 export type PostgresCredentials = Omit<
     CreatePostgresCredentials,
     SensitiveCredentialsFieldNames
@@ -149,6 +167,7 @@ export type CreateSnowflakeCredentials = {
     requireUserCredentials?: boolean;
     privateKey?: string;
     privateKeyPass?: string;
+    authenticationType?: 'password' | 'private_key';
     role?: string;
     database: string;
     warehouse: string;
@@ -219,6 +238,7 @@ export const DefaultSupportedDbtVersion = DbtVersionOptionLatest.LATEST;
 export interface DbtProjectCompilerBase extends DbtProjectConfigBase {
     target?: string;
     environment?: DbtProjectEnvironmentVariable[];
+    selector?: string;
 }
 
 export interface DbtNoneProjectConfig extends DbtProjectCompilerBase {
@@ -238,11 +258,14 @@ export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
     api_key: string;
     environment_id: string;
     discovery_api_endpoint?: string;
+    tags?: string[];
 }
 
 export interface DbtGithubProjectConfig extends DbtProjectCompilerBase {
     type: DbtProjectType.GITHUB;
-    personal_access_token: string;
+    authorization_method: 'personal_access_token' | 'installation_id';
+    personal_access_token?: string;
+    installation_id?: string;
     repository: string;
     branch: string;
     project_sub_path: string;

@@ -1,4 +1,9 @@
-import { HealthState, LightdashMode, SessionUser } from '@lightdash/common';
+import {
+    AnyType,
+    HealthState,
+    LightdashMode,
+    SessionUser,
+} from '@lightdash/common';
 
 export const BaseResponse: HealthState = {
     healthy: true,
@@ -60,6 +65,7 @@ export const BaseResponse: HealthState = {
     query: {
         csvCellsLimit: 100000,
         maxLimit: 5000,
+        maxPageSize: 2500,
         defaultLimit: 500,
     },
     rudder: {
@@ -76,9 +82,13 @@ export const BaseResponse: HealthState = {
         profilesSampleRate: 0,
     },
     hasCacheAutocompleResults: false,
+    appearance: {
+        overrideColorPalette: undefined,
+        overrideColorPaletteName: undefined,
+    },
 };
 
 export const userMock = {
     userUuid: 'uuid',
     organizationUuid: 'orguuid',
-} as any as SessionUser;
+} as AnyType as SessionUser;

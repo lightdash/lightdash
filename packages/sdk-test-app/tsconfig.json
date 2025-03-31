@@ -1,0 +1,27 @@
+{
+    "extends": "./../../tsconfig.json",
+    "compilerOptions": {
+        "composite": true,
+        "target": "ESNext",
+        "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext",
+        ],
+        "module": "ESNext",
+        "moduleResolution": "node",
+        "jsx": "react-jsx",
+        "types": [
+            "vite/client",
+            "./vite-env.d.ts"
+        ]
+    },
+    "include": [
+        "src"
+    ],
+    "references": [
+        {
+            "path": "../sdk"
+        }
+    ]
+}

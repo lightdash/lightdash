@@ -1,8 +1,8 @@
 import {
-    isValidEmailDomain,
     OrganizationMemberRole,
     ProjectMemberRole,
     ProjectType,
+    isValidEmailDomain,
     validateOrganizationEmailDomains,
     type AllowedEmailDomains,
 } from '@lightdash/common';

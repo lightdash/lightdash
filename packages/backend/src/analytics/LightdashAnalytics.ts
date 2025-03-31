@@ -1,11 +1,11 @@
 /// <reference path="../@types/rudder-sdk-node.d.ts" />
 import { Type } from '@aws-sdk/client-s3';
 import {
+    AnyType,
     CartesianSeriesType,
     ChartKind,
     ChartType,
     DbtProjectType,
-    getRequestMethod,
     LightdashInstallType,
     LightdashMode,
     LightdashRequestMethodHeader,
@@ -21,6 +21,8 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    getErrorMessage,
+    getRequestMethod,
     type SemanticLayerType,
 } from '@lightdash/common';
 import Analytics, {
@@ -200,7 +202,7 @@ export const getContextFromQueryOrHeader = (
     return getContextFromHeader(req);
 };
 
-type MetricQueryExecutionProperties = {
+export type MetricQueryExecutionProperties = {
     chartId?: string;
     metricsCount: number;
     dimensionsCount: number;
@@ -208,6 +210,7 @@ type MetricQueryExecutionProperties = {
     tableCalculationsPercentFormatCount: number;
     tableCalculationsCurrencyFormatCount: number;
     tableCalculationsNumberFormatCount: number;
+    tableCalculationCustomFormatCount: number;
     filtersCount: number;
     sortsCount: number;
     hasExampleMetric: boolean;
@@ -216,6 +219,7 @@ type MetricQueryExecutionProperties = {
     additionalMetricsPercentFormatCount: number;
     additionalMetricsCurrencyFormatCount: number;
     additionalMetricsNumberFormatCount: number;
+    additionalMetricsCustomFormatCount: number;
     numFixedWidthBinCustomDimensions: number;
     numFixedBinsBinCustomDimensions: number;
     numCustomRangeBinCustomDimensions: number;
@@ -224,7 +228,14 @@ type MetricQueryExecutionProperties = {
     timezone?: string;
     virtualViewId?: string;
     metricOverridesCount: number;
+    limit: number;
 };
+
+type PaginatedMetricQueryExecutionProperties =
+    MetricQueryExecutionProperties & {
+        queryId: string;
+        warehouseType: WarehouseTypes;
+    };
 
 type SqlExecutionProperties = {
     sqlChartId?: string;
@@ -244,10 +255,59 @@ type QueryExecutionEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
     } & (
+        | PaginatedMetricQueryExecutionProperties
         | MetricQueryExecutionProperties
         | SqlExecutionProperties
         | SemanticViewerExecutionProperties
     );
+};
+
+type QueryReadyEvent = BaseTrack & {
+    event: 'query.ready';
+    properties: {
+        queryId: string;
+        projectId: string;
+        warehouseType: WarehouseTypes;
+        warehouseExecutionTimeMs: number | null;
+        totalRowCount: number | null;
+        columnsCount: number | null;
+    };
+};
+
+type QueryErrorEvent = BaseTrack & {
+    event: 'query.error';
+    properties: {
+        queryId: string;
+        projectId: string;
+        warehouseType: WarehouseTypes;
+    };
+};
+
+type QueryPageEvent = BaseTrack & {
+    event: 'query_page.fetched';
+    properties: {
+        queryId: string;
+        projectId: string;
+        warehouseType: WarehouseTypes;
+        page: number;
+        columnsCount: number;
+        totalRowCount: number;
+        totalPageCount: number;
+        resultsPageSize: number;
+        resultsPageExecutionMs: number;
+    };
+};
+
+type SubtotalQueryEvent = BaseTrack & {
+    event: 'query.subtotal';
+    properties: {
+        context: QueryExecutionContext.CALCULATE_SUBTOTAL;
+        organizationId: string;
+        projectId: string;
+        exploreName: string;
+        subtotalDimensionGroups: string[];
+        subtotalQueryCount: number;
+    };
 };
 
 type CreateOrganizationEvent = BaseTrack & {
@@ -609,6 +669,7 @@ type ProjectSearch = BaseTrack & {
         sqlChartsResultsCount: number;
         tablesResultsCount: number;
         fieldsResultsCount: number;
+        dashboardTabsResultsCount: number;
     };
 };
 type DashboardUpdateMultiple = BaseTrack & {
@@ -638,7 +699,7 @@ type PermissionsUpdated = BaseTrack & {
         userId: string;
         userIdUpdated: string;
         organizationPermissions: OrganizationMemberRole;
-        projectPermissions: any;
+        projectPermissions: Record<string, string>;
         newUser: boolean;
         generatedInvite: boolean;
     };
@@ -992,7 +1053,6 @@ export type Validation = BaseTrack & {
         organizationId?: string;
         projectId: string;
         validationRunId?: number;
-
         context?: ValidateProjectPayload['context'];
         numErrorsDetected?: number;
         numContentAffected?: number;
@@ -1109,13 +1169,26 @@ export type GithubInstallEvent = BaseTrack & {
 };
 
 export type WriteBackEvent = BaseTrack & {
-    event: 'write_back.created';
+    event: 'write_back.created' | 'write_back.previewed';
     userId: string;
     properties: {
         name: string;
         organizationId: string;
         projectId: string;
         context: QueryExecutionContext;
+        customMetricsCount?: number;
+    };
+};
+
+export type WriteBackErrorEvent = BaseTrack & {
+    event: 'write_back.error';
+    userId: string;
+    properties: {
+        name: string;
+        organizationId: string;
+        projectId: string;
+        context: QueryExecutionContext;
+        error: string;
     };
 };
 
@@ -1126,6 +1199,39 @@ type CreateTagEvent = BaseTrack & {
         name: string;
         projectId: string;
         organizationId: string;
+        context: 'yaml' | 'ui';
+    };
+};
+
+export type CategoriesAppliedEvent = BaseTrack & {
+    event: 'categories.applied';
+    userId: string;
+    properties: {
+        count: number;
+        projectId: string;
+        organizationId: string;
+        context: 'ui' | 'yaml';
+    };
+};
+
+export type CustomFieldsReplaced = BaseTrack & {
+    event: 'custom_fields.replaced';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        chartsCount: number;
+    };
+};
+
+export type DeprecatedRouteCalled = BaseTrack & {
+    event: 'deprecated_route.called';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        route: string;
+        context: string;
     };
 };
 
@@ -1137,6 +1243,9 @@ type TypedEvent =
     | VerifiedUserEvent
     | UserJoinOrganizationEvent
     | QueryExecutionEvent
+    | QueryReadyEvent
+    | QueryErrorEvent
+    | QueryPageEvent
     | ModeDashboardChartEvent
     | UpdateSavedChartEvent
     | DeleteSavedChartEvent
@@ -1204,8 +1313,13 @@ type TypedEvent =
     | VirtualViewEvent
     | GithubInstallEvent
     | WriteBackEvent
+    | WriteBackErrorEvent
     | SchedulerTimezoneUpdateEvent
-    | CreateTagEvent;
+    | CreateTagEvent
+    | CategoriesAppliedEvent
+    | CustomFieldsReplaced
+    | SubtotalQueryEvent
+    | DeprecatedRouteCalled;
 
 type WrapTypedEvent = SemanticLayerView;
 
@@ -1224,7 +1338,7 @@ type LightdashAnalyticsArguments = {
 export class LightdashAnalytics extends Analytics {
     private readonly lightdashConfig: LightdashConfig;
 
-    private readonly lightdashContext: Record<string, any>;
+    private readonly lightdashContext: Record<string, AnyType>;
 
     constructor({
         lightdashConfig,
@@ -1323,7 +1437,7 @@ export class LightdashAnalytics extends Analytics {
     async wrapEvent<T>(
         payload: WrapTypedEvent,
         func: () => Promise<T>,
-        extraProperties?: (r: T) => any,
+        extraProperties?: (r: T) => AnyType,
     ) {
         try {
             this.track({
@@ -1350,7 +1464,7 @@ export class LightdashAnalytics extends Analytics {
                 event: `${payload.event}.error`,
                 properties: {
                     ...payload.properties,
-                    error: e.message,
+                    error: getErrorMessage(e),
                 },
             });
             Logger.error(`Error in scheduler task: ${e}`);

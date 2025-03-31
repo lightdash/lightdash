@@ -1,3 +1,4 @@
+import { getErrorMessage, isApiError } from '@lightdash/common';
 import { LoadingOverlay, Stack, Title } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import type { z } from 'zod';
@@ -6,8 +7,8 @@ import {
     useProject,
     useProjectUpdateSchedulerSettings,
 } from '../../hooks/useProject';
-import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import SchedulersView from '../SchedulersView';
+import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import SchedulerSettingsForm from './schedulerSettingsForm';
 import { type schedulerSettingsSchema } from './types';
 
@@ -34,9 +35,12 @@ const SettingsScheduler: FC<SettingsSchedulerProps> = ({ projectUuid }) => {
                     title: `Successfully updated project's scheduler timezone settings`,
                 });
             } catch (e) {
+                const errorMessage = isApiError(e)
+                    ? e.error.message
+                    : getErrorMessage(e);
                 showToastError({
                     title: `Failed to update project's scheduler timezone settings`,
-                    ...(e.error.message ? { subtitle: e.error.message } : {}),
+                    subtitle: errorMessage,
                 });
             }
 

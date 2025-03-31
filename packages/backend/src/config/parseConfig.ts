@@ -1,8 +1,12 @@
 import {
+    cleanColorArray,
+    getErrorMessage,
+    getInvalidHexColors,
     isLightdashMode,
     isOrganizationMemberRole,
     LightdashMode,
     OrganizationMemberRole,
+    ParameterError,
     ParseError,
     SentryConfig,
 } from '@lightdash/common';
@@ -68,11 +72,55 @@ export const getObjectFromEnvironmentVariable = (
     }
     try {
         return JSON.parse(raw);
-    } catch (e) {
+    } catch (e: unknown) {
         throw new ParseError(
-            `Cannot parse environment variable "${name}". Value must be valid JSON but ${name}=${raw}. Error: ${e.message}`,
+            `Cannot parse environment variable "${name}". Value must be valid JSON but ${name}=${raw}. Error: ${getErrorMessage(
+                e,
+            )}`,
         );
     }
+};
+
+const getArrayFromCommaSeparatedList = (envVar: string) => {
+    const raw = process.env[envVar];
+    if (!raw) {
+        return [];
+    }
+
+    return raw
+        .split(',')
+        .map((domain) => domain.trim())
+        .filter((domain) => domain.length > 0);
+};
+
+export const getHexColorsFromEnvironmentVariable = (
+    colorPalette: string | undefined,
+): string[] | undefined => {
+    if (!colorPalette) {
+        return undefined;
+    }
+
+    const hexColors = cleanColorArray(colorPalette.split(','));
+
+    // Validate that all colors are valid hex codes
+    const invalidColors = getInvalidHexColors(hexColors);
+
+    if (invalidColors.length > 0) {
+        throw new ParseError(
+            `Cannot parse environment variable "DEFAULT_COLOR_PALETTE_COLORS". All values must be valid hex colors (e.g. #FF0000) but found invalid colors: ${invalidColors.join(
+                ', ',
+            )}`,
+        );
+    }
+
+    // Validate that there are exactly 20 colors
+    if (hexColors.length !== 20) {
+        throw new ParseError(
+            `Cannot parse environment variable "DEFAULT_COLOR_PALETTE_COLORS". Must contain exactly 20 colors, but found ${hexColors.length} colors.`,
+        );
+    }
+
+    return hexColors;
 };
 
 /**
@@ -204,11 +252,17 @@ export type LoggingConfig = {
 export type LightdashConfig = {
     lightdashSecret: string;
     secureCookies: boolean;
+    cookieSameSite?: 'lax' | 'none';
     security: {
         contentSecurityPolicy: {
             reportOnly: boolean;
             allowedDomains: string[];
             reportUri?: string;
+            frameAncestors: string[];
+        };
+        crossOriginResourceSharingPolicy: {
+            enabled: boolean;
+            allowedDomains: string[];
         };
     };
     cookiesMaxAgeHours?: number;
@@ -218,6 +272,9 @@ export type LightdashConfig = {
     rudder: RudderConfig;
     posthog: PosthogConfig | undefined;
     mode: LightdashMode;
+    license: {
+        licenseKey: string | null;
+    };
     sentry: SentryConfig;
     auth: AuthConfig;
     intercom: IntercomConfig;
@@ -251,6 +308,7 @@ export type LightdashConfig = {
         defaultLimit: number;
         csvCellsLimit: number;
         timezone: string | undefined;
+        maxPageSize: number;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -262,6 +320,11 @@ export type LightdashConfig = {
     };
     customVisualizations: {
         enabled: boolean;
+    };
+    // This is the override color palette for the organization
+    appearance: {
+        overrideColorPalette?: string[];
+        overrideColorPaletteName?: string;
     };
     s3?: S3Config;
     headlessBrowser: HeadlessBrowserConfig;
@@ -290,6 +353,18 @@ export type LightdashConfig = {
         enabled: boolean;
     };
     logging: LoggingConfig;
+    ai: {
+        copilot: {
+            enabled: boolean;
+            embeddingSearchEnabled?: boolean;
+        };
+    };
+    embedding: {
+        enabled: boolean;
+    };
+    scim: {
+        enabled: boolean;
+    };
     github: {
         appName: string;
         redirectDomain: string;
@@ -333,8 +408,8 @@ type PylonConfig = {
 };
 
 export type RudderConfig = {
-    writeKey: string;
-    dataPlaneUrl: string;
+    writeKey: string | undefined;
+    dataPlaneUrl: string | undefined;
 };
 
 export type PosthogConfig = {
@@ -439,6 +514,7 @@ export type SmtpConfig = {
     port: number;
     secure: boolean;
     allowInvalidCertificate: boolean;
+    useAuth: boolean;
     auth: {
         user: string;
         pass: string | undefined;
@@ -482,26 +558,52 @@ export const parseConfig = (): LightdashConfig => {
         );
     }
 
+    const iframeAllowedDomains = getArrayFromCommaSeparatedList(
+        'LIGHTDASH_IFRAME_EMBEDDING_DOMAINS',
+    );
+    const corsAllowedDomains = getArrayFromCommaSeparatedList(
+        'LIGHTDASH_CORS_ALLOWED_DOMAINS',
+    );
+    const iframeEmbeddingEnabled = iframeAllowedDomains.length > 0;
+    const corsEnabled = process.env.LIGHTDASH_CORS_ENABLED === 'true';
+    const secureCookies = process.env.SECURE_COOKIES === 'true';
+
+    if (iframeEmbeddingEnabled && !secureCookies) {
+        throw new ParameterError(
+            'To enable iframe embedding, SECURE_COOKIES must be set to true',
+        );
+    }
+
     return {
         mode,
+        cookieSameSite: iframeEmbeddingEnabled ? 'none' : 'lax',
+        license: {
+            licenseKey: process.env.LIGHTDASH_LICENSE_KEY || null,
+        },
         security: {
             contentSecurityPolicy: {
                 reportOnly: process.env.LIGHTDASH_CSP_REPORT_ONLY !== 'false', // defaults to true
-                allowedDomains: (
-                    process.env.LIGHTDASH_CSP_ALLOWED_DOMAINS || ''
-                )
-                    .split(',')
-                    .map((domain) => domain.trim()),
+                allowedDomains: getArrayFromCommaSeparatedList(
+                    'LIGHTDASH_CSP_ALLOWED_DOMAINS',
+                ),
+                frameAncestors: iframeEmbeddingEnabled
+                    ? iframeAllowedDomains
+                    : [],
                 reportUri: process.env.LIGHTDASH_CSP_REPORT_URI,
+            },
+            crossOriginResourceSharingPolicy: {
+                enabled: corsEnabled,
+                allowedDomains: corsEnabled ? corsAllowedDomains : [],
             },
         },
         smtp: process.env.EMAIL_SMTP_HOST
             ? {
                   host: process.env.EMAIL_SMTP_HOST,
                   port: parseInt(process.env.EMAIL_SMTP_PORT || '587', 10),
-                  secure: process.env.EMAIL_SMTP_SECURE !== 'false', // default to true
+                  secure: process.env.EMAIL_SMTP_SECURE !== 'false', // defaults to true
                   allowInvalidCertificate:
                       process.env.EMAIL_SMTP_ALLOW_INVALID_CERT === 'true',
+                  useAuth: process.env.EMAIL_SMTP_USE_AUTH !== 'false', // defaults to true
                   auth: {
                       user: process.env.EMAIL_SMTP_USER || '',
                       pass: process.env.EMAIL_SMTP_PASSWORD,
@@ -526,12 +628,15 @@ export const parseConfig = (): LightdashConfig => {
             : undefined,
         rudder: {
             writeKey:
-                process.env.RUDDERSTACK_WRITE_KEY === undefined
-                    ? '1vqkSlWMVtYOl70rk3QSE0v1fqY'
-                    : process.env.RUDDERSTACK_WRITE_KEY,
+                process.env.RUDDERSTACK_ANALYTICS_DISABLED === 'true'
+                    ? undefined
+                    : process.env.RUDDERSTACK_WRITE_KEY ||
+                      '1vqkSlWMVtYOl70rk3QSE0v1fqY',
             dataPlaneUrl:
-                process.env.RUDDERSTACK_DATA_PLANE_URL ||
-                'https://analytics.lightdash.com',
+                process.env.RUDDERSTACK_ANALYTICS_DISABLED === 'true'
+                    ? undefined
+                    : process.env.RUDDERSTACK_DATA_PLANE_URL ||
+                      'https://analytics.lightdash.com',
         },
         sentry: {
             backend: {
@@ -561,7 +666,7 @@ export const parseConfig = (): LightdashConfig => {
             },
         },
         lightdashSecret,
-        secureCookies: process.env.SECURE_COOKIES === 'true',
+        secureCookies,
         cookiesMaxAgeHours: getIntegerFromEnvironmentVariable(
             'COOKIES_MAX_AGE_HOURS',
         ),
@@ -717,6 +822,10 @@ export const parseConfig = (): LightdashConfig => {
                     'LIGHTDASH_CSV_CELLS_LIMIT',
                 ) || 100000,
             timezone: process.env.LIGHTDASH_QUERY_TIMEZONE,
+            maxPageSize:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_QUERY_MAX_PAGE_SIZE',
+                ) || 2500, // Defaults to default limit * 5
         },
         chart: {
             versionHistory: {
@@ -783,7 +892,7 @@ export const parseConfig = (): LightdashConfig => {
         },
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',
-            concurrency: parseInt(process.env.SCHEDULER_CONCURRENCY || '1', 10),
+            concurrency: parseInt(process.env.SCHEDULER_CONCURRENCY || '3', 10),
             jobTimeout: process.env.SCHEDULER_JOB_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_JOB_TIMEOUT, 10)
                 : DEFAULT_JOB_TIMEOUT,
@@ -833,6 +942,19 @@ export const parseConfig = (): LightdashConfig => {
                     : parseLoggingLevel(process.env.LIGHTDASH_LOG_FILE_LEVEL),
             filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
         },
+        ai: {
+            copilot: {
+                enabled: process.env.AI_COPILOT_ENABLED === 'true',
+                embeddingSearchEnabled:
+                    process.env.AI_COPILOT_EMBEDDING_SEARCH_ENABLED === 'true',
+            },
+        },
+        embedding: {
+            enabled: process.env.EMBEDDING_ENABLED === 'true',
+        },
+        scim: {
+            enabled: process.env.SCIM_ENABLED === 'true',
+        },
         github: {
             appName: process.env.GITHUB_APP_NAME || 'lightdash-app-dev',
             redirectDomain:
@@ -843,6 +965,13 @@ export const parseConfig = (): LightdashConfig => {
             maxDownloads:
                 getIntegerFromEnvironmentVariable('MAX_DOWNLOADS_AS_CODE') ||
                 100,
+        },
+        appearance: {
+            overrideColorPalette: getHexColorsFromEnvironmentVariable(
+                process.env.OVERRIDE_COLOR_PALETTE_COLORS || undefined,
+            ),
+            // not required if overrideColorPalette is set
+            overrideColorPaletteName: process.env.OVERRIDE_COLOR_PALETTE_NAME,
         },
     };
 };

@@ -172,7 +172,16 @@ export const MetricExploreLegend: FC<MetricExploreLegendProps> = ({
                             color={item.color}
                             opacity={getOpacity(item.value)}
                         />
-                        <Tooltip label={item.value}>
+                        <Tooltip
+                            disabled={
+                                props.comparison.comparison ===
+                                MetricExplorerComparison.PREVIOUS_PERIOD
+                            }
+                            label={
+                                props.legendConfig?.[item.value]?.label ??
+                                item.value
+                            }
+                        >
                             <Text
                                 span
                                 c="dark.4"

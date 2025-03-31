@@ -1,10 +1,11 @@
 import { getItemId } from '../utils/item';
 import {
     BinType,
-    convertFieldRefToFieldId,
     CustomDimensionType,
     DimensionType,
     MetricType,
+    convertFieldRefToFieldId,
+    isFormat,
     type CustomBinDimension,
     type CustomSqlDimension,
     type TableCalculation,
@@ -101,6 +102,25 @@ describe('field util functions', () => {
                 name: 'calc2',
             };
             expect(getItemId(additionalMetric)).toEqual('table1_calc2');
+        });
+    });
+    describe('isFormat', () => {
+        it('should correctly identify valid formats', () => {
+            expect(isFormat('km')).toBe(true);
+            expect(isFormat('mi')).toBe(true);
+            expect(isFormat('usd')).toBe(true);
+            expect(isFormat('gbp')).toBe(true);
+            expect(isFormat('eur')).toBe(true);
+            expect(isFormat('jpy')).toBe(true);
+            expect(isFormat('dkk')).toBe(true);
+            expect(isFormat('id')).toBe(true);
+            expect(isFormat('percent')).toBe(true);
+        });
+
+        it('should return false for invalid formats', () => {
+            expect(isFormat('invalid')).toBe(false);
+            expect(isFormat(undefined)).toBe(false);
+            expect(isFormat('')).toBe(false);
         });
     });
 });

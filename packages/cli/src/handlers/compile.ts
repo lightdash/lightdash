@@ -2,7 +2,9 @@ import {
     attachTypesToModels,
     convertExplores,
     DbtManifestVersion,
+    getCompiledModels,
     getDbtManifestVersion,
+    getModelsFromManifest,
     getSchemaStructureFromDbtModels,
     isExploreError,
     isSupportedDbtAdapter,
@@ -14,15 +16,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
 import { loadManifest } from '../dbt/manifest';
-import { getModelsFromManifest } from '../dbt/models';
 import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
+import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import * as styles from '../styles';
-import {
-    DbtCompileOptions,
-    getCompiledModels,
-    maybeCompileModelsAndJoins,
-} from './dbt/compile';
+import { DbtCompileOptions, maybeCompileModelsAndJoins } from './dbt/compile';
 import { getDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
 
@@ -38,7 +36,7 @@ export type CompileHandlerOptions = DbtCompileOptions & {
 
 export const compile = async (options: CompileHandlerOptions) => {
     const dbtVersion = await getDbtVersion();
-    GlobalState.debug(`> dbt version ${dbtVersion}`);
+    GlobalState.debug(`> dbt version ${dbtVersion.verboseVersion}`);
     const executionId = uuidv4();
     await LightdashAnalytics.track({
         event: 'compile.started',
@@ -69,7 +67,6 @@ export const compile = async (options: CompileHandlerOptions) => {
             { targetDir: context.targetDir },
             options,
         );
-
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const manifestVersion = getDbtManifestVersion(manifest);
     const manifestModels = getModelsFromManifest(manifest);
@@ -127,6 +124,17 @@ ${errors.join('')}`),
     GlobalState.debug(
         `> Converting explores with adapter: ${manifest.metadata.adapter_type}`,
     );
+
+    GlobalState.debug(
+        `> Loading lightdash project config from ${absoluteProjectPath}`,
+    );
+
+    const lightdashProjectConfig = await readAndLoadLightdashProjectConfig(
+        absoluteProjectPath,
+    );
+
+    GlobalState.debug(`> Loaded lightdash project config`);
+
     const validExplores = await convertExplores(
         validModelsWithTypes,
         false,
@@ -139,6 +147,7 @@ ${errors.join('')}`),
             ? []
             : Object.values(manifest.metrics),
         warehouseClient,
+        lightdashProjectConfig,
     );
     console.error('');
 

@@ -30,7 +30,7 @@ export const barChartConfigSlice = createSlice({
         builder.addCase(prepareAndFetchChartData.rejected, (state, action) => {
             state.chartDataLoading = false;
             state.chartData = undefined;
-            state.chartDataError = new Error(action.error.message);
+            state.chartDataError = action.error;
         });
         builder.addCase(setChartOptionsAndConfig, (state, action) => {
             if (action.payload.type !== ChartKind.VERTICAL_BAR) {

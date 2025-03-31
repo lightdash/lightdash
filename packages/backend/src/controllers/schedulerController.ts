@@ -1,4 +1,5 @@
 import {
+    AnyType,
     ApiErrorPayload,
     ApiJobStatusResponse,
     ApiScheduledJobsResponse,
@@ -95,7 +96,7 @@ export class SchedulerController extends BaseController {
     async patch(
         @Path() schedulerUuid: string,
         @Request() req: express.Request,
-        @Body() body: any, // TODO: It should be UpdateSchedulerAndTargetsWithoutId but tsoa returns an error
+        @Body() body: AnyType, // TODO: It should be UpdateSchedulerAndTargetsWithoutId but tsoa returns an error
     ): Promise<ApiSchedulerAndTargetsResponse> {
         this.setStatus(200);
         return {
@@ -203,7 +204,7 @@ export class SchedulerController extends BaseController {
         this.setStatus(200);
         const { status, details } = await this.services
             .getSchedulerService()
-            .getJobStatus(jobId);
+            .getJobStatus(req.user!, jobId);
         return {
             status: 'ok',
             results: {
@@ -228,7 +229,7 @@ export class SchedulerController extends BaseController {
     @OperationId('sendScheduler')
     async post(
         @Request() req: express.Request,
-        @Body() body: any, // TODO: It should be CreateSchedulerAndTargets but tsoa returns an error
+        @Body() body: AnyType, // TODO: It should be CreateSchedulerAndTargets but tsoa returns an error
     ): Promise<ApiTestSchedulerResponse> {
         this.setStatus(200);
 

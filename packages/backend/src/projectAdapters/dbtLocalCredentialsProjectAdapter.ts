@@ -7,6 +7,7 @@ import { WarehouseClient } from '@lightdash/warehouses';
 import fs, { writeFileSync } from 'fs';
 import * as fspromises from 'fs/promises';
 import * as path from 'path';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import {
     LIGHTDASH_PROFILE_NAME,
     LIGHTDASH_TARGET_NAME,
@@ -25,6 +26,8 @@ type DbtLocalCredentialsProjectAdapterArgs = {
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
     useDbtLs: boolean;
+    selector?: string;
+    analytics?: LightdashAnalytics;
 };
 
 export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
@@ -39,6 +42,8 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         cachedWarehouse,
         dbtVersion,
         useDbtLs,
+        selector,
+        analytics,
     }: DbtLocalCredentialsProjectAdapterArgs) {
         const profilesDir = fs.mkdtempSync('/tmp/local_');
         const profilesFilename = path.join(profilesDir, 'profiles.yml');
@@ -79,6 +84,8 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             cachedWarehouse,
             dbtVersion,
             useDbtLs,
+            selector,
+            analytics,
         });
         this.profilesDir = profilesDir;
     }

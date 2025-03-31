@@ -1,26 +1,28 @@
 import {
-    applyCustomFormat,
     ComparisonDiffTypes,
     ComparisonFormatTypes,
     CustomFormatType,
+    applyCustomFormat,
     formatItemValue,
+    formatValueWithExpression,
     friendlyName,
     getCustomFormatFromLegacy,
     getItemId,
     getItemLabel,
     hasFormatOptions,
+    hasValidFormatExpression,
     isField,
     isMetric,
     isNumericItem,
     isTableCalculation,
     valueIsNaN,
-    type ApiQueryResults,
     type BigNumber,
     type CompactOrAlias,
     type ItemsMap,
     type TableCalculationMetadata,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type InfiniteQueryResults } from './useQueryResults';
 
 export const calculateComparisonValue = (
     a: number,
@@ -111,7 +113,7 @@ const getItemPriority = (item: ItemsMap[string]): number => {
 
 const useBigNumberConfig = (
     bigNumberConfigData: BigNumber | undefined,
-    resultsData: ApiQueryResults | undefined,
+    resultsData: InfiniteQueryResults | undefined,
     itemsMap: ItemsMap | undefined,
     tableCalculationsMetadata?: TableCalculationMetadata[],
 ) => {
@@ -252,6 +254,8 @@ const useBigNumberConfig = (
             );
         } else if (item !== undefined && isTableCalculation(item)) {
             return formatItemValue(item, firstRowValueRaw);
+        } else if (item !== undefined && hasValidFormatExpression(item)) {
+            return formatValueWithExpression(item.format, firstRowValueRaw);
         } else if (item !== undefined && hasFormatOptions(item)) {
             // Custom metrics case
 

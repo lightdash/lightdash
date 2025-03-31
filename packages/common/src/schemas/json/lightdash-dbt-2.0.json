@@ -139,16 +139,7 @@
                                                 "minimum": 0
                                             },
                                             "format": {
-                                                "type": "string",
-                                                "enum": [
-                                                    "km",
-                                                    "mi",
-                                                    "usd",
-                                                    "gbp",
-                                                    "eur",
-                                                    "percent",
-                                                    "id"
-                                                ]
+                                                "type": "string"
                                             },
                                             "percentile": {
                                                 "type": "number"
@@ -185,6 +176,35 @@
                                                     "field",
                                                     "interval"
                                                 ]
+                                            },
+                                            "spotlight": {
+                                                "type": "object",
+                                                "description": "Set the visibility and/or categories of a metric in Spotlight",
+                                                "properties": {
+                                                    "visibility": {
+                                                        "type": "string",
+                                                        "enum": ["show", "hide"]
+                                                    },
+                                                    "categories": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "description": "An array of categories for the metric in Spotlight"
+                                                    }
+                                                },
+                                                "anyOf": [
+                                                    {
+                                                        "required": [
+                                                            "visibility"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "required": [
+                                                            "categories"
+                                                        ]
+                                                    }
+                                                ]
                                             }
                                         },
                                         "required": ["type", "sql"]
@@ -211,6 +231,27 @@
                                     }
                                 },
                                 "required": ["field", "interval"]
+                            },
+                            "spotlight": {
+                                "type": "object",
+                                "description": "Set the visibility and/or categories of a metric in Spotlight",
+                                "properties": {
+                                    "visibility": {
+                                        "type": "string",
+                                        "enum": ["show", "hide"]
+                                    },
+                                    "categories": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "description": "An optional array of categories for all metrics in this model in Spotlight"
+                                    }
+                                },
+                                "anyOf": [
+                                    { "required": ["visibility"] },
+                                    { "required": ["categories"] }
+                                ]
                             }
                         }
                     },
@@ -306,16 +347,7 @@
                                                             "minimum": 0
                                                         },
                                                         "format": {
-                                                            "type": "string",
-                                                            "enum": [
-                                                                "km",
-                                                                "mi",
-                                                                "usd",
-                                                                "gbp",
-                                                                "eur",
-                                                                "percent",
-                                                                "id"
-                                                            ]
+                                                            "type": "string"
                                                         },
                                                         "percentile": {
                                                             "type": "number"
@@ -351,6 +383,38 @@
                                                             "required": [
                                                                 "field",
                                                                 "interval"
+                                                            ]
+                                                        },
+                                                        "spotlight": {
+                                                            "type": "object",
+                                                            "description": "Set the visibility and/or categories of a metric in Spotlight",
+                                                            "properties": {
+                                                                "visibility": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "show",
+                                                                        "hide"
+                                                                    ]
+                                                                },
+                                                                "categories": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "description": "An array of categories for the metric in Spotlight"
+                                                                }
+                                                            },
+                                                            "anyOf": [
+                                                                {
+                                                                    "required": [
+                                                                        "visibility"
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "required": [
+                                                                        "categories"
+                                                                    ]
+                                                                }
                                                             ]
                                                         }
                                                     },
@@ -391,16 +455,7 @@
                                                     "minimum": 0
                                                 },
                                                 "format": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "km",
-                                                        "mi",
-                                                        "usd",
-                                                        "gbp",
-                                                        "eur",
-                                                        "percent",
-                                                        "id"
-                                                    ]
+                                                    "type": "string"
                                                 },
                                                 "time_intervals": {
                                                     "anyOf": [
@@ -591,16 +646,7 @@
                                 "minimum": 0
                             },
                             "format": {
-                                "type": "string",
-                                "enum": [
-                                    "km",
-                                    "mi",
-                                    "usd",
-                                    "gbp",
-                                    "eur",
-                                    "percent",
-                                    "id"
-                                ]
+                                "type": "string"
                             },
                             "default_time_dimension": {
                                 "type": "object",
@@ -622,6 +668,27 @@
                                     }
                                 },
                                 "required": ["field", "interval"]
+                            },
+                            "spotlight": {
+                                "type": "object",
+                                "description": "Set the visibility and/or categories of a metric in Spotlight",
+                                "properties": {
+                                    "visibility": {
+                                        "type": "string",
+                                        "enum": ["show", "hide"]
+                                    },
+                                    "categories": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "description": "An array of categories for the metric in Spotlight"
+                                    }
+                                },
+                                "anyOf": [
+                                    { "required": ["visibility"] },
+                                    { "required": ["categories"] }
+                                ]
                             }
                         }
                     }
@@ -679,5 +746,5 @@
         }
     },
     "additionalProperties": false,
-    "required": ["version"]
+    "required": []
 }
