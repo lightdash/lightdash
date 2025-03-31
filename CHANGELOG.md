@@ -1,3 +1,10 @@
+# [0.1556.0](https://github.com/lightdash/lightdash/compare/0.1555.0...0.1556.0) (2025-03-31)
+
+
+### Features
+
+* allow toggling explorer cards (CollapsableCard) by clicking headings ([#13276](https://github.com/lightdash/lightdash/issues/13276)) ([d6fd219](https://github.com/lightdash/lightdash/commit/d6fd2191728a9e520bd8da4fbcce2a9ac70946e3))
+
 # [0.1555.0](https://github.com/lightdash/lightdash/compare/0.1554.0...0.1555.0) (2025-03-31)
 
 
