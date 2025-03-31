@@ -83,7 +83,7 @@ export const SqlForm: FC<Props> = ({
 
     return (
         <>
-            <ScrollArea h={isFullScreen ? '95%' : '150px'}>
+            <ScrollArea h={isFullScreen ? '90%' : '150px'}>
                 <SqlEditor
                     mode="sql"
                     theme="github"
@@ -114,7 +114,6 @@ export const SqlForm: FC<Props> = ({
             </ScrollArea>
 
             <Alert
-                p="xs"
                 radius={0}
                 icon={<MantineIcon icon={IconSparkles} />}
                 title={
@@ -131,6 +130,14 @@ export const SqlForm: FC<Props> = ({
                 }
                 color="violet"
                 styles={{
+                    root: {
+                        paddingBottom: isFullScreen
+                            ? theme.spacing.xs
+                            : theme.spacing.sm,
+                        paddingTop: isFullScreen
+                            ? theme.spacing.xs
+                            : theme.spacing.sm,
+                    },
                     wrapper: {
                         alignItems: 'center',
                     },
