@@ -18,6 +18,30 @@ export type Space = {
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
     slug: string;
+    testing?: {
+        inheritedAccess: {
+            email: string;
+            first_name: string;
+            last_name: string;
+            space_uuid: string;
+            user_uuid: string;
+            organization_role: OrganizationMemberRole;
+            project_role: ProjectMemberRole;
+        }[];
+        groupAccess: {
+            group_name: string;
+            space_role: SpaceMemberRole;
+            space_uuid: string;
+        }[];
+        userAccess: {
+            email: string;
+            first_name: string;
+            last_name: string;
+            space_uuid: string;
+            user_uuid: string;
+            space_role: SpaceMemberRole;
+        }[];
+    };
 };
 
 export type SpaceSummary = Pick<
