@@ -23,9 +23,9 @@ const GeneralSettings: FC = () => {
     } = useVisualizationContext();
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const { showToastError } = useToaster();
-    const {
-        metricQuery: { dimensions },
-    } = resultsData || { metricQuery: { dimensions: [] as string[] } };
+    const { dimensions } = resultsData?.metricQuery || {
+        dimensions: [] as string[],
+    };
 
     const isTableConfig = isTableVisualizationConfig(visualizationConfig);
 

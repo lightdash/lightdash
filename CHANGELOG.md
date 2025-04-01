@@ -1,3 +1,123 @@
+## [0.1558.1](https://github.com/lightdash/lightdash/compare/0.1558.0...0.1558.1) (2025-03-31)
+
+
+### Bug Fixes
+
+* enable useDashboardChart regardless of feature flag value, the check is done internally ([#14224](https://github.com/lightdash/lightdash/issues/14224)) ([1fb852f](https://github.com/lightdash/lightdash/commit/1fb852f20b7decf5b961a13fb373a5c6ca359d6b))
+
+# [0.1558.0](https://github.com/lightdash/lightdash/compare/0.1557.1...0.1558.0) (2025-03-31)
+
+
+### Features
+
+* allow expanding Custom SQL modal ([#14220](https://github.com/lightdash/lightdash/issues/14220)) ([59356e1](https://github.com/lightdash/lightdash/commit/59356e1401716bff2dd85bcddde34690feb54beb))
+
+## [0.1557.1](https://github.com/lightdash/lightdash/compare/0.1557.0...0.1557.1) (2025-03-31)
+
+
+### Bug Fixes
+
+* **frontend, common:** used lodash `isNil` method to check filter value. ([#13484](https://github.com/lightdash/lightdash/issues/13484)) ([c2b021a](https://github.com/lightdash/lightdash/commit/c2b021a9fdf982142b53b79f226cd5d72e789919))
+
+# [0.1557.0](https://github.com/lightdash/lightdash/compare/0.1556.0...0.1557.0) (2025-03-31)
+
+
+### Features
+
+* add support for HEXA color format with alpha channel ([#14048](https://github.com/lightdash/lightdash/issues/14048)) ([a6a777a](https://github.com/lightdash/lightdash/commit/a6a777abf8770037d7a65d3c762066b09e839fd1))
+
+# [0.1556.0](https://github.com/lightdash/lightdash/compare/0.1555.0...0.1556.0) (2025-03-31)
+
+
+### Features
+
+* allow toggling explorer cards (CollapsableCard) by clicking headings ([#13276](https://github.com/lightdash/lightdash/issues/13276)) ([d6fd219](https://github.com/lightdash/lightdash/commit/d6fd2191728a9e520bd8da4fbcce2a9ac70946e3))
+
+# [0.1555.0](https://github.com/lightdash/lightdash/compare/0.1554.0...0.1555.0) (2025-03-31)
+
+
+### Features
+
+* lazy load explore visualization ([#14166](https://github.com/lightdash/lightdash/issues/14166)) ([beafa12](https://github.com/lightdash/lightdash/commit/beafa12faa16ffad479a57400bfb6358ce7111af))
+
+# [0.1554.0](https://github.com/lightdash/lightdash/compare/0.1553.0...0.1554.0) (2025-03-31)
+
+
+### Features
+
+* ability to reset all Dashboard saved filters ([#14139](https://github.com/lightdash/lightdash/issues/14139)) ([49d91ea](https://github.com/lightdash/lightdash/commit/49d91ea216199f0168b8cbe45840f17ccddf32ae))
+
+# [0.1553.0](https://github.com/lightdash/lightdash/compare/0.1552.13...0.1553.0) (2025-03-31)
+
+
+### Features
+
+* allow exporting a dashboard tab ([#14167](https://github.com/lightdash/lightdash/issues/14167)) ([d3bae47](https://github.com/lightdash/lightdash/commit/d3bae473d27c3ec88dcdd8ea27d9e49ec2117496))
+
+## [0.1552.13](https://github.com/lightdash/lightdash/compare/0.1552.12...0.1552.13) (2025-03-31)
+
+
+### Bug Fixes
+
+* use only valid pivot dimensions when computing chart series ([#14207](https://github.com/lightdash/lightdash/issues/14207)) ([30804bd](https://github.com/lightdash/lightdash/commit/30804bd6b127a631762318ea4c034ec3fb2ea37a))
+
+## [0.1552.12](https://github.com/lightdash/lightdash/compare/0.1552.11...0.1552.12) (2025-03-28)
+
+
+### Bug Fixes
+
+* unmount dashboard if uuid changes ([#14211](https://github.com/lightdash/lightdash/issues/14211)) ([861de91](https://github.com/lightdash/lightdash/commit/861de911f2ce1c65dc30ad1865d6a23591a036f2))
+
+## [0.1552.11](https://github.com/lightdash/lightdash/compare/0.1552.10...0.1552.11) (2025-03-28)
+
+
+### Bug Fixes
+
+* Revert "fix: simplify color on pivots, unify logic with pie charts ([#14152](https://github.com/lightdash/lightdash/issues/14152))" ([#14213](https://github.com/lightdash/lightdash/issues/14213)) ([f099a28](https://github.com/lightdash/lightdash/commit/f099a28e96d55c579ede751419fd940d8a080d73))
+
+## [0.1552.10](https://github.com/lightdash/lightdash/compare/0.1552.9...0.1552.10) (2025-03-28)
+
+
+### Bug Fixes
+
+* make query history error column text type ([#14210](https://github.com/lightdash/lightdash/issues/14210)) ([172d1aa](https://github.com/lightdash/lightdash/commit/172d1aaa9aec9f36406c74369016ccc1fd4646cd))
+
+## [0.1552.9](https://github.com/lightdash/lightdash/compare/0.1552.8...0.1552.9) (2025-03-28)
+
+
+### Bug Fixes
+
+* snowflake auth cli ([#14208](https://github.com/lightdash/lightdash/issues/14208)) ([65f5906](https://github.com/lightdash/lightdash/commit/65f5906e36def8830e0257e1126e5d17fb75bc05))
+
+## [0.1552.8](https://github.com/lightdash/lightdash/compare/0.1552.7...0.1552.8) (2025-03-28)
+
+
+### Bug Fixes
+
+* simplify color on pivots, unify logic with pie charts ([#14152](https://github.com/lightdash/lightdash/issues/14152)) ([145254f](https://github.com/lightdash/lightdash/commit/145254f48278d2f37c070fca5b1577aa5283d8d7))
+
+## [0.1552.7](https://github.com/lightdash/lightdash/compare/0.1552.6...0.1552.7) (2025-03-28)
+
+
+### Bug Fixes
+
+* fix snowflake password and encryption override ([#14204](https://github.com/lightdash/lightdash/issues/14204)) ([a935104](https://github.com/lightdash/lightdash/commit/a9351044ed9c79560a258d8a8d86969b78808210))
+
+## [0.1552.6](https://github.com/lightdash/lightdash/compare/0.1552.5...0.1552.6) (2025-03-28)
+
+
+### Bug Fixes
+
+* batch copy content for preview ([#14200](https://github.com/lightdash/lightdash/issues/14200)) ([8b656f6](https://github.com/lightdash/lightdash/commit/8b656f64e88f49757c1ed7fd57546fe0848fbe19))
+* invisible colors embed dashboard ([#14201](https://github.com/lightdash/lightdash/issues/14201)) ([fccb132](https://github.com/lightdash/lightdash/commit/fccb13299bafc414bce003a44ab6f281173836ff))
+
+## [0.1552.5](https://github.com/lightdash/lightdash/compare/0.1552.4...0.1552.5) (2025-03-28)
+
+
+### Bug Fixes
+
+* default password snowflake ([#14188](https://github.com/lightdash/lightdash/issues/14188)) ([168b4ba](https://github.com/lightdash/lightdash/commit/168b4ba2fe5bb6a4a619ba3c24d3422945ae9733))
+
 ## [0.1552.4](https://github.com/lightdash/lightdash/compare/0.1552.3...0.1552.4) (2025-03-25)
 
 

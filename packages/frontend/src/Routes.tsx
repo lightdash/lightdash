@@ -1,6 +1,6 @@
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
-import { Navigate, Outlet, type RouteObject } from 'react-router';
+import { Navigate, Outlet, useParams, type RouteObject } from 'react-router';
 import AppRoute from './components/AppRoute';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import JobDetailsDrawer from './components/JobDetailsDrawer';
@@ -45,11 +45,13 @@ import { TrackPage } from './providers/Tracking/TrackingProvider';
 import { PageName } from './types/Events';
 
 const DashboardPageWrapper: FC = () => {
+    const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
+
     return (
         <>
             <NavBar />
             <TrackPage name={PageName.DASHBOARD}>
-                <Dashboard />
+                <Dashboard key={dashboardUuid} />
             </TrackPage>
         </>
     );

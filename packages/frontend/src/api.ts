@@ -2,6 +2,7 @@ import {
     LightdashRequestMethodHeader,
     LightdashVersionHeader,
     RequestMethod,
+    type AnyType,
     type ApiError,
     type ApiResponse,
 } from '@lightdash/common';
@@ -51,6 +52,9 @@ type LightdashApiProps = {
     version?: 'v1' | 'v2';
 };
 
+const MAX_NETWORK_HISTORY = 10;
+export let networkHistory: AnyType[] = [];
+
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
     url,
@@ -99,7 +103,17 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             }
             return r;
         })
-        .then((r) => r.json())
+        .then(async (r) => {
+            const js = await r.json();
+            networkHistory.push({
+                method,
+                url,
+                body,
+                status: r.status,
+                json: JSON.stringify(js).substring(0, 500),
+            });
+            return js;
+        })
         .then((d: ApiResponse | ApiError) => {
             switch (d.status) {
                 case 'ok':
@@ -113,6 +127,17 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             }
         })
         .catch((err) => {
+            // TODO do not capture some requests, like passwords or sensitive data
+            networkHistory.push({
+                method,
+                status: err.status,
+                url,
+                body,
+                error: JSON.stringify(err).substring(0, 500),
+            });
+            // only store last MAX_NETWORK_HISTORY requests
+            if (networkHistory.length > MAX_NETWORK_HISTORY)
+                networkHistory.shift();
             throw handleError(err);
         });
 };
