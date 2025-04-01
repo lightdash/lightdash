@@ -125,6 +125,10 @@ export class S3Client {
         return this.uploadFile(`${id}.pdf`, pdf, 'application/pdf');
     }
 
+    async uploadTxt(txt: Buffer, id: string): Promise<string> {
+        return this.uploadFile(`${id}.txt`, txt, 'text/plain');
+    }
+
     async uploadImage(image: Buffer, imageId: string): Promise<string> {
         return this.uploadFile(`${imageId}.png`, image, 'image/png');
     }

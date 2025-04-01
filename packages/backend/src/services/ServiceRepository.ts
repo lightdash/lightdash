@@ -88,6 +88,7 @@ interface ServiceManifest {
     embedService: unknown;
     aiService: unknown;
     scimService: unknown;
+    supportService: unknown;
 }
 
 /**
@@ -788,6 +789,10 @@ export class ServiceRepository
 
     public getScimService<ScimServiceImplT>(): ScimServiceImplT {
         return this.getService('scimService');
+    }
+
+    public getSupportService<SupportServiceImptT>(): SupportServiceImptT {
+        return this.getService('supportService');
     }
 
     public getSpotlightService(): SpotlightService {

@@ -16,4 +16,5 @@ export type NotificationData = Omit<
     };
     apiError?: ApiErrorDetail;
     messageKey?: string;
+    isError?: boolean;
 };

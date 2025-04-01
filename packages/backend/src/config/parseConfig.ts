@@ -383,6 +383,7 @@ export type SlackConfig = {
     port: number;
     socketMode?: boolean;
     channelsCachedTime: number;
+    supportUrl: string;
 };
 export type HeadlessBrowserConfig = {
     host?: string;
@@ -889,6 +890,7 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.SLACK_CHANNELS_CACHED_TIME || '600000',
                 10,
             ), // 10 minutes
+            supportUrl: process.env.SLACK_SUPPORT_URL || '',
         },
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',

@@ -185,7 +185,7 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
                 ? queryKey.concat([granularity])
                 : queryKey,
         queryFn: fetchChartAndResults,
-        enabled: !!chartUuid && !!dashboardUuid && !!queryPaginationEnabled,
+        enabled: !!chartUuid && !!dashboardUuid,
         retry: false,
         refetchOnMount: false,
     });
