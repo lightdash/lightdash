@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
+    DbtProjectTypeLabels,
     ProjectType,
     type ApiError,
     type DbtProjectEnvironmentVariable,
@@ -471,11 +472,17 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                             </>
                         ) : (
                             <Text color="gray.6">
-                                This project "
-                                {projectDetails?.dbtConnection?.type}" will copy
-                                the same connection details as the parent
-                                project. To change the branch of the source
-                                code, switch to Github connection.{' '}
+                                This{' '}
+                                <Text span weight={600}>
+                                    {projectDetails?.dbtConnection?.type
+                                        ? DbtProjectTypeLabels[
+                                              projectDetails.dbtConnection.type
+                                          ]
+                                        : 'unknown'}
+                                </Text>{' '}
+                                project will copy the same connection details as
+                                the parent project. To change the branch of the
+                                source code, switch to Github connection.{' '}
                             </Text>
                         )}
                     </Stack>
