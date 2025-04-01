@@ -482,7 +482,14 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                 </Text>{' '}
                                 project will copy the same connection details as
                                 the parent project. To change the branch of the
-                                source code, switch to Github connection.{' '}
+                                source code, switch to Github connection on{' '}
+                                <Anchor
+                                    target="_blank"
+                                    href={`/generalSettings/projectManagement/${selectedProjectUuid}/settings`}
+                                >
+                                    project settings
+                                </Anchor>{' '}
+                                .
                             </Text>
                         )}
                     </Stack>
