@@ -135,7 +135,6 @@ export const getDateCalcUtils = (timeFrame: TimeFrames, grain?: TimeFrames) => {
                 back: (date: Date) => dayjs(date).subtract(1, 'year').toDate(),
             };
         case TimeFrames.DAY:
-            throw new Error(`Timeframe "${timeFrame}" is not supported yet`);
         case TimeFrames.WEEK:
             throw new Error(`Timeframe "${timeFrame}" is not supported yet`);
         default:
