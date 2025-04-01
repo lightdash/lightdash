@@ -133,6 +133,17 @@ export const getDateCalcUtils = (timeFrame: TimeFrames, grain?: TimeFrames) => {
                 back: (date: Date) => dayjs(date).subtract(1, 'year').toDate(),
             };
         case TimeFrames.DAY:
+            if (grain === TimeFrames.MONTH) {
+                return {
+                    forward: (date: Date) =>
+                        dayjs(date).add(1, 'month').toDate(),
+                    back: (date: Date) =>
+                        dayjs(date).subtract(1, 'month').toDate(),
+                };
+            }
+            throw new Error(
+                `Timeframe "${timeFrame}" with grain ${grain} is not supported yet`,
+            );
         case TimeFrames.WEEK:
             throw new Error(`Timeframe "${timeFrame}" is not supported yet`);
         default:
@@ -444,9 +455,10 @@ export const getDefaultMetricTreeNodeDateRange = (
 
     switch (timeFrame) {
         case TimeFrames.DAY:
+            // Current month to date
             return [
-                now.startOf('day').subtract(1, 'day').toDate(),
-                now.endOf('day').subtract(1, 'day').toDate(),
+                now.startOf('day').startOf('month').toDate(),
+                now.endOf('day').toDate(),
             ];
         case TimeFrames.WEEK:
             return [now.startOf('isoWeek').toDate(), now.toDate()];

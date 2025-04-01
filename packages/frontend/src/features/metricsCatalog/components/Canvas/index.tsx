@@ -1,6 +1,6 @@
 import Dagre from '@dagrejs/dagre';
 import {
-    DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
+    TimeFrames,
     type CatalogField,
     type CatalogMetricsTreeEdge,
 } from '@lightdash/common';
@@ -84,7 +84,7 @@ enum STATIC_NODE_TYPES {
     UNCONNECTED = 'UNCONNECTED',
 }
 
-const DEFAULT_TIME_FRAME = DEFAULT_METRICS_EXPLORER_TIME_INTERVAL; // TODO: this should be dynamic
+const DEFAULT_TIME_FRAME = TimeFrames.DAY; // TODO: this should be dynamic
 
 type MetricTreeNode = ExpandedNodeData | CollapsedNodeData | FreeGroupNodeData;
 

@@ -649,9 +649,12 @@ export class MetricsExplorerService<
         let compareDateRange: MetricExplorerDateRange | undefined;
 
         if (comparisonType === MetricTotalComparisonType.PREVIOUS_PERIOD) {
+            const grain =
+                timeFrame === TimeFrames.DAY ? TimeFrames.MONTH : undefined;
+
             compareDateRange = [
-                getDateCalcUtils(timeFrame).back(dateRange[0]),
-                getDateCalcUtils(timeFrame).back(dateRange[1]),
+                getDateCalcUtils(timeFrame, grain).back(dateRange[0]),
+                getDateCalcUtils(timeFrame, grain).back(dateRange[1]),
             ];
 
             const compareMetricQuery = {

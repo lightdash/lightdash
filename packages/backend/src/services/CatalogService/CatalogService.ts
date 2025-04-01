@@ -1029,7 +1029,7 @@ export class CatalogService<
                     | undefined;
 
                 // If no default time dimension is defined, we can use the available time dimensions so the user can see what time dimensions are available
-                if (!defaultTimeDimension) {
+                if (!defaultTimeDimension || timeIntervalOverride) {
                     availableTimeDimensions =
                         getAvailableTimeDimensionsFromTables(tables);
                 }
@@ -1038,7 +1038,7 @@ export class CatalogService<
                     | MetricWithAssociatedTimeDimension['timeDimension']
                     | undefined;
 
-                if (defaultTimeDimension) {
+                if (defaultTimeDimension && !timeIntervalOverride) {
                     timeDimension = {
                         field: defaultTimeDimension.field,
                         interval: defaultTimeDimension.interval,
