@@ -1,3 +1,10 @@
+# [0.1559.0](https://github.com/lightdash/lightdash/compare/0.1558.1...0.1559.0) (2025-04-01)
+
+
+### Features
+
+* include row totals on pivot csv ([#14216](https://github.com/lightdash/lightdash/issues/14216)) ([0b48e73](https://github.com/lightdash/lightdash/commit/0b48e7356e664606feccf52b33a2af8df8872d31))
+
 ## [0.1558.1](https://github.com/lightdash/lightdash/compare/0.1558.0...0.1558.1) (2025-03-31)
 
 
