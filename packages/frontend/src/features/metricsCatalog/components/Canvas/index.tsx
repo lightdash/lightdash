@@ -84,7 +84,7 @@ enum STATIC_NODE_TYPES {
     UNCONNECTED = 'UNCONNECTED',
 }
 
-const DEFAULT_TIME_FRAME = TimeFrames.DAY; // TODO: this should be dynamic
+const DEFAULT_TIME_FRAME = TimeFrames.MONTH; // TODO: this should be dynamic
 
 type MetricTreeNode = ExpandedNodeData | CollapsedNodeData | FreeGroupNodeData;
 

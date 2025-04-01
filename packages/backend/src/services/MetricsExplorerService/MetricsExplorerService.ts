@@ -566,6 +566,7 @@ export class MetricsExplorerService<
         exploreName: string,
         metricName: string,
         timeFrame: TimeFrames,
+        granularity: TimeFrames,
         startDate: string,
         endDate: string,
         comparisonType: MetricTotalComparisonType = MetricTotalComparisonType.NONE,
@@ -578,6 +579,7 @@ export class MetricsExplorerService<
                     exploreName,
                     metricName,
                     timeFrame,
+                    granularity,
                     startDate,
                     endDate,
                     comparisonType,
@@ -599,6 +601,7 @@ export class MetricsExplorerService<
         exploreName: string,
         metricName: string,
         timeFrame: TimeFrames,
+        granularity: TimeFrames,
         startDate: string,
         endDate: string,
         comparisonType: MetricTotalComparisonType = MetricTotalComparisonType.NONE,
@@ -608,7 +611,7 @@ export class MetricsExplorerService<
             projectUuid,
             exploreName,
             metricName,
-            timeFrame,
+            granularity,
         );
 
         if (!metric.timeDimension) {
@@ -649,12 +652,9 @@ export class MetricsExplorerService<
         let compareDateRange: MetricExplorerDateRange | undefined;
 
         if (comparisonType === MetricTotalComparisonType.PREVIOUS_PERIOD) {
-            const grain =
-                timeFrame === TimeFrames.DAY ? TimeFrames.MONTH : undefined;
-
             compareDateRange = [
-                getDateCalcUtils(timeFrame, grain).back(dateRange[0]),
-                getDateCalcUtils(timeFrame, grain).back(dateRange[1]),
+                getDateCalcUtils(timeFrame, granularity).back(dateRange[0]),
+                getDateCalcUtils(timeFrame, granularity).back(dateRange[1]),
             ];
 
             const compareMetricQuery = {
