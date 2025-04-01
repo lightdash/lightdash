@@ -1,3 +1,11 @@
+## [0.1559.1](https://github.com/lightdash/lightdash/compare/0.1559.0...0.1559.1) (2025-04-01)
+
+
+### Bug Fixes
+
+* add job id to key when getting gsheets job results ([#14240](https://github.com/lightdash/lightdash/issues/14240)) ([58cb3c4](https://github.com/lightdash/lightdash/commit/58cb3c4cd526e9d9951705d94ccde743fb2f139a))
+* Spotlight canvas nodes comparing to previous month incorrectly ([#14230](https://github.com/lightdash/lightdash/issues/14230)) ([d28cc2f](https://github.com/lightdash/lightdash/commit/d28cc2f71410bb43702a8d7c53fee1aa782801c4))
+
 # [0.1559.0](https://github.com/lightdash/lightdash/compare/0.1558.1...0.1559.0) (2025-04-01)
 
 
