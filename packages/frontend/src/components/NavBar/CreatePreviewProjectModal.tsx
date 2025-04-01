@@ -43,6 +43,7 @@ import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import DocumentationHelpButton from '../DocumentationHelpButton';
+import FormCollapseButton from '../ProjectConnection/FormCollapseButton';
 
 const getProjectGitBranches = async (projectUuid: string) =>
     lightdashApi<string[]>({
@@ -199,6 +200,7 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
     const { mutateAsync: createPreviewProject, isLoading: isPreviewCreating } =
         useCreatePreviewMutation();
 
+    const [isOpen, setIsOpen] = useState(false);
     const [selectedProjectUuid, setSelectedProjectUuid] = useState<string>();
     const [previewName, setPreviewName] = useState('');
     const [selectedBranch, setSelectedBranch] = useState<string>();
@@ -399,47 +401,70 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                 </Tooltip>
                             }
                         />
-                        <Select
-                            withinPortal
-                            label="Branch"
-                            placeholder="Select branch"
-                            searchable
-                            value={selectedBranch}
-                            readOnly={isPreviewCreating}
-                            disabled={
-                                branches.isSuccess &&
-                                (!branches.data || branches.data.length <= 0)
-                            }
-                            data={branches.data ?? []}
-                            onChange={(value) => {
-                                setSelectedBranch(value ?? undefined);
-                            }}
-                            rightSection={
-                                branches.isFetching && (
-                                    <Loader size="xs" color="gray" />
-                                )
-                            }
-                        />
-                        {/* only show if branch changed + change label based on warehouse type? + get value from dbt cloud api */}
-                        <TextInput
-                            label="Schema/Dataset"
-                            placeholder="Enter schema/dataset"
-                            value={schema}
-                            disabled={isPreviewCreating}
+                        {branches.data && (
+                            <>
+                                <Select
+                                    withinPortal
+                                    label="Branch"
+                                    placeholder="Select branch"
+                                    searchable
+                                    value={selectedBranch}
+                                    readOnly={isPreviewCreating}
+                                    disabled={
+                                        branches.isSuccess &&
+                                        (!branches.data ||
+                                            branches.data.length <= 0)
+                                    }
+                                    data={branches.data ?? []}
+                                    onChange={(value) => {
+                                        setSelectedBranch(value ?? undefined);
+                                    }}
+                                    rightSection={
+                                        branches.isFetching && (
+                                            <Loader size="xs" color="gray" />
+                                        )
+                                    }
+                                />{' '}
+                                {/* <TextInput 
                             onChange={(e) => {
-                                setSchema(e.currentTarget.value);
+                                setSelectedBranch(e.currentTarget.value);
                             }}
-                        />
-                        {/* only show if branch changed + check if project dbt connection type has environment + advanced option */}
-                        <EnvironmentVariablesInput
-                            label="Environment Variables"
-                            value={environment}
-                            onChange={(newVariables) =>
-                                setEnvironment(newVariables)
-                            }
-                            disabled={isPreviewCreating}
-                            documentationUrl="/docs/environment-variables"
-                        />
+                            value={selectedBranch}
+                            placeholder='Type your branch name' /> */}
+                                {/* only show if branch changed + change label based on warehouse type? + get value from dbt cloud api */}
+                                <TextInput
+                                    label="Schema/Dataset"
+                                    placeholder="Change this if you want to override the default schema"
+                                    value={schema}
+                                    disabled={isPreviewCreating}
+                                    onChange={(e) => {
+                                        setSchema(e.currentTarget.value);
+                                    }}
+                                />
+                                {isOpen && (
+                                    <Stack>
+                                        {/* only show if branch changed + check if project dbt connection type has environment + advanced option */}
+                                        <EnvironmentVariablesInput
+                                            label="Environment Variables"
+                                            value={environment}
+                                            onChange={(newVariables) =>
+                                                setEnvironment(newVariables)
+                                            }
+                                            disabled={isPreviewCreating}
+                                            documentationUrl="/docs/environment-variables"
+                                        />
+                                    </Stack>
+                                )}
+                                <FormCollapseButton
+                                    isSectionOpen={isOpen}
+                                    onClick={() => {
+                                        setIsOpen(!isOpen);
+                                    }}
+                                >
+                                    Advanced configuration options
+                                </FormCollapseButton>
+                            </>
+                        )}
                     </Stack>
 
                     <Group position="right">
