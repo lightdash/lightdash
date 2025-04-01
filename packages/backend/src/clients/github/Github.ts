@@ -381,16 +381,6 @@ export const getBranches = async ({
     const { octokit, headers } = getOctokit(installationId, token);
 
     try {
-        console.log(
-            'owner',
-            owner,
-            'repo',
-            repo,
-            'installationId',
-            installationId,
-            'token',
-            token,
-        );
         const branches = await octokit.paginate(octokit.repos.listBranches, {
             owner,
             repo,
