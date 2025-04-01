@@ -27,9 +27,11 @@ type RunMetricExplorerQueryArgs = {
 const getUrlParams = ({
     dateRange,
     timeFrame,
+    granularity,
 }: {
     dateRange: MetricExplorerDateRange;
     timeFrame?: TimeFrames;
+    granularity?: TimeFrames;
 }) => {
     const params = new URLSearchParams();
 
@@ -48,6 +50,11 @@ const getUrlParams = ({
     // Add time frame param
     if (timeFrame) {
         params.append('timeFrame', timeFrame);
+    }
+
+    // Add granularity param
+    if (granularity) {
+        params.append('granularity', granularity);
     }
 
     return params.toString();
@@ -131,6 +138,7 @@ type RunMetricTotalArgs = {
     metricName: string;
     dateRange: MetricExplorerDateRange;
     timeFrame: TimeFrames;
+    granularity: TimeFrames;
     comparisonType: MetricTotalComparisonType;
 };
 
@@ -140,11 +148,13 @@ const postRunMetricTotal = async ({
     metricName,
     dateRange,
     timeFrame,
+    granularity,
     comparisonType,
 }: RunMetricTotalArgs) => {
     const queryString = getUrlParams({
         dateRange,
         timeFrame,
+        granularity,
     });
 
     return lightdashApi<ApiMetricsExplorerTotalResults['results']>({
@@ -164,6 +174,7 @@ export const useRunMetricTotal = ({
     metricName,
     dateRange,
     timeFrame,
+    granularity,
     comparisonType,
     options,
 }: Partial<RunMetricTotalArgs> & {
@@ -178,6 +189,7 @@ export const useRunMetricTotal = ({
             dateRange?.[0],
             dateRange?.[1],
             timeFrame,
+            granularity,
             comparisonType,
         ],
         queryFn: () =>
@@ -187,6 +199,7 @@ export const useRunMetricTotal = ({
                 metricName: metricName!,
                 dateRange: dateRange!,
                 timeFrame: timeFrame!,
+                granularity: granularity!,
                 comparisonType: comparisonType!,
             }),
         ...options,
