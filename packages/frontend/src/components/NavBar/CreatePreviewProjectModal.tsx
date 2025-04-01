@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    DbtProjectType,
     ProjectType,
     type ApiError,
     type DbtProjectEnvironmentVariable,
@@ -38,6 +39,7 @@ import React, {
 import { animals, colors, uniqueNamesGenerator } from 'unique-names-generator';
 import { lightdashApi } from '../../api';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
+import { useProject } from '../../hooks/useProject';
 import { useCreatePreviewMutation } from '../../hooks/useProjectPreview';
 import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
@@ -177,6 +179,7 @@ const EnvironmentVariablesInput: FC<EnvironmentVariablesInputProps> = ({
                     onClick={handleAddVariable}
                     leftIcon={<MantineIcon icon={IconPlus} />}
                     disabled={disabled}
+                    variant="outline"
                 >
                     Add variable
                 </Button>
@@ -261,6 +264,11 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
             );
         }
     }, [projects, selectedProjectUuid]);
+
+    const { data: projectDetails } = useProject(selectedProjectUuid);
+    const hasGithub = useMemo(() => {
+        return projectDetails?.dbtConnection?.type === DbtProjectType.GITHUB;
+    }, [projectDetails?.dbtConnection?.type]);
 
     useEffect(() => {
         if (
@@ -401,12 +409,16 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                 </Tooltip>
                             }
                         />
-                        {branches.data && (
+                        {hasGithub ? (
                             <>
                                 <Select
                                     withinPortal
                                     label="Branch"
-                                    placeholder="Select branch"
+                                    placeholder={
+                                        branches.isLoading
+                                            ? 'Loading branches from Github...'
+                                            : 'Select branch'
+                                    }
                                     searchable
                                     value={selectedBranch}
                                     readOnly={isPreviewCreating}
@@ -425,12 +437,6 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                         )
                                     }
                                 />{' '}
-                                {/* <TextInput 
-                            onChange={(e) => {
-                                setSelectedBranch(e.currentTarget.value);
-                            }}
-                            value={selectedBranch}
-                            placeholder='Type your branch name' /> */}
                                 {/* only show if branch changed + change label based on warehouse type? + get value from dbt cloud api */}
                                 <TextInput
                                     label="Schema/Dataset"
@@ -451,7 +457,6 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                                 setEnvironment(newVariables)
                                             }
                                             disabled={isPreviewCreating}
-                                            documentationUrl="/docs/environment-variables"
                                         />
                                     </Stack>
                                 )}
@@ -464,6 +469,14 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                     Advanced configuration options
                                 </FormCollapseButton>
                             </>
+                        ) : (
+                            <Text color="gray.6">
+                                This project "
+                                {projectDetails?.dbtConnection?.type}" will copy
+                                the same connection details as the parent
+                                project. To change the branch of the source
+                                code, switch to Github connection.{' '}
+                            </Text>
                         )}
                     </Stack>
 
