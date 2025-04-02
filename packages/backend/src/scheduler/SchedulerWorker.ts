@@ -198,12 +198,12 @@ export class SchedulerWorker extends SchedulerTask {
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
                         await this.schedulerService.logSchedulerJob({
-                            task: SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
+                            task: SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION,
                             schedulerUuid: payload.schedulerUuid,
                             jobId: job.id,
                             scheduledTime: job.run_at,
                             jobGroup: payload.jobGroup,
-                            targetType: 'slack',
+                            targetType: 'msteams',
                             status: SchedulerJobStatus.ERROR,
                             details: {
                                 error: getErrorMessage(e),

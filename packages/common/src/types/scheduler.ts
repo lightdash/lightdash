@@ -275,7 +275,7 @@ export const isMsTeamsTarget = (
         | SchedulerSlackTarget
         | SchedulerEmailTarget
         | SchedulerMsTeamsTarget,
-): target is SchedulerSlackTarget => 'webhook' in target;
+): target is SchedulerMsTeamsTarget => 'webhook' in target;
 
 export const isEmailTarget = (
     target:

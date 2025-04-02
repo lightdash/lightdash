@@ -11,6 +11,7 @@ import {
     SchedulerWithLogs,
     UpdateSchedulerAndTargets,
     isChartScheduler,
+    isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     isDashboardScheduler,
     isSlackTarget,
@@ -29,6 +30,7 @@ import {
     SchedulerEmailTargetTableName,
     SchedulerLogDb,
     SchedulerLogTableName,
+    SchedulerMsTeamsTargetTableName,
     SchedulerSlackTargetDb,
     SchedulerSlackTargetTableName,
     SchedulerTableName,
@@ -283,6 +285,13 @@ export class SchedulerModel {
                         updated_at: new Date(),
                     });
                 }
+                if (isCreateSchedulerMsTeamsTarget(target)) {
+                    return trx(SchedulerMsTeamsTargetTableName).insert({
+                        scheduler_uuid: scheduler.scheduler_uuid,
+                        webhook: target.webhook,
+                        updated_at: new Date(),
+                    });
+                }
 
                 return trx(SchedulerEmailTargetTableName).insert({
                     scheduler_uuid: scheduler.scheduler_uuid,
@@ -410,6 +419,13 @@ export class SchedulerModel {
                     return trx(SchedulerSlackTargetTableName).insert({
                         scheduler_uuid: scheduler.schedulerUuid,
                         channel: target.channel,
+                        updated_at: new Date(),
+                    });
+                }
+                if (isCreateSchedulerMsTeamsTarget(target)) {
+                    return trx(SchedulerMsTeamsTargetTableName).insert({
+                        scheduler_uuid: scheduler.schedulerUuid,
+                        webhook: target.webhook,
                         updated_at: new Date(),
                     });
                 }
