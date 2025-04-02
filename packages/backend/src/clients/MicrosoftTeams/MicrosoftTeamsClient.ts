@@ -39,13 +39,13 @@ export class MicrosoftTeamsClient {
             summary: 'Lightdash Report',
             themeColor: '0076D7',
             title: '📊 Lightdash Daily Report',
-            text: text,
+            text,
             sections: [
                 {
                     activityTitle: '🖼️ Screenshot',
                     images: [
                         {
-                            image: image,
+                            image,
                         },
                     ],
                 },

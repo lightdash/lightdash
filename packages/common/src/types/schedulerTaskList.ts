@@ -29,7 +29,7 @@ export const SCHEDULER_TASKS = {
     HANDLE_SCHEDULED_DELIVERY: 'handleScheduledDelivery',
     SEND_SLACK_NOTIFICATION: 'sendSlackNotification',
     SEND_EMAIL_NOTIFICATION: 'sendEmailNotification',
-    SEND_MSTEAMS_NOTIFICATION: 'sendMsteamsNotification',
+    SEND_MSTEAMS_NOTIFICATION: 'sendMsTeamsNotification',
     UPLOAD_GSHEETS: 'uploadGsheets',
     DOWNLOAD_CSV: 'downloadCsv',
     UPLOAD_GSHEET_FROM_QUERY: 'uploadGsheetFromQuery',

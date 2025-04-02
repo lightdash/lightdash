@@ -291,6 +291,13 @@ export const isCreateSchedulerSlackTarget = (
         | Pick<SchedulerMsTeamsTarget, 'webhook'>,
 ): target is Pick<SchedulerSlackTarget, 'channel'> => 'channel' in target;
 
+export const isCreateSchedulerMsTeamsTarget = (
+    target:
+        | Pick<SchedulerSlackTarget, 'channel'>
+        | Pick<SchedulerEmailTarget, 'recipient'>
+        | Pick<SchedulerMsTeamsTarget, 'webhook'>,
+): target is Pick<SchedulerMsTeamsTarget, 'webhook'> => 'webhook' in target;
+
 export const isSchedulerCsvOptions = (
     options:
         | SchedulerCsvOptions

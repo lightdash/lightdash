@@ -8,6 +8,7 @@ import {
     getMetricsFromItemsMap,
     getTableCalculationsFromItemsMap,
     getTzMinutesOffset,
+    isCreateSchedulerMsTeamsTarget,
     isDashboardScheduler,
     isNumericItem,
     isSchedulerCsvOptions,
@@ -99,6 +100,7 @@ const DEFAULT_VALUES = {
     },
     emailTargets: [] as string[],
     slackTargets: [] as string[],
+    msTeamsTargets: [] as string[],
     filters: undefined,
     customViewportWidth: undefined,
     selectedTabs: undefined,
@@ -170,10 +172,13 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
 
     const emailTargets: string[] = [];
     const slackTargets: string[] = [];
+    const msTeamsTargets: string[] = [];
 
     schedulerData.targets.forEach((target) => {
         if (isSlackTarget(target)) {
             slackTargets.push(target.channel);
+        } else if (isCreateSchedulerMsTeamsTarget(target)) {
+            msTeamsTargets.push(target.webhook);
         } else {
             emailTargets.push(target.recipient);
         }
@@ -188,6 +193,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         options: formOptions,
         emailTargets: emailTargets,
         slackTargets: slackTargets,
+        msTeamsTargets: msTeamsTargets,
         ...(isDashboardScheduler(schedulerData) && {
             filters: schedulerData.filters,
             customViewportWidth: schedulerData.customViewportWidth,
@@ -373,10 +379,16 @@ const SchedulerForm: FC<Props> = ({
                     channel: channelId,
                 }),
             );
+            const msTeamsTargets = values.msTeamsTargets.map(
+                (webhook: string) => ({
+                    webhook: webhook,
+                }),
+            );
 
             const targets: CreateSchedulerTarget[] = [
                 ...emailTargets,
                 ...slackTargets,
+                ...msTeamsTargets,
             ];
             return {
                 name: values.name,
@@ -1130,11 +1142,9 @@ const SchedulerForm: FC<Props> = ({
                                         </Text>
                                     )}
                                 </Stack>
-                                {
-                                    /*health.data?.hasMicrosoftTeams &&*/ <MicrosoftTeamsDestination
-                                        form={form}
-                                    />
-                                }
+                                {health.data?.hasMicrosoftTeams && (
+                                    <MicrosoftTeamsDestination form={form} />
+                                )}
                             </Stack>
                         </Input.Wrapper>
                     </Stack>
@@ -1224,7 +1234,8 @@ const SchedulerForm: FC<Props> = ({
                 onBack={onBack}
                 canSendNow={Boolean(
                     form.values.slackTargets.length ||
-                        form.values.emailTargets.length,
+                        form.values.emailTargets.length ||
+                        form.values.msTeamsTargets.length,
                 )}
                 onSendNow={isThresholdAlert ? undefined : handleSendNow}
                 loading={loading}

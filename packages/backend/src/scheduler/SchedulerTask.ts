@@ -14,6 +14,7 @@ import {
     GsheetsNotificationPayload,
     LightdashPage,
     MissingConfigError,
+    type MsTeamsNotificationPayload,
     NotEnoughResults,
     NotificationFrequency,
     NotificationPayloadBase,
@@ -22,6 +23,7 @@ import {
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
     ReplaceableCustomFields,
+    type RunQueryTags,
     SCHEDULER_TASKS,
     SavedChartDAO,
     ScheduledDeliveryPayload,
@@ -29,6 +31,7 @@ import {
     SchedulerCreateProjectWithCompilePayload,
     SchedulerFilterRule,
     SchedulerFormat,
+    type SchedulerIndexCatalogJobPayload,
     SchedulerJobStatus,
     SchedulerLog,
     SchedulerTaskName,
@@ -59,6 +62,7 @@ import {
     getSchedulerUuid,
     isChartValidationError,
     isCreateScheduler,
+    isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     isDashboardChartTileType,
     isDashboardScheduler,
@@ -69,8 +73,6 @@ import {
     isTableChartConfig,
     operatorActionValue,
     pivotResultsAsCsv,
-    type RunQueryTags,
-    type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
 import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
@@ -777,12 +779,12 @@ export default class SchedulerTask {
 
     protected async sendMsTeamsNotification(
         jobId: string,
-        notification: SlackNotificationPayload,
+        notification: MsTeamsNotificationPayload,
     ) {
         const {
             schedulerUuid,
-            schedulerSlackTargetUuid,
-            channel,
+            schedulerMsTeamsTargetUuid,
+            webhook,
             scheduledTime,
             scheduler,
         } = notification;
@@ -792,7 +794,7 @@ export default class SchedulerTask {
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
-                schedulerTargetId: schedulerSlackTargetUuid,
+                schedulerTargetId: schedulerMsTeamsTargetUuid,
                 type: 'slack',
                 sendNow: schedulerUuid === undefined,
                 isThresholdAlert: scheduler.thresholds !== undefined,
@@ -821,8 +823,8 @@ export default class SchedulerTask {
                 jobId,
                 jobGroup: notification.jobGroup,
                 scheduledTime,
-                target: channel,
-                targetType: 'slack',
+                target: webhook,
+                targetType: 'msteams',
                 status: SchedulerJobStatus.STARTED,
                 details: {
                     projectUuid: notification.projectUuid,
@@ -883,7 +885,7 @@ export default class SchedulerTask {
             } else if (format === SchedulerFormat.IMAGE) {
                 if (imageUrl)
                     await MicrosoftTeamsClient.postImageWithWebhook({
-                        webhookUrl: 'TODO',
+                        webhookUrl: webhook,
                         text: name,
                         image: imageUrl,
                     });
@@ -896,8 +898,8 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
-                    schedulerTargetId: schedulerSlackTargetUuid,
-                    type: 'slack',
+                    schedulerTargetId: schedulerMsTeamsTargetUuid,
+                    type: 'msteams',
                     format,
                     resourceType:
                         pageType === LightdashPage.CHART
@@ -914,7 +916,7 @@ export default class SchedulerTask {
                 jobGroup: notification.jobGroup,
 
                 scheduledTime,
-                target: channel,
+                target: webhook,
                 targetType: 'msteams',
                 status: SchedulerJobStatus.COMPLETED,
                 details: {
@@ -931,7 +933,7 @@ export default class SchedulerTask {
                     error: `${e}`,
                     jobId,
                     schedulerId: schedulerUuid,
-                    schedulerTargetId: schedulerSlackTargetUuid,
+                    schedulerTargetId: schedulerMsTeamsTargetUuid,
                     type: 'msteams',
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
@@ -2376,6 +2378,14 @@ export default class SchedulerTask {
                     task: SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
                     target: target.channel,
                     targetType: 'slack',
+                };
+            }
+
+            if (isCreateSchedulerMsTeamsTarget(target)) {
+                return {
+                    task: SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION,
+                    target: target.webhook,
+                    targetType: 'msteams',
                 };
             }
             return {

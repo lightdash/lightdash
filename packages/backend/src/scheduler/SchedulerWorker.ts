@@ -183,7 +183,7 @@ export class SchedulerWorker extends SchedulerTask {
             ) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
-                        SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
+                        SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION,
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
