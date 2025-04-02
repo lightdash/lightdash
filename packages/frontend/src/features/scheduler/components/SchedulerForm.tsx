@@ -14,6 +14,7 @@ import {
     isSchedulerImageOptions,
     isSlackTarget,
     validateEmail,
+    type AnyType,
     type CreateSchedulerAndTargetsWithoutIds,
     type CreateSchedulerTarget,
     type Dashboard,
@@ -69,6 +70,7 @@ import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
+import MsTeamsSvg from '../../../svgs/msteams.svg?react';
 import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
@@ -249,6 +251,37 @@ type Props = {
     itemsMap?: ItemsMap;
 };
 
+type MicrosoftTeamsDestinationProps = {
+    form: AnyType;
+};
+const MicrosoftTeamsDestination: FC<MicrosoftTeamsDestinationProps> = ({
+    form,
+}) => {
+    return (
+        <Group noWrap mb="sm">
+            <MsTeamsSvg
+                style={{
+                    margin: '5px 2px',
+                    width: '20px',
+                    height: '20px',
+                }}
+            />
+            <Box w="100%">
+                <TagInput
+                    clearable
+                    placeholder="Enter Microsoft Teams webhook URLs"
+                    value={form.values.msTeamsTargets}
+                    allowDuplicates={false}
+                    splitChars={[',', ' ']}
+                    // TODO add validation
+                    onChange={(val) => {
+                        form.setFieldValue('msTeamsTargets', val);
+                    }}
+                />
+            </Box>
+        </Group>
+    );
+};
 const SchedulerForm: FC<Props> = ({
     disabled,
     resource,
@@ -998,7 +1031,14 @@ const SchedulerForm: FC<Props> = ({
                                         </HoverCard.Dropdown>
                                     </HoverCard>
                                 </Group>
-                                <Stack spacing="xs" mb="sm">
+                                <Stack
+                                    spacing="xs"
+                                    mb={
+                                        health.data?.hasMicrosoftTeams
+                                            ? '0'
+                                            : 'sm'
+                                    }
+                                >
                                     <Group noWrap>
                                         <SlackSvg
                                             style={{
@@ -1090,6 +1130,11 @@ const SchedulerForm: FC<Props> = ({
                                         </Text>
                                     )}
                                 </Stack>
+                                {
+                                    /*health.data?.hasMicrosoftTeams &&*/ <MicrosoftTeamsDestination
+                                        form={form}
+                                    />
+                                }
                             </Stack>
                         </Input.Wrapper>
                     </Stack>

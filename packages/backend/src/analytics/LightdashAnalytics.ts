@@ -979,7 +979,7 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
         jobId: string;
         schedulerId?: string;
         resourceType?: 'dashboard' | 'chart';
-        type: 'slack' | 'email' | 'gsheets';
+        type: 'slack' | 'email' | 'gsheets' | 'msteams';
         format?: SchedulerFormat;
         withPdf?: boolean;
         sendNow: boolean;

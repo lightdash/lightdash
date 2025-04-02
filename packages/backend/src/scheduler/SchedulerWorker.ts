@@ -177,6 +177,44 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            [SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.sendMsTeamsNotification(
+                                helpers.job.id,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
+                            schedulerUuid: payload.schedulerUuid,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            jobGroup: payload.jobGroup,
+                            targetType: 'slack',
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                            },
+                        });
+                    },
+                );
+            },
             [SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION]: async (
                 payload,
                 helpers,

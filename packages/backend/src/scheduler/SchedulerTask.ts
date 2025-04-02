@@ -83,6 +83,7 @@ import {
 import { S3Client } from '../clients/Aws/S3Client';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
+import { MicrosoftTeamsClient } from '../clients/MicrosoftTeams/MicrosoftTeamsClient';
 import { SlackClient } from '../clients/Slack/SlackClient';
 import {
     getChartAndDashboardBlocks,
@@ -769,6 +770,190 @@ export default class SchedulerTask {
                 );
                 return; // Do not cascade error
             }
+
+            throw e; // Cascade error to it can be retried by graphile
+        }
+    }
+
+    protected async sendMsTeamsNotification(
+        jobId: string,
+        notification: SlackNotificationPayload,
+    ) {
+        const {
+            schedulerUuid,
+            schedulerSlackTargetUuid,
+            channel,
+            scheduledTime,
+            scheduler,
+        } = notification;
+        this.analytics.track({
+            event: 'scheduler_notification_job.started',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: schedulerSlackTargetUuid,
+                type: 'slack',
+                sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
+            },
+        });
+
+        try {
+            if (!this.slackClient.isEnabled) {
+                throw new Error('Slack app is not configured');
+            }
+
+            const {
+                format,
+                savedChartUuid,
+                dashboardUuid,
+                name,
+                cron,
+                timezone,
+                thresholds,
+                includeLinks,
+            } = scheduler;
+
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+                scheduledTime,
+                target: channel,
+                targetType: 'slack',
+                status: SchedulerJobStatus.STARTED,
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
+            });
+
+            // Backwards compatibility for old scheduled deliveries
+            const notificationPageData =
+                notification.page ??
+                (await this.getNotificationPageData(scheduler, jobId));
+
+            const {
+                url,
+                details,
+                pageType,
+                organizationUuid,
+                imageUrl,
+                csvUrl,
+                csvUrls,
+                pdfFile,
+            } = notificationPageData;
+
+            const defaultSchedulerTimezone =
+                await this.schedulerService.getSchedulerDefaultTimezone(
+                    schedulerUuid,
+                );
+
+            const showExpirationWarning = format !== SchedulerFormat.IMAGE;
+            const schedulerFooter = includeLinks
+                ? `<${url}?scheduler_uuid=${
+                      schedulerUuid || ''
+                  }|scheduled delivery>`
+                : 'scheduled delivery';
+            const getBlocksArgs = {
+                title: name,
+                name: details.name,
+                description: details.description,
+                message:
+                    scheduler.message && slackifyMarkdown(scheduler.message),
+                ctaUrl: url,
+                footerMarkdown: `This is a ${schedulerFooter} ${getHumanReadableCronExpression(
+                    cron,
+                    timezone || defaultSchedulerTimezone,
+                )} from Lightdash.\n${
+                    showExpirationWarning
+                        ? this.s3Client.getExpirationWarning()?.slack || ''
+                        : ''
+                }`,
+                includeLinks,
+            };
+
+            if (thresholds !== undefined && thresholds.length > 0) {
+                // We assume the threshold is possitive , so we don't need to get results here
+
+                throw new Error('Not implemented');
+            } else if (format === SchedulerFormat.IMAGE) {
+                if (imageUrl)
+                    await MicrosoftTeamsClient.postImageWithWebhook({
+                        webhookUrl: 'TODO',
+                        text: name,
+                        image: imageUrl,
+                    });
+            } else {
+                throw new Error('Not implemented');
+            }
+            this.analytics.track({
+                event: 'scheduler_notification_job.completed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    jobId,
+                    schedulerId: schedulerUuid,
+                    schedulerTargetId: schedulerSlackTargetUuid,
+                    type: 'slack',
+                    format,
+                    resourceType:
+                        pageType === LightdashPage.CHART
+                            ? 'chart'
+                            : 'dashboard',
+                    sendNow: schedulerUuid === undefined,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
+                },
+            });
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+
+                scheduledTime,
+                target: channel,
+                targetType: 'msteams',
+                status: SchedulerJobStatus.COMPLETED,
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
+            });
+        } catch (e) {
+            this.analytics.track({
+                event: 'scheduler_notification_job.failed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    error: `${e}`,
+                    jobId,
+                    schedulerId: schedulerUuid,
+                    schedulerTargetId: schedulerSlackTargetUuid,
+                    type: 'msteams',
+                    sendNow: schedulerUuid === undefined,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
+                },
+            });
+
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION,
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+
+                scheduledTime,
+                targetType: 'msteams',
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    error: getErrorMessage(e),
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
+            });
 
             throw e; // Cascade error to it can be retried by graphile
         }

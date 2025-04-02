@@ -7,6 +7,7 @@ import {
     type EmailNotificationPayload,
     type ExportCsvDashboardPayload,
     type GsheetsNotificationPayload,
+    type MsTeamsNotificationPayload,
     type ReplaceCustomFieldsPayload,
     type ScheduledDeliveryPayload,
     type SchedulerCreateProjectWithCompilePayload,
@@ -28,6 +29,7 @@ export const SCHEDULER_TASKS = {
     HANDLE_SCHEDULED_DELIVERY: 'handleScheduledDelivery',
     SEND_SLACK_NOTIFICATION: 'sendSlackNotification',
     SEND_EMAIL_NOTIFICATION: 'sendEmailNotification',
+    SEND_MSTEAMS_NOTIFICATION: 'sendMsteamsNotification',
     UPLOAD_GSHEETS: 'uploadGsheets',
     DOWNLOAD_CSV: 'downloadCsv',
     UPLOAD_GSHEET_FROM_QUERY: 'uploadGsheetFromQuery',
@@ -50,6 +52,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY]: ScheduledDeliveryPayload;
     [SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION]: SlackNotificationPayload;
     [SCHEDULER_TASKS.SEND_EMAIL_NOTIFICATION]: EmailNotificationPayload;
+    [SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION]: MsTeamsNotificationPayload;
     [SCHEDULER_TASKS.UPLOAD_GSHEETS]: GsheetsNotificationPayload;
     [SCHEDULER_TASKS.DOWNLOAD_CSV]: DownloadCsvPayload;
     [SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY]: UploadMetricGsheetPayload;

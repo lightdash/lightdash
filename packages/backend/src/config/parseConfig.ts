@@ -372,6 +372,9 @@ export type LightdashConfig = {
     contentAsCode: {
         maxDownloads: number;
     };
+    microsoftTeams: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -974,6 +977,9 @@ export const parseConfig = (): LightdashConfig => {
             ),
             // not required if overrideColorPalette is set
             overrideColorPaletteName: process.env.OVERRIDE_COLOR_PALETTE_NAME,
+        },
+        microsoftTeams: {
+            enabled: process.env.MICROSOFT_TEAMS_ENABLED === 'true',
         },
     };
 };
