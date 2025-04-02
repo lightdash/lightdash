@@ -31,6 +31,7 @@ import {
     createBranch,
     createFile,
     createPullRequest,
+    getBranches,
     getFileContent,
     getLastCommit,
     getOrRefreshToken,
@@ -709,5 +710,11 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             ],
             owner,
         };
+    }
+
+    async getBranches(user: SessionUser, projectUuid: string) {
+        const githubProps = await this.getGithubProps(user, projectUuid, '"');
+        const branches = await getBranches(githubProps);
+        return branches.map((branch) => branch.name);
     }
 }
