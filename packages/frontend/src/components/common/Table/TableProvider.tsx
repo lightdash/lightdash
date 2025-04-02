@@ -6,11 +6,7 @@ import {
     type GroupingState,
 } from '@tanstack/react-table';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
-import {
-    DEFAULT_PAGE_SIZE,
-    MAX_PAGE_SIZE,
-    ROW_NUMBER_COLUMN_ID,
-} from './constants';
+import { DEFAULT_PAGE_SIZE, ROW_NUMBER_COLUMN_ID } from './constants';
 import Context from './context';
 import { getGroupedRowModelLightdash } from './getGroupedRowModelLightdash';
 import { type ProviderProps, type TableColumn } from './types';
@@ -54,11 +50,14 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         totalRowsCount,
         columns,
         columnOrder,
-        pagination,
         fetchMoreRows,
+        pagination,
     } = rest;
     const [grouping, setGrouping] = useState<GroupingState>([]);
     const [columnVisibility, setColumnVisibility] = useState({});
+    const [isInfiniteScrollEnabled, setIsInfiniteScrollEnabled] = useState(
+        !pagination?.show || !!pagination?.defaultScroll,
+    );
 
     useEffect(() => {
         setColumnVisibility(calculateColumnVisibility(columns));
@@ -152,7 +151,7 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
     }, [data, paginationState]);
 
     const table = useReactTable({
-        data: pageRows,
+        data: isInfiniteScrollEnabled ? data : pageRows,
         columns: visibleColumns,
         state: {
             grouping,
@@ -180,19 +179,15 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         getGroupedRowModel: getGroupedRowModelLightdash(),
     });
 
-    const { setPageSize } = table;
-    useEffect(() => {
-        if (pagination?.show) {
-            setPageSize(
-                pagination?.defaultScroll ? MAX_PAGE_SIZE : DEFAULT_PAGE_SIZE,
-            );
-        } else {
-            setPageSize(MAX_PAGE_SIZE);
-        }
-    }, [pagination, setPageSize]);
-
     return (
-        <Context.Provider value={{ table, ...rest }}>
+        <Context.Provider
+            value={{
+                table,
+                isInfiniteScrollEnabled,
+                setIsInfiniteScrollEnabled,
+                ...rest,
+            }}
+        >
             {children}
         </Context.Provider>
     );

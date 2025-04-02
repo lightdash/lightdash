@@ -204,6 +204,7 @@ const computeDashboardChartSeries = (
         isCompleteLayout(chart.chartConfig.config.layout)
     ) {
         const firstSerie = chart.chartConfig.config.eChartsConfig.series?.[0];
+
         const expectedSeriesMap = getExpectedSeriesMap({
             defaultSmooth: firstSerie?.smooth,
             defaultShowSymbol: firstSerie?.showSymbol,
@@ -267,6 +268,7 @@ const ValidDashboardChartTile: FC<{
             isFetchingRows: false,
             fetchMoreRows: () => undefined,
             setFetchAll: () => undefined,
+            hasFetchedAllRows: true,
         }),
         [rows, metricQuery, cacheMetadata, fields],
     );
@@ -339,6 +341,7 @@ const ValidDashboardChartTileMinimal: FC<{
             isFetchingRows: false,
             fetchMoreRows: () => undefined,
             setFetchAll: () => undefined,
+            hasFetchedAllRows: true,
         }),
         [rows, metricQuery, cacheMetadata, fields],
     );
