@@ -16,6 +16,7 @@ import {
     MissingConfigError,
     type MsTeamsNotificationPayload,
     NotEnoughResults,
+    NotImplementedError,
     NotificationFrequency,
     NotificationPayloadBase,
     QueryExecutionContext,
@@ -799,15 +800,17 @@ export default class SchedulerTask {
                 jobId,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: schedulerMsTeamsTargetUuid,
-                type: 'slack',
+                type: 'msteams',
                 sendNow: schedulerUuid === undefined,
                 isThresholdAlert: scheduler.thresholds !== undefined,
             },
         });
 
         try {
-            if (!this.slackClient.isEnabled) {
-                throw new Error('Slack app is not configured');
+            if (!this.lightdashConfig.microsoftTeams.enabled) {
+                throw new MissingConfigError(
+                    'Microsoft teams is not configured',
+                );
             }
 
             const {
@@ -822,7 +825,7 @@ export default class SchedulerTask {
             } = scheduler;
 
             await this.schedulerService.logSchedulerJob({
-                task: SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
+                task: SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION,
                 schedulerUuid,
                 jobId,
                 jobGroup: notification.jobGroup,
@@ -890,7 +893,7 @@ export default class SchedulerTask {
             } else if (format === SchedulerFormat.CSV) {
                 if (savedChartUuid) {
                     if (csvUrl === undefined) {
-                        throw new Error('Missing CSV URL');
+                        throw new UnexpectedServerError('Missing CSV URL');
                     }
                     await this.msTeamsClient.postCsvWithWebhook({
                         webhookUrl: webhook,
@@ -899,7 +902,7 @@ export default class SchedulerTask {
                     });
                 } else if (dashboardUuid) {
                     if (csvUrls === undefined) {
-                        throw new Error('Missing CSV URLS');
+                        throw new UnexpectedServerError('Missing CSV URLS');
                     }
                     await this.msTeamsClient.postCsvsWithWebhook({
                         webhookUrl: webhook,
@@ -928,7 +931,7 @@ export default class SchedulerTask {
                 },
             });
             await this.schedulerService.logSchedulerJob({
-                task: SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
+                task: SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION,
                 schedulerUuid,
                 jobId,
                 jobGroup: notification.jobGroup,
