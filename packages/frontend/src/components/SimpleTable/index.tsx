@@ -55,7 +55,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         // When paginated, it's success as soon as there are rows
         // When not paginated, it's success as soon as all rows have been fetched
         const isSuccess = shouldPaginateResults
-            ? resultsData.rows.length > 0
+            ? resultsData.rows.length > 0 || resultsData.hasFetchedAllRows
             : resultsData.hasFetchedAllRows;
 
         return isSuccess ? 'success' : 'loading';
