@@ -27,11 +27,20 @@ export type Space = {
             user_uuid: string;
             organization_role: OrganizationMemberRole;
             project_role: ProjectMemberRole;
+            project_group_roles?: ProjectMemberRole[];
         }[];
         groupAccess: {
             group_name: string;
+            group_uuid: string;
             space_role: SpaceMemberRole;
             space_uuid: string;
+            group_members: {
+                user_uuid: string;
+                first_name: string;
+                last_name: string;
+                email: string;
+                space_role: SpaceMemberRole;
+            }[];
         }[];
         userAccess: {
             email: string;

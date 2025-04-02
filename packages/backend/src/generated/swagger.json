@@ -7410,19 +7410,54 @@
                             "groupAccess": {
                                 "items": {
                                     "properties": {
+                                        "group_members": {
+                                            "items": {
+                                                "properties": {
+                                                    "space_role": {
+                                                        "$ref": "#/components/schemas/SpaceMemberRole"
+                                                    },
+                                                    "email": {
+                                                        "type": "string"
+                                                    },
+                                                    "last_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "first_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "user_uuid": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "space_role",
+                                                    "email",
+                                                    "last_name",
+                                                    "first_name",
+                                                    "user_uuid"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        },
                                         "space_uuid": {
                                             "type": "string"
                                         },
                                         "space_role": {
                                             "$ref": "#/components/schemas/SpaceMemberRole"
                                         },
+                                        "group_uuid": {
+                                            "type": "string"
+                                        },
                                         "group_name": {
                                             "type": "string"
                                         }
                                     },
                                     "required": [
+                                        "group_members",
                                         "space_uuid",
                                         "space_role",
+                                        "group_uuid",
                                         "group_name"
                                     ],
                                     "type": "object"
@@ -7432,6 +7467,12 @@
                             "inheritedAccess": {
                                 "items": {
                                     "properties": {
+                                        "project_group_roles": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/ProjectMemberRole"
+                                            },
+                                            "type": "array"
+                                        },
                                         "project_role": {
                                             "$ref": "#/components/schemas/ProjectMemberRole"
                                         },

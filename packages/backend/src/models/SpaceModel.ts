@@ -916,10 +916,9 @@ export class SpaceModel {
     }
 
     private async _getSpaceAccessTesting(
-        spaceUuids: string[],
-        filters?: { userUuid?: string },
-    ): Promise<Record<string, unknown>> {
-        // 1. Get inherited access (from org/project)
+        spaceUuid: string,
+    ): Promise<Space['testing']> {
+        // 1. Get inherited access (from org/project/project group)
         const inheritedAccess = await this.database
             .select([
                 `${SpaceTableName}.space_uuid`,
@@ -929,6 +928,10 @@ export class SpaceModel {
                 `${EmailTableName}.email`,
                 `${ProjectMembershipsTableName}.role as project_role`,
                 `${OrganizationMembershipsTableName}.role as organization_role`,
+                // Aggregate group roles
+                this.database.raw(
+                    `array_agg(DISTINCT ${ProjectGroupAccessTableName}.role) FILTER (WHERE ${ProjectGroupAccessTableName}.role IS NOT NULL) as project_group_roles`,
+                ),
             ])
             .from(SpaceTableName)
             .innerJoin(
@@ -967,42 +970,66 @@ export class SpaceModel {
                     `${UserTableName}.user_id`,
                 );
             })
-            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
-            .modify((qb) => {
-                if (filters?.userUuid) {
-                    void qb.where(
-                        `${UserTableName}.user_uuid`,
-                        filters.userUuid,
-                    );
-                }
-            });
-
-        // 2. Get group access (explicit space access)
-        const groupAccess = await this.database
-            .select([
-                `${SpaceTableName}.space_uuid`,
-                `${SpaceGroupAccessTableName}.space_role`,
-                `${GroupTableName}.name as group_name`,
-            ])
-            .from(SpaceTableName)
-            .innerJoin(
-                SpaceGroupAccessTableName,
-                `${SpaceGroupAccessTableName}.space_uuid`,
-                `${SpaceTableName}.space_uuid`,
-            )
-            .innerJoin(
+            .leftJoin(
                 GroupMembershipTableName,
-                `${GroupMembershipTableName}.group_uuid`,
-                `${SpaceGroupAccessTableName}.group_uuid`,
+                `${GroupMembershipTableName}.user_id`,
+                `${UserTableName}.user_id`,
             )
-            .innerJoin(
-                GroupTableName,
-                `${GroupTableName}.group_uuid`,
-                `${SpaceGroupAccessTableName}.group_uuid`,
+            .leftJoin(
+                ProjectGroupAccessTableName,
+                function joinProjectGroupAccessTable() {
+                    this.on(
+                        `${ProjectGroupAccessTableName}.group_uuid`,
+                        '=',
+                        `${GroupMembershipTableName}.group_uuid`,
+                    ).andOn(
+                        `${ProjectGroupAccessTableName}.project_uuid`,
+                        '=',
+                        `${ProjectTableName}.project_uuid`,
+                    );
+                },
             )
-            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids);
+            // 🙋 Apply access control logic
+            .where((query) => {
+                void query
+                    .where((query1) => {
+                        // For private spaces, only return users with:
+                        // 3. Project admin role
+                        // 4. Organization admin role
+                        // 5. Project group admin role
+                        void query1
+                            .where(`${SpaceTableName}.is_private`, true)
+                            .andWhere((query2) => {
+                                void query2
+                                    .orWhere(
+                                        `${ProjectMembershipsTableName}.role`,
+                                        'admin',
+                                    )
+                                    .orWhere(
+                                        `${ProjectGroupAccessTableName}.role`,
+                                        'admin',
+                                    )
+                                    .orWhere(
+                                        `${OrganizationMembershipsTableName}.role`,
+                                        'admin',
+                                    );
+                            });
+                    })
+                    // For public spaces, return all users
+                    .orWhere(`${SpaceTableName}.is_private`, false);
+            })
+            .groupBy(
+                `${SpaceTableName}.space_uuid`,
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${EmailTableName}.email`,
+                `${ProjectMembershipsTableName}.role`,
+                `${OrganizationMembershipsTableName}.role`,
+            )
+            .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 
-        // 3. Get direct user access (explicit space access)
+        // 2. Get direct user access (explicit space access)
         const userAccess = await this.database
             .select([
                 `${SpaceTableName}.space_uuid`,
@@ -1030,26 +1057,108 @@ export class SpaceModel {
                     `${UserTableName}.user_id`,
                 );
             })
-            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
-            .modify((qb) => {
-                if (filters?.userUuid) {
-                    void qb.where(
-                        `${UserTableName}.user_uuid`,
-                        filters.userUuid,
-                    );
-                }
-            });
+            .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 
-        console.log(inheritedAccess);
-        console.log(groupAccess);
-        console.log(userAccess);
+        // 3. Get group access with members information
+        const groupAccess = await this.database
+            .select([
+                `${SpaceTableName}.space_uuid`,
+                `${SpaceGroupAccessTableName}.space_role`,
+                `${GroupTableName}.name as group_name`,
+                `${GroupTableName}.group_uuid`,
+                this.database.raw(`
+                    COALESCE(
+                        json_agg(
+                            json_build_object(
+                                'user_uuid', ${UserTableName}.user_uuid,
+                                'first_name', ${UserTableName}.first_name,
+                                'last_name', ${UserTableName}.last_name,
+                                'email', ${EmailTableName}.email
+                            )
+                        ) FILTER (WHERE ${UserTableName}.user_uuid IS NOT NULL),
+                        '[]'
+                    ) as group_members
+                `),
+            ])
+            .from(SpaceTableName)
+            .innerJoin(
+                SpaceGroupAccessTableName,
+                `${SpaceGroupAccessTableName}.space_uuid`,
+                `${SpaceTableName}.space_uuid`,
+            )
+            .innerJoin(
+                GroupTableName,
+                `${GroupTableName}.group_uuid`,
+                `${SpaceGroupAccessTableName}.group_uuid`,
+            )
+            .leftJoin(
+                GroupMembershipTableName,
+                `${GroupMembershipTableName}.group_uuid`,
+                `${GroupTableName}.group_uuid`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_id`,
+                `${GroupMembershipTableName}.user_id`,
+            )
+            .leftJoin(EmailTableName, function joinEmailTable() {
+                this.on(
+                    `${EmailTableName}.user_id`,
+                    '=',
+                    `${UserTableName}.user_id`,
+                );
+            })
+            .where(`${SpaceTableName}.space_uuid`, spaceUuid)
+            .groupBy(
+                `${SpaceTableName}.space_uuid`,
+                `${SpaceGroupAccessTableName}.space_role`,
+                `${GroupTableName}.name`,
+                `${GroupTableName}.group_uuid`,
+            );
 
         return {
-            [spaceUuids[0]]: {
-                inheritedAccess,
-                groupAccess,
-                userAccess,
-            },
+            inheritedAccess: inheritedAccess.map(
+                (
+                    item: NonNullable<
+                        Space['testing']
+                    >['inheritedAccess'][number],
+                ) => ({
+                    email: item.email,
+                    first_name: item.first_name,
+                    last_name: item.last_name,
+                    space_uuid: item.space_uuid,
+                    user_uuid: item.user_uuid,
+                    organization_role: item.organization_role,
+                    project_role: item.project_role,
+                    project_group_roles: item.project_group_roles,
+                }),
+            ),
+            userAccess: userAccess.map(
+                (
+                    item: NonNullable<Space['testing']>['userAccess'][number],
+                ) => ({
+                    email: item.email,
+                    first_name: item.first_name,
+                    last_name: item.last_name,
+                    space_uuid: item.space_uuid,
+                    user_uuid: item.user_uuid,
+                    space_role: item.space_role,
+                }),
+            ),
+            groupAccess: groupAccess.map(
+                (
+                    item: NonNullable<Space['testing']>['groupAccess'][number],
+                ) => ({
+                    group_name: item.group_name,
+                    group_uuid: item.group_uuid,
+                    space_role: item.space_role,
+                    space_uuid: item.space_uuid,
+                    group_members: item.group_members.map((member) => ({
+                        ...member,
+                        space_role: member.space_role,
+                    })),
+                }),
+            ),
         };
     }
 
@@ -1535,9 +1644,7 @@ export class SpaceModel {
                 (await this._getSpaceAccess([space.uuid]))[space.uuid] ?? [],
             groupsAccess: await this._getGroupAccess(space.uuid),
             slug: space.slug,
-            testing: (await this._getSpaceAccessTesting([space.uuid]))[
-                space.uuid
-            ] as Space['testing'],
+            testing: await this._getSpaceAccessTesting(space.uuid),
         };
     }
 

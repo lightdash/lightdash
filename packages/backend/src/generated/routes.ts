@@ -6723,12 +6723,45 @@ const models: TsoaRoute.Models = {
                             array: {
                                 dataType: 'nestedObjectLiteral',
                                 nestedProperties: {
+                                    group_members: {
+                                        dataType: 'array',
+                                        array: {
+                                            dataType: 'nestedObjectLiteral',
+                                            nestedProperties: {
+                                                space_role: {
+                                                    ref: 'SpaceMemberRole',
+                                                    required: true,
+                                                },
+                                                email: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
+                                                last_name: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
+                                                first_name: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
+                                                user_uuid: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
+                                            },
+                                        },
+                                        required: true,
+                                    },
                                     space_uuid: {
                                         dataType: 'string',
                                         required: true,
                                     },
                                     space_role: {
                                         ref: 'SpaceMemberRole',
+                                        required: true,
+                                    },
+                                    group_uuid: {
+                                        dataType: 'string',
                                         required: true,
                                     },
                                     group_name: {
@@ -6744,6 +6777,13 @@ const models: TsoaRoute.Models = {
                             array: {
                                 dataType: 'nestedObjectLiteral',
                                 nestedProperties: {
+                                    project_group_roles: {
+                                        dataType: 'array',
+                                        array: {
+                                            dataType: 'refEnum',
+                                            ref: 'ProjectMemberRole',
+                                        },
+                                    },
                                     project_role: {
                                         ref: 'ProjectMemberRole',
                                         required: true,

@@ -23,6 +23,7 @@ import {
     type AccessOption,
 } from './ShareSpaceSelect';
 import { ShareSpaceUserList } from './ShareSpaceUserList';
+import { useSpaceShareList } from './hooks/useSpaceShareList';
 
 export interface ShareSpaceProps {
     space: Space;
@@ -37,6 +38,13 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
     const { user: sessionUser } = useApp();
 
     const [isOpen, setIsOpen] = useState<boolean>(false);
+
+    // THIS IS THE HOOK THAT GETS THE NEW IMPLEMENTATION and converts the space.testing.userAccess and space.testing.groupAccess to the access structure
+    const { access, groupsAccess } = useSpaceShareList(space);
+
+    console.log('access', access);
+    console.log('groupsAccess', groupsAccess);
+    console.log('space', space);
 
     return (
         <>
@@ -58,6 +66,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
 
             <Modal
                 size="xl"
+                fullScreen
                 title={
                     <Group spacing="xs">
                         <MantineIcon size="lg" icon={IconFolderShare} />
@@ -90,117 +99,16 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                 Different implementation
                             </Text>
 
-                            <Stack>
-                                <Text fw={500}>Inherited access</Text>
-                                {space.testing?.inheritedAccess?.map(
-                                    (access, index) => (
-                                        <Group key={index} position="apart">
-                                            <Text>
-                                                {access.first_name}{' '}
-                                                {access.last_name}
-                                            </Text>
-                                            <Group>
-                                                <Text>
-                                                    ORG:{' '}
-                                                    {access.organization_role}
-                                                </Text>
-                                                <Text>
-                                                    PROJ:{access.project_role}
-                                                </Text>
-                                            </Group>
-                                        </Group>
-                                    ),
-                                )}
-                            </Stack>
-
-                            <Stack>
-                                <Text fw={500}>Group access</Text>
-                                {space.testing?.groupAccess?.map(
-                                    (access, index) => (
-                                        <Group key={index} position="apart">
-                                            <Text>{access.group_name}</Text>
-                                            <Text>
-                                                SPACE ROLE: {access.space_role}
-                                            </Text>
-                                        </Group>
-                                    ),
-                                )}
-                            </Stack>
-
-                            <Stack>
-                                <Text fw={500}>User access</Text>
-                                {space.testing?.userAccess?.map(
-                                    (access, index) => (
-                                        <Group key={index} position="apart">
-                                            <Text>
-                                                {access.first_name}{' '}
-                                                {access.last_name}
-                                            </Text>
-
-                                            <Text>
-                                                SPACE ROLE: {access.space_role}
-                                            </Text>
-                                        </Group>
-                                    ),
-                                )}
-                            </Stack>
                             <ShareSpaceUserList
                                 projectUuid={projectUuid}
                                 space={{
                                     ...space,
-                                    access:
-                                        space.testing?.userAccess
-                                            ?.map((access) => ({
-                                                userUuid: access.user_uuid,
-                                                firstName: access.first_name,
-                                                lastName: access.last_name,
-                                                email: access.email,
-                                                role: access.space_role,
-                                                hasDirectAccess: true,
-                                                inheritedRole:
-                                                    access.space_role,
-                                                inheritedFrom: 'space',
-                                                projectRole: access.space_role,
-                                            }))
-                                            .concat(
-                                                space.testing.inheritedAccess.map(
-                                                    (access) => ({
-                                                        userUuid:
-                                                            access.user_uuid,
-                                                        firstName:
-                                                            access.first_name,
-                                                        lastName:
-                                                            access.last_name,
-                                                        email: access.email,
-                                                        role: undefined,
-                                                        hasDirectAccess:
-                                                            access.user_uuid ===
-                                                            sessionUser.data
-                                                                ?.uuid
-                                                                ? true
-                                                                : false,
-                                                        inheritedRole:
-                                                            undefined,
-                                                        inheritedFrom:
-                                                            'organization',
-                                                        projectRole: undefined,
-                                                        spaceRole: undefined,
-                                                    }),
-                                                ),
-                                            ) || [],
-                                    groupsAccess:
-                                        space.testing?.groupAccess?.map(
-                                            (access) => ({
-                                                groupUuid: access.group_uuid,
-                                                spaceRole: access.space_role,
-                                                groupName: access.group_name,
-                                            }),
-                                        ) || [],
+                                    access,
+                                    groupsAccess,
                                 }}
                                 sessionUser={sessionUser.data}
                             />
                         </Stack>
-
                         <Box
                             p="md"
                             sx={{

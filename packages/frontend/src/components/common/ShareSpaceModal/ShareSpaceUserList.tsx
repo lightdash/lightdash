@@ -446,6 +446,21 @@ type SpaceAccessByType = {
     direct: SpaceShare[];
 };
 
+// User Categorization
+// ✅ Separates users by access type (direct, project/group, organization)
+// ✅ Prioritizes direct access over inherited access
+// ✅ Resolves conflicts when users have multiple access paths
+// Display Logic
+// ✅ Organization-level inherited access section
+// ✅ Project-level inherited access section
+// ✅ Direct user access section
+// ✅ Group-level access section
+// ✅ Session user identification ("you" label)
+// Permission Management
+// ✅ Role upgrade/downgrade validation
+// ✅ Admin role protection
+// ✅ Different behavior for private vs public spaces
+
 export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     space,
     projectUuid,
@@ -528,6 +543,12 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
         ],
     );
 
+    // This memo processes the space's access list and categorizes users by access type:
+    // - direct: users with explicit access to this space
+    // - project: users who have access via project or group membership
+    // - organisation: users who have access via organization membership
+    // It also handles cases where a user might have access from multiple sources,
+    // prioritizing direct access and then the highest role level
     const accessByType = useMemo<SpaceAccessByType>(() => {
         const getDirectOrHighestAccess = (
             existing: SpaceShare,
@@ -554,6 +575,8 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
             return currentRoleNumber > existingRoleNumber ? current : existing;
         };
 
+        // First pass: create a map of users with their highest access level
+        // This removes duplicates when a user appears multiple times with different access sources
         const userAccessMap = space.access.reduce<Map<string, SpaceShare>>(
             (acc, spaceShare) => {
                 const existing = acc.get(spaceShare.userUuid);
@@ -568,6 +591,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
             new Map<string, SpaceShare>(),
         );
 
+        // Second pass: categorize users based on how they inherited access
         const result = Array.from(userAccessMap.values()).reduce<{
             project: SpaceShare[];
             organisation: SpaceShare[];
@@ -602,12 +626,15 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
 
     return (
         <Stack spacing={'xs'}>
+            {/* Only show inherited access section header if there are actually inherited access users */}
             {(accessByType.organisation.length > 0 ||
                 accessByType.project.length > 0) && (
                 <Text fw={400} span c="gray.6">
                     Inherited access
                 </Text>
             )}
+
+            {/* Organization inherited access section: users who get access via organization-level permissions */}
             {accessByType.organisation.length > 0 && (
                 <ListCollapse
                     icon={IconBuildingBank}
@@ -622,6 +649,8 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                     />
                 </ListCollapse>
             )}
+
+            {/* Project inherited access section: users who get access via project-level or group permissions */}
             {accessByType.project.length > 0 && (
                 <ListCollapse
                     icon={IconDatabase}
@@ -636,6 +665,8 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                     />
                 </ListCollapse>
             )}
+
+            {/* Group access section: shows which groups have access to this space */}
             {space.access.length > 0 && (
                 <>
                     <Text fw={400} span c="gray.6">
@@ -649,6 +680,8 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                     />
                 </>
             )}
+
+            {/* Direct user access section: users who have been explicitly granted access to this space */}
             {accessByType.direct.length > 0 && (
                 <>
                     <Text fw={400} span c="gray.6">
