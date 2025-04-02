@@ -1,3 +1,4 @@
+import { MissingConfigError } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 
 type MicrosoftTeamsClientArguments = {
@@ -21,40 +22,112 @@ export class MicrosoftTeamsClient {
         this.lightdashConfig = lightdashConfig;
     }
 
-    static async postImageWithWebhook({
+    async postImageWithWebhook({
         webhookUrl,
-        text,
+        title,
+        name,
+        description,
+        ctaUrl,
         image,
+        footer,
     }: {
         webhookUrl: string;
-        text: string;
+        title: string;
+        name: string;
+        description: string | undefined;
+        ctaUrl: string;
         image: string;
+        footer: string;
     }): Promise<void> {
-        // TODO Check lightdash config to see if this is enabled
+        if (!this.lightdashConfig.microsoftTeams.enabled) {
+            throw new MissingConfigError('Microsoft Teams is not enabled');
+        }
+        console.info('Sending image to Microsoft Teams via webhook');
 
-        console.info('Sending image to Microsoft Teams');
+        // https://adaptivecards.io/explorer/
         const payload = {
-            '@type': 'MessageCard',
-            '@context': 'http://schema.org/extensions',
-            summary: 'Lightdash Report',
-            themeColor: '0076D7',
-            title: '📊 Lightdash Daily Report',
-            text,
-            sections: [
+            type: 'message',
+            attachments: [
                 {
-                    activityTitle: '🖼️ Screenshot',
-                    images: [
-                        {
-                            image,
-                        },
-                    ],
+                    contentType: 'application/vnd.microsoft.card.adaptive',
+                    contentUrl: null,
+                    content: {
+                        $schema:
+                            'http://adaptivecards.io/schemas/adaptive-card.json',
+                        type: 'AdaptiveCard',
+                        version: '1.2',
+                        body: [
+                            {
+                                type: 'TextBlock',
+                                text: title,
+                                weight: 'bolder',
+                                size: 'medium',
+                            },
+
+                            {
+                                type: 'TextBlock',
+                                text: name,
+                            },
+                            ...(description !== undefined
+                                ? [
+                                      {
+                                          type: 'TextBlock',
+                                          text: description,
+                                          isSubtle: true,
+                                          spacing: 'none',
+                                      },
+                                  ]
+                                : []),
+                            {
+                                type: 'Image',
+                                url: image,
+                                size: 'Stretch',
+                                altText: 'Lightdash chart',
+                                selectAction: {
+                                    type: 'Action.OpenUrl',
+                                    tooltip: 'See image',
+                                    url: image,
+                                },
+                            },
+                            {
+                                type: 'TextBlock',
+                                text: footer,
+                                isSubtle: true,
+                                size: 'small',
+                                wrap: true,
+                            },
+                        ],
+                        actions: [
+                            {
+                                type: 'Action.OpenUrl',
+                                title: 'Open in Lightdash',
+                                url: ctaUrl,
+                            },
+                        ],
+                    },
                 },
             ],
         };
 
-        await fetch(webhookUrl, {
+        const response = await fetch(webhookUrl, {
             method: 'POST',
             body: JSON.stringify(payload),
         });
+
+        const responseText = await response.text();
+        if (response.status !== 200 || responseText.includes('error')) {
+            console.error(
+                `Microsoft teams webhook returned an error: ${response.status} ${responseText}`,
+            );
+            console.info(
+                `Microsoft teams webhook payload ${JSON.stringify(
+                    payload,
+                    null,
+                    2,
+                )}`,
+            );
+
+            throw new Error(`Microsoft teams webhook returned an error`);
+        }
     }
 }

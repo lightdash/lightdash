@@ -7,6 +7,7 @@ import {
     EmailNotificationPayload,
     GsheetsNotificationPayload,
     JobPriority,
+    MsTeamsNotificationPayload,
     NotificationPayloadBase,
     QueueTraceProperties,
     ReplaceCustomFieldsPayload,

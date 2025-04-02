@@ -257,6 +257,14 @@ type Props = {
     itemsMap?: ItemsMap;
 };
 
+const validateMsTeamsWebhook = (webhook: string): boolean => {
+    if (webhook.length === 0) return false;
+    if (!webhook.startsWith('https://')) return false;
+    if (/\s/.test(webhook)) return false;
+
+    return true;
+};
+
 type MicrosoftTeamsDestinationProps = {
     form: AnyType;
 };
@@ -274,12 +282,17 @@ const MicrosoftTeamsDestination: FC<MicrosoftTeamsDestinationProps> = ({
             />
             <Box w="100%">
                 <TagInput
+                    styles={() => ({
+                        values: {
+                            maxWidth: '650px',
+                        },
+                    })}
                     clearable
                     placeholder="Enter Microsoft Teams webhook URLs"
                     value={form.values.msTeamsTargets}
                     allowDuplicates={false}
                     splitChars={[',', ' ']}
-                    // TODO add validation
+                    validationFunction={validateMsTeamsWebhook}
                     onChange={(val) => {
                         form.setFieldValue('msTeamsTargets', val);
                     }}

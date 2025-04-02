@@ -34,7 +34,6 @@ import {
     type SchedulerIndexCatalogJobPayload,
     SchedulerJobStatus,
     SchedulerLog,
-    SchedulerTaskName,
     SemanticLayerQueryPayload,
     SessionUser,
     SlackInstallationNotFoundError,
@@ -130,6 +129,7 @@ export type SchedulerTaskArguments = {
     semanticLayerService: SemanticLayerService;
     catalogService: CatalogService;
     encryptionUtil: EncryptionUtil;
+    msTeamsClient: MicrosoftTeamsClient;
 };
 
 export default class SchedulerTask {
@@ -167,6 +167,8 @@ export default class SchedulerTask {
 
     private readonly encryptionUtil: EncryptionUtil;
 
+    protected readonly msTeamsClient: MicrosoftTeamsClient;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -185,6 +187,8 @@ export default class SchedulerTask {
         this.semanticLayerService = args.semanticLayerService;
         this.catalogService = args.catalogService;
         this.encryptionUtil = args.encryptionUtil;
+
+        this.msTeamsClient = args.msTeamsClient;
     }
 
     protected async getChartOrDashboard(
@@ -849,17 +853,19 @@ export default class SchedulerTask {
                 pdfFile,
             } = notificationPageData;
 
+            const schedulerFooter = includeLinks
+                ? `[scheduled delivery](${url})`
+                : 'scheduled delivery';
+
             const defaultSchedulerTimezone =
                 await this.schedulerService.getSchedulerDefaultTimezone(
                     schedulerUuid,
                 );
 
-            const showExpirationWarning = format !== SchedulerFormat.IMAGE;
-            const schedulerFooter = includeLinks
-                ? `<${url}?scheduler_uuid=${
-                      schedulerUuid || ''
-                  }|scheduled delivery>`
-                : 'scheduled delivery';
+            const footer = `This is a ${schedulerFooter} ${getHumanReadableCronExpression(
+                cron,
+                timezone || defaultSchedulerTimezone,
+            )} from Lightdash.`;
             const getBlocksArgs = {
                 title: name,
                 name: details.name,
@@ -867,15 +873,7 @@ export default class SchedulerTask {
                 message:
                     scheduler.message && slackifyMarkdown(scheduler.message),
                 ctaUrl: url,
-                footerMarkdown: `This is a ${schedulerFooter} ${getHumanReadableCronExpression(
-                    cron,
-                    timezone || defaultSchedulerTimezone,
-                )} from Lightdash.\n${
-                    showExpirationWarning
-                        ? this.s3Client.getExpirationWarning()?.slack || ''
-                        : ''
-                }`,
-                includeLinks,
+                footer,
             };
 
             if (thresholds !== undefined && thresholds.length > 0) {
@@ -884,9 +882,9 @@ export default class SchedulerTask {
                 throw new Error('Not implemented');
             } else if (format === SchedulerFormat.IMAGE) {
                 if (imageUrl)
-                    await MicrosoftTeamsClient.postImageWithWebhook({
+                    await this.msTeamsClient.postImageWithWebhook({
                         webhookUrl: webhook,
-                        text: name,
+                        ...getBlocksArgs,
                         image: imageUrl,
                     });
             } else {
