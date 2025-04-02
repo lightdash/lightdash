@@ -69,6 +69,7 @@ import {
     isTableChartConfig,
     operatorActionValue,
     pivotResultsAsCsv,
+    setUuidParam,
     type RunQueryTags,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
@@ -304,8 +305,18 @@ export default class SchedulerTask {
         );
 
         const deliveryUrl = savedChartUuid
-            ? `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${savedChartUuid}/view?scheduler_uuid=${schedulerUuid}`
-            : `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/dashboards/${dashboardUuid}/view?scheduler_uuid=${schedulerUuid}`;
+            ? `${
+                  this.lightdashConfig.siteUrl
+              }/projects/${projectUuid}/saved/${savedChartUuid}/view?${setUuidParam(
+                  'scheduler_uuid',
+                  schedulerUuid,
+              )}`
+            : `${
+                  this.lightdashConfig.siteUrl
+              }/projects/${projectUuid}/dashboards/${dashboardUuid}/view?${setUuidParam(
+                  'scheduler_uuid',
+                  schedulerUuid,
+              )}`;
         switch (format) {
             case SchedulerFormat.IMAGE:
                 try {
@@ -543,9 +554,10 @@ export default class SchedulerTask {
 
             const showExpirationWarning = format !== SchedulerFormat.IMAGE;
             const schedulerFooter = includeLinks
-                ? `<${url}?scheduler_uuid=${
-                      schedulerUuid || ''
-                  }|scheduled delivery>`
+                ? `<${url}?${setUuidParam(
+                      'scheduler_uuid',
+                      schedulerUuid,
+                  )}|scheduled delivery>`
                 : 'scheduled delivery';
             const getBlocksArgs = {
                 title: name,
@@ -575,9 +587,10 @@ export default class SchedulerTask {
                             name,
                         );
                     const thresholdFooter = includeLinks
-                        ? `<${url}?threshold_uuid=${
-                              schedulerUuid || ''
-                          }|data alert>`
+                        ? `<${url}?${setUuidParam(
+                              'threshold_uuid',
+                              schedulerUuid,
+                          )}|data alert>`
                         : 'data alert';
 
                     const expiration = slackImageUrl.expiring
@@ -1474,7 +1487,10 @@ export default class SchedulerTask {
                 pdfFile,
             } = notificationPageData;
 
-            const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
+            const schedulerUrl = `${url}?${setUuidParam(
+                'scheduler_uuid',
+                schedulerUuid,
+            )}`;
 
             const defaultSchedulerTimezone =
                 await this.schedulerService.getSchedulerDefaultTimezone(
@@ -1805,7 +1821,12 @@ export default class SchedulerTask {
                 const chart = await this.schedulerService.savedChartModel.get(
                     savedChartUuid,
                 );
-                deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${savedChartUuid}/view?scheduler_uuid=${schedulerUuid}&isSync=true`;
+                deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${
+                    chart.projectUuid
+                }/saved/${savedChartUuid}/view?${setUuidParam(
+                    'scheduler_uuid',
+                    schedulerUuid,
+                )}&isSync=true`;
 
                 const defaultSchedulerTimezone =
                     await this.schedulerService.getSchedulerDefaultTimezone(
@@ -1847,7 +1868,12 @@ export default class SchedulerTask {
                     scheduler.createdBy,
                 );
 
-                const reportUrl = `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chart.uuid}/view?scheduler_uuid=${schedulerUuid}&isSync=true`;
+                const reportUrl = `${this.lightdashConfig.siteUrl}/projects/${
+                    chart.projectUuid
+                }/saved/${chart.uuid}/view?${setUuidParam(
+                    'scheduler_uuid',
+                    schedulerUuid,
+                )}&isSync=true`;
                 await this.googleDriveClient.uploadMetadata(
                     refreshToken,
                     gdriveId,
@@ -1901,7 +1927,12 @@ export default class SchedulerTask {
                     user,
                     dashboardUuid,
                 );
-                deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}/view?scheduler_uuid=${schedulerUuid}&isSync=true`;
+                deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${
+                    dashboard.projectUuid
+                }/dashboards/${dashboardUuid}/view?${setUuidParam(
+                    'scheduler_uuid',
+                    schedulerUuid,
+                )}&isSync=true`;
 
                 const defaultSchedulerTimezone =
                     await this.schedulerService.getSchedulerDefaultTimezone(
