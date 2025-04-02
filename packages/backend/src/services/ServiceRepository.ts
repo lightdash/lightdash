@@ -465,6 +465,7 @@ export class ServiceRepository
                     resultsCacheModel: this.models.getResultsCacheModel(),
                     resultsCacheStorageClient:
                         this.clients.getResultsCacheStorageClient(),
+                    userModel: this.models.getUserModel(),
                 }),
         );
     }

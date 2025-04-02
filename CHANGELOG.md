@@ -1,3 +1,10 @@
+# [0.1560.0](https://github.com/lightdash/lightdash/compare/0.1559.1...0.1560.0) (2025-04-02)
+
+
+### Features
+
+* preview branch ([#14222](https://github.com/lightdash/lightdash/issues/14222)) ([d77a9f6](https://github.com/lightdash/lightdash/commit/d77a9f6d614d4c0a2b546aae9afe7a614adf4460))
+
 ## [0.1559.1](https://github.com/lightdash/lightdash/compare/0.1559.0...0.1559.1) (2025-04-01)
 
 

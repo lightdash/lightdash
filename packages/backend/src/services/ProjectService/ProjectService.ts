@@ -20,6 +20,7 @@ import {
     CompiledDimension,
     ContentType,
     convertCustomMetricToDbt,
+    convertExplores,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     type CreateDatabricksCredentials,
@@ -37,7 +38,10 @@ import {
     DateGranularity,
     DbtExposure,
     DbtExposureType,
+    DbtManifestVersion,
+    DbtProjectEnvironmentVariable,
     DbtProjectType,
+    DbtRawModelNode,
     deepEqual,
     DEFAULT_RESULTS_PAGE_SIZE,
     DefaultSupportedDbtVersion,
@@ -90,6 +94,8 @@ import {
     JobStepType,
     JobType,
     LightdashError,
+    maybeOverrideDbtConnection,
+    maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
     MetricQuery,
     MissingWarehouseCredentialsError,
@@ -150,6 +156,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
+import fetch from 'node-fetch';
 import { Readable } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
@@ -184,8 +191,10 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
+import { UserModel } from '../../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import {
     applyLimitToSqlQuery,
@@ -247,6 +256,7 @@ type ProjectServiceArguments = {
     encryptionUtil: EncryptionUtil;
     resultsCacheModel: ResultsCacheModel;
     resultsCacheStorageClient: IResultsCacheStorageClient;
+    userModel: UserModel;
 };
 
 export class ProjectService extends BaseService {
@@ -306,6 +316,8 @@ export class ProjectService extends BaseService {
 
     resultsCacheStorageClient: IResultsCacheStorageClient;
 
+    userModel: UserModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -334,6 +346,7 @@ export class ProjectService extends BaseService {
         resultsCacheModel,
         encryptionUtil,
         resultsCacheStorageClient,
+        userModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -364,6 +377,7 @@ export class ProjectService extends BaseService {
         this.encryptionUtil = encryptionUtil;
         this.resultsCacheModel = resultsCacheModel;
         this.resultsCacheStorageClient = resultsCacheStorageClient;
+        this.userModel = userModel;
     }
 
     static getMetricQueryExecutionProperties({
@@ -5587,6 +5601,11 @@ export class ProjectService extends BaseService {
         data: {
             name: string;
             copyContent: boolean;
+            dbtConnectionOverrides?: {
+                branch?: string;
+                environment?: DbtProjectEnvironmentVariable[];
+            };
+            warehouseConnectionOverrides?: { schema?: string };
         },
         context: RequestMethod,
     ): Promise<string> {
@@ -5603,8 +5622,14 @@ export class ProjectService extends BaseService {
         const previewData: CreateProject = {
             name: data.name,
             type: ProjectType.PREVIEW,
-            warehouseConnection: project.warehouseConnection,
-            dbtConnection: project.dbtConnection,
+            warehouseConnection: maybeOverrideWarehouseConnection(
+                project.warehouseConnection,
+                data.warehouseConnectionOverrides ?? {},
+            ),
+            dbtConnection: maybeOverrideDbtConnection(
+                project.dbtConnection,
+                data.dbtConnectionOverrides ?? {},
+            ),
             upstreamProjectUuid: data.copyContent ? projectUuid : undefined,
             dbtVersion: project.dbtVersion,
         };
@@ -6811,5 +6836,143 @@ export class ProjectService extends BaseService {
             },
         });
         return updatedCharts;
+    }
+
+    async createPreviewWithExplores(
+        projectUuid: string,
+        accountId: string,
+        runId: string,
+    ): Promise<string> {
+        // create preview project permissions are checked in `createWithoutCompile`
+        const project = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+
+        if (!project.warehouseConnection) {
+            throw new ParameterError(
+                `Missing warehouse connection for project ${projectUuid}`,
+            );
+        }
+
+        if (project.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE) {
+            throw new ParameterError(
+                `Project ${projectUuid} is not a dbt Cloud IDE project`,
+            );
+        }
+
+        // todo: fix this
+        if (!project.createdByUserUuid) {
+            throw new ParameterError(
+                `Didn't find user for project ${projectUuid}`,
+            );
+        }
+
+        // todo: fix this
+        const user = await this.userModel.findSessionUserByUUID(
+            project.createdByUserUuid,
+        );
+
+        const response = await fetch(
+            `https://cloud.getdbt.com/api/v2/accounts/${accountId}/runs/${runId}/artifacts/manifest.json`,
+            {
+                headers: {
+                    Authorization: `Bearer ${project.dbtConnection.api_key}`,
+                },
+            },
+        );
+        const manifest = await response.json();
+
+        const prId = manifest.metadata.env.DBT_CLOUD_PR_ID;
+        const jobId = manifest.metadata.env.DBT_CLOUD_JOB_ID;
+
+        const nodes = Object.values(manifest.nodes);
+        Logger.info(`Manifest models ${nodes.length}`);
+        // todo: does it error if they use a selector in the job? check logic in dbtBaseProjectAdapter.compileAllExplores
+        const models = nodes.filter(
+            (node: AnyType) => node.resource_type === 'model' && node.meta, // check that node.meta exists
+        ) as DbtRawModelNode[];
+
+        const { warehouseClient } = await this._getWarehouseClient(
+            projectUuid,
+            project.warehouseConnection,
+        );
+
+        const [dbtModelNode, exploreErrors] =
+            DbtBaseProjectAdapter._validateDbtModel(
+                warehouseClient.getAdapterType(),
+                models,
+                DbtManifestVersion.V12,
+            );
+        const convertedExplores = await convertExplores(
+            dbtModelNode,
+            false,
+            warehouseClient.getAdapterType(),
+            [],
+            warehouseClient,
+            {
+                spotlight: {
+                    default_visibility: 'hide', // todo: pass correct config
+                },
+            },
+        );
+        Logger.info(`Explore count: ${convertedExplores.length}`);
+        const previewName = `preview_${jobId}_${prId}`;
+        Logger.info(`Preview name: ${previewName}`);
+        Logger.info(`Find all project for: ${project.organizationUuid}`);
+        const allProjects = await this.projectModel.getAllByOrganizationUuid(
+            project.organizationUuid,
+        );
+        const previewExists = allProjects.find(
+            (p) => p.name === previewName && p.type === ProjectType.PREVIEW,
+        );
+        let projectToSetExplores: string;
+        Logger.info(`Preview exists: ${previewExists}`);
+        if (previewExists) {
+            projectToSetExplores = previewExists.projectUuid;
+        } else {
+            const previewData: CreateProject = {
+                name: previewName,
+                type: ProjectType.PREVIEW,
+                warehouseConnection: maybeOverrideWarehouseConnection(
+                    project.warehouseConnection,
+                    {
+                        schema: `dbt_cloud_pr_${jobId}_${prId}`,
+                    },
+                ),
+                dbtConnection: {
+                    type: DbtProjectType.NONE,
+                },
+                upstreamProjectUuid: projectUuid,
+                dbtVersion: project.dbtVersion,
+            };
+
+            const newPreview = await this.createWithoutCompile(
+                user,
+                previewData,
+                RequestMethod.WEB_APP, // TODO: fix context
+            );
+            projectToSetExplores = newPreview.project.projectUuid;
+        }
+
+        Logger.info(`Set explores for: ${projectToSetExplores}`);
+        await this.saveExploresToCacheAndIndexCatalog(
+            user.userUuid,
+            projectToSetExplores,
+            [...convertedExplores, ...exploreErrors],
+        );
+
+        Logger.info(`Schedule validation:`, {
+            userUuid: user.userUuid,
+            projectUuid: projectToSetExplores,
+            context: 'cli', // todo: fix me
+            organizationUuid: project.organizationUuid,
+        });
+        await this.schedulerClient.generateValidation({
+            userUuid: user.userUuid,
+            projectUuid: projectToSetExplores,
+            context: 'cli', // todo: fix me
+            organizationUuid: project.organizationUuid,
+        });
+        return projectToSetExplores;
     }
 }
