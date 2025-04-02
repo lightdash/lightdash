@@ -1,5 +1,6 @@
-import { MissingConfigError } from '@lightdash/common';
+import { AnyType, MissingConfigError } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
+import { AttachmentUrl } from '../EmailClient/EmailClient';
 
 type MicrosoftTeamsClientArguments = {
     lightdashConfig: LightdashConfig;
@@ -20,6 +21,32 @@ export class MicrosoftTeamsClient {
 
     constructor({ lightdashConfig }: MicrosoftTeamsClientArguments) {
         this.lightdashConfig = lightdashConfig;
+    }
+
+    private async sendWebhook(webhookUrl: string, payload: AnyType) {
+        if (!this.lightdashConfig.microsoftTeams.enabled) {
+            throw new MissingConfigError('Microsoft Teams is not enabled');
+        }
+        const response = await fetch(webhookUrl, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+
+        const responseText = await response.text();
+        if (response.status !== 200 || responseText.includes('error')) {
+            console.error(
+                `Microsoft teams webhook returned an error: ${response.status} ${responseText}`,
+            );
+            console.info(
+                `Microsoft teams webhook payload ${JSON.stringify(
+                    payload,
+                    null,
+                    2,
+                )}`,
+            );
+
+            throw new Error(`Microsoft teams webhook returned an error`);
+        }
     }
 
     async postImageWithWebhook({
@@ -109,25 +136,179 @@ export class MicrosoftTeamsClient {
             ],
         };
 
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            body: JSON.stringify(payload),
-        });
+        await this.sendWebhook(webhookUrl, payload);
+    }
 
-        const responseText = await response.text();
-        if (response.status !== 200 || responseText.includes('error')) {
-            console.error(
-                `Microsoft teams webhook returned an error: ${response.status} ${responseText}`,
-            );
-            console.info(
-                `Microsoft teams webhook payload ${JSON.stringify(
-                    payload,
-                    null,
-                    2,
-                )}`,
-            );
-
-            throw new Error(`Microsoft teams webhook returned an error`);
+    async postCsvWithWebhook({
+        webhookUrl,
+        title,
+        name,
+        description,
+        ctaUrl,
+        csvUrl,
+        footer,
+    }: {
+        webhookUrl: string;
+        title: string;
+        name: string;
+        description: string | undefined;
+        ctaUrl: string;
+        csvUrl: AttachmentUrl;
+        footer: string;
+    }): Promise<void> {
+        if (!this.lightdashConfig.microsoftTeams.enabled) {
+            throw new MissingConfigError('Microsoft Teams is not enabled');
         }
+        console.info(`Sending chart CSV to Microsoft Teams via webhook`);
+
+        // https://adaptivecards.io/explorer/
+        const payload = {
+            type: 'message',
+            attachments: [
+                {
+                    contentType: 'application/vnd.microsoft.card.adaptive',
+                    contentUrl: null,
+                    content: {
+                        $schema:
+                            'http://adaptivecards.io/schemas/adaptive-card.json',
+                        type: 'AdaptiveCard',
+                        version: '1.2',
+                        body: [
+                            {
+                                type: 'TextBlock',
+                                text: title,
+                                weight: 'bolder',
+                                size: 'medium',
+                            },
+
+                            {
+                                type: 'TextBlock',
+                                text: name,
+                            },
+                            ...(description !== undefined
+                                ? [
+                                      {
+                                          type: 'TextBlock',
+                                          text: description,
+                                          isSubtle: true,
+                                          spacing: 'none',
+                                      },
+                                  ]
+                                : []),
+
+                            {
+                                type: 'TextBlock',
+                                text: footer,
+                                isSubtle: true,
+                                size: 'small',
+                                wrap: true,
+                            },
+                        ],
+                        actions: [
+                            {
+                                type: 'Action.OpenUrl',
+                                title: 'Download results',
+                                url: csvUrl.path,
+                            },
+                            {
+                                type: 'Action.OpenUrl',
+                                title: 'Open in Lightdash',
+                                url: ctaUrl,
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+        await this.sendWebhook(webhookUrl, payload);
+    }
+
+    async postCsvsWithWebhook({
+        webhookUrl,
+        title,
+        name,
+        description,
+        ctaUrl,
+        csvUrls,
+        footer,
+    }: {
+        webhookUrl: string;
+        title: string;
+        name: string;
+        description: string | undefined;
+        ctaUrl: string;
+        csvUrls: AttachmentUrl[];
+        footer: string;
+    }): Promise<void> {
+        if (!this.lightdashConfig.microsoftTeams.enabled) {
+            throw new MissingConfigError('Microsoft Teams is not enabled');
+        }
+        console.info(`Sending chart CSV to Microsoft Teams via webhook`);
+
+        // https://adaptivecards.io/explorer/
+        const payload = {
+            type: 'message',
+            attachments: [
+                {
+                    contentType: 'application/vnd.microsoft.card.adaptive',
+                    contentUrl: null,
+                    content: {
+                        $schema:
+                            'http://adaptivecards.io/schemas/adaptive-card.json',
+                        type: 'AdaptiveCard',
+                        version: '1.2',
+                        body: [
+                            {
+                                type: 'TextBlock',
+                                text: title,
+                                weight: 'bolder',
+                                size: 'medium',
+                            },
+
+                            {
+                                type: 'TextBlock',
+                                text: name,
+                            },
+                            ...(description !== undefined
+                                ? [
+                                      {
+                                          type: 'TextBlock',
+                                          text: description,
+                                          isSubtle: true,
+                                          spacing: 'none',
+                                      },
+                                  ]
+                                : []),
+
+                            {
+                                type: 'TextBlock',
+                                text: 'Download results:',
+                            },
+                            ...csvUrls.map((csvUrl) => ({
+                                type: 'TextBlock',
+                                text: `- [${csvUrl.filename}](${csvUrl.path})`,
+                                isSubtle: true,
+                                spacing: 'none',
+                            })),
+                            {
+                                type: 'TextBlock',
+                                text: footer,
+                                isSubtle: true,
+                                size: 'small',
+                                wrap: true,
+                            },
+                        ],
+                        actions: [
+                            {
+                                type: 'Action.OpenUrl',
+                                title: 'Open in Lightdash',
+                                url: ctaUrl,
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+        await this.sendWebhook(webhookUrl, payload);
     }
 }

@@ -879,7 +879,7 @@ export default class SchedulerTask {
             if (thresholds !== undefined && thresholds.length > 0) {
                 // We assume the threshold is possitive , so we don't need to get results here
 
-                throw new Error('Not implemented');
+                throw new NotImplementedError('Not implemented');
             } else if (format === SchedulerFormat.IMAGE) {
                 if (imageUrl)
                     await this.msTeamsClient.postImageWithWebhook({
@@ -887,8 +887,28 @@ export default class SchedulerTask {
                         ...getBlocksArgs,
                         image: imageUrl,
                     });
-            } else {
-                throw new Error('Not implemented');
+            } else if (format === SchedulerFormat.CSV) {
+                if (savedChartUuid) {
+                    if (csvUrl === undefined) {
+                        throw new Error('Missing CSV URL');
+                    }
+                    await this.msTeamsClient.postCsvWithWebhook({
+                        webhookUrl: webhook,
+                        ...getBlocksArgs,
+                        csvUrl,
+                    });
+                } else if (dashboardUuid) {
+                    if (csvUrls === undefined) {
+                        throw new Error('Missing CSV URLS');
+                    }
+                    await this.msTeamsClient.postCsvsWithWebhook({
+                        webhookUrl: webhook,
+                        ...getBlocksArgs,
+                        csvUrls,
+                    });
+                } else {
+                    throw new UnexpectedServerError('Not implemented');
+                }
             }
             this.analytics.track({
                 event: 'scheduler_notification_job.completed',
