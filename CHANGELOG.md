@@ -1,3 +1,10 @@
+## [0.1561.1](https://github.com/lightdash/lightdash/compare/0.1561.0...0.1561.1) (2025-04-02)
+
+
+### Bug Fixes
+
+* fix table loading with 0 rows ([#14250](https://github.com/lightdash/lightdash/issues/14250)) ([cb5ffa8](https://github.com/lightdash/lightdash/commit/cb5ffa8a5d67efa40c3c3cf4ab2008e582514d59))
+
 # [0.1561.0](https://github.com/lightdash/lightdash/compare/0.1560.0...0.1561.0) (2025-04-02)
 
 
