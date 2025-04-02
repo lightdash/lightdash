@@ -1,4 +1,5 @@
-import type { WarehouseResults } from '@lightdash/common';
+import { WarehouseResults } from '@lightdash/common';
+import { Readable } from 'stream';
 
 export interface IResultsCacheStorageClient {
     createUploadStream(
@@ -12,5 +13,5 @@ export interface IResultsCacheStorageClient {
         cacheKey: string,
         page: number,
         pageSize: number,
-    ): Promise<ReadableStream>;
+    ): Promise<Readable>;
 }

@@ -133,11 +133,11 @@ export class ResultsCacheModel {
         const cache = await this.find(cacheKey, projectUuid);
 
         if (!cache) {
+            // TODO: throw a specific error the FE will respond to
             throw new NotFoundError(
                 `Cache not found for key ${cacheKey} and project ${projectUuid}`,
             );
         }
-
         return storageClient.download(cacheKey, page, pageSize);
     }
 }

@@ -15,7 +15,7 @@ import {
     WarehouseResults,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { PassThrough } from 'stream';
+import { PassThrough, Readable } from 'stream';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
@@ -88,13 +88,14 @@ export class S3ResultsCacheStorageClient
         cacheKey: string,
         page: number,
         pageSize: number,
-    ): Promise<ReadableStream> {
+    ): Promise<Readable> {
         try {
-            const results = await this.getResults(cacheKey);
+            const results = await this.getResults(cacheKey, 'jsonl');
             if (!results.Body) {
                 throw new Error('No results found');
             }
-            return results.Body as ReadableStream;
+
+            return results.Body as Readable;
         } catch (error) {
             if (error instanceof NotFound) {
                 throw new Error(`Cache key ${cacheKey} not found`);

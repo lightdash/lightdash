@@ -180,7 +180,7 @@ export class S3CacheClient {
         );
     }
 
-    async getResults(key: string) {
+    async getResults(key: string, extension: string = 'json') {
         return wrapSentryTransaction('s3.getResults', { key }, async (span) => {
             if (
                 this.configuration.bucket === undefined ||
@@ -193,7 +193,7 @@ export class S3CacheClient {
             try {
                 const command = new GetObjectCommand({
                     Bucket: this.configuration.bucket,
-                    Key: `${key}.json`,
+                    Key: `${key}.${extension}`,
                 });
                 return await this.s3.send(command);
             } catch (error) {

@@ -157,6 +157,7 @@ import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
 import fetch from 'node-fetch';
+import { createInterface } from 'readline';
 import { Readable } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
@@ -1952,7 +1953,8 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { metricQuery, context, status, totalRowCount } = queryHistory;
+        const { metricQuery, context, status, totalRowCount, cacheKey } =
+            queryHistory;
 
         const defaultedPageSize =
             pageSize ??
@@ -1987,6 +1989,41 @@ export class ProjectService extends BaseService {
                 break;
             default:
                 return assertUnreachable(status, 'Unknown query status');
+        }
+
+        // Load cached data into memory
+        if (cacheKey) {
+            const cacheStream = await this.resultsCacheModel.getCachedResults(
+                cacheKey,
+                projectUuid,
+                page,
+                defaultedPageSize,
+                this.resultsCacheStorageClient,
+            );
+
+            if (!cacheStream) {
+                throw new Error('No cache found');
+            }
+
+            const rows = [];
+            const rl = createInterface({
+                input: cacheStream,
+                crlfDelay: Infinity,
+            });
+
+            // Calculate the range of lines we need
+            const startLine = (page - 1) * defaultedPageSize;
+            const endLine = startLine + defaultedPageSize;
+            let currentLine = 0;
+
+            for await (const line of rl) {
+                if (line.trim()) {
+                    if (currentLine >= startLine && currentLine < endLine) {
+                        rows.push(JSON.parse(line));
+                    }
+                    currentLine += currentLine;
+                }
+            }
         }
 
         const explore = await this.getExplore(
