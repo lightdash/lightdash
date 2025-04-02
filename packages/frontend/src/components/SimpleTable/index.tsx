@@ -1,6 +1,7 @@
 import { Box, Flex } from '@mantine/core';
+import { noop } from '@mantine/utils';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, useCallback, useEffect, useMemo } from 'react';
 import { isTableVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { LoadingChart } from '../SimpleChart';
@@ -8,6 +9,10 @@ import PivotTable from '../common/PivotTable';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import Table from '../common/Table';
 import { ResultCount } from '../common/Table/TablePagination';
+import {
+    type CellContextMenuProps,
+    type HeaderProps,
+} from '../common/Table/types';
 import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';
 import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
@@ -29,21 +34,94 @@ const SimpleTable: FC<SimpleTableProps> = ({
     minimal = false,
     ...rest
 }) => {
-    const {
-        isLoading,
-        columnOrder,
-        itemsMap,
-        visualizationConfig,
-        resultsData,
-    } = useVisualizationContext();
+    const { columnOrder, itemsMap, visualizationConfig, resultsData } =
+        useVisualizationContext();
+
+    const shouldPaginateResults = useMemo(() => {
+        return Boolean(
+            !resultsData ||
+                !isTableVisualizationConfig(visualizationConfig) ||
+                // When subtotals are disable and there is no pivot table data, we don't need to load all the rows
+                (!visualizationConfig.chartConfig.showSubtotals &&
+                    !visualizationConfig.chartConfig.pivotTableData?.data),
+        );
+    }, [resultsData, visualizationConfig]);
+
+    const loadResultsStatus = useMemo(() => {
+        if (!resultsData) {
+            return 'loading';
+        }
+
+        // When paginated, it's success as soon as there are rows
+        // When not paginated, it's success as soon as all rows have been fetched
+        const isSuccess = shouldPaginateResults
+            ? resultsData.rows.length > 0 || resultsData.hasFetchedAllRows
+            : resultsData.hasFetchedAllRows;
+
+        return isSuccess ? 'success' : 'loading';
+    }, [resultsData, shouldPaginateResults]);
+
+    const showColumnCalculation = useMemo(() => {
+        if (!isTableVisualizationConfig(visualizationConfig)) {
+            return undefined;
+        }
+
+        return visualizationConfig.chartConfig.showColumnCalculation;
+    }, [visualizationConfig]);
+
+    const pagination = useMemo(() => {
+        return {
+            show: showColumnCalculation,
+        };
+    }, [showColumnCalculation]);
+
+    const headerContextMenu = useCallback<
+        FC<React.PropsWithChildren<HeaderProps>>
+    >(
+        (props) => {
+            if (!minimal && isDashboard && tileUuid)
+                return (
+                    <DashboardHeaderContextMenu
+                        {...props}
+                        tileUuid={tileUuid}
+                    />
+                );
+            return null;
+        },
+        [isDashboard, minimal, tileUuid],
+    );
+
+    const cellContextMenu = useCallback<
+        FC<React.PropsWithChildren<CellContextMenuProps>>
+    >(
+        (props) => {
+            if (minimal) {
+                return <MinimalCellContextMenu {...props} />;
+            }
+            if (isDashboard && tileUuid) {
+                return (
+                    <DashboardCellContextMenu {...props} itemsMap={itemsMap} />
+                );
+            }
+            return <CellContextMenu {...props} />;
+        },
+        [isDashboard, itemsMap, minimal, tileUuid],
+    );
+
+    useEffect(() => {
+        if (shouldPaginateResults) return;
+
+        // Load all the rows
+        resultsData?.setFetchAll(true);
+        return () => {
+            resultsData?.setFetchAll(false);
+        };
+    }, [shouldPaginateResults, resultsData]);
 
     if (!isTableVisualizationConfig(visualizationConfig)) return null;
 
     const {
-        rows,
-        error,
         columns,
-        showColumnCalculation,
         conditionalFormattings,
         minMaxMap,
         hideRowNumbers,
@@ -53,18 +131,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
         showResultsTotal,
         showSubtotals,
     } = visualizationConfig.chartConfig;
-
-    if (isLoading) return <LoadingChart />;
-
-    if (error) {
-        return (
-            <SuboptimalState
-                title="Results not available"
-                description={error}
-                icon={IconAlertCircle}
-            />
-        );
-    }
 
     if (pivotTableData.error) {
         return (
@@ -82,7 +148,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 miw="100%"
                 h="100%"
             >
-                {pivotTableData.data ? (
+                {pivotTableData.data && resultsData?.hasFetchedAllRows ? (
                     <>
                         <PivotTable
                             className={className}
@@ -116,11 +182,12 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 minimal={minimal}
                 $shouldExpand={$shouldExpand}
                 className={className}
-                status="success"
-                data={rows}
+                status={loadResultsStatus}
+                data={resultsData?.rows || []}
                 totalRowsCount={resultsData?.totalResults || 0}
                 isFetchingRows={!!resultsData?.isFetchingRows}
-                fetchMoreRows={resultsData?.fetchMoreRows || (() => undefined)}
+                loadingState={LoadingChart}
+                fetchMoreRows={resultsData?.fetchMoreRows || noop}
                 columns={columns}
                 columnOrder={columnOrder}
                 hideRowNumbers={hideRowNumbers}
@@ -128,33 +195,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 showSubtotals={showSubtotals}
                 conditionalFormattings={conditionalFormattings}
                 minMaxMap={minMaxMap}
-                footer={{
-                    show: showColumnCalculation,
-                }}
-                headerContextMenu={(props) => {
-                    if (!minimal && isDashboard && tileUuid)
-                        return (
-                            <DashboardHeaderContextMenu
-                                {...props}
-                                tileUuid={tileUuid}
-                            />
-                        );
-                    return null;
-                }}
-                cellContextMenu={(props) => {
-                    if (minimal) {
-                        return <MinimalCellContextMenu {...props} />;
-                    }
-                    if (isDashboard && tileUuid) {
-                        return (
-                            <DashboardCellContextMenu
-                                {...props}
-                                itemsMap={itemsMap}
-                            />
-                        );
-                    }
-                    return <CellContextMenu {...props} />;
-                }}
+                footer={pagination}
+                headerContextMenu={headerContextMenu}
+                cellContextMenu={cellContextMenu}
                 pagination={{ showResultsTotal }}
                 {...rest}
             />

@@ -21,6 +21,7 @@ import {
     CreateProjectMember,
     DashboardAsCode,
     DbtExposure,
+    DbtProjectEnvironmentVariable,
     ParameterError,
     RequestMethod,
     UpdateMetadata,
@@ -677,6 +678,11 @@ export class ProjectController extends BaseController {
         body: {
             name: string;
             copyContent: boolean;
+            dbtConnectionOverrides?: {
+                branch?: string;
+                environment?: DbtProjectEnvironmentVariable[];
+            };
+            warehouseConnectionOverrides?: { schema?: string };
         },
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: string }> {
@@ -971,6 +977,32 @@ export class ProjectController extends BaseController {
                     ...dashboard,
                     description: dashboard.description ?? undefined,
                 }),
+        };
+    }
+
+    @Post('{projectUuid}/dbt-cloud/webhook')
+    @OperationId('webhook')
+    async testWebhook(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: AnyType,
+    ) {
+        // TODO validate webhook signature https://docs.getdbt.com/docs/deploy/webhooks#validate-a-webhook
+        if (!body) {
+            throw new ParameterError('Invalid body');
+        }
+        if (body.eventType === 'job.run.completed') {
+            // TODO: validate body is an object and has the account id and run id
+            const accountId: string = body.accountId as string;
+            const runId: string = body.data.runId as string;
+            await this.services
+                .getProjectService()
+                .createPreviewWithExplores(projectUuid, accountId, runId);
+        }
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
         };
     }
 }
