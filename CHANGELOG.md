@@ -1,3 +1,10 @@
+# [0.1561.0](https://github.com/lightdash/lightdash/compare/0.1560.0...0.1561.0) (2025-04-02)
+
+
+### Features
+
+* lazy load table viz ([#14182](https://github.com/lightdash/lightdash/issues/14182)) ([ace0016](https://github.com/lightdash/lightdash/commit/ace00167fd08e5b4fb73b03c9a7c38641ab21f33))
+
 # [0.1560.0](https://github.com/lightdash/lightdash/compare/0.1559.1...0.1560.0) (2025-04-02)
 
 
