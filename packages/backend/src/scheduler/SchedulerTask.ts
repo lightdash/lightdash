@@ -1807,6 +1807,11 @@ export default class SchedulerTask {
                 scheduler.createdBy,
             );
 
+            const schedulerUuidParam = setUuidParam(
+                'scheduler_uuid',
+                schedulerUuid,
+            );
+
             if (format !== SchedulerFormat.GSHEETS) {
                 throw new UnexpectedServerError(
                     `Unable to process format ${format} on sendGdriveNotification`,
@@ -1814,10 +1819,6 @@ export default class SchedulerTask {
             } else if (savedChartUuid) {
                 const chart = await this.schedulerService.savedChartModel.get(
                     savedChartUuid,
-                );
-                const schedulerUuidParam = setUuidParam(
-                    'scheduler_uuid',
-                    schedulerUuid,
                 );
                 deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${savedChartUuid}/view?${schedulerUuidParam}&isSync=true`;
 
@@ -1914,10 +1915,6 @@ export default class SchedulerTask {
                 const dashboard = await this.dashboardService.getById(
                     user,
                     dashboardUuid,
-                );
-                const schedulerUuidParam = setUuidParam(
-                    'scheduler_uuid',
-                    schedulerUuid,
                 );
                 deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}/view?${schedulerUuidParam}&isSync=true`;
 
