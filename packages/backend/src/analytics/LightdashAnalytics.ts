@@ -918,7 +918,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         format: SchedulerFormat;
         targets: Array<{
             schedulerTargetId: string;
-            type: 'slack' | 'email';
+            type: 'slack' | 'email' | 'msteams';
         }>;
         timeZone: string | undefined;
         includeLinks: boolean;
