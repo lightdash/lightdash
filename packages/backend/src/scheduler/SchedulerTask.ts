@@ -304,19 +304,13 @@ export default class SchedulerTask {
             selectedTabs,
         );
 
+        const schedulerUuidParam = setUuidParam(
+            'scheduler_uuid',
+            schedulerUuid,
+        );
         const deliveryUrl = savedChartUuid
-            ? `${
-                  this.lightdashConfig.siteUrl
-              }/projects/${projectUuid}/saved/${savedChartUuid}/view?${setUuidParam(
-                  'scheduler_uuid',
-                  schedulerUuid,
-              )}`
-            : `${
-                  this.lightdashConfig.siteUrl
-              }/projects/${projectUuid}/dashboards/${dashboardUuid}/view?${setUuidParam(
-                  'scheduler_uuid',
-                  schedulerUuid,
-              )}`;
+            ? `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${savedChartUuid}/view?${schedulerUuidParam}`
+            : `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/dashboards/${dashboardUuid}/view?${schedulerUuidParam}`;
         switch (format) {
             case SchedulerFormat.IMAGE:
                 try {
@@ -1821,12 +1815,11 @@ export default class SchedulerTask {
                 const chart = await this.schedulerService.savedChartModel.get(
                     savedChartUuid,
                 );
-                deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${
-                    chart.projectUuid
-                }/saved/${savedChartUuid}/view?${setUuidParam(
+                const schedulerUuidParam = setUuidParam(
                     'scheduler_uuid',
                     schedulerUuid,
-                )}&isSync=true`;
+                );
+                deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${savedChartUuid}/view?${schedulerUuidParam}&isSync=true`;
 
                 const defaultSchedulerTimezone =
                     await this.schedulerService.getSchedulerDefaultTimezone(
@@ -1868,12 +1861,7 @@ export default class SchedulerTask {
                     scheduler.createdBy,
                 );
 
-                const reportUrl = `${this.lightdashConfig.siteUrl}/projects/${
-                    chart.projectUuid
-                }/saved/${chart.uuid}/view?${setUuidParam(
-                    'scheduler_uuid',
-                    schedulerUuid,
-                )}&isSync=true`;
+                const reportUrl = `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chart.uuid}/view?${schedulerUuidParam}&isSync=true`;
                 await this.googleDriveClient.uploadMetadata(
                     refreshToken,
                     gdriveId,
@@ -1927,12 +1915,11 @@ export default class SchedulerTask {
                     user,
                     dashboardUuid,
                 );
-                deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${
-                    dashboard.projectUuid
-                }/dashboards/${dashboardUuid}/view?${setUuidParam(
+                const schedulerUuidParam = setUuidParam(
                     'scheduler_uuid',
                     schedulerUuid,
-                )}&isSync=true`;
+                );
+                deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}/view?${schedulerUuidParam}&isSync=true`;
 
                 const defaultSchedulerTimezone =
                     await this.schedulerService.getSchedulerDefaultTimezone(
