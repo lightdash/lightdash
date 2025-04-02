@@ -104,7 +104,7 @@ export interface WarehouseClient {
             tags: Record<string, string>;
             timezone?: string;
         },
-    ): Promise<void>;
+    ): Promise<{ rowCount: number } | void>;
 
     executeAsyncQuery(
         args: WarehouseExecuteAsyncQueryArgs,

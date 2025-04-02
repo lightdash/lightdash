@@ -56,7 +56,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
             tags?: Record<string, string>;
             timezone?: string;
         },
-    ): Promise<void> {
+    ): Promise<{ rowCount: number } | void> {
         throw new Error('Warehouse method not implemented.');
     }
 
@@ -64,7 +64,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
         resultsStreamCallback: (rows: WarehouseResults['rows']) => void,
     ): Promise<WarehouseExecuteAsyncQuery> {
-        await this.streamQuery(
+        const streamData = await this.streamQuery(
             sql,
             ({ rows }) => {
                 resultsStreamCallback(rows);
@@ -80,7 +80,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
             queryId: null,
             queryMetadata: null,
             durationMs: null,
-            totalRows: null,
+            totalRows: streamData?.rowCount || null,
         };
     }
 

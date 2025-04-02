@@ -157,7 +157,6 @@ import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
 import fetch from 'node-fetch';
-import { createInterface } from 'readline';
 import { Readable } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
@@ -1991,117 +1990,174 @@ export class ProjectService extends BaseService {
                 return assertUnreachable(status, 'Unknown query status');
         }
 
-        // Load cached data into memory
-        if (cacheKey) {
-            const cacheStream = await this.resultsCacheModel.getCachedResults(
-                cacheKey,
-                projectUuid,
-                page,
-                defaultedPageSize,
-                this.resultsCacheStorageClient,
-            );
-
-            if (!cacheStream) {
-                throw new Error('No cache found');
-            }
-
-            const rows = [];
-            const rl = createInterface({
-                input: cacheStream,
-                crlfDelay: Infinity,
-            });
-
-            // Calculate the range of lines we need
-            const startLine = (page - 1) * defaultedPageSize;
-            const endLine = startLine + defaultedPageSize;
-            let currentLine = 0;
-
-            for await (const line of rl) {
-                if (line.trim()) {
-                    if (currentLine >= startLine && currentLine < endLine) {
-                        rows.push(JSON.parse(line));
-                    }
-                    currentLine += currentLine;
-                }
-            }
-        }
-
-        const explore = await this.getExplore(
-            user,
-            projectUuid,
-            metricQuery.exploreName,
-        );
-
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            await this.getWarehouseCredentials(projectUuid, user.userUuid),
-            {
-                snowflakeVirtualWarehouse: explore.warehouse,
-                databricksCompute: explore.databricksCompute,
-            },
-        );
-
         const formatter = (row: Record<string, unknown>) =>
             formatRow(row, queryHistory.fields);
 
-        const queryTags: RunQueryTags = {
-            organization_uuid: organizationUuid,
-            project_uuid: projectUuid,
-            user_uuid: user.userUuid,
-            explore_name: metricQuery.exploreName,
-            query_context: context,
-        };
-
-        const { result, durationMs } = await measureTime(
-            () =>
-                warehouseClient
-                    .getAsyncQueryResults(
-                        {
-                            page,
-                            pageSize: defaultedPageSize,
-                            tags: queryTags,
-                            queryId: queryHistory.warehouseQueryId,
-                            sql: queryHistory.compiledSql,
-                            queryMetadata: queryHistory.warehouseQueryMetadata,
-                        },
+        let returnObject: ApiGetAsyncQueryResults;
+        let roundedDurationMs: number;
+        if (cacheKey) {
+            const { result: resultRows, durationMs } = await measureTime(
+                () =>
+                    this.resultsCacheModel.getCachedResultsPage(
+                        cacheKey,
+                        projectUuid,
+                        page,
+                        defaultedPageSize,
+                        this.resultsCacheStorageClient,
                         formatter,
-                    )
-                    .catch((e) => ({ errorMessage: getErrorMessage(e) })),
-            'getAsyncQueryResults',
-            this.logger,
-            context,
-        );
+                    ),
+                'getCachedResultsPage',
+                this.logger,
+                context,
+            );
 
-        if ('errorMessage' in result) {
+            const pageCount = Math.ceil(resultRows.length / defaultedPageSize);
+
+            roundedDurationMs = Math.round(durationMs);
+
+            const { nextPage, previousPage } = getNextAndPreviousPage(
+                page,
+                pageCount,
+            );
+
+            // TODO: add analytics event
+
+            returnObject = {
+                rows: resultRows,
+                totalPageCount: pageCount, // TODO: should we store this on query history?
+                totalResults: queryHistory.totalRowCount ?? resultRows.length, // TODO: is this ok?
+                queryUuid: queryHistory.queryUuid,
+                fields: queryHistory.fields,
+                metricQuery,
+                pageSize: resultRows.length,
+                page,
+                nextPage,
+                previousPage,
+                initialQueryExecutionMs:
+                    queryHistory.warehouseExecutionTimeMs ?? roundedDurationMs,
+                resultsPageExecutionMs: roundedDurationMs,
+                status,
+            };
+        } else {
+            const explore = await this.getExplore(
+                user,
+                projectUuid,
+                metricQuery.exploreName,
+            );
+
+            const { warehouseClient, sshTunnel } =
+                await this._getWarehouseClient(
+                    projectUuid,
+                    await this.getWarehouseCredentials(
+                        projectUuid,
+                        user.userUuid,
+                    ),
+                    {
+                        snowflakeVirtualWarehouse: explore.warehouse,
+                        databricksCompute: explore.databricksCompute,
+                    },
+                );
+
+            const queryTags: RunQueryTags = {
+                organization_uuid: organizationUuid,
+                project_uuid: projectUuid,
+                user_uuid: user.userUuid,
+                explore_name: metricQuery.exploreName,
+                query_context: context,
+            };
+
+            const { result, durationMs } = await measureTime(
+                () =>
+                    warehouseClient
+                        .getAsyncQueryResults(
+                            {
+                                page,
+                                pageSize: defaultedPageSize,
+                                tags: queryTags,
+                                queryId: queryHistory.warehouseQueryId,
+                                sql: queryHistory.compiledSql,
+                                queryMetadata:
+                                    queryHistory.warehouseQueryMetadata,
+                            },
+                            formatter,
+                        )
+                        .catch((e) => ({ errorMessage: getErrorMessage(e) })),
+                'getAsyncQueryResults',
+                this.logger,
+                context,
+            );
+
+            if ('errorMessage' in result) {
+                this.analytics.track({
+                    userId: user.userUuid,
+                    event: 'query.error',
+                    properties: {
+                        queryId: queryHistory.queryUuid,
+                        projectId: projectUuid,
+                        warehouseType: warehouseClient.credentials.type,
+                    },
+                });
+                await this.queryHistoryModel.update(
+                    queryHistory.queryUuid,
+                    projectUuid,
+                    user.userUuid,
+                    {
+                        status: QueryHistoryStatus.ERROR,
+                        error: result.errorMessage,
+                    },
+                );
+
+                return {
+                    status: QueryHistoryStatus.ERROR,
+                    error: result.errorMessage,
+                    queryUuid: queryHistory.queryUuid,
+                    metricQuery,
+                    fields: queryHistory.fields,
+                };
+            }
+
+            roundedDurationMs = Math.round(durationMs);
+
             this.analytics.track({
                 userId: user.userUuid,
-                event: 'query.error',
+                event: 'query_page.fetched',
                 properties: {
                     queryId: queryHistory.queryUuid,
                     projectId: projectUuid,
                     warehouseType: warehouseClient.credentials.type,
+                    page,
+                    columnsCount: Object.keys(result.fields).length,
+                    totalRowCount: result.totalRows,
+                    totalPageCount: result.pageCount,
+                    resultsPageSize: result.rows.length,
+                    resultsPageExecutionMs: roundedDurationMs,
                 },
             });
-            await this.queryHistoryModel.update(
-                queryHistory.queryUuid,
-                projectUuid,
-                user.userUuid,
-                {
-                    status: QueryHistoryStatus.ERROR,
-                    error: result.errorMessage,
-                },
+
+            const { nextPage, previousPage } = getNextAndPreviousPage(
+                page,
+                result.pageCount,
             );
 
-            return {
-                status: QueryHistoryStatus.ERROR,
-                error: result.errorMessage,
+            returnObject = {
+                rows: result.rows,
+                totalPageCount: result.pageCount,
+                totalResults: result.totalRows,
                 queryUuid: queryHistory.queryUuid,
-                metricQuery,
                 fields: queryHistory.fields,
+                metricQuery,
+                pageSize: result.rows.length,
+                page,
+                nextPage,
+                previousPage,
+                initialQueryExecutionMs:
+                    queryHistory.warehouseExecutionTimeMs ?? roundedDurationMs,
+                resultsPageExecutionMs: roundedDurationMs,
+                status,
             };
-        }
 
-        const roundedDurationMs = Math.round(durationMs);
+            await sshTunnel.disconnect();
+        }
 
         /**
          * Update the query history with non null values
@@ -2128,51 +2184,13 @@ export class ProjectService extends BaseService {
                           }
                         : {}),
                     ...(queryHistory.totalRowCount === null
-                        ? { total_row_count: result.totalRows }
+                        ? { total_row_count: returnObject.totalResults }
                         : {}),
                 },
             );
         }
 
-        await sshTunnel.disconnect();
-
-        const { nextPage, previousPage } = getNextAndPreviousPage(
-            page,
-            result.pageCount,
-        );
-
-        this.analytics.track({
-            userId: user.userUuid,
-            event: 'query_page.fetched',
-            properties: {
-                queryId: queryHistory.queryUuid,
-                projectId: projectUuid,
-                warehouseType: warehouseClient.credentials.type,
-                page,
-                columnsCount: Object.keys(result.fields).length,
-                totalRowCount: result.totalRows,
-                totalPageCount: result.pageCount,
-                resultsPageSize: result.rows.length,
-                resultsPageExecutionMs: roundedDurationMs,
-            },
-        });
-
-        return {
-            rows: result.rows,
-            totalPageCount: result.pageCount,
-            totalResults: result.totalRows,
-            queryUuid: queryHistory.queryUuid,
-            fields: queryHistory.fields,
-            metricQuery,
-            pageSize: result.rows.length,
-            page,
-            nextPage,
-            previousPage,
-            initialQueryExecutionMs:
-                queryHistory.warehouseExecutionTimeMs ?? roundedDurationMs,
-            resultsPageExecutionMs: roundedDurationMs,
-            status,
-        };
+        return returnObject;
     }
 
     private async executeAsyncQuery(
@@ -2358,6 +2376,8 @@ export class ProjectService extends BaseService {
                     });
 
                     if (createdCache.cacheHit) {
+                        console.log('>>>> cache hit');
+
                         await this.queryHistoryModel.update(
                             queryHistoryUuid,
                             projectUuid,
@@ -2449,12 +2469,13 @@ export class ProjectService extends BaseService {
                             );
                         } finally {
                             void sshTunnel.disconnect();
-                            void createdCache.close();
+                            await createdCache.close(); // TODO: only await in the caching case?
                         }
                     };
 
                     // Trigger query in the background, update query history when complete
-                    void executeAndSaveHistory();
+                    // TODO: only await in the caching case?
+                    await executeAndSaveHistory();
 
                     return {
                         queryUuid: queryHistoryUuid,

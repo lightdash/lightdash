@@ -1,6 +1,11 @@
-import { DEFAULT_RESULTS_PAGE_SIZE, NotFoundError } from '@lightdash/common';
+import {
+    DEFAULT_RESULTS_PAGE_SIZE,
+    NotFoundError,
+    ResultRow,
+} from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
+import { createInterface } from 'readline';
 import { IResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/ResultsCacheStorageClient';
 import type { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -123,12 +128,13 @@ export class ResultsCacheModel {
             .first();
     }
 
-    async getCachedResults(
+    async getCachedResultsPage(
         cacheKey: string,
         projectUuid: string,
         page: number,
         pageSize: number,
         storageClient: IResultsCacheStorageClient,
+        formatter: (row: ResultRow) => ResultRow,
     ) {
         const cache = await this.find(cacheKey, projectUuid);
 
@@ -138,6 +144,38 @@ export class ResultsCacheModel {
                 `Cache not found for key ${cacheKey} and project ${projectUuid}`,
             );
         }
-        return storageClient.download(cacheKey, page, pageSize);
+
+        const cacheStream = await storageClient.download(
+            cacheKey,
+            page,
+            pageSize,
+        );
+
+        if (!cacheStream) {
+            throw new Error('No cache found');
+        }
+
+        const rows = [];
+        const rl = createInterface({
+            input: cacheStream,
+            crlfDelay: Infinity,
+        });
+
+        const startLine = (page - 1) * pageSize;
+        const endLine = startLine + pageSize;
+        let currentLine = 0;
+
+        for await (const line of rl) {
+            if (currentLine >= startLine && currentLine < endLine) {
+                if (line.trim()) {
+                    rows.push(formatter(JSON.parse(line)));
+                }
+                currentLine += 1;
+            } else {
+                break;
+            }
+        }
+
+        return rows as ResultRow[];
     }
 }

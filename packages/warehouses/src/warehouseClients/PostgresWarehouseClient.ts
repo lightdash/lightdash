@@ -174,9 +174,9 @@ export class PostgresClient<
             tags?: Record<string, string>;
             timezone?: string;
         },
-    ): Promise<void> {
+    ): Promise<{ rowCount: number }> {
         let pool: pg.Pool | undefined;
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<{ rowCount: number }>((resolve, reject) => {
             pool = new pg.Pool({
                 ...this.config,
                 connectionTimeoutMillis: 5000,
@@ -235,41 +235,41 @@ export class PostgresClient<
                         // typecast is necessary to fix the type issue described above
                     ) as unknown as QueryStream;
 
+                    let rowCount = 0;
+                    const writable = new Writable({
+                        objectMode: true,
+                        write(
+                            chunk: {
+                                row: AnyType;
+                                fields: QueryResult<AnyType>['fields'];
+                            },
+                            encoding,
+                            callback,
+                        ) {
+                            rowCount += 1;
+                            streamCallback({
+                                fields: PostgresClient.convertQueryResultFields(
+                                    chunk.fields,
+                                ),
+                                rows: [chunk.row],
+                            });
+                            callback();
+                        },
+                    });
+
                     // release the client when the stream is finished
                     stream.on('end', () => {
                         done();
-                        resolve();
+                        resolve({ rowCount });
                     });
                     stream.on('error', (err2) => {
                         reject(err2);
                         done();
                     });
-                    stream
-                        .pipe(
-                            new Writable({
-                                objectMode: true,
-                                write(
-                                    chunk: {
-                                        row: AnyType;
-                                        fields: QueryResult<AnyType>['fields'];
-                                    },
-                                    encoding,
-                                    callback,
-                                ) {
-                                    streamCallback({
-                                        fields: PostgresClient.convertQueryResultFields(
-                                            chunk.fields,
-                                        ),
-                                        rows: [chunk.row],
-                                    });
-                                    callback();
-                                },
-                            }),
-                        )
-                        .on('error', (err2) => {
-                            reject(err2);
-                            done();
-                        });
+                    stream.pipe(writable).on('error', (err2) => {
+                        reject(err2);
+                        done();
+                    });
                 };
 
                 if (options?.timezone) {
