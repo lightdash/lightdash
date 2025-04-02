@@ -1,5 +1,4 @@
 export const DEFAULT_PAGE_SIZE = 10;
-export const MAX_PAGE_SIZE = 5000;
 
 export const ROW_NUMBER_COLUMN_ID = 'row_number_column';
 

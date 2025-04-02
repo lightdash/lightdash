@@ -90,7 +90,7 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                     <Popover.Dropdown>
                         <ExportSelector
                             projectUuid={projectUuid}
-                            totalResults={resultsData?.rows.length}
+                            totalResults={resultsData?.totalResults}
                             getCsvLink={async (
                                 limit: number | null,
                                 onlyRaw: boolean,
