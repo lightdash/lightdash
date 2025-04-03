@@ -4,6 +4,7 @@ import {
     Badge,
     Box,
     Button,
+    Group,
     Popover,
     Text,
     Tooltip,
@@ -144,40 +145,39 @@ const RefreshDbtButton: FC<{
         });
     };
 
-    if (data?.type === ProjectType.PREVIEW) {
-        return (
+    return (
+        <Group spacing="xs">
             <Tooltip
                 withinPortal
-                label={`Developer previews are temporary Lightdash projects`}
+                multiline
+                w={320}
+                position="bottom"
+                label="If you've updated your YAML files, you can sync your changes to Lightdash by clicking this button."
             >
-                <Badge color="yellow" size="lg" radius="sm">
-                    Developer preview
-                </Badge>
+                <Button
+                    size="xs"
+                    variant="default"
+                    leftIcon={leftIcon ?? <MantineIcon icon={IconRefresh} />}
+                    loading={isLoading}
+                    onClick={handleRefresh}
+                    sx={buttonStyles}
+                >
+                    {!isLoading
+                        ? defaultTextOverride ?? 'Refresh dbt'
+                        : refreshingTextOverride ?? 'Refreshing dbt'}
+                </Button>
             </Tooltip>
-        );
-    }
-
-    return (
-        <Tooltip
-            withinPortal
-            multiline
-            w={320}
-            position="bottom"
-            label="If you've updated your YAML files, you can sync your changes to Lightdash by clicking this button."
-        >
-            <Button
-                size="xs"
-                variant="default"
-                leftIcon={leftIcon ?? <MantineIcon icon={IconRefresh} />}
-                loading={isLoading}
-                onClick={handleRefresh}
-                sx={buttonStyles}
-            >
-                {!isLoading
-                    ? defaultTextOverride ?? 'Refresh dbt'
-                    : refreshingTextOverride ?? 'Refreshing dbt'}
-            </Button>
-        </Tooltip>
+            {data?.type === ProjectType.PREVIEW && (
+                <Tooltip
+                    withinPortal
+                    label={`Developer previews are temporary Lightdash projects`}
+                >
+                    <Badge color="yellow" size="lg" radius="sm">
+                        Developer preview
+                    </Badge>
+                </Tooltip>
+            )}
+        </Group>
     );
 };
 

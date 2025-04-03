@@ -1,3 +1,74 @@
+# [0.1563.0](https://github.com/lightdash/lightdash/compare/0.1562.2...0.1563.0) (2025-04-03)
+
+
+### Features
+
+*  create scheduled deliveries for microsof teams using webhooks ([#14254](https://github.com/lightdash/lightdash/issues/14254)) ([f7f5c5e](https://github.com/lightdash/lightdash/commit/f7f5c5ead1c90a52b04fde2beaf28b5e8ae64ae9))
+
+## [0.1562.2](https://github.com/lightdash/lightdash/compare/0.1562.1...0.1562.2) (2025-04-03)
+
+
+### Bug Fixes
+
+* revert improve Table Selection handling for explorer ([#14255](https://github.com/lightdash/lightdash/issues/14255)) ([#14270](https://github.com/lightdash/lightdash/issues/14270)) ([9167e38](https://github.com/lightdash/lightdash/commit/9167e384fddf9de7926d9d58ed03f16b1b96f690))
+
+## [0.1562.1](https://github.com/lightdash/lightdash/compare/0.1562.0...0.1562.1) (2025-04-03)
+
+
+### Bug Fixes
+
+* in the current filter stop autofocus when there's a value ([#14258](https://github.com/lightdash/lightdash/issues/14258)) ([76a02bf](https://github.com/lightdash/lightdash/commit/76a02bf603124c9d9a9c98c764bed934b7c8043d))
+
+# [0.1562.0](https://github.com/lightdash/lightdash/compare/0.1561.2...0.1562.0) (2025-04-03)
+
+
+### Features
+
+* auto focus OTP pit input ([#14246](https://github.com/lightdash/lightdash/issues/14246)) ([0e7938d](https://github.com/lightdash/lightdash/commit/0e7938dd6565ef001a0845b38c9683632eee208f))
+
+## [0.1561.2](https://github.com/lightdash/lightdash/compare/0.1561.1...0.1561.2) (2025-04-02)
+
+
+### Bug Fixes
+
+* improve Table Selection handling for explorer ([#14255](https://github.com/lightdash/lightdash/issues/14255)) ([fc6bb98](https://github.com/lightdash/lightdash/commit/fc6bb988b9d0abce42b8a71286803526bf0b7796))
+
+## [0.1561.1](https://github.com/lightdash/lightdash/compare/0.1561.0...0.1561.1) (2025-04-02)
+
+
+### Bug Fixes
+
+* fix table loading with 0 rows ([#14250](https://github.com/lightdash/lightdash/issues/14250)) ([cb5ffa8](https://github.com/lightdash/lightdash/commit/cb5ffa8a5d67efa40c3c3cf4ab2008e582514d59))
+
+# [0.1561.0](https://github.com/lightdash/lightdash/compare/0.1560.0...0.1561.0) (2025-04-02)
+
+
+### Features
+
+* lazy load table viz ([#14182](https://github.com/lightdash/lightdash/issues/14182)) ([ace0016](https://github.com/lightdash/lightdash/commit/ace00167fd08e5b4fb73b03c9a7c38641ab21f33))
+
+# [0.1560.0](https://github.com/lightdash/lightdash/compare/0.1559.1...0.1560.0) (2025-04-02)
+
+
+### Features
+
+* preview branch ([#14222](https://github.com/lightdash/lightdash/issues/14222)) ([d77a9f6](https://github.com/lightdash/lightdash/commit/d77a9f6d614d4c0a2b546aae9afe7a614adf4460))
+
+## [0.1559.1](https://github.com/lightdash/lightdash/compare/0.1559.0...0.1559.1) (2025-04-01)
+
+
+### Bug Fixes
+
+* add job id to key when getting gsheets job results ([#14240](https://github.com/lightdash/lightdash/issues/14240)) ([58cb3c4](https://github.com/lightdash/lightdash/commit/58cb3c4cd526e9d9951705d94ccde743fb2f139a))
+* Spotlight canvas nodes comparing to previous month incorrectly ([#14230](https://github.com/lightdash/lightdash/issues/14230)) ([d28cc2f](https://github.com/lightdash/lightdash/commit/d28cc2f71410bb43702a8d7c53fee1aa782801c4))
+
+# [0.1559.0](https://github.com/lightdash/lightdash/compare/0.1558.1...0.1559.0) (2025-04-01)
+
+
+### Features
+
+* include row totals on pivot csv ([#14216](https://github.com/lightdash/lightdash/issues/14216)) ([0b48e73](https://github.com/lightdash/lightdash/commit/0b48e7356e664606feccf52b33a2af8df8872d31))
+
 ## [0.1558.1](https://github.com/lightdash/lightdash/compare/0.1558.0...0.1558.1) (2025-03-31)
 
 

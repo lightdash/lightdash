@@ -362,6 +362,7 @@ export type InfiniteQueryResults = Partial<
     isFetchingRows: boolean;
     fetchMoreRows: () => void;
     setFetchAll: (value: boolean) => void;
+    hasFetchedAllRows: boolean;
 };
 
 // This hook lazy load results has they are needed in the UI

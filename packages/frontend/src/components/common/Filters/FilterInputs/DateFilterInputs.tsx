@@ -297,7 +297,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     }
                     showOptionsInPlural={false}
                     showCompletedOptions={false}
-                    autoFocus={true}
+                    autoFocus={!rule.settings?.unitOfTime}
                     completed={false}
                     withinPortal={popoverProps?.withinPortal}
                     onDropdownOpen={popoverProps?.onOpen}

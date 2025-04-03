@@ -203,6 +203,16 @@ export type CreatePostgresLikeCredentials =
     | CreateRedshiftCredentials
     | CreatePostgresCredentials;
 
+export const maybeOverrideWarehouseConnection = <
+    T extends WarehouseCredentials,
+>(
+    connection: T,
+    overrides: { schema?: string },
+): T => ({
+    ...connection,
+    ...(overrides.schema ? { schema: overrides.schema } : undefined),
+});
+
 export interface DbtProjectConfigBase {
     type: DbtProjectType;
 }
@@ -309,6 +319,41 @@ export type DbtProjectConfig =
     | DbtGitlabProjectConfig
     | DbtAzureDevOpsProjectConfig
     | DbtNoneProjectConfig;
+
+export const isGitProjectType = (
+    connection: DbtProjectConfig,
+): connection is
+    | DbtGithubProjectConfig
+    | DbtBitBucketProjectConfig
+    | DbtGitlabProjectConfig =>
+    [
+        DbtProjectType.GITHUB,
+        DbtProjectType.GITLAB,
+        DbtProjectType.BITBUCKET,
+    ].includes(connection.type);
+
+const isRemoteType = (
+    connection: DbtProjectConfig,
+): connection is DbtLocalProjectConfig | DbtCloudIDEProjectConfig =>
+    [DbtProjectType.DBT, DbtProjectType.DBT_CLOUD_IDE].includes(
+        connection.type,
+    );
+
+export const maybeOverrideDbtConnection = <T extends DbtProjectConfig>(
+    connection: T,
+    overrides: {
+        branch?: string;
+        environment?: DbtProjectEnvironmentVariable[];
+    },
+): T => ({
+    ...connection,
+    ...(isGitProjectType(connection) && overrides.branch
+        ? { branch: overrides.branch }
+        : undefined),
+    ...(!isRemoteType(connection) && overrides.environment
+        ? { environment: overrides.environment }
+        : undefined),
+});
 
 export type DbtSemanticLayerConnection = {
     type: SemanticLayerType.DBT;

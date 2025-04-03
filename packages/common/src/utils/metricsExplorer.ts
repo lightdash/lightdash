@@ -102,10 +102,12 @@ export const getFieldIdForDateDimension = (
 export const getDateCalcUtils = (timeFrame: TimeFrames, grain?: TimeFrames) => {
     switch (timeFrame) {
         case TimeFrames.MONTH:
-            if (grain)
+            if (grain && grain !== TimeFrames.DAY) {
                 throw new Error(
-                    `Timeframe "${grain}" is not supported yet for this timeframe "${timeFrame}"`,
+                    `Granularity "${grain}" is not supported yet for this timeframe "${timeFrame}"`,
                 );
+            }
+
             return {
                 forward: (date: Date) => dayjs(date).add(1, 'month').toDate(),
                 back: (date: Date) => dayjs(date).subtract(1, 'month').toDate(),
