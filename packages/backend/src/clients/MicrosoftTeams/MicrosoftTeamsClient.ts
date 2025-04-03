@@ -2,10 +2,12 @@ import {
     AnyType,
     friendlyName,
     MissingConfigError,
+    MsTeamsError,
     operatorActionValue,
     ThresholdOptions,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
+import Logger from '../../logging/logger';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
 
 type MicrosoftTeamsClientArguments = {
@@ -40,10 +42,10 @@ export class MicrosoftTeamsClient {
 
         const responseText = await response.text();
         if (response.status !== 200 || responseText.includes('error')) {
-            console.error(
+            Logger.error(
                 `Microsoft teams webhook returned an error: ${response.status} ${responseText}`,
             );
-            console.info(
+            Logger.info(
                 `Microsoft teams webhook payload ${JSON.stringify(
                     payload,
                     null,
@@ -51,7 +53,7 @@ export class MicrosoftTeamsClient {
                 )}`,
             );
 
-            throw new Error(`Microsoft teams webhook returned an error`);
+            throw new MsTeamsError(`Microsoft teams webhook returned an error`);
         }
     }
 
@@ -77,7 +79,7 @@ export class MicrosoftTeamsClient {
         if (!this.lightdashConfig.microsoftTeams.enabled) {
             throw new MissingConfigError('Microsoft Teams is not enabled');
         }
-        console.info('Sending image to Microsoft Teams via webhook');
+        Logger.info('Sending image to Microsoft Teams via webhook');
 
         // https://adaptivecards.io/explorer/
         const payload = {
@@ -191,7 +193,7 @@ export class MicrosoftTeamsClient {
         if (!this.lightdashConfig.microsoftTeams.enabled) {
             throw new MissingConfigError('Microsoft Teams is not enabled');
         }
-        console.info(`Sending chart CSV to Microsoft Teams via webhook`);
+        Logger.info(`Sending chart CSV to Microsoft Teams via webhook`);
 
         // https://adaptivecards.io/explorer/
         const payload = {
@@ -275,7 +277,7 @@ export class MicrosoftTeamsClient {
         if (!this.lightdashConfig.microsoftTeams.enabled) {
             throw new MissingConfigError('Microsoft Teams is not enabled');
         }
-        console.info(`Sending chart CSV to Microsoft Teams via webhook`);
+        Logger.info(`Sending chart CSV to Microsoft Teams via webhook`);
 
         // https://adaptivecards.io/explorer/
         const payload = {

@@ -377,6 +377,20 @@ export class SlackError extends LightdashError {
     }
 }
 
+export class MsTeamsError extends LightdashError {
+    constructor(
+        message: string = 'Microsoft Teams API error occurred',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'MsTeamsError',
+            statusCode: 400,
+            data,
+        });
+    }
+}
+
 export class UnexpectedGoogleSheetsError extends LightdashError {
     constructor(
         message = 'Unexpected error in Google sheets client',

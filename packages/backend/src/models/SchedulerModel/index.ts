@@ -120,7 +120,11 @@ export class SchedulerModel {
     }
 
     static getSlackChannels(
-        targets: (SchedulerSlackTarget | SchedulerEmailTarget)[],
+        targets: (
+            | SchedulerSlackTarget
+            | SchedulerEmailTarget
+            | SchedulerMsTeamsTarget
+        )[],
     ): string[] {
         return targets.reduce<string[]>((acc, target) => {
             if (isSlackTarget(target)) {
@@ -145,9 +149,18 @@ export class SchedulerModel {
                 `${SchedulerEmailTargetTableName}.scheduler_uuid`,
                 schedulers.map((s) => s.scheduler_uuid),
             );
+        const msTeamsTargets = await this.database(
+            SchedulerMsTeamsTargetTableName,
+        )
+            .select()
+            .whereIn(
+                `${SchedulerMsTeamsTargetTableName}.scheduler_uuid`,
+                schedulers.map((s) => s.scheduler_uuid),
+            );
         const targets = [
             ...slackTargets.map(SchedulerModel.convertSlackTarget),
             ...emailTargets.map(SchedulerModel.convertEmailTarget),
+            ...msTeamsTargets.map(SchedulerModel.convertMsTeamsTarget),
         ];
 
         return schedulers.map((scheduler) => ({
