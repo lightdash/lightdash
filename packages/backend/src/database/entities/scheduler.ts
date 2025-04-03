@@ -56,7 +56,7 @@ export type SchedulerSlackTargetDb = {
     channel: string; // slack channel id
 };
 export type SchedulerMsTeamsTargetDb = {
-    scheduler_slack_target_uuid: string;
+    scheduler_msteams_target_uuid: string;
     created_at: Date;
     updated_at: Date;
     scheduler_uuid: string;

@@ -132,7 +132,11 @@ export type DashboardScheduler = SchedulerBase & {
 export type Scheduler = ChartScheduler | DashboardScheduler;
 
 export type SchedulerAndTargets = Scheduler & {
-    targets: (SchedulerSlackTarget | SchedulerEmailTarget)[];
+    targets: (
+        | SchedulerSlackTarget
+        | SchedulerEmailTarget
+        | SchedulerMsTeamsTarget
+    )[];
 };
 
 export type SchedulerSlackTarget = {
