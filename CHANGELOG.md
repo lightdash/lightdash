@@ -1,3 +1,10 @@
+## [0.1562.1](https://github.com/lightdash/lightdash/compare/0.1562.0...0.1562.1) (2025-04-03)
+
+
+### Bug Fixes
+
+* in the current filter stop autofocus when there's a value ([#14258](https://github.com/lightdash/lightdash/issues/14258)) ([76a02bf](https://github.com/lightdash/lightdash/commit/76a02bf603124c9d9a9c98c764bed934b7c8043d))
+
 # [0.1562.0](https://github.com/lightdash/lightdash/compare/0.1561.2...0.1562.0) (2025-04-03)
 
 
