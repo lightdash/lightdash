@@ -187,4 +187,7 @@ export const lightdashConfigMock: LightdashConfig = {
         maxDownloads: 100,
     },
     appearance: {},
+    microsoftTeams: {
+        enabled: false,
+    },
 };

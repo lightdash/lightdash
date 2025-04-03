@@ -152,6 +152,7 @@ export class HealthService extends BaseService {
                     ? this.lightdashConfig.appearance.overrideColorPaletteName
                     : undefined,
             },
+            hasMicrosoftTeams: this.lightdashConfig.microsoftTeams.enabled,
         };
     }
 
