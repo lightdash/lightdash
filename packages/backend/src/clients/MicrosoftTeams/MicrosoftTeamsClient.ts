@@ -117,7 +117,7 @@ export class MicrosoftTeamsClient {
                                 ? [
                                       {
                                           type: 'TextBlock',
-                                          text: `Thresholds:`,
+                                          text: `Your results for this chart triggered the following alerts:`,
                                       },
                                       {
                                           type: 'TextBlock',
