@@ -1,3 +1,10 @@
+## [0.1563.1](https://github.com/lightdash/lightdash/compare/0.1563.0...0.1563.1) (2025-04-03)
+
+
+### Bug Fixes
+
+* card action alignment ([#14243](https://github.com/lightdash/lightdash/issues/14243)) ([301b8fe](https://github.com/lightdash/lightdash/commit/301b8feb9750f81a3d575e96de2ebd0cb79409e0))
+
 # [0.1563.0](https://github.com/lightdash/lightdash/compare/0.1562.2...0.1563.0) (2025-04-03)
 
 
