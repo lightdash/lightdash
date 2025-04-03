@@ -891,6 +891,7 @@ export default class SchedulerTask {
                             webhookUrl: webhook,
                             ...getBlocksArgs,
                             image: imageUrl,
+                            thresholds,
                         });
                 } else {
                     throw new Error('Not implemented');
