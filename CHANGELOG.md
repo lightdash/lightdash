@@ -1,3 +1,10 @@
+## [0.1562.2](https://github.com/lightdash/lightdash/compare/0.1562.1...0.1562.2) (2025-04-03)
+
+
+### Bug Fixes
+
+* revert improve Table Selection handling for explorer ([#14255](https://github.com/lightdash/lightdash/issues/14255)) ([#14270](https://github.com/lightdash/lightdash/issues/14270)) ([9167e38](https://github.com/lightdash/lightdash/commit/9167e384fddf9de7926d9d58ed03f16b1b96f690))
+
 ## [0.1562.1](https://github.com/lightdash/lightdash/compare/0.1562.0...0.1562.1) (2025-04-03)
 
 
