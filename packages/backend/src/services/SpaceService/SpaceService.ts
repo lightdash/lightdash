@@ -155,12 +155,50 @@ export class SpaceService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+
+        // If this space has a parent, verify the user has access to the parent space
+        // 🙋 How recursive is this?
+        if (space.parentSpaceUuid) {
+            const parentSpace = await this.spaceModel.getSpaceSummary(
+                space.parentSpaceUuid,
+            );
+
+            // Ensure parent space is in the same project
+            if (parentSpace.projectUuid !== projectUuid) {
+                throw new ForbiddenError(
+                    'Parent space must be in the same project',
+                );
+            }
+
+            // Check if user has manage access to parent space
+            const parentSpaceAccess = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                space.parentSpaceUuid,
+            );
+
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('Space', {
+                        ...parentSpace,
+                        access: parentSpaceAccess,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'You do not have permission to create spaces within this parent space',
+                );
+            }
+        }
+
         const newSpace = await this.spaceModel.createSpace(
             projectUuid,
             space.name,
             user.userId,
             space.isPrivate !== false,
             generateSlug(space.name),
+            false,
+            space.parentSpaceUuid,
         );
 
         if (space.access)
@@ -187,6 +225,8 @@ export class SpaceService extends BaseService {
                 projectId: projectUuid,
                 isPrivate: newSpace.isPrivate,
                 userAccessCount: space.access?.length ?? 0,
+                isNested: !!space.parentSpaceUuid,
+                parentSpaceId: space.parentSpaceUuid || undefined,
             },
         });
         return newSpace;

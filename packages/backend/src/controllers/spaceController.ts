@@ -64,6 +64,9 @@ export class SpaceController extends BaseController {
      * @param projectUuid The uuid of the space's parent project
      * @param body
      * @param req
+     * This also can be used to create a space within a space
+     * The nested space will inherit permissions from its parent space.
+     * Users need 'manage' permission on the parent space to create nested spaces within it.
      */
     @Middlewares([
         allowApiKeyAuthentication,

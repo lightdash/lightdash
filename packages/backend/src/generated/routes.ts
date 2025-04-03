@@ -6682,6 +6682,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                path: { dataType: 'string' },
+                parentSpaceUuid: { dataType: 'string' },
                 slug: { dataType: 'string', required: true },
                 pinnedListOrder: {
                     dataType: 'union',
@@ -6758,6 +6760,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                parentSpaceUuid: { dataType: 'string' },
                 access: {
                     dataType: 'array',
                     array: {
@@ -12296,10 +12299,6 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 rowTotals: { dataType: 'boolean' },
                 columnTotals: { dataType: 'boolean' },
-                summableMetricFieldIds: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
                 hiddenMetricFieldIds: {
                     dataType: 'array',
                     array: { dataType: 'string' },

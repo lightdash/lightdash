@@ -18,6 +18,8 @@ export type Space = {
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
     slug: string;
+    parentSpaceUuid?: string;
+    path?: string;
 };
 
 export type SpaceSummary = Pick<
@@ -41,6 +43,7 @@ export type CreateSpace = {
     name: string;
     isPrivate?: boolean;
     access?: Pick<SpaceShare, 'userUuid' | 'role'>[];
+    parentSpaceUuid?: string;
 };
 
 export type UpdateSpace = {
