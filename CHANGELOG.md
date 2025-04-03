@@ -1,3 +1,10 @@
+## [0.1563.2](https://github.com/lightdash/lightdash/compare/0.1563.1...0.1563.2) (2025-04-03)
+
+
+### Bug Fixes
+
+* Scheduled delivery urls containing invalid uuids ([#14252](https://github.com/lightdash/lightdash/issues/14252)) ([fc0de84](https://github.com/lightdash/lightdash/commit/fc0de84f51a66bbdb6fa0785f11a3b1fafc6711e))
+
 ## [0.1563.1](https://github.com/lightdash/lightdash/compare/0.1563.0...0.1563.1) (2025-04-03)
 
 
