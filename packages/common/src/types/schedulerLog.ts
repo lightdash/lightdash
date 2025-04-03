@@ -11,7 +11,7 @@ export type SchedulerLog = {
     createdAt: Date;
     status: SchedulerJobStatus;
     target?: string;
-    targetType?: 'email' | 'slack' | 'gsheets';
+    targetType?: 'email' | 'slack' | 'gsheets' | 'msteams';
     details: {
         projectUuid: string | undefined; // For project creation, this is undefined
         organizationUuid: string;

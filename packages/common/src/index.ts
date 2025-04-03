@@ -868,6 +868,7 @@ export type HealthState = {
     isAuthenticated: boolean;
     requiresOrgRegistration: boolean;
     hasEmailClient: boolean;
+    hasMicrosoftTeams: boolean;
     latest: {
         version?: string;
     };

@@ -7,6 +7,7 @@ import {
     EmailNotificationPayload,
     GsheetsNotificationPayload,
     JobPriority,
+    MsTeamsNotificationPayload,
     NotificationPayloadBase,
     QueueTraceProperties,
     ReplaceCustomFieldsPayload,
@@ -30,6 +31,7 @@ import {
     getSchedulerUuid,
     hasSchedulerUuid,
     isCreateScheduler,
+    isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     type SchedulerCreateProjectWithCompilePayload,
     type SchedulerIndexCatalogJobPayload,
@@ -392,8 +394,11 @@ export class SchedulerClient {
 
         const getIdentifierAndPayload = (): {
             identifier: SchedulerTaskName;
-            type: 'slack' | 'email';
-            payload: SlackNotificationPayload | EmailNotificationPayload;
+            type: 'slack' | 'email' | 'msteams';
+            payload:
+                | SlackNotificationPayload
+                | EmailNotificationPayload
+                | MsTeamsNotificationPayload;
         } => {
             if (isCreateSchedulerSlackTarget(target)) {
                 return {
@@ -407,6 +412,22 @@ export class SchedulerClient {
                         schedulerSlackTargetUuid: targetUuid,
                         scheduler,
                         channel: target.channel,
+                        ...traceProperties,
+                    },
+                };
+            }
+            if (isCreateSchedulerMsTeamsTarget(target)) {
+                return {
+                    identifier: SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION,
+                    type: 'msteams',
+                    payload: {
+                        schedulerUuid,
+                        jobGroup,
+                        scheduledTime: date,
+                        page,
+                        schedulerMsTeamsTargetUuid: targetUuid,
+                        scheduler,
+                        webhook: target.webhook,
                         ...traceProperties,
                     },
                 };

@@ -544,25 +544,6 @@ export class UnfurlService extends BaseService {
         contextId?: unknown;
         selectedTabs?: string[];
     }): Promise<Buffer | undefined> {
-        console.debug('params', {
-            imageId,
-            cookie,
-            url,
-            lightdashPage,
-            chartType,
-            organizationUuid,
-            authUserUuid,
-            gridWidth,
-            resourceUuid,
-            resourceName,
-            selector,
-            chartTileUuids,
-            sqlChartTileUuids,
-            retries,
-            context,
-            contextId,
-            selectedTabs,
-        });
         this.logger.info(
             `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
                 sqlChartTileUuids,

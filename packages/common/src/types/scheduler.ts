@@ -132,7 +132,11 @@ export type DashboardScheduler = SchedulerBase & {
 export type Scheduler = ChartScheduler | DashboardScheduler;
 
 export type SchedulerAndTargets = Scheduler & {
-    targets: (SchedulerSlackTarget | SchedulerEmailTarget)[];
+    targets: (
+        | SchedulerSlackTarget
+        | SchedulerEmailTarget
+        | SchedulerMsTeamsTarget
+    )[];
 };
 
 export type SchedulerSlackTarget = {
@@ -142,7 +146,13 @@ export type SchedulerSlackTarget = {
     schedulerUuid: string;
     channel: string;
 };
-
+export type SchedulerMsTeamsTarget = {
+    schedulerMsTeamsTargetUuid: string;
+    createdAt: Date;
+    updatedAt: Date;
+    schedulerUuid: string;
+    webhook: string;
+};
 export type SchedulerEmailTarget = {
     schedulerEmailTargetUuid: string;
     createdAt: Date;
@@ -153,13 +163,21 @@ export type SchedulerEmailTarget = {
 
 export type CreateSchedulerTarget =
     | Pick<SchedulerSlackTarget, 'channel'>
+    | Pick<SchedulerMsTeamsTarget, 'webhook'>
     | Pick<SchedulerEmailTarget, 'recipient'>;
 
 export const getSchedulerTargetUuid = (
-    target: SchedulerSlackTarget | SchedulerEmailTarget | CreateSchedulerTarget,
+    target:
+        | SchedulerSlackTarget
+        | SchedulerMsTeamsTarget
+        | SchedulerEmailTarget
+        | CreateSchedulerTarget,
 ): string | undefined => {
     if ('schedulerSlackTargetUuid' in target) {
         return target.schedulerSlackTargetUuid;
+    }
+    if ('schedulerMsTeamsTargetUuid' in target) {
+        return target.schedulerMsTeamsTargetUuid;
     }
     if ('schedulerEmailTargetUuid' in target) {
         return target.schedulerEmailTargetUuid;
@@ -170,6 +188,11 @@ export const getSchedulerTargetUuid = (
 export type UpdateSchedulerSlackTarget = Pick<
     SchedulerSlackTarget,
     'schedulerSlackTargetUuid' | 'channel'
+>;
+
+export type UpdateSchedulerMsTeamsTarget = Pick<
+    SchedulerMsTeamsTarget,
+    'schedulerMsTeamsTargetUuid' | 'webhook'
 >;
 
 export type UpdateSchedulerEmailTarget = Pick<
@@ -220,6 +243,11 @@ export const isUpdateSchedulerSlackTarget = (
 ): data is UpdateSchedulerSlackTarget =>
     'schedulerSlackTargetUuid' in data && !!data.schedulerSlackTargetUuid;
 
+export const isUpdateSchedulerMsTeamsTarget = (
+    data: CreateSchedulerTarget | UpdateSchedulerSlackTarget,
+): data is UpdateSchedulerMsTeamsTarget =>
+    'schedulerMsTeamsTargetUuid' in data && !!data.schedulerMsTeamsTargetUuid;
+
 export const isUpdateSchedulerEmailTarget = (
     data: CreateSchedulerTarget | UpdateSchedulerEmailTarget,
 ): data is UpdateSchedulerEmailTarget =>
@@ -240,18 +268,39 @@ export const isDashboardCreateScheduler = (
     'dashboardUuid' in data && !!data.dashboardUuid;
 
 export const isSlackTarget = (
-    target: SchedulerSlackTarget | SchedulerEmailTarget,
+    target:
+        | SchedulerSlackTarget
+        | SchedulerEmailTarget
+        | SchedulerMsTeamsTarget,
 ): target is SchedulerSlackTarget => 'channel' in target;
 
+export const isMsTeamsTarget = (
+    target:
+        | SchedulerSlackTarget
+        | SchedulerEmailTarget
+        | SchedulerMsTeamsTarget,
+): target is SchedulerMsTeamsTarget => 'webhook' in target;
+
 export const isEmailTarget = (
-    target: SchedulerSlackTarget | SchedulerEmailTarget,
-): target is SchedulerEmailTarget => !isSlackTarget(target);
+    target:
+        | SchedulerSlackTarget
+        | SchedulerEmailTarget
+        | SchedulerMsTeamsTarget,
+): target is SchedulerEmailTarget => 'recipient' in target;
 
 export const isCreateSchedulerSlackTarget = (
     target:
         | Pick<SchedulerSlackTarget, 'channel'>
-        | Pick<SchedulerEmailTarget, 'recipient'>,
+        | Pick<SchedulerEmailTarget, 'recipient'>
+        | Pick<SchedulerMsTeamsTarget, 'webhook'>,
 ): target is Pick<SchedulerSlackTarget, 'channel'> => 'channel' in target;
+
+export const isCreateSchedulerMsTeamsTarget = (
+    target:
+        | Pick<SchedulerSlackTarget, 'channel'>
+        | Pick<SchedulerEmailTarget, 'recipient'>
+        | Pick<SchedulerMsTeamsTarget, 'webhook'>,
+): target is Pick<SchedulerMsTeamsTarget, 'webhook'> => 'webhook' in target;
 
 export const isSchedulerCsvOptions = (
     options:
@@ -364,6 +413,11 @@ export type SlackNotificationPayload = TraceTaskBase &
     NotificationPayloadBase & {
         schedulerSlackTargetUuid?: string;
         channel: string;
+    };
+export type MsTeamsNotificationPayload = TraceTaskBase &
+    NotificationPayloadBase & {
+        schedulerMsTeamsTargetUuid?: string;
+        webhook: string;
     };
 
 export type EmailNotificationPayload = TraceTaskBase &

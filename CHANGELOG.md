@@ -1,3 +1,45 @@
+## [0.1563.1](https://github.com/lightdash/lightdash/compare/0.1563.0...0.1563.1) (2025-04-03)
+
+
+### Bug Fixes
+
+* card action alignment ([#14243](https://github.com/lightdash/lightdash/issues/14243)) ([301b8fe](https://github.com/lightdash/lightdash/commit/301b8feb9750f81a3d575e96de2ebd0cb79409e0))
+
+# [0.1563.0](https://github.com/lightdash/lightdash/compare/0.1562.2...0.1563.0) (2025-04-03)
+
+
+### Features
+
+*  create scheduled deliveries for microsof teams using webhooks ([#14254](https://github.com/lightdash/lightdash/issues/14254)) ([f7f5c5e](https://github.com/lightdash/lightdash/commit/f7f5c5ead1c90a52b04fde2beaf28b5e8ae64ae9))
+
+## [0.1562.2](https://github.com/lightdash/lightdash/compare/0.1562.1...0.1562.2) (2025-04-03)
+
+
+### Bug Fixes
+
+* revert improve Table Selection handling for explorer ([#14255](https://github.com/lightdash/lightdash/issues/14255)) ([#14270](https://github.com/lightdash/lightdash/issues/14270)) ([9167e38](https://github.com/lightdash/lightdash/commit/9167e384fddf9de7926d9d58ed03f16b1b96f690))
+
+## [0.1562.1](https://github.com/lightdash/lightdash/compare/0.1562.0...0.1562.1) (2025-04-03)
+
+
+### Bug Fixes
+
+* in the current filter stop autofocus when there's a value ([#14258](https://github.com/lightdash/lightdash/issues/14258)) ([76a02bf](https://github.com/lightdash/lightdash/commit/76a02bf603124c9d9a9c98c764bed934b7c8043d))
+
+# [0.1562.0](https://github.com/lightdash/lightdash/compare/0.1561.2...0.1562.0) (2025-04-03)
+
+
+### Features
+
+* auto focus OTP pit input ([#14246](https://github.com/lightdash/lightdash/issues/14246)) ([0e7938d](https://github.com/lightdash/lightdash/commit/0e7938dd6565ef001a0845b38c9683632eee208f))
+
+## [0.1561.2](https://github.com/lightdash/lightdash/compare/0.1561.1...0.1561.2) (2025-04-02)
+
+
+### Bug Fixes
+
+* improve Table Selection handling for explorer ([#14255](https://github.com/lightdash/lightdash/issues/14255)) ([fc6bb98](https://github.com/lightdash/lightdash/commit/fc6bb988b9d0abce42b8a71286803526bf0b7796))
+
 ## [0.1561.1](https://github.com/lightdash/lightdash/compare/0.1561.0...0.1561.1) (2025-04-02)
 
 
