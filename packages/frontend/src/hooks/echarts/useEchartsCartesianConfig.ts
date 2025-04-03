@@ -1972,24 +1972,20 @@ const useEchartsCartesianConfig = (
 
         // Adds extra gap to grid to make room for axis labels -> there is an open ticket in echarts to fix this: https://github.com/apache/echarts/issues/9265
         // Only works for px values, percentage values are not supported because it cannot use calc()
-        if (
-            gridLeft &&
-            gridRight &&
-            gridLeft.includes('px') &&
-            gridRight.includes('px')
-        ) {
-            return {
-                ...grid,
-                left: `${
-                    parseInt(gridLeft.replace('px', '')) + defaultAxisLabelGap
-                }px`,
-                right: `${
-                    parseInt(gridRight.replace('px', '')) + defaultAxisLabelGap
-                }px`,
-            };
-        }
-
-        return grid;
+        return {
+            ...grid,
+            left: gridLeft.includes('px')
+                ? `${
+                      parseInt(gridLeft.replace('px', '')) + defaultAxisLabelGap
+                  }px`
+                : grid.left,
+            right: gridRight.includes('px')
+                ? `${
+                      parseInt(gridRight.replace('px', '')) +
+                      defaultAxisLabelGap
+                  }px`
+                : grid.right,
+        };
     }, [validCartesianConfig?.eChartsConfig.grid]);
 
     const eChartsOptions = useMemo(
