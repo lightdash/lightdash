@@ -85,7 +85,7 @@ export class SpaceModel {
     static async getSpaceIdAndName(db: Knex, spaceUuid: string | undefined) {
         if (spaceUuid === undefined) return undefined;
 
-        const [space] = await db('spaces')
+        const [space] = await db(SpaceTableName)
             .select(['space_id', 'name'])
             .where('space_uuid', spaceUuid);
         return { spaceId: space.space_id, name: space.name };
@@ -100,7 +100,7 @@ export class SpaceModel {
             Pick<DbPinnedList, 'pinned_list_uuid'> &
             Pick<DBPinnedSpace, 'order'>
     > {
-        const space = await db('spaces')
+        const space = await db(SpaceTableName)
             .innerJoin('projects', 'projects.project_id', 'spaces.project_id')
             .innerJoin(
                 'organizations',
@@ -305,7 +305,7 @@ export class SpaceModel {
                 name: 'SpaceModel.find',
             },
             async () => {
-                const query = this.database('spaces')
+                const query = this.database(SpaceTableName)
                     .innerJoin(
                         'projects',
                         'projects.project_id',
@@ -1304,7 +1304,7 @@ export class SpaceModel {
             Pick<SpaceSummary, 'isPrivate' | 'organizationUuid' | 'projectUuid'>
         >
     > {
-        const spaces = await this.database('spaces')
+        const spaces = await this.database(SpaceTableName)
             .innerJoin('projects', 'projects.project_id', 'spaces.project_id')
             .innerJoin(
                 'organizations',
