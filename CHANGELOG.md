@@ -1,3 +1,10 @@
+# [0.1563.0](https://github.com/lightdash/lightdash/compare/0.1562.2...0.1563.0) (2025-04-03)
+
+
+### Features
+
+*  create scheduled deliveries for microsof teams using webhooks ([#14254](https://github.com/lightdash/lightdash/issues/14254)) ([f7f5c5e](https://github.com/lightdash/lightdash/commit/f7f5c5ead1c90a52b04fde2beaf28b5e8ae64ae9))
+
 ## [0.1562.2](https://github.com/lightdash/lightdash/compare/0.1562.1...0.1562.2) (2025-04-03)
 
 
