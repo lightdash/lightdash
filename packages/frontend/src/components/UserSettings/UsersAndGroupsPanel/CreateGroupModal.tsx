@@ -138,7 +138,13 @@ const CreateGroupModal: FC<
                                 })),
                             });
                         }}
-                        dropdownPosition="top"
+                        styles={{
+                            values: {
+                                maxHeight: 200,
+                                overflow: 'scroll',
+                            },
+                        }}
+                        dropdownPosition="bottom"
                     />
 
                     <Button
