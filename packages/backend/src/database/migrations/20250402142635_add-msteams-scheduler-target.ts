@@ -27,7 +27,7 @@ export async function up(knex: Knex): Promise<void> {
                     .references('scheduler_uuid')
                     .inTable(SchedulerTableName)
                     .onDelete('CASCADE');
-                table.string('webhook').notNullable();
+                table.text('webhook').notNullable();
             },
         );
     }

@@ -15,7 +15,6 @@ import {
     isSchedulerImageOptions,
     isSlackTarget,
     validateEmail,
-    type AnyType,
     type CreateSchedulerAndTargetsWithoutIds,
     type CreateSchedulerTarget,
     type Dashboard,
@@ -266,10 +265,12 @@ const validateMsTeamsWebhook = (webhook: string): boolean => {
 };
 
 type MicrosoftTeamsDestinationProps = {
-    form: AnyType;
+    onChange: (val: string[]) => void;
+    msTeamTargets: string[];
 };
 const MicrosoftTeamsDestination: FC<MicrosoftTeamsDestinationProps> = ({
-    form,
+    onChange,
+    msTeamTargets,
 }) => {
     return (
         <Group noWrap mb="sm">
@@ -289,13 +290,11 @@ const MicrosoftTeamsDestination: FC<MicrosoftTeamsDestinationProps> = ({
                     })}
                     clearable
                     placeholder="Enter Microsoft Teams webhook URLs"
-                    value={form.values.msTeamsTargets}
+                    value={msTeamTargets}
                     allowDuplicates={false}
                     splitChars={[',', ' ']}
                     validationFunction={validateMsTeamsWebhook}
-                    onChange={(val) => {
-                        form.setFieldValue('msTeamsTargets', val);
-                    }}
+                    onChange={onChange}
                 />
             </Box>
         </Group>
@@ -1156,7 +1155,17 @@ const SchedulerForm: FC<Props> = ({
                                     )}
                                 </Stack>
                                 {health.data?.hasMicrosoftTeams && (
-                                    <MicrosoftTeamsDestination form={form} />
+                                    <MicrosoftTeamsDestination
+                                        msTeamTargets={
+                                            form.values.msTeamsTargets
+                                        }
+                                        onChange={(val: string[]) => {
+                                            form.setFieldValue(
+                                                'msTeamsTargets',
+                                                val,
+                                            );
+                                        }}
+                                    />
                                 )}
                             </Stack>
                         </Input.Wrapper>

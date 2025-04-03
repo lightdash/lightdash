@@ -873,8 +873,7 @@ export default class SchedulerTask {
                 title: name,
                 name: details.name,
                 description: details.description,
-                message:
-                    scheduler.message && slackifyMarkdown(scheduler.message),
+                message: scheduler.message,
                 ctaUrl: url,
                 footer,
             };

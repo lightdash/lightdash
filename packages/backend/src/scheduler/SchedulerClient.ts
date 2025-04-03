@@ -425,7 +425,7 @@ export class SchedulerClient {
                         jobGroup,
                         scheduledTime: date,
                         page,
-                        schedulerSlackTargetUuid: targetUuid,
+                        schedulerMsTeamsTargetUuid: targetUuid,
                         scheduler,
                         webhook: target.webhook,
                         ...traceProperties,
