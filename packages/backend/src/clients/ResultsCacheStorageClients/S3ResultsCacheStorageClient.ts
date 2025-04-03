@@ -45,7 +45,10 @@ export class S3ResultsCacheStorageClient
             },
         });
 
+        let isClosed = false;
         const close = async () => {
+            if (isClosed) return;
+            isClosed = true;
             try {
                 passThrough.end();
                 await upload.done();
@@ -67,9 +70,6 @@ export class S3ResultsCacheStorageClient
                 try {
                     rows.map((row) =>
                         passThrough.write(`${JSON.stringify(row)}\n`),
-                    );
-                    Logger.debug(
-                        `Successfully wrote ${rows.length} rows to cache key: ${cacheKey}`,
                     );
                 } catch (error) {
                     Logger.error(

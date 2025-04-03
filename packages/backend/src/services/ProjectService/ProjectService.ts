@@ -1996,6 +1996,14 @@ export class ProjectService extends BaseService {
         let returnObject: ApiGetAsyncQueryResults;
         let roundedDurationMs: number;
         if (cacheKey) {
+            const cache = await this.resultsCacheModel.find(
+                cacheKey,
+                projectUuid,
+            );
+
+            const expiresAt = cache?.expires_at; // TODO: maybe not nullable?
+            const cacheTotalRowCount = cache?.total_row_count ?? 0; // TODO: maybe not nullable?
+
             const { result: resultRows, durationMs } = await measureTime(
                 () =>
                     this.resultsCacheModel.getCachedResultsPage(
@@ -2011,7 +2019,7 @@ export class ProjectService extends BaseService {
                 context,
             );
 
-            const pageCount = Math.ceil(resultRows.length / defaultedPageSize);
+            const pageCount = Math.ceil(cacheTotalRowCount / defaultedPageSize);
 
             roundedDurationMs = Math.round(durationMs);
 
@@ -2024,8 +2032,8 @@ export class ProjectService extends BaseService {
 
             returnObject = {
                 rows: resultRows,
-                totalPageCount: pageCount, // TODO: should we store this on query history?
-                totalResults: queryHistory.totalRowCount ?? resultRows.length, // TODO: is this ok?
+                totalPageCount: pageCount,
+                totalResults: cacheTotalRowCount,
                 queryUuid: queryHistory.queryUuid,
                 fields: queryHistory.fields,
                 metricQuery,
@@ -2423,6 +2431,9 @@ export class ProjectService extends BaseService {
                                 },
                             });
 
+                            // Wait for the cache to be written before marking the query as ready
+                            await createdCache.close();
+
                             await this.queryHistoryModel.update(
                                 queryHistoryUuid,
                                 projectUuid,
@@ -2469,13 +2480,12 @@ export class ProjectService extends BaseService {
                             );
                         } finally {
                             void sshTunnel.disconnect();
-                            await createdCache.close(); // TODO: only await in the caching case?
+                            void createdCache.close();
                         }
                     };
 
                     // Trigger query in the background, update query history when complete
-                    // TODO: only await in the caching case?
-                    await executeAndSaveHistory();
+                    void executeAndSaveHistory();
 
                     return {
                         queryUuid: queryHistoryUuid,
