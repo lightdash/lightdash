@@ -1349,8 +1349,45 @@ export class SpaceModel {
         return spaceAccessMap;
     }
 
+    /**
+     * Gets the root space UUID for a given space UUID
+     *
+     * This method uses PostgreSQL's ltree extension to find the root space of a hierarchy.
+     * The spaces are stored in a tree structure where:
+     * - Root spaces have a path equal to their own UUID (e.g., "123")
+     * - Child spaces have paths that include their parent hierarchy (e.g., "123.456.789")
+     * @param spaceUuid Space UUID to get the root for
+     * @returns Root space UUID (or the same UUID if it's already a root or has no hierarchy)
+     */
+    async getSpaceRoot(spaceUuid: string): Promise<string> {
+        const result = await this.database(SpaceTableName)
+            .select<{ root_space_uuid: string }>(
+                this.database.raw(`
+                CASE 
+                    WHEN path IS NOT NULL THEN 
+                        (SELECT root_space.space_uuid 
+                        FROM ${SpaceTableName} root_space 
+                        -- nlevel(path) = 1 finds only root nodes (first level in hierarchy)
+                         WHERE nlevel(root_space.path) = 1 
+                        -- @> operator to find the root space whose path contains the current space's path
+                         AND root_space.path @> ${SpaceTableName}.path)
+                    ELSE space_uuid 
+                END as root_space_uuid
+            `),
+            )
+            .where('space_uuid', spaceUuid)
+            .first();
+
+        return result?.root_space_uuid || spaceUuid;
+    }
+
     async getFullSpace(spaceUuid: string): Promise<Space> {
         const space = await this.get(spaceUuid);
+        // Get the root space UUID for access controls
+        // This ensures that access permissions are inherited from the root space
+        // throughout the entire space hierarchy
+        const rootSpaceUuid = await this.getSpaceRoot(spaceUuid);
+
         return {
             organizationUuid: space.organizationUuid,
             name: space.name,
@@ -1361,9 +1398,12 @@ export class SpaceModel {
             pinnedListOrder: space.pinnedListOrder,
             queries: await this.getSpaceQueries([space.uuid]),
             dashboards: await this.getSpaceDashboards([space.uuid]),
+            // Use the root space's access settings to enforce consistent permissions
+            // throughout the space hierarchy
             access:
-                (await this._getSpaceAccess([space.uuid]))[space.uuid] ?? [],
-            groupsAccess: await this._getGroupAccess(space.uuid),
+                (await this._getSpaceAccess([rootSpaceUuid]))[rootSpaceUuid] ??
+                [],
+            groupsAccess: await this._getGroupAccess(rootSpaceUuid),
             slug: space.slug,
             parentSpaceUuid: space.parentSpaceUuid,
             path: space.path,
