@@ -14,7 +14,9 @@ import {
     GsheetsNotificationPayload,
     LightdashPage,
     MissingConfigError,
+    type MsTeamsNotificationPayload,
     NotEnoughResults,
+    NotImplementedError,
     NotificationFrequency,
     NotificationPayloadBase,
     QueryExecutionContext,
@@ -22,6 +24,7 @@ import {
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
     ReplaceableCustomFields,
+    type RunQueryTags,
     SCHEDULER_TASKS,
     SavedChartDAO,
     ScheduledDeliveryPayload,
@@ -29,9 +32,9 @@ import {
     SchedulerCreateProjectWithCompilePayload,
     SchedulerFilterRule,
     SchedulerFormat,
+    type SchedulerIndexCatalogJobPayload,
     SchedulerJobStatus,
     SchedulerLog,
-    SchedulerTaskName,
     SemanticLayerQueryPayload,
     SessionUser,
     SlackInstallationNotFoundError,
@@ -59,6 +62,7 @@ import {
     getSchedulerUuid,
     isChartValidationError,
     isCreateScheduler,
+    isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     isDashboardChartTileType,
     isDashboardScheduler,
@@ -69,8 +73,6 @@ import {
     isTableChartConfig,
     operatorActionValue,
     pivotResultsAsCsv,
-    type RunQueryTags,
-    type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
 import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
@@ -83,6 +85,7 @@ import {
 import { S3Client } from '../clients/Aws/S3Client';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { GoogleDriveClient } from '../clients/Google/GoogleDriveClient';
+import { MicrosoftTeamsClient } from '../clients/MicrosoftTeams/MicrosoftTeamsClient';
 import { SlackClient } from '../clients/Slack/SlackClient';
 import {
     getChartAndDashboardBlocks,
@@ -127,6 +130,7 @@ export type SchedulerTaskArguments = {
     semanticLayerService: SemanticLayerService;
     catalogService: CatalogService;
     encryptionUtil: EncryptionUtil;
+    msTeamsClient: MicrosoftTeamsClient;
 };
 
 export default class SchedulerTask {
@@ -164,6 +168,8 @@ export default class SchedulerTask {
 
     private readonly encryptionUtil: EncryptionUtil;
 
+    protected readonly msTeamsClient: MicrosoftTeamsClient;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -182,6 +188,8 @@ export default class SchedulerTask {
         this.semanticLayerService = args.semanticLayerService;
         this.catalogService = args.catalogService;
         this.encryptionUtil = args.encryptionUtil;
+
+        this.msTeamsClient = args.msTeamsClient;
     }
 
     protected async getChartOrDashboard(
@@ -769,6 +777,205 @@ export default class SchedulerTask {
                 );
                 return; // Do not cascade error
             }
+
+            throw e; // Cascade error to it can be retried by graphile
+        }
+    }
+
+    protected async sendMsTeamsNotification(
+        jobId: string,
+        notification: MsTeamsNotificationPayload,
+    ) {
+        const {
+            schedulerUuid,
+            schedulerMsTeamsTargetUuid,
+            webhook,
+            scheduledTime,
+            scheduler,
+        } = notification;
+        this.analytics.track({
+            event: 'scheduler_notification_job.started',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: schedulerMsTeamsTargetUuid,
+                type: 'msteams',
+                sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
+            },
+        });
+
+        try {
+            if (!this.lightdashConfig.microsoftTeams.enabled) {
+                throw new MissingConfigError(
+                    'Microsoft teams is not configured',
+                );
+            }
+
+            const {
+                format,
+                savedChartUuid,
+                dashboardUuid,
+                name,
+                cron,
+                timezone,
+                thresholds,
+                includeLinks,
+            } = scheduler;
+
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION,
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+                scheduledTime,
+                target: webhook,
+                targetType: 'msteams',
+                status: SchedulerJobStatus.STARTED,
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
+            });
+
+            // Backwards compatibility for old scheduled deliveries
+            const notificationPageData =
+                notification.page ??
+                (await this.getNotificationPageData(scheduler, jobId));
+
+            const {
+                url,
+                details,
+                pageType,
+                organizationUuid,
+                imageUrl,
+                csvUrl,
+                csvUrls,
+                pdfFile,
+            } = notificationPageData;
+
+            const schedulerFooter = includeLinks
+                ? `[scheduled delivery](${url})`
+                : 'scheduled delivery';
+
+            const defaultSchedulerTimezone =
+                await this.schedulerService.getSchedulerDefaultTimezone(
+                    schedulerUuid,
+                );
+
+            const footer = `This is a ${schedulerFooter} ${getHumanReadableCronExpression(
+                cron,
+                timezone || defaultSchedulerTimezone,
+            )} from Lightdash.`;
+            const getBlocksArgs = {
+                title: name,
+                name: details.name,
+                description: details.description,
+                message: scheduler.message,
+                ctaUrl: url,
+                footer,
+            };
+
+            if (thresholds !== undefined && thresholds.length > 0) {
+                // We assume the threshold is possitive , so we don't need to get results here
+
+                throw new NotImplementedError('Not implemented');
+            } else if (format === SchedulerFormat.IMAGE) {
+                if (imageUrl)
+                    await this.msTeamsClient.postImageWithWebhook({
+                        webhookUrl: webhook,
+                        ...getBlocksArgs,
+                        image: imageUrl,
+                    });
+            } else if (format === SchedulerFormat.CSV) {
+                if (savedChartUuid) {
+                    if (csvUrl === undefined) {
+                        throw new UnexpectedServerError('Missing CSV URL');
+                    }
+                    await this.msTeamsClient.postCsvWithWebhook({
+                        webhookUrl: webhook,
+                        ...getBlocksArgs,
+                        csvUrl,
+                    });
+                } else if (dashboardUuid) {
+                    if (csvUrls === undefined) {
+                        throw new UnexpectedServerError('Missing CSV URLS');
+                    }
+                    await this.msTeamsClient.postCsvsWithWebhook({
+                        webhookUrl: webhook,
+                        ...getBlocksArgs,
+                        csvUrls,
+                    });
+                } else {
+                    throw new UnexpectedServerError('Not implemented');
+                }
+            }
+            this.analytics.track({
+                event: 'scheduler_notification_job.completed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    jobId,
+                    schedulerId: schedulerUuid,
+                    schedulerTargetId: schedulerMsTeamsTargetUuid,
+                    type: 'msteams',
+                    format,
+                    resourceType:
+                        pageType === LightdashPage.CHART
+                            ? 'chart'
+                            : 'dashboard',
+                    sendNow: schedulerUuid === undefined,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
+                },
+            });
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION,
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+
+                scheduledTime,
+                target: webhook,
+                targetType: 'msteams',
+                status: SchedulerJobStatus.COMPLETED,
+                details: {
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
+            });
+        } catch (e) {
+            this.analytics.track({
+                event: 'scheduler_notification_job.failed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    error: `${e}`,
+                    jobId,
+                    schedulerId: schedulerUuid,
+                    schedulerTargetId: schedulerMsTeamsTargetUuid,
+                    type: 'msteams',
+                    sendNow: schedulerUuid === undefined,
+                    isThresholdAlert: scheduler.thresholds !== undefined,
+                },
+            });
+
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION,
+                schedulerUuid,
+                jobId,
+                jobGroup: notification.jobGroup,
+
+                scheduledTime,
+                targetType: 'msteams',
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    error: getErrorMessage(e),
+                    projectUuid: notification.projectUuid,
+                    organizationUuid: notification.organizationUuid,
+                    createdByUserUuid: notification.userUuid,
+                },
+            });
 
             throw e; // Cascade error to it can be retried by graphile
         }
@@ -2191,6 +2398,14 @@ export default class SchedulerTask {
                     task: SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
                     target: target.channel,
                     targetType: 'slack',
+                };
+            }
+
+            if (isCreateSchedulerMsTeamsTarget(target)) {
+                return {
+                    task: SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION,
+                    target: target.webhook,
+                    targetType: 'msteams',
                 };
             }
             return {
