@@ -283,6 +283,7 @@ export * from './utils/projectMemberRole';
 export * from './utils/promises';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
+export * from './utils/searchParams';
 export * from './utils/semanticLayer';
 export * from './utils/sleep';
 export * from './utils/slugs';
@@ -867,6 +868,7 @@ export type HealthState = {
     isAuthenticated: boolean;
     requiresOrgRegistration: boolean;
     hasEmailClient: boolean;
+    hasMicrosoftTeams: boolean;
     latest: {
         version?: string;
     };

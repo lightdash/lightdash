@@ -170,6 +170,7 @@ const FilterRuleForm: FC<Props> = ({
                         closeOnItemClick
                         withArrow
                         arrowPosition="center"
+                        withinPortal
                     >
                         <Menu.Target>
                             <Box>

@@ -2,8 +2,10 @@ import {
     AnyType,
     assertUnreachable,
     isEmailTarget,
+    isMsTeamsTarget,
     isSlackTarget,
     SchedulerEmailTarget,
+    SchedulerMsTeamsTarget,
     SchedulerSlackTarget,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -11,6 +13,7 @@ import { Knex } from 'knex';
 export const SchedulerTableName = 'scheduler';
 export const SchedulerSlackTargetTableName = 'scheduler_slack_target';
 export const SchedulerEmailTargetTableName = 'scheduler_email_target';
+export const SchedulerMsTeamsTargetTableName = 'scheduler_msteams_target';
 
 export const SchedulerLogTableName = 'scheduler_log';
 
@@ -51,6 +54,13 @@ export type SchedulerSlackTargetDb = {
     updated_at: Date;
     scheduler_uuid: string;
     channel: string; // slack channel id
+};
+export type SchedulerMsTeamsTargetDb = {
+    scheduler_msteams_target_uuid: string;
+    created_at: Date;
+    updated_at: Date;
+    scheduler_uuid: string;
+    webhook: string;
 };
 
 export type SchedulerEmailTargetDb = {
@@ -93,6 +103,15 @@ export type SchedulerSlackTargetTable = Knex.CompositeTableType<
     Pick<SchedulerSlackTargetDb, 'channel' | 'updated_at'>
 >;
 
+export type SchedulerMsTeamsTargetTable = Knex.CompositeTableType<
+    SchedulerMsTeamsTargetDb,
+    Omit<
+        SchedulerMsTeamsTargetDb,
+        'scheduler_msteams_target_uuid' | 'created_at'
+    >,
+    Pick<SchedulerMsTeamsTargetDb, 'webhook' | 'updated_at'>
+>;
+
 export type SchedulerEmailTargetTable = Knex.CompositeTableType<
     SchedulerEmailTargetDb,
     Omit<SchedulerEmailTargetDb, 'scheduler_email_target_uuid' | 'created_at'>,
@@ -118,15 +137,24 @@ export type SchedulerLogTable = Knex.CompositeTableType<
 >;
 
 export const getSchedulerTargetType = (
-    target: SchedulerSlackTarget | SchedulerEmailTarget,
+    target:
+        | SchedulerSlackTarget
+        | SchedulerEmailTarget
+        | SchedulerMsTeamsTarget,
 ): {
     schedulerTargetId: string;
-    type: 'slack' | 'email';
+    type: 'slack' | 'email' | 'msteams';
 } => {
     if (isSlackTarget(target)) {
         return {
             schedulerTargetId: target.schedulerSlackTargetUuid,
             type: 'slack',
+        };
+    }
+    if (isMsTeamsTarget(target)) {
+        return {
+            schedulerTargetId: target.schedulerMsTeamsTargetUuid,
+            type: 'msteams',
         };
     }
     if (isEmailTarget(target)) {

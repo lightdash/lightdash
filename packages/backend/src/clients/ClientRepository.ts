@@ -5,6 +5,7 @@ import { S3CacheClient } from './Aws/S3CacheClient';
 import { S3Client } from './Aws/S3Client';
 import EmailClient from './EmailClient/EmailClient';
 import { GoogleDriveClient } from './Google/GoogleDriveClient';
+import { MicrosoftTeamsClient } from './MicrosoftTeams/MicrosoftTeamsClient';
 import { SlackClient } from './Slack/SlackClient';
 
 /**
@@ -19,6 +20,7 @@ export interface ClientManifest {
     s3Client: S3Client;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
+    msTeamsClient: MicrosoftTeamsClient;
 }
 
 /**
@@ -169,6 +171,16 @@ export class ClientRepository
                     lightdashConfig: this.context.lightdashConfig,
                     slackAuthenticationModel:
                         this.models.getSlackAuthenticationModel(),
+                }),
+        );
+    }
+
+    public getMsTeamsClient(): MicrosoftTeamsClient {
+        return this.getClient(
+            'msTeamsClient',
+            () =>
+                new MicrosoftTeamsClient({
+                    lightdashConfig: this.context.lightdashConfig,
                 }),
         );
     }
