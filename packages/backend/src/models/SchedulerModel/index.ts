@@ -120,7 +120,11 @@ export class SchedulerModel {
     }
 
     static getSlackChannels(
-        targets: (SchedulerSlackTarget | SchedulerEmailTarget)[],
+        targets: (
+            | SchedulerSlackTarget
+            | SchedulerEmailTarget
+            | SchedulerMsTeamsTarget
+        )[],
     ): string[] {
         return targets.reduce<string[]>((acc, target) => {
             if (isSlackTarget(target)) {
