@@ -144,7 +144,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                 {rightHeaderElement && (
                     <>
                         <Box sx={{ flexGrow: 1 }} />
-                        <Group spacing="xs" pos="relative" top={2} right={2}>
+                        <Group spacing="xs" pos="relative" right={2}>
                             {rightHeaderElement}
                         </Group>
                     </>
