@@ -291,12 +291,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             : {};
     }
 
-    async executeAsyncQuery({
-        sql,
-        values,
-        tags,
-        timezone,
-    }: WarehouseExecuteAsyncQueryArgs): Promise<WarehouseExecuteAsyncQuery> {
+    async executeAsyncQuery(
+        { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
+        resultsStreamCallback?: (rows: WarehouseResults['rows']) => void,
+    ): Promise<WarehouseExecuteAsyncQuery> {
         const connection = await this.getConnection();
         await this.prepareWarehouse(connection, {
             timezone,
@@ -307,6 +305,22 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             await this.executeAsyncStatement(connection, sql, {
                 values,
             });
+
+        // If resultsStreamCallback is provided, we stream the query results to the callback
+        // This is the case when caching is enabled. We could make this more explicit
+        if (resultsStreamCallback) {
+            await this.streamQuery(
+                sql,
+                (data) => {
+                    resultsStreamCallback(data.rows);
+                },
+                {
+                    values,
+                    tags,
+                    timezone,
+                },
+            );
+        }
 
         return {
             queryId,
@@ -481,8 +495,14 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     ): Promise<void> {
         const connection = await this.getConnection();
 
+        console.log(
+            '----- streamQuery connection',
+            JSON.stringify(options, null, 2),
+        );
+
         try {
             await this.prepareWarehouse(connection, options);
+
             await this.executeStreamStatement(
                 connection,
                 sql,
