@@ -4635,6 +4635,38 @@ export class ProjectService extends BaseService {
                         `Explore "${exploreName}" has an error.`,
                     );
                 }
+
+                const { tableSelection } = await this.getTablesConfiguration(
+                    user,
+                    projectUuid,
+                );
+
+                // Custom explores/Virtual views are included by default
+                if (
+                    explore.type !== ExploreType.VIRTUAL &&
+                    tableSelection.type === TableSelectionType.WITH_TAGS
+                ) {
+                    const exploreTags = explore.tags ?? [];
+                    const selectedTags = tableSelection.value ?? [];
+                    if (!hasIntersection(exploreTags, selectedTags)) {
+                        throw new NotExistsError(
+                            `Explore "${exploreName}" does not exist.`,
+                        );
+                    }
+                }
+                // Custom explores/Virtual views are included by default
+                if (
+                    explore.type !== ExploreType.VIRTUAL &&
+                    tableSelection.type === TableSelectionType.WITH_NAMES
+                ) {
+                    const selectedNames = tableSelection.value ?? [];
+                    if (!selectedNames.includes(explore.name)) {
+                        throw new NotExistsError(
+                            `Explore "${exploreName}" does not exist.`,
+                        );
+                    }
+                }
+
                 if (includeUnfilteredTables) {
                     return explore;
                 }
