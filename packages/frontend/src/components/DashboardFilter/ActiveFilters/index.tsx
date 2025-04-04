@@ -12,9 +12,17 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { getTabUuidsForFilterRules } from '@lightdash/common';
-import { Group, Skeleton, useMantineTheme } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Skeleton,
+    Tooltip,
+    useMantineTheme,
+} from '@mantine/core';
+import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import MantineIcon from '../../common/MantineIcon';
 import Filter from '../Filter';
 import InvalidFilter from '../InvalidFilter';
 
@@ -117,6 +125,10 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
+    const resetDashboardFilters = useDashboardContext(
+        (c) => c.resetDashboardFilters,
+    );
+
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );
@@ -213,6 +225,20 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
     return (
         <>
+            {!isEditMode && (
+                <Tooltip label="Reset all filters">
+                    <Button
+                        size="xs"
+                        variant="default"
+                        color="gray"
+                        onClick={() => {
+                            resetDashboardFilters();
+                        }}
+                    >
+                        <MantineIcon icon={IconRotate2} />
+                    </Button>
+                </Tooltip>
+            )}
             <DndContext
                 sensors={dragSensors}
                 onDragStart={handleDragStart}

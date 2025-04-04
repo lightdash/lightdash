@@ -14,7 +14,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
-import { IconFilter, IconGripVertical, IconRotate2 } from '@tabler/icons-react';
+import { IconFilter, IconGripVertical } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
@@ -172,10 +172,6 @@ const Filter: FC<Props> = ({
 
     const isPopoverDisabled =
         !filterableFieldsByTileUuid || !allFilterableFields;
-
-    const resetDashboardFilters = useDashboardContext(
-        (c) => c.resetDashboardFilters,
-    );
 
     return (
         <>
@@ -415,20 +411,6 @@ const Filter: FC<Props> = ({
                     )}
                 </Popover.Dropdown>
             </Popover>
-            {isCreatingNew ? (
-                <Tooltip label="Reset all filters">
-                    <Button
-                        size="xs"
-                        variant="default"
-                        color="gray"
-                        onClick={() => {
-                            resetDashboardFilters();
-                        }}
-                    >
-                        <MantineIcon icon={IconRotate2} />
-                    </Button>
-                </Tooltip>
-            ) : null}
         </>
     );
 };
