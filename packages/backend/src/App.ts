@@ -613,10 +613,6 @@ export default class App {
                     },
                 });
 
-                if (error instanceof InvalidUser) {
-                    req.session.destroy(Logger.error);
-                }
-
                 const apiErrorResponse: ApiError = {
                     status: 'error',
                     error: {
@@ -636,6 +632,17 @@ export default class App {
                                 : undefined,
                     },
                 };
+
+                if (error instanceof InvalidUser) {
+                    req.session.destroy((err) => {
+                        if (err) Logger.error(err);
+                        res.status(errorResponse.statusCode).send(
+                            apiErrorResponse,
+                        );
+                    });
+                    return;
+                }
+
                 res.status(errorResponse.statusCode).send(apiErrorResponse);
             },
         );
