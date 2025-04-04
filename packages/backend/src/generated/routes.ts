@@ -6758,6 +6758,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                parentSpaceUuid: { dataType: 'string' },
                 access: {
                     dataType: 'array',
                     array: {
@@ -7206,6 +7207,24 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SchedulerMsTeamsTarget: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                webhook: { dataType: 'string', required: true },
+                schedulerUuid: { dataType: 'string', required: true },
+                updatedAt: { dataType: 'datetime', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+                schedulerMsTeamsTargetUuid: {
+                    dataType: 'string',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerAndTargets: {
         dataType: 'refAlias',
         type: {
@@ -7222,6 +7241,7 @@ const models: TsoaRoute.Models = {
                                 subSchemas: [
                                     { ref: 'SchedulerSlackTarget' },
                                     { ref: 'SchedulerEmailTarget' },
+                                    { ref: 'SchedulerMsTeamsTarget' },
                                 ],
                             },
                             required: true,
@@ -7242,6 +7262,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['handleScheduledDelivery'] },
                 { dataType: 'enum', enums: ['sendSlackNotification'] },
                 { dataType: 'enum', enums: ['sendEmailNotification'] },
+                { dataType: 'enum', enums: ['sendMsTeamsNotification'] },
                 { dataType: 'enum', enums: ['uploadGsheets'] },
                 { dataType: 'enum', enums: ['downloadCsv'] },
                 { dataType: 'enum', enums: ['uploadGsheetFromQuery'] },
@@ -7300,6 +7321,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: ['email'] },
                         { dataType: 'enum', enums: ['slack'] },
                         { dataType: 'enum', enums: ['gsheets'] },
+                        { dataType: 'enum', enums: ['msteams'] },
                     ],
                 },
                 target: { dataType: 'string' },
@@ -12296,10 +12318,6 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 rowTotals: { dataType: 'boolean' },
                 columnTotals: { dataType: 'boolean' },
-                summableMetricFieldIds: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
                 hiddenMetricFieldIds: {
                     dataType: 'array',
                     array: { dataType: 'string' },
