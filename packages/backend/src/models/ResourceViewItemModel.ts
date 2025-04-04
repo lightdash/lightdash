@@ -6,6 +6,7 @@ import {
     ResourceViewSpaceItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { SpaceTableName } from '../database/entities/spaces';
 
 type ResourceViewItemModelArguments = {
     database: Knex;
@@ -49,7 +50,7 @@ const getCharts = async (
             'pinned_chart.saved_chart_uuid',
             'saved_queries.saved_query_uuid',
         )
-        .innerJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
+        .innerJoin(SpaceTableName, 'saved_queries.space_id', 'spaces.space_id')
         .leftJoin(
             'users',
             'saved_queries.last_version_updated_by_user_uuid',
@@ -104,7 +105,7 @@ const getDashboards = async (
             'pinned_dashboard.dashboard_uuid',
             'dashboards.dashboard_uuid',
         )
-        .innerJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
+        .innerJoin(SpaceTableName, 'dashboards.space_id', 'spaces.space_id')
         .innerJoin(
             knex('dashboard_versions')
                 .distinctOn('dashboard_id')

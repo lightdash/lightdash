@@ -11,14 +11,23 @@ export type DbSpace = {
     created_by_user_id?: number;
     search_vector: string;
     slug: string;
+    parent_space_uuid: string | null;
+    path: string | null;
 };
 
 export type CreateDbSpace = Pick<
     DbSpace,
-    'name' | 'project_id' | 'is_private' | 'created_by_user_id' | 'slug'
+    | 'name'
+    | 'project_id'
+    | 'is_private'
+    | 'created_by_user_id'
+    | 'slug'
+    | 'parent_space_uuid'
 >;
 
-export type UpdateDbSpace = Partial<Pick<DbSpace, 'name' | 'is_private'>>;
+export type UpdateDbSpace = Partial<
+    Pick<DbSpace, 'name' | 'is_private' | 'path'>
+>;
 
 export type SpaceTable = Knex.CompositeTableType<
     DbSpace,

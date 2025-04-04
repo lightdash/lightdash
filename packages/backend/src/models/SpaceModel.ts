@@ -56,6 +56,7 @@ import {
 import { SavedSemanticViewerChartsTableName } from '../database/entities/savedSemanticViewerCharts';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import {
+    CreateDbSpace,
     DbSpace,
     SpaceGroupAccessTableName,
     SpaceTableName,
@@ -84,7 +85,7 @@ export class SpaceModel {
     static async getSpaceIdAndName(db: Knex, spaceUuid: string | undefined) {
         if (spaceUuid === undefined) return undefined;
 
-        const [space] = await db('spaces')
+        const [space] = await db(SpaceTableName)
             .select(['space_id', 'name'])
             .where('space_uuid', spaceUuid);
         return { spaceId: space.space_id, name: space.name };
@@ -99,7 +100,7 @@ export class SpaceModel {
             Pick<DbPinnedList, 'pinned_list_uuid'> &
             Pick<DBPinnedSpace, 'order'>
     > {
-        const space = await db('spaces')
+        const space = await db(SpaceTableName)
             .innerJoin('projects', 'projects.project_id', 'spaces.project_id')
             .innerJoin(
                 'organizations',
@@ -304,7 +305,7 @@ export class SpaceModel {
                 name: 'SpaceModel.find',
             },
             async () => {
-                const query = this.database('spaces')
+                const query = this.database(SpaceTableName)
                     .innerJoin(
                         'projects',
                         'projects.project_id',
@@ -452,6 +453,8 @@ export class SpaceModel {
             pinnedListUuid: row.pinned_list_uuid,
             pinnedListOrder: row.order,
             slug: row.slug,
+            parentSpaceUuid: row.parent_space_uuid || undefined,
+            path: row.path || undefined,
         };
     }
 
@@ -1301,7 +1304,7 @@ export class SpaceModel {
             Pick<SpaceSummary, 'isPrivate' | 'organizationUuid' | 'projectUuid'>
         >
     > {
-        const spaces = await this.database('spaces')
+        const spaces = await this.database(SpaceTableName)
             .innerJoin('projects', 'projects.project_id', 'spaces.project_id')
             .innerJoin(
                 'organizations',
@@ -1362,6 +1365,8 @@ export class SpaceModel {
                 (await this._getSpaceAccess([space.uuid]))[space.uuid] ?? [],
             groupsAccess: await this._getGroupAccess(space.uuid),
             slug: space.slug,
+            parentSpaceUuid: space.parentSpaceUuid,
+            path: space.path,
         };
     }
 
@@ -1372,23 +1377,55 @@ export class SpaceModel {
         isPrivate: boolean,
         slug: string,
         forceSameSlug: boolean = false,
+        parentSpaceUuid?: string,
     ): Promise<Space> {
         return this.database.transaction(async (trx) => {
             const [project] = await trx('projects')
                 .select('project_id')
                 .where('project_uuid', projectUuid);
 
+            // Build the insert object
+            const spaceInsert: CreateDbSpace = {
+                project_id: project.project_id,
+                is_private: isPrivate,
+                name,
+                created_by_user_id: userId,
+                slug: forceSameSlug
+                    ? slug
+                    : await generateUniqueSlug(trx, SpaceTableName, slug),
+                parent_space_uuid: null,
+            };
+
+            // If parent space is provided, set the parent_space_uuid
+            if (parentSpaceUuid) {
+                spaceInsert.parent_space_uuid = parentSpaceUuid;
+            }
+
             const [space] = await trx(SpaceTableName)
-                .insert({
-                    project_id: project.project_id,
-                    is_private: isPrivate,
-                    name,
-                    created_by_user_id: userId,
-                    slug: forceSameSlug
-                        ? slug
-                        : await generateUniqueSlug(trx, SpaceTableName, slug),
-                })
+                .insert(spaceInsert)
                 .returning('*');
+
+            // Update the path based on parent (if exists) or set as root
+            if (parentSpaceUuid) {
+                // Get parent's path
+                const [parentSpace] = await trx(SpaceTableName)
+                    .select('path')
+                    .where('space_uuid', parentSpaceUuid);
+
+                if (parentSpace) {
+                    // Create child path by appending current UUID to parent path
+                    const childPath = `${parentSpace.path}.${space.space_uuid}`;
+                    await trx(SpaceTableName)
+                        .update({ path: childPath })
+                        .where('space_uuid', space.space_uuid);
+                }
+            } else {
+                // Set path for root space (just its own UUID)
+                const rootPath = space.space_uuid;
+                await trx(SpaceTableName)
+                    .update({ path: rootPath })
+                    .where('space_uuid', space.space_uuid);
+            }
 
             return {
                 organizationUuid: space.organization_uuid,
