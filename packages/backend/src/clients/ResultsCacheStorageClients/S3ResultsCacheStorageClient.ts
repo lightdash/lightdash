@@ -15,7 +15,7 @@ import {
     WarehouseResults,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { PassThrough, Readable } from 'stream';
+import { once, PassThrough, Readable } from 'stream';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
@@ -68,9 +68,15 @@ export class S3ResultsCacheStorageClient
         return {
             write: async (rows: WarehouseResults['rows']) => {
                 try {
-                    rows.map((row) =>
-                        passThrough.write(`${JSON.stringify(row)}\n`),
-                    );
+                    for (const row of rows) {
+                        const canContinue = passThrough.write(
+                            `${JSON.stringify(row)}\n`,
+                        );
+                        if (!canContinue) {
+                            // eslint-disable-next-line no-await-in-loop
+                            await once(passThrough, 'drain');
+                        }
+                    }
                 } catch (error) {
                     Logger.error(
                         `Failed to write rows to cache key ${cacheKey}: ${getErrorMessage(

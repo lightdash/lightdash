@@ -302,25 +302,14 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         });
 
         const { queryId, durationMs, totalRows } =
-            await this.executeAsyncStatement(connection, sql, {
-                values,
-            });
-
-        // If resultsStreamCallback is provided, we stream the query results to the callback
-        // This is the case when caching is enabled. We could make this more explicit
-        if (resultsStreamCallback) {
-            await this.streamQuery(
+            await this.executeAsyncStatement(
+                connection,
                 sql,
-                (data) => {
-                    resultsStreamCallback(data.rows);
-                },
                 {
                     values,
-                    tags,
-                    timezone,
                 },
+                resultsStreamCallback,
             );
-        }
 
         return {
             queryId,
@@ -385,6 +374,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         options?: {
             values?: AnyType[];
         },
+        resultsStreamCallback?: (rows: WarehouseResults['rows']) => void,
     ) {
         const startTime = performance.now();
         const { queryId, totalRows, durationMs } = await new Promise<{
@@ -426,6 +416,29 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 },
             });
         });
+
+        // If we have a callback, stream the rows to the callback.
+        // This is used when writing to the results cache.
+        if (resultsStreamCallback) {
+            const completedStatement = await connection.getResultsFromQueryId({
+                sqlText: '',
+                queryId,
+            });
+            await new Promise<void>((resolve, reject) => {
+                completedStatement
+                    .streamRows()
+                    .on('error', (e) => {
+                        // TODO: What do we want to do with errors here?
+                        console.error('Error streaming rows to cache', e);
+                    })
+                    .on('data', (row) => {
+                        resultsStreamCallback([row]);
+                    })
+                    .on('end', () => {
+                        resolve();
+                    });
+            });
+        }
 
         return {
             queryId,
