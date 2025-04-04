@@ -428,8 +428,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 completedStatement
                     .streamRows()
                     .on('error', (e) => {
-                        // TODO: What do we want to do with errors here?
-                        console.error('Error streaming rows to cache', e);
+                        reject(e);
                     })
                     .on('data', (row) => {
                         resultsStreamCallback([row]);
