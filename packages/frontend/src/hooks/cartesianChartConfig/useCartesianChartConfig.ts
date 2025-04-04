@@ -844,6 +844,8 @@ const useCartesianChartConfig = ({
     const [referenceLines, setReferenceLines] = useState<ReferenceLineField[]>(
         selectedReferenceLines,
     );
+
+    const [tooltip, setTooltip] = useState<string | undefined>(undefined);
     // Generate expected series
     useEffect(() => {
         if (isCompleteLayout(dirtyLayout) && resultsData) {
@@ -973,6 +975,8 @@ const useCartesianChartConfig = ({
         updateSeries,
         referenceLines,
         setReferenceLines,
+        tooltip,
+        setTooltip,
         updateMetadata,
     };
 };

@@ -20,6 +20,7 @@ import { useVisualizationContext } from '../../../LightdashVisualization/useVisu
 import { Config } from '../../common/Config';
 import { UnitInputsGrid } from '../common/UnitInputsGrid';
 import { ReferenceLines } from './ReferenceLines';
+import { TooltipConfig } from './TooltipConfig';
 
 enum Positions {
     Left = 'left',
@@ -172,6 +173,9 @@ export const Legend: FC<Props> = ({ items }) => {
             </Config>
             {projectUuid && (
                 <ReferenceLines items={items} projectUuid={projectUuid} />
+            )}
+            {projectUuid && (
+                <TooltipConfig items={items} projectUuid={projectUuid} />
             )}
         </Stack>
     );

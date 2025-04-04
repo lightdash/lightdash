@@ -1584,6 +1584,11 @@ const useEchartsCartesianConfig = (
         return visualizationConfig.chartConfig.validConfig;
     }, [visualizationConfig]);
 
+    const tooltipConfig = useMemo(() => {
+        if (!isCartesianVisualizationConfig(visualizationConfig)) return;
+        return visualizationConfig.chartConfig.tooltip;
+    }, [visualizationConfig]);
+
     const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
         if (
             itemsMap &&
@@ -1813,7 +1818,6 @@ const useEchartsCartesianConfig = (
                     return params[0].axisValueLabel;
                 };
                 // When flipping axes, we get all series in the chart
-
                 const tooltipRows = params
                     .map((param) => {
                         const {
@@ -1843,8 +1847,7 @@ const useEchartsCartesianConfig = (
                                 typeof value === 'object' &&
                                 dim in value
                             ) {
-                                return `
-                            <tr>
+                                return `<tr>
                                 <td>${marker}</td>
                                 <td>${seriesName}</td>
                                 <td style="text-align: right;"><b>${getFormattedValue(
@@ -1859,6 +1862,19 @@ const useEchartsCartesianConfig = (
                         return '';
                     })
                     .join('');
+
+                let tooltipHtml = tooltipConfig ?? '';
+                const firstValue = params[0].value as Record<string, unknown>;
+                const fields = tooltipHtml.match(/\${(.*?)}/g);
+                fields?.forEach((field) => {
+                    const fieldValueReference = field
+                        .replace('${', '')
+                        .replace('}', '')
+                        .replaceAll('.', '_');
+                    const fieldValue = firstValue[fieldValueReference];
+
+                    tooltipHtml = tooltipHtml.replace(field, `${fieldValue}`);
+                });
 
                 const dimensionId = params[0].dimensionNames?.[0];
                 if (dimensionId !== undefined) {
@@ -1883,13 +1899,13 @@ const useEchartsCartesianConfig = (
                             itemsMap,
                         );
 
-                        return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
+                        return `${tooltipHeader}<br/>${tooltipHtml}<table>${tooltipRows}</table>`;
                     }
                 }
-                return `${getTooltipHeader()}<br/><table>${tooltipRows}</table>`;
+                return `${getTooltipHeader()}<br/>${tooltipHtml}<table>${tooltipRows}</table>`;
             },
         }),
-        [itemsMap, validCartesianConfig?.layout.flipAxes],
+        [itemsMap, validCartesianConfig?.layout.flipAxes, tooltipConfig],
     );
 
     const sortedResultsByTotals = useMemo(() => {
