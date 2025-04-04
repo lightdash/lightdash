@@ -208,10 +208,16 @@ export const maybeOverrideWarehouseConnection = <
 >(
     connection: T,
     overrides: { schema?: string },
-): T => ({
-    ...connection,
-    ...(overrides.schema ? { schema: overrides.schema } : undefined),
-});
+): T => {
+    const isBigquery = connection.type === WarehouseTypes.BIGQUERY;
+    const overridesSchema = isBigquery
+        ? { dataset: overrides.schema }
+        : { schema: overrides.schema };
+    return {
+        ...connection,
+        ...(overrides.schema ? overridesSchema : undefined),
+    };
+};
 
 export interface DbtProjectConfigBase {
     type: DbtProjectType;
