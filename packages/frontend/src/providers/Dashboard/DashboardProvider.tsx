@@ -401,7 +401,10 @@ const DashboardProvider: React.FC<
     // and read more centrally.
     const resetDashboardFilters = useCallback(() => {
         // reset in memory filters
-        setDashboardFilters(dashboard?.filters ?? emptyFilters);
+        const inMemoryFilters = embedToken
+            ? embedDashboard?.filters
+            : dashboard?.filters;
+        setDashboardFilters(inMemoryFilters ?? emptyFilters);
         // reset temporary filters
         setDashboardTemporaryFilters(emptyFilters);
         // reset saved filter overrides which are stored in url
@@ -410,6 +413,8 @@ const DashboardProvider: React.FC<
         setDashboardFilters,
         setDashboardTemporaryFilters,
         dashboard?.filters,
+        embedDashboard?.filters,
+        embedToken,
         resetSavedFilterOverrides,
     ]);
 
