@@ -893,7 +893,7 @@ export default class SchedulerTask {
                             thresholds,
                         });
                 } else {
-                    throw new Error('Not implemented');
+                    throw new Error('No chart found');
                 }
             } else if (format === SchedulerFormat.IMAGE) {
                 if (imageUrl)
