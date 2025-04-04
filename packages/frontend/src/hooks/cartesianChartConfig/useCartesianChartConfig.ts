@@ -846,7 +846,7 @@ const useCartesianChartConfig = ({
     );
     // Generate expected series
     useEffect(() => {
-        if (isCompleteLayout(dirtyLayout) && resultsData) {
+        if (isCompleteLayout(dirtyLayout) && resultsData?.hasFetchedAllRows) {
             setDirtyEchartsConfig((prev) => {
                 const defaultCartesianType =
                     prev?.series?.[0]?.type || CartesianSeriesType.BAR;
