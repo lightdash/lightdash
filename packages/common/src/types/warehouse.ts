@@ -104,10 +104,11 @@ export interface WarehouseClient {
             tags: Record<string, string>;
             timezone?: string;
         },
-    ): Promise<void>;
+    ): Promise<{ rowCount: number } | void>;
 
     executeAsyncQuery(
         args: WarehouseExecuteAsyncQueryArgs,
+        resultsStreamCallback: (rows: WarehouseResults['rows']) => void,
     ): Promise<WarehouseExecuteAsyncQuery>;
 
     getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(

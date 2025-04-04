@@ -47,4 +47,5 @@ export type QueryHistory = {
     totalRowCount: number | null;
     warehouseExecutionTimeMs: number | null;
     error: string | null;
+    cacheKey: string | null;
 };
