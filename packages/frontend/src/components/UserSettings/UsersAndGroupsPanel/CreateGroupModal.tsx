@@ -144,7 +144,7 @@ const CreateGroupModal: FC<
                                 overflow: 'scroll',
                             },
                         }}
-                        dropdownPosition="bottom"
+                        dropdownPosition="top"
                     />
 
                     <Button
