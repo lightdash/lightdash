@@ -102,42 +102,6 @@ export const getOidcRedirectURL =
     };
 
 /**
- * This middleware is used to handle InvalidUser errors that might occur when a user tries to access an invite link.
- * This happens when the user is not logged in and tries to access an invite link, but there is already a session for that user that has not been destroyed.
- * It destroys the session and returns a 401 error if there's an error destroying the session.
- * @param err
- * @param req
- * @param res
- * @param next
- * @returns
- */
-export const inviteLinkErrorHandler: ErrorRequestHandler = (
-    err,
-    req,
-    res,
-    next,
-) => {
-    if (err instanceof InvalidUser) {
-        const inviteLinkMatch = req.path.match(
-            /^\/api\/v1\/invite-links\/([A-Za-z0-9_-]{30})$/,
-        );
-        if (req.session.id && inviteLinkMatch && req.method === 'GET') {
-            req.session.destroy((destroyErr) => {
-                if (destroyErr) {
-                    throw new AuthorizationError(
-                        `Error destroying session for invite-related path: ${destroyErr.message}`,
-                    );
-                }
-            });
-
-            return next();
-        }
-    }
-
-    return next(err);
-};
-
-/**
  * This middleware is used to handle deprecated API routes.
  * It sets a warning header and returns a 299 status code.
  * @param date - The date when the deprecated route will be removed
