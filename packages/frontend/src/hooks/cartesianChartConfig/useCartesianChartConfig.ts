@@ -328,10 +328,15 @@ const useCartesianChartConfig = ({
     );
 
     const setXField = useCallback((xField: string | undefined) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            xField,
-        }));
+        setDirtyLayout((prev) => {
+            // Don't allow setting the same field for X and Y
+            if (xField && prev?.yField?.includes(xField)) return prev;
+
+            return {
+                ...prev,
+                xField,
+            };
+        });
     }, []);
 
     const setShowGridX = useCallback((show: boolean) => {
@@ -366,10 +371,15 @@ const useCartesianChartConfig = ({
         });
     }, []);
     const addSingleSeries = useCallback((yField: string) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            yField: [...(prev?.yField || []), yField],
-        }));
+        setDirtyLayout((prev) => {
+            // Don't allow setting the same field as X and Y
+            if (yField === prev?.xField) return prev;
+
+            return {
+                ...prev,
+                yField: [...(prev?.yField || []), yField],
+            };
+        });
     }, []);
 
     const removeSingleSeries = useCallback((index: number) => {
@@ -405,12 +415,17 @@ const useCartesianChartConfig = ({
     }, []);
 
     const updateYField = useCallback((index: number, fieldId: string) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            yField: prev?.yField?.map((field, i) => {
-                return i === index ? fieldId : field;
-            }),
-        }));
+        setDirtyLayout((prev) => {
+            // Don't allow setting the same field as X and Y
+            if (fieldId === prev?.xField) return prev;
+
+            return {
+                ...prev,
+                yField: prev?.yField?.map((field, i) => {
+                    return i === index ? fieldId : field;
+                }),
+            };
+        });
     }, []);
 
     const setType = useCallback(
