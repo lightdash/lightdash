@@ -1,0 +1,28 @@
+### Login
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+### Create Parent Space
+POST http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/spaces
+Content-Type: application/json
+
+{
+  "name": "Parent Space",
+  "isPrivate": false
+}
+
+### Create Child Space
+POST http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/spaces
+Content-Type: application/json
+
+{
+  "name": "Child Space",
+  "isPrivate": false,
+  "parentSpaceUuid": "75f97040-ffb4-4557-bcf0-fc344d238235"
+}
+

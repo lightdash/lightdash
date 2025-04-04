@@ -1365,6 +1365,51 @@ export class SpaceModel {
         };
     }
 
+    /**
+     * Generates a slug for a space.
+     * @param slug - The slug to generate.
+     * @param forceSameSlug - Whether to force the slug to be the same as the input slug.
+     * @param trx - The transaction to use.
+     * @param parentSpaceUuid - The uuid of the parent space.
+     * @returns The slug.
+     */
+    static async getSpaceSlug({
+        slug,
+        forceSameSlug,
+        trx,
+        parentSpaceUuid,
+    }: {
+        slug: string;
+        forceSameSlug: boolean;
+        trx: Knex;
+        parentSpaceUuid: string | null;
+    }) {
+        if (parentSpaceUuid) {
+            const [parentSpace] = await trx(SpaceTableName)
+                .select('slug')
+                .where('space_uuid', parentSpaceUuid);
+            if (!parentSpace) {
+                throw new NotFoundError(
+                    `Parent space with uuid ${parentSpaceUuid} does not exist`,
+                );
+            }
+            return `${parentSpace.slug}/${slug}`;
+        }
+        if (forceSameSlug) {
+            return slug;
+        }
+        return generateUniqueSlug(trx, SpaceTableName, slug);
+    }
+
+    /**
+     * Converts a slug to a path of type ltree.
+     * @param slug - The slug to convert. eg. "my-space/my-sub-space"
+     * @returns The path. eg. "my-space.my-sub-space"
+     */
+    static async getSpacePath({ slug }: { slug: string }) {
+        return slug.replace(/\//g, '.');
+    }
+
     async createSpace(
         projectUuid: string,
         name: string,
@@ -1372,11 +1417,23 @@ export class SpaceModel {
         isPrivate: boolean,
         slug: string,
         forceSameSlug: boolean = false,
+        parentSpaceUuid: string | null = null,
     ): Promise<Space> {
         return this.database.transaction(async (trx) => {
             const [project] = await trx('projects')
                 .select('project_id')
                 .where('project_uuid', projectUuid);
+
+            const spaceSlug = await SpaceModel.getSpaceSlug({
+                slug,
+                forceSameSlug,
+                parentSpaceUuid,
+                trx,
+            });
+
+            const spacePath = await SpaceModel.getSpacePath({
+                slug: spaceSlug,
+            });
 
             const [space] = await trx(SpaceTableName)
                 .insert({
@@ -1384,9 +1441,9 @@ export class SpaceModel {
                     is_private: isPrivate,
                     name,
                     created_by_user_id: userId,
-                    slug: forceSameSlug
-                        ? slug
-                        : await generateUniqueSlug(trx, SpaceTableName, slug),
+                    slug: spaceSlug,
+                    parent_space_uuid: parentSpaceUuid,
+                    path: spacePath,
                 })
                 .returning('*');
 
