@@ -141,7 +141,7 @@ const CreateGroupModal: FC<
                         styles={{
                             values: {
                                 maxHeight: 200,
-                                overflow: 'scroll',
+                                overflow: 'auto',
                             },
                         }}
                         dropdownPosition="top"
