@@ -1,3 +1,31 @@
+# [0.1564.0](https://github.com/lightdash/lightdash/compare/0.1563.3...0.1564.0) (2025-04-04)
+
+
+### Features
+
+* microsoft teams threshold ([#14265](https://github.com/lightdash/lightdash/issues/14265)) ([7593f6b](https://github.com/lightdash/lightdash/commit/7593f6b673c1ff36b94ac427fa17905748f3f5bf))
+
+## [0.1563.3](https://github.com/lightdash/lightdash/compare/0.1563.2...0.1563.3) (2025-04-04)
+
+
+### Bug Fixes
+
+* scroll inside select ([#14280](https://github.com/lightdash/lightdash/issues/14280)) ([2c68218](https://github.com/lightdash/lightdash/commit/2c682186716b2b981c13d078d22ea7ad20a6cf0a))
+
+## [0.1563.2](https://github.com/lightdash/lightdash/compare/0.1563.1...0.1563.2) (2025-04-03)
+
+
+### Bug Fixes
+
+* Scheduled delivery urls containing invalid uuids ([#14252](https://github.com/lightdash/lightdash/issues/14252)) ([fc0de84](https://github.com/lightdash/lightdash/commit/fc0de84f51a66bbdb6fa0785f11a3b1fafc6711e))
+
+## [0.1563.1](https://github.com/lightdash/lightdash/compare/0.1563.0...0.1563.1) (2025-04-03)
+
+
+### Bug Fixes
+
+* card action alignment ([#14243](https://github.com/lightdash/lightdash/issues/14243)) ([301b8fe](https://github.com/lightdash/lightdash/commit/301b8feb9750f81a3d575e96de2ebd0cb79409e0))
+
 # [0.1563.0](https://github.com/lightdash/lightdash/compare/0.1562.2...0.1563.0) (2025-04-03)
 
 

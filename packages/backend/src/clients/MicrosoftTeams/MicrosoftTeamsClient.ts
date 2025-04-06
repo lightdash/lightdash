@@ -1,4 +1,11 @@
-import { AnyType, MissingConfigError, MsTeamsError } from '@lightdash/common';
+import {
+    AnyType,
+    friendlyName,
+    MissingConfigError,
+    MsTeamsError,
+    operatorActionValue,
+    ThresholdOptions,
+} from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
@@ -58,6 +65,7 @@ export class MicrosoftTeamsClient {
         ctaUrl,
         image,
         footer,
+        thresholds = [],
     }: {
         webhookUrl: string;
         title: string;
@@ -66,6 +74,7 @@ export class MicrosoftTeamsClient {
         ctaUrl: string;
         image: string;
         footer: string;
+        thresholds?: ThresholdOptions[];
     }): Promise<void> {
         if (!this.lightdashConfig.microsoftTeams.enabled) {
             throw new MissingConfigError('Microsoft Teams is not enabled');
@@ -102,6 +111,30 @@ export class MicrosoftTeamsClient {
                                           type: 'TextBlock',
                                           text: description,
                                           isSubtle: true,
+                                          spacing: 'none',
+                                      },
+                                  ]
+                                : []),
+                            ...(thresholds.length > 0
+                                ? [
+                                      {
+                                          type: 'TextBlock',
+                                          text: `Your results for this chart triggered the following alerts:`,
+                                      },
+                                      {
+                                          type: 'TextBlock',
+                                          text: thresholds
+                                              .map(
+                                                  (threshold) =>
+                                                      `- **${friendlyName(
+                                                          threshold.fieldId,
+                                                      )}** ${operatorActionValue(
+                                                          threshold.operator,
+                                                          threshold.value,
+                                                          '**',
+                                                      )}`,
+                                              )
+                                              .join('\n'),
                                           spacing: 'none',
                                       },
                                   ]
