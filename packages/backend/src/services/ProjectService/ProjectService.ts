@@ -186,6 +186,7 @@ import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import { ResultsCacheModel } from '../../models/ResultsCacheModel/ResultsCacheModel';
+import { CreateCacheResult } from '../../models/ResultsCacheModel/types';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -1993,9 +1994,12 @@ export class ProjectService extends BaseService {
         const formatter = (row: Record<string, unknown>) =>
             formatRow(row, queryHistory.fields);
 
+        const resultsCacheEnabled =
+            this.lightdashConfig.resultsCache?.resultsEnabled;
+
         let returnObject: ApiGetAsyncQueryResults;
         let roundedDurationMs: number;
-        if (cacheKey) {
+        if (resultsCacheEnabled && cacheKey) {
             const cache = await this.resultsCacheModel.find(
                 cacheKey,
                 projectUuid,
@@ -2336,14 +2340,20 @@ export class ProjectService extends BaseService {
                         );
                     }
 
-                    const createdCache = await this.resultsCacheModel.create(
-                        projectUuid,
-                        {
-                            sql: query,
-                            timezone: metricQuery.timezone,
-                        },
-                        this.resultsCacheStorageClient,
-                    );
+                    const resultsCacheEnabled =
+                        this.lightdashConfig.resultsCache?.resultsEnabled;
+
+                    let createdCache: CreateCacheResult | undefined;
+                    if (resultsCacheEnabled) {
+                        createdCache = await this.resultsCacheModel.create(
+                            projectUuid,
+                            {
+                                sql: query,
+                                timezone: metricQuery.timezone,
+                            },
+                            this.resultsCacheStorageClient,
+                        );
+                    }
 
                     const { queryUuid: queryHistoryUuid } =
                         await this.queryHistoryModel.create({
@@ -2355,7 +2365,7 @@ export class ProjectService extends BaseService {
                             compiledSql: query,
                             requestParameters,
                             metricQuery,
-                            cacheKey: createdCache.cacheKey,
+                            cacheKey: createdCache?.cacheKey || null,
                         });
 
                     this.analytics.track({
@@ -2383,9 +2393,7 @@ export class ProjectService extends BaseService {
                         },
                     });
 
-                    if (createdCache.cacheHit) {
-                        console.log('>>>> cache hit');
-
+                    if (createdCache?.cacheHit) {
                         await this.queryHistoryModel.update(
                             queryHistoryUuid,
                             projectUuid,
@@ -2414,7 +2422,7 @@ export class ProjectService extends BaseService {
                                     sql: query,
                                     tags: queryTags,
                                 },
-                                createdCache.write,
+                                createdCache?.write,
                             );
 
                             this.analytics.track({
@@ -2432,7 +2440,7 @@ export class ProjectService extends BaseService {
                             });
 
                             // Wait for the cache to be written before marking the query as ready
-                            await createdCache.close();
+                            await createdCache?.close();
 
                             await this.queryHistoryModel.update(
                                 queryHistoryUuid,
@@ -2451,13 +2459,15 @@ export class ProjectService extends BaseService {
                                 },
                             );
 
-                            await this.resultsCacheModel.update(
-                                createdCache.cacheKey,
-                                projectUuid,
-                                {
-                                    total_row_count: totalRows,
-                                },
-                            );
+                            if (createdCache) {
+                                await this.resultsCacheModel.update(
+                                    createdCache.cacheKey,
+                                    projectUuid,
+                                    {
+                                        total_row_count: totalRows,
+                                    },
+                                );
+                            }
                         } catch (e) {
                             this.analytics.track({
                                 userId: user.userUuid,
@@ -2480,7 +2490,7 @@ export class ProjectService extends BaseService {
                             );
                         } finally {
                             void sshTunnel.disconnect();
-                            void createdCache.close();
+                            void createdCache?.close();
                         }
                     };
 

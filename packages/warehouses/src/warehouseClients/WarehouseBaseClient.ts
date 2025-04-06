@@ -62,19 +62,22 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
 
     async executeAsyncQuery(
         { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
-        resultsStreamCallback: (rows: WarehouseResults['rows']) => void,
+        resultsStreamCallback?: (rows: WarehouseResults['rows']) => void,
     ): Promise<WarehouseExecuteAsyncQuery> {
-        const streamData = await this.streamQuery(
-            sql,
-            ({ rows }) => {
-                resultsStreamCallback(rows);
-            },
-            {
-                values,
-                tags,
-                timezone,
-            },
-        );
+        let streamData: { rowCount: number } | undefined | void;
+        if (resultsStreamCallback) {
+            streamData = await this.streamQuery(
+                sql,
+                ({ rows }) => {
+                    resultsStreamCallback(rows);
+                },
+                {
+                    values,
+                    tags,
+                    timezone,
+                },
+            );
+        }
 
         return {
             queryId: null,
