@@ -7,6 +7,7 @@ import {
     EmailNotificationPayload,
     GsheetsNotificationPayload,
     JobPriority,
+    MsTeamsNotificationPayload,
     NotificationPayloadBase,
     QueueTraceProperties,
     ReplaceCustomFieldsPayload,
@@ -30,6 +31,7 @@ import {
     getSchedulerUuid,
     hasSchedulerUuid,
     isCreateScheduler,
+    isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     type SchedulerCreateProjectWithCompilePayload,
     type SchedulerIndexCatalogJobPayload,
@@ -310,6 +312,11 @@ export class SchedulerClient {
             jobId: id,
             scheduledTime: date,
             status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                projectUuid: scheduler.projectUuid,
+                organizationUuid: scheduler.organizationUuid,
+                createdByUserUuid: scheduler.userUuid,
+            },
         });
         this.analytics.track({
             event: 'scheduler_job.created',
@@ -387,8 +394,11 @@ export class SchedulerClient {
 
         const getIdentifierAndPayload = (): {
             identifier: SchedulerTaskName;
-            type: 'slack' | 'email';
-            payload: SlackNotificationPayload | EmailNotificationPayload;
+            type: 'slack' | 'email' | 'msteams';
+            payload:
+                | SlackNotificationPayload
+                | EmailNotificationPayload
+                | MsTeamsNotificationPayload;
         } => {
             if (isCreateSchedulerSlackTarget(target)) {
                 return {
@@ -402,6 +412,22 @@ export class SchedulerClient {
                         schedulerSlackTargetUuid: targetUuid,
                         scheduler,
                         channel: target.channel,
+                        ...traceProperties,
+                    },
+                };
+            }
+            if (isCreateSchedulerMsTeamsTarget(target)) {
+                return {
+                    identifier: SCHEDULER_TASKS.SEND_MSTEAMS_NOTIFICATION,
+                    type: 'msteams',
+                    payload: {
+                        schedulerUuid,
+                        jobGroup,
+                        scheduledTime: date,
+                        page,
+                        schedulerMsTeamsTargetUuid: targetUuid,
+                        scheduler,
+                        webhook: target.webhook,
                         ...traceProperties,
                     },
                 };
@@ -503,6 +529,11 @@ export class SchedulerClient {
                     jobId,
                     scheduledTime: date,
                     status: SchedulerJobStatus.SCHEDULED,
+                    details: {
+                        projectUuid: traceProperties.projectUuid,
+                        organizationUuid: traceProperties.organizationUuid,
+                        createdByUserUuid: scheduler.createdBy,
+                    },
                 });
             });
         } catch (err: AnyType) {
@@ -586,6 +617,7 @@ export class SchedulerClient {
                 projectUuid: payload.projectUuid,
                 exploreId: payload.exploreId,
                 metricQuery: payload.metricQuery,
+                organizationUuid: payload.organizationUuid,
             },
         });
 
@@ -613,6 +645,7 @@ export class SchedulerClient {
                 projectUuid: payload.projectUuid,
                 exploreId: payload.exploreId,
                 metricQuery: payload.metricQuery,
+                organizationUuid: payload.organizationUuid,
             },
         });
 
@@ -663,6 +696,8 @@ export class SchedulerClient {
             status: SchedulerJobStatus.SCHEDULED,
             details: {
                 createdByUserUuid: payload.userUuid,
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
             },
         });
 
@@ -686,6 +721,8 @@ export class SchedulerClient {
             status: SchedulerJobStatus.SCHEDULED,
             details: {
                 createdByUserUuid: payload.userUuid,
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
             },
         });
 
@@ -710,6 +747,8 @@ export class SchedulerClient {
             status: SchedulerJobStatus.SCHEDULED,
             details: {
                 createdByUserUuid: payload.userUuid,
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
             },
         });
 
@@ -770,6 +809,7 @@ export class SchedulerClient {
                 organizationUuid: payload.organizationUuid,
                 requestMethod: payload.requestMethod,
                 isPreview: payload.isPreview,
+                projectUuid: payload.projectUuid,
             },
         });
 
@@ -832,6 +872,7 @@ export class SchedulerClient {
                 userUuid: payload.userUuid,
                 organizationUuid: payload.organizationUuid,
                 projectUuid: payload.projectUuid,
+                createdByUserUuid: payload.userUuid,
             },
         });
 
@@ -859,6 +900,7 @@ export class SchedulerClient {
                 userUuid: payload.userUuid,
                 organizationUuid: payload.organizationUuid,
                 projectUuid: payload.projectUuid,
+                createdByUserUuid: payload.userUuid,
             },
         });
 
@@ -884,6 +926,7 @@ export class SchedulerClient {
             details: {
                 createdByUserUuid: payload.userUuid,
                 projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
             },
         });
 

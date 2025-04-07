@@ -9,7 +9,7 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useState, type FC } from 'react';
-
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { useFormContext } from '../formContext';
@@ -17,6 +17,7 @@ import DbtVersionSelect from '../Inputs/DbtVersion';
 import { useProjectFormContext } from '../useProjectFormContext';
 
 const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
+    const { health } = useApp();
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE;
@@ -80,6 +81,13 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 required
                 disabled={disabled}
             />
+            {savedProject?.projectUuid && (
+                <TextInput
+                    label="Webhook for dbt"
+                    value={`${health?.data?.siteUrl}/api/v1/projects/${savedProject?.projectUuid}/dbt-cloud/webhook`}
+                    readOnly
+                />
+            )}
             <TextInput
                 name="dbt.discovery_api_endpoint"
                 {...form.getInputProps('dbt.discovery_api_endpoint')}

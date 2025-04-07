@@ -71,7 +71,7 @@ describe('Table calculations', () => {
         );
         cy.get(`.mantine-Select-input[value='number']`).click();
         cy.contains('string').click();
-        cy.get('form').contains('Save').click({ force: true });
+        cy.get('form').contains('Create').click({ force: true });
         // Check valid results
         cy.contains('rank_1');
         cy.contains('rank_2');
@@ -113,7 +113,7 @@ describe('Table calculations', () => {
             { parseSpecialCharSequences: false },
         );
         // Defaults to number
-        cy.get('form').contains('Save').click({ force: true });
+        cy.get('form').contains('Create').click({ force: true });
         // Check valid results
         cy.contains('100');
         cy.contains('200');
@@ -131,7 +131,7 @@ describe('Table calculations', () => {
         cy.get(".mantine-Select-input[value='is']").click();
         cy.contains('greater than').click(); // If the type is string, this option will not be available and it will fail when running the query
 
-        cy.findByPlaceholderText('Enter value').clear().type('250');
+        cy.findByPlaceholderText('Enter value(s)').clear().type('250');
         cy.get('button').contains('Run query').click();
 
         cy.contains('Loading results'); // wait for results to load

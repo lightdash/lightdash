@@ -1,17 +1,12 @@
 import {
     getCoreRowModel,
     getExpandedRowModel,
-    getPaginationRowModel,
     useReactTable,
     type ColumnOrderState,
     type GroupingState,
 } from '@tanstack/react-table';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
-import {
-    DEFAULT_PAGE_SIZE,
-    MAX_PAGE_SIZE,
-    ROW_NUMBER_COLUMN_ID,
-} from './constants';
+import { DEFAULT_PAGE_SIZE, ROW_NUMBER_COLUMN_ID } from './constants';
 import Context from './context';
 import { getGroupedRowModelLightdash } from './getGroupedRowModelLightdash';
 import { type ProviderProps, type TableColumn } from './types';
@@ -19,7 +14,11 @@ import { type ProviderProps, type TableColumn } from './types';
 const rowColumn: TableColumn = {
     id: ROW_NUMBER_COLUMN_ID,
     header: '#',
-    cell: (props) => props.row.index + 1,
+    cell: (props) => {
+        const { pageIndex, pageSize } = props.table.getState().pagination;
+        const pageStartIndex = pageIndex * pageSize;
+        return pageStartIndex + props.row.index + 1;
+    },
     footer: 'Total',
     meta: {
         width: 30,
@@ -46,9 +45,19 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
     children,
     ...rest
 }) => {
-    const { data, columns, columnOrder, pagination } = rest;
+    const {
+        data,
+        totalRowsCount,
+        columns,
+        columnOrder,
+        fetchMoreRows,
+        pagination,
+    } = rest;
     const [grouping, setGrouping] = useState<GroupingState>([]);
     const [columnVisibility, setColumnVisibility] = useState({});
+    const [isInfiniteScrollEnabled, setIsInfiniteScrollEnabled] = useState(
+        !pagination?.show || !!pagination?.defaultScroll,
+    );
 
     useEffect(() => {
         setColumnVisibility(calculateColumnVisibility(columns));
@@ -117,8 +126,32 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
             : [stickyRowColumn, ...stickyColumns, ...otherColumns];
     }, [hideRowNumbers, stickyColumns, otherColumns, stickyRowColumn]);
 
+    const [paginationState, setPagination] = useState({
+        pageIndex: 0,
+        pageSize: DEFAULT_PAGE_SIZE,
+    });
+    useEffect(() => {
+        // Fetch rows for next pages
+        const pageThreshold = 2;
+        const { pageIndex, pageSize } = paginationState;
+        const currentPageRowCount = pageIndex * pageSize;
+        const nextPagesRowCount =
+            currentPageRowCount + pageSize * pageThreshold;
+        if (data.length < nextPagesRowCount) {
+            fetchMoreRows();
+        }
+    }, [data.length, fetchMoreRows, paginationState]);
+
+    const pageRows = useMemo(() => {
+        // calculate page rows from data and pagination state
+        const { pageIndex, pageSize } = paginationState;
+        const start = pageIndex * pageSize;
+        const end = start + pageSize;
+        return data.slice(start, end);
+    }, [data, paginationState]);
+
     const table = useReactTable({
-        data,
+        data: isInfiniteScrollEnabled ? data : pageRows,
         columns: visibleColumns,
         state: {
             grouping,
@@ -130,31 +163,31 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
                     ...stickyColumns.map((c) => c.id || ''),
                 ],
             },
+            pagination: paginationState,
         },
         enablePinning: true,
         onColumnVisibilityChange: setColumnVisibility,
         onColumnOrderChange: setTempColumnOrder,
         getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
+        manualPagination: true,
+        rowCount: totalRowsCount,
+        pageCount: Math.ceil(totalRowsCount / paginationState.pageSize),
+        onPaginationChange: setPagination,
         onGroupingChange: setGrouping,
         groupedColumnMode: false,
         getExpandedRowModel: getExpandedRowModel(),
         getGroupedRowModel: getGroupedRowModelLightdash(),
     });
 
-    const { setPageSize } = table;
-    useEffect(() => {
-        if (pagination?.show) {
-            setPageSize(
-                pagination?.defaultScroll ? MAX_PAGE_SIZE : DEFAULT_PAGE_SIZE,
-            );
-        } else {
-            setPageSize(MAX_PAGE_SIZE);
-        }
-    }, [pagination, setPageSize]);
-
     return (
-        <Context.Provider value={{ table, ...rest }}>
+        <Context.Provider
+            value={{
+                table,
+                isInfiniteScrollEnabled,
+                setIsInfiniteScrollEnabled,
+                ...rest,
+            }}
+        >
             {children}
         </Context.Provider>
     );

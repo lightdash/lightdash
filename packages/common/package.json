@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.1550.2",
+    "version": "0.1564.1",
     "main": "dist/cjs/index.js",
     "module": "dist/esm/index.js",
     "types": "dist/types/index.d.ts",
@@ -46,6 +46,7 @@
         "format": "pnpm run formatter ./src --check",
         "fix-format": "pnpm run formatter ./src --write",
         "test": "TZ=UTC jest",
+        "test:dev": "TZ=UTC jest --config jest.config.dev.js --onlyChanged --watch",
         "release": "pnpm publish --no-git-checks"
     }
 }

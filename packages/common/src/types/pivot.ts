@@ -11,7 +11,6 @@ export type PivotConfig = {
     metricsAsRows: boolean;
     columnOrder?: string[];
     hiddenMetricFieldIds?: string[];
-    summableMetricFieldIds?: string[];
     columnTotals?: boolean;
     rowTotals?: boolean;
 };
@@ -85,5 +84,7 @@ export const getPivotConfig = (
                   savedChart.chartConfig,
               ),
               columnOrder: savedChart.tableConfig.columnOrder,
+              rowTotals:
+                  savedChart.chartConfig.config?.showRowCalculation ?? false,
           }
         : undefined;

@@ -53,6 +53,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                     <ColorSelector
                         color={getSeriesColor(series)}
                         swatches={colorPalette}
+                        withAlpha
                         onColorChange={(color) => {
                             updateSingleSeries({
                                 ...series,

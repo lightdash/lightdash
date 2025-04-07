@@ -1,4 +1,13 @@
-import { Box, Button, Card, Flex, Group, Title, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Card,
+    createStyles,
+    Flex,
+    Group,
+    Title,
+    Tooltip,
+} from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, type FC, type Ref } from 'react';
 import MantineIcon from './../MantineIcon';
@@ -16,6 +25,18 @@ interface CollapsableCardProps {
     isVisualizationCard?: boolean;
 }
 
+const useStyles = createStyles((theme) => ({
+    inactiveCardHeading: {
+        cursor: 'not-allowed',
+    },
+    activeCardHeading: {
+        cursor: 'pointer',
+        '&:hover': {
+            backgroundColor: theme.fn.rgba(theme.colors.gray[1], 0.5),
+        },
+    },
+}));
+
 const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     isVisualizationCard = false,
     children,
@@ -29,12 +50,29 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     rightHeaderElement,
     minHeight = 300,
 }) => {
+    const { classes } = useStyles();
     const handleToggle = useCallback(
         (value: boolean) => onToggle?.(value),
         [onToggle],
     );
 
     const shouldExpand = isOpen && isVisualizationCard;
+
+    /**
+     * Collapsible cards can be toggled via the heading, in which case we need to
+     * ensure we're targetting click events only to the heading (and not its children),
+     * so that things like the 'Copy SQL' button continue to work.
+     */
+    const onClickHeading = useCallback(
+        (event: React.MouseEvent<HTMLDivElement>) => {
+            if (disabled) return;
+            if (event.target === event.currentTarget) {
+                handleToggle(!isOpen);
+                event.stopPropagation();
+            }
+        },
+        [disabled, handleToggle, isOpen],
+    );
 
     return (
         <Card
@@ -48,7 +86,20 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
             }}
             shadow="xs"
         >
-            <Flex ref={headingRef} gap="xxs" align="center" mr="xs" h="xxl">
+            <Flex
+                ref={headingRef}
+                gap="xxs"
+                align="center"
+                mr="xs"
+                h="xxl"
+                w="100%"
+                onClick={onClickHeading}
+                className={
+                    disabled
+                        ? classes.inactiveCardHeading
+                        : classes.activeCardHeading
+                }
+            >
                 <Tooltip
                     position="top-start"
                     disabled={!toggleTooltip}
@@ -84,18 +135,16 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                         />
                     </Button>
                 </Tooltip>
-
                 <Group>
                     <Title order={5} fw={500} fz="sm">
                         {title}
                     </Title>
                     <Group spacing="xs">{headerElement}</Group>
                 </Group>
-
                 {rightHeaderElement && (
                     <>
                         <Box sx={{ flexGrow: 1 }} />
-                        <Group spacing="xs" pos="relative" top={2} right={2}>
+                        <Group spacing="xs" pos="relative" right={2}>
                             {rightHeaderElement}
                         </Group>
                     </>

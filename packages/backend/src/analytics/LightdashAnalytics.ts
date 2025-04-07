@@ -8,6 +8,7 @@ import {
     DbtProjectType,
     LightdashInstallType,
     LightdashMode,
+    LightdashPage,
     LightdashRequestMethodHeader,
     LightdashUser,
     OpenIdIdentityIssuerType,
@@ -917,7 +918,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         format: SchedulerFormat;
         targets: Array<{
             schedulerTargetId: string;
-            type: 'slack' | 'email';
+            type: 'slack' | 'email' | 'msteams';
         }>;
         timeZone: string | undefined;
         includeLinks: boolean;
@@ -978,7 +979,7 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
         jobId: string;
         schedulerId?: string;
         resourceType?: 'dashboard' | 'chart';
-        type: 'slack' | 'email' | 'gsheets';
+        type: 'slack' | 'email' | 'gsheets' | 'msteams';
         format?: SchedulerFormat;
         withPdf?: boolean;
         sendNow: boolean;
@@ -1232,6 +1233,18 @@ export type DeprecatedRouteCalled = BaseTrack & {
         projectId: string;
         route: string;
         context: string;
+    };
+};
+
+export type SupportShareEvent = BaseTrack & {
+    event: 'support.share';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | undefined;
+        page: LightdashPage | undefined;
+        withScreenshot: boolean;
+        canImpersonate: boolean;
     };
 };
 

@@ -13,3 +13,6 @@ backend:
   - 'packages/warehouses/**/*'
   - 'packages/e2e/cypress/e2e/api/**/*'
 
+timezone: 
+  - 'packages/frontend/src/components/common/TimeZonePicker/index.tsx'
+  - 'packages/common/src/types/timezone.ts'

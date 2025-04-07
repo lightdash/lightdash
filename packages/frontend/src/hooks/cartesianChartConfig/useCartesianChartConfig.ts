@@ -7,7 +7,6 @@ import {
     isNumericItem,
     XAxisSort,
     XAxisSortType,
-    type ApiQueryResults,
     type CartesianChart,
     type CompleteCartesianChartLayout,
     type EchartsGrid,
@@ -25,6 +24,7 @@ import {
     getMarkLineAxis,
     type ReferenceLineField,
 } from '../../components/common/ReferenceLine';
+import type { InfiniteQueryResults } from '../useQueryResults';
 import {
     getExpectedSeriesMap,
     mergeExistingAndExpectedSeries,
@@ -42,7 +42,7 @@ export type CartesianTypeOptions = {
 type Args = {
     initialChartConfig: CartesianChart | undefined;
     pivotKeys: string[] | undefined;
-    resultsData: ApiQueryResults | undefined;
+    resultsData: InfiniteQueryResults | undefined;
     setPivotDimensions: React.Dispatch<
         React.SetStateAction<string[] | undefined>
     >;
@@ -542,7 +542,7 @@ const useCartesianChartConfig = ({
         // This is computed on first load and also when the table calculation is updated in edit mode
         if (stacking === false) return;
         const tableCalculation =
-            resultsData?.metricQuery.tableCalculations?.find(
+            resultsData?.metricQuery?.tableCalculations?.find(
                 (tc) => tc.name === dirtyLayout?.xField,
             );
         if (tableCalculation) {
@@ -551,7 +551,7 @@ const useCartesianChartConfig = ({
         }
     }, [
         dirtyLayout?.xField,
-        resultsData?.metricQuery.tableCalculations,
+        resultsData?.metricQuery?.tableCalculations,
         stacking,
         setStacking,
     ]);
@@ -564,17 +564,17 @@ const useCartesianChartConfig = ({
 
     const sortedDimensions = useMemo(() => {
         return sortDimensions(
-            resultsData?.metricQuery.dimensions || [],
+            resultsData?.metricQuery?.dimensions || [],
             itemsMap,
             columnOrder,
         );
-    }, [resultsData?.metricQuery.dimensions, itemsMap, columnOrder]);
+    }, [resultsData?.metricQuery?.dimensions, itemsMap, columnOrder]);
 
     const [availableFields, availableDimensions, availableMetrics] =
         useMemo(() => {
-            const metrics = resultsData?.metricQuery.metrics || [];
+            const metrics = resultsData?.metricQuery?.metrics || [];
             const tableCalculations =
-                resultsData?.metricQuery.tableCalculations.map(
+                resultsData?.metricQuery?.tableCalculations.map(
                     ({ name }) => name,
                 ) || [];
 
@@ -846,7 +846,7 @@ const useCartesianChartConfig = ({
     );
     // Generate expected series
     useEffect(() => {
-        if (isCompleteLayout(dirtyLayout) && resultsData) {
+        if (isCompleteLayout(dirtyLayout) && resultsData?.hasFetchedAllRows) {
             setDirtyEchartsConfig((prev) => {
                 const defaultCartesianType =
                     prev?.series?.[0]?.type || CartesianSeriesType.BAR;
@@ -866,7 +866,7 @@ const useCartesianChartConfig = ({
                     availableDimensions,
                     isStacked,
                     pivotKeys,
-                    resultsData,
+                    rows: resultsData.rows,
                     xField: dirtyLayout.xField,
                     yFields: dirtyLayout.yField,
                     defaultLabel,

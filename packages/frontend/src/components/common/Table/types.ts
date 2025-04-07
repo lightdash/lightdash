@@ -52,6 +52,9 @@ export const columnHelper = createColumnHelper<ResultRow>();
 
 export type ProviderProps = {
     data: ResultRow[];
+    totalRowsCount: number;
+    isFetchingRows: boolean;
+    fetchMoreRows: () => void;
     columns: Array<TableColumn | TableHeader>;
     headerContextMenu?: FC<React.PropsWithChildren<HeaderProps>>;
     cellContextMenu?: FC<React.PropsWithChildren<CellContextMenuProps>>;
@@ -74,4 +77,6 @@ export type ProviderProps = {
 
 export type TableContext = ProviderProps & {
     table: Table<ResultRow>;
+    isInfiniteScrollEnabled: boolean;
+    setIsInfiniteScrollEnabled: (value: boolean) => void;
 };

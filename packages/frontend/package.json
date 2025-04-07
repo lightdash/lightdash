@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.1550.2",
+    "version": "0.1564.1",
     "private": true,
     "files": [
         "dist"
@@ -56,6 +56,7 @@
         "@mantine/prism": "^6.0.21",
         "@mantine/tiptap": "6.0.21",
         "@mantine/utils": "6.0.21",
+        "@mantine/modals": "^6.0.21",
         "@monaco-editor/react": "^4.6.0",
         "@popsql/monaco-sql-languages": "^0.2.0",
         "@reduxjs/toolkit": "^2.2.6",
@@ -90,9 +91,10 @@
         "echarts-for-react": "^3.0.2",
         "emoji-picker-react": "^4.12.0",
         "fuse.js": "^6.5.3",
+        "html2canvas": "^1.4.1",
         "immer": "^10.1.1",
         "js-yaml": "^4.1.0",
-        "jspdf": "^2.5.1",
+        "jspdf": "^3.0.1",
         "lodash": "^4.17.21",
         "mantine-form-zod-resolver": "^1.1.0",
         "mantine-react-table": "^1.3.4",
@@ -128,7 +130,7 @@
         "use-context-selector": "^1.4.1",
         "use-local-storage-state": "17",
         "uuid": "^8.3.2",
-        "vega": "^5.26.0",
+        "vega": "^5.32.0",
         "vega-lite": "^5.16.1",
         "zod": "^3.22.4"
     },
@@ -173,7 +175,7 @@
         "react-test-renderer": "^19.0.0",
         "storybook": "^8.6.6",
         "ts-unused-exports": "^9.0.4",
-        "vite": "^6.1.0",
+        "vite": "^6.1.3",
         "vite-plugin-compression2": "^1.3.3",
         "vite-plugin-dts": "^4.5.0",
         "vite-plugin-monaco-editor": "^1.1.0",

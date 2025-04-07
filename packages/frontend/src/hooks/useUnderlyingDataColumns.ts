@@ -1,9 +1,11 @@
 import {
     formatItemValue,
     getItemId,
+    getItemLabel,
+    isField,
     type ApiQueryResults,
     type Field,
-    type FieldId,
+    type ItemsMap,
 } from '@lightdash/common';
 import { useMemo, type ReactNode } from 'react';
 import {
@@ -15,7 +17,7 @@ import { getFormattedValueCell } from './useColumns';
 
 type Args = {
     resultsData: ApiQueryResults | undefined;
-    fieldsMap: Record<FieldId, Field>;
+    fieldsMap: ItemsMap;
     columnHeader?: (dimension: Field) => ReactNode;
 };
 
@@ -33,9 +35,9 @@ const useUnderlyingDataColumns = ({
                 return columnHelper.accessor((row) => row[fieldId], {
                     id: fieldId,
                     header: () =>
-                        columnHeader !== undefined
+                        columnHeader !== undefined && isField(dimension)
                             ? columnHeader(dimension)
-                            : dimension.label,
+                            : getItemLabel(dimension),
                     cell: getFormattedValueCell,
                     footer: () =>
                         totals[fieldId]

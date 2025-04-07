@@ -21,6 +21,7 @@ import { CommercialCatalogService } from './services/CommercialCatalogService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { ScimService } from './services/ScimService/ScimService';
+import { SupportService } from './services/SupportService/SupportService';
 
 type EnterpriseAppArguments = Pick<
     AppArguments,
@@ -117,6 +118,19 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
                     analytics: context.lightdashAnalytics,
                 }),
+            supportService: ({ models, context, repository, clients }) =>
+                new SupportService({
+                    analytics: context.lightdashAnalytics,
+                    projectModel: models.getProjectModel(),
+                    savedChartModel: models.getSavedChartModel(),
+                    dashboardModel: models.getDashboardModel(),
+                    spaceModel: models.getSpaceModel(),
+                    s3Client: clients.getS3Client(),
+                    organizationModel: models.getOrganizationModel(),
+                    unfurlService: repository.getUnfurlService(),
+                    projectService: repository.getProjectService(),
+                    lightdashConfig: context.lightdashConfig,
+                }),
         },
         modelProviders: {
             aiModel: ({ database }) => new AiModel({ database }),
@@ -170,6 +184,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getSemanticLayerService(),
                 catalogService: context.serviceRepository.getCatalogService(),
                 encryptionUtil: context.utils.getEncryptionUtil(),
+                msTeamsClient: context.clients.getMsTeamsClient(),
             }),
         slackBotFactory: (context) =>
             new CommercialSlackBot({

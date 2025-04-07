@@ -41,6 +41,10 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
     const IdleState = idleState || ExploreIdleState;
     const EmptyState = emptyState || ExploreEmptyQueryState;
 
+    if (status === 'loading') {
+        return <LoadingState />;
+    }
+
     return (
         <TableProvider {...rest}>
             <TableContainer
@@ -57,7 +61,6 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
                     showSubtotals={showSubtotals}
                 />
 
-                {status === 'loading' && <LoadingState />}
                 {status === 'idle' && <IdleState />}
                 {status === 'success' && rest.data.length === 0 && (
                     <EmptyState />

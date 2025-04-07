@@ -80,6 +80,8 @@ import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import usePivotDimensions from '../../hooks/usePivotDimensions';
+import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import { Can } from '../../providers/Ability';
@@ -141,7 +143,7 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
         <ExportCSVModal
             projectUuid={projectUuid}
             opened
-            rows={rows}
+            totalResults={rows.length}
             getCsvLink={getCsvLink}
             onClose={onClose}
             onConfirm={onConfirm}
@@ -179,6 +181,53 @@ const ExportGoogleSheet: FC<{ savedChart: SavedChart; disabled?: boolean }> = ({
     );
 };
 
+/**
+ * We need to compute these series on dashboards to populate properly fallbackColors in VisualizationProvider
+ * otherwise, some series will appear as transparent
+ * on view charts, this information is refreshed from the explore.
+ * This is the most basic function that runs on useEchartsCartesianConfig to generate series
+ *
+ * This is passed to computedSeries prop in VisualizationProvider
+ * We don't want to override the chartConfig, to cause conflicts with other visualization stuff.
+ */
+const computeDashboardChartSeries = (
+    chart: ApiChartAndResults['chart'],
+    validPivotDimensions: string[] | undefined,
+    resultData: InfiniteQueryResults | undefined,
+) => {
+    if (!resultData?.fields || !chart.chartConfig || !resultData) {
+        return [];
+    }
+
+    if (
+        isCartesianChartConfig(chart.chartConfig.config) &&
+        isCompleteLayout(chart.chartConfig.config.layout)
+    ) {
+        const firstSerie = chart.chartConfig.config.eChartsConfig.series?.[0];
+
+        const expectedSeriesMap = getExpectedSeriesMap({
+            defaultSmooth: firstSerie?.smooth,
+            defaultShowSymbol: firstSerie?.showSymbol,
+            defaultAreaStyle: firstSerie?.areaStyle,
+            defaultCartesianType: CartesianSeriesType.BAR,
+            availableDimensions: chart.metricQuery.dimensions,
+            isStacked: false,
+            pivotKeys: validPivotDimensions,
+            rows: resultData.rows,
+            xField: chart.chartConfig.config.layout.xField,
+            yFields: chart.chartConfig.config.layout.yField,
+            defaultLabel: firstSerie?.label,
+        });
+        const newSeries = mergeExistingAndExpectedSeries({
+            expectedSeriesMap,
+            existingSeries: chart.chartConfig.config.eChartsConfig.series || [],
+        });
+        return newSeries;
+    }
+
+    return [];
+};
+
 const ValidDashboardChartTile: FC<{
     tileUuid: string;
     chartAndResults: ApiChartAndResults;
@@ -209,64 +258,33 @@ const ValidDashboardChartTile: FC<{
         addResultsCacheTime(cacheMetadata);
     }, [cacheMetadata, addResultsCacheTime]);
 
-    const resultData = useMemo(
+    const resultData = useMemo<InfiniteQueryResults>(
         () => ({
-            rows,
             metricQuery,
             cacheMetadata,
             fields,
+            rows,
+            totalResults: rows.length,
+            isFetchingRows: false,
+            fetchMoreRows: () => undefined,
+            setFetchAll: () => undefined,
+            hasFetchedAllRows: true,
         }),
         [rows, metricQuery, cacheMetadata, fields],
     );
 
-    /**
-     * We need to compute these series on dashboards to populate properly fallbackColors in VisualizationProvider
-     * otherwise, some series will appear as transparent
-     * on view charts, this information is refreshed from the explore.
-     * This is the most basic function that runs on useEchartsCartesianConfig to generate series
-     *
-     * This is passed to computedSeries prop in VisualizationProvider
-     * We don't want to override the chartConfig, to cause conflicts with other visualization stuff.
-     */
-    const computedSeries: Series[] = useMemo(() => {
-        if (!resultData?.fields || !chart.chartConfig || !resultData) {
-            return [];
-        }
-
-        if (
-            isCartesianChartConfig(chart.chartConfig.config) &&
-            isCompleteLayout(chart.chartConfig.config.layout)
-        ) {
-            const firstSerie =
-                chart.chartConfig.config.eChartsConfig.series?.[0];
-            const expectedSeriesMap = getExpectedSeriesMap({
-                defaultSmooth: firstSerie?.smooth,
-                defaultShowSymbol: firstSerie?.showSymbol,
-                defaultAreaStyle: firstSerie?.areaStyle,
-                defaultCartesianType: CartesianSeriesType.BAR,
-                availableDimensions: chart.metricQuery.dimensions,
-                isStacked: false,
-                pivotKeys: chart.pivotConfig?.columns,
-                resultsData: resultData,
-                xField: chart.chartConfig.config.layout.xField,
-                yFields: chart.chartConfig.config.layout.yField,
-                defaultLabel: firstSerie?.label,
-            });
-            const newSeries = mergeExistingAndExpectedSeries({
-                expectedSeriesMap,
-                existingSeries:
-                    chart.chartConfig.config.eChartsConfig.series || [],
-            });
-            return newSeries;
-        }
-
-        return [];
-    }, [
-        resultData,
-        chart.chartConfig,
-        chart.metricQuery.dimensions,
+    const { validPivotDimensions } = usePivotDimensions(
         chart.pivotConfig?.columns,
-    ]);
+        resultData,
+    );
+
+    const computedSeries: Series[] = useMemo(() => {
+        return computeDashboardChartSeries(
+            chart,
+            validPivotDimensions,
+            resultData,
+        );
+    }, [resultData, chart, validPivotDimensions]);
 
     if (health.isInitialLoading || !health.data) {
         return null;
@@ -313,10 +331,34 @@ const ValidDashboardChartTileMinimal: FC<{
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
 
-    const resultData = useMemo(
-        () => ({ rows, metricQuery, cacheMetadata, fields }),
+    const resultData = useMemo<InfiniteQueryResults>(
+        () => ({
+            metricQuery,
+            cacheMetadata,
+            fields,
+            rows,
+            totalResults: rows.length,
+            isFetchingRows: false,
+            fetchMoreRows: () => undefined,
+            setFetchAll: () => undefined,
+            hasFetchedAllRows: true,
+        }),
         [rows, metricQuery, cacheMetadata, fields],
     );
+
+    const { validPivotDimensions } = usePivotDimensions(
+        chart.pivotConfig?.columns,
+        resultData,
+    );
+
+    const computedSeries: Series[] = useMemo(() => {
+        return computeDashboardChartSeries(
+            chart,
+            validPivotDimensions,
+            resultData,
+        );
+    }, [resultData, chart, validPivotDimensions]);
+
     if (health.isInitialLoading || !health.data) {
         return null;
     }
@@ -334,6 +376,7 @@ const ValidDashboardChartTileMinimal: FC<{
             dashboardFilters={dashboardFilters}
             colorPalette={chart.colorPalette}
             setEchartsRef={setEchartsRef}
+            computedSeries={computedSeries}
         >
             <LightdashVisualization
                 isDashboard

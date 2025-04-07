@@ -62,35 +62,20 @@ export const simpleSeriesMapArgs: GetExpectedSeriesMapArgs = {
     defaultCartesianType: CartesianSeriesType.BAR,
     defaultAreaStyle: undefined,
     isStacked: false,
-    resultsData: {
-        metricQuery: {
-            exploreName: '',
-            dimensions: ['dimension_x'],
-            metrics: [],
-            filters: {},
-            sorts: [],
-            limit: 10,
-            tableCalculations: [],
+    rows: [
+        {
+            dimension_x: { value: { raw: 'a', formatted: 'a' } },
+            my_dimension: { value: { raw: 'a', formatted: 'a' } },
+            my_metric: { value: { raw: 'a', formatted: 'a' } },
+            my_second_metric: { value: { raw: 'a', formatted: 'a' } },
         },
-        cacheMetadata: {
-            cacheHit: false,
+        {
+            dimension_x: { value: { raw: 'b', formatted: 'b' } },
+            my_dimension: { value: { raw: 'a', formatted: 'a' } },
+            my_metric: { value: { raw: 'a', formatted: 'a' } },
+            my_second_metric: { value: { raw: 'a', formatted: 'a' } },
         },
-        rows: [
-            {
-                dimension_x: { value: { raw: 'a', formatted: 'a' } },
-                my_dimension: { value: { raw: 'a', formatted: 'a' } },
-                my_metric: { value: { raw: 'a', formatted: 'a' } },
-                my_second_metric: { value: { raw: 'a', formatted: 'a' } },
-            },
-            {
-                dimension_x: { value: { raw: 'b', formatted: 'b' } },
-                my_dimension: { value: { raw: 'a', formatted: 'a' } },
-                my_metric: { value: { raw: 'a', formatted: 'a' } },
-                my_second_metric: { value: { raw: 'a', formatted: 'a' } },
-            },
-        ],
-        fields: {},
-    },
+    ],
     pivotKeys: undefined,
     yFields: ['my_metric', 'my_second_metric'],
     xField: 'my_dimension',
@@ -218,47 +203,32 @@ export const multiPivotSeriesMapArgs: GetExpectedSeriesMapArgs = {
     ...simpleSeriesMapArgs,
     pivotKeys: ['dimension_x', 'dimension_y'],
     yFields: ['my_metric'],
-    resultsData: {
-        metricQuery: {
-            exploreName: '',
-            dimensions: ['dimension_x', 'dimension_y'],
-            metrics: [],
-            filters: {},
-            sorts: [],
-            limit: 10,
-            tableCalculations: [],
+    rows: [
+        {
+            dimension_x: { value: { raw: 'a', formatted: 'a' } },
+            dimension_y: { value: { raw: 'a', formatted: 'a' } },
+            my_dimension: { value: { raw: 'a', formatted: 'a' } },
+            my_metric: { value: { raw: 'a', formatted: 'a' } },
         },
-        cacheMetadata: {
-            cacheHit: false,
+        {
+            dimension_x: { value: { raw: 'b', formatted: 'b' } },
+            dimension_y: { value: { raw: 'b', formatted: 'b' } },
+            my_dimension: { value: { raw: 'a', formatted: 'a' } },
+            my_metric: { value: { raw: 'a', formatted: 'a' } },
         },
-        rows: [
-            {
-                dimension_x: { value: { raw: 'a', formatted: 'a' } },
-                dimension_y: { value: { raw: 'a', formatted: 'a' } },
-                my_dimension: { value: { raw: 'a', formatted: 'a' } },
-                my_metric: { value: { raw: 'a', formatted: 'a' } },
-            },
-            {
-                dimension_x: { value: { raw: 'b', formatted: 'b' } },
-                dimension_y: { value: { raw: 'b', formatted: 'b' } },
-                my_dimension: { value: { raw: 'a', formatted: 'a' } },
-                my_metric: { value: { raw: 'a', formatted: 'a' } },
-            },
-            {
-                dimension_x: { value: { raw: 'a', formatted: 'a' } },
-                dimension_y: { value: { raw: 'b', formatted: 'b' } },
-                my_dimension: { value: { raw: 'a', formatted: 'a' } },
-                my_metric: { value: { raw: 'a', formatted: 'a' } },
-            },
-            {
-                dimension_x: { value: { raw: 'b', formatted: 'b' } },
-                dimension_y: { value: { raw: 'a', formatted: 'a' } },
-                my_dimension: { value: { raw: 'a', formatted: 'a' } },
-                my_metric: { value: { raw: 'a', formatted: 'a' } },
-            },
-        ],
-        fields: {},
-    },
+        {
+            dimension_x: { value: { raw: 'a', formatted: 'a' } },
+            dimension_y: { value: { raw: 'b', formatted: 'b' } },
+            my_dimension: { value: { raw: 'a', formatted: 'a' } },
+            my_metric: { value: { raw: 'a', formatted: 'a' } },
+        },
+        {
+            dimension_x: { value: { raw: 'b', formatted: 'b' } },
+            dimension_y: { value: { raw: 'a', formatted: 'a' } },
+            my_dimension: { value: { raw: 'a', formatted: 'a' } },
+            my_metric: { value: { raw: 'a', formatted: 'a' } },
+        },
+    ],
 };
 
 export const expectedMultiPivotedSeriesMap: Record<string, Series> = {
@@ -658,6 +628,7 @@ export const useCartesianChartConfigParamsMock = {
             tableCalculations: [],
             additionalMetrics: [],
         },
+        hasFetchedAllRows: true,
     },
     columnOrder: [
         'orders_customer_id',

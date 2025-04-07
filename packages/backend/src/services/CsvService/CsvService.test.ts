@@ -66,6 +66,7 @@ describe('Csv service', () => {
             contentModel: {} as ContentModel,
             encryptionUtil: {} as EncryptionUtil,
             queryHistoryModel: {} as QueryHistoryModel,
+            userModel: {} as UserModel,
         }),
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,

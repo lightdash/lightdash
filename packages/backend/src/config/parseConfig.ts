@@ -372,6 +372,9 @@ export type LightdashConfig = {
     contentAsCode: {
         maxDownloads: number;
     };
+    microsoftTeams: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -383,6 +386,7 @@ export type SlackConfig = {
     port: number;
     socketMode?: boolean;
     channelsCachedTime: number;
+    supportUrl: string;
 };
 export type HeadlessBrowserConfig = {
     host?: string;
@@ -889,6 +893,7 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.SLACK_CHANNELS_CACHED_TIME || '600000',
                 10,
             ), // 10 minutes
+            supportUrl: process.env.SLACK_SUPPORT_URL || '',
         },
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',
@@ -972,6 +977,9 @@ export const parseConfig = (): LightdashConfig => {
             ),
             // not required if overrideColorPalette is set
             overrideColorPaletteName: process.env.OVERRIDE_COLOR_PALETTE_NAME,
+        },
+        microsoftTeams: {
+            enabled: process.env.MICROSOFT_TEAMS_ENABLED === 'true',
         },
     };
 };

@@ -88,6 +88,7 @@ interface ServiceManifest {
     embedService: unknown;
     aiService: unknown;
     scimService: unknown;
+    supportService: unknown;
 }
 
 /**
@@ -461,6 +462,7 @@ export class ServiceRepository
                     contentModel: this.models.getContentModel(),
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
+                    userModel: this.models.getUserModel(),
                 }),
         );
     }
@@ -785,6 +787,10 @@ export class ServiceRepository
 
     public getScimService<ScimServiceImplT>(): ScimServiceImplT {
         return this.getService('scimService');
+    }
+
+    public getSupportService<SupportServiceImptT>(): SupportServiceImptT {
+        return this.getService('supportService');
     }
 
     public getSpotlightService(): SpotlightService {

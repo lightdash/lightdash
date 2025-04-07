@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import isNil from 'lodash/isNil';
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { type AnyType } from '../types/any';
@@ -173,6 +174,20 @@ export const timeframeToUnitOfTime = (timeframe: TimeFrames) => {
             return undefined;
     }
 };
+
+export const supportsSingleValue = (
+    filterType: FilterType,
+    filterOperator: FilterOperator,
+) =>
+    [FilterType.STRING, FilterType.NUMBER].includes(filterType) &&
+    [
+        FilterOperator.EQUALS,
+        FilterOperator.NOT_EQUALS,
+        FilterOperator.STARTS_WITH,
+        FilterOperator.ENDS_WITH,
+        FilterOperator.INCLUDE,
+        FilterOperator.NOT_INCLUDE,
+    ].includes(filterOperator);
 
 export const isWithValueFilter = (filterOperator: FilterOperator) =>
     filterOperator !== FilterOperator.NULL &&
@@ -387,7 +402,7 @@ export const createDashboardFilterRuleFromField = ({
             disabled: !isTemporary,
             label: undefined,
         },
-        value ? [value] : null, // When `null`, don't set default value if no value is provided
+        !isNil(value) ? [value] : null, // When `null`, don't set default value if no value is provided
     );
 
 type AddFilterRuleArgs = {

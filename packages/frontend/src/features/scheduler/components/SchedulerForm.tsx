@@ -8,6 +8,7 @@ import {
     getMetricsFromItemsMap,
     getTableCalculationsFromItemsMap,
     getTzMinutesOffset,
+    isCreateSchedulerMsTeamsTarget,
     isDashboardScheduler,
     isNumericItem,
     isSchedulerCsvOptions,
@@ -69,6 +70,7 @@ import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
+import MsTeamsSvg from '../../../svgs/msteams.svg?react';
 import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
@@ -97,6 +99,7 @@ const DEFAULT_VALUES = {
     },
     emailTargets: [] as string[],
     slackTargets: [] as string[],
+    msTeamsTargets: [] as string[],
     filters: undefined,
     customViewportWidth: undefined,
     selectedTabs: undefined,
@@ -168,10 +171,13 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
 
     const emailTargets: string[] = [];
     const slackTargets: string[] = [];
+    const msTeamsTargets: string[] = [];
 
     schedulerData.targets.forEach((target) => {
         if (isSlackTarget(target)) {
             slackTargets.push(target.channel);
+        } else if (isCreateSchedulerMsTeamsTarget(target)) {
+            msTeamsTargets.push(target.webhook);
         } else {
             emailTargets.push(target.recipient);
         }
@@ -186,6 +192,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         options: formOptions,
         emailTargets: emailTargets,
         slackTargets: slackTargets,
+        msTeamsTargets: msTeamsTargets,
         ...(isDashboardScheduler(schedulerData) && {
             filters: schedulerData.filters,
             customViewportWidth: schedulerData.customViewportWidth,
@@ -249,6 +256,50 @@ type Props = {
     itemsMap?: ItemsMap;
 };
 
+const validateMsTeamsWebhook = (webhook: string): boolean => {
+    if (webhook.length === 0) return false;
+    if (!webhook.startsWith('https://')) return false;
+    if (/\s/.test(webhook)) return false;
+
+    return true;
+};
+
+type MicrosoftTeamsDestinationProps = {
+    onChange: (val: string[]) => void;
+    msTeamTargets: string[];
+};
+const MicrosoftTeamsDestination: FC<MicrosoftTeamsDestinationProps> = ({
+    onChange,
+    msTeamTargets,
+}) => {
+    return (
+        <Group noWrap mb="sm">
+            <MsTeamsSvg
+                style={{
+                    margin: '5px 2px',
+                    width: '20px',
+                    height: '20px',
+                }}
+            />
+            <Box w="100%">
+                <TagInput
+                    styles={() => ({
+                        values: {
+                            maxWidth: '650px',
+                        },
+                    })}
+                    clearable
+                    placeholder="Enter Microsoft Teams webhook URLs"
+                    value={msTeamTargets}
+                    allowDuplicates={false}
+                    splitChars={[',', ' ']}
+                    validationFunction={validateMsTeamsWebhook}
+                    onChange={onChange}
+                />
+            </Box>
+        </Group>
+    );
+};
 const SchedulerForm: FC<Props> = ({
     disabled,
     resource,
@@ -340,10 +391,16 @@ const SchedulerForm: FC<Props> = ({
                     channel: channelId,
                 }),
             );
+            const msTeamsTargets = values.msTeamsTargets.map(
+                (webhook: string) => ({
+                    webhook: webhook,
+                }),
+            );
 
             const targets: CreateSchedulerTarget[] = [
                 ...emailTargets,
                 ...slackTargets,
+                ...msTeamsTargets,
             ];
             return {
                 name: values.name,
@@ -998,7 +1055,14 @@ const SchedulerForm: FC<Props> = ({
                                         </HoverCard.Dropdown>
                                     </HoverCard>
                                 </Group>
-                                <Stack spacing="xs" mb="sm">
+                                <Stack
+                                    spacing="xs"
+                                    mb={
+                                        health.data?.hasMicrosoftTeams
+                                            ? '0'
+                                            : 'sm'
+                                    }
+                                >
                                     <Group noWrap>
                                         <SlackSvg
                                             style={{
@@ -1090,6 +1154,19 @@ const SchedulerForm: FC<Props> = ({
                                         </Text>
                                     )}
                                 </Stack>
+                                {health.data?.hasMicrosoftTeams && (
+                                    <MicrosoftTeamsDestination
+                                        msTeamTargets={
+                                            form.values.msTeamsTargets
+                                        }
+                                        onChange={(val: string[]) => {
+                                            form.setFieldValue(
+                                                'msTeamsTargets',
+                                                val,
+                                            );
+                                        }}
+                                    />
+                                )}
                             </Stack>
                         </Input.Wrapper>
                     </Stack>
@@ -1179,7 +1256,8 @@ const SchedulerForm: FC<Props> = ({
                 onBack={onBack}
                 canSendNow={Boolean(
                     form.values.slackTargets.length ||
-                        form.values.emailTargets.length,
+                        form.values.emailTargets.length ||
+                        form.values.msTeamsTargets.length,
                 )}
                 onSendNow={isThresholdAlert ? undefined : handleSendNow}
                 loading={loading}

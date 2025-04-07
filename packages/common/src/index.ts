@@ -283,6 +283,7 @@ export * from './utils/projectMemberRole';
 export * from './utils/promises';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
+export * from './utils/searchParams';
 export * from './utils/semanticLayer';
 export * from './utils/sleep';
 export * from './utils/slugs';
@@ -476,16 +477,18 @@ export type ApiExecuteAsyncQueryResults = {
     appliedDashboardFilters: DashboardFilters | null;
 };
 
+export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
+    queryUuid: string;
+    rows: ResultRow[];
+    fields: ItemsMap;
+    initialQueryExecutionMs: number;
+    resultsPageExecutionMs: number;
+    metricQuery: MetricQuery;
+    status: QueryHistoryStatus.READY;
+};
+
 export type ApiGetAsyncQueryResults =
-    | (ResultsPaginationMetadata<ResultRow> & {
-          queryUuid: string;
-          rows: ResultRow[];
-          fields: ItemsMap;
-          initialQueryExecutionMs: number;
-          resultsPageExecutionMs: number;
-          metricQuery: MetricQuery;
-          status: QueryHistoryStatus.READY;
-      })
+    | ReadyQueryResultsPage
     | {
           status: QueryHistoryStatus.PENDING | QueryHistoryStatus.CANCELLED;
           queryUuid: string;
@@ -865,6 +868,7 @@ export type HealthState = {
     isAuthenticated: boolean;
     requiresOrgRegistration: boolean;
     hasEmailClient: boolean;
+    hasMicrosoftTeams: boolean;
     latest: {
         version?: string;
     };

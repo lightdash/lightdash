@@ -32,6 +32,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
+import { UserModel } from '../../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
@@ -146,6 +147,7 @@ describe('ProjectService', () => {
             create: jest.fn(async () => ({ queryUuid: 'queryUuid' })),
             get: jest.fn(async () => undefined),
         } as unknown as QueryHistoryModel,
+        userModel: {} as UserModel,
     });
     afterEach(() => {
         jest.clearAllMocks();

@@ -7,14 +7,17 @@ import {
     SchedulerEmailTarget,
     SchedulerJobStatus,
     SchedulerLog,
+    SchedulerMsTeamsTarget,
     SchedulerSlackTarget,
     SchedulerWithLogs,
     UpdateSchedulerAndTargets,
     isChartScheduler,
+    isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     isDashboardScheduler,
     isSlackTarget,
     isUpdateSchedulerEmailTarget,
+    isUpdateSchedulerMsTeamsTarget,
     isUpdateSchedulerSlackTarget,
     type SchedulerCronUpdate,
 } from '@lightdash/common';
@@ -29,6 +32,8 @@ import {
     SchedulerEmailTargetTableName,
     SchedulerLogDb,
     SchedulerLogTableName,
+    SchedulerMsTeamsTargetDb,
+    SchedulerMsTeamsTargetTableName,
     SchedulerSlackTargetDb,
     SchedulerSlackTargetTableName,
     SchedulerTableName,
@@ -102,8 +107,24 @@ export class SchedulerModel {
         };
     }
 
+    static convertMsTeamsTarget(
+        scheduler: SchedulerMsTeamsTargetDb,
+    ): SchedulerMsTeamsTarget {
+        return {
+            schedulerMsTeamsTargetUuid: scheduler.scheduler_msteams_target_uuid,
+            createdAt: scheduler.created_at,
+            updatedAt: scheduler.updated_at,
+            schedulerUuid: scheduler.scheduler_uuid,
+            webhook: scheduler.webhook,
+        };
+    }
+
     static getSlackChannels(
-        targets: (SchedulerSlackTarget | SchedulerEmailTarget)[],
+        targets: (
+            | SchedulerSlackTarget
+            | SchedulerEmailTarget
+            | SchedulerMsTeamsTarget
+        )[],
     ): string[] {
         return targets.reduce<string[]>((acc, target) => {
             if (isSlackTarget(target)) {
@@ -128,9 +149,18 @@ export class SchedulerModel {
                 `${SchedulerEmailTargetTableName}.scheduler_uuid`,
                 schedulers.map((s) => s.scheduler_uuid),
             );
+        const msTeamsTargets = await this.database(
+            SchedulerMsTeamsTargetTableName,
+        )
+            .select()
+            .whereIn(
+                `${SchedulerMsTeamsTargetTableName}.scheduler_uuid`,
+                schedulers.map((s) => s.scheduler_uuid),
+            );
         const targets = [
             ...slackTargets.map(SchedulerModel.convertSlackTarget),
             ...emailTargets.map(SchedulerModel.convertEmailTarget),
+            ...msTeamsTargets.map(SchedulerModel.convertMsTeamsTarget),
         ];
 
         return schedulers.map((scheduler) => ({
@@ -223,10 +253,19 @@ export class SchedulerModel {
                 `${SchedulerEmailTargetTableName}.scheduler_uuid`,
                 schedulerUuid,
             );
+        const msTeamsTargets = await this.database(
+            SchedulerMsTeamsTargetTableName,
+        )
+            .select()
+            .where(
+                `${SchedulerMsTeamsTargetTableName}.scheduler_uuid`,
+                schedulerUuid,
+            );
 
         const targets = [
             ...slackTargets.map(SchedulerModel.convertSlackTarget),
             ...emailTargets.map(SchedulerModel.convertEmailTarget),
+            ...msTeamsTargets.map(SchedulerModel.convertMsTeamsTarget),
         ];
 
         return {
@@ -280,6 +319,13 @@ export class SchedulerModel {
                     return trx(SchedulerSlackTargetTableName).insert({
                         scheduler_uuid: scheduler.scheduler_uuid,
                         channel: target.channel,
+                        updated_at: new Date(),
+                    });
+                }
+                if (isCreateSchedulerMsTeamsTarget(target)) {
+                    return trx(SchedulerMsTeamsTargetTableName).insert({
+                        scheduler_uuid: scheduler.scheduler_uuid,
+                        webhook: target.webhook,
                         updated_at: new Date(),
                     });
                 }
@@ -362,6 +408,22 @@ export class SchedulerModel {
                     slackTargetsToUpdate,
                 );
 
+            const msTeamsTargetsToUpdate = scheduler.targets.reduce<string[]>(
+                (acc, target) =>
+                    isUpdateSchedulerMsTeamsTarget(target)
+                        ? [...acc, target.schedulerMsTeamsTargetUuid]
+                        : acc,
+                [],
+            );
+            await trx(SchedulerMsTeamsTargetTableName)
+                .delete()
+                .where('scheduler_uuid', scheduler.schedulerUuid)
+                .andWhere(
+                    'scheduler_msteams_target_uuid',
+                    'not in',
+                    msTeamsTargetsToUpdate,
+                );
+
             const emailTargetsToUpdate = scheduler.targets.reduce<string[]>(
                 (acc, target) =>
                     isUpdateSchedulerEmailTarget(target)
@@ -413,6 +475,13 @@ export class SchedulerModel {
                         updated_at: new Date(),
                     });
                 }
+                if (isCreateSchedulerMsTeamsTarget(target)) {
+                    return trx(SchedulerMsTeamsTargetTableName).insert({
+                        scheduler_uuid: scheduler.schedulerUuid,
+                        webhook: target.webhook,
+                        updated_at: new Date(),
+                    });
+                }
 
                 return trx(SchedulerEmailTargetTableName).insert({
                     scheduler_uuid: scheduler.schedulerUuid,
@@ -454,7 +523,12 @@ export class SchedulerModel {
                 logDb.target_type === null
                     ? undefined
                     : (logDb.target_type as SchedulerLog['targetType']),
-            details: logDb.details === null ? undefined : logDb.details,
+            details: {
+                projectUuid: 'missing-project-uuid',
+                organizationUuid: 'missing-organization-uuid',
+                createdByUserUuid: 'missing-created-by-user-uuid',
+                ...(logDb.details || {}),
+            },
         };
     }
 

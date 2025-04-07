@@ -40,6 +40,7 @@ import { useNavigate, useParams } from 'react-router';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
+    useInfiniteQueryResults,
     useQueryResults,
     type QueryResultsProps,
 } from '../../hooks/useQueryResults';
@@ -1495,9 +1496,13 @@ const ExplorerProvider: FC<
 
     const [validQueryArgs, setValidQueryArgs] =
         useState<QueryResultsProps | null>(null);
-    const queryResults = useQueryResults(validQueryArgs);
+    const query = useQueryResults(validQueryArgs);
+    const queryResults = useInfiniteQueryResults(
+        validQueryArgs?.projectUuid,
+        query.data?.queryUuid,
+    );
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { remove: clearQueryResults } = queryResults;
+    const { remove: clearQueryResults } = query;
     const resetQueryResults = useCallback(() => {
         setValidQueryArgs(null);
         clearQueryResults();
@@ -1683,10 +1688,11 @@ const ExplorerProvider: FC<
     const value: ExplorerContextType = useMemo(
         () => ({
             state,
+            query,
             queryResults,
             actions,
         }),
-        [actions, queryResults, state],
+        [actions, query, queryResults, state],
     );
     return (
         <ExplorerContext.Provider value={value}>

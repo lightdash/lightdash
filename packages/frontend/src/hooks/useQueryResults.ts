@@ -6,21 +6,21 @@ import {
     assertUnreachable,
     type DashboardFilters,
     type DateGranularity,
+    DEFAULT_RESULTS_PAGE_SIZE,
     type ExecuteAsyncQueryRequestParams,
-    FeatureFlags,
     type MetricQuery,
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    type ReadyQueryResultsPage,
     type ResultRow,
     sleep,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
-import { useFeatureFlag } from './useFeatureFlagEnabled';
 import useQueryError from './useQueryError';
 
 export type QueryResultsProps = {
@@ -32,80 +32,6 @@ export type QueryResultsProps = {
     chartVersionUuid?: string;
     dateZoomGranularity?: DateGranularity;
     context?: string;
-};
-
-const getChartResults = async ({
-    chartUuid,
-    context,
-}: {
-    chartUuid?: string;
-    context?: string;
-}) => {
-    return lightdashApi<ApiQueryResults>({
-        url: `/saved/${chartUuid}/results${
-            context ? `?context=${context}` : ''
-        }`,
-        method: 'POST',
-        body: undefined,
-    });
-};
-
-const getQueryResults = async ({
-    projectUuid,
-    tableId,
-    query,
-    csvLimit,
-    dateZoomGranularity,
-    context,
-}: QueryResultsProps) => {
-    const timezoneFixQuery = query && {
-        ...query,
-        filters: convertDateFilters(query.filters),
-        timezone: query.timezone ?? undefined,
-    };
-
-    return lightdashApi<ApiQueryResults>({
-        url: `/projects/${projectUuid}/explores/${tableId}/runQuery`,
-        method: 'POST',
-        body: JSON.stringify({
-            ...timezoneFixQuery,
-            granularity: dateZoomGranularity,
-            csvLimit,
-            context,
-        }),
-    });
-};
-
-const getUnderlyingDataResults = async ({
-    projectUuid,
-    tableId,
-    query,
-}: {
-    projectUuid: string;
-    tableId: string;
-    query: MetricQuery;
-}) => {
-    const timezoneFixQuery = {
-        ...query,
-        filters: convertDateFilters(query.filters),
-    };
-
-    return lightdashApi<ApiQueryResults>({
-        url: `/projects/${projectUuid}/explores/${tableId}/runUnderlyingDataQuery`,
-        method: 'POST',
-        body: JSON.stringify(timezoneFixQuery),
-    });
-};
-
-const getChartVersionResults = async (
-    chartUuid: string,
-    versionUuid: string,
-) => {
-    return lightdashApi<ApiQueryResults>({
-        url: `/saved/${chartUuid}/version/${versionUuid}/results`,
-        method: 'POST',
-        body: undefined,
-    });
 };
 
 /**
@@ -208,65 +134,120 @@ export const getQueryPaginatedResults = async (
     };
 };
 
+/**
+ * Run query & get first results page
+ */
+const getFirstPage = async (
+    projectUuid: string,
+    data: ExecuteAsyncQueryRequestParams,
+): Promise<ReadyQueryResultsPage> => {
+    const query = await lightdashApi<ApiExecuteAsyncQueryResults>({
+        url: `/projects/${projectUuid}/query`,
+        version: 'v2',
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+    let firstPage: ApiGetAsyncQueryResults | undefined;
+    // Wait for first page
+    while (!firstPage || firstPage.status === QueryHistoryStatus.PENDING) {
+        firstPage = await lightdashApi<ApiGetAsyncQueryResults>({
+            url: `/projects/${projectUuid}/query/${query.queryUuid}?pageSize=${DEFAULT_RESULTS_PAGE_SIZE}`,
+            version: 'v2',
+            method: 'GET',
+            body: undefined,
+        });
+
+        const { status } = firstPage;
+
+        switch (status) {
+            case QueryHistoryStatus.CANCELLED:
+                throw <ApiError>{
+                    status: 'error',
+                    error: {
+                        name: 'Error',
+                        statusCode: 500,
+                        message: 'Query cancelled',
+                        data: {},
+                    },
+                };
+            case QueryHistoryStatus.ERROR:
+                throw <ApiError>{
+                    status: 'error',
+                    error: {
+                        name: 'Error',
+                        statusCode: 500,
+                        message: firstPage.error ?? 'Query failed',
+                        data: {},
+                    },
+                };
+            case QueryHistoryStatus.READY:
+                break;
+            case QueryHistoryStatus.PENDING:
+                await sleep(200);
+                break;
+            default:
+                return assertUnreachable(status, 'Unknown query status');
+        }
+    }
+
+    return firstPage as ReadyQueryResultsPage;
+};
+
 export const useQueryResults = (data: QueryResultsProps | null) => {
+    const queryClient = useQueryClient();
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
         forbiddenToastTitle: 'Error running query',
     });
-    const { data: queryPaginationEnabled } = useFeatureFlag(
-        FeatureFlags.QueryPagination,
-    );
-    const result = useQuery<
-        ApiQueryResults & {
-            queryUuid?: string;
-            appliedDashboardFilters?: DashboardFilters | null;
-        },
-        ApiError
-    >({
-        enabled: !!data && !!queryPaginationEnabled,
-        queryKey: ['query-all-results', data],
+
+    const result = useQuery<ReadyQueryResultsPage, ApiError>({
+        enabled: !!data,
+        queryKey: ['create-query', data],
         queryFn: () => {
             if (data?.chartUuid && data?.chartVersionUuid) {
-                if (queryPaginationEnabled?.enabled) {
-                    return getQueryPaginatedResults(data.projectUuid, {
-                        context: QueryExecutionContext.CHART_HISTORY,
-                        chartUuid: data.chartUuid,
-                        versionUuid: data.chartVersionUuid,
-                    });
-                }
-                return getChartVersionResults(
-                    data.chartUuid,
-                    data.chartVersionUuid,
-                );
+                return getFirstPage(data.projectUuid, {
+                    context: QueryExecutionContext.CHART_HISTORY,
+                    chartUuid: data.chartUuid,
+                    versionUuid: data.chartVersionUuid,
+                });
             } else if (data?.chartUuid) {
-                if (queryPaginationEnabled?.enabled) {
-                    return getQueryPaginatedResults(data.projectUuid, {
-                        context: QueryExecutionContext.CHART,
-                        chartUuid: data.chartUuid,
-                    });
-                }
-                return getChartResults(data);
+                return getFirstPage(data.projectUuid, {
+                    context: QueryExecutionContext.CHART,
+                    chartUuid: data.chartUuid,
+                });
             } else if (data?.query) {
-                if (queryPaginationEnabled?.enabled) {
-                    return getQueryPaginatedResults(data.projectUuid, {
-                        context: QueryExecutionContext.EXPLORE,
-                        query: {
-                            ...data.query,
-                            filters: convertDateFilters(data.query.filters),
-                            timezone: data.query.timezone ?? undefined,
-                            exploreName: data.tableId,
-                            granularity: data.dateZoomGranularity,
-                        },
-                    });
-                }
-                return getQueryResults(data);
+                return getFirstPage(data.projectUuid, {
+                    context: QueryExecutionContext.EXPLORE,
+                    query: {
+                        ...data.query,
+                        filters: convertDateFilters(data.query.filters),
+                        timezone: data.query.timezone ?? undefined,
+                        exploreName: data.tableId,
+                        granularity: data.dateZoomGranularity,
+                    },
+                });
             }
-
             return Promise.reject(
                 new ParameterError('Missing QueryResultsProps'),
             );
         },
     });
+
+    // On Success
+    useEffect(() => {
+        if (result.data) {
+            queryClient.setQueryData(
+                [
+                    'query-page',
+                    data?.projectUuid,
+                    result.data.queryUuid,
+                    1,
+                    DEFAULT_RESULTS_PAGE_SIZE,
+                ],
+                result.data,
+            );
+        }
+    }, [data?.projectUuid, result.data, queryClient]);
 
     // On Error
     useEffect(() => {
@@ -279,48 +260,238 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
 };
 
 export const useUnderlyingDataResults = (
-    tableId: string,
-    query: MetricQuery,
+    filters: MetricQuery['filters'],
     underlyingDataSourceQueryUuid?: string,
     underlyingDataItemId?: string,
 ) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: queryPaginationEnabled } = useFeatureFlag(
-        FeatureFlags.QueryPagination,
-    );
-
-    const shouldUsePagination =
-        underlyingDataSourceQueryUuid && queryPaginationEnabled?.enabled;
-
-    const queryKey = shouldUsePagination
-        ? [
-              'underlyingDataResults',
-              projectUuid,
-              underlyingDataSourceQueryUuid,
-              underlyingDataItemId,
-              query.filters,
-          ]
-        : ['underlyingDataResults', projectUuid, JSON.stringify(query)];
 
     return useQuery<ApiQueryResults, ApiError>({
-        queryKey,
-        enabled: Boolean(projectUuid) && Boolean(queryPaginationEnabled),
+        queryKey: [
+            'underlyingDataResults',
+            projectUuid,
+            underlyingDataSourceQueryUuid,
+            underlyingDataItemId,
+            filters,
+        ],
+        enabled: Boolean(projectUuid) && Boolean(underlyingDataSourceQueryUuid),
         queryFn: () => {
-            if (shouldUsePagination) {
-                return getQueryPaginatedResults(projectUuid!, {
-                    context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
-                    underlyingDataSourceQueryUuid,
-                    underlyingDataItemId,
-                    filters: query.filters,
-                });
-            }
-
-            return getUnderlyingDataResults({
-                projectUuid: projectUuid!,
-                tableId,
-                query,
+            return getQueryPaginatedResults(projectUuid!, {
+                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                underlyingDataSourceQueryUuid: underlyingDataSourceQueryUuid!,
+                underlyingDataItemId,
+                filters: convertDateFilters(filters),
             });
         },
         retry: false,
     });
+};
+/**
+ * Get single results page
+ */
+const getResultsPage = async (
+    projectUuid: string,
+    queryUuid: string,
+    page: number = 1,
+    pageSize: number | null = null,
+): Promise<ReadyQueryResultsPage> => {
+    const searchParams = new URLSearchParams();
+    if (page) {
+        searchParams.set('page', page.toString());
+    }
+    if (pageSize) {
+        searchParams.set('pageSize', pageSize.toString());
+    }
+
+    const urlQueryParams = searchParams.toString();
+    const currentPage = await lightdashApi<ApiGetAsyncQueryResults>({
+        url: `/projects/${projectUuid}/query/${queryUuid}${
+            urlQueryParams ? `?${urlQueryParams}` : ''
+        }`,
+        version: 'v2',
+        method: 'GET',
+        body: undefined,
+    });
+    const { status } = currentPage;
+    switch (status) {
+        case QueryHistoryStatus.CANCELLED:
+            throw <ApiError>{
+                status: 'error',
+                error: {
+                    name: 'Error',
+                    statusCode: 500,
+                    message: 'Query cancelled',
+                    data: {},
+                },
+            };
+        case QueryHistoryStatus.ERROR:
+            throw <ApiError>{
+                status: 'error',
+                error: {
+                    name: 'Error',
+                    statusCode: 500,
+                    message: currentPage.error ?? 'Query failed',
+                    data: {},
+                },
+            };
+        case QueryHistoryStatus.PENDING:
+            throw <ApiError>{
+                status: 'error',
+                error: {
+                    name: 'Error',
+                    statusCode: 500,
+                    message: 'Query pending',
+                    data: {},
+                },
+            };
+        case QueryHistoryStatus.READY:
+            return currentPage;
+        default:
+            return assertUnreachable(status, 'Unknown query status');
+    }
+};
+
+export type InfiniteQueryResults = Partial<
+    Pick<
+        ReadyQueryResultsPage,
+        'metricQuery' | 'queryUuid' | 'totalResults' | 'fields'
+    >
+> & {
+    projectUuid?: string;
+    rows: ResultRow[];
+    isFetchingRows: boolean;
+    fetchMoreRows: () => void;
+    setFetchAll: (value: boolean) => void;
+    hasFetchedAllRows: boolean;
+};
+
+// This hook lazy load results has they are needed in the UI
+export const useInfiniteQueryResults = (
+    projectUuid?: string,
+    queryUuid?: string,
+): InfiniteQueryResults => {
+    const setErrorResponse = useQueryError({
+        forceToastOnForbidden: true,
+        forbiddenToastTitle: 'Error running query',
+    });
+    const [fetchArgs, setFetchArgs] = useState<{
+        queryUuid?: string;
+        projectUuid?: string;
+        page: number;
+        pageSize: number;
+    }>({
+        queryUuid: undefined,
+        projectUuid: undefined,
+        page: 1,
+        pageSize: DEFAULT_RESULTS_PAGE_SIZE,
+    });
+    const [fetchedPages, setFetchedPages] = useState<ReadyQueryResultsPage[]>(
+        [],
+    );
+    const [fetchAll, setFetchAll] = useState(false);
+
+    const fetchMoreRows = useCallback(() => {
+        const nextPageToFetch = fetchedPages[fetchedPages.length - 1]?.nextPage;
+        if (nextPageToFetch) {
+            setFetchArgs((prev) => ({ ...prev, page: nextPageToFetch }));
+        }
+    }, [fetchedPages]);
+
+    // Aggregate rows from all fetched pages
+    const fetchedRows = useMemo(() => {
+        const rows: ResultRow[] = [];
+        for (const page of fetchedPages) {
+            rows.push(...page.rows);
+        }
+        return rows;
+    }, [fetchedPages]);
+
+    const isFetchingRows = useMemo(() => {
+        const isFetchingPage = fetchArgs.page > fetchedPages.length;
+        return !!projectUuid && !!queryUuid && isFetchingPage;
+    }, [fetchedPages, fetchArgs.page, projectUuid, queryUuid]);
+
+    const nextPage = useQuery<ReadyQueryResultsPage, ApiError>({
+        enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
+        queryKey: [
+            'query-page',
+            fetchArgs.projectUuid,
+            fetchArgs.queryUuid,
+            fetchArgs.page,
+            fetchArgs.pageSize,
+        ],
+        queryFn: () => {
+            return getResultsPage(
+                fetchArgs.projectUuid!,
+                fetchArgs.queryUuid!,
+                fetchArgs.page,
+                fetchArgs.pageSize,
+            );
+        },
+        staleTime: Infinity, // the data will never be considered stale
+    });
+
+    // On error
+    useEffect(() => {
+        if (nextPage.error) {
+            setErrorResponse(nextPage.error);
+        }
+    }, [nextPage.error, setErrorResponse]);
+
+    // On success
+    useEffect(() => {
+        if (nextPage.data) {
+            setFetchedPages((prevState) => [...prevState, nextPage.data]);
+        }
+    }, [nextPage.data]);
+
+    useEffect(() => {
+        // Reset fetched pages before updating the fetch args
+        setFetchedPages([]);
+        setFetchArgs({
+            queryUuid,
+            projectUuid,
+            page: 1,
+            pageSize: DEFAULT_RESULTS_PAGE_SIZE,
+        });
+    }, [projectUuid, queryUuid]);
+
+    useEffect(() => {
+        if (fetchAll) {
+            // keep fetching the next page
+            fetchMoreRows();
+        }
+    }, [fetchAll, fetchMoreRows]);
+
+    const hasFetchedAllRows = useMemo(() => {
+        if (fetchedPages.length === 0) {
+            return false;
+        }
+
+        return fetchedRows.length >= fetchedPages[0].totalResults;
+    }, [fetchedRows, fetchedPages]);
+
+    return useMemo(
+        () => ({
+            projectUuid,
+            queryUuid,
+            metricQuery: fetchedPages[0]?.metricQuery,
+            fields: fetchedPages[0]?.fields,
+            totalResults: fetchedPages[0]?.totalResults,
+            hasFetchedAllRows,
+            rows: fetchedRows,
+            isFetchingRows,
+            fetchMoreRows,
+            setFetchAll,
+        }),
+        [
+            projectUuid,
+            queryUuid,
+            fetchedPages,
+            hasFetchedAllRows,
+            fetchedRows,
+            isFetchingRows,
+            fetchMoreRows,
+        ],
+    );
 };

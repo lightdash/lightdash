@@ -50,13 +50,18 @@ const SnowflakeForm: FC<{
     if (form.values.warehouse?.type !== WarehouseTypes.SNOWFLAKE) {
         throw new Error('Snowflake form is not used for this warehouse type');
     }
+    const hasPrivateKey =
+        savedProject !== undefined
+            ? savedProject?.warehouseConnection?.type ===
+                  WarehouseTypes.SNOWFLAKE &&
+              savedProject?.warehouseConnection?.authenticationType ===
+                  'private_key'
+            : true;
 
     const authenticationType: string =
-        form.values.warehouse.authenticationType ??
-        ((savedProject?.warehouseConnection?.type ===
-            WarehouseTypes.SNOWFLAKE &&
-            savedProject?.warehouseConnection?.authenticationType) ||
-            'private_key');
+        form.values.warehouse.authenticationType ?? hasPrivateKey
+            ? 'private_key'
+            : 'password';
 
     const [temporaryFile, setTemporaryFile] = useState<File>();
 
@@ -89,7 +94,7 @@ const SnowflakeForm: FC<{
                 <Select
                     name="warehouse.authenticationType"
                     {...form.getInputProps('warehouse.authenticationType')}
-                    defaultValue="private_key"
+                    defaultValue={hasPrivateKey ? 'private_key' : 'password'}
                     label="Authentication Type"
                     description="Choose between password or key pair authentication"
                     data={[
