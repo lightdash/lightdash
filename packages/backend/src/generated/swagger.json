@@ -7371,6 +7371,9 @@
             },
             "Space": {
                 "properties": {
+                    "hasParent": {
+                        "type": "boolean"
+                    },
                     "slug": {
                         "type": "string"
                     },
