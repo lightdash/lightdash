@@ -1,3 +1,10 @@
+## [0.1564.1](https://github.com/lightdash/lightdash/compare/0.1564.0...0.1564.1) (2025-04-07)
+
+
+### Bug Fixes
+
+* wait for all rows to be fetched before getting expected series map for cartesian ([#14294](https://github.com/lightdash/lightdash/issues/14294)) ([412c2b3](https://github.com/lightdash/lightdash/commit/412c2b3ec165898a4a000198f7c5d50ce2155b1d))
+
 # [0.1564.0](https://github.com/lightdash/lightdash/compare/0.1563.3...0.1564.0) (2025-04-04)
 
 
