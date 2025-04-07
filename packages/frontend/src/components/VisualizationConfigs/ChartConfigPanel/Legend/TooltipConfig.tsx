@@ -6,7 +6,7 @@ import {
     type EditorProps,
     type Monaco,
 } from '@monaco-editor/react';
-import { type languages } from 'monaco-editor';
+import { type IDisposable, type languages } from 'monaco-editor';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -24,6 +24,7 @@ const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     tabSize: 2,
     lineNumbers: 'off',
 };
+let completionProviderDisposable: IDisposable | null = null;
 
 type Props = {
     fields: string[];
@@ -33,37 +34,39 @@ type Props = {
 const registerCustomCompletionProvider = (
     monaco: Monaco,
     language: string,
-    quoteChar: string,
     fields: string[],
     //items: (Field | TableCalculation | CustomDimension | CompiledDimension)[],
 ) => {
-    monaco.languages.registerCompletionItemProvider(language, {
-        provideCompletionItems: (model, position) => {
-            const wordUntilPosition = model.getWordUntilPosition(position);
-            const range = {
-                startLineNumber: position.lineNumber,
-                endLineNumber: position.lineNumber,
-                startColumn: wordUntilPosition.startColumn,
-                endColumn: wordUntilPosition.endColumn,
-            };
+    if (completionProviderDisposable) {
+        console.debug('Clearing Monaco completion provider');
+        completionProviderDisposable.dispose();
+    }
+    completionProviderDisposable =
+        monaco.languages.registerCompletionItemProvider(language, {
+            provideCompletionItems: (model, position) => {
+                const wordUntilPosition = model.getWordUntilPosition(position);
+                const range = {
+                    startLineNumber: position.lineNumber,
+                    endLineNumber: position.lineNumber,
+                    startColumn: wordUntilPosition.startColumn,
+                    endColumn: wordUntilPosition.endColumn,
+                };
 
-            const suggestions: languages.CompletionItem[] = fields.map(
-                (field) => {
-                    //   const fieldRef = isField(item) ? getFieldRef(item) : item.name;
+                const suggestions: languages.CompletionItem[] = fields.map(
+                    (field) => {
+                        //   const fieldRef = isField(item) ? getFieldRef(item) : item.name;
+                        return {
+                            label: field,
+                            kind: monaco.languages.CompletionItemKind.Class,
+                            insertText: `\${${field}\}`,
+                            range,
+                        };
+                    },
+                );
 
-                    return {
-                        label: field,
-                        kind: monaco.languages.CompletionItemKind.Class,
-                        insertText: `\${${field}\}`,
-                        range,
-                    };
-                    // TODO do not run on remount
-                },
-            );
-
-            return { suggestions };
-        },
-    });
+                return { suggestions };
+            },
+        });
 };
 export const TooltipConfig: FC<Props> = ({ fields }) => {
     const { visualizationConfig } = useVisualizationContext();
@@ -91,7 +94,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
 
     const beforeMount: BeforeMount = useCallback(
         (monaco) => {
-            registerCustomCompletionProvider(monaco, 'html', '*', fields);
+            registerCustomCompletionProvider(monaco, 'html', fields);
         },
         [fields],
     );
