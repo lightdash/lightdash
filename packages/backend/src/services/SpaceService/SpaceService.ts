@@ -276,6 +276,12 @@ export class SpaceService extends BaseService {
             user.userUuid,
             spaceUuid,
         );
+        const hasRootSpace = await this.spaceModel.getSpaceRoot(spaceUuid);
+        if (hasRootSpace) {
+            throw new ForbiddenError(
+                `Can't change user access to a nested space`,
+            );
+        }
         if (
             user.ability.cannot(
                 'manage',
@@ -305,6 +311,12 @@ export class SpaceService extends BaseService {
             user.userUuid,
             spaceUuid,
         );
+        const hasRootSpace = await this.spaceModel.getSpaceRoot(spaceUuid);
+        if (hasRootSpace) {
+            throw new ForbiddenError(
+                `Can't change user access to a nested space`,
+            );
+        }
         if (
             user.ability.cannot(
                 'manage',
@@ -331,6 +343,12 @@ export class SpaceService extends BaseService {
             user.userUuid,
             spaceUuid,
         );
+        const hasRootSpace = await this.spaceModel.getSpaceRoot(spaceUuid);
+        if (hasRootSpace) {
+            throw new ForbiddenError(
+                `Can't change group access to a nested space`,
+            );
+        }
         if (
             user.ability.cannot(
                 'manage',
@@ -360,6 +378,12 @@ export class SpaceService extends BaseService {
             user.userUuid,
             spaceUuid,
         );
+        const hasRootSpace = await this.spaceModel.getSpaceRoot(spaceUuid);
+        if (hasRootSpace) {
+            throw new ForbiddenError(
+                `Can't change group access to a nested space`,
+            );
+        }
         if (
             user.ability.cannot(
                 'manage',
