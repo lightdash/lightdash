@@ -1,3 +1,10 @@
+## [0.1564.6](https://github.com/lightdash/lightdash/compare/0.1564.5...0.1564.6) (2025-04-07)
+
+
+### Bug Fixes
+
+* embed checks ([#14302](https://github.com/lightdash/lightdash/issues/14302)) ([ddb5e3b](https://github.com/lightdash/lightdash/commit/ddb5e3b28fcb535b42dd5456f5c6c1ff9c1cd034))
+
 ## [0.1564.5](https://github.com/lightdash/lightdash/compare/0.1564.4...0.1564.5) (2025-04-07)
 
 
