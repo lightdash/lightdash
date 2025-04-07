@@ -1,62 +1,66 @@
-import { Accordion, Textarea } from '@mantine/core';
-import { useCallback, type FC } from 'react';
+import type {
+    CompiledDimension,
+    CustomDimension,
+    Field,
+    TableCalculation,
+} from '@lightdash/common';
+import { Collapse, Group, Switch, Textarea } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
+import { useEffect, useState, type FC } from 'react';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
-import { useControlledAccordion } from '../../common/hooks/useControlledAccordion';
 
-type Props = {};
+type Props = {
+    items: (Field | TableCalculation | CustomDimension | CompiledDimension)[];
+    projectUuid: string;
+};
 
 export const TooltipConfig: FC<Props> = ({}) => {
-    const { openItems, handleAccordionChange } = useControlledAccordion();
-
     const { visualizationConfig } = useVisualizationContext();
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
 
-    const setTooltipText = useCallback(
-        (value: string) => {
-            if (!isCartesianChart) return;
+    const [tooltipValue, setTooltipValue] = useState<string>('');
+    const [debouncedTooltipValue] = useDebouncedValue(tooltipValue, 1000);
 
-            const { setTooltip } = visualizationConfig.chartConfig;
+    useEffect(() => {
+        if (!isCartesianChart) return;
 
-            setTooltip(value);
-        },
-        [isCartesianChart, visualizationConfig],
+        const { setTooltip } = visualizationConfig.chartConfig;
+
+        setTooltip(debouncedTooltipValue);
+    }, [
+        isCartesianChart,
+        debouncedTooltipValue,
+        visualizationConfig.chartConfig,
+    ]);
+
+    const [show, setShow] = useState<boolean>(
+        isCartesianChart ? !!visualizationConfig.chartConfig.tooltip : false,
     );
 
     return (
         <Config>
             <Config.Section>
-                <Config.Group>
-                    <Config.Heading>Tooltip config</Config.Heading>
-                </Config.Group>
+                <Group spacing="xs" align="center">
+                    <Config.Heading>Custom Tooltip</Config.Heading>
+                    <Switch checked={show} onChange={() => setShow(!show)} />
+                </Group>
 
-                <Accordion
-                    multiple
-                    variant="contained"
-                    value={openItems}
-                    onChange={handleAccordionChange}
-                    styles={(theme) => ({
-                        control: {
-                            padding: theme.spacing.xs,
-                        },
-                        label: {
-                            padding: 0,
-                        },
-                        panel: {
-                            padding: 0,
-                        },
-                    })}
-                >
+                <Collapse in={show}>
                     <Textarea
                         maxRows={10}
                         autosize
-                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                            setTooltipText(e.target.value)
-                        }
+                        value={tooltipValue}
+                        onChange={(
+                            e: React.ChangeEvent<HTMLTextAreaElement>,
+                        ) => {
+                            setTooltipValue(e.target.value);
+                        }}
+                        placeholder="<p>Place your HTML code here</p>"
                     />
-                </Accordion>
+                </Collapse>
             </Config.Section>
         </Config>
     );
