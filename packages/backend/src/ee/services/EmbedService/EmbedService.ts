@@ -16,14 +16,11 @@ import {
     Explore,
     ExploreError,
     FieldValueSearchResult,
-    FilterGroupItem,
-    FilterOperator,
     FilterableDimension,
     ForbiddenError,
     InteractivityOptions,
     IntrinsicUserAttributes,
     MetricQuery,
-    NotExistsError,
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
@@ -31,7 +28,6 @@ import {
     SessionUser,
     UserAttributeValueMap,
     addDashboardFiltersToMetricQuery,
-    findFieldByIdInExplore,
     formatRows,
     getDashboardFiltersForTileAndTables,
     getDimensions,
@@ -43,10 +39,8 @@ import {
     isDashboardSlugContent,
     isDashboardSqlChartTile,
     isDashboardUuidContent,
-    isDimension,
     isExploreError,
     isFilterInteractivityEnabled,
-    isFilterRule,
     isFilterableDimension,
     type LightdashUser,
 } from '@lightdash/common';
@@ -54,7 +48,6 @@ import * as Sentry from '@sentry/node';
 import jwt from 'jsonwebtoken';
 import { isArray } from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
-import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -126,10 +119,14 @@ export class EmbedService extends BaseService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
+        await this.isFeatureEnabled({
+            userUuid: user.userUuid,
+            organizationUuid,
+        });
         if (
             user.ability.cannot(
-                'manage',
-                subject('CompileProject', {
+                'update',
+                subject('Project', {
                     organizationUuid,
                     projectUuid,
                 }),
@@ -154,7 +151,28 @@ export class EmbedService extends BaseService {
         };
     }
 
-    async getConfig(projectUuid: string): Promise<DecodedEmbed> {
+    async getConfig(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<DecodedEmbed> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        await this.isFeatureEnabled({
+            userUuid: user.userUuid,
+            organizationUuid,
+        });
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const config = await this.embedModel.get(projectUuid);
         return {
             ...config,
@@ -179,8 +197,8 @@ export class EmbedService extends BaseService {
         });
         if (
             user.ability.cannot(
-                'manage',
-                subject('CompileProject', {
+                'update',
+                subject('Project', {
                     organizationUuid,
                     projectUuid,
                 }),
@@ -197,7 +215,7 @@ export class EmbedService extends BaseService {
             user.userUuid,
         );
 
-        return this.getConfig(projectUuid);
+        return this.getConfig(user, projectUuid);
     }
 
     async updateDashboards(
@@ -208,10 +226,14 @@ export class EmbedService extends BaseService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
+        await this.isFeatureEnabled({
+            userUuid: user.userUuid,
+            organizationUuid,
+        });
         if (
             user.ability.cannot(
-                'manage',
-                subject('CompileProject', {
+                'update',
+                subject('Project', {
                     organizationUuid,
                     projectUuid,
                 }),
