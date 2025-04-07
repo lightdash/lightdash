@@ -54,7 +54,10 @@ import toNumber from 'lodash/toNumber';
 import { useMemo } from 'react';
 import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
-import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
+import {
+    defaultAxisLabelGap,
+    defaultGrid,
+} from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import getPlottedData from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
@@ -1262,6 +1265,20 @@ const getEchartAxes = ({
         bottomAxisMaxValue,
     );
 
+    const maxYAxisValue =
+        leftAxisType === 'value'
+            ? yAxisConfiguration?.[0]?.max ||
+              referenceLineMaxLeftY ||
+              maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
+            : undefined;
+
+    const minYAxisValue =
+        leftAxisType === 'value'
+            ? yAxisConfiguration?.[0]?.min ||
+              referenceLineMinLeftY ||
+              maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
+            : undefined;
+
     return {
         xAxis: [
             {
@@ -1362,22 +1379,8 @@ const getEchartAxes = ({
                           itemsMap,
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
-                min:
-                    leftAxisType === 'value'
-                        ? yAxisConfiguration?.[0]?.min ||
-                          referenceLineMinLeftY ||
-                          maybeGetAxisDefaultMinValue(
-                              allowFirstAxisDefaultRange,
-                          )
-                        : undefined,
-                max:
-                    leftAxisType === 'value'
-                        ? yAxisConfiguration?.[0]?.max ||
-                          referenceLineMaxLeftY ||
-                          maybeGetAxisDefaultMaxValue(
-                              allowFirstAxisDefaultRange,
-                          )
-                        : undefined,
+                min: minYAxisValue,
+                max: maxYAxisValue,
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'center',
@@ -1385,7 +1388,7 @@ const getEchartAxes = ({
                 nameLocation: 'center',
                 ...getAxisFormatter({
                     axisItem: leftAxisYField,
-                    defaultNameGap: leftYaxisGap + 20,
+                    defaultNameGap: leftYaxisGap + defaultAxisLabelGap,
                 }),
                 splitLine: {
                     show: validCartesianConfig.layout.flipAxes
@@ -1430,9 +1433,8 @@ const getEchartAxes = ({
                 },
                 ...getAxisFormatter({
                     axisItem: rightAxisYField,
-                    defaultNameGap: rightYaxisGap + 20,
+                    defaultNameGap: rightYaxisGap + defaultAxisLabelGap,
                 }),
-
                 nameLocation: 'center',
                 nameRotate: -90,
                 splitLine: {
@@ -1991,6 +1993,33 @@ const useEchartsCartesianConfig = (
         validCartesianConfigLegend,
     ]);
 
+    const currentGrid = useMemo(() => {
+        const grid = {
+            ...defaultGrid,
+            ...removeEmptyProperties(validCartesianConfig?.eChartsConfig.grid),
+        };
+
+        const gridLeft = grid.left;
+        const gridRight = grid.right;
+
+        // Adds extra gap to grid to make room for axis labels -> there is an open ticket in echarts to fix this: https://github.com/apache/echarts/issues/9265
+        // Only works for px values, percentage values are not supported because it cannot use calc()
+        return {
+            ...grid,
+            left: gridLeft.includes('px')
+                ? `${
+                      parseInt(gridLeft.replace('px', '')) + defaultAxisLabelGap
+                  }px`
+                : grid.left,
+            right: gridRight.includes('px')
+                ? `${
+                      parseInt(gridRight.replace('px', '')) +
+                      defaultAxisLabelGap
+                  }px`
+                : grid.right,
+        };
+    }, [validCartesianConfig?.eChartsConfig.grid]);
+
     const eChartsOptions = useMemo(
         () => ({
             xAxis: axes.xAxis,
@@ -2008,12 +2037,7 @@ const useEchartsCartesianConfig = (
                 source: sortedResultsByTotals,
             },
             tooltip,
-            grid: {
-                ...defaultGrid,
-                ...removeEmptyProperties(
-                    validCartesianConfig?.eChartsConfig.grid,
-                ),
-            },
+            grid: currentGrid,
             textStyle: {
                 fontFamily: theme?.other.chartFont as string | undefined,
             },
@@ -2027,12 +2051,12 @@ const useEchartsCartesianConfig = (
             isInDashboard,
             minimal,
             validCartesianConfig?.eChartsConfig.legend,
-            validCartesianConfig?.eChartsConfig.grid,
             validCartesianConfigLegend,
             series,
             sortedResultsByTotals,
             tooltip,
-            theme?.other?.chartFont,
+            theme?.other.chartFont,
+            currentGrid,
         ],
     );
 
