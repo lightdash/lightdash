@@ -170,10 +170,10 @@ export class ResultsCacheModel {
                 if (line.trim()) {
                     rows.push(formatter(JSON.parse(line)));
                 }
-                currentLine += 1;
-            } else {
+            } else if (currentLine >= endLine) {
                 break;
             }
+            currentLine += 1;
         }
 
         return rows as ResultRow[];

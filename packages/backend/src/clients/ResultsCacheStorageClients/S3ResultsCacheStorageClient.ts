@@ -15,7 +15,7 @@ import {
     WarehouseResults,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { once, PassThrough, Readable } from 'stream';
+import { once, PassThrough, Readable, Writable } from 'stream';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
@@ -50,8 +50,8 @@ export class S3ResultsCacheStorageClient
             if (isClosed) return;
             isClosed = true;
             try {
-                passThrough.end();
-                await upload.done();
+                passThrough.end(); // signal EOF
+                await upload.done(); // wait for upload to finish
                 Logger.debug(
                     `Successfully closed upload stream to s3://${this.configuration.bucket}/${cacheKey}.jsonl`,
                 );
@@ -65,29 +65,41 @@ export class S3ResultsCacheStorageClient
             }
         };
 
-        return {
-            write: async (rows: WarehouseResults['rows']) => {
-                try {
-                    for (const row of rows) {
-                        const canContinue = passThrough.write(
-                            `${JSON.stringify(row)}\n`,
-                        );
-                        if (!canContinue) {
-                            // eslint-disable-next-line no-await-in-loop
-                            await once(passThrough, 'drain');
-                        }
-                    }
-                } catch (error) {
-                    Logger.error(
-                        `Failed to write rows to cache key ${cacheKey}: ${getErrorMessage(
-                            error,
-                        )}`,
-                    );
-                    throw error;
+        function createWriteChunk(stream: Writable) {
+            let draining: Promise<void> | null = null;
+
+            return async function writeChunk(chunk: string): Promise<void> {
+                if (stream.write(chunk)) return;
+
+                if (!draining) {
+                    draining = once(stream, 'drain').then(() => {
+                        draining = null;
+                    });
                 }
-            },
-            close,
+
+                await draining;
+            };
+        }
+
+        const writeChunk = createWriteChunk(passThrough);
+
+        const write = async (rows: WarehouseResults['rows']) => {
+            try {
+                for (const row of rows) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await writeChunk(`${JSON.stringify(row)}\n`);
+                }
+            } catch (error) {
+                Logger.error(
+                    `Failed to write rows to cache key ${cacheKey}: ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+                throw error;
+            }
         };
+
+        return { write, close };
     }
 
     async download(
