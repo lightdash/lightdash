@@ -1,3 +1,10 @@
+## [0.1564.5](https://github.com/lightdash/lightdash/compare/0.1564.4...0.1564.5) (2025-04-07)
+
+
+### Bug Fixes
+
+* resource org uuid check ([7d49a5a](https://github.com/lightdash/lightdash/commit/7d49a5afe49bc84b52f325a7235de008a5bd71fa))
+
 ## [0.1564.4](https://github.com/lightdash/lightdash/compare/0.1564.3...0.1564.4) (2025-04-07)
 
 

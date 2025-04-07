@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.1564.4",
+    "version": "0.1564.5",
     "private": true,
     "files": [
         "dist"
