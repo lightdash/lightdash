@@ -40,6 +40,7 @@ import {
     createAzureAdPassportStrategy,
     createGenericOidcPassportStrategy,
     googlePassportStrategy,
+    invalidUserErrorHandler,
     isAzureAdPassportStrategyAvailableToUse,
     isGenericOidcPassportStrategyAvailableToUse,
     isOktaPassportStrategyAvailableToUse,
@@ -586,6 +587,7 @@ export default class App {
         // Errors
         Sentry.setupExpressErrorHandler(expressApp);
         expressApp.use(scimErrorHandler); // SCIM error check before general error handler
+        expressApp.use(invalidUserErrorHandler);
         expressApp.use(
             (error: Error, req: Request, res: Response, _: NextFunction) => {
                 const errorResponse = errorHandler(error);
@@ -632,36 +634,6 @@ export default class App {
                                 : undefined,
                     },
                 };
-
-                if (error instanceof InvalidUser) {
-                    req.session.destroy((err) => {
-                        if (err) Logger.error(err);
-                        if (req.url.includes('/api')) {
-                            res.status(errorResponse.statusCode).send(
-                                apiErrorResponse,
-                            );
-                            return;
-                        }
-
-                        // if original url is an invite link, redirect to it
-                        if (
-                            req.path.match(
-                                // invite link regex
-                                /^\/invite\/([A-Za-z0-9_-]{30})$/,
-                            )
-                        ) {
-                            Logger.info(
-                                `Invalid user, redirecting to ${req.path}`,
-                            );
-                            res.redirect(req.path);
-                            return;
-                        }
-
-                        Logger.info('Invalid user, redirecting to login');
-                        res.redirect('/login');
-                    });
-                    return;
-                }
 
                 res.status(errorResponse.statusCode).send(apiErrorResponse);
             },

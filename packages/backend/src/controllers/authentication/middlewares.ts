@@ -1,6 +1,7 @@
 /// <reference path="../../@types/passport-openidconnect.d.ts" />
 /// <reference path="../../@types/express-session.d.ts" />
 import {
+    ApiError,
     AuthorizationError,
     DeactivatedAccountError,
     InvalidUser,
@@ -10,6 +11,7 @@ import { ErrorRequestHandler, Request, RequestHandler } from 'express';
 import passport from 'passport';
 import { URL } from 'url';
 import { lightdashConfig } from '../../config/lightdashConfig';
+import Logger from '../../logging/logger';
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
     if (req.user?.userUuid) {
@@ -123,3 +125,48 @@ export const deprecatedResultsRoute = getDeprecatedRouteMiddleware(
     new Date('2025-04-30'),
     `Please use 'POST /api/v2/projects/{projectUuid}/query' in conjuntion with 'GET /api/v2/projects/{projectUuid}/query/{queryUuid}' instead.`,
 );
+
+export const invalidUserErrorHandler: ErrorRequestHandler = (
+    err,
+    req,
+    res,
+    next,
+) => {
+    if (!(err instanceof InvalidUser)) {
+        next(err);
+        return;
+    }
+
+    req.session.destroy((error) => {
+        if (error) Logger.error(error);
+        if (req.url.includes('/api')) {
+            const apiErrorResponse: ApiError = {
+                status: 'error',
+                error: {
+                    statusCode: err.statusCode,
+                    name: err.name,
+                    message: err.message,
+                    data: err.data,
+                },
+            };
+
+            res.status(401).send(apiErrorResponse);
+            return;
+        }
+
+        // if original url is an invite link, redirect to it
+        if (
+            req.path.match(
+                // invite link regex
+                /^\/invite\/([A-Za-z0-9_-]{30})$/,
+            )
+        ) {
+            Logger.info(`Invalid user, redirecting to ${req.path}`);
+            res.redirect(req.path);
+            return;
+        }
+
+        Logger.info('Invalid user, redirecting to login');
+        res.redirect('/login');
+    });
+};
