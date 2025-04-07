@@ -58,6 +58,7 @@ export class ResultsCacheModel {
             timezone?: string;
         },
         storageClient: IResultsCacheStorageClient,
+        invalidateCache: boolean = false,
     ): Promise<CreateCacheResult> {
         const cacheKey = ResultsCacheModel.getCacheKey(
             projectUuid,
@@ -67,7 +68,7 @@ export class ResultsCacheModel {
         const existingCache = await this.find(cacheKey, projectUuid);
 
         if (existingCache) {
-            if (existingCache.expires_at > new Date()) {
+            if (existingCache.expires_at > new Date() && !invalidateCache) {
                 return {
                     cacheKey: existingCache.cache_key,
                     cacheHit: true,

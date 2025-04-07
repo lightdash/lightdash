@@ -89,6 +89,7 @@ export class V2ProjectController extends BaseController {
         body: ExecuteAsyncQueryRequestParams,
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() invalidateCache?: boolean,
     ): Promise<ApiExecuteAsyncQueryResponse> {
         this.setStatus(200);
 
@@ -96,6 +97,7 @@ export class V2ProjectController extends BaseController {
         const commonArgs = {
             user: req.user!,
             projectUuid,
+            invalidateCache,
         };
 
         if (isExecuteAsyncMetricQueryRequest(body)) {

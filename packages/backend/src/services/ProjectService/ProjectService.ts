@@ -2209,6 +2209,7 @@ export class ProjectService extends BaseService {
         args: ExecuteAsyncMetricQueryArgs & {
             queryTags: RunQueryTags;
             exploreName: string;
+            invalidateCache: boolean;
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
     ) {
@@ -2352,6 +2353,7 @@ export class ProjectService extends BaseService {
                                 timezone: metricQuery.timezone,
                             },
                             this.resultsCacheStorageClient,
+                            args.invalidateCache,
                         );
                     }
 
@@ -2520,6 +2522,7 @@ export class ProjectService extends BaseService {
         granularity,
         context,
         metricQuery,
+        invalidateCache = false,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -2570,6 +2573,7 @@ export class ProjectService extends BaseService {
                 context,
                 queryTags,
                 granularity,
+                invalidateCache,
             },
             requestParameters,
         );

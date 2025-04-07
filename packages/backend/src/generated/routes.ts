@@ -29585,6 +29585,11 @@ export function RegisterRoutes(app: Router) {
             dataType: 'string',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        invalidateCache: {
+            in: 'query',
+            name: 'invalidateCache',
+            dataType: 'boolean',
+        },
     };
     app.post(
         '/api/v2/projects/:projectUuid/query',
