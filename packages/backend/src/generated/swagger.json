@@ -7981,6 +7981,35 @@
                 ],
                 "type": "object"
             },
+            "SchedulerMsTeamsTarget": {
+                "properties": {
+                    "webhook": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerMsTeamsTargetUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "webhook",
+                    "schedulerUuid",
+                    "updatedAt",
+                    "createdAt",
+                    "schedulerMsTeamsTargetUuid"
+                ],
+                "type": "object"
+            },
             "SchedulerAndTargets": {
                 "allOf": [
                     {
@@ -7996,6 +8025,9 @@
                                         },
                                         {
                                             "$ref": "#/components/schemas/SchedulerEmailTarget"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SchedulerMsTeamsTarget"
                                         }
                                     ]
                                 },
@@ -8014,6 +8046,7 @@
                     "handleScheduledDelivery",
                     "sendSlackNotification",
                     "sendEmailNotification",
+                    "sendMsTeamsNotification",
                     "uploadGsheets",
                     "downloadCsv",
                     "uploadGsheetFromQuery",
@@ -8056,7 +8089,7 @@
                     },
                     "targetType": {
                         "type": "string",
-                        "enum": ["email", "slack", "gsheets"]
+                        "enum": ["email", "slack", "gsheets", "msteams"]
                     },
                     "target": {
                         "type": "string"
@@ -13132,12 +13165,6 @@
                     "columnTotals": {
                         "type": "boolean"
                     },
-                    "summableMetricFieldIds": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
                     "hiddenMetricFieldIds": {
                         "items": {
                             "type": "string"
@@ -15760,7 +15787,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1558.1",
+        "version": "0.1563.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
