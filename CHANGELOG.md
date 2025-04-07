@@ -1,3 +1,10 @@
+## [0.1564.3](https://github.com/lightdash/lightdash/compare/0.1564.2...0.1564.3) (2025-04-07)
+
+
+### Bug Fixes
+
+* calculate correct grid taking into account default gap ([#14277](https://github.com/lightdash/lightdash/issues/14277)) ([3a2f489](https://github.com/lightdash/lightdash/commit/3a2f489edbf3242c0ca3ae8fedbfa6fcea225f0a))
+
 ## [0.1564.2](https://github.com/lightdash/lightdash/compare/0.1564.1...0.1564.2) (2025-04-07)
 
 
