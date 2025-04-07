@@ -14,7 +14,7 @@ import { Config } from '../../common/Config';
 
 const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     cursorBlinking: 'smooth',
-    folding: true,
+    folding: false,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
     wordWrap: 'off',
@@ -23,6 +23,9 @@ const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     automaticLayout: true,
     tabSize: 2,
     lineNumbers: 'off',
+    glyphMargin: false,
+    lineDecorationsWidth: 0,
+    lineNumbersMinChars: 0,
 };
 let completionProviderDisposable: IDisposable | null = null;
 
