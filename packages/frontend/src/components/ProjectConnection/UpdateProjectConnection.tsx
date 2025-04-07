@@ -45,6 +45,7 @@ const UpdateProjectConnection: FC<{
     const onProjectError = useOnProjectError();
 
     const isDisabled =
+        project.type === ProjectType.PREVIEW ||
         isSaving ||
         ability.cannot(
             'update',
@@ -100,28 +101,27 @@ const UpdateProjectConnection: FC<{
         onProjectError(errors);
     };
 
-    if (project.type === ProjectType.PREVIEW) {
-        return (
-            <Alert
-                color="orange"
-                icon={<MantineIcon icon={IconExclamationCircle} size="lg" />}
-                title="Developer previews are temporary Lightdash projects where settings cannot be changed."
-            >
-                Read docs{' '}
-                <Anchor
-                    href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
-                    target="_blank"
-                    rel="noreferrer"
-                >
-                    here
-                </Anchor>{' '}
-                to know more.
-            </Alert>
-        );
-    }
-
     return (
         <FormProvider form={form}>
+            {project?.type === ProjectType.PREVIEW && (
+                <Alert
+                    color="orange"
+                    icon={
+                        <MantineIcon icon={IconExclamationCircle} size="lg" />
+                    }
+                    title="Developer previews are temporary Lightdash projects where settings cannot be changed."
+                >
+                    Read docs{' '}
+                    <Anchor
+                        href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        here
+                    </Anchor>{' '}
+                    to know more.
+                </Alert>
+            )}
             <form onSubmit={form.onSubmit(handleSubmit, handleError)}>
                 <FormContainer>
                     <ProjectFormProvider savedProject={project}>
