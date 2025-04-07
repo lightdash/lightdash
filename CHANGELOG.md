@@ -1,3 +1,10 @@
+## [0.1564.4](https://github.com/lightdash/lightdash/compare/0.1564.3...0.1564.4) (2025-04-07)
+
+
+### Bug Fixes
+
+* invite links dont work when invites are deleted and recreated ([#14293](https://github.com/lightdash/lightdash/issues/14293)) ([b32cbf6](https://github.com/lightdash/lightdash/commit/b32cbf63af3578ad97d5028f70d5e83dc73222ca))
+
 ## [0.1564.3](https://github.com/lightdash/lightdash/compare/0.1564.2...0.1564.3) (2025-04-07)
 
 
