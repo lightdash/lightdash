@@ -111,17 +111,19 @@ export const Legend: FC<Props> = ({ items }) => {
         const fieldSet = allEncodes.reduce<Set<string>>((acc, encode) => {
             acc.add(encode.xRef.field);
             if (encode.yRef.pivotValues !== undefined) {
-                const pivotValue = encode.yRef.pivotValues[0];
-                acc.add(
-                    `${encode.yRef.field}.${pivotValue.field}.${pivotValue.value}`,
-                );
+                encode.yRef.pivotValues.forEach((pivotValue) => {
+                    acc.add(
+                        `${encode.yRef.field}.${pivotValue.field}.${pivotValue.value}`,
+                    );
+                });
+            } else {
+                acc.add(encode.yRef.field);
             }
             return acc;
         }, new Set<string>());
 
         return [...fieldSet];
     }, [visualizationConfig]);
-
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 
     const { dirtyEchartsConfig, setLegend } = visualizationConfig.chartConfig;
