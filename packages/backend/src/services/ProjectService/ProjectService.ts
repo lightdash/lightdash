@@ -517,8 +517,9 @@ export class ProjectService extends BaseService {
                         user.ability.cannot(
                             'view',
                             subject('Project', {
-                                organizationUuid: user.organizationUuid,
-                                projectUuid: data.upstreamProjectUuid,
+                                organizationUuid:
+                                    upstreamProject.organizationUuid,
+                                projectUuid: upstreamProject.projectUuid,
                             }),
                         )
                     ) {
@@ -531,15 +532,27 @@ export class ProjectService extends BaseService {
                             'Cannot create a preview project from a preview project',
                         );
                     }
+                    if (
+                        // checks if user has permission to create project from an upstream project on a project level
+                        user.ability.can(
+                            'create',
+                            subject('Project', {
+                                upstreamProjectUuid:
+                                    upstreamProject.projectUuid,
+                                type: ProjectType.PREVIEW,
+                            }),
+                        )
+                    ) {
+                        return true;
+                    }
                 }
 
                 if (
-                    // checks if user has permission to create project on an organization level or from an upstream project on a project level
+                    // checks if user has permission to create project on an organization level
                     user.ability.can(
                         'create',
                         subject('Project', {
                             organizationUuid: user.organizationUuid,
-                            upstreamProjectUuid: data.upstreamProjectUuid,
                             type: ProjectType.PREVIEW,
                         }),
                     )
@@ -5393,11 +5406,12 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<MostPopularAndRecentlyUpdated> {
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'view',
                 subject('Project', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
                 }),
             )

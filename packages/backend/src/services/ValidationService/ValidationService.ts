@@ -821,11 +821,14 @@ export class ValidationService extends BaseService {
         const validation = await this.validationModel.getByValidationId(
             validationId,
         );
+        const projectSummary = await this.projectModel.getSummary(
+            validation.projectUuid,
+        );
         if (
             user.ability.cannot(
                 'manage',
                 subject('Validation', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: projectSummary.organizationUuid,
                     projectUuid: validation.projectUuid,
                 }),
             )
