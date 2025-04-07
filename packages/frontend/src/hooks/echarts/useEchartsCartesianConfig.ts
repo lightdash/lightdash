@@ -42,6 +42,7 @@ import {
 } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
 import dayjs from 'dayjs';
+import DOMPurify from 'dompurify';
 import {
     type DefaultLabelFormatterCallbackParams,
     type LineSeriesOption,
@@ -1868,18 +1869,28 @@ const useEchartsCartesianConfig = (
                 // TODO In order to show other fields,
                 // we will have to filter resultData using the xAxis value and groups
                 let tooltipHtml = tooltipConfig ?? '';
-                const firstValue = params[0].value as Record<string, unknown>;
-                const fields = tooltipHtml.match(/\${(.*?)}/g);
-                fields?.forEach((field) => {
-                    const fieldValueReference = field
-                        .replace('${', '')
-                        .replace('}', '');
-                    //    .replaceAll('.', '_');
+                if (tooltipHtml) {
+                    // Sanitize HTML code to avoid XSS
+                    tooltipHtml = DOMPurify.sanitize(tooltipHtml);
+                    const firstValue = params[0].value as Record<
+                        string,
+                        unknown
+                    >;
+                    const fields = tooltipHtml.match(/\${(.*?)}/g);
+                    fields?.forEach((field) => {
+                        const fieldValueReference = field
+                            .replace('${', '')
+                            .replace('}', '');
+                        //    .replaceAll('.', '_');
 
-                    const fieldValue = firstValue[fieldValueReference];
+                        const fieldValue = firstValue[fieldValueReference];
 
-                    tooltipHtml = tooltipHtml.replace(field, `${fieldValue}`);
-                });
+                        tooltipHtml = tooltipHtml.replace(
+                            field,
+                            `${fieldValue}`,
+                        );
+                    });
+                }
 
                 const dimensionId = params[0].dimensionNames?.[0];
                 if (dimensionId !== undefined) {
