@@ -1,3 +1,10 @@
+## [0.1564.2](https://github.com/lightdash/lightdash/compare/0.1564.1...0.1564.2) (2025-04-07)
+
+
+### Bug Fixes
+
+* bigquery preview dataset ([#14282](https://github.com/lightdash/lightdash/issues/14282)) ([d22ccb2](https://github.com/lightdash/lightdash/commit/d22ccb22ab1b5dce2028e49aa089a2f649f8d4a3))
+
 ## [0.1564.1](https://github.com/lightdash/lightdash/compare/0.1564.0...0.1564.1) (2025-04-07)
 
 
