@@ -23,7 +23,6 @@ const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     automaticLayout: true,
     tabSize: 2,
     lineNumbers: 'off',
-    fixedOverflowWidgets: true,
 };
 
 type Props = {
@@ -114,6 +113,9 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                         language={'html'}
                         height="400px"
                         width="100%"
+                        wrapperProps={{
+                            className: 'tooltip-editor',
+                        }}
                     />
                 </Collapse>
             </Config.Section>
