@@ -1863,14 +1863,19 @@ const useEchartsCartesianConfig = (
                     })
                     .join('');
 
+                // At the moment, we only correctly filter fields that are
+                // part of the chart config when no pivot is used
+                // TODO In order to show other fields,
+                // we will have to filter resultData using the xAxis value and groups
                 let tooltipHtml = tooltipConfig ?? '';
                 const firstValue = params[0].value as Record<string, unknown>;
                 const fields = tooltipHtml.match(/\${(.*?)}/g);
                 fields?.forEach((field) => {
                     const fieldValueReference = field
                         .replace('${', '')
-                        .replace('}', '')
-                        .replaceAll('.', '_');
+                        .replace('}', '');
+                    //    .replaceAll('.', '_');
+
                     const fieldValue = firstValue[fieldValueReference];
 
                     tooltipHtml = tooltipHtml.replace(field, `${fieldValue}`);
