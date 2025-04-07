@@ -636,9 +636,29 @@ export default class App {
                 if (error instanceof InvalidUser) {
                     req.session.destroy((err) => {
                         if (err) Logger.error(err);
-                        res.status(errorResponse.statusCode).send(
-                            apiErrorResponse,
-                        );
+                        if (req.url.includes('/api')) {
+                            res.status(errorResponse.statusCode).send(
+                                apiErrorResponse,
+                            );
+                            return;
+                        }
+
+                        // if original url is an invite link, redirect to it
+                        if (
+                            req.path.match(
+                                // invite link regex
+                                /^\/invite\/([A-Za-z0-9_-]{30})$/,
+                            )
+                        ) {
+                            Logger.info(
+                                `Invalid user, redirecting to ${req.path}`,
+                            );
+                            res.redirect(req.path);
+                            return;
+                        }
+
+                        Logger.info('Invalid user, redirecting to login');
+                        res.redirect('/login');
                     });
                     return;
                 }
