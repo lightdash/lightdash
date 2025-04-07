@@ -971,6 +971,7 @@ export class SpaceModel {
         userUuid: string,
         spaceUuid: string,
     ): Promise<SpaceShare[]> {
+        // Get the root space UUID if the space is nested
         const rootSpaceUuid = await this.getSpaceRoot(spaceUuid);
         const spaceUuidToUse = rootSpaceUuid ?? spaceUuid;
         return (
@@ -986,6 +987,7 @@ export class SpaceModel {
         userUuid: string,
         spaceUuids: string[],
     ): Promise<Record<string, SpaceShare[]>> {
+        // Get a normalized list of root space UUIDs if the spaces are nested
         const spacesWithRootSpaceUuid = await Promise.all(
             spaceUuids.map(async (spaceUuid) => {
                 const root = await this.getSpaceRoot(spaceUuid);
@@ -998,7 +1000,7 @@ export class SpaceModel {
             .map(({ rootSpaceUuid }) => rootSpaceUuid)
             .filter((rootSpaceUuid) => rootSpaceUuid !== undefined);
 
-        // Fetch access for all root spaces
+        // Fetch access for all root spaces - we can get the access for all descendants from this
         const rootSpacesAccess = await this._getSpaceAccess(rootSpaceUuids, {
             userUuid,
         });
@@ -1010,10 +1012,11 @@ export class SpaceModel {
             const descendants = spacesWithRootSpaceUuid.filter(
                 ({ rootSpaceUuid }) => rootSpaceUuid === spaceUuid,
             );
-
+            // Add the access of the root space for all descendants
             descendants.forEach(({ spaceUuid: s }) => {
                 acc[s] = spaceAccess;
             });
+
             // Otherwise, return the access of the root space
             acc[spaceUuid] = spaceAccess;
 
