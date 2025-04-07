@@ -164,7 +164,7 @@ export class CommentService extends BaseService {
                 'create',
                 subject('DashboardComments', {
                     projectUuid: dashboard.projectUuid,
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: dashboard.organizationUuid,
                 }),
             )
         ) {

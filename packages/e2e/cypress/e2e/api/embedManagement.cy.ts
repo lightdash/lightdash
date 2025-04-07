@@ -2,12 +2,16 @@ import { CreateEmbedJwt, DecodedEmbed, SEED_PROJECT } from '@lightdash/common';
 
 const EMBED_API_PREFIX = `/api/v1/embed/${SEED_PROJECT.project_uuid}`;
 
-const getEmbedConfig = () =>
+const getEmbedConfig = (requestOptions?: Partial<Cypress.RequestOptions>) =>
     cy.request({
         url: `${EMBED_API_PREFIX}/config`,
         method: 'GET',
+        ...requestOptions,
     });
-const replaceEmbedConfig = (dashboardUuids: string[]) =>
+const replaceEmbedConfig = (
+    dashboardUuids: string[],
+    requestOptions?: Partial<Cypress.RequestOptions>,
+) =>
     cy.request({
         url: `${EMBED_API_PREFIX}/config`,
         headers: { 'Content-type': 'application/json' },
@@ -15,8 +19,12 @@ const replaceEmbedConfig = (dashboardUuids: string[]) =>
         body: {
             dashboardUuids,
         },
+        ...requestOptions,
     });
-const updateEmbedConfigDashboards = (dashboardUuids: string[]) =>
+const updateEmbedConfigDashboards = (
+    dashboardUuids: string[],
+    requestOptions?: Partial<Cypress.RequestOptions>,
+) =>
     cy.request({
         url: `${EMBED_API_PREFIX}/config/dashboards`,
         headers: { 'Content-type': 'application/json' },
@@ -24,13 +32,18 @@ const updateEmbedConfigDashboards = (dashboardUuids: string[]) =>
         body: {
             dashboardUuids,
         },
+        ...requestOptions,
     });
-const getEmbedUrl = (body: CreateEmbedJwt) =>
+const getEmbedUrl = (
+    body: CreateEmbedJwt,
+    requestOptions?: Partial<Cypress.RequestOptions>,
+) =>
     cy.request({
         url: `${EMBED_API_PREFIX}/get-embed-url`,
         headers: { 'Content-type': 'application/json' },
         method: 'POST',
         body,
+        ...requestOptions,
     });
 
 describe('Embed Management API', () => {
@@ -104,6 +117,48 @@ describe('Embed Management API', () => {
         }).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(resp.body.results.url).to.not.eq(null);
+        });
+    });
+});
+
+describe('Embed Management API - invalid permissions', () => {
+    beforeEach(() => {
+        cy.anotherLogin();
+    });
+    it('should not get embed configuration', () => {
+        getEmbedConfig({
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+    it('should not get embed url', () => {
+        getEmbedUrl(
+            {
+                content: {
+                    type: 'dashboard',
+                    dashboardUuid: 'uuid',
+                },
+            },
+            {
+                failOnStatusCode: false,
+            },
+        ).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+    it('should not replace embed configuration', () => {
+        replaceEmbedConfig(['uuid'], {
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+    it('should not update embed configuration', () => {
+        updateEmbedConfigDashboards(['uuid'], {
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
         });
     });
 });

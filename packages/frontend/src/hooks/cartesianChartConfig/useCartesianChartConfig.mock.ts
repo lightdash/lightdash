@@ -628,6 +628,7 @@ export const useCartesianChartConfigParamsMock = {
             tableCalculations: [],
             additionalMetrics: [],
         },
+        hasFetchedAllRows: true,
     },
     columnOrder: [
         'orders_customer_id',
