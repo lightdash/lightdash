@@ -73,7 +73,9 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
 
-    const [tooltipValue, setTooltipValue] = useState<string>('');
+    const [tooltipValue, setTooltipValue] = useState<string>(
+        (isCartesianChart && visualizationConfig.chartConfig.tooltip) || '',
+    );
     const [debouncedTooltipValue] = useDebouncedValue(tooltipValue, 1000);
 
     useEffect(() => {
