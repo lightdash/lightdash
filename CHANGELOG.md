@@ -1,3 +1,10 @@
+## [0.1564.7](https://github.com/lightdash/lightdash/compare/0.1564.6...0.1564.7) (2025-04-07)
+
+
+### Bug Fixes
+
+* service dependencies ([83e361e](https://github.com/lightdash/lightdash/commit/83e361eed28f367de5576c840a7c048c26d085cb))
+
 ## [0.1564.6](https://github.com/lightdash/lightdash/compare/0.1564.5...0.1564.6) (2025-04-07)
 
 
