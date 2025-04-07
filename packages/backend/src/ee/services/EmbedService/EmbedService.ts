@@ -197,7 +197,7 @@ export class EmbedService extends BaseService {
         });
         if (
             user.ability.cannot(
-                'manage',
+                'update',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
