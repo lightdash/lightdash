@@ -3365,7 +3365,7 @@ export class ProjectService extends BaseService {
                                     warehouseClient.credentials.type
                                 }" warehouse query:
                                 "${query}"
-                                with query tags: 
+                                with query tags:
                                 ${JSON.stringify(queryTags)}`,
                             );
                             throw e;
@@ -6052,7 +6052,7 @@ export class ProjectService extends BaseService {
     async calculateTotalFromSavedChart(
         user: SessionUser,
         chartUuid: string,
-        dashboardFilters: DashboardFilters,
+        dashboardFilters?: DashboardFilters,
         invalidateCache: boolean = false,
     ) {
         if (!isUserWithOrg(user)) {

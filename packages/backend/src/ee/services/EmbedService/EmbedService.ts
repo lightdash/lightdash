@@ -56,6 +56,7 @@ import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagMo
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { UserModel } from '../../../models/UserModel';
 import { BaseService } from '../../../services/BaseService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
@@ -71,6 +72,7 @@ type Dependencies = {
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
     projectModel: ProjectModel;
+    userModel: UserModel;
     userAttributesModel: UserAttributesModel;
     projectService: ProjectService;
     featureFlagModel: FeatureFlagModel;
@@ -91,6 +93,8 @@ export class EmbedService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly userModel: UserModel;
+
     private readonly userAttributesModel: UserAttributesModel;
 
     private readonly projectService: ProjectService;
@@ -106,6 +110,7 @@ export class EmbedService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.encryptionUtil = dependencies.encryptionUtil;
+        this.userModel = dependencies.userModel;
         this.userAttributesModel = dependencies.userAttributesModel;
         this.projectService = dependencies.projectService;
         this.featureFlagModel = dependencies.featureFlagModel;
@@ -812,6 +817,39 @@ export class EmbedService extends BaseService {
             metricQuery: metricQueryWithDashboardOverrides,
             fields,
         };
+    }
+
+    async calculateTotalFromSavedChart(
+        embedToken: string,
+        projectUuid: string,
+        chartUuid: string,
+        dashboardFilters?: DashboardFilters,
+        invalidateCache?: boolean,
+    ) {
+        const { encodedSecret, user } = await this.embedModel.get(projectUuid);
+        const decodedToken = this.decodeJwt(embedToken, encodedSecret);
+
+        const dashboardUuid = await this.getDashboardUuidFromContent(
+            decodedToken,
+            projectUuid,
+        );
+
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        const sessionUser = await this.userModel.findSessionUserAndOrgByUuid(
+            user.userUuid,
+            dashboard.organizationUuid,
+        );
+
+        const totalResult =
+            await this.projectService.calculateTotalFromSavedChart(
+                sessionUser,
+                chartUuid,
+                dashboardFilters,
+                invalidateCache,
+            );
+
+        return totalResult;
     }
 
     async searchFilterValues({
