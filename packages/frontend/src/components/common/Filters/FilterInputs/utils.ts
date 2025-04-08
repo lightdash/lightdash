@@ -91,6 +91,7 @@ export const getFilterOperatorOptions = (
                 FilterOperator.NULL,
                 FilterOperator.NOT_NULL,
                 FilterOperator.EQUALS,
+                FilterOperator.NOT_EQUALS,
             ]);
         default:
             return assertUnreachable(
