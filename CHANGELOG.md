@@ -1,3 +1,10 @@
+## [0.1566.1](https://github.com/lightdash/lightdash/compare/0.1566.0...0.1566.1) (2025-04-08)
+
+
+### Bug Fixes
+
+* implement pending query polling backoff strategy ([#14311](https://github.com/lightdash/lightdash/issues/14311)) ([f97b602](https://github.com/lightdash/lightdash/commit/f97b602cbf21131e781c63eee10a5fdc07b9e5d9))
+
 # [0.1566.0](https://github.com/lightdash/lightdash/compare/0.1565.1...0.1566.0) (2025-04-08)
 
 
