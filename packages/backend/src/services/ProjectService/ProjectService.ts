@@ -6062,6 +6062,7 @@ export class ProjectService extends BaseService {
                             ...subtotalDimensions,
                             ...(pivotDimensions || []), // we always need to include the pivot dimensions in the subtotal query
                         ],
+                        sorts: [],
                     });
                 } catch (e) {
                     this.logger.error(
