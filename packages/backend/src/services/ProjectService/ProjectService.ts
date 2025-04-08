@@ -2225,12 +2225,7 @@ export class ProjectService extends BaseService {
     }
 
     /**
-     * This function runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
-     * @param param0
-     * @param warehouseClient
-     * @param sshTunnel
-     * @param queryHistoryUuid
-     * @param resultsCache
+     * Runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
      */
     private async runAsyncWarehouseQuery({
         user,
