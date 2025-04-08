@@ -1,3 +1,10 @@
+# [0.1566.0](https://github.com/lightdash/lightdash/compare/0.1565.1...0.1566.0) (2025-04-08)
+
+
+### Features
+
+* Reset filters button for embedded dashboards ([#14287](https://github.com/lightdash/lightdash/issues/14287)) ([bf9e1a1](https://github.com/lightdash/lightdash/commit/bf9e1a17484e68b45d7bdb725eac4e9a9b396f92))
+
 ## [0.1565.1](https://github.com/lightdash/lightdash/compare/0.1565.0...0.1565.1) (2025-04-08)
 
 
