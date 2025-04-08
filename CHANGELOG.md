@@ -1,3 +1,10 @@
+# [0.1565.0](https://github.com/lightdash/lightdash/compare/0.1564.7...0.1565.0) (2025-04-08)
+
+
+### Features
+
+* tooltip config ([#14292](https://github.com/lightdash/lightdash/issues/14292)) ([d578df7](https://github.com/lightdash/lightdash/commit/d578df74f4ede980278891c1adec35a3a5157ba4))
+
 ## [0.1564.7](https://github.com/lightdash/lightdash/compare/0.1564.6...0.1564.7) (2025-04-07)
 
 
