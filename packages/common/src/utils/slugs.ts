@@ -17,3 +17,22 @@ export const generateSlug = (name: string) => {
     }
     return sanitizedSlug;
 };
+
+// TODO: add tests for this function
+/**
+ * Get all slugs with hierarchy for a given slug
+ * For example, "parent-space/child-space" will return ["parent-space", "parent-space/child-space"]
+ * @param slug - The slug to get the hierarchy for
+ * @returns An array of slugs with hierarchy
+ */
+export const getSlugsWithHierarchy = (slug: string) =>
+    slug.split('/').reduce<string[]>((acc, s) => {
+        if (acc.length === 0) {
+            return [s];
+        }
+        return [...acc, `${acc[acc.length - 1]}/${s}`];
+    }, []);
+
+// TODO: add get parent slug util
+
+// TODO: get current slug util (without hierarchy)

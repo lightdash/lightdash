@@ -5,8 +5,10 @@ import {
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToSpaceRole,
     convertSpaceRoleToProjectRole,
+    friendlyName,
     getHighestProjectRole,
     getHighestSpaceRole,
+    getSlugsWithHierarchy,
     GroupRole,
     NotFoundError,
     OrganizationMemberRole,
@@ -1718,14 +1720,17 @@ export class SpaceModel {
         forceSameSlug = false,
     }: {
         isNestedSpace: boolean;
-        projectUuid: string;
+        // TODO: change naming to: if there is a upstream, do something. If not, utilise the projectUuid
+        projectUuid?: string;
         upstreamProjectUuid: string;
         name: string;
         userId: number;
         isPrivate: boolean;
         slug: string;
         forceSameSlug?: boolean;
-    }): Promise<Space & { rootSpaceUuid: string }> {
+    }): Promise<Space & { rootSpaceUuid: string | null }> {
+        // make projectuuid optional and handle that differrently for content as code service
+
         // If this is not a nested space, just create it directly
         if (!isNestedSpace) {
             const space = await this.createSpace(
@@ -1751,6 +1756,71 @@ export class SpaceModel {
 
             if (!space) {
                 throw new NotFoundError(`Space with slug ${slug} not found`);
+            }
+
+            // Just generate the hierarchy for content as code service
+            if (!projectUuid) {
+                // we dont need to copy from project to upstream. Just create/check in upstream
+                const slugsWithHierarchy = getSlugsWithHierarchy(slug);
+
+                const spacesBySlug = new Map<string, string>();
+                let lowestCreatedSpace: Space | null = null;
+                for (const spaceSlug of slugsWithHierarchy) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const [spaceInProjectToUpload] = await this.find({
+                        projectUuid: upstreamProjectUuid,
+                        slug: spaceSlug,
+                    });
+
+                    // if space does not exist, create it
+                    if (!spaceInProjectToUpload) {
+                        // 1st iteration - create parent with slug "parent-space"
+                        // 2nd iteration - create child with slug "parent-space/child-space"
+                        // but check if parent exists first with slug "parent-space", and get its uuid to create nested space
+
+                        // Get parent info
+                        const parentSlug = spaceSlug
+                            .split('/')
+                            .slice(0, -1)
+                            .join('/'); // "parent-space/child-space" -> "parent-space"
+                        const parentSpaceUuid = spacesBySlug.get(parentSlug);
+
+                        // eslint-disable-next-line no-await-in-loop
+                        const createdSpace = await this.createSpace(
+                            upstreamProjectUuid,
+                            friendlyName(
+                                spaceSlug.split('/').pop() ?? spaceSlug,
+                            ),
+                            userId,
+                            false,
+                            // TODO: change this
+                            spaceSlug.split('/').pop() ?? spaceSlug,
+                            forceSameSlug,
+                            parentSpaceUuid ?? null,
+                        );
+
+                        lowestCreatedSpace = createdSpace;
+                        spacesBySlug.set(spaceSlug, createdSpace.uuid);
+                    } else {
+                        // if space exists, use it
+
+                        spacesBySlug.set(
+                            spaceSlug,
+                            spaceInProjectToUpload.uuid,
+                        );
+                    }
+                }
+
+                if (!lowestCreatedSpace) {
+                    throw new Error('No space created');
+                }
+
+                return {
+                    ...lowestCreatedSpace,
+
+                    // TODO: Make this optional and explain why to Gio
+                    rootSpaceUuid: null,
+                };
             }
 
             const ancestorsOrderedByLevel = await trx(SpaceTableName)
