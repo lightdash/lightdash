@@ -184,8 +184,8 @@ export class PostgresClient<
                         ? this.config.ssl
                         : {}),
                     // Setting rejectUnauthorized to false disables SSL certificate verification,
-                    // which can be useful when connecting to a server using an IP address that
-                    // does not match the certificate's hostname.
+                    // which is needed when connecting to a server using an IP address that
+                    // can't be validated by the certificate's hostname.
                     rejectUnauthorized: false,
                 },
                 connectionTimeoutMillis: 5000,
