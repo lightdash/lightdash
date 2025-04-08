@@ -1,3 +1,10 @@
+## [0.1565.1](https://github.com/lightdash/lightdash/compare/0.1565.0...0.1565.1) (2025-04-08)
+
+
+### Bug Fixes
+
+* remove sorts from subtotals queries ([#14298](https://github.com/lightdash/lightdash/issues/14298)) ([278530a](https://github.com/lightdash/lightdash/commit/278530a738cd86d22b6783d66c496fa2da199851))
+
 # [0.1565.0](https://github.com/lightdash/lightdash/compare/0.1564.7...0.1565.0) (2025-04-08)
 
 
