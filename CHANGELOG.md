@@ -1,3 +1,31 @@
+# [0.1565.0](https://github.com/lightdash/lightdash/compare/0.1564.7...0.1565.0) (2025-04-08)
+
+
+### Features
+
+* tooltip config ([#14292](https://github.com/lightdash/lightdash/issues/14292)) ([d578df7](https://github.com/lightdash/lightdash/commit/d578df74f4ede980278891c1adec35a3a5157ba4))
+
+## [0.1564.7](https://github.com/lightdash/lightdash/compare/0.1564.6...0.1564.7) (2025-04-07)
+
+
+### Bug Fixes
+
+* service dependencies ([83e361e](https://github.com/lightdash/lightdash/commit/83e361eed28f367de5576c840a7c048c26d085cb))
+
+## [0.1564.6](https://github.com/lightdash/lightdash/compare/0.1564.5...0.1564.6) (2025-04-07)
+
+
+### Bug Fixes
+
+* embed checks ([#14302](https://github.com/lightdash/lightdash/issues/14302)) ([ddb5e3b](https://github.com/lightdash/lightdash/commit/ddb5e3b28fcb535b42dd5456f5c6c1ff9c1cd034))
+
+## [0.1564.5](https://github.com/lightdash/lightdash/compare/0.1564.4...0.1564.5) (2025-04-07)
+
+
+### Bug Fixes
+
+* resource org uuid check ([7d49a5a](https://github.com/lightdash/lightdash/commit/7d49a5afe49bc84b52f325a7235de008a5bd71fa))
+
 ## [0.1564.4](https://github.com/lightdash/lightdash/compare/0.1564.3...0.1564.4) (2025-04-07)
 
 

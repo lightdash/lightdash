@@ -844,6 +844,10 @@ const useCartesianChartConfig = ({
     const [referenceLines, setReferenceLines] = useState<ReferenceLineField[]>(
         selectedReferenceLines,
     );
+
+    const [tooltip, setTooltip] = useState<string | undefined>(
+        dirtyEchartsConfig?.tooltip,
+    );
     // Generate expected series
     useEffect(() => {
         if (isCompleteLayout(dirtyLayout) && resultsData?.hasFetchedAllRows) {
@@ -913,11 +917,12 @@ const useCartesianChartConfig = ({
                       series: dirtyEchartsConfig.series.filter(
                           (serie) => !serie.isFilteredOut,
                       ),
+                      tooltip,
                   },
                   metadata: dirtyMetadata,
               }
             : EMPTY_CARTESIAN_CHART_CONFIG;
-    }, [dirtyLayout, dirtyEchartsConfig, dirtyMetadata]);
+    }, [dirtyLayout, dirtyEchartsConfig, dirtyMetadata, tooltip]);
 
     const { dirtyChartType } = useMemo(() => {
         const firstSeriesType =
@@ -973,6 +978,8 @@ const useCartesianChartConfig = ({
         updateSeries,
         referenceLines,
         setReferenceLines,
+        tooltip,
+        setTooltip,
         updateMetadata,
     };
 };

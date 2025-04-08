@@ -16,6 +16,7 @@ import {
     PinnedItem,
     ProjectMemberRole,
     QueryExecutionContext,
+    QueryHistoryStatus,
     RequestMethod,
     SchedulerFormat,
     SemanticLayerQuery,
@@ -296,6 +297,7 @@ type QueryPageEvent = BaseTrack & {
         totalPageCount: number;
         resultsPageSize: number;
         resultsPageExecutionMs: number;
+        status: QueryHistoryStatus;
     };
 };
 

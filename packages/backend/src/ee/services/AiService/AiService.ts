@@ -979,10 +979,12 @@ ${
             throw new Error('AI Copilot is not enabled');
         }
 
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+
         const canViewProject = user.ability.can(
             'view',
             subject('Project', {
-                organizationUuid: user.organizationUuid,
+                organizationUuid: projectSummary.organizationUuid,
                 projectUuid,
             }),
         );
