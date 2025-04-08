@@ -42,6 +42,7 @@ import {
 } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
 import dayjs from 'dayjs';
+import DOMPurify from 'dompurify';
 import {
     type DefaultLabelFormatterCallbackParams,
     type LineSeriesOption,
@@ -53,7 +54,10 @@ import toNumber from 'lodash/toNumber';
 import { useMemo } from 'react';
 import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
-import { defaultGrid } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
+import {
+    defaultAxisLabelGap,
+    defaultGrid,
+} from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import getPlottedData from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
@@ -1261,6 +1265,20 @@ const getEchartAxes = ({
         bottomAxisMaxValue,
     );
 
+    const maxYAxisValue =
+        leftAxisType === 'value'
+            ? yAxisConfiguration?.[0]?.max ||
+              referenceLineMaxLeftY ||
+              maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
+            : undefined;
+
+    const minYAxisValue =
+        leftAxisType === 'value'
+            ? yAxisConfiguration?.[0]?.min ||
+              referenceLineMinLeftY ||
+              maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
+            : undefined;
+
     return {
         xAxis: [
             {
@@ -1361,22 +1379,8 @@ const getEchartAxes = ({
                           itemsMap,
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
-                min:
-                    leftAxisType === 'value'
-                        ? yAxisConfiguration?.[0]?.min ||
-                          referenceLineMinLeftY ||
-                          maybeGetAxisDefaultMinValue(
-                              allowFirstAxisDefaultRange,
-                          )
-                        : undefined,
-                max:
-                    leftAxisType === 'value'
-                        ? yAxisConfiguration?.[0]?.max ||
-                          referenceLineMaxLeftY ||
-                          maybeGetAxisDefaultMaxValue(
-                              allowFirstAxisDefaultRange,
-                          )
-                        : undefined,
+                min: minYAxisValue,
+                max: maxYAxisValue,
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'center',
@@ -1384,7 +1388,7 @@ const getEchartAxes = ({
                 nameLocation: 'center',
                 ...getAxisFormatter({
                     axisItem: leftAxisYField,
-                    defaultNameGap: leftYaxisGap + 20,
+                    defaultNameGap: leftYaxisGap + defaultAxisLabelGap,
                 }),
                 splitLine: {
                     show: validCartesianConfig.layout.flipAxes
@@ -1429,9 +1433,8 @@ const getEchartAxes = ({
                 },
                 ...getAxisFormatter({
                     axisItem: rightAxisYField,
-                    defaultNameGap: rightYaxisGap + 20,
+                    defaultNameGap: rightYaxisGap + defaultAxisLabelGap,
                 }),
-
                 nameLocation: 'center',
                 nameRotate: -90,
                 splitLine: {
@@ -1582,6 +1585,11 @@ const useEchartsCartesianConfig = (
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig.validConfig;
+    }, [visualizationConfig]);
+
+    const tooltipConfig = useMemo(() => {
+        if (!isCartesianVisualizationConfig(visualizationConfig)) return;
+        return visualizationConfig.chartConfig.tooltip;
     }, [visualizationConfig]);
 
     const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
@@ -1813,7 +1821,6 @@ const useEchartsCartesianConfig = (
                     return params[0].axisValueLabel;
                 };
                 // When flipping axes, we get all series in the chart
-
                 const tooltipRows = params
                     .map((param) => {
                         const {
@@ -1843,8 +1850,7 @@ const useEchartsCartesianConfig = (
                                 typeof value === 'object' &&
                                 dim in value
                             ) {
-                                return `
-                            <tr>
+                                return `<tr>
                                 <td>${marker}</td>
                                 <td>${seriesName}</td>
                                 <td style="text-align: right;"><b>${getFormattedValue(
@@ -1859,6 +1865,34 @@ const useEchartsCartesianConfig = (
                         return '';
                     })
                     .join('');
+
+                // At the moment, we only correctly filter fields that are
+                // part of the chart config when no pivot is used
+                // TODO In order to show other fields,
+                // we will have to filter resultData using the xAxis value and groups
+                let tooltipHtml = tooltipConfig ?? '';
+                if (tooltipHtml) {
+                    // Sanitize HTML code to avoid XSS
+                    tooltipHtml = DOMPurify.sanitize(tooltipHtml);
+                    const firstValue = params[0].value as Record<
+                        string,
+                        unknown
+                    >;
+                    const fields = tooltipHtml.match(/\${(.*?)}/g);
+                    fields?.forEach((field) => {
+                        const fieldValueReference = field
+                            .replace('${', '')
+                            .replace('}', '');
+                        //    .replaceAll('.', '_');
+
+                        const fieldValue = firstValue[fieldValueReference];
+
+                        tooltipHtml = tooltipHtml.replace(
+                            field,
+                            `${fieldValue}`,
+                        );
+                    });
+                }
 
                 const dimensionId = params[0].dimensionNames?.[0];
                 if (dimensionId !== undefined) {
@@ -1883,13 +1917,13 @@ const useEchartsCartesianConfig = (
                             itemsMap,
                         );
 
-                        return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
+                        return `${tooltipHeader}<br/>${tooltipHtml}<table>${tooltipRows}</table>`;
                     }
                 }
-                return `${getTooltipHeader()}<br/><table>${tooltipRows}</table>`;
+                return `${getTooltipHeader()}<br/>${tooltipHtml}<table>${tooltipRows}</table>`;
             },
         }),
-        [itemsMap, validCartesianConfig?.layout.flipAxes],
+        [itemsMap, validCartesianConfig?.layout.flipAxes, tooltipConfig],
     );
 
     const sortedResultsByTotals = useMemo(() => {
@@ -1959,6 +1993,33 @@ const useEchartsCartesianConfig = (
         validCartesianConfigLegend,
     ]);
 
+    const currentGrid = useMemo(() => {
+        const grid = {
+            ...defaultGrid,
+            ...removeEmptyProperties(validCartesianConfig?.eChartsConfig.grid),
+        };
+
+        const gridLeft = grid.left;
+        const gridRight = grid.right;
+
+        // Adds extra gap to grid to make room for axis labels -> there is an open ticket in echarts to fix this: https://github.com/apache/echarts/issues/9265
+        // Only works for px values, percentage values are not supported because it cannot use calc()
+        return {
+            ...grid,
+            left: gridLeft.includes('px')
+                ? `${
+                      parseInt(gridLeft.replace('px', '')) + defaultAxisLabelGap
+                  }px`
+                : grid.left,
+            right: gridRight.includes('px')
+                ? `${
+                      parseInt(gridRight.replace('px', '')) +
+                      defaultAxisLabelGap
+                  }px`
+                : grid.right,
+        };
+    }, [validCartesianConfig?.eChartsConfig.grid]);
+
     const eChartsOptions = useMemo(
         () => ({
             xAxis: axes.xAxis,
@@ -1976,12 +2037,7 @@ const useEchartsCartesianConfig = (
                 source: sortedResultsByTotals,
             },
             tooltip,
-            grid: {
-                ...defaultGrid,
-                ...removeEmptyProperties(
-                    validCartesianConfig?.eChartsConfig.grid,
-                ),
-            },
+            grid: currentGrid,
             textStyle: {
                 fontFamily: theme?.other.chartFont as string | undefined,
             },
@@ -1995,12 +2051,12 @@ const useEchartsCartesianConfig = (
             isInDashboard,
             minimal,
             validCartesianConfig?.eChartsConfig.legend,
-            validCartesianConfig?.eChartsConfig.grid,
             validCartesianConfigLegend,
             series,
             sortedResultsByTotals,
             tooltip,
-            theme?.other?.chartFont,
+            theme?.other.chartFont,
+            currentGrid,
         ],
     );
 

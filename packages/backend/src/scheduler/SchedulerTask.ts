@@ -863,9 +863,13 @@ export default class SchedulerTask {
                 pdfFile,
             } = notificationPageData;
 
+            const schedulerType =
+                thresholds !== undefined && thresholds.length > 0
+                    ? 'data alert'
+                    : 'scheduled delivery';
             const schedulerFooter = includeLinks
-                ? `[scheduled delivery](${url})`
-                : 'scheduled delivery';
+                ? `[${schedulerType}](${url})`
+                : schedulerType;
 
             const defaultSchedulerTimezone =
                 await this.schedulerService.getSchedulerDefaultTimezone(
@@ -887,8 +891,17 @@ export default class SchedulerTask {
 
             if (thresholds !== undefined && thresholds.length > 0) {
                 // We assume the threshold is possitive , so we don't need to get results here
-
-                throw new NotImplementedError('Not implemented');
+                if (savedChartUuid) {
+                    if (imageUrl)
+                        await this.msTeamsClient.postImageWithWebhook({
+                            webhookUrl: webhook,
+                            ...getBlocksArgs,
+                            image: imageUrl,
+                            thresholds,
+                        });
+                } else {
+                    throw new Error('No chart found');
+                }
             } else if (format === SchedulerFormat.IMAGE) {
                 if (imageUrl)
                     await this.msTeamsClient.postImageWithWebhook({

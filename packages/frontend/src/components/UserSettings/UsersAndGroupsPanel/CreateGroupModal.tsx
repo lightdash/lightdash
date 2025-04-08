@@ -138,6 +138,12 @@ const CreateGroupModal: FC<
                                 })),
                             });
                         }}
+                        styles={{
+                            values: {
+                                maxHeight: 200,
+                                overflow: 'auto',
+                            },
+                        }}
                         dropdownPosition="top"
                     />
 

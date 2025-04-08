@@ -1,3 +1,73 @@
+# [0.1565.0](https://github.com/lightdash/lightdash/compare/0.1564.7...0.1565.0) (2025-04-08)
+
+
+### Features
+
+* tooltip config ([#14292](https://github.com/lightdash/lightdash/issues/14292)) ([d578df7](https://github.com/lightdash/lightdash/commit/d578df74f4ede980278891c1adec35a3a5157ba4))
+
+## [0.1564.7](https://github.com/lightdash/lightdash/compare/0.1564.6...0.1564.7) (2025-04-07)
+
+
+### Bug Fixes
+
+* service dependencies ([83e361e](https://github.com/lightdash/lightdash/commit/83e361eed28f367de5576c840a7c048c26d085cb))
+
+## [0.1564.6](https://github.com/lightdash/lightdash/compare/0.1564.5...0.1564.6) (2025-04-07)
+
+
+### Bug Fixes
+
+* embed checks ([#14302](https://github.com/lightdash/lightdash/issues/14302)) ([ddb5e3b](https://github.com/lightdash/lightdash/commit/ddb5e3b28fcb535b42dd5456f5c6c1ff9c1cd034))
+
+## [0.1564.5](https://github.com/lightdash/lightdash/compare/0.1564.4...0.1564.5) (2025-04-07)
+
+
+### Bug Fixes
+
+* resource org uuid check ([7d49a5a](https://github.com/lightdash/lightdash/commit/7d49a5afe49bc84b52f325a7235de008a5bd71fa))
+
+## [0.1564.4](https://github.com/lightdash/lightdash/compare/0.1564.3...0.1564.4) (2025-04-07)
+
+
+### Bug Fixes
+
+* invite links dont work when invites are deleted and recreated ([#14293](https://github.com/lightdash/lightdash/issues/14293)) ([b32cbf6](https://github.com/lightdash/lightdash/commit/b32cbf63af3578ad97d5028f70d5e83dc73222ca))
+
+## [0.1564.3](https://github.com/lightdash/lightdash/compare/0.1564.2...0.1564.3) (2025-04-07)
+
+
+### Bug Fixes
+
+* calculate correct grid taking into account default gap ([#14277](https://github.com/lightdash/lightdash/issues/14277)) ([3a2f489](https://github.com/lightdash/lightdash/commit/3a2f489edbf3242c0ca3ae8fedbfa6fcea225f0a))
+
+## [0.1564.2](https://github.com/lightdash/lightdash/compare/0.1564.1...0.1564.2) (2025-04-07)
+
+
+### Bug Fixes
+
+* bigquery preview dataset ([#14282](https://github.com/lightdash/lightdash/issues/14282)) ([d22ccb2](https://github.com/lightdash/lightdash/commit/d22ccb22ab1b5dce2028e49aa089a2f649f8d4a3))
+
+## [0.1564.1](https://github.com/lightdash/lightdash/compare/0.1564.0...0.1564.1) (2025-04-07)
+
+
+### Bug Fixes
+
+* wait for all rows to be fetched before getting expected series map for cartesian ([#14294](https://github.com/lightdash/lightdash/issues/14294)) ([412c2b3](https://github.com/lightdash/lightdash/commit/412c2b3ec165898a4a000198f7c5d50ce2155b1d))
+
+# [0.1564.0](https://github.com/lightdash/lightdash/compare/0.1563.3...0.1564.0) (2025-04-04)
+
+
+### Features
+
+* microsoft teams threshold ([#14265](https://github.com/lightdash/lightdash/issues/14265)) ([7593f6b](https://github.com/lightdash/lightdash/commit/7593f6b673c1ff36b94ac427fa17905748f3f5bf))
+
+## [0.1563.3](https://github.com/lightdash/lightdash/compare/0.1563.2...0.1563.3) (2025-04-04)
+
+
+### Bug Fixes
+
+* scroll inside select ([#14280](https://github.com/lightdash/lightdash/issues/14280)) ([2c68218](https://github.com/lightdash/lightdash/commit/2c682186716b2b981c13d078d22ea7ad20a6cf0a))
+
 ## [0.1563.2](https://github.com/lightdash/lightdash/compare/0.1563.1...0.1563.2) (2025-04-03)
 
 

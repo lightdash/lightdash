@@ -429,12 +429,13 @@ export class SchedulerService extends BaseService {
     }
 
     async getSchedulerLogs(user: SessionUser, projectUuid: string) {
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
         // Only allow editors to view scheduler logs
         if (
             user.ability.cannot(
                 'update',
                 subject('Project', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
                 }),
             )
