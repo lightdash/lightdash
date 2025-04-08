@@ -1,3 +1,10 @@
+## [0.1566.2](https://github.com/lightdash/lightdash/compare/0.1566.1...0.1566.2) (2025-04-08)
+
+
+### Bug Fixes
+
+* wait for pagination feature flag to be fetched before running the hook ([#14325](https://github.com/lightdash/lightdash/issues/14325)) ([aaa5ed0](https://github.com/lightdash/lightdash/commit/aaa5ed0a520072bd1780384ef6377248b5359328))
+
 ## [0.1566.1](https://github.com/lightdash/lightdash/compare/0.1566.0...0.1566.1) (2025-04-08)
 
 
