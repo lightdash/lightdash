@@ -37,6 +37,7 @@ export type SpaceSummary = Pick<
     access: string[];
     chartCount: number;
     dashboardCount: number;
+    parentSpaceUuid: string | null;
 };
 
 export type CreateSpace = {

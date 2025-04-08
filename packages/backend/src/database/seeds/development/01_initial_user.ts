@@ -165,12 +165,16 @@ export async function seed(knex: Knex): Promise<void> {
         warehouse_type: 'postgres',
     });
 
-    const [{ space_id: spaceId, space_uuid: spaceUuid }] = await knex('spaces')
+    const spaceSlug = generateSlug(SEED_SPACE.name);
+
+    const [{ space_uuid: spaceUuid }] = await knex('spaces')
         .insert({
             ...SEED_SPACE,
             is_private: false,
             project_id: projectId,
-            slug: generateSlug(SEED_SPACE.name),
+            slug: spaceSlug,
+            parent_space_uuid: null,
+            path: spaceSlug,
         })
         .returning(['space_id', 'space_uuid']);
 

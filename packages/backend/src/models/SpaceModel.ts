@@ -95,6 +95,7 @@ export class SpaceModel {
                      FROM ${SpaceTableName} ps 
                      WHERE ps.path @> ${SpaceTableName}.path 
                      AND nlevel(ps.path) = 1
+                     AND ps.project_id = ${SpaceTableName}.project_id
                      LIMIT 1)
                 ELSE
                     ${SpaceTableName}.is_private
@@ -117,6 +118,7 @@ export class SpaceModel {
                      JOIN ${SpaceTableName} root_space ON sua.space_uuid = root_space.space_uuid
                      WHERE root_space.path @> ${SpaceTableName}.path
                      AND nlevel(root_space.path) = 1
+                     AND root_space.project_id = ${SpaceTableName}.project_id
                      LIMIT 1)
                 ELSE
                     COALESCE(json_agg(${sharedWithTableName}.user_uuid) FILTER (WHERE ${sharedWithTableName}.user_uuid IS NOT NULL), '[]')
@@ -426,6 +428,7 @@ export class SpaceModel {
                                 `${DashboardsTableName}.space_id = ${SpaceTableName}.space_id`,
                             ),
                         slug: `${SpaceTableName}.slug`,
+                        parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
                     });
                 if (filters.projectUuid) {
                     void query.where(
@@ -967,6 +970,13 @@ export class SpaceModel {
         return access;
     }
 
+    /**
+     * Get the access for a space
+     * Nested Spaces MVP - inherit access from root space
+     * @param userUuid - The UUID of the user to get access for
+     * @param spaceUuid - The UUID of the space to get access for
+     * @returns The access for the space
+     */
     async getUserSpaceAccess(
         userUuid: string,
         spaceUuid: string,
@@ -1653,40 +1663,182 @@ export class SpaceModel {
      * - Root spaces have a path with a single level (e.g., "my-space")
      * - Child spaces have paths that include their parent hierarchy (e.g., "my-space.my-child-space")
      * @param spaceUuid Space UUID to get the root for
-     * @returns Root space UUID (or the same UUID if it's already a root or has no hierarchy)
+     * @returns Root space UUID (or undefined if it's already a root space)
      */
     async getSpaceRoot(spaceUuid: string): Promise<string | undefined> {
-        const result = await this.database(SpaceTableName)
-            .select<{ root_space_uuid: string; is_self_root: boolean }>(
-                this.database.raw(`
-                CASE 
-                    WHEN path IS NOT NULL THEN 
-                        (SELECT root_space.space_uuid 
-                        FROM spaces root_space 
-                        -- Using subpath(path, 0, 1) to extract the first element of the path
-                        -- This gets just the root part of the path
-                        WHERE subpath(root_space.path, 0, 1) = subpath(${SpaceTableName}.path, 0, 1)
-                        -- nlevel(path) = 1 finds only root nodes (first level in hierarchy)
-                        AND nlevel(root_space.path) = 1)
-                    ELSE space_uuid 
-                END as root_space_uuid,
-                -- Check if this space is its own root (either it's a root space or has no hierarchy)
-                CASE 
-                    WHEN path IS NOT NULL THEN 
-                        (nlevel(path) = 1 OR space_uuid = (
-                            SELECT root_space.space_uuid 
-                            FROM spaces root_space 
-                            WHERE subpath(root_space.path, 0, 1) = subpath(${SpaceTableName}.path, 0, 1)
-                            AND nlevel(root_space.path) = 1
-                        ))
-                    ELSE true
-                END as is_self_root
-            `),
-            )
+        // First get the path of the target space
+        const space = await this.database(SpaceTableName)
+            .select(['path', 'space_uuid'])
             .where('space_uuid', spaceUuid)
             .first();
 
-        // Return undefined if the space is its own root
-        return result?.is_self_root ? undefined : result?.root_space_uuid;
+        if (!space || !space.path) {
+            return undefined;
+        }
+
+        // Check if this is already a root space (path has only one level)
+        const pathLevelResult = await this.database.raw(
+            'SELECT nlevel(?) = 1 AS is_root',
+            [space.path],
+        );
+        const isRoot = pathLevelResult.rows[0]?.is_root;
+
+        if (isRoot) {
+            return undefined;
+        }
+
+        // Find the root space using a direct query
+        const rootResult = await this.database
+            .select('space_uuid')
+            .from(SpaceTableName)
+            .whereRaw(`path = subpath(?, 0, 1)`, [space.path]);
+
+        return rootResult[0]?.space_uuid;
+    }
+
+    /**
+     * Creates a space with its ancestor hierarchy if needed
+     * @param isNestedSpace - Whether the space is nested
+     * @param projectUuid - The project UUID
+     * @param name - The space name
+     * @param userId - The user ID
+     * @param isPrivate - Whether the space is private
+     * @param slug - The space slug which may contain ancestry information
+     * @param forceSameSlug - Whether to force the slug as is
+     * @returns The created space
+     */
+    async createSpaceWithAncestors({
+        isNestedSpace,
+        projectUuid,
+        upstreamProjectUuid,
+        name,
+        userId,
+        isPrivate,
+        slug,
+        forceSameSlug = false,
+    }: {
+        isNestedSpace: boolean;
+        projectUuid: string;
+        upstreamProjectUuid: string;
+        name: string;
+        userId: number;
+        isPrivate: boolean;
+        slug: string;
+        forceSameSlug?: boolean;
+    }): Promise<Space & { rootSpaceUuid: string }> {
+        // If this is not a nested space, just create it directly
+        if (!isNestedSpace) {
+            const space = await this.createSpace(
+                upstreamProjectUuid,
+                name,
+                userId,
+                isPrivate,
+                slug,
+                forceSameSlug,
+            );
+            return {
+                ...space,
+                rootSpaceUuid: space.uuid,
+            };
+        }
+
+        // For nested spaces, build the hierarchy, by getting a nested space's ancestors
+        return this.database.transaction(async (trx) => {
+            const space = await trx(SpaceTableName)
+                .select('path', 'parent_space_uuid')
+                .where('slug', slug)
+                .first();
+
+            if (!space) {
+                throw new NotFoundError(`Space with slug ${slug} not found`);
+            }
+
+            const ancestorsOrderedByLevel = await trx(SpaceTableName)
+                .leftJoin(
+                    `${ProjectTableName}`,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .whereRaw('path @> ?::ltree AND path != ?::ltree', [
+                    space.path,
+                    space.path,
+                ])
+                .orderBy('level', 'asc')
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .select<DbSpace[]>(
+                    `${SpaceTableName}.*`,
+                    this.database.raw('nlevel(path) as level'),
+                );
+
+            const createdSpaces = [];
+
+            // Add ancestors to the created spaces sequentially so we can use the parent space uuid to build the hierarchy
+            for (const ancestor of ancestorsOrderedByLevel) {
+                // eslint-disable-next-line no-await-in-loop
+                const [spaceInUpstreamProject] = await this.find({
+                    projectUuid: upstreamProjectUuid,
+                    slug: ancestor.slug,
+                });
+
+                // If space exists, use it
+                if (spaceInUpstreamProject) {
+                    createdSpaces.push(spaceInUpstreamProject);
+
+                    // eslint-disable-next-line no-continue
+                    continue;
+                }
+
+                // Get parent info
+                const parentSlug = ancestor.slug
+                    .split('/')
+                    .slice(0, -1)
+                    .join('/');
+                // eslint-disable-next-line no-await-in-loop
+                const [parentSpace] = await this.find({
+                    projectUuid: upstreamProjectUuid,
+                    slug: parentSlug,
+                });
+
+                // Create new space
+                const newSpaceSlug =
+                    ancestor.slug.split('/').pop() ?? ancestor.slug;
+
+                // eslint-disable-next-line no-await-in-loop
+                const createdSpace = await this.createSpace(
+                    upstreamProjectUuid,
+                    ancestor.name,
+                    userId,
+                    ancestor.parent_space_uuid ? false : ancestor.is_private,
+                    newSpaceSlug,
+                    forceSameSlug,
+                    parentSpace?.uuid ?? null,
+                );
+
+                createdSpaces.push(createdSpace);
+            }
+
+            const rootSpace = createdSpaces[0];
+            const directParentSpace = createdSpaces[createdSpaces.length - 1];
+
+            // Finally, create the space with the given slug
+            const spaceSlug = slug.split('/').pop() ?? slug;
+            const spaceWhereContentIsSaved = await this.createSpace(
+                upstreamProjectUuid,
+                name,
+                userId,
+                false,
+                spaceSlug,
+                forceSameSlug,
+                directParentSpace.uuid,
+            );
+
+            return {
+                ...spaceWhereContentIsSaved,
+                // Useful to update acess after promotion
+                rootSpaceUuid: rootSpace.uuid,
+                // Nested spaces MVP - inherit privacy from root space
+                isPrivate: rootSpace.isPrivate,
+            };
+        });
     }
 }
