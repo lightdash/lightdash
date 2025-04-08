@@ -1,3 +1,10 @@
+# [0.1567.0](https://github.com/lightdash/lightdash/compare/0.1566.2...0.1567.0) (2025-04-08)
+
+
+### Features
+
+* boolean filter is not operator ([#14307](https://github.com/lightdash/lightdash/issues/14307)) ([f78cb5d](https://github.com/lightdash/lightdash/commit/f78cb5d787aca7c559a3c38afb7555545813e6e9))
+
 ## [0.1566.2](https://github.com/lightdash/lightdash/compare/0.1566.1...0.1566.2) (2025-04-08)
 
 
