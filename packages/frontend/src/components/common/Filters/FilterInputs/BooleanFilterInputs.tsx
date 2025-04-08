@@ -22,7 +22,8 @@ const BooleanFilterInputs = <T extends ConditionalRule>(
     });
 
     switch (rule.operator) {
-        case FilterOperator.EQUALS: {
+        case FilterOperator.EQUALS:
+        case FilterOperator.NOT_EQUALS:
             const currentValue = rule.values?.[0]?.toString() ?? null;
 
             return (
@@ -49,11 +50,9 @@ const BooleanFilterInputs = <T extends ConditionalRule>(
                     }
                 />
             );
-        }
 
-        default: {
+        default:
             return <DefaultFilterInputs {...props} />;
-        }
     }
 };
 

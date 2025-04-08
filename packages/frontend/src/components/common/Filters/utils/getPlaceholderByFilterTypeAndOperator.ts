@@ -121,11 +121,11 @@ export const getPlaceholderByFilterTypeAndOperator = ({
         case FilterType.BOOLEAN:
             switch (operator) {
                 case FilterOperator.EQUALS:
+                case FilterOperator.NOT_EQUALS:
                     return 'False';
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                     return '';
-                case FilterOperator.NOT_EQUALS:
                 case FilterOperator.LESS_THAN:
                 case FilterOperator.GREATER_THAN:
                 case FilterOperator.LESS_THAN_OR_EQUAL:
