@@ -32,6 +32,7 @@ interface ActiveFiltersProps {
     openPopoverId: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
+    onResetDashboardFilters: () => void;
 }
 
 const DraggableItem: FC<{
@@ -97,6 +98,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     openPopoverId,
     onPopoverOpen,
     onPopoverClose,
+    onResetDashboardFilters,
 }) => {
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
@@ -125,10 +127,6 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
-    const resetDashboardFilters = useDashboardContext(
-        (c) => c.resetDashboardFilters,
-    );
-
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );
@@ -232,7 +230,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         variant="default"
                         color="gray"
                         onClick={() => {
-                            resetDashboardFilters();
+                            onResetDashboardFilters();
                         }}
                     >
                         <MantineIcon icon={IconRotate2} />
