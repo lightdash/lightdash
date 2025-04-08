@@ -179,6 +179,15 @@ export class PostgresClient<
         return new Promise<void>((resolve, reject) => {
             pool = new pg.Pool({
                 ...this.config,
+                ssl: {
+                    ...(typeof this.config.ssl === 'object'
+                        ? this.config.ssl
+                        : {}),
+                    // Setting rejectUnauthorized to false disables SSL certificate verification,
+                    // which can be useful when connecting to a server using an IP address that
+                    // does not match the certificate's hostname.
+                    rejectUnauthorized: false,
+                },
                 connectionTimeoutMillis: 5000,
                 query_timeout: this.credentials.timeoutSeconds
                     ? this.credentials.timeoutSeconds * 1000
