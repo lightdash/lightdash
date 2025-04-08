@@ -100,7 +100,10 @@ export class EmbedController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getEmbedService().getConfig(projectUuid),
+            results: await this.getEmbedService().getConfig(
+                req.user!,
+                projectUuid,
+            ),
         };
     }
 

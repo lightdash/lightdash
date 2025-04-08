@@ -6,12 +6,14 @@ import {
     type SpotlightTableConfig,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SpotlightTableConfigModel } from '../../models/SpotlightTableConfigModel';
 import { BaseService } from '../BaseService';
 
 export type SpotlightArguments = {
     lightdashConfig: LightdashConfig;
     spotlightTableConfigModel: SpotlightTableConfigModel;
+    projectModel: ProjectModel;
 };
 
 export class SpotlightService extends BaseService {
@@ -19,13 +21,17 @@ export class SpotlightService extends BaseService {
 
     spotlightTableConfigModel: SpotlightTableConfigModel;
 
+    projectModel: ProjectModel;
+
     constructor({
         lightdashConfig,
         spotlightTableConfigModel,
+        projectModel,
     }: SpotlightArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.spotlightTableConfigModel = spotlightTableConfigModel;
+        this.projectModel = projectModel;
     }
 
     async createSpotlightTableConfig(
@@ -33,11 +39,12 @@ export class SpotlightService extends BaseService {
         projectUuid: string,
         tableConfig: Pick<SpotlightTableConfig, 'columnConfig'>,
     ): Promise<void> {
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'manage',
                 subject('SpotlightTableConfig', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
                 }),
             )
@@ -55,11 +62,12 @@ export class SpotlightService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<SpotlightTableConfig> {
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'view',
                 subject('SpotlightTableConfig', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
                 }),
             )
@@ -85,11 +93,12 @@ export class SpotlightService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<void> {
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'manage',
                 subject('SpotlightTableConfig', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
                 }),
             )

@@ -11,6 +11,7 @@ import {
     LightdashVersionHeader,
     SessionUser,
     UnexpectedServerError,
+    InvalidUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
@@ -39,7 +40,7 @@ import {
     createAzureAdPassportStrategy,
     createGenericOidcPassportStrategy,
     googlePassportStrategy,
-    inviteLinkErrorHandler,
+    invalidUserErrorHandler,
     isAzureAdPassportStrategyAvailableToUse,
     isGenericOidcPassportStrategyAvailableToUse,
     isOktaPassportStrategyAvailableToUse,
@@ -482,9 +483,6 @@ export default class App {
         expressApp.use(passport.initialize());
         expressApp.use(passport.session());
 
-        // Error handler for InvalidUser errors that occur when a user tries to access an invite link.
-        expressApp.use(inviteLinkErrorHandler);
-
         expressApp.use(expressWinstonPreResponseMiddleware); // log request before response is sent
         expressApp.use(expressWinstonMiddleware); // log request + response
 
@@ -589,6 +587,7 @@ export default class App {
         // Errors
         Sentry.setupExpressErrorHandler(expressApp);
         expressApp.use(scimErrorHandler); // SCIM error check before general error handler
+        expressApp.use(invalidUserErrorHandler);
         expressApp.use(
             (error: Error, req: Request, res: Response, _: NextFunction) => {
                 const errorResponse = errorHandler(error);
@@ -635,6 +634,7 @@ export default class App {
                                 : undefined,
                     },
                 };
+
                 res.status(errorResponse.statusCode).send(apiErrorResponse);
             },
         );

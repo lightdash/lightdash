@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.1564.1",
+    "version": "0.1565.0",
     "private": true,
     "files": [
         "dist"
@@ -52,11 +52,11 @@
         "@mantine/dates": "^6.0.21",
         "@mantine/form": "^7.5.2",
         "@mantine/hooks": "^6.0.21",
+        "@mantine/modals": "^6.0.21",
         "@mantine/notifications": "^6.0.20",
         "@mantine/prism": "^6.0.21",
         "@mantine/tiptap": "6.0.21",
         "@mantine/utils": "6.0.21",
-        "@mantine/modals": "^6.0.21",
         "@monaco-editor/react": "^4.6.0",
         "@popsql/monaco-sql-languages": "^0.2.0",
         "@reduxjs/toolkit": "^2.2.6",
@@ -87,6 +87,7 @@
         "d3-scale": "^4.0.2",
         "d3-time": "^3.1.0",
         "dayjs": "^1.11.10",
+        "dompurify": "^3.2.5",
         "echarts": "^5.5.1",
         "echarts-for-react": "^3.0.2",
         "emoji-picker-react": "^4.12.0",

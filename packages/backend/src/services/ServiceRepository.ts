@@ -342,6 +342,7 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
@@ -801,6 +802,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     spotlightTableConfigModel:
                         this.models.getSpotlightTableConfigModel(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }

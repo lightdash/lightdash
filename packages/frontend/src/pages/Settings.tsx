@@ -621,8 +621,8 @@ const Settings: FC = () => {
                                     />
 
                                     {user.ability?.can(
-                                        'manage',
-                                        subject('CompileProject', {
+                                        'update',
+                                        subject('Project', {
                                             organizationUuid:
                                                 project.organizationUuid,
                                             projectUuid: project.projectUuid,
