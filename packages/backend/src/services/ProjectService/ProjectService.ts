@@ -2117,6 +2117,7 @@ export class ProjectService extends BaseService {
                 totalPageCount: result.pageCount,
                 resultsPageSize: result.rows.length,
                 resultsPageExecutionMs: roundedDurationMs,
+                status,
             },
         });
 
