@@ -2232,26 +2232,28 @@ export class ProjectService extends BaseService {
      * @param queryHistoryUuid
      * @param resultsCache
      */
-    private async runAsyncWarehouseQuery(
-        {
-            user,
-            projectUuid,
-            query,
-            fieldsMap,
-            queryTags,
-        }: {
-            user: SessionUser;
-            projectUuid: string;
-            queryTags: RunQueryTags;
-            exploreName: string;
-            query: string;
-            fieldsMap: ItemsMap;
-        },
-        warehouseClient: WarehouseClient,
-        sshTunnel: SshTunnel<CreateWarehouseCredentials>,
-        queryHistoryUuid: string,
-        resultsCache?: MissCacheResult,
-    ) {
+    private async runAsyncWarehouseQuery({
+        user,
+        projectUuid,
+        query,
+        fieldsMap,
+        queryTags,
+        warehouseClient,
+        sshTunnel,
+        queryHistoryUuid,
+        resultsCache,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        queryTags: RunQueryTags;
+        exploreName: string;
+        query: string;
+        fieldsMap: ItemsMap;
+        queryHistoryUuid: string;
+        resultsCache?: MissCacheResult;
+        warehouseClient: WarehouseClient;
+        sshTunnel: SshTunnel<CreateWarehouseCredentials>;
+    }) {
         try {
             const { queryId, queryMetadata, totalRows, durationMs } =
                 await warehouseClient.executeAsyncQuery(
@@ -2539,21 +2541,19 @@ export class ProjectService extends BaseService {
                     }
 
                     // Trigger query in the background, update query history and cache when complete
-                    void this.runAsyncWarehouseQuery(
-                        {
-                            user,
-                            projectUuid,
-                            query,
-                            fieldsMap,
-                            queryTags,
-                            exploreName,
-                        },
+                    void this.runAsyncWarehouseQuery({
+                        user,
+                        projectUuid,
+                        query,
+                        fieldsMap,
+                        queryTags,
+                        exploreName,
                         warehouseClient,
                         sshTunnel,
                         queryHistoryUuid,
-                        // This is either MissCacheResult or undefined at this point, meaning that the cache was not hit or that cache is not enabled
+                        // resultsCache is either MissCacheResult or undefined at this point, meaning that the cache was not hit or that cache is not enabled
                         resultsCache,
-                    );
+                    });
 
                     return {
                         queryUuid: queryHistoryUuid,
