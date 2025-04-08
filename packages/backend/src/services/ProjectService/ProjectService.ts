@@ -112,6 +112,7 @@ import {
     ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
+    type QueryHistory,
     QueryHistoryStatus,
     ReplaceableCustomFields,
     ReplaceCustomFields,
@@ -186,7 +187,11 @@ import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import { ResultsCacheModel } from '../../models/ResultsCacheModel/ResultsCacheModel';
-import { CreateCacheResult } from '../../models/ResultsCacheModel/types';
+import {
+    type CacheHitCacheResult,
+    CreateCacheResult,
+    type MissCacheResult,
+} from '../../models/ResultsCacheModel/types';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -2219,6 +2224,111 @@ export class ProjectService extends BaseService {
         return returnObject;
     }
 
+    /**
+     * This function runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
+     * @param param0
+     * @param warehouseClient
+     * @param sshTunnel
+     * @param queryHistoryUuid
+     * @param resultsCache
+     */
+    private async runAsyncWarehouseQuery(
+        {
+            user,
+            projectUuid,
+            query,
+            fieldsMap,
+            queryTags,
+        }: {
+            user: SessionUser;
+            projectUuid: string;
+            queryTags: RunQueryTags;
+            exploreName: string;
+            query: string;
+            fieldsMap: ItemsMap;
+        },
+        warehouseClient: WarehouseClient,
+        sshTunnel: SshTunnel<CreateWarehouseCredentials>,
+        queryHistoryUuid: string,
+        resultsCache?: MissCacheResult,
+    ) {
+        try {
+            const { queryId, queryMetadata, totalRows, durationMs } =
+                await warehouseClient.executeAsyncQuery(
+                    {
+                        sql: query,
+                        tags: queryTags,
+                    },
+                    resultsCache?.write,
+                );
+
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'query.ready',
+                properties: {
+                    queryId: queryHistoryUuid,
+                    projectId: projectUuid,
+                    warehouseType: warehouseClient.credentials.type,
+                    warehouseExecutionTimeMs: durationMs,
+                    columnsCount: Object.keys(fieldsMap).length,
+                    totalRowCount: totalRows,
+                },
+            });
+
+            // Wait for the cache to be written before marking the query as ready
+            if (resultsCache) {
+                await resultsCache.close();
+                await this.resultsCacheModel.update(
+                    resultsCache.cacheKey,
+                    projectUuid,
+                    {
+                        total_row_count: totalRows,
+                    },
+                );
+            }
+
+            await this.queryHistoryModel.update(
+                queryHistoryUuid,
+                projectUuid,
+                user.userUuid,
+                {
+                    warehouse_query_id: queryId,
+                    warehouse_query_metadata: queryMetadata,
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    warehouse_execution_time_ms:
+                        durationMs !== null ? Math.round(durationMs) : null,
+                    total_row_count: totalRows,
+                },
+            );
+        } catch (e) {
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'query.error',
+                properties: {
+                    queryId: queryHistoryUuid,
+                    projectId: projectUuid,
+                    warehouseType: warehouseClient.credentials.type,
+                },
+            });
+            await this.queryHistoryModel.update(
+                queryHistoryUuid,
+                projectUuid,
+                user.userUuid,
+                {
+                    status: QueryHistoryStatus.ERROR,
+                    error: getErrorMessage(e),
+                },
+            );
+        } finally {
+            void sshTunnel.disconnect();
+
+            if (resultsCache) {
+                void resultsCache.close();
+            }
+        }
+    }
+
     private async executeAsyncQuery(
         args: ExecuteAsyncMetricQueryArgs & {
             queryTags: RunQueryTags;
@@ -2358,17 +2468,19 @@ export class ProjectService extends BaseService {
                     const resultsCacheEnabled =
                         this.lightdashConfig.resultsCache?.resultsEnabled;
 
-                    let createdCache: CreateCacheResult | undefined;
+                    let resultsCache: CreateCacheResult | undefined;
+
                     if (resultsCacheEnabled) {
-                        createdCache = await this.resultsCacheModel.create(
-                            projectUuid,
-                            {
-                                sql: query,
-                                timezone: metricQuery.timezone,
-                            },
-                            this.resultsCacheStorageClient,
-                            args.invalidateCache,
-                        );
+                        resultsCache =
+                            await this.resultsCacheModel.createOrGetExistingCache(
+                                projectUuid,
+                                {
+                                    sql: query,
+                                    timezone: metricQuery.timezone,
+                                },
+                                this.resultsCacheStorageClient,
+                                args.invalidateCache,
+                            );
                     }
 
                     const { queryUuid: queryHistoryUuid } =
@@ -2381,7 +2493,7 @@ export class ProjectService extends BaseService {
                             compiledSql: query,
                             requestParameters,
                             metricQuery,
-                            cacheKey: createdCache?.cacheKey || null,
+                            cacheKey: resultsCache?.cacheKey || null,
                         });
 
                     this.analytics.track({
@@ -2409,7 +2521,7 @@ export class ProjectService extends BaseService {
                         },
                     });
 
-                    if (createdCache?.cacheHit) {
+                    if (resultsCache?.cacheHit) {
                         await this.queryHistoryModel.update(
                             queryHistoryUuid,
                             projectUuid,
@@ -2417,7 +2529,7 @@ export class ProjectService extends BaseService {
                             {
                                 status: QueryHistoryStatus.READY,
                                 error: null,
-                                total_row_count: createdCache.totalRowCount,
+                                total_row_count: resultsCache.totalRowCount,
                             },
                         );
 
@@ -2426,92 +2538,22 @@ export class ProjectService extends BaseService {
                         };
                     }
 
-                    const executeAndSaveHistory = async () => {
-                        try {
-                            const {
-                                queryId,
-                                queryMetadata,
-                                totalRows,
-                                durationMs,
-                            } = await warehouseClient.executeAsyncQuery(
-                                {
-                                    sql: query,
-                                    tags: queryTags,
-                                },
-                                createdCache?.write,
-                            );
-
-                            this.analytics.track({
-                                userId: user.userUuid,
-                                event: 'query.ready',
-                                properties: {
-                                    queryId: queryHistoryUuid,
-                                    projectId: projectUuid,
-                                    warehouseType:
-                                        warehouseClient.credentials.type,
-                                    warehouseExecutionTimeMs: durationMs,
-                                    columnsCount: Object.keys(fieldsMap).length,
-                                    totalRowCount: totalRows,
-                                },
-                            });
-
-                            // Wait for the cache to be written before marking the query as ready
-                            await createdCache?.close();
-
-                            await this.queryHistoryModel.update(
-                                queryHistoryUuid,
-                                projectUuid,
-                                user.userUuid,
-                                {
-                                    warehouse_query_id: queryId,
-                                    warehouse_query_metadata: queryMetadata,
-                                    status: QueryHistoryStatus.READY,
-                                    error: null,
-                                    warehouse_execution_time_ms:
-                                        durationMs !== null
-                                            ? Math.round(durationMs)
-                                            : null,
-                                    total_row_count: totalRows,
-                                },
-                            );
-
-                            if (createdCache) {
-                                await this.resultsCacheModel.update(
-                                    createdCache.cacheKey,
-                                    projectUuid,
-                                    {
-                                        total_row_count: totalRows,
-                                    },
-                                );
-                            }
-                        } catch (e) {
-                            this.analytics.track({
-                                userId: user.userUuid,
-                                event: 'query.error',
-                                properties: {
-                                    queryId: queryHistoryUuid,
-                                    projectId: projectUuid,
-                                    warehouseType:
-                                        warehouseClient.credentials.type,
-                                },
-                            });
-                            await this.queryHistoryModel.update(
-                                queryHistoryUuid,
-                                projectUuid,
-                                user.userUuid,
-                                {
-                                    status: QueryHistoryStatus.ERROR,
-                                    error: getErrorMessage(e),
-                                },
-                            );
-                        } finally {
-                            void sshTunnel.disconnect();
-                            void createdCache?.close();
-                        }
-                    };
-
-                    // Trigger query in the background, update query history when complete
-                    void executeAndSaveHistory();
+                    // Trigger query in the background, update query history and cache when complete
+                    void this.runAsyncWarehouseQuery(
+                        {
+                            user,
+                            projectUuid,
+                            query,
+                            fieldsMap,
+                            queryTags,
+                            exploreName,
+                        },
+                        warehouseClient,
+                        sshTunnel,
+                        queryHistoryUuid,
+                        // This is either MissCacheResult or undefined at this point, meaning that the cache was not hit or that cache is not enabled
+                        resultsCache,
+                    );
 
                     return {
                         queryUuid: queryHistoryUuid,

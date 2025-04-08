@@ -51,7 +51,7 @@ export class ResultsCacheModel {
         );
     }
 
-    async create(
+    async createOrGetExistingCache(
         projectUuid: string,
         cacheIdentifiers: {
             sql: string;

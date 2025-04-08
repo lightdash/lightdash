@@ -1,4 +1,4 @@
-type CacheHitCacheResult = {
+export type CacheHitCacheResult = {
     cacheKey: string;
     write: undefined;
     close: undefined;
@@ -6,7 +6,7 @@ type CacheHitCacheResult = {
     totalRowCount: number;
 };
 
-type MissCacheResult = {
+export type MissCacheResult = {
     cacheKey: string;
     write: (rows: Record<string, unknown>[]) => void;
     close: () => Promise<void>;
