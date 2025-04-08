@@ -80,6 +80,9 @@ const EmbedDashboardFilters: FC<Props> = ({
                     onPopoverClose={handlePopoverClose}
                     openPopoverId={openPopoverId}
                     activeTabUuid={undefined}
+                    onResetDashboardFilters={() => {
+                        setDashboardFilters(allowedFilters);
+                    }}
                 />
             </Flex>
         </FiltersProvider>
