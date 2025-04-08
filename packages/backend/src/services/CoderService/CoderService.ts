@@ -667,8 +667,6 @@ export class CoderService extends BaseService {
         slug: string,
         chartAsCode: ChartAsCode,
     ) {
-        console.log('upserting chart', chartAsCode.name);
-
         const project = await this.projectModel.get(projectUuid);
 
         if (
@@ -839,10 +837,6 @@ export class CoderService extends BaseService {
             projectUuid,
         });
 
-        console.log({
-            space,
-        });
-
         if (space !== undefined) {
             const spacesAccess = await this.spaceModel.getUserSpacesAccess(
                 user.userUuid,
@@ -862,47 +856,19 @@ export class CoderService extends BaseService {
             );
         }
 
-        // create space and ancestors
-        // for that, we need to check if the space is nested - check if it's nested from the slug
-        // if it is, we need to create the space and all its ancestors
-
         console.info(`Creating new public space with slug ${spaceSlug}`);
+
         const isNestedSpace = spaceSlug.includes('/');
-
-        // if it is,
-        // create the whole hierarchy, but also check if it exists already in the project i'm uploading to
-
-        if (isNestedSpace) {
-            const newSpace = await this.spaceModel.createSpaceWithAncestors({
-                isNestedSpace,
-                projectUuid,
-                name: friendlyName(spaceSlug),
-                userId: user.userId,
-                isPrivate: false,
-                slug: spaceSlug,
-                forceSameSlug: true,
-            });
-
-            return {
-                space: {
-                    ...newSpace,
-                    parentSpaceUuid: null,
-                    chartCount: 0,
-                    dashboardCount: 0,
-                    access: [],
-                },
-                created: true,
-            };
-        }
-
-        const newSpace = await this.spaceModel.createSpace(
+        const newSpace = await this.spaceModel.createSpaceWithAncestors({
+            isNestedSpace,
             projectUuid,
-            friendlyName(spaceSlug),
-            user.userId,
-            false,
-            spaceSlug,
-            true, // forceSameSlug
-        );
+            name: friendlyName(spaceSlug),
+            userId: user.userId,
+            isPrivate: false,
+            slug: spaceSlug,
+            forceSameSlug: true,
+        });
+
         return {
             space: {
                 ...newSpace,
