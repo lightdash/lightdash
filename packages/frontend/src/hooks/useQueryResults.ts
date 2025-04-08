@@ -57,6 +57,7 @@ export const getQueryPaginatedResults = async (
     // Get all page rows in sequence
     let allRows: ResultRow[] = [];
     let currentPage: ApiGetAsyncQueryResults | undefined;
+    let backoffMs = 250; // Start with 250ms
 
     while (
         !currentPage ||
@@ -114,7 +115,11 @@ export const getQueryPaginatedResults = async (
                 allRows = allRows.concat(currentPage.rows);
                 break;
             case QueryHistoryStatus.PENDING:
-                await sleep(200);
+                await sleep(backoffMs);
+                // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
+                if (backoffMs < 1000) {
+                    backoffMs = Math.min(backoffMs * 2, 1000);
+                }
                 break;
             default:
                 return assertUnreachable(status, 'Unknown query status');
@@ -148,6 +153,8 @@ const getFirstPage = async (
         body: JSON.stringify(data),
     });
     let firstPage: ApiGetAsyncQueryResults | undefined;
+    let backoffMs = 250; // Start with 250ms
+
     // Wait for first page
     while (!firstPage || firstPage.status === QueryHistoryStatus.PENDING) {
         firstPage = await lightdashApi<ApiGetAsyncQueryResults>({
@@ -183,7 +190,11 @@ const getFirstPage = async (
             case QueryHistoryStatus.READY:
                 break;
             case QueryHistoryStatus.PENDING:
-                await sleep(200);
+                await sleep(backoffMs);
+                // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
+                if (backoffMs < 1000) {
+                    backoffMs = Math.min(backoffMs * 2, 1000);
+                }
                 break;
             default:
                 return assertUnreachable(status, 'Unknown query status');
