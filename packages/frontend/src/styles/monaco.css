@@ -2,3 +2,11 @@
     background-color: yellow;
     border-bottom: 2px solid red;
 }
+
+.tooltip-editor {
+    border: 1px solid #ccc;
+    overflow: visible;
+}
+.tooltip-editor .suggest-widget {
+    left: 0px !important;
+}

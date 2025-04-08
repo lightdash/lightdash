@@ -1,3 +1,38 @@
+## [0.1566.2](https://github.com/lightdash/lightdash/compare/0.1566.1...0.1566.2) (2025-04-08)
+
+
+### Bug Fixes
+
+* wait for pagination feature flag to be fetched before running the hook ([#14325](https://github.com/lightdash/lightdash/issues/14325)) ([aaa5ed0](https://github.com/lightdash/lightdash/commit/aaa5ed0a520072bd1780384ef6377248b5359328))
+
+## [0.1566.1](https://github.com/lightdash/lightdash/compare/0.1566.0...0.1566.1) (2025-04-08)
+
+
+### Bug Fixes
+
+* implement pending query polling backoff strategy ([#14311](https://github.com/lightdash/lightdash/issues/14311)) ([f97b602](https://github.com/lightdash/lightdash/commit/f97b602cbf21131e781c63eee10a5fdc07b9e5d9))
+
+# [0.1566.0](https://github.com/lightdash/lightdash/compare/0.1565.1...0.1566.0) (2025-04-08)
+
+
+### Features
+
+* Reset filters button for embedded dashboards ([#14287](https://github.com/lightdash/lightdash/issues/14287)) ([bf9e1a1](https://github.com/lightdash/lightdash/commit/bf9e1a17484e68b45d7bdb725eac4e9a9b396f92))
+
+## [0.1565.1](https://github.com/lightdash/lightdash/compare/0.1565.0...0.1565.1) (2025-04-08)
+
+
+### Bug Fixes
+
+* remove sorts from subtotals queries ([#14298](https://github.com/lightdash/lightdash/issues/14298)) ([278530a](https://github.com/lightdash/lightdash/commit/278530a738cd86d22b6783d66c496fa2da199851))
+
+# [0.1565.0](https://github.com/lightdash/lightdash/compare/0.1564.7...0.1565.0) (2025-04-08)
+
+
+### Features
+
+* tooltip config ([#14292](https://github.com/lightdash/lightdash/issues/14292)) ([d578df7](https://github.com/lightdash/lightdash/commit/d578df74f4ede980278891c1adec35a3a5157ba4))
+
 ## [0.1564.7](https://github.com/lightdash/lightdash/compare/0.1564.6...0.1564.7) (2025-04-07)
 
 

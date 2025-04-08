@@ -55,9 +55,11 @@ const getChartAndResults = async ({
 };
 
 const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
-    const { data: queryPaginationEnabled } = useFeatureFlag(
-        FeatureFlags.QueryPagination,
-    );
+    const {
+        data: queryPaginationEnabled,
+        isFetched: isQueryPaginationFetched,
+    } = useFeatureFlag(FeatureFlags.QueryPagination);
+
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
@@ -185,7 +187,7 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
                 ? queryKey.concat([granularity])
                 : queryKey,
         queryFn: fetchChartAndResults,
-        enabled: !!chartUuid && !!dashboardUuid,
+        enabled: !!chartUuid && !!dashboardUuid && isQueryPaginationFetched,
         retry: false,
         refetchOnMount: false,
     });

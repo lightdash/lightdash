@@ -3,6 +3,7 @@ import {
     type CustomDimension,
     type EchartsLegend,
     type Field,
+    type Series,
     type TableCalculation,
 } from '@lightdash/common';
 import {
@@ -12,7 +13,7 @@ import {
     Stack,
     Switch,
 } from '@mantine/core';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
@@ -20,6 +21,7 @@ import { useVisualizationContext } from '../../../LightdashVisualization/useVisu
 import { Config } from '../../common/Config';
 import { UnitInputsGrid } from '../common/UnitInputsGrid';
 import { ReferenceLines } from './ReferenceLines';
+import { TooltipConfig } from './TooltipConfig';
 
 enum Positions {
     Left = 'left',
@@ -97,6 +99,31 @@ export const Legend: FC<Props> = ({ items }) => {
 
     const { visualizationConfig } = useVisualizationContext();
 
+    // Extract fields used in the chart config, including pivot values
+    // At the moment we only support fields that are part of the chart config
+    const fieldsUsedInChartConfig = useMemo(() => {
+        if (!isCartesianVisualizationConfig(visualizationConfig)) return [];
+        const { dirtyEchartsConfig: echartsConfig } =
+            visualizationConfig.chartConfig;
+
+        const allEncodes: Series['encode'][] =
+            echartsConfig?.series?.map((serie) => serie.encode) ?? [];
+        const fieldSet = allEncodes.reduce<Set<string>>((acc, encode) => {
+            acc.add(encode.xRef.field);
+            if (encode.yRef.pivotValues !== undefined) {
+                encode.yRef.pivotValues.forEach((pivotValue) => {
+                    acc.add(
+                        `${encode.yRef.field}.${pivotValue.field}.${pivotValue.value}`,
+                    );
+                });
+            } else {
+                acc.add(encode.yRef.field);
+            }
+            return acc;
+        }, new Set<string>());
+
+        return [...fieldSet];
+    }, [visualizationConfig]);
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 
     const { dirtyEchartsConfig, setLegend } = visualizationConfig.chartConfig;
@@ -173,6 +200,7 @@ export const Legend: FC<Props> = ({ items }) => {
             {projectUuid && (
                 <ReferenceLines items={items} projectUuid={projectUuid} />
             )}
+            {projectUuid && <TooltipConfig fields={fieldsUsedInChartConfig} />}
         </Stack>
     );
 };
