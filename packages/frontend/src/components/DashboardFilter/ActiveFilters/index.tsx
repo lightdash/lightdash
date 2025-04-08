@@ -130,6 +130,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );
+    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
 
     const mouseSensor = useSensor(MouseSensor, {
         activationConstraint: { distance: 10 },
@@ -223,13 +224,14 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
     return (
         <>
-            {!isEditMode && (
+            {!isEditMode && haveFiltersChanged && (
                 <Tooltip label="Reset all filters">
                     <Button
                         size="xs"
                         variant="default"
                         color="gray"
                         onClick={() => {
+                            setHaveFiltersChanged(false);
                             onResetDashboardFilters();
                         }}
                     >
