@@ -8,6 +8,8 @@ import {
     friendlyName,
     getHighestProjectRole,
     getHighestSpaceRole,
+    getLabelFromSlug,
+    getParentSlug,
     getSlugsWithHierarchy,
     GroupRole,
     NotFoundError,
@@ -1700,19 +1702,22 @@ export class SpaceModel {
 
     /**
      * Creates a space with its ancestor hierarchy if needed
+     * For example, if the space is nested, we need to create the space and all its ancestors
+     * If the space is not nested, we just create the space directly
      * @param isNestedSpace - Whether the space is nested
-     * @param projectUuid - The project UUID
+     * @param baseProjectUuid - The base project UUID - the project to copy the hierarchy from
+     * @param projectUuid - The project UUID - the project to create the space(s) in
      * @param name - The space name
      * @param userId - The user ID
      * @param isPrivate - Whether the space is private
      * @param slug - The space slug which may contain ancestry information
      * @param forceSameSlug - Whether to force the slug as is
-     * @returns The created space
+     * @returns The created space and its root space UUID
      */
     async createSpaceWithAncestors({
         isNestedSpace,
+        baseProjectUuid,
         projectUuid,
-        upstreamProjectUuid,
         name,
         userId,
         isPrivate,
@@ -1720,21 +1725,20 @@ export class SpaceModel {
         forceSameSlug = false,
     }: {
         isNestedSpace: boolean;
-        // TODO: change naming to: if there is a upstream, do something. If not, utilise the projectUuid
-        projectUuid?: string;
-        upstreamProjectUuid: string;
+        baseProjectUuid?: string;
+        projectUuid: string;
         name: string;
         userId: number;
         isPrivate: boolean;
         slug: string;
         forceSameSlug?: boolean;
-    }): Promise<Space & { rootSpaceUuid: string | null }> {
-        // make projectuuid optional and handle that differrently for content as code service
-
-        // If this is not a nested space, just create it directly
+    }): Promise<
+        Space & { rootSpaceUuid?: string; isRootSpaceCreated?: boolean }
+    > {
+        // Handle the simplest case: non-nested space
         if (!isNestedSpace) {
             const space = await this.createSpace(
-                upstreamProjectUuid,
+                projectUuid,
                 name,
                 userId,
                 isPrivate,
@@ -1744,10 +1748,125 @@ export class SpaceModel {
             return {
                 ...space,
                 rootSpaceUuid: space.uuid,
+                isRootSpaceCreated: true, // Flag to indicate we created the root space
             };
         }
 
-        // For nested spaces, build the hierarchy, by getting a nested space's ancestors
+        // For nested spaces, choose the appropriate method based on whether we're copying from a base project
+        if (!baseProjectUuid) {
+            // Create hierarchy without copying from another project
+            return this.createNestedSpaceHierarchy(
+                projectUuid,
+                name,
+                userId,
+                isPrivate,
+                slug,
+                forceSameSlug,
+            );
+        }
+        // Create hierarchy by copying from base project
+        return this.createNestedSpaceFromBaseProject(
+            baseProjectUuid,
+            projectUuid,
+            name,
+            userId,
+            isPrivate,
+            slug,
+            forceSameSlug,
+        );
+    }
+
+    /**
+     * Creates a nested space hierarchy without copying from a base project
+     * @private
+     */
+    private async createNestedSpaceHierarchy(
+        projectUuid: string,
+        name: string,
+        userId: number,
+        isPrivate: boolean,
+        slug: string,
+        forceSameSlug: boolean,
+    ): Promise<
+        Space & { rootSpaceUuid?: string; isRootSpaceCreated?: boolean }
+    > {
+        // Generate the hierarchy for content as code service
+        const slugsWithHierarchy = getSlugsWithHierarchy(slug);
+        const spacesBySlug = new Map<string, string>();
+        let lowestCreatedSpace: Space | null = null;
+        let rootSpaceUuid: string | undefined;
+        let isRootSpaceCreated = false;
+
+        for (const spaceSlug of slugsWithHierarchy) {
+            // Check if space already exists in project
+            // eslint-disable-next-line no-await-in-loop
+            const [spaceInProject] = await this.find({
+                projectUuid,
+                slug: spaceSlug,
+            });
+
+            // If space does not exist, create it
+            if (!spaceInProject) {
+                // Get parent info
+                const parentSlug = getParentSlug(spaceSlug);
+                const parentSpaceUuid = spacesBySlug.get(parentSlug);
+
+                // eslint-disable-next-line no-await-in-loop
+                const createdSpace = await this.createSpace(
+                    projectUuid,
+                    friendlyName(getLabelFromSlug(spaceSlug)),
+                    userId,
+                    false, // Nested spaces aren't private by default
+                    getLabelFromSlug(spaceSlug),
+                    forceSameSlug,
+                    parentSpaceUuid ?? null,
+                );
+
+                // Track if we created the root space (first in hierarchy)
+                if (spaceSlug === slugsWithHierarchy[0]) {
+                    rootSpaceUuid = createdSpace.uuid;
+                    isRootSpaceCreated = true;
+                }
+
+                lowestCreatedSpace = createdSpace;
+                spacesBySlug.set(spaceSlug, createdSpace.uuid);
+            } else {
+                // If space exists, use it
+                spacesBySlug.set(spaceSlug, spaceInProject.uuid);
+
+                // Track root space even if it already existed
+                if (spaceSlug === slugsWithHierarchy[0]) {
+                    rootSpaceUuid = spaceInProject.uuid;
+                }
+            }
+        }
+
+        if (!lowestCreatedSpace) {
+            throw new Error('No space created');
+        }
+
+        return {
+            ...lowestCreatedSpace,
+            rootSpaceUuid,
+            isRootSpaceCreated,
+        };
+    }
+
+    /**
+     * Creates a nested space hierarchy by copying from a base project
+     * @private
+     */
+    private async createNestedSpaceFromBaseProject(
+        baseProjectUuid: string,
+        projectUuid: string,
+        name: string,
+        userId: number,
+        isPrivate: boolean,
+        slug: string,
+        forceSameSlug: boolean,
+    ): Promise<
+        Space & { rootSpaceUuid?: string; isRootSpaceCreated?: boolean }
+    > {
         return this.database.transaction(async (trx) => {
             const space = await trx(SpaceTableName)
                 .select('path', 'parent_space_uuid')
@@ -1756,71 +1875,6 @@ export class SpaceModel {
 
             if (!space) {
                 throw new NotFoundError(`Space with slug ${slug} not found`);
-            }
-
-            // Just generate the hierarchy for content as code service
-            if (!projectUuid) {
-                // we dont need to copy from project to upstream. Just create/check in upstream
-                const slugsWithHierarchy = getSlugsWithHierarchy(slug);
-
-                const spacesBySlug = new Map<string, string>();
-                let lowestCreatedSpace: Space | null = null;
-                for (const spaceSlug of slugsWithHierarchy) {
-                    // eslint-disable-next-line no-await-in-loop
-                    const [spaceInProjectToUpload] = await this.find({
-                        projectUuid: upstreamProjectUuid,
-                        slug: spaceSlug,
-                    });
-
-                    // if space does not exist, create it
-                    if (!spaceInProjectToUpload) {
-                        // 1st iteration - create parent with slug "parent-space"
-                        // 2nd iteration - create child with slug "parent-space/child-space"
-                        // but check if parent exists first with slug "parent-space", and get its uuid to create nested space
-
-                        // Get parent info
-                        const parentSlug = spaceSlug
-                            .split('/')
-                            .slice(0, -1)
-                            .join('/'); // "parent-space/child-space" -> "parent-space"
-                        const parentSpaceUuid = spacesBySlug.get(parentSlug);
-
-                        // eslint-disable-next-line no-await-in-loop
-                        const createdSpace = await this.createSpace(
-                            upstreamProjectUuid,
-                            friendlyName(
-                                spaceSlug.split('/').pop() ?? spaceSlug,
-                            ),
-                            userId,
-                            false,
-                            // TODO: change this
-                            spaceSlug.split('/').pop() ?? spaceSlug,
-                            forceSameSlug,
-                            parentSpaceUuid ?? null,
-                        );
-
-                        lowestCreatedSpace = createdSpace;
-                        spacesBySlug.set(spaceSlug, createdSpace.uuid);
-                    } else {
-                        // if space exists, use it
-
-                        spacesBySlug.set(
-                            spaceSlug,
-                            spaceInProjectToUpload.uuid,
-                        );
-                    }
-                }
-
-                if (!lowestCreatedSpace) {
-                    throw new Error('No space created');
-                }
-
-                return {
-                    ...lowestCreatedSpace,
-
-                    // TODO: Make this optional and explain why to Gio
-                    rootSpaceUuid: null,
-                };
             }
 
             const ancestorsOrderedByLevel = await trx(SpaceTableName)
@@ -1834,80 +1888,98 @@ export class SpaceModel {
                     space.path,
                 ])
                 .orderBy('level', 'asc')
-                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .where(`${ProjectTableName}.project_uuid`, baseProjectUuid)
                 .select<DbSpace[]>(
                     `${SpaceTableName}.*`,
                     this.database.raw('nlevel(path) as level'),
                 );
 
+            const spacesBySlug = new Map<string, string>();
             const createdSpaces = [];
+            let isRootSpaceCreated = false;
+            let rootSpaceUuid: string | undefined;
+            let rootSpaceIsPrivate: boolean | undefined;
 
             // Add ancestors to the created spaces sequentially so we can use the parent space uuid to build the hierarchy
             for (const ancestor of ancestorsOrderedByLevel) {
                 // eslint-disable-next-line no-await-in-loop
                 const [spaceInUpstreamProject] = await this.find({
-                    projectUuid: upstreamProjectUuid,
+                    projectUuid,
                     slug: ancestor.slug,
                 });
 
                 // If space exists, use it
                 if (spaceInUpstreamProject) {
                     createdSpaces.push(spaceInUpstreamProject);
+                    spacesBySlug.set(
+                        ancestor.slug,
+                        spaceInUpstreamProject.uuid,
+                    );
+
+                    // If this is the first one in the hierarchy, it's our root
+                    if (createdSpaces.length === 1) {
+                        rootSpaceUuid = spaceInUpstreamProject.uuid;
+                        rootSpaceIsPrivate = spaceInUpstreamProject.isPrivate;
+                    }
 
                     // eslint-disable-next-line no-continue
                     continue;
                 }
 
-                // Get parent info
-                const parentSlug = ancestor.slug
-                    .split('/')
-                    .slice(0, -1)
-                    .join('/');
-                // eslint-disable-next-line no-await-in-loop
-                const [parentSpace] = await this.find({
-                    projectUuid: upstreamProjectUuid,
-                    slug: parentSlug,
-                });
+                // Mark if we created the root space (first in hierarchy)
+                if (createdSpaces.length === 0) {
+                    isRootSpaceCreated = true;
+                }
 
-                // Create new space
-                const newSpaceSlug =
-                    ancestor.slug.split('/').pop() ?? ancestor.slug;
+                // Get parent info
+                const parentSlug = getParentSlug(ancestor.slug);
+                const parentSpaceUuid = spacesBySlug.get(parentSlug);
 
                 // eslint-disable-next-line no-await-in-loop
                 const createdSpace = await this.createSpace(
-                    upstreamProjectUuid,
+                    projectUuid,
                     ancestor.name,
                     userId,
                     ancestor.parent_space_uuid ? false : ancestor.is_private,
-                    newSpaceSlug,
+                    getLabelFromSlug(ancestor.slug),
                     forceSameSlug,
-                    parentSpace?.uuid ?? null,
+                    parentSpaceUuid ?? null,
                 );
 
+                // If this is the first one in the hierarchy, it's our root
+                if (createdSpaces.length === 0) {
+                    rootSpaceUuid = createdSpace.uuid;
+                    rootSpaceIsPrivate = createdSpace.isPrivate;
+                }
+
+                spacesBySlug.set(ancestor.slug, createdSpace.uuid);
                 createdSpaces.push(createdSpace);
             }
 
-            const rootSpace = createdSpaces[0];
-            const directParentSpace = createdSpaces[createdSpaces.length - 1];
+            const directParentUuid =
+                createdSpaces.length > 0
+                    ? createdSpaces[createdSpaces.length - 1].uuid
+                    : null;
 
             // Finally, create the space with the given slug
-            const spaceSlug = slug.split('/').pop() ?? slug;
+            const spaceSlug = getLabelFromSlug(slug);
             const spaceWhereContentIsSaved = await this.createSpace(
-                upstreamProjectUuid,
+                projectUuid,
                 name,
                 userId,
                 false,
                 spaceSlug,
                 forceSameSlug,
-                directParentSpace.uuid,
+                directParentUuid,
             );
 
             return {
                 ...spaceWhereContentIsSaved,
-                // Useful to update acess after promotion
-                rootSpaceUuid: rootSpace.uuid,
+                // Useful to update access after promotion
+                rootSpaceUuid,
                 // Nested spaces MVP - inherit privacy from root space
-                isPrivate: rootSpace.isPrivate,
+                isPrivate: rootSpaceIsPrivate ?? isPrivate,
+                isRootSpaceCreated,
             };
         });
     }

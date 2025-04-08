@@ -875,17 +875,12 @@ export class CoderService extends BaseService {
         if (isNestedSpace) {
             const newSpace = await this.spaceModel.createSpaceWithAncestors({
                 isNestedSpace,
-
-                upstreamProjectUuid: projectUuid,
+                projectUuid,
                 name: friendlyName(spaceSlug),
                 userId: user.userId,
                 isPrivate: false,
                 slug: spaceSlug,
                 forceSameSlug: true,
-            });
-
-            console.log({
-                newSpace,
             });
 
             return {

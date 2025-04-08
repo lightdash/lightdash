@@ -1,4 +1,9 @@
-import { generateSlug } from './slugs';
+import {
+    generateSlug,
+    getLabelFromSlug,
+    getParentSlug,
+    getSlugsWithHierarchy,
+} from './slugs';
 
 describe('Slug', () => {
     test('should generate space slugs', async () => {
@@ -64,5 +69,66 @@ describe('Slug', () => {
 
         // Handle japanese characters
         expect(generateSlug('ライトダッシュ').length).toEqual(5);
+    });
+
+    describe('getSlugsWithHierarchy', () => {
+        test('should return array with single slug for non-hierarchical slug', () => {
+            expect(getSlugsWithHierarchy('my-space')).toEqual(['my-space']);
+        });
+
+        test('should return array with hierarchical slugs', () => {
+            expect(getSlugsWithHierarchy('parent-space/child-space')).toEqual([
+                'parent-space',
+                'parent-space/child-space',
+            ]);
+        });
+
+        test('should handle multiple levels of hierarchy', () => {
+            expect(
+                getSlugsWithHierarchy(
+                    'grandparent-space/parent-space/child-space',
+                ),
+            ).toEqual([
+                'grandparent-space',
+                'grandparent-space/parent-space',
+                'grandparent-space/parent-space/child-space',
+            ]);
+        });
+    });
+
+    describe('getParentSlug', () => {
+        test('should return empty string for non-hierarchical slug', () => {
+            expect(getParentSlug('my-space')).toEqual('');
+        });
+
+        test('should return parent slug for hierarchical slug', () => {
+            expect(getParentSlug('parent-space/child-space')).toEqual(
+                'parent-space',
+            );
+        });
+
+        test('should return parent path for deeply nested slug', () => {
+            expect(
+                getParentSlug('grandparent-space/parent-space/child-space'),
+            ).toEqual('grandparent-space/parent-space');
+        });
+    });
+
+    describe('getLabelFromSlug', () => {
+        test('should return same slug for non-hierarchical slug', () => {
+            expect(getLabelFromSlug('my-space')).toEqual('my-space');
+        });
+
+        test('should return last part of hierarchical slug', () => {
+            expect(getLabelFromSlug('parent-space/child-space')).toEqual(
+                'child-space',
+            );
+        });
+
+        test('should return last part of deeply nested slug', () => {
+            expect(
+                getLabelFromSlug('grandparent-space/parent-space/child-space'),
+            ).toEqual('child-space');
+        });
     });
 });

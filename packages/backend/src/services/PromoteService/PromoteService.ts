@@ -866,8 +866,8 @@ export class PromoteService extends BaseService {
                 // Create the space (with ancestors if needed, skip existing spaces)
                 const space = await this.spaceModel.createSpaceWithAncestors({
                     isNestedSpace,
-                    projectUuid,
-                    upstreamProjectUuid: data.projectUuid,
+                    baseProjectUuid: projectUuid,
+                    projectUuid: data.projectUuid,
                     name: data.name,
                     userId: user.userId,
                     isPrivate: data.isPrivate,
@@ -875,7 +875,13 @@ export class PromoteService extends BaseService {
                     forceSameSlug: true,
                 });
 
-                if (space.isPrivate) {
+                // Only apply access permissions if this is a private space AND
+                // either the space is not nested OR we've just created the root space
+                if (
+                    space.isPrivate &&
+                    (!isNestedSpace ||
+                        (space.isRootSpaceCreated && space.rootSpaceUuid))
+                ) {
                     const upstreamRootSpaceUuid = space.rootSpaceUuid;
                     if (!space.uuid || !upstreamRootSpaceUuid) {
                         throw new NotFoundError(

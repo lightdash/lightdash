@@ -18,7 +18,6 @@ export const generateSlug = (name: string) => {
     return sanitizedSlug;
 };
 
-// TODO: add tests for this function
 /**
  * Get all slugs with hierarchy for a given slug
  * For example, "parent-space/child-space" will return ["parent-space", "parent-space/child-space"]
@@ -33,6 +32,19 @@ export const getSlugsWithHierarchy = (slug: string) =>
         return [...acc, `${acc[acc.length - 1]}/${s}`];
     }, []);
 
-// TODO: add get parent slug util
+/**
+ * Get the parent slug from a slug with hierarchy
+ * For example, "parent-space/child-space" will return "parent-space"
+ * @param slug - The slug to get the parent slug from
+ * @returns The parent slug
+ */
+export const getParentSlug = (slug: string) =>
+    slug.split('/').slice(0, -1).join('/');
 
-// TODO: get current slug util (without hierarchy)
+/**
+ * Get the label from a slug with hierarchy
+ * For example, "parent-space/child-space" will return "child-space"
+ * @param slug - The slug to get the label from
+ * @returns The label
+ */
+export const getLabelFromSlug = (slug: string) => slug.split('/').pop() ?? slug;
