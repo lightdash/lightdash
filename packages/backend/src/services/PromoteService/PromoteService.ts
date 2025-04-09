@@ -14,6 +14,7 @@ import {
     PromotionChanges,
     SavedChartDAO,
     SessionUser,
+    Space,
     SpaceShare,
     SpaceSummary,
     UnexpectedServerError,
@@ -635,7 +636,11 @@ export class PromoteService extends BaseService {
             let promotionChanges: PromotionChanges =
                 PromoteService.getChartChanges(promotedChart, upstreamChart);
 
-            promotionChanges = await this.upsertSpaces(user, promotionChanges);
+            promotionChanges = await this.upsertSpaces(
+                user,
+                projectUuid,
+                promotionChanges,
+            );
 
             promotionChanges = await this.upsertCharts(user, promotionChanges);
 
@@ -831,6 +836,7 @@ export class PromoteService extends BaseService {
 
     async upsertSpaces(
         user: SessionUser,
+        projectUuid: string, // The base project uuid
         promotionChanges: PromotionChanges,
     ): Promise<PromotionChanges> {
         const spaceChanges = promotionChanges.spaces;
@@ -853,43 +859,84 @@ export class PromoteService extends BaseService {
         const newSpaces = spaceChanges
             .filter((change) => change.action === PromotionAction.CREATE)
             .map(async (spaceChange) => {
-                const { data } = spaceChange;
-                const space = await this.spaceModel.createSpace(
-                    data.projectUuid,
-                    data.name,
-                    user.userId,
-                    data.isPrivate,
-                    data.slug,
-                    true, // forceSameSlug
+                const { data: spaceChangeFromBase } = spaceChange;
+                const isNestedSpace = await this.spaceModel.isRootSpace(
+                    spaceChangeFromBase.uuid,
                 );
-                if (data.isPrivate) {
-                    const promotedSpaceWithAccess =
-                        await this.spaceModel.getFullSpace(data.uuid);
-                    const userAccessPromises = promotedSpaceWithAccess.access
-                        .filter((access) => access.hasDirectAccess)
-                        .map((userAccess) =>
-                            this.spaceModel.addSpaceAccess(
-                                space.uuid,
-                                userAccess.userUuid,
-                                userAccess.role,
-                            ),
+
+                // Create the space (with ancestors if needed, skip existing spaces)
+                const space = await this.spaceModel.createSpaceWithAncestors({
+                    isNestedSpace,
+                    baseProjectUuid: projectUuid,
+                    projectUuid: spaceChangeFromBase.projectUuid,
+                    name: spaceChangeFromBase.name,
+                    userId: user.userId,
+                    isPrivate: spaceChangeFromBase.isPrivate,
+                    slug: spaceChangeFromBase.slug,
+                    forceSameSlug: true,
+                });
+
+                // Only apply access permissions if this is a private space AND
+                // either the space is not nested OR we've just created the root space
+                if (spaceChangeFromBase.isPrivate) {
+                    const upstreamRootSpaceUuid = space.rootSpaceUuid;
+                    if (!space.uuid || !upstreamRootSpaceUuid) {
+                        throw new NotFoundError(
+                            `Unable to find target space for nested space ${spaceChangeFromBase.slug}`,
                         );
-                    const groupAccessPromises =
-                        promotedSpaceWithAccess.groupsAccess.map(
-                            (groupAccess) =>
-                                this.spaceModel.addSpaceGroupAccess(
-                                    space.uuid,
-                                    groupAccess.groupUuid,
-                                    groupAccess.spaceRole,
-                                ),
-                        );
-                    await Promise.all([
-                        ...userAccessPromises,
-                        ...groupAccessPromises,
-                    ]);
+                    }
+
+                    let promotedSpaceWithAccess: Space | undefined;
+                    // promotedSpaceWithAccess is the space in the upstream project
+                    if (space.isRootSpaceCreated) {
+                        const spaceRootFromDownstream =
+                            await this.spaceModel.getSpaceRoot(
+                                spaceChangeFromBase.uuid,
+                            );
+
+                        promotedSpaceWithAccess =
+                            await this.spaceModel.getFullSpace(
+                                spaceRootFromDownstream,
+                            );
+                    } else {
+                        // get space from upstream project
+                        promotedSpaceWithAccess =
+                            await this.spaceModel.getFullSpace(
+                                upstreamRootSpaceUuid,
+                            );
+                    }
+
+                    if (promotedSpaceWithAccess) {
+                        const userAccessPromises =
+                            promotedSpaceWithAccess.access
+                                .filter((access) => access.hasDirectAccess)
+                                .map((userAccess) =>
+                                    this.spaceModel.addSpaceAccess(
+                                        upstreamRootSpaceUuid,
+                                        userAccess.userUuid,
+                                        userAccess.role,
+                                    ),
+                                );
+
+                        const groupAccessPromises =
+                            promotedSpaceWithAccess.groupsAccess.map(
+                                (groupAccess) =>
+                                    this.spaceModel.addSpaceGroupAccess(
+                                        upstreamRootSpaceUuid,
+                                        groupAccess.groupUuid,
+                                        groupAccess.spaceRole,
+                                    ),
+                            );
+
+                        await Promise.all([
+                            ...userAccessPromises,
+                            ...groupAccessPromises,
+                        ]);
+                    }
                 }
                 return space;
             });
+
         const newSpaceSummaries = await Promise.all(newSpaces);
         const newSpaceChanges = newSpaceSummaries.map((space) => {
             const promotedSpace: PromotedSpace = {
@@ -1107,7 +1154,7 @@ export class PromoteService extends BaseService {
 
         const dashboardChanges: PromotionChanges['dashboards'] = [
             upstreamDashboard,
-        ].map((dashboard) => {
+        ].map(() => {
             if (upstreamDashboard.dashboard !== undefined) {
                 return {
                     action: PromoteService.isDashboardUpdated(
@@ -1260,7 +1307,11 @@ export class PromoteService extends BaseService {
 
             // at this point, all permisions checks are done, so we can safely promote the dashboard and charts.
             // And return the list of dashboards and charts with the new space
-            promotionChanges = await this.upsertSpaces(user, promotionChanges);
+            promotionChanges = await this.upsertSpaces(
+                user,
+                dashboard.projectUuid,
+                promotionChanges,
+            );
 
             // We first create the dashboard if needed, with empty tiles
             // Because we need the dashboardUuid to update the charts within the dashboard

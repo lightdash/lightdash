@@ -4,6 +4,7 @@ import {
     CreateSpace,
     ForbiddenError,
     generateSlug,
+    NotFoundError,
     SessionUser,
     Space,
     SpaceMemberRole,
@@ -147,6 +148,7 @@ export class SpaceService extends BaseService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
+
         if (
             user.ability.cannot(
                 'create',
@@ -155,6 +157,17 @@ export class SpaceService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+
+        if (space.parentSpaceUuid) {
+            // Check if parent space uuid is in project
+            const parentSpace = await this.spaceModel.getSpaceSummary(
+                space.parentSpaceUuid,
+            );
+            if (parentSpace.projectUuid !== projectUuid) {
+                throw new NotFoundError('Parent space not found');
+            }
+        }
+
         const newSpace = await this.spaceModel.createSpace(
             projectUuid,
             space.name,
@@ -206,8 +219,8 @@ export class SpaceService extends BaseService {
             spaceUuid,
         );
         // Nested Spaces MVP - disables nested spaces' access changes
-        const hasRootSpace = await this.spaceModel.getSpaceRoot(spaceUuid);
-        if (hasRootSpace && 'isPrivate' in updateSpace) {
+        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
+        if (isNested && 'isPrivate' in updateSpace) {
             throw new ForbiddenError(`Can't change privacy for a nested space`);
         }
         if (
@@ -282,8 +295,8 @@ export class SpaceService extends BaseService {
             spaceUuid,
         );
         // Nested Spaces MVP - disables nested spaces' access changes
-        const hasRootSpace = await this.spaceModel.getSpaceRoot(spaceUuid);
-        if (hasRootSpace) {
+        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
+        if (isNested) {
             throw new ForbiddenError(
                 `Can't change user access to a nested space`,
             );
@@ -318,8 +331,8 @@ export class SpaceService extends BaseService {
             spaceUuid,
         );
         // Nested Spaces MVP - disables nested spaces' access changes
-        const hasRootSpace = await this.spaceModel.getSpaceRoot(spaceUuid);
-        if (hasRootSpace) {
+        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
+        if (isNested) {
             throw new ForbiddenError(
                 `Can't change user access to a nested space`,
             );
@@ -351,8 +364,8 @@ export class SpaceService extends BaseService {
             spaceUuid,
         );
         // Nested Spaces MVP - disables nested spaces' access changes
-        const hasRootSpace = await this.spaceModel.getSpaceRoot(spaceUuid);
-        if (hasRootSpace) {
+        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
+        if (isNested) {
             throw new ForbiddenError(
                 `Can't change group access to a nested space`,
             );
@@ -387,8 +400,8 @@ export class SpaceService extends BaseService {
             spaceUuid,
         );
         // Nested Spaces MVP - disables nested spaces' access changes
-        const hasRootSpace = await this.spaceModel.getSpaceRoot(spaceUuid);
-        if (hasRootSpace) {
+        const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
+        if (isNested) {
             throw new ForbiddenError(
                 `Can't change group access to a nested space`,
             );
