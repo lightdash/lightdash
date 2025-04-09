@@ -5,8 +5,15 @@
 
 .tooltip-editor {
     border: 1px solid #ccc;
-    overflow: visible;
 }
-.tooltip-editor .suggest-widget {
-    left: 0px !important;
+
+.monaco-editor #monaco-overflow-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+}
+
+#monaco-overflow-container .suggest-widget {
+    width: 800px !important;
 }
