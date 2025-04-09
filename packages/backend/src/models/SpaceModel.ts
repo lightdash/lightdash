@@ -29,7 +29,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
-import { groupBy, map } from 'lodash';
+import { groupBy } from 'lodash';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
