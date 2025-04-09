@@ -1,3 +1,10 @@
+## [0.1567.2](https://github.com/lightdash/lightdash/compare/0.1567.1...0.1567.2) (2025-04-09)
+
+
+### Bug Fixes
+
+* add workaround to export pie chart with inside label ([#14324](https://github.com/lightdash/lightdash/issues/14324)) ([ff07ec3](https://github.com/lightdash/lightdash/commit/ff07ec39ca9cb7e0145d87a0c51c23396447d148))
+
 ## [0.1567.1](https://github.com/lightdash/lightdash/compare/0.1567.0...0.1567.1) (2025-04-09)
 
 
