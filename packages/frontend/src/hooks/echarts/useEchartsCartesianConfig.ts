@@ -1692,7 +1692,6 @@ const useEchartsCartesianConfig = (
         validCartesianConfigLegend,
         getSeriesColor,
     ]);
-
     const sortedResults = useMemo(() => {
         const results =
             validCartesianConfig?.layout?.xField === EMPTY_X_AXIS
@@ -1889,7 +1888,7 @@ const useEchartsCartesianConfig = (
 
                         tooltipHtml = tooltipHtml.replace(
                             field,
-                            `${fieldValue}`,
+                            `${fieldValue || '-'}`,
                         );
                     });
                 }
