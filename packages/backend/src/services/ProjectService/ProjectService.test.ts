@@ -1,21 +1,26 @@
 import {
     ConditionalOperator,
-    DEFAULT_RESULTS_PAGE_SIZE,
+    CreateWarehouseCredentials,
     defineUserAbility,
-    FieldType,
-    formatRow,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
     QueryExecutionContext,
+    QueryHistoryStatus,
     SessionUser,
-    type ItemsMap,
+    type ExecuteAsyncMetricQueryRequestParams,
 } from '@lightdash/common';
+import { SshTunnel, WarehouseClient } from '@lightdash/warehouses';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
+import type { S3ResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/S3ResultsCacheStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import {
+    LightdashConfig as ParseConfigLightdashConfig,
+    type LightdashConfig,
+} from '../../config/parseConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -27,6 +32,7 @@ import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
+import type { ResultsCacheModel } from '../../models/ResultsCacheModel/ResultsCacheModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -109,10 +115,9 @@ const userAttributesModel = {
     getAttributeValuesForOrgMember: jest.fn(async () => ({})),
 };
 
-describe('ProjectService', () => {
-    const { projectUuid } = defaultProject;
-    const service = new ProjectService({
-        lightdashConfig: lightdashConfigMock,
+const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
+    new ProjectService({
+        lightdashConfig,
         analytics: analyticsMock,
         projectModel: projectModel as unknown as ProjectModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
@@ -146,9 +151,17 @@ describe('ProjectService', () => {
         queryHistoryModel: {
             create: jest.fn(async () => ({ queryUuid: 'queryUuid' })),
             get: jest.fn(async () => undefined),
+            update: jest.fn(),
         } as unknown as QueryHistoryModel,
         userModel: {} as UserModel,
+        resultsCacheModel: {} as ResultsCacheModel,
+        resultsCacheStorageClient: {} as S3ResultsCacheStorageClient,
     });
+
+describe('ProjectService', () => {
+    const { projectUuid } = defaultProject;
+    const service = getMockedProjectService(lightdashConfigMock);
+
     afterEach(() => {
         jest.clearAllMocks();
     });
@@ -446,6 +459,319 @@ describe('ProjectService', () => {
                                         ORDER BY "a_dim1" 
                                         LIMIT 10`),
             );
+        });
+    });
+    describe.only('executeAsyncQuery', () => {
+        describe('when cache is enabled', () => {
+            const write = jest.fn();
+            const close = jest.fn();
+            const serviceWithCache = getMockedProjectService({
+                ...lightdashConfigMock,
+                resultsCache: {
+                    ...lightdashConfigMock.resultsCache,
+                    resultsEnabled: true,
+                },
+            });
+
+            beforeEach(() => {
+                jest.clearAllMocks();
+                // Mock the resultsCacheModel.createOrGetExistingCache method
+                serviceWithCache.resultsCacheModel.createOrGetExistingCache =
+                    jest.fn().mockImplementation(async () => ({
+                        cacheHit: false,
+                        cacheKey: 'test-cache-key',
+                        write,
+                        close,
+                    }));
+            });
+
+            test('should return queryUuid when cache is hit', async () => {
+                // Mock the resultsCacheModel to return a cache hit
+                const mockCacheResult = {
+                    cacheHit: true,
+                    cacheKey: 'test-cache-key',
+                    totalRowCount: 10,
+                };
+
+                (
+                    serviceWithCache.resultsCacheModel
+                        .createOrGetExistingCache as jest.Mock
+                ).mockResolvedValueOnce(mockCacheResult);
+
+                // Mock the queryHistoryModel.create to return a queryUuid
+                (
+                    serviceWithCache.queryHistoryModel.create as jest.Mock
+                ).mockResolvedValue({
+                    queryUuid: 'test-query-uuid',
+                });
+
+                // Spy on the warehouse client executeAsyncQuery method
+                const warehouseClientExecuteAsyncQuerySpy = jest.spyOn(
+                    warehouseClientMock,
+                    'executeAsyncQuery',
+                );
+
+                const result = await serviceWithCache.executeAsyncQuery(
+                    {
+                        user,
+                        projectUuid,
+                        metricQuery: metricQueryMock,
+                        context: QueryExecutionContext.EXPLORE,
+                        granularity: undefined,
+                        queryTags: {
+                            query_context: QueryExecutionContext.EXPLORE,
+                        },
+                        exploreName: 'valid_explore',
+                        invalidateCache: false,
+                    },
+                    { query: metricQueryMock },
+                );
+
+                expect(result).toEqual({
+                    queryUuid: 'test-query-uuid',
+                });
+
+                // Verify that the query history was updated with READY status
+                expect(
+                    serviceWithCache.queryHistoryModel.update,
+                ).toHaveBeenCalledWith(
+                    'test-query-uuid',
+                    projectUuid,
+                    user.userUuid,
+                    {
+                        status: QueryHistoryStatus.READY,
+                        error: null,
+                        total_row_count: 10,
+                    },
+                );
+
+                // Verify that the warehouse client executeAsyncQuery method was not called
+                expect(
+                    warehouseClientExecuteAsyncQuerySpy,
+                ).not.toHaveBeenCalled();
+            });
+
+            test('should trigger background query when cache is not hit', async () => {
+                // Mock the resultsCacheModel to return a cache miss
+                const mockCacheResult = {
+                    cacheHit: false,
+                    cacheKey: 'test-cache-key',
+                    write,
+                    close,
+                };
+
+                (
+                    serviceWithCache.resultsCacheModel
+                        .createOrGetExistingCache as jest.Mock
+                ).mockResolvedValueOnce(mockCacheResult);
+
+                // Mock the queryHistoryModel.create to return a queryUuid
+                (
+                    serviceWithCache.queryHistoryModel.create as jest.Mock
+                ).mockResolvedValue({
+                    queryUuid: 'test-query-uuid',
+                });
+
+                // Spy on the warehouse client executeAsyncQuery method
+                const warehouseClientExecuteAsyncQuerySpy = jest.spyOn(
+                    warehouseClientMock,
+                    'executeAsyncQuery',
+                );
+
+                const result = await serviceWithCache.executeAsyncQuery(
+                    {
+                        user,
+                        projectUuid,
+                        metricQuery: metricQueryMock,
+                        context: QueryExecutionContext.EXPLORE,
+                        granularity: undefined,
+                        queryTags: {
+                            query_context: QueryExecutionContext.EXPLORE,
+                        },
+                        exploreName: 'valid_explore',
+                        invalidateCache: false,
+                    },
+                    { query: metricQueryMock },
+                );
+
+                expect(result).toEqual({
+                    queryUuid: 'test-query-uuid',
+                });
+
+                // Verify that the query history was not updated with READY status
+                expect(
+                    serviceWithCache.queryHistoryModel.update,
+                ).not.toHaveBeenCalledWith(
+                    'test-query-uuid',
+                    projectUuid,
+                    user.userUuid,
+                    {
+                        status: QueryHistoryStatus.READY,
+                        error: null,
+                        total_row_count: expect.any(Number),
+                    },
+                );
+
+                // Verify that the warehouse client executeAsyncQuery method was not called
+                expect(
+                    warehouseClientExecuteAsyncQuerySpy,
+                ).toHaveBeenCalledWith(
+                    {
+                        sql: expect.any(String),
+                        tags: {
+                            query_context: QueryExecutionContext.EXPLORE,
+                        },
+                    },
+                    write,
+                );
+            });
+
+            test('should invalidate cache when invalidateCache is true', async () => {
+                // Mock the resultsCacheModel to return a cache miss
+                const mockCacheResult = {
+                    cacheHit: false,
+                    cacheKey: 'test-cache-key',
+                    write,
+                    close,
+                };
+
+                (
+                    serviceWithCache.resultsCacheModel
+                        .createOrGetExistingCache as jest.Mock
+                ).mockResolvedValueOnce(mockCacheResult);
+
+                // Mock the queryHistoryModel.create to return a queryUuid
+                (
+                    serviceWithCache.queryHistoryModel.create as jest.Mock
+                ).mockResolvedValue({
+                    queryUuid: 'test-query-uuid',
+                });
+
+                // Spy on the warehouse client executeAsyncQuery method
+                const warehouseClientExecuteAsyncQuerySpy = jest.spyOn(
+                    warehouseClientMock,
+                    'executeAsyncQuery',
+                );
+
+                await serviceWithCache.executeAsyncQuery(
+                    {
+                        user,
+                        projectUuid,
+                        metricQuery: metricQueryMock,
+                        context: QueryExecutionContext.EXPLORE,
+                        granularity: undefined,
+                        queryTags: {
+                            query_context: QueryExecutionContext.EXPLORE,
+                        },
+                        exploreName: 'valid_explore',
+                        invalidateCache: true,
+                    },
+                    { query: metricQueryMock },
+                );
+
+                // Verify that createOrGetExistingCache was called with invalidateCache: true
+                expect(
+                    serviceWithCache.resultsCacheModel.createOrGetExistingCache,
+                ).toHaveBeenCalledWith(
+                    projectUuid,
+                    expect.any(Object),
+                    expect.any(Object),
+                    true,
+                );
+
+                // Verify that the query history was not updated with READY status
+                expect(
+                    serviceWithCache.queryHistoryModel.update,
+                ).not.toHaveBeenCalledWith(
+                    'test-query-uuid',
+                    projectUuid,
+                    user.userUuid,
+                    {
+                        status: QueryHistoryStatus.READY,
+                        error: null,
+                        total_row_count: expect.any(Number),
+                    },
+                );
+
+                // Verify that the warehouse client executeAsyncQuery method was called
+                expect(
+                    warehouseClientExecuteAsyncQuerySpy,
+                ).toHaveBeenCalledWith(
+                    {
+                        sql: expect.any(String),
+                        tags: {
+                            query_context: QueryExecutionContext.EXPLORE,
+                        },
+                    },
+                    write,
+                );
+            });
+        });
+
+        describe('when cache is disabled', () => {
+            const serviceWithoutCache = getMockedProjectService({
+                ...lightdashConfigMock,
+                resultsCache: {
+                    ...lightdashConfigMock.resultsCache,
+                    resultsEnabled: false,
+                },
+            });
+
+            beforeEach(() => {
+                jest.clearAllMocks();
+                // Mock the resultsCacheModel.createOrGetExistingCache method
+                serviceWithoutCache.resultsCacheModel.createOrGetExistingCache =
+                    jest.fn();
+            });
+
+            test('should trigger background query without checking cache', async () => {
+                // Mock the queryHistoryModel.create to return a queryUuid
+                (
+                    serviceWithoutCache.queryHistoryModel.create as jest.Mock
+                ).mockResolvedValue({
+                    queryUuid: 'test-query-uuid',
+                });
+
+                const result = await serviceWithoutCache.executeAsyncQuery(
+                    {
+                        user,
+                        projectUuid,
+                        metricQuery: metricQueryMock,
+                        context: QueryExecutionContext.EXPLORE,
+                        granularity: undefined,
+                        queryTags: {
+                            query_context: QueryExecutionContext.EXPLORE,
+                        },
+                        exploreName: 'valid_explore',
+                        invalidateCache: false,
+                    },
+                    { query: metricQueryMock },
+                );
+
+                expect(result).toEqual({
+                    queryUuid: 'test-query-uuid',
+                });
+
+                // Verify that resultsCacheModel.createOrGetExistingCache was not called
+                expect(
+                    serviceWithoutCache.resultsCacheModel
+                        .createOrGetExistingCache,
+                ).not.toHaveBeenCalled();
+
+                // Verify that the query history was not updated with READY status
+                expect(
+                    serviceWithoutCache.queryHistoryModel.update,
+                ).not.toHaveBeenCalledWith(
+                    'test-query-uuid',
+                    projectUuid,
+                    user.userUuid,
+                    {
+                        status: QueryHistoryStatus.READY,
+                        error: null,
+                        total_row_count: expect.any(Number),
+                    },
+                );
+            });
         });
     });
 });

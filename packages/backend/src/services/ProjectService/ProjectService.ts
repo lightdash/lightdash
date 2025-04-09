@@ -2326,7 +2326,7 @@ export class ProjectService extends BaseService {
         }
     }
 
-    private async executeAsyncQuery(
+    async executeAsyncQuery(
         args: ExecuteAsyncMetricQueryArgs & {
             queryTags: RunQueryTags;
             exploreName: string;
