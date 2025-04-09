@@ -1,3 +1,10 @@
+## [0.1567.1](https://github.com/lightdash/lightdash/compare/0.1567.0...0.1567.1) (2025-04-09)
+
+
+### Bug Fixes
+
+* postgres certificates ([#14314](https://github.com/lightdash/lightdash/issues/14314)) ([f35b8eb](https://github.com/lightdash/lightdash/commit/f35b8eb41e48bdea49c7cabb745c1d3fa7a3ccb0))
+
 # [0.1567.0](https://github.com/lightdash/lightdash/compare/0.1566.2...0.1567.0) (2025-04-08)
 
 
