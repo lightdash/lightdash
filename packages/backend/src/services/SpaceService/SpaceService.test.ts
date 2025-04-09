@@ -41,6 +41,11 @@ describe('SpaceService', () => {
     });
 
     describe('_userCanActionSpace', () => {
+        beforeEach(() => {
+            jest.spyOn(SpaceModel.prototype, 'getSpaceRoot').mockImplementation(
+                async (spaceUuid) => spaceUuid,
+            );
+        });
         describe('organization admins', () => {
             it.each([
                 {

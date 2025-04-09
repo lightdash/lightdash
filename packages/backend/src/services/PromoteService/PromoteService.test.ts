@@ -33,10 +33,12 @@ const spaceModel = {
     find: jest.fn(async () => [existingUpstreamChart.space]),
     getUserSpaceAccess: jest.fn(async () => []),
     createSpace: jest.fn(async () => existingUpstreamChart.space),
+    createSpaceWithAncestors: jest.fn(async () => existingUpstreamChart.space),
     getFullSpace: jest.fn(async () => upstreamFullSpace),
     addSpaceAccess: jest.fn(async () => {}),
     addSpaceGroupAccess: jest.fn(async () => {}),
     update: jest.fn(async () => {}),
+    isRootSpace: jest.fn(async () => true),
 };
 const dashboardModel = {
     create: jest.fn(async () => existingUpstreamDashboard.dashboard),
@@ -472,7 +474,8 @@ describe('PromoteService promoting and mutating changes', () => {
             changes,
         );
 
-        expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
+        // expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
+        expect(spaceModel.createSpaceWithAncestors).toHaveBeenCalledTimes(1);
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(0);
         expect(spaceModel.addSpaceGroupAccess).toHaveBeenCalledTimes(0);
 

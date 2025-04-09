@@ -850,6 +850,9 @@ export class SpaceModel {
                 ),
             ]);
 
+        console.log('access 👇');
+        console.log(groupBy(access, 'space_uuid'));
+
         return Object.entries(groupBy(access, 'space_uuid')).reduce<
             Record<string, SpaceShare[]>
         >((acc, [spaceUuid, spaceAccess]) => {
