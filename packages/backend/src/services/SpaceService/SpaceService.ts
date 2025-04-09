@@ -161,8 +161,11 @@ export class SpaceService extends BaseService {
             user.userId,
             space.isPrivate !== false,
             generateSlug(space.name),
+            false,
+            space.parentSpaceUuid,
         );
 
+        // Nested spaces MVP: Nested spaces inherit access from their root space, but don't need to have that access added to them explicitly
         if (space.access)
             await Promise.all(
                 space.access.map((access) =>
