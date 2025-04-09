@@ -17,6 +17,7 @@ import path from 'path';
 import * as pg from 'pg';
 import { PoolConfig, QueryResult, types } from 'pg';
 import { Writable } from 'stream';
+import * as tls from 'tls';
 import { rootCertificates } from 'tls';
 import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
@@ -183,10 +184,16 @@ export class PostgresClient<
                     ...(typeof this.config.ssl === 'object'
                         ? this.config.ssl
                         : {}),
-                    // Setting rejectUnauthorized to false disables SSL certificate verification,
-                    // which is needed when connecting to a server using an IP address that
-                    // can't be validated by the certificate's hostname.
-                    rejectUnauthorized: false,
+
+                    rejectUnauthorized: true,
+                    checkServerIdentity: (hostname, cert) => {
+                        if (hostname === 'localhost') {
+                            // When connecting to localhost, we don't need to validate the server identity
+                            // pg library defaults to localhost when connecting via IP address
+                            return undefined;
+                        }
+                        return tls.checkServerIdentity(hostname, cert);
+                    },
                 },
                 connectionTimeoutMillis: 5000,
                 query_timeout: this.credentials.timeoutSeconds
