@@ -439,7 +439,11 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes.dashboards.length).toBe(1);
         expect(changes.spaces[0].action).toBe('no changes');
 
-        const newChanges = await service.upsertSpaces(user, changes);
+        const newChanges = await service.upsertSpaces(
+            user,
+            promotedDashboard.projectUuid,
+            changes,
+        );
 
         expect(changes).toEqual(newChanges);
     });
@@ -462,7 +466,11 @@ describe('PromoteService promoting and mutating changes', () => {
             promotedDashboard.dashboard.spaceUuid,
         );
 
-        const newChanges = await service.upsertSpaces(user, changes);
+        const newChanges = await service.upsertSpaces(
+            user,
+            promotedDashboard.projectUuid,
+            changes,
+        );
 
         expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(0);
@@ -511,7 +519,11 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes.spaces[0].action).toBe('create');
         expect(changes.spaces[0].data.isPrivate).toBe(true);
 
-        await service.upsertSpaces(user, changes);
+        await service.upsertSpaces(
+            user,
+            promotedDashboardWithNewPrivateSpace.projectUuid,
+            changes,
+        );
 
         expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
         expect(spaceModel.createSpace).toHaveBeenCalledWith(
@@ -543,7 +555,11 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes.spaces[0].action).toBe('update');
         expect(changes.spaces[0].data.isPrivate).toBe(false); // Existing space is not private, so it should be kept that way
 
-        await service.upsertSpaces(user, changes);
+        await service.upsertSpaces(
+            user,
+            promotedDashboardWithNewPrivateSpace.projectUuid,
+            changes,
+        );
 
         expect(spaceModel.update).toHaveBeenCalledTimes(1);
         expect(spaceModel.update).toHaveBeenCalledWith('upstream-space-uuid', {
