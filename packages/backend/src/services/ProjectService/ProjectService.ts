@@ -590,6 +590,26 @@ export class ProjectService extends BaseService {
         }
     }
 
+    private async getUserAttributes(
+        user: SessionUser,
+        organizationUuid: string,
+    ) {
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const intrinsicUserAttributes = emailStatus.isVerified
+            ? getIntrinsicUserAttributes(user)
+            : {};
+
+        return { userAttributes, intrinsicUserAttributes };
+    }
+
     private async _resolveWarehouseClientSshKeys<
         T extends { warehouseConnection: CreateWarehouseCredentials },
     >(args: T): Promise<T> {
@@ -1524,18 +1544,9 @@ export class ProjectService extends BaseService {
                 databricksCompute: explore.databricksCompute,
             },
         );
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
 
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
-            user.userUuid,
-        );
-        const intrinsicUserAttributes = emailStatus.isVerified
-            ? getIntrinsicUserAttributes(user)
-            : {};
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes(user, organizationUuid);
 
         const compiledQuery = await ProjectService._compileQuery(
             metricQuery,
@@ -4133,18 +4144,8 @@ export class ProjectService extends BaseService {
                 databricksCompute: explore.databricksCompute,
             },
         );
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
-
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
-            user.userUuid,
-        );
-        const intrinsicUserAttributes = emailStatus.isVerified
-            ? getIntrinsicUserAttributes(user)
-            : {};
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes(user, organizationUuid);
 
         const { query } = await ProjectService._compileQuery(
             metricQuery,
@@ -5916,25 +5917,12 @@ export class ProjectService extends BaseService {
     }
 
     async _getCalculateTotalQuery(
-        user: SessionUser,
+        userAttributes: UserAttributeValueMap,
+        intrinsicUserAttributes: IntrinsicUserAttributes,
         explore: Explore,
         metricQuery: MetricQuery,
-        organizationUuid: string,
         warehouseClient: WarehouseClient,
     ) {
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
-
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
-            user.userUuid,
-        );
-        const intrinsicUserAttributes = emailStatus.isVerified
-            ? getIntrinsicUserAttributes(user)
-            : {};
-
         const totalQuery: MetricQuery = {
             ...metricQuery,
             limit: 1,
@@ -5981,11 +5969,14 @@ export class ProjectService extends BaseService {
             },
         );
 
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes(user, organizationUuid);
+
         const { query } = await this._getCalculateTotalQuery(
-            user,
+            userAttributes,
+            intrinsicUserAttributes,
             explore,
             metricQuery,
-            organizationUuid,
             warehouseClient,
         );
 
@@ -6019,16 +6010,19 @@ export class ProjectService extends BaseService {
             },
         );
 
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes(user, organizationUuid);
+
         const { query, totalQuery } = await this._getCalculateTotalQuery(
-            user,
+            userAttributes,
+            intrinsicUserAttributes,
             explore,
             metricQuery,
-            organizationUuid,
             warehouseClient,
         );
 
         const queryTags: RunQueryTags = {
-            organization_uuid: user.organizationUuid,
+            organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             explore_name: explore.name,

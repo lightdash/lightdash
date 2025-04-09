@@ -567,61 +567,10 @@ export class EmbedService extends BaseService {
         );
     }
 
-    private async _permissionsGetChartAndResults(
-        projectUuid: string,
-        chartUuid: string,
-        dashboardUuids: string[],
-        dashboardUuid: string,
+    private async _getEmbedUserAttributes(
+        organizationUuid: string,
+        embedJwt: EmbedJwt,
     ) {
-        if (!dashboardUuids.includes(dashboardUuid)) {
-            throw new ForbiddenError(
-                `Dashboard ${dashboardUuid} is not embedded`,
-            );
-        }
-
-        const chartInDashboards = await this.dashboardModel.getAllByProject(
-            projectUuid,
-            chartUuid,
-        );
-        const chartInDashboardUuids = chartInDashboards.map((d) => d.uuid);
-        if (!chartInDashboardUuids.includes(dashboardUuid)) {
-            throw new ForbiddenError(
-                `This chart does not belong to dashboard ${dashboardUuid}`,
-            );
-        }
-    }
-
-    private async _getEmbedResults({
-        organizationUuid,
-        projectUuid,
-        metricQuery,
-        explore,
-        queryTags,
-        embedJwt,
-        dateZoomGranularity,
-    }: {
-        organizationUuid: string;
-        projectUuid: string;
-        metricQuery: MetricQuery;
-        explore: Explore;
-        queryTags: Record<string, string>;
-        embedJwt: EmbedJwt;
-        dateZoomGranularity?: DateGranularity;
-    }) {
-        const credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
-                projectUuid,
-            );
-
-        const { warehouseClient, sshTunnel } =
-            await this.projectService._getWarehouseClient(
-                projectUuid,
-                credentials,
-                {
-                    snowflakeVirtualWarehouse: explore.warehouse,
-                    databricksCompute: explore.databricksCompute,
-                },
-            );
         const orgUserAttributes = await this.userAttributesModel.find({
             organizationUuid,
         });
@@ -661,6 +610,77 @@ export class EmbedService extends BaseService {
         const intrinsicUserAttributes: IntrinsicUserAttributes = {
             email: embedJwt.user?.email,
         };
+
+        return { userAttributes, intrinsicUserAttributes };
+    }
+
+    private async _permissionsGetChartAndResults(
+        projectUuid: string,
+        chartUuid: string,
+        dashboardUuids: string[],
+        dashboardUuid: string,
+    ) {
+        if (!dashboardUuids.includes(dashboardUuid)) {
+            throw new ForbiddenError(
+                `Dashboard ${dashboardUuid} is not embedded`,
+            );
+        }
+
+        const chartInDashboards = await this.dashboardModel.getAllByProject(
+            projectUuid,
+            chartUuid,
+        );
+        const chartInDashboardUuids = chartInDashboards.map((d) => d.uuid);
+        if (!chartInDashboardUuids.includes(dashboardUuid)) {
+            throw new ForbiddenError(
+                `This chart does not belong to dashboard ${dashboardUuid}`,
+            );
+        }
+    }
+
+    private async _getWarehouseClient(projectUuid: string, explore: Explore) {
+        const credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+
+        const { warehouseClient, sshTunnel } =
+            await this.projectService._getWarehouseClient(
+                projectUuid,
+                credentials,
+                {
+                    snowflakeVirtualWarehouse: explore.warehouse,
+                    databricksCompute: explore.databricksCompute,
+                },
+            );
+
+        return { warehouseClient, sshTunnel };
+    }
+
+    private async _runEmbedQuery({
+        organizationUuid,
+        projectUuid,
+        metricQuery,
+        explore,
+        queryTags,
+        embedJwt,
+        dateZoomGranularity,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+        metricQuery: MetricQuery;
+        explore: Explore;
+        queryTags: Record<string, string>;
+        embedJwt: EmbedJwt;
+        dateZoomGranularity?: DateGranularity;
+    }) {
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            explore,
+        );
+
+        const { userAttributes, intrinsicUserAttributes } =
+            await this._getEmbedUserAttributes(organizationUuid, embedJwt);
 
         // Filter the explore access and fields based on the user attributes
         const filteredExplore = getFilteredExplore(explore, userAttributes);
@@ -829,7 +849,7 @@ export class EmbedService extends BaseService {
             external_id: externalId,
         };
 
-        const { rows, cacheMetadata, fields } = await this._getEmbedResults({
+        const { rows, cacheMetadata, fields } = await this._runEmbedQuery({
             organizationUuid,
             projectUuid,
             metricQuery: metricQueryWithDashboardOverrides,
@@ -870,11 +890,6 @@ export class EmbedService extends BaseService {
         );
 
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
-
-        const sessionUser = await this.userModel.findSessionUserAndOrgByUuid(
-            user.userUuid,
-            dashboard.organizationUuid,
-        );
 
         const tile = dashboard.tiles
             .filter(isDashboardChartTileType)
@@ -918,16 +933,49 @@ export class EmbedService extends BaseService {
             tile.uuid,
             dashboardFilters,
         );
+        const metricQuery = appliedDashboardFilters
+            ? addDashboardFiltersToMetricQuery(
+                  chart.metricQuery,
+                  appliedDashboardFilters,
+              )
+            : chart.metricQuery;
 
-        const totalResult =
-            await this.projectService.calculateTotalFromSavedChart(
-                sessionUser,
-                chart.uuid,
-                appliedDashboardFilters,
-                invalidateCache,
+        const { warehouseClient } = await this._getWarehouseClient(
+            projectUuid,
+            explore,
+        );
+
+        const { userAttributes, intrinsicUserAttributes } =
+            await this._getEmbedUserAttributes(
+                dashboard.organizationUuid,
+                decodedToken,
             );
 
-        return totalResult;
+        const { totalQuery: totalMetricQuery } =
+            await this.projectService._getCalculateTotalQuery(
+                userAttributes,
+                intrinsicUserAttributes,
+                explore,
+                metricQuery,
+                warehouseClient,
+            );
+
+        const { rows } = await this._runEmbedQuery({
+            organizationUuid: dashboard.organizationUuid,
+            projectUuid,
+            metricQuery: totalMetricQuery,
+            explore,
+            queryTags: {},
+            embedJwt: decodedToken,
+        });
+
+        if (rows.length === 0) {
+            throw new NotFoundError('No results found');
+        }
+
+        const row = rows[0];
+
+        return row;
     }
 
     async searchFilterValues({
@@ -976,7 +1024,7 @@ export class EmbedService extends BaseService {
                 filters,
             });
 
-        const { rows, cacheMetadata } = await this._getEmbedResults({
+        const { rows, cacheMetadata } = await this._runEmbedQuery({
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
             metricQuery,
