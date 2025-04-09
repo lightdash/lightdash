@@ -7471,6 +7471,9 @@
             },
             "CreateSpace": {
                 "properties": {
+                    "parentSpaceUuid": {
+                        "type": "string"
+                    },
                     "access": {
                         "items": {
                             "$ref": "#/components/schemas/Pick_SpaceShare.userUuid-or-role_"
