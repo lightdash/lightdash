@@ -1,3 +1,10 @@
+## [0.1567.3](https://github.com/lightdash/lightdash/compare/0.1567.2...0.1567.3) (2025-04-09)
+
+
+### Bug Fixes
+
+* autocomplete no pivot for tooltip ([#14336](https://github.com/lightdash/lightdash/issues/14336)) ([5ca35a7](https://github.com/lightdash/lightdash/commit/5ca35a7ef33c3389d978a70aa792a063168b09db))
+
 ## [0.1567.2](https://github.com/lightdash/lightdash/compare/0.1567.1...0.1567.2) (2025-04-09)
 
 
