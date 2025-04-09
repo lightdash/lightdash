@@ -2330,7 +2330,6 @@ export class ProjectService extends BaseService {
         args: ExecuteAsyncMetricQueryArgs & {
             queryTags: RunQueryTags;
             exploreName: string;
-            invalidateCache: boolean;
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
     ) {
