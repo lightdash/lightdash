@@ -28,6 +28,9 @@ const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const project = useProject(projectUuid);
 
     const allFilters = useDashboardContext((c) => c.allFilters);
+    const resetDashboardFilters = useDashboardContext(
+        (c) => c.resetDashboardFilters,
+    );
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
@@ -92,6 +95,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
                     openPopoverId={openPopoverId}
                     onPopoverOpen={handlePopoverOpen}
                     onPopoverClose={handlePopoverClose}
+                    onResetDashboardFilters={resetDashboardFilters}
                 />
             </Flex>
         </FiltersProvider>
