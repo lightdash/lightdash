@@ -165,12 +165,6 @@ export class ResultsCacheModel {
             pageSize,
         );
 
-        if (!cacheStream) {
-            throw new NotFoundError(
-                `Cached results not found for key ${cacheKey} and project ${projectUuid}`,
-            );
-        }
-
         const rows: ResultRow[] = [];
         const rl = createInterface({
             input: cacheStream,
@@ -179,17 +173,18 @@ export class ResultsCacheModel {
 
         const startLine = (page - 1) * pageSize;
         const endLine = startLine + pageSize;
-        let currentLine = 0;
+        let nonEmptyLineCount = 0;
 
         for await (const line of rl) {
-            if (currentLine >= startLine && currentLine < endLine) {
-                if (line.trim()) {
+            if (line.trim()) {
+                if (
+                    nonEmptyLineCount >= startLine &&
+                    nonEmptyLineCount < endLine
+                ) {
                     rows.push(formatter(JSON.parse(line)));
                 }
-            } else if (currentLine >= endLine) {
-                break;
+                nonEmptyLineCount += 1;
             }
-            currentLine += 1;
         }
 
         return {

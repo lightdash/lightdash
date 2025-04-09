@@ -1,5 +1,7 @@
+import { ExpiredError, NotFoundError, ResultRow } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { MockClient, Tracker, getTracker } from 'knex-mock-client';
+import { Readable } from 'stream';
 import { IResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/ResultsCacheStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { ResultsCacheTableName } from '../../database/entities/resultsCache';
@@ -344,6 +346,236 @@ describe('ResultsCacheModel', () => {
             expect(tracker.history.select[0].bindings).toContain(
                 differentProjectUuid,
             );
+        });
+    });
+
+    describe('getCachedResultsPage', () => {
+        const projectUuid = 'test-project-uuid';
+        const cacheKey = 'test-cache-key';
+        const now = new Date();
+        const futureDate = new Date(now.getTime() + 3600000); // 1 hour in the future
+        const pastDate = new Date(now.getTime() - 3600000); // 1 hour in the past
+        const mockRows = [
+            '{"value":"test1"}',
+            '{"value":"test2"}',
+            '{"value":"test3"}',
+            '{"value":"test4"}',
+        ];
+
+        const getMockStream = (rows: string[]) =>
+            new Readable({
+                objectMode: true,
+                read() {
+                    for (const row of rows) {
+                        this.push(`${row}\n`);
+                    }
+                    this.push(null);
+                },
+            });
+
+        const mockFormatter = (row: ResultRow): ResultRow => row;
+
+        beforeEach(() => {
+            jest.spyOn(Date, 'now').mockReturnValue(now.getTime());
+        });
+
+        test('should return paginated results with formatting', async () => {
+            const existingCache = {
+                cache_key: cacheKey,
+                project_uuid: projectUuid,
+                expires_at: futureDate,
+                total_row_count: 100,
+            };
+
+            tracker.on.select(ResultsCacheTableName).response([existingCache]);
+
+            mockStorageClient.download.mockResolvedValue(
+                getMockStream(mockRows),
+            );
+
+            const result = await model.getCachedResultsPage(
+                cacheKey,
+                projectUuid,
+                1, // page
+                10, // pageSize
+                mockStorageClient,
+                mockFormatter,
+            );
+
+            expect(result).toEqual({
+                rows: [
+                    { value: 'test1' },
+                    { value: 'test2' },
+                    { value: 'test3' },
+                    { value: 'test4' },
+                ],
+                totalRowCount: 100,
+            });
+
+            expect(mockStorageClient.download).toHaveBeenCalledWith(
+                cacheKey,
+                1,
+                10,
+            );
+        });
+
+        test('should handle empty results', async () => {
+            const existingCache = {
+                cache_key: cacheKey,
+                project_uuid: projectUuid,
+                expires_at: futureDate,
+                total_row_count: 0,
+            };
+
+            const emptyMockStream = Readable.from([]);
+
+            tracker.on.select(ResultsCacheTableName).response([existingCache]);
+
+            mockStorageClient.download.mockResolvedValue(emptyMockStream);
+
+            const result = await model.getCachedResultsPage(
+                cacheKey,
+                projectUuid,
+                1,
+                10,
+                mockStorageClient,
+                mockFormatter,
+            );
+
+            expect(result).toEqual({
+                rows: [],
+                totalRowCount: 0,
+            });
+        });
+
+        test('should throw NotFoundError when cache does not exist', async () => {
+            tracker.on.select(ResultsCacheTableName).response([]);
+
+            await expect(
+                model.getCachedResultsPage(
+                    cacheKey,
+                    projectUuid,
+                    1,
+                    10,
+                    mockStorageClient,
+                    mockFormatter,
+                ),
+            ).rejects.toThrow(NotFoundError);
+
+            expect(mockStorageClient.download).not.toHaveBeenCalled();
+        });
+
+        test('should throw ExpiredError when cache is expired', async () => {
+            const expiredCache = {
+                cache_key: cacheKey,
+                project_uuid: projectUuid,
+                expires_at: pastDate,
+                total_row_count: 100,
+            };
+
+            tracker.on.select(ResultsCacheTableName).response([expiredCache]);
+
+            tracker.on.delete(ResultsCacheTableName).response([]);
+
+            await expect(
+                model.getCachedResultsPage(
+                    cacheKey,
+                    projectUuid,
+                    1,
+                    10,
+                    mockStorageClient,
+                    mockFormatter,
+                ),
+            ).rejects.toThrow(ExpiredError);
+
+            expect(mockStorageClient.download).not.toHaveBeenCalled();
+            expect(tracker.history.delete).toHaveLength(1);
+        });
+
+        test('should handle pagination correctly', async () => {
+            const existingCache = {
+                cache_key: cacheKey,
+                project_uuid: projectUuid,
+                expires_at: futureDate,
+                total_row_count: 100,
+            };
+
+            tracker.on.select(ResultsCacheTableName).response([existingCache]);
+
+            mockStorageClient.download.mockResolvedValue(
+                getMockStream(mockRows),
+            );
+
+            const result = await model.getCachedResultsPage(
+                cacheKey,
+                projectUuid,
+                2, // page
+                2, // pageSize
+                mockStorageClient,
+                mockFormatter,
+            );
+
+            expect(result).toEqual({
+                rows: [{ value: 'test3' }, { value: 'test4' }],
+                totalRowCount: 100,
+            });
+
+            expect(mockStorageClient.download).toHaveBeenCalledWith(
+                cacheKey,
+                2,
+                2,
+            );
+        });
+
+        test('should handle empty lines in results', async () => {
+            const existingCache = {
+                cache_key: cacheKey,
+                project_uuid: projectUuid,
+                expires_at: futureDate,
+                total_row_count: 100,
+            };
+
+            const mockRowsWithEmptyLines = [
+                '{"value":"test1"}',
+                '',
+                '{"value":"test2"}',
+                '   ',
+                '{"value":"test3"}',
+            ];
+
+            const mockStreamWithEmptyLines = new Readable({
+                objectMode: true,
+                read() {
+                    for (const row of mockRowsWithEmptyLines) {
+                        this.push(`${row}\n`);
+                    }
+                    this.push(null);
+                },
+            });
+
+            tracker.on.select(ResultsCacheTableName).response([existingCache]);
+
+            mockStorageClient.download.mockResolvedValue(
+                mockStreamWithEmptyLines,
+            );
+
+            const result = await model.getCachedResultsPage(
+                cacheKey,
+                projectUuid,
+                1,
+                3,
+                mockStorageClient,
+                mockFormatter,
+            );
+
+            expect(result).toEqual({
+                rows: [
+                    { value: 'test1' },
+                    { value: 'test2' },
+                    { value: 'test3' },
+                ],
+                totalRowCount: 100,
+            });
         });
     });
 });
