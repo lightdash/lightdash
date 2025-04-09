@@ -713,6 +713,37 @@ export class EmbedService extends BaseService {
         return chart;
     }
 
+    // eslint-disable-next-line class-methods-use-this
+    private async _getAppliedDashboardFilters(
+        decodedToken: EmbedJwt,
+        explore: Explore,
+        dashboard: DashboardDAO,
+        tileUuid: string,
+        dashboardFilters?: DashboardFilters,
+    ) {
+        const tables = Object.keys(explore.tables);
+
+        let appliedDashboardFilters = getDashboardFiltersForTileAndTables(
+            tileUuid,
+            tables,
+            dashboard.filters,
+        );
+        if (
+            dashboardFilters &&
+            isFilterInteractivityEnabled(
+                decodedToken.content.dashboardFiltersInteractivity,
+            )
+        ) {
+            appliedDashboardFilters = getDashboardFiltersForTileAndTables(
+                tileUuid,
+                tables,
+                dashboardFilters,
+            );
+        }
+
+        return appliedDashboardFilters;
+    }
+
     async getChartAndResults(
         projectUuid: string,
         embedToken: string,
@@ -764,24 +795,14 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const tables = Object.keys(explore.tables);
-        let appliedDashboardFilters = getDashboardFiltersForTileAndTables(
+        const appliedDashboardFilters = await this._getAppliedDashboardFilters(
+            decodedToken,
+            explore,
+            dashboard,
             tileUuid,
-            tables,
-            dashboard.filters,
+            dashboardFilters,
         );
-        if (
-            dashboardFilters &&
-            isFilterInteractivityEnabled(
-                decodedToken.content.dashboardFiltersInteractivity,
-            )
-        ) {
-            appliedDashboardFilters = getDashboardFiltersForTileAndTables(
-                tileUuid,
-                tables,
-                dashboardFilters,
-            );
-        }
+
         const metricQueryWithDashboardOverrides: MetricQuery = {
             ...addDashboardFiltersToMetricQuery(
                 chart.metricQuery,
@@ -836,7 +857,7 @@ export class EmbedService extends BaseService {
     async calculateTotalFromSavedChart(
         embedToken: string,
         projectUuid: string,
-        tileUuid: string,
+        savedChartUuid: string,
         dashboardFilters?: DashboardFilters,
         invalidateCache?: boolean,
     ) {
@@ -855,16 +876,54 @@ export class EmbedService extends BaseService {
             dashboard.organizationUuid,
         );
 
+        const tile = dashboard.tiles
+            .filter(isDashboardChartTileType)
+            .find(
+                ({ properties }) =>
+                    properties.savedChartUuid === savedChartUuid,
+            );
+
+        if (!tile) {
+            throw new ParameterError(
+                `Tile for saved chart ${savedChartUuid} not found`,
+            );
+        }
+
+        if (!tile.properties.savedChartUuid) {
+            throw new ParameterError(
+                `Tile ${savedChartUuid} does not have a saved chart uuid`,
+            );
+        }
+
         const chart = await this._getChartFromDashboardTiles(
             dashboard,
-            tileUuid,
+            tile.uuid,
+        );
+
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            chart.tableName,
+        );
+
+        if (isExploreError(explore)) {
+            throw new ForbiddenError(
+                `Explore ${chart.tableName} on project ${projectUuid} has errors : ${explore.errors}`,
+            );
+        }
+
+        const appliedDashboardFilters = await this._getAppliedDashboardFilters(
+            decodedToken,
+            explore,
+            dashboard,
+            tile.uuid,
+            dashboardFilters,
         );
 
         const totalResult =
             await this.projectService.calculateTotalFromSavedChart(
                 sessionUser,
                 chart.uuid,
-                dashboardFilters,
+                appliedDashboardFilters,
                 invalidateCache,
             );
 

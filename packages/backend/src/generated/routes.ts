@@ -16557,9 +16557,9 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
-        chartUuid: {
+        savedChartUuid: {
             in: 'path',
-            name: 'chartUuid',
+            name: 'savedChartUuid',
             required: true,
             dataType: 'string',
         },
@@ -16573,10 +16573,9 @@ export function RegisterRoutes(app: Router) {
                 dashboardFilters: { ref: 'AnyType' },
             },
         },
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.post(
-        '/api/v1/embed/:projectUuid/chart/:chartUuid/calculate-total',
+        '/api/v1/embed/:projectUuid/chart/:savedChartUuid/calculate-total',
         ...fetchMiddlewares<RequestHandler>(EmbedController),
         ...fetchMiddlewares<RequestHandler>(
             EmbedController.prototype.embedCalculateTotalFromSavedChart,
