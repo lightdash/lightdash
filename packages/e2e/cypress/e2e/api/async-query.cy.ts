@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import warehouseConnections from '../../support/warehouses';
+
 const apiUrl = '/api/v2';
 
 const runQueryBody = {
@@ -24,28 +26,25 @@ describe('Async Query API', () => {
     before(() => {
         cy.login();
 
-        cy.request('/api/v1/org/projects').then((response) => {
-            expect(response.status).to.eq(200);
-            expect(response.body).to.have.property('status', 'ok');
+        cy.createProject(
+            'postgresSQL query test',
+            warehouseConnections.postgresSQL,
+        ).then((puuid) => {
+            pgProjectUuid = puuid;
+        });
 
-            const projects = response.body.results;
-            // Find postgres project
-            const pgProject = projects.find(
-                (p: any) => p.warehouseType === 'postgres',
-            );
-            pgProjectUuid = pgProject.projectUuid;
+        cy.createProject(
+            'snowflake query test',
+            warehouseConnections.snowflake,
+        ).then((puuid) => {
+            snowflakeProjectUuid = puuid;
+        });
 
-            // Find snowflake project
-            const snowflakeProject = projects.find(
-                (p: any) => p.warehouseType === 'snowflake',
-            );
-            snowflakeProjectUuid = snowflakeProject.projectUuid;
-
-            // Find bigquery project
-            const bigqueryProject = projects.find(
-                (p: any) => p.warehouseType === 'bigquery',
-            );
-            bigqueryProjectUuid = bigqueryProject.projectUuid;
+        cy.createProject(
+            'bigquery query test',
+            warehouseConnections.bigQuery,
+        ).then((puuid) => {
+            bigqueryProjectUuid = puuid;
         });
     });
 
