@@ -31,14 +31,12 @@ let completionProviderDisposable: IDisposable | null = null;
 
 type Props = {
     fields: string[];
-    //items: (Field | TableCalculation | CustomDimension | CompiledDimension)[];
 };
 
 const registerCustomCompletionProvider = (
     monaco: Monaco,
     language: string,
     fields: string[],
-    //items: (Field | TableCalculation | CustomDimension | CompiledDimension)[],
 ) => {
     if (completionProviderDisposable) {
         console.debug('Clearing Monaco completion provider');
@@ -57,7 +55,6 @@ const registerCustomCompletionProvider = (
 
                 const suggestions: languages.CompletionItem[] = fields.map(
                     (field) => {
-                        //   const fieldRef = isField(item) ? getFieldRef(item) : item.name;
                         return {
                             label: field,
                             kind: monaco.languages.CompletionItemKind.Class,
