@@ -119,7 +119,9 @@ export const Legend: FC<Props> = ({ items }) => {
         );
         if (!hasPivot)
             return items.map((item) =>
-                isField(item) ? getFieldRef(item) : item.name,
+                isField(item)
+                    ? getFieldRef(item).replace(/\./g, '_')
+                    : item.name,
             );
 
         const fieldSet = allEncodes.reduce<Set<string>>((acc, encode) => {

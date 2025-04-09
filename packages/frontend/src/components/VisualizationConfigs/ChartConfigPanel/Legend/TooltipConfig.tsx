@@ -58,7 +58,7 @@ const registerCustomCompletionProvider = (
                         return {
                             label: field,
                             kind: monaco.languages.CompletionItemKind.Class,
-                            insertText: `\${${field.replace(/\./g, '_')}\}`,
+                            insertText: `\${${field}\}`,
                             range,
                         };
                     },
