@@ -860,9 +860,10 @@ export class PromoteService extends BaseService {
             .filter((change) => change.action === PromotionAction.CREATE)
             .map(async (spaceChange) => {
                 const { data: spaceChangeFromBase } = spaceChange;
-                const isNestedSpace = await this.spaceModel.isRootSpace(
+                const isRootSpace = await this.spaceModel.isRootSpace(
                     spaceChangeFromBase.uuid,
                 );
+                const isNestedSpace = !isRootSpace;
 
                 // Create the space (with ancestors if needed, skip existing spaces)
                 const space = await this.spaceModel.createSpaceWithAncestors({

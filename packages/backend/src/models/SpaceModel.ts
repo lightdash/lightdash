@@ -1494,6 +1494,25 @@ export class SpaceModel {
         };
     }
 
+    static async getSpaceSlugByUuid({
+        trx,
+        spaceUuid,
+    }: {
+        trx: Knex;
+        spaceUuid: string;
+    }) {
+        const [space] = await trx(SpaceTableName)
+            .select('slug')
+            .where('space_uuid', spaceUuid);
+
+        if (!space) {
+            throw new NotFoundError(
+                `Space with uuid ${spaceUuid} does not exist`,
+            );
+        }
+        return space.slug;
+    }
+
     /**
      * Generates a slug for a space.
      * @param slug - The slug to generate.
@@ -1505,21 +1524,23 @@ export class SpaceModel {
         slug,
         trx,
         parentSpaceUuid,
+        forceSameSlug,
     }: {
         slug: string;
         trx: Knex;
         parentSpaceUuid: string | null;
+        forceSameSlug: boolean;
     }) {
+        if (forceSameSlug && !parentSpaceUuid) {
+            return slug;
+        }
+
         if (parentSpaceUuid) {
-            const [parentSpace] = await trx(SpaceTableName)
-                .select('slug')
-                .where('space_uuid', parentSpaceUuid);
-            if (!parentSpace) {
-                throw new NotFoundError(
-                    `Parent space with uuid ${parentSpaceUuid} does not exist`,
-                );
-            }
-            return `${parentSpace.slug}/${slug}`;
+            const parentSpaceSlug = await this.getSpaceSlugByUuid({
+                trx,
+                spaceUuid: parentSpaceUuid,
+            });
+            return `${parentSpaceSlug}/${slug}`;
         }
 
         return generateUniqueSlug(trx, SpaceTableName, slug);
@@ -1548,13 +1569,12 @@ export class SpaceModel {
                 .select('project_id')
                 .where('project_uuid', projectUuid);
 
-            const spaceSlug = forceSameSlug
-                ? slug
-                : await SpaceModel.getSpaceSlug({
-                      slug,
-                      parentSpaceUuid,
-                      trx,
-                  });
+            const spaceSlug = await SpaceModel.getSpaceSlug({
+                slug,
+                parentSpaceUuid,
+                trx,
+                forceSameSlug,
+            });
 
             const spacePath = await SpaceModel.getSpacePath({
                 slug: spaceSlug,
