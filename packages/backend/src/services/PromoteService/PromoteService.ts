@@ -14,6 +14,7 @@ import {
     PromotionChanges,
     SavedChartDAO,
     SessionUser,
+    Space,
     SpaceShare,
     SpaceSummary,
     UnexpectedServerError,
@@ -858,70 +859,80 @@ export class PromoteService extends BaseService {
         const newSpaces = spaceChanges
             .filter((change) => change.action === PromotionAction.CREATE)
             .map(async (spaceChange) => {
-                const { data } = spaceChange;
-                const isNestedSpace = !!(await this.spaceModel.getSpaceRoot(
-                    data.uuid,
-                ));
+                const { data: spaceChangeFromBase } = spaceChange;
+                const isNestedSpace = await this.spaceModel.isRootSpace(
+                    spaceChangeFromBase.uuid,
+                );
 
                 // Create the space (with ancestors if needed, skip existing spaces)
                 const space = await this.spaceModel.createSpaceWithAncestors({
                     isNestedSpace,
                     baseProjectUuid: projectUuid,
-                    projectUuid: data.projectUuid,
-                    name: data.name,
+                    projectUuid: spaceChangeFromBase.projectUuid,
+                    name: spaceChangeFromBase.name,
                     userId: user.userId,
-                    isPrivate: data.isPrivate,
-                    slug: data.slug,
+                    isPrivate: spaceChangeFromBase.isPrivate,
+                    slug: spaceChangeFromBase.slug,
                     forceSameSlug: true,
                 });
 
                 // Only apply access permissions if this is a private space AND
                 // either the space is not nested OR we've just created the root space
-                if (
-                    space.isPrivate &&
-                    (!isNestedSpace ||
-                        (space.isRootSpaceCreated && space.rootSpaceUuid))
-                ) {
+                if (spaceChangeFromBase.isPrivate) {
                     const upstreamRootSpaceUuid = space.rootSpaceUuid;
                     if (!space.uuid || !upstreamRootSpaceUuid) {
                         throw new NotFoundError(
-                            `Unable to find target space for nested space ${data.slug}`,
+                            `Unable to find target space for nested space ${spaceChangeFromBase.slug}`,
                         );
                     }
 
-                    // Nested Spaces MVP - inherit access from root space
-                    const rootSpaceUuidForAccess =
-                        (await this.spaceModel.getSpaceRoot(data.uuid)) ??
-                        space.uuid;
-                    const promotedSpaceWithAccess =
-                        await this.spaceModel.getFullSpace(
-                            rootSpaceUuidForAccess,
-                        );
+                    let promotedSpaceWithAccess: Space | undefined;
+                    // promotedSpaceWithAccess is the space in the upstream project
+                    if (space.isRootSpaceCreated) {
+                        const spaceRootFromDownstream =
+                            await this.spaceModel.getSpaceRoot(
+                                spaceChangeFromBase.uuid,
+                            );
 
-                    const userAccessPromises = promotedSpaceWithAccess.access
-                        .filter((access) => access.hasDirectAccess)
-                        .map((userAccess) =>
-                            this.spaceModel.addSpaceAccess(
+                        promotedSpaceWithAccess =
+                            await this.spaceModel.getFullSpace(
+                                spaceRootFromDownstream,
+                            );
+                    } else {
+                        // get space from upstream project
+                        promotedSpaceWithAccess =
+                            await this.spaceModel.getFullSpace(
                                 upstreamRootSpaceUuid,
-                                userAccess.userUuid,
-                                userAccess.role,
-                            ),
-                        );
+                            );
+                    }
 
-                    const groupAccessPromises =
-                        promotedSpaceWithAccess.groupsAccess.map(
-                            (groupAccess) =>
-                                this.spaceModel.addSpaceGroupAccess(
-                                    upstreamRootSpaceUuid,
-                                    groupAccess.groupUuid,
-                                    groupAccess.spaceRole,
-                                ),
-                        );
+                    if (promotedSpaceWithAccess) {
+                        const userAccessPromises =
+                            promotedSpaceWithAccess.access
+                                .filter((access) => access.hasDirectAccess)
+                                .map((userAccess) =>
+                                    this.spaceModel.addSpaceAccess(
+                                        upstreamRootSpaceUuid,
+                                        userAccess.userUuid,
+                                        userAccess.role,
+                                    ),
+                                );
 
-                    await Promise.all([
-                        ...userAccessPromises,
-                        ...groupAccessPromises,
-                    ]);
+                        const groupAccessPromises =
+                            promotedSpaceWithAccess.groupsAccess.map(
+                                (groupAccess) =>
+                                    this.spaceModel.addSpaceGroupAccess(
+                                        upstreamRootSpaceUuid,
+                                        groupAccess.groupUuid,
+                                        groupAccess.spaceRole,
+                                    ),
+                            );
+
+                        await Promise.all([
+                            ...userAccessPromises,
+                            ...groupAccessPromises,
+                        ]);
+                    }
                 }
                 return space;
             });

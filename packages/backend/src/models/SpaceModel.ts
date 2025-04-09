@@ -29,7 +29,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
-import { groupBy } from 'lodash';
+import { groupBy, map } from 'lodash';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -954,9 +954,7 @@ export class SpaceModel {
     }
 
     private async _getGroupAccess(spaceUuid: string): Promise<SpaceGroup[]> {
-        // Get the root space UUID
-        const rootSpaceUuid = await this.getSpaceRoot(spaceUuid);
-        const spaceUuidToUse = rootSpaceUuid ?? spaceUuid;
+        const spaceOrRootUuid = await this.getSpaceRoot(spaceUuid);
 
         const access = await this.database
             .table(SpaceGroupAccessTableName)
@@ -970,7 +968,7 @@ export class SpaceModel {
                 `${GroupTableName}.group_uuid`,
                 `${SpaceGroupAccessTableName}.group_uuid`,
             )
-            .where('space_uuid', spaceUuidToUse);
+            .where('space_uuid', spaceOrRootUuid);
         return access;
     }
 
@@ -985,15 +983,13 @@ export class SpaceModel {
         userUuid: string,
         spaceUuid: string,
     ): Promise<SpaceShare[]> {
-        // Get the root space UUID if the space is nested
-        const rootSpaceUuid = await this.getSpaceRoot(spaceUuid);
-        const spaceUuidToUse = rootSpaceUuid ?? spaceUuid;
+        const spaceOrRootUuid = await this.getSpaceRoot(spaceUuid);
         return (
             (
-                await this._getSpaceAccess([spaceUuidToUse], {
+                await this._getSpaceAccess([spaceOrRootUuid], {
                     userUuid,
                 })
-            )[spaceUuidToUse] ?? []
+            )[spaceOrRootUuid] ?? []
         );
     }
 
@@ -1011,8 +1007,10 @@ export class SpaceModel {
         );
 
         const rootSpaceUuids = spacesWithRootSpaceUuid
-            .map(({ rootSpaceUuid }) => rootSpaceUuid)
-            .filter((rootSpaceUuid) => rootSpaceUuid !== undefined);
+            .filter(
+                ({ rootSpaceUuid, spaceUuid }) => rootSpaceUuid === spaceUuid,
+            )
+            .map(({ rootSpaceUuid }) => rootSpaceUuid);
 
         // Fetch access for all root spaces - we can get the access for all descendants from this
         const rootSpacesAccess = await this._getSpaceAccess(rootSpaceUuids, {
@@ -1474,7 +1472,7 @@ export class SpaceModel {
     async getFullSpace(spaceUuid: string): Promise<Space> {
         const space = await this.get(spaceUuid);
         const rootSpaceUuid = await this.getSpaceRoot(spaceUuid);
-        const spaceUuidToQueryForAccess = rootSpaceUuid ?? spaceUuid;
+
         return {
             organizationUuid: space.organizationUuid,
             name: space.name,
@@ -1486,10 +1484,9 @@ export class SpaceModel {
             queries: await this.getSpaceQueries([space.uuid]),
             dashboards: await this.getSpaceDashboards([space.uuid]),
             access:
-                (await this._getSpaceAccess([spaceUuidToQueryForAccess]))[
-                    spaceUuidToQueryForAccess
-                ] ?? [],
-            groupsAccess: await this._getGroupAccess(spaceUuidToQueryForAccess),
+                (await this._getSpaceAccess([rootSpaceUuid]))[rootSpaceUuid] ??
+                [],
+            groupsAccess: await this._getGroupAccess(rootSpaceUuid),
             slug: space.slug,
             hasParent: space.hasParent,
         };
@@ -1660,6 +1657,16 @@ export class SpaceModel {
     }
 
     /**
+     * Checks if a space is a root space
+     * @param spaceUuid - The UUID of the space to check
+     * @returns True if the space is a root space, false otherwise
+     */
+    async isRootSpace(spaceUuid: string): Promise<boolean> {
+        const rootSpaceUuid = await this.getSpaceRoot(spaceUuid);
+        return rootSpaceUuid === spaceUuid;
+    }
+
+    /**
      * Gets the root space UUID for a given space UUID
      *
      * This method uses PostgreSQL's ltree extension to find the root space of a hierarchy.
@@ -1667,9 +1674,9 @@ export class SpaceModel {
      * - Root spaces have a path with a single level (e.g., "my-space")
      * - Child spaces have paths that include their parent hierarchy (e.g., "my-space.my-child-space")
      * @param spaceUuid Space UUID to get the root for
-     * @returns Root space UUID (or undefined if it's already a root space)
+     * @returns Root space UUID (or itself if it's already a root space)
      */
-    async getSpaceRoot(spaceUuid: string): Promise<string | undefined> {
+    async getSpaceRoot(spaceUuid: string): Promise<string> {
         // First get the path of the target space
         const space = await this.database(SpaceTableName)
             .select(['path', 'space_uuid'])
@@ -1677,7 +1684,9 @@ export class SpaceModel {
             .first();
 
         if (!space || !space.path) {
-            return undefined;
+            throw new NotFoundError(
+                `Space with uuid ${spaceUuid} does not exist`,
+            );
         }
 
         // Check if this is already a root space (path has only one level)
@@ -1688,7 +1697,7 @@ export class SpaceModel {
         const isRoot = pathLevelResult.rows[0]?.is_root;
 
         if (isRoot) {
-            return undefined;
+            return space.space_uuid;
         }
 
         // Find the root space using a direct query
