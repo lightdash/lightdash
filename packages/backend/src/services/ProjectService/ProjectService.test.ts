@@ -780,7 +780,7 @@ describe('ProjectService', () => {
         });
     });
 
-    describe.only('getAsyncQueryResults', () => {
+    describe('getAsyncQueryResults', () => {
         describe('when cache is enabled', () => {
             const serviceWithCache = getMockedProjectService({
                 ...lightdashConfigMock,
@@ -788,6 +788,261 @@ describe('ProjectService', () => {
                     ...lightdashConfigMock.resultsCache,
                     resultsEnabled: true,
                 },
+            });
+
+            beforeEach(() => {
+                // clear in memory cache so new mock is applied
+                serviceWithCache.warehouseClients = {};
+
+                jest.clearAllMocks();
+            });
+
+            test('should return error when queryHistory has error status', async () => {
+                // Mock the queryHistoryModel.get to return a query with ERROR status
+                const mockQueryHistory = {
+                    queryUuid: 'test-query-uuid',
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'Test error message',
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    fields: validExplore.tables.a.dimensions,
+                    compiledSql: 'SELECT * FROM test.table',
+                    warehouseQueryId: 'test-query-id',
+                    warehouseQueryMetadata: {},
+                    defaultPageSize: 10,
+                    cacheKey: 'test-cache-key',
+                };
+
+                serviceWithCache.queryHistoryModel.get = jest
+                    .fn()
+                    .mockResolvedValue(mockQueryHistory);
+                serviceWithCache.getExplore = jest
+                    .fn()
+                    .mockResolvedValue(validExplore);
+
+                const result = await serviceWithCache.getAsyncQueryResults({
+                    user,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    page: 1,
+                    pageSize: 10,
+                });
+
+                expect(result).toEqual({
+                    error: 'Test error message',
+                    status: QueryHistoryStatus.ERROR,
+                    queryUuid: 'test-query-uuid',
+                    fields: validExplore.tables.a.dimensions,
+                    metricQuery: metricQueryMock,
+                });
+            });
+
+            test('should return current status when queryHistory has pending status', async () => {
+                // Mock the queryHistoryModel.get to return a query with PENDING status
+                const mockQueryHistory = {
+                    queryUuid: 'test-query-uuid',
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    status: QueryHistoryStatus.PENDING,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    fields: validExplore.tables.a.dimensions,
+                    compiledSql: 'SELECT * FROM test.table',
+                    warehouseQueryId: 'test-query-id',
+                    warehouseQueryMetadata: {},
+                    defaultPageSize: 10,
+                    cacheKey: 'test-cache-key',
+                };
+
+                serviceWithCache.queryHistoryModel.get = jest
+                    .fn()
+                    .mockResolvedValue(mockQueryHistory);
+                serviceWithCache.getExplore = jest
+                    .fn()
+                    .mockResolvedValue(validExplore);
+
+                const result = await serviceWithCache.getAsyncQueryResults({
+                    user,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    page: 1,
+                    pageSize: 10,
+                });
+
+                expect(result).toEqual({
+                    status: QueryHistoryStatus.PENDING,
+                    queryUuid: 'test-query-uuid',
+                    fields: validExplore.tables.a.dimensions,
+                    metricQuery: metricQueryMock,
+                });
+            });
+
+            test('should return current status when queryHistory has cancelled status', async () => {
+                // Mock the queryHistoryModel.get to return a query with CANCELLED status
+                const mockQueryHistory = {
+                    queryUuid: 'test-query-uuid',
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    status: QueryHistoryStatus.CANCELLED,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    fields: validExplore.tables.a.dimensions,
+                    compiledSql: 'SELECT * FROM test.table',
+                    warehouseQueryId: 'test-query-id',
+                    warehouseQueryMetadata: {},
+                    defaultPageSize: 10,
+                    cacheKey: 'test-cache-key',
+                };
+
+                serviceWithCache.queryHistoryModel.get = jest
+                    .fn()
+                    .mockResolvedValue(mockQueryHistory);
+                serviceWithCache.getExplore = jest
+                    .fn()
+                    .mockResolvedValue(validExplore);
+
+                const result = await serviceWithCache.getAsyncQueryResults({
+                    user,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    page: 1,
+                    pageSize: 10,
+                });
+
+                expect(result).toEqual({
+                    status: QueryHistoryStatus.CANCELLED,
+                    queryUuid: 'test-query-uuid',
+                    fields: validExplore.tables.a.dimensions,
+                    metricQuery: metricQueryMock,
+                });
+            });
+
+            test('should fetch results from cache when query is READY and cache exists', async () => {
+                // Mock the queryHistoryModel.get to return a READY query with cache key
+                const mockQueryHistory = {
+                    queryUuid: 'test-query-uuid',
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    status: QueryHistoryStatus.READY,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    fields: validExplore.tables.a.dimensions,
+                    compiledSql: 'SELECT * FROM test.table',
+                    warehouseQueryId: 'test-warehouse-query-id',
+                    warehouseQueryMetadata: {},
+                    defaultPageSize: 10,
+                    cacheKey: 'test-cache-key',
+                    warehouseExecutionTimeMs: 100,
+                };
+
+                serviceWithCache.queryHistoryModel.get = jest
+                    .fn()
+                    .mockResolvedValue(mockQueryHistory);
+                serviceWithCache.getExplore = jest
+                    .fn()
+                    .mockResolvedValue(validExplore);
+
+                // Mock the resultsCacheModel.getCachedResultsPage to return cached results
+                serviceWithCache.resultsCacheModel.getCachedResultsPage = jest
+                    .fn()
+                    .mockResolvedValue({
+                        rows: [expectedFormattedRow],
+                        totalRowCount: 10,
+                    });
+
+                const warehouseClientGetAsyncQueryResultsSpy = jest.spyOn(
+                    warehouseClientMock,
+                    'getAsyncQueryResults',
+                );
+
+                const result = await serviceWithCache.getAsyncQueryResults({
+                    user,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    page: 1,
+                    pageSize: 10,
+                });
+
+                expect(
+                    warehouseClientGetAsyncQueryResultsSpy,
+                ).not.toHaveBeenCalled();
+
+                expect(result).toEqual({
+                    rows: [expectedFormattedRow],
+                    totalPageCount: 1,
+                    totalResults: 10,
+                    queryUuid: 'test-query-uuid',
+                    fields: validExplore.tables.a.dimensions,
+                    metricQuery: metricQueryMock,
+                    pageSize: 1,
+                    page: 1,
+                    nextPage: undefined,
+                    previousPage: undefined,
+                    initialQueryExecutionMs: 100,
+                    resultsPageExecutionMs: expect.any(Number),
+                    status: QueryHistoryStatus.READY,
+                });
+
+                expect(
+                    serviceWithCache.resultsCacheModel.getCachedResultsPage,
+                ).toHaveBeenCalledWith(
+                    'test-cache-key',
+                    projectUuid,
+                    1,
+                    10,
+                    serviceWithCache.resultsCacheStorageClient,
+                    expect.any(Function),
+                );
+            });
+
+            test('should error when getCachedResultsPage throws an error', async () => {
+                // Mock the queryHistoryModel.get to return a READY query with cache key
+                const mockQueryHistory = {
+                    queryUuid: 'test-query-uuid',
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    status: QueryHistoryStatus.READY,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    fields: validExplore.tables.a.dimensions,
+                    compiledSql: 'SELECT * FROM test.table',
+                    warehouseQueryId: 'test-warehouse-query-id',
+                    warehouseQueryMetadata: {},
+                    defaultPageSize: 10,
+                    cacheKey: 'test-cache-key',
+                };
+
+                serviceWithCache.queryHistoryModel.get = jest
+                    .fn()
+                    .mockResolvedValue(mockQueryHistory);
+
+                serviceWithCache.getExplore = jest
+                    .fn()
+                    .mockResolvedValue(validExplore);
+
+                serviceWithCache.resultsCacheModel.getCachedResultsPage = jest
+                    .fn()
+                    .mockRejectedValue(
+                        new NotFoundError(
+                            `Cache not found for key ${mockQueryHistory.cacheKey} and project ${projectUuid}`,
+                        ),
+                    );
+
+                await expect(
+                    serviceWithCache.getAsyncQueryResults({
+                        user,
+                        projectUuid,
+                        queryUuid: 'test-query-uuid',
+                        page: 1,
+                        pageSize: 10,
+                    }),
+                ).rejects.toThrow(
+                    new NotFoundError(
+                        `Cache not found for key ${mockQueryHistory.cacheKey} and project ${projectUuid}`,
+                    ),
+                );
             });
         });
 
@@ -827,6 +1082,7 @@ describe('ProjectService', () => {
                 serviceWithoutCache.queryHistoryModel.get = jest
                     .fn()
                     .mockResolvedValue(mockQueryHistory);
+
                 serviceWithoutCache.getExplore = jest
                     .fn()
                     .mockResolvedValue(validExplore);

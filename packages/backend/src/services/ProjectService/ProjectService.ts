@@ -2018,15 +2018,10 @@ export class ProjectService extends BaseService {
         let returnObject: ApiGetAsyncQueryResults;
         let roundedDurationMs: number;
         if (resultsCacheEnabled && cacheKey) {
-            const cache = await this.resultsCacheModel.find(
-                cacheKey,
-                projectUuid,
-            );
-
-            const expiresAt = cache?.expires_at; // TODO: maybe not nullable?
-            const cacheTotalRowCount = cache?.total_row_count ?? 0; // TODO: maybe not nullable?
-
-            const { result: resultRows, durationMs } = await measureTime(
+            const {
+                result: { rows, totalRowCount: cacheTotalRowCount },
+                durationMs,
+            } = await measureTime(
                 () =>
                     this.resultsCacheModel.getCachedResultsPage(
                         cacheKey,
@@ -2053,13 +2048,13 @@ export class ProjectService extends BaseService {
             // TODO: add analytics event
 
             returnObject = {
-                rows: resultRows,
+                rows,
                 totalPageCount: pageCount,
                 totalResults: cacheTotalRowCount,
                 queryUuid: queryHistory.queryUuid,
                 fields: queryHistory.fields,
                 metricQuery,
-                pageSize: resultRows.length,
+                pageSize: rows.length,
                 page,
                 nextPage,
                 previousPage,

@@ -1,5 +1,6 @@
 import {
     DEFAULT_RESULTS_PAGE_SIZE,
+    ExpiredError,
     NotFoundError,
     ResultRow,
 } from '@lightdash/common';
@@ -146,6 +147,18 @@ export class ResultsCacheModel {
             );
         }
 
+        if (cache.expires_at < new Date()) {
+            await this.database(ResultsCacheTableName)
+                .where('cache_key', cacheKey)
+                .andWhere('project_uuid', projectUuid)
+                .delete();
+
+            // TODO: throw a specific error the FE will respond to
+            throw new ExpiredError(
+                `Cache expired for key ${cacheKey} and project ${projectUuid}`,
+            );
+        }
+
         const cacheStream = await storageClient.download(
             cacheKey,
             page,
@@ -153,10 +166,12 @@ export class ResultsCacheModel {
         );
 
         if (!cacheStream) {
-            throw new Error('No cache found');
+            throw new NotFoundError(
+                `Cached results not found for key ${cacheKey} and project ${projectUuid}`,
+            );
         }
 
-        const rows = [];
+        const rows: ResultRow[] = [];
         const rl = createInterface({
             input: cacheStream,
             crlfDelay: Infinity,
@@ -177,6 +192,9 @@ export class ResultsCacheModel {
             currentLine += 1;
         }
 
-        return rows as ResultRow[];
+        return {
+            rows,
+            totalRowCount: cache.total_row_count ?? 0,
+        };
     }
 }
