@@ -180,21 +180,6 @@ export class PostgresClient<
         return new Promise<void>((resolve, reject) => {
             pool = new pg.Pool({
                 ...this.config,
-                ssl: {
-                    ...(typeof this.config.ssl === 'object'
-                        ? this.config.ssl
-                        : {}),
-
-                    rejectUnauthorized: true,
-                    checkServerIdentity: (hostname, cert) => {
-                        if (hostname === 'localhost') {
-                            // When connecting to localhost, we don't need to validate the server identity
-                            // pg library defaults to localhost when connecting via IP address
-                            return undefined;
-                        }
-                        return tls.checkServerIdentity(hostname, cert);
-                    },
-                },
                 connectionTimeoutMillis: 5000,
                 query_timeout: this.credentials.timeoutSeconds
                     ? this.credentials.timeoutSeconds * 1000
@@ -585,6 +570,14 @@ const getSSLConfigFromMode = ({
                 ca,
                 cert: sslcert ?? undefined,
                 key: sslkey ?? undefined,
+                checkServerIdentity: (hostname, cert) => {
+                    if (hostname === 'localhost') {
+                        // When connecting to localhost, we don't need to validate the server identity
+                        // pg library defaults to localhost when connecting via IP address
+                        return undefined;
+                    }
+                    return tls.checkServerIdentity(hostname, cert);
+                },
             };
         case 'no-verify':
             return { rejectUnauthorized: false, ca };
