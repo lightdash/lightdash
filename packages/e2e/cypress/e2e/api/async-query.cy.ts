@@ -18,34 +18,84 @@ const runQueryBody = {
     },
 };
 
+const waitForJobCompletion = (jobUuid: string): Cypress.Chainable<boolean> =>
+    cy.request(`api/v1/jobs/${jobUuid}`).then((resp) => {
+        const status = resp.body.results.jobStatus;
+        if (status === 'ERROR') {
+            cy.log(`Job failed: ${resp.body.results.error}`);
+            return cy.wrap(false);
+        }
+        if (status !== 'DONE') {
+            cy.wait(1000);
+            return waitForJobCompletion(jobUuid);
+        }
+        return cy.wrap(true);
+    });
+
+const createAndRefreshProject = (
+    name: string,
+    config: any,
+): Cypress.Chainable<string | undefined> => {
+    let projectUuid: string;
+    return cy
+        .createProject(name, config)
+        .then((uuid) => {
+            projectUuid = uuid;
+            return cy.request({
+                url: `api/v1/projects/${uuid}/refresh`,
+                method: 'POST',
+            });
+        })
+        .then((response) => {
+            expect(response.status).to.eq(200);
+            const { jobUuid } = response.body.results;
+            return waitForJobCompletion(jobUuid).then((success: boolean) => {
+                if (success) {
+                    return cy.wrap(projectUuid);
+                }
+                cy.log(`Skipping project ${name} due to refresh failure`);
+                return cy.wrap(undefined);
+            });
+        });
+};
+
 describe('Async Query API', () => {
-    let pgProjectUuid: string;
-    let snowflakeProjectUuid: string;
-    let bigqueryProjectUuid: string;
+    let pgProjectUuid: string | undefined;
+    let snowflakeProjectUuid: string | undefined;
+    let bigqueryProjectUuid: string | undefined;
 
     before(() => {
         cy.login();
 
-        cy.createProject(
+        // Create and refresh projects sequentially
+        createAndRefreshProject(
             'postgresSQL query test',
             warehouseConnections.postgresSQL,
-        ).then((puuid) => {
-            pgProjectUuid = puuid;
+        ).then((uuid) => {
+            pgProjectUuid = uuid;
         });
 
-        cy.createProject(
+        createAndRefreshProject(
             'snowflake query test',
             warehouseConnections.snowflake,
-        ).then((puuid) => {
-            snowflakeProjectUuid = puuid;
+        ).then((uuid) => {
+            snowflakeProjectUuid = uuid;
         });
 
-        cy.createProject(
+        createAndRefreshProject(
             'bigquery query test',
             warehouseConnections.bigQuery,
-        ).then((puuid) => {
-            bigqueryProjectUuid = puuid;
+        ).then((uuid) => {
+            bigqueryProjectUuid = uuid;
         });
+    });
+
+    after('delete upstream projects', () => {
+        cy.deleteProjectsByName([
+            'postgresSQL query test',
+            'snowflake query test',
+            'bigquery query test',
+        ]);
     });
 
     beforeEach(() => {
@@ -54,6 +104,11 @@ describe('Async Query API', () => {
 
     it('Postgres: should execute async query and get all results', () => {
         const projectUuid = pgProjectUuid;
+        if (!projectUuid) {
+            cy.log('Skipping test as Postgres project UUID is undefined');
+            expect(false).to.eq(true);
+            return;
+        }
 
         cy.log(
             'Check that fetching the query before having a valid query id returns 404',
@@ -129,6 +184,11 @@ describe('Async Query API', () => {
 
     it('snowflake: should execute async query and get all results paged', () => {
         const projectUuid = snowflakeProjectUuid;
+        if (!projectUuid) {
+            cy.log('Skipping test as snowflake project UUID is undefined');
+            expect(false).to.eq(true);
+            return;
+        }
 
         cy.log(
             'Check that fetching the query before having a valid query id returns 404',
@@ -260,6 +320,11 @@ describe('Async Query API', () => {
 
     it('bigquery: should execute async query and get all results paged', () => {
         const projectUuid = bigqueryProjectUuid;
+        if (!projectUuid) {
+            cy.log('Skipping test as BigQuery project UUID is undefined');
+            expect(false).to.eq(true);
+            return;
+        }
 
         cy.log(
             'Check that fetching the query before having a valid query id returns 404',
