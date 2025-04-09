@@ -1472,7 +1472,6 @@ export class SpaceModel {
     async getFullSpace(spaceUuid: string): Promise<Space> {
         const space = await this.get(spaceUuid);
         const rootSpaceUuid = await this.getSpaceRoot(spaceUuid);
-
         return {
             organizationUuid: space.organizationUuid,
             name: space.name,
