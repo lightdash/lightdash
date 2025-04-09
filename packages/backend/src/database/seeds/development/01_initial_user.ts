@@ -8,6 +8,9 @@ import {
     SEED_ORG_1_ADMIN,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
+    SEED_ORG_1_EDITOR,
+    SEED_ORG_1_EDITOR_EMAIL,
+    SEED_ORG_1_EDITOR_PASSWORD,
     SEED_ORG_2,
     SEED_ORG_2_ADMIN,
     SEED_ORG_2_ADMIN_EMAIL,
@@ -34,24 +37,33 @@ export async function seed(knex: Knex): Promise<void> {
     await knex('users').del();
     await knex('organizations').del();
 
+    const addOrganization = async (seedOrganization: DbOrganizationIn) => {
+        const [organization] = await knex('organizations')
+            .insert(seedOrganization)
+            .returning(['organization_id', 'organization_uuid']);
+
+        if (organization === undefined) {
+            throw new Error('Organization was not created');
+        }
+
+        return {
+            organizationId: organization.organization_id,
+            organizationUuid: organization.organization_uuid,
+        };
+    };
+
     const addUser = async (
-        seedOrganization: DbOrganizationIn,
+        {
+            organizationId,
+            organizationUuid,
+        }: {
+            organizationId: number;
+            organizationUuid: string;
+        },
         seedUser: DbUserIn,
         seedEmail: Omit<DbEmailIn, 'user_id'>,
         seedPassword: { password: string },
     ) => {
-        const [
-            {
-                organization_id: organizationId,
-                organization_uuid: organizationUuid,
-            },
-        ] = await knex('organizations')
-            .insert(seedOrganization)
-            .returning(['organization_id', 'organization_uuid']);
-        if (organizationId === undefined) {
-            throw new Error('Organization was not created');
-        }
-
         const [user] = await knex('users').insert(seedUser).returning('*');
         if (user.user_id === undefined) {
             throw new Error('User was not created');
@@ -82,14 +94,27 @@ export async function seed(knex: Knex): Promise<void> {
         return { organizationId, user, organizationUuid };
     };
 
-    const { organizationId, organizationUuid, user } = await addUser(
+    const { organizationId, organizationUuid } = await addOrganization(
         SEED_ORG_1,
+    );
+
+    const { user } = await addUser(
+        { organizationId, organizationUuid },
         SEED_ORG_1_ADMIN,
         SEED_ORG_1_ADMIN_EMAIL,
         SEED_ORG_1_ADMIN_PASSWORD,
     );
     await addUser(
-        SEED_ORG_2,
+        { organizationId, organizationUuid },
+        SEED_ORG_1_EDITOR,
+        SEED_ORG_1_EDITOR_EMAIL,
+        SEED_ORG_1_EDITOR_PASSWORD,
+    );
+
+    const org2 = await addOrganization(SEED_ORG_2);
+
+    await addUser(
+        org2,
         SEED_ORG_2_ADMIN,
         SEED_ORG_2_ADMIN_EMAIL,
         SEED_ORG_2_ADMIN_PASSWORD,

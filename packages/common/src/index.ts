@@ -395,6 +395,23 @@ export const SEED_ORG_1_ADMIN_EMAIL = {
 export const SEED_ORG_1_ADMIN_PASSWORD = {
     password: 'demo_password!',
 };
+
+export const SEED_ORG_1_EDITOR = {
+    user_uuid: '80fb8b59-d6b7-4ed6-b969-9849310f3e53',
+    first_name: 'Editor',
+    last_name: 'User',
+    is_marketing_opted_in: true,
+    is_tracking_anonymized: false,
+    is_setup_complete: true,
+    is_active: true,
+};
+export const SEED_ORG_1_EDITOR_EMAIL = {
+    email: 'demo2@lightdash.com',
+    is_primary: true,
+};
+export const SEED_ORG_1_EDITOR_PASSWORD = {
+    password: 'demo_password!',
+};
 // Another user
 export const SEED_ORG_2 = {
     organization_uuid: '42339eef-359e-4ec4-b810-54ef0b4e3446',
