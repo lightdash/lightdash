@@ -205,6 +205,11 @@ export class SpaceService extends BaseService {
             user.userUuid,
             spaceUuid,
         );
+        // Nested Spaces MVP - disables nested spaces' access changes
+        const hasRootSpace = await this.spaceModel.getSpaceRoot(spaceUuid);
+        if (hasRootSpace && 'isPrivate' in updateSpace) {
+            throw new ForbiddenError(`Can't change privacy for a nested space`);
+        }
         if (
             user.ability.cannot(
                 'manage',
@@ -276,6 +281,13 @@ export class SpaceService extends BaseService {
             user.userUuid,
             spaceUuid,
         );
+        // Nested Spaces MVP - disables nested spaces' access changes
+        const hasRootSpace = await this.spaceModel.getSpaceRoot(spaceUuid);
+        if (hasRootSpace) {
+            throw new ForbiddenError(
+                `Can't change user access to a nested space`,
+            );
+        }
         if (
             user.ability.cannot(
                 'manage',
@@ -305,6 +317,13 @@ export class SpaceService extends BaseService {
             user.userUuid,
             spaceUuid,
         );
+        // Nested Spaces MVP - disables nested spaces' access changes
+        const hasRootSpace = await this.spaceModel.getSpaceRoot(spaceUuid);
+        if (hasRootSpace) {
+            throw new ForbiddenError(
+                `Can't change user access to a nested space`,
+            );
+        }
         if (
             user.ability.cannot(
                 'manage',
@@ -331,6 +350,13 @@ export class SpaceService extends BaseService {
             user.userUuid,
             spaceUuid,
         );
+        // Nested Spaces MVP - disables nested spaces' access changes
+        const hasRootSpace = await this.spaceModel.getSpaceRoot(spaceUuid);
+        if (hasRootSpace) {
+            throw new ForbiddenError(
+                `Can't change group access to a nested space`,
+            );
+        }
         if (
             user.ability.cannot(
                 'manage',
@@ -360,6 +386,13 @@ export class SpaceService extends BaseService {
             user.userUuid,
             spaceUuid,
         );
+        // Nested Spaces MVP - disables nested spaces' access changes
+        const hasRootSpace = await this.spaceModel.getSpaceRoot(spaceUuid);
+        if (hasRootSpace) {
+            throw new ForbiddenError(
+                `Can't change group access to a nested space`,
+            );
+        }
         if (
             user.ability.cannot(
                 'manage',

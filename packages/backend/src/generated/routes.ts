@@ -6689,6 +6689,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                hasParent: { dataType: 'boolean' },
                 slug: { dataType: 'string', required: true },
                 pinnedListOrder: {
                     dataType: 'union',

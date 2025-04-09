@@ -8,6 +8,7 @@ import {
     Stack,
     Text,
     Title,
+    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
 import { IconFolderShare, IconLock, IconUsers } from '@tabler/icons-react';
@@ -40,21 +41,37 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
 
     return (
         <>
-            <Button
-                leftIcon={
-                    selectedAccess.value === SpaceAccessType.PRIVATE ? (
-                        <IconLock size={18} />
-                    ) : (
-                        <IconUsers size={18} />
-                    )
+            <Tooltip
+                multiline
+                maw={300}
+                disabled={!space.hasParent}
+                label={
+                    'This is a nested space. Access changes are not supported yet - they will be inherited from the root space'
                 }
-                onClick={() => {
-                    setIsOpen(true);
-                }}
-                variant="default"
+                variant="xs"
+                position="bottom"
             >
-                Share
-            </Button>
+                <Box>
+                    <Button
+                        leftIcon={
+                            selectedAccess.value === SpaceAccessType.PRIVATE ? (
+                                <IconLock size={18} />
+                            ) : (
+                                <IconUsers size={18} />
+                            )
+                        }
+                        onClick={() => {
+                            if (!space.hasParent) {
+                                setIsOpen(true);
+                            }
+                        }}
+                        disabled={space.hasParent}
+                        variant="default"
+                    >
+                        Share
+                    </Button>
+                </Box>
+            </Tooltip>
 
             <Modal
                 size="xl"

@@ -6,6 +6,20 @@ import {
     ResourceViewSpaceItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { DashboardsTableName } from '../database/entities/dashboards';
+import { OrganizationTableName } from '../database/entities/organizations';
+import {
+    PinnedListTableName,
+    PinnedSpaceTableName,
+} from '../database/entities/pinnedList';
+import { ProjectTableName } from '../database/entities/projects';
+import { SavedChartsTableName } from '../database/entities/savedCharts';
+import {
+    SpaceTableName,
+    SpaceUserAccessTableName,
+} from '../database/entities/spaces';
+import { UserTableName } from '../database/entities/users';
+import { SpaceModel } from './SpaceModel';
 
 type ResourceViewItemModelArguments = {
     database: Knex;
@@ -171,38 +185,103 @@ const getAllSpaces = async (
     projectUuid: string,
     pinnedListUuid: string,
 ): Promise<ResourceViewSpaceItem[]> => {
-    const { rows } = await knex.raw<{ rows: Record<string, AnyType>[] }>(
-        `
-            select
-                o.organization_uuid,
-                pl.project_uuid,
-                pl.pinned_list_uuid,
-                ps.space_uuid,
-                ps.order,
-                MAX(s.name) as name,
-                BOOL_OR(s.is_private) as is_private,
-                COUNT(DISTINCT sua.user_uuid) as access_list_length,
-                COALESCE(json_agg(distinct u.user_uuid) FILTER (WHERE u.user_uuid is not null), '[]') as access,
-                COUNT(DISTINCT d.dashboard_id) as dashboard_count,
-                COUNT(DISTINCT sq.saved_query_id) as chart_count
-            from pinned_list pl
-            inner join projects p on pl.project_uuid = p.project_uuid
-                and pl.project_uuid = :projectUuid
-            inner join organizations o on p.organization_id = o.organization_id
-            inner join pinned_space ps on pl.pinned_list_uuid = ps.pinned_list_uuid
-                and ps.pinned_list_uuid = :pinnedListUuid
-            inner join spaces s on ps.space_uuid = s.space_uuid
-            left join space_user_access sua on s.space_uuid = sua.space_uuid
-            left join users u on sua.user_uuid = u.user_uuid
-            left join dashboards d on s.space_id = d.space_id
-            left join saved_queries sq on s.space_id = sq.space_id
-            group by 1, 2, 3, 4, 5
-            order by ps.order asc;
-        `,
-        { pinnedListUuid, projectUuid },
-    );
+    const spaces = await knex(PinnedListTableName)
+        .innerJoin(ProjectTableName, function getJoinQuery() {
+            this.on(
+                `${PinnedListTableName}.project_uuid`,
+                '=',
+                `${ProjectTableName}.project_uuid`,
+            ).andOn(
+                `${PinnedListTableName}.project_uuid`,
+                '=',
+                knex.raw('?', [projectUuid]),
+            );
+        })
+        .innerJoin(
+            OrganizationTableName,
+            `${ProjectTableName}.organization_id`,
+            `${OrganizationTableName}.organization_id`,
+        )
+        .innerJoin(PinnedSpaceTableName, function getJoinQuery() {
+            this.on(
+                `${PinnedListTableName}.pinned_list_uuid`,
+                '=',
+                `${PinnedSpaceTableName}.pinned_list_uuid`,
+            ).andOn(
+                `${PinnedSpaceTableName}.pinned_list_uuid`,
+                '=',
+                knex.raw('?', [pinnedListUuid]),
+            );
+        })
+        .innerJoin(
+            SpaceTableName,
+            `${PinnedSpaceTableName}.space_uuid`,
+            `${SpaceTableName}.space_uuid`,
+        )
+        .leftJoin(
+            SpaceUserAccessTableName,
+            `${SpaceTableName}.space_uuid`,
+            `${SpaceUserAccessTableName}.space_uuid`,
+        )
+        .leftJoin(
+            UserTableName,
+            `${SpaceUserAccessTableName}.user_uuid`,
+            `${UserTableName}.user_uuid`,
+        )
+        .leftJoin(
+            DashboardsTableName,
+            `${SpaceTableName}.space_id`,
+            `${DashboardsTableName}.space_id`,
+        )
+        .leftJoin(
+            SavedChartsTableName,
+            `${SpaceTableName}.space_id`,
+            `${SavedChartsTableName}.space_id`,
+        )
+        .select({
+            organization_uuid: `${OrganizationTableName}.organization_uuid`,
+            project_uuid: `${PinnedListTableName}.project_uuid`,
+            pinned_list_uuid: `${PinnedListTableName}.pinned_list_uuid`,
+            space_uuid: `${PinnedSpaceTableName}.space_uuid`,
+            order: `${PinnedSpaceTableName}.order`,
+            name: knex.raw(`max(${SpaceTableName}.name)`),
+            is_private: knex.raw(SpaceModel.getRootSpaceIsPrivateQuery()),
+            access: knex.raw(SpaceModel.getRootSpaceAccessQuery(UserTableName)),
+            access_list_length: knex.raw(`
+                CASE
+                    WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
+                        (SELECT COUNT(DISTINCT sua2.user_uuid)
+                         FROM ${SpaceUserAccessTableName} sua2
+                         JOIN ${SpaceTableName} root_space ON sua2.space_uuid = root_space.space_uuid
+                         WHERE root_space.path @> ${SpaceTableName}.path
+                         AND nlevel(root_space.path) = 1
+                         LIMIT 1)
+                    ELSE
+                        COUNT(DISTINCT ${SpaceUserAccessTableName}.user_uuid)
+                END
+            `),
+            dashboard_count: knex.countDistinct(
+                `${DashboardsTableName}.dashboard_id`,
+            ),
+            chart_count: knex.countDistinct(
+                `${SavedChartsTableName}.saved_query_id`,
+            ),
+        })
+        .groupBy(
+            `${OrganizationTableName}.organization_uuid`,
+            `${PinnedListTableName}.project_uuid`,
+            `${PinnedListTableName}.pinned_list_uuid`,
+            `${PinnedSpaceTableName}.space_uuid`,
+            `${PinnedSpaceTableName}.order`,
+            `${SpaceTableName}.parent_space_uuid`,
+            `${SpaceTableName}.path`,
+            `${SpaceTableName}.is_private`,
+        )
+        .orderBy(`${PinnedSpaceTableName}.order`, 'asc');
+
     const resourceType: ResourceViewItemType.SPACE = ResourceViewItemType.SPACE;
-    return rows.map<ResourceViewSpaceItem>((row) => ({
+
+    return spaces.map<ResourceViewSpaceItem>((row) => ({
         type: resourceType,
         data: {
             organizationUuid: row.organization_uuid,
@@ -212,9 +291,9 @@ const getAllSpaces = async (
             uuid: row.space_uuid,
             name: row.name,
             isPrivate: row.is_private,
-            accessListLength: row.access_list_length,
-            dashboardCount: row.dashboard_count,
-            chartCount: row.chart_count,
+            accessListLength: Number(row.access_list_length),
+            dashboardCount: Number(row.dashboard_count),
+            chartCount: Number(row.chart_count),
             access: row.access,
         },
     }));
