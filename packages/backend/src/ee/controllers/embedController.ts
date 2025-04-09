@@ -233,18 +233,17 @@ export class EmbedController extends BaseController {
     }
 
     @SuccessResponse('200', 'Success')
-    @Post('/chart/:chartUuid/calculate-total')
+    @Post('/chart/:tileUuid/calculate-total')
     @OperationId('embedCalculateTotalFromSavedChart')
     async embedCalculateTotalFromSavedChart(
         @Header('Lightdash-Embed-Token') embedToken: string,
         @Path() projectUuid: string,
-        @Path() chartUuid: string,
+        @Path() tileUuid: string,
         @Body()
         body: {
             dashboardFilters?: AnyType; // DashboardFilters; temp disable validation
             invalidateCache?: boolean;
         },
-        @Request() req: express.Request,
     ): Promise<ApiCalculateTotalResponse> {
         this.setStatus(200);
         return {
@@ -252,7 +251,7 @@ export class EmbedController extends BaseController {
             results: await this.getEmbedService().calculateTotalFromSavedChart(
                 embedToken,
                 projectUuid,
-                chartUuid,
+                tileUuid,
                 body.dashboardFilters,
                 body.invalidateCache,
             ),

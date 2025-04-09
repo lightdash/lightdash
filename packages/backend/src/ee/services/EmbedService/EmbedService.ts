@@ -7,6 +7,7 @@ import {
     CreateEmbedJwt,
     Dashboard,
     DashboardAvailableFilters,
+    DashboardDAO,
     DashboardFilters,
     DateGranularity,
     DecodedEmbed,
@@ -687,6 +688,31 @@ export class EmbedService extends BaseService {
         return { ...results, fields: compiledQuery.fields };
     }
 
+    private async _getChartFromDashboardTiles(
+        dashboard: DashboardDAO,
+        tileUuid: string,
+    ) {
+        const tile = dashboard.tiles
+            .filter(isChartTile)
+            .find(({ uuid }) => uuid === tileUuid);
+
+        if (!tile) {
+            throw new ParameterError(
+                `Tile ${tileUuid} not found in dashboard ${dashboard.uuid}`,
+            );
+        }
+        const chartUuid = tile.properties.savedChartUuid;
+        if (chartUuid === null) {
+            throw new ParameterError(
+                `Tile ${tileUuid} does not have a saved chart uuid`,
+            );
+        }
+
+        const chart = await this.savedChartModel.get(chartUuid);
+
+        return chart;
+    }
+
     async getChartAndResults(
         projectUuid: string,
         embedToken: string,
@@ -707,23 +733,11 @@ export class EmbedService extends BaseService {
 
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
-        const tile = dashboard.tiles
-            .filter(isChartTile)
-            .find(({ uuid }) => uuid === tileUuid);
+        const chart = await this._getChartFromDashboardTiles(
+            dashboard,
+            tileUuid,
+        );
 
-        if (!tile) {
-            throw new ParameterError(
-                `Tile ${tileUuid} not found in dashboard ${dashboardUuid}`,
-            );
-        }
-        const chartUuid = tile.properties.savedChartUuid;
-        if (chartUuid === null) {
-            throw new ParameterError(
-                `Tile ${tileUuid} does not have a saved chart uuid`,
-            );
-        }
-
-        const chart = await this.savedChartModel.get(chartUuid);
         const { organizationUuid } = chart;
         await this.isFeatureEnabled({
             userUuid: user.userUuid,
@@ -733,7 +747,7 @@ export class EmbedService extends BaseService {
         if (checkPermissions)
             await this._permissionsGetChartAndResults(
                 projectUuid,
-                chartUuid,
+                chart.uuid,
                 dashboardUuids,
                 dashboardUuid,
             );
@@ -784,7 +798,7 @@ export class EmbedService extends BaseService {
                 organizationId: organizationUuid,
                 projectId: projectUuid,
                 dashboardId: dashboardUuid,
-                chartId: chartUuid,
+                chartId: chart.uuid,
                 externalId,
             },
         });
@@ -822,7 +836,7 @@ export class EmbedService extends BaseService {
     async calculateTotalFromSavedChart(
         embedToken: string,
         projectUuid: string,
-        chartUuid: string,
+        tileUuid: string,
         dashboardFilters?: DashboardFilters,
         invalidateCache?: boolean,
     ) {
@@ -841,10 +855,15 @@ export class EmbedService extends BaseService {
             dashboard.organizationUuid,
         );
 
+        const chart = await this._getChartFromDashboardTiles(
+            dashboard,
+            tileUuid,
+        );
+
         const totalResult =
             await this.projectService.calculateTotalFromSavedChart(
                 sessionUser,
-                chartUuid,
+                chart.uuid,
                 dashboardFilters,
                 invalidateCache,
             );
