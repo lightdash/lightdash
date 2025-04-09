@@ -533,10 +533,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         );
     }
 
-    async executeAsyncQuery({
-        sql,
-        tags,
-    }: WarehouseExecuteAsyncQueryArgs): Promise<WarehouseExecuteAsyncQuery> {
+    async executeAsyncQuery(
+        { sql, tags }: WarehouseExecuteAsyncQueryArgs,
+        resultsStreamCallback?: (rows: WarehouseResults['rows']) => void,
+    ): Promise<WarehouseExecuteAsyncQuery> {
         try {
             const [job] = await this.createJob(sql, {
                 tags,
@@ -562,6 +562,13 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             const totalRows: number = resultsMetadata?.totalRows
                 ? parseInt(resultsMetadata.totalRows, 10)
                 : 1;
+
+            // If a callback is provided, stream the results to the callback
+            if (resultsStreamCallback) {
+                await this.streamResults(job, (row) =>
+                    resultsStreamCallback([row]),
+                );
+            }
 
             return {
                 queryId: job.id,

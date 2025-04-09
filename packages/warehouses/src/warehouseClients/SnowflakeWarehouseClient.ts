@@ -507,11 +507,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     ): Promise<void> {
         const connection = await this.getConnection();
 
-        console.log(
-            '----- streamQuery connection',
-            JSON.stringify(options, null, 2),
-        );
-
         try {
             await this.prepareWarehouse(connection, options);
 
