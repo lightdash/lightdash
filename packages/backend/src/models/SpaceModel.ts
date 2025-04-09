@@ -92,7 +92,7 @@ export class SpaceModel {
             CASE
                 WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
                     (SELECT ps.is_private 
-                     FROM spaces ps 
+                     FROM ${SpaceTableName} ps 
                      WHERE ps.path @> ${SpaceTableName}.path 
                      AND nlevel(ps.path) = 1
                      LIMIT 1)
@@ -113,8 +113,8 @@ export class SpaceModel {
             CASE
                 WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
                     (SELECT COALESCE(json_agg(sua.user_uuid) FILTER (WHERE sua.user_uuid IS NOT NULL), '[]')
-                     FROM space_user_access sua
-                     JOIN spaces root_space ON sua.space_uuid = root_space.space_uuid
+                     FROM ${SpaceUserAccessTableName} sua
+                     JOIN ${SpaceTableName} root_space ON sua.space_uuid = root_space.space_uuid
                      WHERE root_space.path @> ${SpaceTableName}.path
                      AND nlevel(root_space.path) = 1
                      LIMIT 1)
