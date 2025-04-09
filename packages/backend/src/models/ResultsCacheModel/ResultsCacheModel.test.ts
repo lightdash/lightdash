@@ -2,6 +2,7 @@ import knex, { Knex } from 'knex';
 import { MockClient, Tracker, getTracker } from 'knex-mock-client';
 import { IResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/ResultsCacheStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { ResultsCacheTableName } from '../../database/entities/resultsCache';
 import { ResultsCacheModel } from './ResultsCacheModel';
 
 // Mock storage client
@@ -256,6 +257,39 @@ describe('ResultsCacheModel', () => {
             ).rejects.toThrow('Failed to create cache');
 
             expect(mockClose).toHaveBeenCalled();
+        });
+    });
+
+    describe('update', () => {
+        const projectUuid = 'test-project-uuid';
+        const cacheKey = 'test-cache-key';
+        const update = {
+            total_row_count: 100,
+            expires_at: new Date(),
+        };
+
+        test('should successfully update cache metadata', async () => {
+            tracker.on.update(ResultsCacheTableName).response(1);
+
+            const result = await model.update(cacheKey, projectUuid, update);
+
+            expect(result).toBe(1);
+            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.update[0].bindings).toEqual([
+                update.total_row_count,
+                update.expires_at,
+                cacheKey,
+                projectUuid,
+            ]);
+        });
+
+        test('should handle non-existent cache', async () => {
+            tracker.on.update(ResultsCacheTableName).response(0);
+
+            const result = await model.update(cacheKey, projectUuid, update);
+
+            expect(result).toBe(0);
+            expect(tracker.history.update).toHaveLength(1);
         });
     });
 });
