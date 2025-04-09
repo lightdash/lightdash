@@ -6765,6 +6765,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                parentSpaceUuid: { dataType: 'string' },
                 access: {
                     dataType: 'array',
                     array: {

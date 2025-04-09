@@ -41,6 +41,7 @@ export type CreateSpace = {
     name: string;
     isPrivate?: boolean;
     access?: Pick<SpaceShare, 'userUuid' | 'role'>[];
+    parentSpaceUuid?: string;
 };
 
 export type UpdateSpace = {
