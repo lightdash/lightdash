@@ -1,4 +1,7 @@
 import {
+    getFieldRef,
+    isField,
+    isPivotReferenceWithValues,
     type CompiledDimension,
     type CustomDimension,
     type EchartsLegend,
@@ -99,15 +102,26 @@ export const Legend: FC<Props> = ({ items }) => {
 
     const { visualizationConfig } = useVisualizationContext();
 
-    // Extract fields used in the chart config, including pivot values
-    // At the moment we only support fields that are part of the chart config
-    const fieldsUsedInChartConfig = useMemo(() => {
+    // Extract fields used in autocomplete for tooltip
+    // for non pivot charts, we can use all items in results
+    // for pivot charts, we need to extract the fields used in the chart config, including pivot values
+    const autocompleteFieldsTooltip = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return [];
+
         const { dirtyEchartsConfig: echartsConfig } =
             visualizationConfig.chartConfig;
 
         const allEncodes: Series['encode'][] =
             echartsConfig?.series?.map((serie) => serie.encode) ?? [];
+
+        const hasPivot = allEncodes.some((serie) =>
+            isPivotReferenceWithValues(serie.yRef),
+        );
+        if (!hasPivot)
+            return items.map((item) =>
+                isField(item) ? getFieldRef(item) : item.name,
+            );
+
         const fieldSet = allEncodes.reduce<Set<string>>((acc, encode) => {
             acc.add(encode.xRef.field);
             if (encode.yRef.pivotValues !== undefined) {
@@ -123,7 +137,7 @@ export const Legend: FC<Props> = ({ items }) => {
         }, new Set<string>());
 
         return [...fieldSet];
-    }, [visualizationConfig]);
+    }, [visualizationConfig, items]);
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 
     const { dirtyEchartsConfig, setLegend } = visualizationConfig.chartConfig;
@@ -200,7 +214,9 @@ export const Legend: FC<Props> = ({ items }) => {
             {projectUuid && (
                 <ReferenceLines items={items} projectUuid={projectUuid} />
             )}
-            {projectUuid && <TooltipConfig fields={fieldsUsedInChartConfig} />}
+            {projectUuid && (
+                <TooltipConfig fields={autocompleteFieldsTooltip} />
+            )}
         </Stack>
     );
 };
