@@ -292,4 +292,58 @@ describe('ResultsCacheModel', () => {
             expect(tracker.history.update).toHaveLength(1);
         });
     });
+
+    describe('find', () => {
+        const projectUuid = 'test-project-uuid';
+        const cacheKey = 'test-cache-key';
+        const now = new Date();
+        const futureDate = new Date(now.getTime() + 3600000); // 1 hour in the future
+
+        beforeEach(() => {
+            jest.spyOn(Date, 'now').mockReturnValue(now.getTime());
+        });
+
+        test('should find existing cache', async () => {
+            const existingCache = {
+                cache_key: cacheKey,
+                project_uuid: projectUuid,
+                expires_at: futureDate,
+                total_row_count: 100,
+            };
+
+            tracker.on.select(ResultsCacheTableName).response([existingCache]);
+
+            const result = await model.find(cacheKey, projectUuid);
+
+            expect(result).toEqual(existingCache);
+            expect(tracker.history.select).toHaveLength(1);
+            expect(tracker.history.select[0].bindings).toContain(cacheKey);
+            expect(tracker.history.select[0].bindings).toContain(projectUuid);
+        });
+
+        test('should return undefined for non-existent cache', async () => {
+            tracker.on.select(ResultsCacheTableName).response([]);
+
+            const result = await model.find(cacheKey, projectUuid);
+
+            expect(result).toBeUndefined();
+            expect(tracker.history.select).toHaveLength(1);
+            expect(tracker.history.select[0].bindings).toContain(cacheKey);
+            expect(tracker.history.select[0].bindings).toContain(projectUuid);
+        });
+
+        test('should only find cache for specified project', async () => {
+            const differentProjectUuid = 'different-project-uuid';
+            tracker.on.select(ResultsCacheTableName).response([]);
+
+            const result = await model.find(cacheKey, differentProjectUuid);
+
+            expect(result).toBeUndefined();
+            expect(tracker.history.select).toHaveLength(1);
+            expect(tracker.history.select[0].bindings).toContain(cacheKey);
+            expect(tracker.history.select[0].bindings).toContain(
+                differentProjectUuid,
+            );
+        });
+    });
 });
