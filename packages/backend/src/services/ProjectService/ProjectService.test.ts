@@ -461,7 +461,7 @@ describe('ProjectService', () => {
             );
         });
     });
-    describe.only('executeAsyncQuery', () => {
+    describe('executeAsyncQuery', () => {
         describe('when cache is enabled', () => {
             const write = jest.fn();
             const close = jest.fn();
