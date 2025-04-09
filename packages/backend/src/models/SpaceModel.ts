@@ -1484,19 +1484,16 @@ export class SpaceModel {
     /**
      * Generates a slug for a space.
      * @param slug - The slug to generate.
-     * @param forceSameSlug - Whether to force the slug to be the same as the input slug.
      * @param trx - The transaction to use.
      * @param parentSpaceUuid - The uuid of the parent space.
      * @returns The slug.
      */
     static async getSpaceSlug({
         slug,
-        forceSameSlug,
         trx,
         parentSpaceUuid,
     }: {
         slug: string;
-        forceSameSlug: boolean;
         trx: Knex;
         parentSpaceUuid: string | null;
     }) {
@@ -1511,9 +1508,7 @@ export class SpaceModel {
             }
             return `${parentSpace.slug}/${slug}`;
         }
-        if (forceSameSlug) {
-            return slug;
-        }
+
         return generateUniqueSlug(trx, SpaceTableName, slug);
     }
 
@@ -1540,12 +1535,13 @@ export class SpaceModel {
                 .select('project_id')
                 .where('project_uuid', projectUuid);
 
-            const spaceSlug = await SpaceModel.getSpaceSlug({
-                slug,
-                forceSameSlug,
-                parentSpaceUuid,
-                trx,
-            });
+            const spaceSlug = forceSameSlug
+                ? slug
+                : await SpaceModel.getSpaceSlug({
+                      slug,
+                      parentSpaceUuid,
+                      trx,
+                  });
 
             const spacePath = await SpaceModel.getSpacePath({
                 slug: spaceSlug,
