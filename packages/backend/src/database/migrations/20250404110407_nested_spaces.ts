@@ -10,7 +10,7 @@ export async function up(knex: Knex): Promise<void> {
         table.uuid('parent_space_uuid').nullable();
         // Enables much faster queries for finding all descendants or ancestors
         // Examples: https://www.postgresql.org/docs/current/ltree.html#LTREE-EXAMPLE
-        table.specificType('path', 'ltree').nullable();
+        table.specificType('path', 'ltree').notNullable().defaultTo('');
 
         table
             .foreign('parent_space_uuid')
@@ -34,7 +34,7 @@ export async function up(knex: Knex): Promise<void> {
             path: knex.raw('text2ltree(slug)'),
         })
         .from(SpacesTableName)
-        .whereNull('path');
+        .where('path', '=', '');
 }
 
 export async function down(knex: Knex): Promise<void> {
