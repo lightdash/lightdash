@@ -3,6 +3,9 @@ import { Knex } from 'knex';
 const SpacesTableName = 'spaces';
 
 export async function up(knex: Knex): Promise<void> {
+    // Install native Postgres extension ltree
+    await knex.raw('CREATE EXTENSION IF NOT EXISTS ltree');
+
     await knex.schema.alterTable(SpacesTableName, (table) => {
         table.uuid('parent_space_uuid').nullable();
         // Enables much faster queries for finding all descendants or ancestors
