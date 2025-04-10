@@ -9,7 +9,7 @@
         "build": "vite build"
     },
     "dependencies": {
-        "@lightdash/sdk": "workspace:*",
+        "@lightdash/sdk": "0.1512.2",
         "i18next": "^24.2.2",
         "i18next-browser-languagedetector": "^8.0.3",
         "i18next-locize-backend": "^7.0.3",
