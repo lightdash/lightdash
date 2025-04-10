@@ -43,7 +43,6 @@ let completionProviderDisposable: IDisposable | null = null;
 
 type Props = {
     fields: string[];
-    //items: (Field | TableCalculation | CustomDimension | CompiledDimension)[];
 };
 
 const registerCustomCompletionProvider = (

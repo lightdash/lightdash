@@ -1,3 +1,24 @@
+## [0.1567.3](https://github.com/lightdash/lightdash/compare/0.1567.2...0.1567.3) (2025-04-09)
+
+
+### Bug Fixes
+
+* autocomplete no pivot for tooltip ([#14336](https://github.com/lightdash/lightdash/issues/14336)) ([5ca35a7](https://github.com/lightdash/lightdash/commit/5ca35a7ef33c3389d978a70aa792a063168b09db))
+
+## [0.1567.2](https://github.com/lightdash/lightdash/compare/0.1567.1...0.1567.2) (2025-04-09)
+
+
+### Bug Fixes
+
+* add workaround to export pie chart with inside label ([#14324](https://github.com/lightdash/lightdash/issues/14324)) ([ff07ec3](https://github.com/lightdash/lightdash/commit/ff07ec39ca9cb7e0145d87a0c51c23396447d148))
+
+## [0.1567.1](https://github.com/lightdash/lightdash/compare/0.1567.0...0.1567.1) (2025-04-09)
+
+
+### Bug Fixes
+
+* postgres certificates ([#14314](https://github.com/lightdash/lightdash/issues/14314)) ([f35b8eb](https://github.com/lightdash/lightdash/commit/f35b8eb41e48bdea49c7cabb745c1d3fa7a3ccb0))
+
 # [0.1567.0](https://github.com/lightdash/lightdash/compare/0.1566.2...0.1567.0) (2025-04-08)
 
 

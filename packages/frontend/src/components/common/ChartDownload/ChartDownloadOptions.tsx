@@ -10,9 +10,10 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react';
-import { type EChartsInstance } from 'echarts-for-react';
+import { type EChartsInstance, type EChartsOption } from 'echarts-for-react';
 import React, { useCallback, useState } from 'react';
 
+import { type PieSeriesOption } from 'echarts';
 import { copyImageToClipboard } from '../../../utils/copyImageToClipboard';
 import MantineIcon from '../MantineIcon';
 import {
@@ -26,6 +27,86 @@ import {
 type DownloadOptions = {
     getChartInstance: () => EChartsInstance | undefined;
     unavailableOptions?: DownloadType[];
+};
+
+type OptionsWorkaround =
+    | {
+          needsWorkaround: false;
+          originalOptions: undefined;
+          updatedOptions: undefined;
+      }
+    | {
+          needsWorkaround: true;
+          originalOptions: EChartsOption;
+          updatedOptions: EChartsOption;
+      };
+
+// TODO: Remove workaround once echarts fixes the bug https://github.com/apache/echarts/issues/20904
+const getOptionsWorkaround = (
+    chartInstance: EChartsInstance,
+): OptionsWorkaround => {
+    const originalOptions = chartInstance.getOption() as EChartsOption;
+
+    const isPieSeries = (series: unknown): series is PieSeriesOption => {
+        return (
+            typeof series === 'object' &&
+            series !== null &&
+            'type' in series &&
+            series.type === 'pie'
+        );
+    };
+
+    const needsWorkaround =
+        originalOptions.series?.some(
+            (series: unknown) =>
+                isPieSeries(series) &&
+                series.data?.some(
+                    (item) =>
+                        typeof item === 'object' &&
+                        'label' in item &&
+                        typeof item.label === 'object' &&
+                        item.label?.show === true &&
+                        item.label?.position === 'inside',
+                ),
+        ) ?? false;
+
+    const updatedOptions: EChartsOption = needsWorkaround
+        ? {
+              ...originalOptions,
+              series: originalOptions.series?.map((series: unknown) => {
+                  if (isPieSeries(series)) {
+                      return {
+                          ...series,
+                          data: series.data?.map((item) => {
+                              // Handle PieDataItemOption case
+                              if (
+                                  typeof item === 'object' &&
+                                  item !== null &&
+                                  !Array.isArray(item)
+                              ) {
+                                  return {
+                                      ...item,
+                                      label: {
+                                          ...item.label,
+                                          show: false,
+                                      },
+                                  };
+                              }
+                              // Handle OptionDataValueNumeric (primitive) or OptionDataValueNumeric[] (array) cases
+                              return item;
+                          }),
+                      };
+                  }
+                  return series;
+              }),
+          }
+        : undefined;
+
+    return {
+        needsWorkaround,
+        originalOptions,
+        updatedOptions,
+    };
 };
 
 const ChartDownloadOptions: React.FC<DownloadOptions> = ({
@@ -42,6 +123,13 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
         if (!chartInstance) {
             console.error('Chart instance is not available');
             return;
+        }
+        const { needsWorkaround, updatedOptions, originalOptions } =
+            getOptionsWorkaround(chartInstance);
+
+        // Apply workaround options
+        if (needsWorkaround) {
+            chartInstance.setOption(updatedOptions);
         }
 
         try {
@@ -87,6 +175,11 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
             }
         } catch (e) {
             console.error(`Unable to download ${type} from chart ${e}`);
+        } finally {
+            // rollback workaround
+            if (needsWorkaround) {
+                chartInstance.setOption(originalOptions);
+            }
         }
     }, [getChartInstance, type, isBackgroundTransparent]);
 
