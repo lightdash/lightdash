@@ -296,7 +296,7 @@ const MicrosoftTeamsDestination: FC<MicrosoftTeamsDestinationProps> = ({
                 <TagInput
                     sx={{
                         span: {
-                            maxWidth: '250px',
+                            maxWidth: '280px',
                         },
                     }}
                     clearable
