@@ -1,24 +1,8 @@
-import {
-    GetObjectCommand,
-    HeadObjectCommand,
-    NotFound,
-    PutObjectCommand,
-    PutObjectCommandInput,
-    S3,
-    S3ServiceException,
-} from '@aws-sdk/client-s3';
+import { NotFound } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
-import {
-    getErrorMessage,
-    MissingConfigError,
-    S3Error,
-    WarehouseResults,
-} from '@lightdash/common';
-import * as Sentry from '@sentry/node';
+import { getErrorMessage, WarehouseResults } from '@lightdash/common';
 import { once, PassThrough, Readable, Writable } from 'stream';
-import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import { wrapSentryTransaction } from '../../utils';
 import { S3CacheClient } from '../Aws/S3CacheClient';
 import { IResultsCacheStorageClient } from './ResultsCacheStorageClient';
 
