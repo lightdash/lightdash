@@ -27,7 +27,7 @@ export class S3ResultsCacheStorageClient
     implements IResultsCacheStorageClient
 {
     createUploadStream(cacheKey: string, pageSize: number) {
-        if (!this.s3) {
+        if (!this.configuration.bucket || this.s3 === undefined) {
             throw new Error('S3 is not initialized');
         }
 
