@@ -9,9 +9,5 @@ export interface IResultsCacheStorageClient {
         write: (rows: WarehouseResults['rows']) => Promise<void>;
         close: () => Promise<void>;
     };
-    download(
-        cacheKey: string,
-        page: number,
-        pageSize: number,
-    ): Promise<Readable>;
+    getDowloadStream(cacheKey: string): Promise<Readable>;
 }

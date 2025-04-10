@@ -102,11 +102,7 @@ export class S3ResultsCacheStorageClient
         return { write, close };
     }
 
-    async download(
-        cacheKey: string,
-        page: number,
-        pageSize: number,
-    ): Promise<Readable> {
+    async getDowloadStream(cacheKey: string): Promise<Readable> {
         try {
             const results = await this.getResults(cacheKey, 'jsonl');
             if (!results.Body) {

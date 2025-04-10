@@ -13,7 +13,7 @@ const mockStorageClient = {
         write: jest.fn(),
         close: jest.fn(),
     }),
-    download: jest.fn(),
+    getDowloadStream: jest.fn(),
 } as jest.Mocked<IResultsCacheStorageClient>;
 
 describe('ResultsCacheModel', () => {
@@ -389,7 +389,7 @@ describe('ResultsCacheModel', () => {
 
             tracker.on.select(ResultsCacheTableName).response([existingCache]);
 
-            mockStorageClient.download.mockResolvedValue(
+            mockStorageClient.getDowloadStream.mockResolvedValue(
                 getMockStream(mockRows),
             );
 
@@ -412,10 +412,8 @@ describe('ResultsCacheModel', () => {
                 totalRowCount: 100,
             });
 
-            expect(mockStorageClient.download).toHaveBeenCalledWith(
+            expect(mockStorageClient.getDowloadStream).toHaveBeenCalledWith(
                 cacheKey,
-                1,
-                10,
             );
         });
 
@@ -431,7 +429,9 @@ describe('ResultsCacheModel', () => {
 
             tracker.on.select(ResultsCacheTableName).response([existingCache]);
 
-            mockStorageClient.download.mockResolvedValue(emptyMockStream);
+            mockStorageClient.getDowloadStream.mockResolvedValue(
+                emptyMockStream,
+            );
 
             const result = await model.getCachedResultsPage(
                 cacheKey,
@@ -462,7 +462,7 @@ describe('ResultsCacheModel', () => {
                 ),
             ).rejects.toThrow(NotFoundError);
 
-            expect(mockStorageClient.download).not.toHaveBeenCalled();
+            expect(mockStorageClient.getDowloadStream).not.toHaveBeenCalled();
         });
 
         test('should throw ExpiredError when cache is expired', async () => {
@@ -488,7 +488,7 @@ describe('ResultsCacheModel', () => {
                 ),
             ).rejects.toThrow(ExpiredError);
 
-            expect(mockStorageClient.download).not.toHaveBeenCalled();
+            expect(mockStorageClient.getDowloadStream).not.toHaveBeenCalled();
             expect(tracker.history.delete).toHaveLength(1);
         });
 
@@ -502,7 +502,7 @@ describe('ResultsCacheModel', () => {
 
             tracker.on.select(ResultsCacheTableName).response([existingCache]);
 
-            mockStorageClient.download.mockResolvedValue(
+            mockStorageClient.getDowloadStream.mockResolvedValue(
                 getMockStream(mockRows),
             );
 
@@ -520,10 +520,8 @@ describe('ResultsCacheModel', () => {
                 totalRowCount: 100,
             });
 
-            expect(mockStorageClient.download).toHaveBeenCalledWith(
+            expect(mockStorageClient.getDowloadStream).toHaveBeenCalledWith(
                 cacheKey,
-                2,
-                2,
             );
         });
 
@@ -555,7 +553,7 @@ describe('ResultsCacheModel', () => {
 
             tracker.on.select(ResultsCacheTableName).response([existingCache]);
 
-            mockStorageClient.download.mockResolvedValue(
+            mockStorageClient.getDowloadStream.mockResolvedValue(
                 mockStreamWithEmptyLines,
             );
 

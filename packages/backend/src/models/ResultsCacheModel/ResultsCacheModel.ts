@@ -159,11 +159,7 @@ export class ResultsCacheModel {
             );
         }
 
-        const cacheStream = await storageClient.download(
-            cacheKey,
-            page,
-            pageSize,
-        );
+        const cacheStream = await storageClient.getDowloadStream(cacheKey);
 
         const rows: ResultRow[] = [];
         const rl = createInterface({
