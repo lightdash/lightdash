@@ -246,21 +246,6 @@ export class S3Client {
         }
     }
 
-    async streamJsonObjects(
-        fileId: string,
-        writer: (row: Record<string, unknown>) => void,
-    ): Promise<void> {
-        const stream = await this.getS3FileStream(fileId);
-        const reader = readline.createInterface({
-            input: stream,
-            crlfDelay: Infinity,
-        });
-
-        for await (const line of reader) {
-            writer(JSON.parse(line));
-        }
-    }
-
     isEnabled(): boolean {
         return this.s3 !== undefined;
     }
