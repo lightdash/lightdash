@@ -145,7 +145,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                     <Tooltip
                         withinPortal={true}
                         maw={350}
-                        variant="s"
+                        variant="xs"
                         multiline
                         label="Use this input to enhance chart tooltips with additional content. You can incorporate HTML code and include dynamic values using the format ${variable_name}. 
                                     Click here to read more about this on our docs."
