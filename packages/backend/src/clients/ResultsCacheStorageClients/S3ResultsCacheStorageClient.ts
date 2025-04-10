@@ -41,7 +41,7 @@ export class S3ResultsCacheStorageClient
                 Body: passThrough,
                 ACL: 'private',
                 ContentType: 'application/jsonl',
-                ContentDisposition: `attachment; filename="${cacheKey}"`,
+                ContentDisposition: `attachment; filename="${cacheKey}.jsonl"`,
             },
         });
 
