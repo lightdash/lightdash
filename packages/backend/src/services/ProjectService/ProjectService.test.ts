@@ -8,6 +8,8 @@ import {
     QueryHistoryStatus,
     SessionUser,
     WarehouseQueryError,
+    type ExecuteAsyncQueryRequestParams,
+    type QueryHistory,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
@@ -485,6 +487,8 @@ describe('ProjectService', () => {
                         write,
                         close,
                     }));
+
+                serviceWithCache.resultsCacheModel.delete = jest.fn();
             });
 
             test('should return queryUuid when cache is hit', async () => {
@@ -544,6 +548,7 @@ describe('ProjectService', () => {
                         status: QueryHistoryStatus.READY,
                         error: null,
                         total_row_count: 10,
+                        warehouse_execution_time_ms: 0,
                     },
                 );
 
@@ -799,20 +804,25 @@ describe('ProjectService', () => {
 
             test('should return error when queryHistory has error status', async () => {
                 // Mock the queryHistoryModel.get to return a query with ERROR status
-                const mockQueryHistory = {
+                const mockQueryHistory: QueryHistory = {
+                    createdAt: new Date(),
+                    organizationUuid: user.organizationUuid!,
+                    createdByUserUuid: user.userUuid,
                     queryUuid: 'test-query-uuid',
                     projectUuid,
-                    userUuid: user.userUuid,
                     status: QueryHistoryStatus.ERROR,
                     error: 'Test error message',
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
                     fields: validExplore.tables.a.dimensions,
                     compiledSql: 'SELECT * FROM test.table',
-                    warehouseQueryId: 'test-query-id',
-                    warehouseQueryMetadata: {},
+                    warehouseQueryId: 'test-warehouse-query-id',
+                    warehouseQueryMetadata: null,
+                    requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
                     defaultPageSize: 10,
-                    cacheKey: 'test-cache-key',
+                    cacheKey: null,
                 };
 
                 serviceWithCache.queryHistoryModel.get = jest
@@ -841,19 +851,25 @@ describe('ProjectService', () => {
 
             test('should return current status when queryHistory has pending status', async () => {
                 // Mock the queryHistoryModel.get to return a query with PENDING status
-                const mockQueryHistory = {
+                const mockQueryHistory: QueryHistory = {
+                    createdAt: new Date(),
+                    organizationUuid: user.organizationUuid!,
+                    createdByUserUuid: user.userUuid,
                     queryUuid: 'test-query-uuid',
                     projectUuid,
-                    userUuid: user.userUuid,
                     status: QueryHistoryStatus.PENDING,
+                    error: null,
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
                     fields: validExplore.tables.a.dimensions,
                     compiledSql: 'SELECT * FROM test.table',
-                    warehouseQueryId: 'test-query-id',
-                    warehouseQueryMetadata: {},
+                    warehouseQueryId: 'test-warehouse-query-id',
+                    warehouseQueryMetadata: null,
+                    requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
                     defaultPageSize: 10,
-                    cacheKey: 'test-cache-key',
+                    cacheKey: null,
                 };
 
                 serviceWithCache.queryHistoryModel.get = jest
@@ -881,19 +897,25 @@ describe('ProjectService', () => {
 
             test('should return current status when queryHistory has cancelled status', async () => {
                 // Mock the queryHistoryModel.get to return a query with CANCELLED status
-                const mockQueryHistory = {
+                const mockQueryHistory: QueryHistory = {
+                    createdAt: new Date(),
+                    organizationUuid: user.organizationUuid!,
+                    createdByUserUuid: user.userUuid,
                     queryUuid: 'test-query-uuid',
                     projectUuid,
-                    userUuid: user.userUuid,
                     status: QueryHistoryStatus.CANCELLED,
+                    error: null,
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
                     fields: validExplore.tables.a.dimensions,
                     compiledSql: 'SELECT * FROM test.table',
-                    warehouseQueryId: 'test-query-id',
-                    warehouseQueryMetadata: {},
+                    warehouseQueryId: 'test-warehouse-query-id',
+                    warehouseQueryMetadata: null,
+                    requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
                     defaultPageSize: 10,
-                    cacheKey: 'test-cache-key',
+                    cacheKey: null,
                 };
 
                 serviceWithCache.queryHistoryModel.get = jest
@@ -921,20 +943,25 @@ describe('ProjectService', () => {
 
             test('should fetch results from cache when query is READY and cache exists', async () => {
                 // Mock the queryHistoryModel.get to return a READY query with cache key
-                const mockQueryHistory = {
+                const mockQueryHistory: QueryHistory = {
+                    createdAt: new Date(),
+                    organizationUuid: user.organizationUuid!,
+                    createdByUserUuid: user.userUuid,
                     queryUuid: 'test-query-uuid',
                     projectUuid,
-                    userUuid: user.userUuid,
                     status: QueryHistoryStatus.READY,
+                    error: null,
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
                     fields: validExplore.tables.a.dimensions,
                     compiledSql: 'SELECT * FROM test.table',
                     warehouseQueryId: 'test-warehouse-query-id',
-                    warehouseQueryMetadata: {},
+                    warehouseQueryMetadata: null,
+                    requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
                     defaultPageSize: 10,
                     cacheKey: 'test-cache-key',
-                    warehouseExecutionTimeMs: 100,
                 };
 
                 serviceWithCache.queryHistoryModel.get = jest
@@ -980,7 +1007,7 @@ describe('ProjectService', () => {
                     page: 1,
                     nextPage: undefined,
                     previousPage: undefined,
-                    initialQueryExecutionMs: 100,
+                    initialQueryExecutionMs: 0,
                     resultsPageExecutionMs: expect.any(Number),
                     status: QueryHistoryStatus.READY,
                 });
@@ -999,17 +1026,23 @@ describe('ProjectService', () => {
 
             test('should error when getCachedResultsPage throws an error', async () => {
                 // Mock the queryHistoryModel.get to return a READY query with cache key
-                const mockQueryHistory = {
+                const mockQueryHistory: QueryHistory = {
+                    createdAt: new Date(),
+                    organizationUuid: user.organizationUuid!,
+                    createdByUserUuid: user.userUuid,
                     queryUuid: 'test-query-uuid',
                     projectUuid,
-                    userUuid: user.userUuid,
                     status: QueryHistoryStatus.READY,
+                    error: null,
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
                     fields: validExplore.tables.a.dimensions,
                     compiledSql: 'SELECT * FROM test.table',
                     warehouseQueryId: 'test-warehouse-query-id',
-                    warehouseQueryMetadata: {},
+                    warehouseQueryMetadata: null,
+                    requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
                     defaultPageSize: 10,
                     cacheKey: 'test-cache-key',
                 };
@@ -1064,19 +1097,25 @@ describe('ProjectService', () => {
 
             test('should return error when queryHistory has error status', async () => {
                 // Mock the queryHistoryModel.get to return a query with ERROR status
-                const mockQueryHistory = {
+                const mockQueryHistory: QueryHistory = {
+                    createdAt: new Date(),
+                    organizationUuid: user.organizationUuid!,
+                    createdByUserUuid: user.userUuid,
                     queryUuid: 'test-query-uuid',
                     projectUuid,
-                    userUuid: user.userUuid,
                     status: QueryHistoryStatus.ERROR,
                     error: 'Test error message',
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
                     fields: validExplore.tables.a.dimensions,
                     compiledSql: 'SELECT * FROM test.table',
-                    warehouseQueryId: 'test-query-id',
-                    warehouseQueryMetadata: {},
+                    warehouseQueryId: 'test-warehouse-query-id',
+                    warehouseQueryMetadata: null,
+                    requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
                     defaultPageSize: 10,
+                    cacheKey: null,
                 };
 
                 serviceWithoutCache.queryHistoryModel.get = jest
@@ -1106,18 +1145,25 @@ describe('ProjectService', () => {
 
             test('should return current status when queryHistory has pending status', async () => {
                 // Mock the queryHistoryModel.get to return a query with PENDING status
-                const mockQueryHistory = {
+                const mockQueryHistory: QueryHistory = {
+                    createdAt: new Date(),
+                    organizationUuid: user.organizationUuid!,
+                    createdByUserUuid: user.userUuid,
                     queryUuid: 'test-query-uuid',
                     projectUuid,
-                    userUuid: user.userUuid,
                     status: QueryHistoryStatus.PENDING,
+                    error: null,
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
                     fields: validExplore.tables.a.dimensions,
                     compiledSql: 'SELECT * FROM test.table',
-                    warehouseQueryId: 'test-query-id',
-                    warehouseQueryMetadata: {},
+                    warehouseQueryId: 'test-warehouse-query-id',
+                    warehouseQueryMetadata: null,
+                    requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
                     defaultPageSize: 10,
+                    cacheKey: null,
                 };
 
                 serviceWithoutCache.queryHistoryModel.get = jest
@@ -1145,18 +1191,25 @@ describe('ProjectService', () => {
 
             test('should return current status when queryHistory has cancelled status', async () => {
                 // Mock the queryHistoryModel.get to return a query with CANCELLED status
-                const mockQueryHistory = {
+                const mockQueryHistory: QueryHistory = {
+                    createdAt: new Date(),
+                    organizationUuid: user.organizationUuid!,
+                    createdByUserUuid: user.userUuid,
                     queryUuid: 'test-query-uuid',
                     projectUuid,
-                    userUuid: user.userUuid,
                     status: QueryHistoryStatus.CANCELLED,
+                    error: null,
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
                     fields: validExplore.tables.a.dimensions,
                     compiledSql: 'SELECT * FROM test.table',
-                    warehouseQueryId: 'test-query-id',
-                    warehouseQueryMetadata: {},
+                    warehouseQueryId: 'test-warehouse-query-id',
+                    warehouseQueryMetadata: null,
+                    requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
                     defaultPageSize: 10,
+                    cacheKey: null,
                 };
 
                 serviceWithoutCache.queryHistoryModel.get = jest
@@ -1184,18 +1237,25 @@ describe('ProjectService', () => {
 
             test('should fetch results from warehouse when query is READY', async () => {
                 // Mock the queryHistoryModel.get to return a READY query
-                const mockQueryHistory = {
+                const mockQueryHistory: QueryHistory = {
+                    createdAt: new Date(),
+                    organizationUuid: user.organizationUuid!,
+                    createdByUserUuid: user.userUuid,
                     queryUuid: 'test-query-uuid',
                     projectUuid,
-                    userUuid: user.userUuid,
                     status: QueryHistoryStatus.READY,
+                    error: null,
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
                     fields: validExplore.tables.a.dimensions,
                     compiledSql: 'SELECT * FROM test.table',
                     warehouseQueryId: 'test-warehouse-query-id',
-                    warehouseQueryMetadata: {},
+                    warehouseQueryMetadata: null,
+                    requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
                     defaultPageSize: 10,
+                    cacheKey: null,
                 };
 
                 serviceWithoutCache.queryHistoryModel.get = jest
@@ -1255,7 +1315,7 @@ describe('ProjectService', () => {
                         queryId: 'test-warehouse-query-id',
                         page: 1,
                         pageSize: 10,
-                        queryMetadata: {},
+                        queryMetadata: null,
                         sql: expect.any(String),
                         tags: {
                             query_context: QueryExecutionContext.EXPLORE,
@@ -1271,18 +1331,25 @@ describe('ProjectService', () => {
 
             test('should handle warehouse query error', async () => {
                 // Mock the queryHistoryModel.get to return a READY query
-                const mockQueryHistory = {
+                const mockQueryHistory: QueryHistory = {
+                    createdAt: new Date(),
+                    organizationUuid: user.organizationUuid!,
+                    createdByUserUuid: user.userUuid,
                     queryUuid: 'test-query-uuid',
                     projectUuid,
-                    userUuid: user.userUuid,
                     status: QueryHistoryStatus.READY,
+                    error: null,
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
                     fields: validExplore.tables.a.dimensions,
                     compiledSql: 'SELECT * FROM test.table',
                     warehouseQueryId: 'test-warehouse-query-id',
-                    warehouseQueryMetadata: {},
+                    warehouseQueryMetadata: null,
+                    requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
                     defaultPageSize: 10,
+                    cacheKey: null,
                 };
 
                 serviceWithoutCache.queryHistoryModel.get = jest
