@@ -19,7 +19,7 @@ export type Space = {
     pinnedListOrder: number | null;
     slug: string;
     // Nested Spaces MVP - disables nested spaces' access changes
-    hasParent?: boolean;
+    parentSpaceUuid?: string;
 };
 
 export type SpaceSummary = Pick<
@@ -32,12 +32,12 @@ export type SpaceSummary = Pick<
     | 'pinnedListUuid'
     | 'pinnedListOrder'
     | 'slug'
+    | 'parentSpaceUuid'
 > & {
     userAccess: SpaceShare | undefined;
     access: string[];
     chartCount: number;
     dashboardCount: number;
-    parentSpaceUuid: string | null;
 };
 
 export type CreateSpace = {
@@ -49,7 +49,7 @@ export type CreateSpace = {
 
 export type UpdateSpace = {
     name: string;
-    isPrivate: boolean;
+    isPrivate?: boolean;
 };
 
 export type SpaceShare = {

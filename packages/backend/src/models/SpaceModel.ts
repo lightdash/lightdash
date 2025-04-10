@@ -525,7 +525,7 @@ export class SpaceModel {
             pinnedListUuid: row.pinned_list_uuid,
             pinnedListOrder: row.order,
             slug: row.slug,
-            hasParent: row.parent_space_uuid !== null,
+            parentSpaceUuid: row.parent_space_uuid ?? undefined,
         };
     }
 
@@ -1492,7 +1492,7 @@ export class SpaceModel {
                 [],
             groupsAccess: await this._getGroupAccess(rootSpaceUuid),
             slug: space.slug,
-            hasParent: space.hasParent,
+            parentSpaceUuid: space.parentSpaceUuid,
         };
     }
 

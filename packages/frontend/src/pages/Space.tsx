@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ContentType,
+    FeatureFlags,
     LightdashMode,
     ResourceViewItemType,
     contentToResourceViewItem,
@@ -10,6 +11,7 @@ import { ActionIcon, Box, Group, Menu, Stack } from '@mantine/core';
 import {
     IconDots,
     IconFolderCog,
+    IconFolderPlus,
     IconFolderX,
     IconPlus,
     IconSquarePlus,
@@ -34,6 +36,7 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
 import { useContent } from '../hooks/useContent';
+import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
 import { useSpace } from '../hooks/useSpaces';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
@@ -81,6 +84,26 @@ const Space: FC = () => {
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
     const { user, health } = useApp();
 
+    const areNestedSpacesEnabled = useFeatureFlagEnabled(
+        FeatureFlags.NestedSpaces,
+    );
+    const canCreateNestedSpaces = useMemo(() => {
+        const userCanManageSpace = user.data?.ability?.can(
+            'create',
+            subject('Space', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        );
+
+        return userCanManageSpace && areNestedSpacesEnabled;
+    }, [
+        user.data?.ability,
+        user.data?.organizationUuid,
+        projectUuid,
+        areNestedSpacesEnabled,
+    ]);
+
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const navigate = useNavigate();
     const location = useLocation();
@@ -88,6 +111,8 @@ const Space: FC = () => {
     const [updateSpace, setUpdateSpace] = useState<boolean>(false);
     const [deleteSpace, setDeleteSpace] = useState<boolean>(false);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
+        useState<boolean>(false);
+    const [isCreateNestedSpaceOpen, setIsCreateNestedSpaceOpen] =
         useState<boolean>(false);
     const [addToSpace, setAddToSpace] = useState<AddToSpaceResources>();
     const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
@@ -156,7 +181,8 @@ const Space: FC = () => {
                     <Group spacing="xs">
                         {!isDemo &&
                             (userCanCreateDashboards ||
-                                userCanCreateCharts) && (
+                                userCanCreateCharts ||
+                                canCreateNestedSpaces) && (
                                 <Menu
                                     position="bottom-end"
                                     shadow="md"
@@ -180,6 +206,28 @@ const Space: FC = () => {
                                     </Menu.Target>
 
                                     <Menu.Dropdown>
+                                        {canCreateNestedSpaces && (
+                                            <>
+                                                <Menu.Item
+                                                    icon={
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconFolderPlus
+                                                            }
+                                                        />
+                                                    }
+                                                    onClick={() => {
+                                                        setIsCreateNestedSpaceOpen(
+                                                            true,
+                                                        );
+                                                    }}
+                                                >
+                                                    Create space
+                                                </Menu.Item>
+                                                <Menu.Divider />
+                                            </>
+                                        )}
+
                                         {userCanCreateDashboards ? (
                                             <>
                                                 <Menu.Label>
@@ -298,6 +346,7 @@ const Space: FC = () => {
                                     confirmButtonLabel="Update"
                                     icon={IconFolderCog}
                                     onClose={() => setUpdateSpace(false)}
+                                    parentSpaceUuid={space.parentSpaceUuid}
                                 />
                             )}
                             {deleteSpace && (
@@ -329,7 +378,6 @@ const Space: FC = () => {
                         </Can>
                     </Group>
                 </Group>
-
                 <InfiniteResourceTable
                     filters={{
                         projectUuid,
@@ -351,7 +399,6 @@ const Space: FC = () => {
                 {createToSpace && (
                     <CreateResourceToSpace resourceType={createToSpace} />
                 )}
-
                 <DashboardCreateModal
                     projectUuid={projectUuid}
                     defaultSpaceUuid={space.uuid}
@@ -365,6 +412,26 @@ const Space: FC = () => {
                         setIsCreateDashboardOpen(false);
                     }}
                 />
+
+                {isCreateNestedSpaceOpen && (
+                    <SpaceActionModal
+                        projectUuid={projectUuid}
+                        actionType={ActionType.CREATE}
+                        parentSpaceUuid={space.uuid}
+                        title={`Create space in "${space.name}"`}
+                        confirmButtonLabel="Create"
+                        icon={IconFolderPlus}
+                        onClose={() => setIsCreateNestedSpaceOpen(false)}
+                        onSubmitForm={(newSpace) => {
+                            if (newSpace) {
+                                void navigate(
+                                    `/projects/${projectUuid}/spaces/${newSpace.uuid}`,
+                                );
+                            }
+                            setIsCreateNestedSpaceOpen(false);
+                        }}
+                    />
+                )}
             </Stack>
         </Page>
     );

@@ -72,6 +72,7 @@ export type ResourceViewSpaceItem = {
         | 'pinnedListUuid'
         | 'pinnedListOrder'
         | 'organizationUuid'
+        | 'parentSpaceUuid'
     > & {
         access: string[];
         accessListLength: number;
@@ -139,6 +140,7 @@ export const spaceToResourceViewItem = (
     dashboardCount: space.dashboardCount,
     chartCount: space.chartCount,
     access: space.access,
+    parentSpaceUuid: space.parentSpaceUuid ?? undefined,
 });
 
 export type MostPopularAndRecentlyUpdated = {

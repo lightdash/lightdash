@@ -45,6 +45,7 @@ interface ActionModalProps {
     onSubmitForm?: (data: Space | null) => void;
     isDisabled: boolean;
     shouldRedirect?: boolean;
+    parentSpaceUuid?: Space['uuid'];
 }
 
 export interface SpaceModalBody {
@@ -60,6 +61,7 @@ export interface CreateSpaceModalBody {
     privateAccessType: SpacePrivateAccessType;
     onPrivateAccessTypeChange: (type: SpacePrivateAccessType) => void;
     organizationUsers: OrganizationMemberProfile[] | undefined;
+    parentSpaceUuid?: Space['uuid'];
 }
 
 const validate = z.object({
@@ -77,6 +79,7 @@ const SpaceModal: FC<ActionModalProps> = ({
     projectUuid,
     onClose = () => {},
     onSubmitForm,
+    parentSpaceUuid,
 }) => {
     const { showToastError } = useToaster();
     const { data: organizationUsers } = useOrganizationUsers();
@@ -138,6 +141,7 @@ const SpaceModal: FC<ActionModalProps> = ({
                             privateAccessType={privateAccessType}
                             onPrivateAccessTypeChange={setPrivateAccessType}
                             organizationUsers={organizationUsers}
+                            parentSpaceUuid={parentSpaceUuid}
                         />
                     ) : actionType === ActionType.UPDATE ? (
                         <UpdateSpaceModalContent data={data} form={form} />
@@ -223,6 +227,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
     spaceUuid,
     onSubmitForm,
     shouldRedirect = true,
+    parentSpaceUuid,
     ...props
 }) => {
     const { data, isInitialLoading } = useSpace(projectUuid, spaceUuid, {
@@ -261,12 +266,17 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
                     userUuid: access.userUuid,
                     role: access.role,
                 })),
+                ...(parentSpaceUuid && {
+                    parentSpaceUuid,
+                }),
             });
             onSubmitForm?.(result);
         } else if (actionType === ActionType.UPDATE) {
             const result = await updateMutation({
                 name: state.name,
-                isPrivate: state.isPrivate,
+                ...(!parentSpaceUuid && {
+                    isPrivate: state.isPrivate,
+                }),
             });
             onSubmitForm?.(result);
         } else if (actionType === ActionType.DELETE) {
@@ -293,6 +303,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
             actionType={actionType}
             onSubmitForm={handleSubmitForm}
             isDisabled={isWorking}
+            parentSpaceUuid={parentSpaceUuid}
             {...props}
         />
     );
