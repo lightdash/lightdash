@@ -212,7 +212,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                             options={monacoOptions}
                             onChange={handleEditorOnChange}
                             language={'html'}
-                            height="200px"
+                            height="76px"
                             width="100%"
                             wrapperProps={{
                                 id: 'tooltip-editor-wrapper',
