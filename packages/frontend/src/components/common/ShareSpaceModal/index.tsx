@@ -44,7 +44,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
             <Tooltip
                 multiline
                 maw={300}
-                disabled={!space.hasParent}
+                disabled={!space.parentSpaceUuid}
                 label={
                     'This is a nested space. Access changes are not supported yet - they will be inherited from the root space'
                 }
@@ -61,11 +61,11 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             )
                         }
                         onClick={() => {
-                            if (!space.hasParent) {
+                            if (!space.parentSpaceUuid) {
                                 setIsOpen(true);
                             }
                         }}
-                        disabled={space.hasParent}
+                        disabled={!!space.parentSpaceUuid}
                         variant="default"
                     >
                         Share

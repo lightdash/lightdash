@@ -6689,7 +6689,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                hasParent: { dataType: 'boolean' },
+                parentSpaceUuid: { dataType: 'string' },
                 slug: { dataType: 'string', required: true },
                 pinnedListOrder: {
                     dataType: 'union',
@@ -6786,7 +6786,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                isPrivate: { dataType: 'boolean', required: true },
+                isPrivate: { dataType: 'boolean' },
                 name: { dataType: 'string', required: true },
             },
             validators: {},
@@ -10819,7 +10819,7 @@ const models: TsoaRoute.Models = {
         enums: ['space'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid_':
+    'Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid_':
         {
             dataType: 'refAlias',
             type: {
@@ -10846,6 +10846,13 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    parentSpaceUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                 },
                 validators: {},
             },
@@ -10860,7 +10867,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'intersection',
                     subSchemas: [
                         {
-                            ref: 'Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid_',
+                            ref: 'Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid_',
                         },
                         {
                             dataType: 'nestedObjectLiteral',

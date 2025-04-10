@@ -182,6 +182,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             icon={IconFolderCog}
                             onClose={handleReset}
                             onSubmitForm={handleReset}
+                            parentSpaceUuid={action.item.data.parentSpaceUuid}
                         />
                     );
                 default:
