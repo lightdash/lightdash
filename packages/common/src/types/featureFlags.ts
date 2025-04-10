@@ -56,6 +56,11 @@ export enum FeatureFlags {
      * Enable a new API endpoint that requests results page by page.
      */
     QueryPagination = 'query-pagination',
+
+    /**
+     * Enable the ability to create nested spaces
+     */
+    NestedSpaces = 'nested-spaces',
 }
 
 export type FeatureFlag = {
