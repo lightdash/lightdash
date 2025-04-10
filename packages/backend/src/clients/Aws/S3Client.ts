@@ -13,7 +13,6 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { ReadStream } from 'fs';
-import * as readline from 'readline';
 import { PassThrough, Readable } from 'stream';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
