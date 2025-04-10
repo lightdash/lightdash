@@ -1479,11 +1479,14 @@ export class ProjectService extends BaseService {
     }
 
     async compileQuery(
-        user: SessionUser,
-        metricQuery: MetricQuery,
-        projectUuid: string,
-        exploreName: string,
+        args: {
+            user: SessionUser;
+            metricQuery: MetricQuery;
+            projectUuid: string;
+        } & ({ exploreName: string } | { explore: Explore }),
     ) {
+        const { user, metricQuery, projectUuid } = args;
+
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
@@ -1507,7 +1510,10 @@ export class ProjectService extends BaseService {
             );
         }
 
-        const explore = await this.getExplore(user, projectUuid, exploreName);
+        const explore =
+            'explore' in args
+                ? args.explore
+                : await this.getExplore(user, projectUuid, args.exploreName);
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
@@ -2948,12 +2954,12 @@ export class ProjectService extends BaseService {
             organizationUuid,
         );
 
-        const { fields: metricQueryFields } = await this.compileQuery(
+        const { fields: metricQueryFields } = await this.compileQuery({
             user,
             metricQuery,
             projectUuid,
-            exploreName,
-        );
+            explore,
+        });
 
         const underlyingDataItem = underlyingDataItemId
             ? metricQueryFields[underlyingDataItemId]

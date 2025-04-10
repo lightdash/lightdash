@@ -113,12 +113,12 @@ export class SupportService extends BaseService {
             `support-chartconfig-${nanoid()}`,
         );
 
-        const query = await this.projectService.compileQuery(
+        const query = await this.projectService.compileQuery({
             user,
-            savedChart.metricQuery,
+            metricQuery: savedChart.metricQuery,
             projectUuid,
-            savedChart.tableName,
-        );
+            exploreName: savedChart.tableName,
+        });
         const queryBuffer = Buffer.from(query.query, 'utf-8');
         const sqlS3Url = await this.s3Client.uploadTxt(
             queryBuffer,
