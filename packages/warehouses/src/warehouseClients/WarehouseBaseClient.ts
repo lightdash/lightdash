@@ -61,8 +61,33 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
     }
 
     async executeAsyncQuery(
-        args: WarehouseExecuteAsyncQueryArgs,
+        { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
+        resultsStreamCallback?: (rows: WarehouseResults['rows']) => void,
     ): Promise<WarehouseExecuteAsyncQuery> {
+        if (resultsStreamCallback) {
+            let rowCount = 0;
+            await this.streamQuery(
+                sql,
+                ({ rows }) => {
+                    rowCount = (rowCount ?? 0) + rows.length;
+                    resultsStreamCallback(rows);
+                },
+                {
+                    values,
+                    tags,
+                    timezone,
+                },
+            );
+
+            // we could have this return further down but types are a bit messy with this union and count updating on a callback
+            return {
+                queryId: null,
+                queryMetadata: null,
+                durationMs: null,
+                totalRows: rowCount,
+            };
+        }
+
         return {
             queryId: null,
             queryMetadata: null,

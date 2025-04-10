@@ -236,6 +236,7 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
                         exploreName: data.tableId,
                         granularity: data.dateZoomGranularity,
                     },
+                    invalidateCache: true, // Note: do not cache explore queries
                 });
             }
             return Promise.reject(

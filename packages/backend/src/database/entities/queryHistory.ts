@@ -26,6 +26,7 @@ export type DbQueryHistory = {
     warehouse_execution_time_ms: number | null;
     error: string | null;
     status: QueryHistoryStatus;
+    cache_key: string | null;
 };
 
 export type DbQueryHistoryIn = Omit<
