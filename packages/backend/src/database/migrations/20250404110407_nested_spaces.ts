@@ -27,11 +27,11 @@ export async function up(knex: Knex): Promise<void> {
         `CREATE INDEX spaces_parent_space_uuid_index ON ${SpacesTableName} USING btree (parent_space_uuid)`, // Btree is a B-tree index for parent_space_uuid, which is a UUID
     );
 
-    // Updates path for existing spaces (root spaces have their own slug as path)
-    // Uses text2ltree to convert the slug to a ltree path (reference: https://www.postgresql.org/docs/current/ltree.html#LTREE-OPS-FUNCS)
+    // Converts slugs to ltree paths (e.g. '-parent-space4' -> '_parent_space4') so that all root spaces have paths
+    // Uses text2ltree to cast the slug to a ltree path (reference: https://www.postgresql.org/docs/current/ltree.html#LTREE-OPS-FUNCS)
     await knex
         .update({
-            path: knex.raw('text2ltree(slug)'),
+            path: knex.raw(`text2ltree(replace(slug, '-', '_'))`),
         })
         .from(SpacesTableName)
         .where('path', '=', '');
