@@ -9,6 +9,7 @@ import {
     getHighestProjectRole,
     getHighestSpaceRole,
     getLabelFromSlug,
+    getLtreePathFromSlug,
     getParentSlug,
     getSlugsWithHierarchy,
     GroupRole,
@@ -850,9 +851,6 @@ export class SpaceModel {
                 ),
             ]);
 
-        console.log('access 👇');
-        console.log(groupBy(access, 'space_uuid'));
-
         return Object.entries(groupBy(access, 'space_uuid')).reduce<
             Record<string, SpaceShare[]>
         >((acc, [spaceUuid, spaceAccess]) => {
@@ -1546,15 +1544,6 @@ export class SpaceModel {
         return generateUniqueSlug(trx, SpaceTableName, slug);
     }
 
-    /**
-     * Converts a slug to a path of type ltree.
-     * @param slug - The slug to convert. eg. "my-space/my-sub-space"
-     * @returns The path. eg. "my-space.my-sub-space"
-     */
-    static async getSpacePath({ slug }: { slug: string }) {
-        return slug.replace(/\//g, '.');
-    }
-
     async createSpace(
         projectUuid: string,
         name: string,
@@ -1576,9 +1565,7 @@ export class SpaceModel {
                 forceSameSlug,
             });
 
-            const spacePath = await SpaceModel.getSpacePath({
-                slug: spaceSlug,
-            });
+            const spacePath = getLtreePathFromSlug(spaceSlug);
 
             const [space] = await trx(SpaceTableName)
                 .insert({
@@ -1701,7 +1688,7 @@ export class SpaceModel {
     async getSpaceRoot(spaceUuid: string): Promise<string> {
         // First get the path of the target space
         const space = await this.database(SpaceTableName)
-            .select(['path', 'space_uuid'])
+            .select(['path', 'space_uuid', 'project_id'])
             .where('space_uuid', spaceUuid)
             .first();
 
@@ -1724,8 +1711,9 @@ export class SpaceModel {
 
         // Find the root space using a direct query
         const rootResult = await this.database
-            .select('space_uuid')
             .from(SpaceTableName)
+            .select(['space_uuid', 'project_id'])
+            .where('project_id', '=', space.project_id)
             .whereRaw(`path = subpath(?, 0, 1)`, [space.path]);
 
         return rootResult[0]?.space_uuid;
@@ -1900,8 +1888,14 @@ export class SpaceModel {
     > {
         return this.database.transaction(async (trx) => {
             const space = await trx(SpaceTableName)
+                .leftJoin(
+                    `${ProjectTableName}`,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
                 .select('path', 'parent_space_uuid')
                 .where('slug', slug)
+                .where(`${ProjectTableName}.project_uuid`, baseProjectUuid)
                 .first();
 
             if (!space) {
