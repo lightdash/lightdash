@@ -2242,7 +2242,6 @@ export class ProjectService extends BaseService {
         user: SessionUser;
         projectUuid: string;
         queryTags: RunQueryTags;
-        exploreName: string;
         query: string;
         fieldsMap: ItemsMap;
         queryHistoryUuid: string;
@@ -2338,7 +2337,7 @@ export class ProjectService extends BaseService {
     async executeAsyncQuery(
         args: ExecuteAsyncMetricQueryArgs & {
             queryTags: RunQueryTags;
-            exploreName: string;
+            explore: Explore;
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
     ) {
@@ -2352,7 +2351,7 @@ export class ProjectService extends BaseService {
                     context,
                     granularity,
                     queryTags,
-                    exploreName,
+                    explore,
                 } = args;
 
                 try {
@@ -2376,12 +2375,6 @@ export class ProjectService extends BaseService {
                     ) {
                         throw new ForbiddenError();
                     }
-
-                    const explore = await this.getExplore(
-                        user,
-                        projectUuid,
-                        exploreName,
-                    );
 
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(
@@ -2551,7 +2544,6 @@ export class ProjectService extends BaseService {
                         query,
                         fieldsMap,
                         queryTags,
-                        exploreName,
                         warehouseClient,
                         sshTunnel,
                         queryHistoryUuid,
@@ -2624,12 +2616,19 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            metricQuery.exploreName,
+            organizationUuid,
+        );
+
         const { queryUuid } = await this.executeAsyncQuery(
             {
                 user,
                 metricQuery,
                 projectUuid,
-                exploreName: metricQuery.exploreName,
+                explore,
                 context,
                 queryTags,
                 granularity,
@@ -2721,11 +2720,18 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            savedChartTableName,
+            savedChartOrganizationUuid,
+        );
+
         const { queryUuid } = await this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
-                exploreName: savedChartTableName,
+                explore,
                 context,
                 queryTags,
                 invalidateCache,
@@ -2875,7 +2881,7 @@ export class ProjectService extends BaseService {
             {
                 user,
                 projectUuid,
-                exploreName: savedChart.tableName,
+                explore,
                 metricQuery: metricQueryWithDashboardOverrides,
                 context,
                 queryTags,
@@ -2935,7 +2941,13 @@ export class ProjectService extends BaseService {
 
         const { exploreName } = metricQuery;
 
-        const explore = await this.getExplore(user, projectUuid, exploreName);
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            exploreName,
+            organizationUuid,
+        );
+
         const { fields: metricQueryFields } = await this.compileQuery(
             user,
             metricQuery,
@@ -3015,7 +3027,7 @@ export class ProjectService extends BaseService {
                     user,
                     metricQuery: underlyingDataMetricQuery,
                     projectUuid,
-                    exploreName,
+                    explore,
                     context,
                     queryTags,
                     invalidateCache,

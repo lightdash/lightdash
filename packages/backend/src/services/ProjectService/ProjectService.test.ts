@@ -527,7 +527,7 @@ describe('ProjectService', () => {
                         queryTags: {
                             query_context: QueryExecutionContext.EXPLORE,
                         },
-                        exploreName: 'valid_explore',
+                        explore: validExplore,
                         invalidateCache: false,
                     },
                     { query: metricQueryMock },
@@ -595,7 +595,7 @@ describe('ProjectService', () => {
                         queryTags: {
                             query_context: QueryExecutionContext.EXPLORE,
                         },
-                        exploreName: 'valid_explore',
+                        explore: validExplore,
                         invalidateCache: false,
                     },
                     { query: metricQueryMock },
@@ -670,7 +670,7 @@ describe('ProjectService', () => {
                         queryTags: {
                             query_context: QueryExecutionContext.EXPLORE,
                         },
-                        exploreName: 'valid_explore',
+                        explore: validExplore,
                         invalidateCache: true,
                     },
                     { query: metricQueryMock },
@@ -752,7 +752,7 @@ describe('ProjectService', () => {
                         queryTags: {
                             query_context: QueryExecutionContext.EXPLORE,
                         },
-                        exploreName: 'valid_explore',
+                        explore: validExplore,
                         invalidateCache: false,
                     },
                     { query: metricQueryMock },
