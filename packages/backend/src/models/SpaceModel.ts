@@ -1456,6 +1456,10 @@ export class SpaceModel {
                 `${SpaceTableName}.space_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${ProjectTableName}.project_uuid`,
+                `${SpaceTableName}.parent_space_uuid`,
+                `${SpaceTableName}.path`,
+                `${SpaceTableName}.project_id`,
+                `${SpaceTableName}.is_private`,
             );
 
         const spaceAccessMap = new Map();

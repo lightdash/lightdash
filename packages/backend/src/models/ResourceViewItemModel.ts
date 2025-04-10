@@ -273,6 +273,7 @@ const getAllSpaces = async (
             `${PinnedListTableName}.pinned_list_uuid`,
             `${PinnedSpaceTableName}.space_uuid`,
             `${PinnedSpaceTableName}.order`,
+            `${SpaceTableName}.project_id`,
             `${SpaceTableName}.parent_space_uuid`,
             `${SpaceTableName}.path`,
             `${SpaceTableName}.is_private`,
