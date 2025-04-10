@@ -3,6 +3,7 @@ import {
     DbtLocalProjectConfig,
     DbtProjectType,
     generateSlug,
+    getLtreePathFromSlug,
     OrganizationMemberRole,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
@@ -199,7 +200,7 @@ export async function seed(knex: Knex): Promise<void> {
             project_id: projectId,
             slug: spaceSlug,
             parent_space_uuid: null,
-            path: spaceSlug,
+            path: getLtreePathFromSlug(spaceSlug),
         })
         .returning(['space_id', 'space_uuid']);
 
