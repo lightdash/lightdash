@@ -17,6 +17,7 @@ import {
     promotedDashboardWithChartWithinDashboard,
     promotedDashboardWithNewPrivateSpace,
     upstreamFullSpace,
+    upstreamSpace,
     user,
 } from './PromoteService.mock';
 
@@ -522,21 +523,32 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes.spaces[0].action).toBe('create');
         expect(changes.spaces[0].data.isPrivate).toBe(true);
 
+        (
+            spaceModel.createSpaceWithAncestors as jest.Mock
+        ).mockImplementationOnce(async () => ({
+            ...promotedDashboardWithNewPrivateSpace.space,
+            projectUuid: missingUpstreamDashboard.projectUuid,
+            uuid: upstreamSpace?.uuid,
+            rootSpaceUuid: upstreamSpace?.uuid,
+        }));
+
         await service.upsertSpaces(
             user,
             promotedDashboardWithNewPrivateSpace.projectUuid,
             changes,
         );
 
-        expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
-        expect(spaceModel.createSpace).toHaveBeenCalledWith(
-            'upstream-project-uuid',
-            'Private space',
-            0,
-            true, // isPrivate
-            'jaffle-shop',
-            true, // forceSameSlug
-        );
+        expect(spaceModel.createSpaceWithAncestors).toHaveBeenCalledTimes(1);
+        expect(spaceModel.createSpaceWithAncestors).toHaveBeenCalledWith({
+            baseProjectUuid: promotedDashboardWithNewPrivateSpace.projectUuid,
+            forceSameSlug: true,
+            isNestedSpace: false,
+            isPrivate: true,
+            name: 'Private space',
+            projectUuid: missingUpstreamDashboard.projectUuid,
+            slug: 'jaffle-shop',
+            userId: 0,
+        });
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(1);
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledWith(
             'upstream-space-uuid',
