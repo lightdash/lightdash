@@ -1,3 +1,10 @@
+## [0.1567.4](https://github.com/lightdash/lightdash/compare/0.1567.3...0.1567.4) (2025-04-10)
+
+
+### Bug Fixes
+
+* monaco custom tooltip UI issues ([#14342](https://github.com/lightdash/lightdash/issues/14342)) ([6c98c05](https://github.com/lightdash/lightdash/commit/6c98c05a62c12ca946b36aa60fa0e31737009ab0))
+
 ## [0.1567.3](https://github.com/lightdash/lightdash/compare/0.1567.2...0.1567.3) (2025-04-09)
 
 
