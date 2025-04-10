@@ -130,6 +130,13 @@ export class ResultsCacheModel {
             .first();
     }
 
+    async delete(cacheKey: string, projectUuid: string) {
+        return this.database(ResultsCacheTableName)
+            .where('cache_key', cacheKey)
+            .andWhere('project_uuid', projectUuid)
+            .delete();
+    }
+
     async getCachedResultsPage(
         cacheKey: string,
         projectUuid: string,

@@ -2318,6 +2318,14 @@ export class ProjectService extends BaseService {
                     error: getErrorMessage(e),
                 },
             );
+
+            // When the query fails, we delete the cache entry
+            if (resultsCache) {
+                await this.resultsCacheModel.delete(
+                    resultsCache.cacheKey,
+                    projectUuid,
+                );
+            }
         } finally {
             void sshTunnel.disconnect();
 
