@@ -174,10 +174,7 @@ export class ResultsCacheModel {
         }
 
         if (cache.expires_at < new Date()) {
-            await this.database(ResultsCacheTableName)
-                .where('cache_key', cacheKey)
-                .andWhere('project_uuid', projectUuid)
-                .delete();
+            await this.delete(cacheKey, projectUuid);
 
             // TODO: throw a specific error the FE will respond to
             throw new ExpiredError(
