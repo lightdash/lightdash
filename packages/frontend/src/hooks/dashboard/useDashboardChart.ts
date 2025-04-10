@@ -119,6 +119,7 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
                 chart.projectUuid,
                 chart.metricQuery.exploreName,
             );
+
             const resultsPromise = getQueryPaginatedResults(chart.projectUuid, {
                 context: autoRefresh
                     ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
@@ -128,7 +129,7 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
                 dashboardFilters: timezoneFixFilters,
                 dashboardSorts,
                 granularity,
-                // invalidateCache, // todo: enable once API supports caching
+                invalidateCache,
             });
 
             const [explore, results] = await Promise.all([

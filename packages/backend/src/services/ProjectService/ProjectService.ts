@@ -2581,7 +2581,7 @@ export class ProjectService extends BaseService {
         granularity,
         context,
         metricQuery,
-        invalidateCache = false,
+        invalidateCache,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -2649,6 +2649,7 @@ export class ProjectService extends BaseService {
         chartUuid,
         versionUuid,
         context,
+        invalidateCache,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         // Check user is in organization
         if (!isUserWithOrg(user)) {
@@ -2726,7 +2727,7 @@ export class ProjectService extends BaseService {
                 exploreName: savedChartTableName,
                 context,
                 queryTags,
-                invalidateCache: false,
+                invalidateCache,
                 metricQuery,
             },
             requestParameters,
@@ -2747,6 +2748,7 @@ export class ProjectService extends BaseService {
         dashboardSorts,
         granularity,
         context,
+        invalidateCache,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -2876,7 +2878,7 @@ export class ProjectService extends BaseService {
                 metricQuery: metricQueryWithDashboardOverrides,
                 context,
                 queryTags,
-                invalidateCache: false,
+                invalidateCache,
                 granularity,
             },
             requestParameters,
@@ -2895,6 +2897,7 @@ export class ProjectService extends BaseService {
         filters,
         underlyingDataItemId,
         context,
+        invalidateCache,
     }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -3014,7 +3017,7 @@ export class ProjectService extends BaseService {
                     exploreName,
                     context,
                     queryTags,
-                    invalidateCache: false,
+                    invalidateCache,
                 },
                 requestParameters,
             );
