@@ -1,6 +1,7 @@
 import {
     generateSlug,
     getLabelFromSlug,
+    getLtreePathFromSlug,
     getParentSlug,
     getSlugsWithHierarchy,
 } from './slugs';
@@ -129,6 +130,48 @@ describe('Slug', () => {
             expect(
                 getLabelFromSlug('grandparent-space/parent-space/child-space'),
             ).toEqual('child-space');
+        });
+    });
+
+    describe('getLtreePathFromSlug', () => {
+        test('should convert simple slug to ltree path', () => {
+            expect(getLtreePathFromSlug('my-space')).toEqual('my_space');
+        });
+
+        test('should convert hierarchical slug to ltree path', () => {
+            expect(getLtreePathFromSlug('parent-space/child-space')).toEqual(
+                'parent_space.child_space',
+            );
+        });
+
+        test('should handle deeply nested slugs', () => {
+            expect(
+                getLtreePathFromSlug(
+                    'grandparent-space/parent-space/child-space',
+                ),
+            ).toEqual('grandparent_space.parent_space.child_space');
+        });
+
+        test('should remove non-alphanumeric characters except underscores', () => {
+            expect(getLtreePathFromSlug('my!space@name')).toEqual(
+                'my_space_name',
+            );
+            expect(getLtreePathFromSlug('my space name')).toEqual(
+                'my_space_name',
+            );
+            expect(getLtreePathFromSlug('my_space_name')).toEqual(
+                'my_space_name',
+            );
+        });
+
+        test('should handle mixed case slugs', () => {
+            expect(getLtreePathFromSlug('MySpace/ChildSpace')).toEqual(
+                'myspace.childspace',
+            );
+        });
+
+        test('should handle empty slug', () => {
+            expect(getLtreePathFromSlug('')).toEqual('');
         });
     });
 });
