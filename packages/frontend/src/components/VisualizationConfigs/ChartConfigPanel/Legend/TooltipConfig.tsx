@@ -1,4 +1,12 @@
-import { Collapse, Group, Switch, Text, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Collapse,
+    getDefaultZIndex,
+    Group,
+    Switch,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     Editor,
@@ -9,6 +17,7 @@ import {
 import { IconHelpCircle } from '@tabler/icons-react';
 import { type IDisposable, type languages } from 'monaco-editor';
 import { useCallback, useEffect, useState, type FC } from 'react';
+import { useDeepCompareEffect } from 'react-use';
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -41,7 +50,6 @@ const registerCustomCompletionProvider = (
     monaco: Monaco,
     language: string,
     fields: string[],
-    //items: (Field | TableCalculation | CustomDimension | CompiledDimension)[],
 ) => {
     if (completionProviderDisposable) {
         console.debug('Clearing Monaco completion provider');
@@ -60,11 +68,21 @@ const registerCustomCompletionProvider = (
 
                 const suggestions: languages.CompletionItem[] = fields.map(
                     (field) => {
-                        //   const fieldRef = isField(item) ? getFieldRef(item) : item.name;
+                        const textBeforeCursor = model.getValueInRange({
+                            startLineNumber: position.lineNumber,
+                            endLineNumber: position.lineNumber,
+                            startColumn: position.column - 1,
+                            endColumn: position.column,
+                        });
+                        const insertText =
+                            textBeforeCursor === '$'
+                                ? `{${field}} `
+                                : `\${${field}}`;
+
                         return {
-                            label: field,
+                            label: `${field}`,
                             kind: monaco.languages.CompletionItemKind.Class,
-                            insertText: `\${${field}\}`,
+                            insertText,
                             range,
                         };
                     },
@@ -72,6 +90,7 @@ const registerCustomCompletionProvider = (
 
                 return { suggestions };
             },
+            triggerCharacters: ['$'],
         });
 };
 export const TooltipConfig: FC<Props> = ({ fields }) => {
@@ -107,7 +126,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
         EditorProps['options'] | undefined
     >();
 
-    useEffect(() => {
+    useDeepCompareEffect(() => {
         /** Creates a container that belongs to body, outside of the sidebar
          * so we can place the autocomplete tooltip and it doesn't overflow
          * CSS for this component is set on `monaco.css`
@@ -170,31 +189,37 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                     we show some text, by giving position absolute, it is placed on top of the editor*/}
                     {tooltipValue?.length === 0 ? (
                         <Text
-                            sx={{
-                                position: 'absolute',
-                                width: '400px',
-                                zIndex: 10,
-                                marginLeft: 3,
-                                pointerEvents: 'none',
-                            }}
+                            ml="xxs"
+                            pos="absolute"
+                            width="400px"
                             color="gray.5"
+                            sx={{
+                                pointerEvents: 'none',
+                                zIndex: getDefaultZIndex('overlay'),
+                                fontFamily: 'monospace',
+                            }}
                         >
                             {`- Total orders: \${orders_total_amount}`}
                         </Text>
                     ) : null}
-
-                    <Editor
-                        beforeMount={beforeMount}
-                        value={tooltipValue}
-                        options={monacoOptions}
-                        onChange={handleEditorOnChange}
-                        language={'html'}
-                        height="200px"
-                        width="100%"
-                        wrapperProps={{
-                            className: 'tooltip-editor',
-                        }}
-                    />
+                    <Box
+                        sx={(theme) => ({
+                            boxShadow: theme.shadows.subtle,
+                        })}
+                    >
+                        <Editor
+                            beforeMount={beforeMount}
+                            value={tooltipValue}
+                            options={monacoOptions}
+                            onChange={handleEditorOnChange}
+                            language={'html'}
+                            height="200px"
+                            width="100%"
+                            wrapperProps={{
+                                id: 'tooltip-editor-wrapper',
+                            }}
+                        />
+                    </Box>
                 </Collapse>
             </Config.Section>
         </Config>
