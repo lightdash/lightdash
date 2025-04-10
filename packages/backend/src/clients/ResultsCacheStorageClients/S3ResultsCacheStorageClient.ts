@@ -23,7 +23,6 @@ export class S3ResultsCacheStorageClient
                 Bucket: this.configuration.bucket,
                 Key: `${cacheKey}.jsonl`,
                 Body: passThrough,
-                ACL: 'private',
                 ContentType: 'application/jsonl',
                 ContentDisposition: `attachment; filename="${cacheKey}.jsonl"`,
             },
