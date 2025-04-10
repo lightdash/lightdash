@@ -1,3 +1,10 @@
+# [0.1568.0](https://github.com/lightdash/lightdash/compare/0.1567.6...0.1568.0) (2025-04-10)
+
+
+### Features
+
+* release results caching and update swagger ([#14362](https://github.com/lightdash/lightdash/issues/14362)) ([7b33365](https://github.com/lightdash/lightdash/commit/7b3336500a261f8225767d193e48f32395f6b61f))
+
 ## [0.1567.6](https://github.com/lightdash/lightdash/compare/0.1567.5...0.1567.6) (2025-04-10)
 
 
