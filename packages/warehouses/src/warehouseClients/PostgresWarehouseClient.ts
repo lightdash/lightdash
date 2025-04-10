@@ -175,9 +175,9 @@ export class PostgresClient<
             tags?: Record<string, string>;
             timezone?: string;
         },
-    ): Promise<{ rowCount: number }> {
+    ): Promise<void> {
         let pool: pg.Pool | undefined;
-        return new Promise<{ rowCount: number }>((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
             pool = new pg.Pool({
                 ...this.config,
                 connectionTimeoutMillis: 5000,
@@ -236,7 +236,6 @@ export class PostgresClient<
                         // typecast is necessary to fix the type issue described above
                     ) as unknown as QueryStream;
 
-                    let rowCount = 0;
                     const writable = new Writable({
                         objectMode: true,
                         write(
@@ -247,7 +246,6 @@ export class PostgresClient<
                             encoding,
                             callback,
                         ) {
-                            rowCount += 1;
                             streamCallback({
                                 fields: PostgresClient.convertQueryResultFields(
                                     chunk.fields,
@@ -261,7 +259,7 @@ export class PostgresClient<
                     // release the client when the stream is finished
                     stream.on('end', () => {
                         done();
-                        resolve({ rowCount });
+                        resolve();
                     });
                     stream.on('error', (err2) => {
                         reject(err2);

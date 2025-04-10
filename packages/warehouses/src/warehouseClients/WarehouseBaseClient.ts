@@ -56,7 +56,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
             tags?: Record<string, string>;
             timezone?: string;
         },
-    ): Promise<{ rowCount: number } | void> {
+    ): Promise<void> {
         throw new Error('Warehouse method not implemented.');
     }
 
@@ -64,11 +64,12 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
         resultsStreamCallback?: (rows: WarehouseResults['rows']) => void,
     ): Promise<WarehouseExecuteAsyncQuery> {
-        let streamData: { rowCount: number } | undefined | void;
         if (resultsStreamCallback) {
-            streamData = await this.streamQuery(
+            let rowCount = 0;
+            await this.streamQuery(
                 sql,
                 ({ rows }) => {
+                    rowCount = (rowCount ?? 0) + rows.length;
                     resultsStreamCallback(rows);
                 },
                 {
@@ -77,13 +78,21 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
                     timezone,
                 },
             );
+
+            // we could have this return further down but types are a bit messy with this union and count updating on a callback
+            return {
+                queryId: null,
+                queryMetadata: null,
+                durationMs: null,
+                totalRows: rowCount,
+            };
         }
 
         return {
             queryId: null,
             queryMetadata: null,
             durationMs: null,
-            totalRows: streamData?.rowCount || null,
+            totalRows: null,
         };
     }
 
