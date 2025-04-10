@@ -1,3 +1,10 @@
+## [0.1567.5](https://github.com/lightdash/lightdash/compare/0.1567.4...0.1567.5) (2025-04-10)
+
+
+### Bug Fixes
+
+* remove certificates from require SSL ([#14354](https://github.com/lightdash/lightdash/issues/14354)) ([8f4954e](https://github.com/lightdash/lightdash/commit/8f4954eaa30c0d54919008f3610c939f23bafe8f))
+
 ## [0.1567.4](https://github.com/lightdash/lightdash/compare/0.1567.3...0.1567.4) (2025-04-10)
 
 
