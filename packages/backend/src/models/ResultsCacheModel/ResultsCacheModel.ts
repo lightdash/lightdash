@@ -61,34 +61,53 @@ export class ResultsCacheModel {
         storageClient: IResultsCacheStorageClient,
         invalidateCache: boolean = false,
     ): Promise<CreateCacheResult> {
+        // Generate cache key from project and query identifiers
         const cacheKey = ResultsCacheModel.getCacheKey(
             projectUuid,
             cacheIdentifiers,
         );
 
+        // Check if cache already exists
         const existingCache = await this.find(cacheKey, projectUuid);
 
-        if (existingCache) {
-            if (existingCache.expires_at > new Date() && !invalidateCache) {
-                return {
-                    cacheKey: existingCache.cache_key,
-                    cacheHit: true,
-                    write: undefined,
-                    close: undefined,
-                    totalRowCount: existingCache.total_row_count ?? 0, // TODO cache: db types need to match the union
-                };
-            }
-
-            await this.database(ResultsCacheTableName)
-                .where('cache_key', existingCache.cache_key)
-                .delete();
+        // Case 1: Valid cache exists and not being invalidated
+        if (
+            existingCache &&
+            existingCache.expires_at > new Date() &&
+            !invalidateCache
+        ) {
+            return {
+                cacheKey: existingCache.cache_key,
+                cacheHit: true,
+                write: undefined,
+                close: undefined,
+                totalRowCount: existingCache.total_row_count ?? 0, // TODO cache: db types need to match the union
+            };
         }
 
+        // Create upload stream for storing results
         const { write, close } = storageClient.createUploadStream(
             cacheKey,
             DEFAULT_RESULTS_PAGE_SIZE,
         );
 
+        // Case 2: Cache exists but is invalid or being invalidated
+        if (existingCache) {
+            // Update expiration time
+            await this.update(existingCache.cache_key, projectUuid, {
+                expires_at: this.getCacheExpiresAt(),
+            });
+
+            return {
+                cacheKey: existingCache.cache_key,
+                cacheHit: false,
+                write,
+                close,
+                totalRowCount: null,
+            };
+        }
+
+        // Case 3: No cache exists - create new cache entry
         const [createdCache] = await this.database(ResultsCacheTableName)
             .insert({
                 cache_key: cacheKey,

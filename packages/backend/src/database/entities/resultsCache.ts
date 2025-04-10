@@ -7,7 +7,9 @@ export type DbResultsCache = {
     total_row_count: number | null;
 };
 
-export type DbResultsCacheUpdate = Pick<DbResultsCache, 'total_row_count'>;
+export type DbResultsCacheUpdate =
+    | Pick<DbResultsCache, 'total_row_count'>
+    | Pick<DbResultsCache, 'expires_at'>;
 
 export type ResultsCacheTable = Knex.CompositeTableType<
     DbResultsCache,

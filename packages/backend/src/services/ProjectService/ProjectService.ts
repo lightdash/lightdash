@@ -2535,6 +2535,7 @@ export class ProjectService extends BaseService {
                                 status: QueryHistoryStatus.READY,
                                 error: null,
                                 total_row_count: resultsCache.totalRowCount,
+                                warehouse_execution_time_ms: 0, // When cache is hit, no query is executed
                             },
                         );
 

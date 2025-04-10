@@ -159,7 +159,7 @@ describe('ResultsCacheModel', () => {
             );
         });
 
-        test('should delete expired cache and create new one when cache is expired', async () => {
+        test('should update expired cache and reset total row count when cache is expired', async () => {
             const expiredCache = {
                 cache_key: cacheKey,
                 project_uuid: projectUuid,
@@ -169,11 +169,7 @@ describe('ResultsCacheModel', () => {
 
             tracker.on.select('results_cache').response([expiredCache]);
 
-            tracker.on.delete('results_cache').response([]);
-
-            tracker.on
-                .insert('results_cache')
-                .response([{ cache_key: cacheKey }]);
+            tracker.on.update('results_cache').response(1);
 
             const result = await model.createOrGetExistingCache(
                 projectUuid,
@@ -190,15 +186,19 @@ describe('ResultsCacheModel', () => {
                 totalRowCount: null,
             });
             expect(tracker.history.select).toHaveLength(1);
-            expect(tracker.history.delete).toHaveLength(1);
-            expect(tracker.history.insert).toHaveLength(1);
+            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.update[0].bindings).toEqual([
+                expect.any(Date), // expires_at
+                cacheKey,
+                projectUuid,
+            ]);
             expect(mockStorageClient.createUploadStream).toHaveBeenCalledWith(
                 cacheKey,
                 expect.any(Number),
             );
         });
 
-        test('should delete existing cache and create new one when invalidateCache=true', async () => {
+        test('should update existing cache and reset total row count when invalidateCache=true', async () => {
             const existingCache = {
                 cache_key: cacheKey,
                 project_uuid: projectUuid,
@@ -208,11 +208,7 @@ describe('ResultsCacheModel', () => {
 
             tracker.on.select('results_cache').response([existingCache]);
 
-            tracker.on.delete('results_cache').response([]);
-
-            tracker.on
-                .insert('results_cache')
-                .response([{ cache_key: cacheKey }]);
+            tracker.on.update('results_cache').response(1);
 
             const result = await model.createOrGetExistingCache(
                 projectUuid,
@@ -229,8 +225,12 @@ describe('ResultsCacheModel', () => {
                 totalRowCount: null,
             });
             expect(tracker.history.select).toHaveLength(1);
-            expect(tracker.history.delete).toHaveLength(1);
-            expect(tracker.history.insert).toHaveLength(1);
+            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.update[0].bindings).toEqual([
+                expect.any(Date), // expires_at
+                cacheKey,
+                projectUuid,
+            ]);
             expect(mockStorageClient.createUploadStream).toHaveBeenCalledWith(
                 cacheKey,
                 expect.any(Number),
