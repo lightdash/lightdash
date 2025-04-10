@@ -1971,6 +1971,12 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        if (user.userUuid !== queryHistory.createdByUserUuid) {
+            throw new ForbiddenError(
+                'User is not allowed to fetch results for this query',
+            );
+        }
+
         const { metricQuery, context, status, totalRowCount, cacheKey } =
             queryHistory;
 
