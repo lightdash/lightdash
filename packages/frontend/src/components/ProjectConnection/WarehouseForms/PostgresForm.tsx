@@ -316,7 +316,6 @@ const PostgresForm: FC<{
                             )}
                         />
                         {sslMode === 'verify-ca' ||
-                        sslMode === 'require' ||
                         sslMode === 'verify-full' ? (
                             <>
                                 <CertificateFileInput
