@@ -268,6 +268,7 @@ export class SavedChartService extends BaseService {
                                   ? 'default'
                                   : 'custom',
                           showLegend: echartsConfig?.legend?.show !== false,
+                          hasTooltip: (echartsConfig?.tooltip || '').length > 0,
                       }
                     : undefined,
             ...countCustomDimensionsInMetricQuery(savedChart.metricQuery),

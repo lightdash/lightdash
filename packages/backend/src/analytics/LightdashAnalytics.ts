@@ -438,6 +438,7 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
             referenceLinesCount: number;
             margins: string;
             showLegend: boolean;
+            hasTooltip: boolean;
         };
         pie?: {
             isDonut: boolean;
