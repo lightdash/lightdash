@@ -1,3 +1,10 @@
+# [0.1573.0](https://github.com/lightdash/lightdash/compare/0.1572.1...0.1573.0) (2025-04-11)
+
+
+### Features
+
+* show tile query execution timing ([#14380](https://github.com/lightdash/lightdash/issues/14380)) ([b186e9e](https://github.com/lightdash/lightdash/commit/b186e9e2e85d3ec57d18f2a4ce3504e4410f0ebe))
+
 ## [0.1572.1](https://github.com/lightdash/lightdash/compare/0.1572.0...0.1572.1) (2025-04-11)
 
 
