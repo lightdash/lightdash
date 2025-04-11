@@ -7378,8 +7378,8 @@
             },
             "Space": {
                 "properties": {
-                    "hasParent": {
-                        "type": "boolean"
+                    "parentSpaceUuid": {
+                        "type": "string"
                     },
                     "slug": {
                         "type": "string"
@@ -7506,7 +7506,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["isPrivate", "name"],
+                "required": ["name"],
                 "type": "object"
             },
             "AddSpaceUserAccess": {
@@ -9928,7 +9928,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug_": {
+            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -9956,6 +9956,9 @@
                     },
                     "slug": {
                         "type": "string"
+                    },
+                    "parentSpaceUuid": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -9974,14 +9977,10 @@
             "SpaceSummary": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug_"
+                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid_"
                     },
                     {
                         "properties": {
-                            "parentSpaceUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
                             "dashboardCount": {
                                 "type": "number",
                                 "format": "double"
@@ -10000,12 +9999,7 @@
                                 "$ref": "#/components/schemas/SpaceShare"
                             }
                         },
-                        "required": [
-                            "parentSpaceUuid",
-                            "dashboardCount",
-                            "chartCount",
-                            "access"
-                        ],
+                        "required": ["dashboardCount", "chartCount", "access"],
                         "type": "object"
                     }
                 ]
@@ -11585,7 +11579,7 @@
                 "enum": ["space"],
                 "type": "string"
             },
-            "Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid_": {
+            "Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -11610,6 +11604,9 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
+                    },
+                    "parentSpaceUuid": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -11629,7 +11626,7 @@
                     "data": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid_"
+                                "$ref": "#/components/schemas/Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid_"
                             },
                             {
                                 "properties": {
