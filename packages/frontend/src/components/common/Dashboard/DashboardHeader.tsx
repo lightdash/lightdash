@@ -39,6 +39,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useLocation, useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import AIDashboardSummary from '../../../ee/features/aiDashboardSummary';
@@ -248,7 +249,9 @@ const DashboardHeader = ({
                                     fw={500}
                                     style={{ whiteSpace: 'pre-line' }}
                                 >
-                                    {dashboard.description}
+                                    <ReactMarkdown>
+                                        {dashboard.description}
+                                    </ReactMarkdown>
                                 </Text>
                             )}
 
