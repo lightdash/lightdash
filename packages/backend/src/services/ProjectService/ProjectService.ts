@@ -229,6 +229,7 @@ import {
 import {
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncMetricQueryArgs,
+    type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
@@ -2346,7 +2347,7 @@ export class ProjectService extends BaseService {
             explore: Explore;
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
-    ) {
+    ): Promise<ExecuteAsyncQueryReturn> {
         return wrapSentryTransaction(
             'ProjectService.executeAsyncQuery',
             {},
@@ -2540,7 +2541,11 @@ export class ProjectService extends BaseService {
 
                         return {
                             queryUuid: queryHistoryUuid,
-                        };
+                            cacheMetadata: {
+                                cacheHit: resultsCache.cacheHit,
+                                cacheUpdatedTime: resultsCache.updatedAt,
+                            },
+                        } satisfies ExecuteAsyncQueryReturn;
                     }
 
                     // Trigger query in the background, update query history and cache when complete
@@ -2559,7 +2564,11 @@ export class ProjectService extends BaseService {
 
                     return {
                         queryUuid: queryHistoryUuid,
-                    };
+                        cacheMetadata: {
+                            cacheHit: resultsCache?.cacheHit || false,
+                            cacheUpdatedTime: resultsCache?.updatedAt,
+                        },
+                    } satisfies ExecuteAsyncQueryReturn;
                 } catch (e) {
                     span.setStatus({
                         code: 2, // ERROR
@@ -2629,7 +2638,7 @@ export class ProjectService extends BaseService {
             organizationUuid,
         );
 
-        const { queryUuid } = await this.executeAsyncQuery(
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
                 metricQuery,
@@ -2645,6 +2654,7 @@ export class ProjectService extends BaseService {
 
         return {
             queryUuid,
+            cacheMetadata,
             appliedDashboardFilters: null,
         };
     }
@@ -2733,7 +2743,7 @@ export class ProjectService extends BaseService {
             savedChartOrganizationUuid,
         );
 
-        const { queryUuid } = await this.executeAsyncQuery(
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
@@ -2748,6 +2758,7 @@ export class ProjectService extends BaseService {
 
         return {
             queryUuid,
+            cacheMetadata,
             appliedDashboardFilters: null,
         };
     }
@@ -2883,7 +2894,7 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        const { queryUuid } = await this.executeAsyncQuery(
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
@@ -2899,6 +2910,7 @@ export class ProjectService extends BaseService {
 
         return {
             queryUuid,
+            cacheMetadata,
             appliedDashboardFilters,
         };
     }
@@ -3027,7 +3039,7 @@ export class ProjectService extends BaseService {
             additionalMetrics: [],
         };
 
-        const { queryUuid: underlyingDataQueryUuid } =
+        const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
             await this.executeAsyncQuery(
                 {
                     user,
@@ -3044,6 +3056,7 @@ export class ProjectService extends BaseService {
         return {
             queryUuid: underlyingDataQueryUuid,
             appliedDashboardFilters: null,
+            cacheMetadata,
         };
     }
 

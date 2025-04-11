@@ -475,6 +475,7 @@ export type ApiQueryResults = {
 export type ApiExecuteAsyncQueryResults = {
     queryUuid: string;
     appliedDashboardFilters: DashboardFilters | null;
+    cacheMetadata: CacheMetadata;
 };
 
 export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
