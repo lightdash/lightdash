@@ -62,6 +62,7 @@ import { hasRequiredScopes } from '../../../components/UserSettings/SlackSetting
 import FieldSelect from '../../../components/common/FieldSelect';
 import FilterNumberInput from '../../../components/common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { DefaultValue } from '../../../components/common/TagInput/DefaultValue/DefaultValue';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
 import TimeZonePicker from '../../../components/common/TimeZonePicker';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
@@ -268,6 +269,16 @@ type MicrosoftTeamsDestinationProps = {
     onChange: (val: string[]) => void;
     msTeamTargets: string[];
 };
+
+const withTooltip = (Component: FC<any>) => {
+    return ({ value, onRemove, ...props }: any) => (
+        <Tooltip label={value} withinPortal multiline w="500px">
+            <Component value={value} onRemove={onRemove} {...props} />
+        </Tooltip>
+    );
+};
+const RenderValueWithTooltip = withTooltip(DefaultValue);
+
 const MicrosoftTeamsDestination: FC<MicrosoftTeamsDestinationProps> = ({
     onChange,
     msTeamTargets,
@@ -283,11 +294,11 @@ const MicrosoftTeamsDestination: FC<MicrosoftTeamsDestinationProps> = ({
             />
             <Box w="100%">
                 <TagInput
-                    styles={() => ({
-                        values: {
-                            maxWidth: '650px',
+                    sx={{
+                        span: {
+                            maxWidth: '280px',
                         },
-                    })}
+                    }}
                     clearable
                     placeholder="Enter Microsoft Teams webhook URLs"
                     value={msTeamTargets}
@@ -295,6 +306,7 @@ const MicrosoftTeamsDestination: FC<MicrosoftTeamsDestinationProps> = ({
                     splitChars={[',', ' ']}
                     validationFunction={validateMsTeamsWebhook}
                     onChange={onChange}
+                    valueComponent={RenderValueWithTooltip}
                 />
             </Box>
         </Group>
