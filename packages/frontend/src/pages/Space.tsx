@@ -1,12 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    ContentType,
-    FeatureFlags,
-    LightdashMode,
-    ResourceViewItemType,
-    contentToResourceViewItem,
-    type ResourceViewItem,
-} from '@lightdash/common';
+import { ContentType, FeatureFlags, LightdashMode } from '@lightdash/common';
 import { ActionIcon, Box, Group, Menu, Stack } from '@mantine/core';
 import {
     IconDots,
@@ -14,7 +7,6 @@ import {
     IconFolderPlus,
     IconFolderX,
     IconPlus,
-    IconSquarePlus,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
@@ -35,7 +27,6 @@ import { ActionType } from '../components/common/SpaceActionModal/types';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
-import { useContent } from '../hooks/useContent';
 import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
 import { useSpace } from '../hooks/useSpaces';
 import { Can } from '../providers/Ability';
@@ -55,32 +46,6 @@ const Space: FC = () => {
         error,
     } = useSpace(projectUuid, spaceUuid);
 
-    const { data: allItems, isLoading: isContentLoading } = useContent(
-        {
-            projectUuids: [projectUuid],
-            spaceUuids: [spaceUuid],
-            pageSize: Number.MAX_SAFE_INTEGER,
-        },
-        {
-            select: (d): ResourceViewItem[] =>
-                d.data.map(contentToResourceViewItem),
-        },
-    );
-
-    const [dashboards, charts] = useMemo(() => {
-        if (allItems) {
-            return [
-                allItems.filter(
-                    (item) => item.type === ResourceViewItemType.DASHBOARD,
-                ),
-                allItems.filter(
-                    (item) => item.type === ResourceViewItemType.CHART,
-                ),
-            ];
-        }
-
-        return [[], []];
-    }, [allItems]);
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
     const { user, health } = useApp();
 
@@ -122,7 +87,7 @@ const Space: FC = () => {
         [pinSpace],
     );
 
-    if (isInitialLoading || isContentLoading) {
+    if (isInitialLoading) {
         return <LoadingState title="Loading space" />;
     }
 
@@ -229,91 +194,37 @@ const Space: FC = () => {
                                         )}
 
                                         {userCanCreateDashboards ? (
-                                            <>
-                                                <Menu.Label>
-                                                    Add dashboard
-                                                </Menu.Label>
-
-                                                {dashboards.length > 0 ? (
-                                                    <Menu.Item
-                                                        icon={
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconSquarePlus
-                                                                }
-                                                            />
-                                                        }
-                                                        onClick={() => {
-                                                            setAddToSpace(
-                                                                AddToSpaceResources.DASHBOARD,
-                                                            );
-                                                        }}
-                                                    >
-                                                        Add existing dashboard
-                                                    </Menu.Item>
-                                                ) : null}
-                                                <Menu.Item
-                                                    icon={
-                                                        <MantineIcon
-                                                            icon={IconPlus}
-                                                        />
-                                                    }
-                                                    onClick={() => {
-                                                        setIsCreateDashboardOpen(
-                                                            true,
-                                                        );
-                                                    }}
-                                                >
-                                                    Create new dashboard
-                                                </Menu.Item>
-                                            </>
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={IconPlus}
+                                                    />
+                                                }
+                                                onClick={() => {
+                                                    setIsCreateDashboardOpen(
+                                                        true,
+                                                    );
+                                                }}
+                                            >
+                                                Create new dashboard
+                                            </Menu.Item>
                                         ) : null}
 
-                                        {userCanCreateDashboards &&
-                                            userCanCreateCharts && (
-                                                <Menu.Divider />
-                                            )}
-
                                         {userCanCreateCharts ? (
-                                            <>
-                                                <Menu.Label>
-                                                    Add chart
-                                                </Menu.Label>
-
-                                                {charts.length > 0 ? (
-                                                    <Menu.Item
-                                                        icon={
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconSquarePlus
-                                                                }
-                                                            />
-                                                        }
-                                                        onClick={() => {
-                                                            setAddToSpace(
-                                                                AddToSpaceResources.CHART,
-                                                            );
-                                                        }}
-                                                    >
-                                                        Add existing chart
-                                                    </Menu.Item>
-                                                ) : null}
-
-                                                <Menu.Item
-                                                    icon={
-                                                        <MantineIcon
-                                                            icon={IconPlus}
-                                                        />
-                                                    }
-                                                    onClick={() => {
-                                                        setCreateToSpace(
-                                                            AddToSpaceResources.CHART,
-                                                        );
-                                                    }}
-                                                >
-                                                    Create new chart
-                                                </Menu.Item>
-                                            </>
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={IconPlus}
+                                                    />
+                                                }
+                                                onClick={() => {
+                                                    setCreateToSpace(
+                                                        AddToSpaceResources.CHART,
+                                                    );
+                                                }}
+                                            >
+                                                Create new chart
+                                            </Menu.Item>
                                         ) : null}
                                     </Menu.Dropdown>
                                 </Menu>
