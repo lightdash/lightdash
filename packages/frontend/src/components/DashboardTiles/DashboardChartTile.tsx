@@ -4,6 +4,7 @@ import {
     ChartType,
     createDashboardFilterRuleFromField,
     DashboardTileTypes,
+    FeatureFlags,
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
@@ -48,6 +49,7 @@ import { useClipboard } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconAlertTriangle,
+    IconClock,
     IconCopy,
     IconFilter,
     IconFolders,
@@ -80,6 +82,7 @@ import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import useToaster from '../../hooks/toaster/useToaster';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
@@ -393,7 +396,10 @@ interface DashboardChartTileMainProps
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > {
     tile: IDashboardChartTile;
-    chartAndResults: ApiChartAndResults;
+    chartAndResults: ApiChartAndResults & {
+        warehouseExecutionTimeMs?: number;
+        totalTimeMs?: number;
+    };
     onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void;
     canExportCsv?: boolean;
     canExportImages?: boolean;
@@ -405,6 +411,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const { track } = useTracking();
+
+    const showExecutionTime = useFeatureFlagEnabled(
+        FeatureFlags.ShowExecutionTime,
+    );
+
     const {
         tile: {
             uuid: tileUuid,
@@ -876,6 +887,38 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                 </HoverCard.Target>
                             </HoverCard>
                         )}
+                        {showExecutionTime &&
+                            chartAndResults.warehouseExecutionTimeMs !==
+                                undefined &&
+                            chartAndResults.totalTimeMs !== undefined && (
+                                <HoverCard
+                                    withArrow
+                                    withinPortal
+                                    shadow="md"
+                                    position="bottom-end"
+                                    offset={4}
+                                    arrowOffset={10}
+                                >
+                                    <HoverCard.Dropdown>
+                                        <Text size="xs" color="gray.6" fw={600}>
+                                            Warehouse execution time:{' '}
+                                            {
+                                                chartAndResults.warehouseExecutionTimeMs
+                                            }
+                                            ms
+                                        </Text>
+                                        <Text size="xs" color="gray.6" fw={600}>
+                                            Total time:{' '}
+                                            {chartAndResults.totalTimeMs}ms
+                                        </Text>
+                                    </HoverCard.Dropdown>
+                                    <HoverCard.Target>
+                                        <ActionIcon size="sm">
+                                            <MantineIcon icon={IconClock} />
+                                        </ActionIcon>
+                                    </HoverCard.Target>
+                                </HoverCard>
+                            )}
                     </>
                 }
                 titleLeftIcon={
@@ -1255,7 +1298,12 @@ type DashboardChartTileProps = Omit<
 export const GenericDashboardChartTile: FC<
     DashboardChartTileProps & {
         isLoading: boolean;
-        data: (ApiChartAndResults & { queryUuid?: string }) | undefined;
+        data:
+            | (ApiChartAndResults & {
+                  queryUuid?: string;
+                  warehouseExecutionTimeMs?: number;
+              })
+            | undefined;
         error: ApiError | null;
     }
 > = ({
