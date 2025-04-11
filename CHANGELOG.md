@@ -1,3 +1,10 @@
+# [0.1570.0](https://github.com/lightdash/lightdash/compare/0.1569.0...0.1570.0) (2025-04-11)
+
+
+### Features
+
+* add updated_at column to results cache and return in cache metadata ([#14376](https://github.com/lightdash/lightdash/issues/14376)) ([9160ceb](https://github.com/lightdash/lightdash/commit/9160ceb1906e16ba2af55c512effe2dea6068cab))
+
 # [0.1569.0](https://github.com/lightdash/lightdash/compare/0.1568.1...0.1569.0) (2025-04-11)
 
 
