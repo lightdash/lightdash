@@ -138,6 +138,7 @@ describe('ResultsCacheModel', () => {
                 totalRowCount: 100,
                 createdAt: futureDateCreatedAt,
                 updatedAt: futureDateCreatedAt,
+                expiresAt: futureDate,
             });
             expect(tracker.history.select).toHaveLength(1);
             expect(mockStorageClient.createUploadStream).not.toHaveBeenCalled();
@@ -146,9 +147,14 @@ describe('ResultsCacheModel', () => {
         test('should create new cache when no existing cache exists', async () => {
             tracker.on.select('results_cache').response([]);
 
-            tracker.on
-                .insert('results_cache')
-                .response([{ cache_key: cacheKey }]);
+            tracker.on.insert('results_cache').response([
+                {
+                    cache_key: cacheKey,
+                    expires_at: futureDate,
+                    created_at: futureDateCreatedAt,
+                    updated_at: futureDateCreatedAt,
+                },
+            ]);
 
             const result = await model.createOrGetExistingCache(
                 projectUuid,
@@ -163,6 +169,9 @@ describe('ResultsCacheModel', () => {
                 write: expect.any(Function),
                 close: expect.any(Function),
                 totalRowCount: null,
+                createdAt: futureDateCreatedAt,
+                updatedAt: futureDateCreatedAt,
+                expiresAt: futureDate,
             });
             expect(tracker.history.select).toHaveLength(1);
             expect(tracker.history.insert).toHaveLength(1);
@@ -201,10 +210,12 @@ describe('ResultsCacheModel', () => {
                 totalRowCount: null,
                 createdAt: pastDateCreatedAt,
                 updatedAt: expect.any(Date),
+                expiresAt: expect.any(Date),
             });
             expect(result.updatedAt.getTime()).toBeGreaterThan(
                 pastDateCreatedAt.getTime(),
             );
+            expect(result.expiresAt.getTime()).toBeGreaterThan(Date.now());
             expect(tracker.history.select).toHaveLength(1);
             expect(tracker.history.update).toHaveLength(1);
             expect(tracker.history.update[0].bindings).toEqual([
@@ -248,10 +259,12 @@ describe('ResultsCacheModel', () => {
                 totalRowCount: null,
                 createdAt: futureDateCreatedAt,
                 updatedAt: expect.any(Date),
+                expiresAt: expect.any(Date),
             });
             expect(result.updatedAt.getTime()).toBeGreaterThan(
                 futureDateCreatedAt.getTime(),
             );
+            expect(result.expiresAt.getTime()).toBeGreaterThan(Date.now());
             expect(tracker.history.select).toHaveLength(1);
             expect(tracker.history.update).toHaveLength(1);
             expect(tracker.history.update[0].bindings).toEqual([

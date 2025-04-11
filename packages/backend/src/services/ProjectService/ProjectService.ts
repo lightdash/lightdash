@@ -2544,6 +2544,7 @@ export class ProjectService extends BaseService {
                             cacheMetadata: {
                                 cacheHit: resultsCache.cacheHit,
                                 cacheUpdatedTime: resultsCache.updatedAt,
+                                cacheExpiresAt: resultsCache.expiresAt,
                             },
                         } satisfies ExecuteAsyncQueryReturn;
                     }
@@ -2567,6 +2568,7 @@ export class ProjectService extends BaseService {
                         cacheMetadata: {
                             cacheHit: resultsCache?.cacheHit || false,
                             cacheUpdatedTime: resultsCache?.updatedAt,
+                            cacheExpiresAt: resultsCache?.expiresAt,
                         },
                     } satisfies ExecuteAsyncQueryReturn;
                 } catch (e) {

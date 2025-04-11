@@ -6,6 +6,7 @@ export type CacheHitCacheResult = {
     totalRowCount: number;
     createdAt: Date;
     updatedAt: Date;
+    expiresAt: Date;
 };
 
 export type MissCacheResult = {
@@ -16,6 +17,7 @@ export type MissCacheResult = {
     totalRowCount: null;
     createdAt: Date;
     updatedAt: Date;
+    expiresAt: Date;
 };
 
 export type CreateCacheResult = CacheHitCacheResult | MissCacheResult;

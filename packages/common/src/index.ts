@@ -462,6 +462,7 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 
 export type CacheMetadata = {
     cacheUpdatedTime?: Date;
+    cacheExpiresAt?: Date;
     cacheHit: boolean;
 };
 

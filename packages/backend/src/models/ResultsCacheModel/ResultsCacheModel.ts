@@ -80,6 +80,7 @@ export class ResultsCacheModel {
                 cacheKey: existingCache.cache_key,
                 createdAt: existingCache.created_at,
                 updatedAt: existingCache.updated_at,
+                expiresAt: existingCache.expires_at,
                 cacheHit: true,
                 write: undefined,
                 close: undefined,
@@ -108,6 +109,7 @@ export class ResultsCacheModel {
                 cacheKey: existingCache.cache_key,
                 createdAt: existingCache.created_at,
                 updatedAt: now,
+                expiresAt: newExpiresAt,
                 cacheHit: false,
                 write,
                 close,
@@ -123,7 +125,7 @@ export class ResultsCacheModel {
                 expires_at: newExpiresAt,
                 total_row_count: null,
             })
-            .returning(['cache_key', 'created_at', 'updated_at']);
+            .returning(['cache_key', 'created_at', 'updated_at', 'expires_at']);
 
         if (!createdCache) {
             await close();
@@ -134,6 +136,7 @@ export class ResultsCacheModel {
             cacheKey: createdCache.cache_key,
             createdAt: createdCache.created_at,
             updatedAt: createdCache.updated_at,
+            expiresAt: createdCache.expires_at,
             write,
             close,
             cacheHit: false,

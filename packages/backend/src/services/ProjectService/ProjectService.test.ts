@@ -500,12 +500,16 @@ describe('ProjectService', () => {
                 // Mock the resultsCacheModel to return a cache hit
                 const createdAt = new Date();
                 const updatedAt = new Date();
+                const expiresAt = new Date(
+                    createdAt.getTime() + 1000 * 60 * 60 * 24,
+                );
                 const mockCacheResult: CacheHitCacheResult = {
                     cacheHit: true,
                     cacheKey: 'test-cache-key',
                     totalRowCount: 10,
                     createdAt,
                     updatedAt,
+                    expiresAt,
                     write: undefined,
                     close: undefined,
                 };
@@ -549,6 +553,7 @@ describe('ProjectService', () => {
                     cacheMetadata: {
                         cacheHit: true,
                         cacheUpdatedTime: updatedAt,
+                        cacheExpiresAt: expiresAt,
                     },
                 } satisfies ExecuteAsyncQueryReturn);
 
@@ -577,6 +582,9 @@ describe('ProjectService', () => {
                 // Mock the resultsCacheModel to return a cache miss
                 const createdAt = new Date();
                 const updatedAt = new Date();
+                const expiresAt = new Date(
+                    createdAt.getTime() + 1000 * 60 * 60 * 24,
+                );
                 const mockCacheResult: MissCacheResult = {
                     cacheHit: false,
                     cacheKey: 'test-cache-key',
@@ -584,6 +592,7 @@ describe('ProjectService', () => {
                     close,
                     createdAt,
                     updatedAt,
+                    expiresAt,
                     totalRowCount: null,
                 };
 
@@ -626,6 +635,7 @@ describe('ProjectService', () => {
                     cacheMetadata: {
                         cacheHit: false,
                         cacheUpdatedTime: updatedAt,
+                        cacheExpiresAt: expiresAt,
                     },
                 } satisfies ExecuteAsyncQueryReturn);
 
@@ -787,6 +797,7 @@ describe('ProjectService', () => {
                     cacheMetadata: {
                         cacheHit: false,
                         cacheUpdatedTime: undefined,
+                        cacheExpiresAt: undefined,
                     },
                 } satisfies ExecuteAsyncQueryReturn);
 
