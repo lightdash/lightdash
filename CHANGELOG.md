@@ -1,3 +1,11 @@
+## [0.1572.1](https://github.com/lightdash/lightdash/compare/0.1572.0...0.1572.1) (2025-04-11)
+
+
+### Bug Fixes
+
+* add user_id index to project_memberships table ([#14382](https://github.com/lightdash/lightdash/issues/14382)) ([58cd380](https://github.com/lightdash/lightdash/commit/58cd380561e7404afc4c675ec275fefb62727868))
+* cache user session ([#14381](https://github.com/lightdash/lightdash/issues/14381)) ([ea55590](https://github.com/lightdash/lightdash/commit/ea55590b8f3f9eafa4af6c542b0b1b6f0130d124))
+
 # [0.1572.0](https://github.com/lightdash/lightdash/compare/0.1571.0...0.1572.0) (2025-04-11)
 
 
