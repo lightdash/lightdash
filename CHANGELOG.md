@@ -1,3 +1,10 @@
+## [0.1568.1](https://github.com/lightdash/lightdash/compare/0.1568.0...0.1568.1) (2025-04-11)
+
+
+### Bug Fixes
+
+* reduce msteams webhook badges ([#14350](https://github.com/lightdash/lightdash/issues/14350)) ([cd63400](https://github.com/lightdash/lightdash/commit/cd634007e3a67833cda19999d5bd2e396c893bbc))
+
 # [0.1568.0](https://github.com/lightdash/lightdash/compare/0.1567.6...0.1568.0) (2025-04-10)
 
 
