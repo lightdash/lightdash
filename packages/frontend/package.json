@@ -16,7 +16,7 @@
         "fix-lint": "pnpm run linter ./src --fix",
         "format": "pnpm run formatter ./src --check",
         "fix-format": "pnpm run formatter ./src --write",
-        "unused-exports": "pnpm ts-unused-exports ./tsconfig.json --allowUnusedEnums --allowUnusedTypes --showLineNumber --ignoreFiles='build/.*' --ignoreFiles='sdk/dist/.*' --ignoreFiles='.*/__mocks__/.*' --ignoreFiles='src/stories/.*'",
+        "unused-exports": "ts-unused-exports ./tsconfig.json --allowUnusedEnums --allowUnusedTypes --showLineNumber --ignoreFiles='build/.*' --ignoreFiles='sdk/dist/.*' --ignoreFiles='.*/__mocks__/.*' --ignoreFiles='src/stories/.*'",
         "storybook": "storybook dev -p 6006",
         "build-storybook": "storybook build"
     },
