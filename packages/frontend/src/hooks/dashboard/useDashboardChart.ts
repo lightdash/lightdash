@@ -190,7 +190,14 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
         return prev;
     });
 
-    return useQuery<ApiChartAndResults & { queryUuid?: string }, ApiError>({
+    return useQuery<
+        ApiChartAndResults & {
+            queryUuid?: string;
+            warehouseExecutionTimeMs?: number;
+            totalTimeMs?: number;
+        },
+        ApiError
+    >({
         queryKey:
             hasADateDimension && granularity
                 ? queryKey.concat([granularity])

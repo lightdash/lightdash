@@ -1302,6 +1302,7 @@ export const GenericDashboardChartTile: FC<
             | (ApiChartAndResults & {
                   queryUuid?: string;
                   warehouseExecutionTimeMs?: number;
+                  totalTimeMs?: number;
               })
             | undefined;
         error: ApiError | null;
