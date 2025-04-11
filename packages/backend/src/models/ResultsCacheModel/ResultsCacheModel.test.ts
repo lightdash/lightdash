@@ -4,7 +4,10 @@ import { MockClient, Tracker, getTracker } from 'knex-mock-client';
 import { Readable } from 'stream';
 import { IResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/ResultsCacheStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { ResultsCacheTableName } from '../../database/entities/resultsCache';
+import {
+    ResultsCacheTableName,
+    type DbResultsCache,
+} from '../../database/entities/resultsCache';
 import { ResultsCacheModel } from './ResultsCacheModel';
 
 // Mock storage client
@@ -93,7 +96,13 @@ describe('ResultsCacheModel', () => {
         const cacheKey = 'test-cache-key';
         const now = new Date();
         const futureDate = new Date(now.getTime() + 3600000); // 1 hour in the future
+        const futureDateCreatedAt = new Date(
+            futureDate.getTime() - 24 * 60 * 60 * 1000,
+        ); // one day in the past
         const pastDate = new Date(now.getTime() - 3600000); // 1 hour in the past
+        const pastDateCreatedAt = new Date(
+            pastDate.getTime() - 24 * 60 * 60 * 1000,
+        ); // one day in the past
 
         beforeEach(() => {
             jest.spyOn(ResultsCacheModel, 'getCacheKey').mockReturnValue(
@@ -103,10 +112,12 @@ describe('ResultsCacheModel', () => {
         });
 
         test('should return existing cache when not expired and invalidateCache=false', async () => {
-            const existingCache = {
+            const existingCache: DbResultsCache = {
                 cache_key: cacheKey,
                 project_uuid: projectUuid,
                 expires_at: futureDate,
+                created_at: futureDateCreatedAt,
+                updated_at: futureDateCreatedAt,
                 total_row_count: 100,
             };
 
@@ -125,6 +136,8 @@ describe('ResultsCacheModel', () => {
                 write: undefined,
                 close: undefined,
                 totalRowCount: 100,
+                createdAt: futureDateCreatedAt,
+                updatedAt: futureDateCreatedAt,
             });
             expect(tracker.history.select).toHaveLength(1);
             expect(mockStorageClient.createUploadStream).not.toHaveBeenCalled();
@@ -160,10 +173,12 @@ describe('ResultsCacheModel', () => {
         });
 
         test('should update expired cache and reset total row count when cache is expired', async () => {
-            const expiredCache = {
+            const expiredCache: DbResultsCache = {
                 cache_key: cacheKey,
                 project_uuid: projectUuid,
                 expires_at: pastDate,
+                created_at: pastDateCreatedAt,
+                updated_at: pastDateCreatedAt,
                 total_row_count: 100,
             };
 
@@ -184,11 +199,17 @@ describe('ResultsCacheModel', () => {
                 write: expect.any(Function),
                 close: expect.any(Function),
                 totalRowCount: null,
+                createdAt: pastDateCreatedAt,
+                updatedAt: expect.any(Date),
             });
+            expect(result.updatedAt.getTime()).toBeGreaterThan(
+                pastDateCreatedAt.getTime(),
+            );
             expect(tracker.history.select).toHaveLength(1);
             expect(tracker.history.update).toHaveLength(1);
             expect(tracker.history.update[0].bindings).toEqual([
                 expect.any(Date), // expires_at
+                expect.any(Date), // updated_at
                 cacheKey,
                 projectUuid,
             ]);
@@ -199,11 +220,13 @@ describe('ResultsCacheModel', () => {
         });
 
         test('should update existing cache and reset total row count when invalidateCache=true', async () => {
-            const existingCache = {
+            const existingCache: DbResultsCache = {
                 cache_key: cacheKey,
                 project_uuid: projectUuid,
                 expires_at: futureDate,
                 total_row_count: 100,
+                created_at: futureDateCreatedAt,
+                updated_at: futureDateCreatedAt,
             };
 
             tracker.on.select('results_cache').response([existingCache]);
@@ -223,11 +246,17 @@ describe('ResultsCacheModel', () => {
                 write: expect.any(Function),
                 close: expect.any(Function),
                 totalRowCount: null,
+                createdAt: futureDateCreatedAt,
+                updatedAt: expect.any(Date),
             });
+            expect(result.updatedAt.getTime()).toBeGreaterThan(
+                futureDateCreatedAt.getTime(),
+            );
             expect(tracker.history.select).toHaveLength(1);
             expect(tracker.history.update).toHaveLength(1);
             expect(tracker.history.update[0].bindings).toEqual([
                 expect.any(Date), // expires_at
+                expect.any(Date), // updated_at
                 cacheKey,
                 projectUuid,
             ]);
