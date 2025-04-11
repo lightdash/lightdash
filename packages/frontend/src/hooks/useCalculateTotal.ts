@@ -62,6 +62,29 @@ const calculateTotalFromSavedChart = async (
     });
 };
 
+const postCalculateTotalForEmbed = async (
+    embedToken: string,
+    projectUuid: string,
+    savedChartUuid: string,
+    dashboardFilters?: DashboardFilters,
+    invalidateCache?: boolean,
+): Promise<ApiCalculateTotalResponse['results']> => {
+    const timezoneFixFilters =
+        dashboardFilters && convertDateDashboardFilters(dashboardFilters);
+
+    return lightdashApi<ApiCalculateTotalResponse['results']>({
+        url: `/embed/${projectUuid}/chart/${savedChartUuid}/calculate-total`,
+        method: 'POST',
+        headers: {
+            'Lightdash-Embed-Token': embedToken,
+        },
+        body: JSON.stringify({
+            dashboardFilters: timezoneFixFilters,
+            invalidateCache,
+        }),
+    });
+};
+
 const getCalculationColumnFields = (
     selectedItemIds: string[],
     itemsMap: ItemsMap,
@@ -89,6 +112,7 @@ export const useCalculateTotal = ({
     invalidateCache,
     itemsMap,
     showColumnCalculation,
+    embedToken,
 }: {
     metricQuery?: MetricQueryRequest;
     explore?: string;
@@ -98,6 +122,7 @@ export const useCalculateTotal = ({
     itemsMap: ItemsMap | undefined;
     fieldIds?: string[];
     showColumnCalculation?: boolean;
+    embedToken: string | undefined;
 }) => {
     const metricsWithTotals = useMemo(() => {
         if (!fieldIds || !itemsMap) return [];
@@ -119,7 +144,15 @@ export const useCalculateTotal = ({
     return useQuery<ApiCalculateTotalResponse['results'], ApiError>({
         queryKey: ['calculate_total', projectUuid, queryKey],
         queryFn: () =>
-            savedChartUuid
+            embedToken && projectUuid && savedChartUuid
+                ? postCalculateTotalForEmbed(
+                      embedToken,
+                      projectUuid,
+                      savedChartUuid,
+                      dashboardFilters,
+                      invalidateCache,
+                  )
+                : savedChartUuid
                 ? calculateTotalFromSavedChart(
                       savedChartUuid,
                       dashboardFilters,
@@ -130,7 +163,6 @@ export const useCalculateTotal = ({
                 : Promise.reject(),
         retry: false,
         enabled:
-            !window.location.pathname.startsWith('/embed/') &&
             metricsWithTotals.length > 0 &&
             (metricQuery || savedChartUuid) !== undefined,
         onError: (result) =>

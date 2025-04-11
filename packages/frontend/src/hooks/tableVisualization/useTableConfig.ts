@@ -20,6 +20,7 @@ import {
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import { uniq } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import useEmbed from '../../ee/providers/Embed/useEmbed';
 import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useCalculateTotal } from '../useCalculateTotal';
 import { type InfiniteQueryResults } from '../useQueryResults';
@@ -40,9 +41,10 @@ const useTableConfig = (
     dashboardFilters?: DashboardFilters,
     invalidateCache?: boolean,
 ) => {
+    const { embedToken } = useEmbed();
+
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
-        !window.location.pathname.startsWith('/embed/') &&
-            !!tableChartConfig?.showColumnCalculation,
+        !!tableChartConfig?.showColumnCalculation,
     );
 
     const [showRowCalculation, setShowRowCalculation] = useState<boolean>(
@@ -202,6 +204,7 @@ const useTableConfig = (
                   itemsMap,
                   showColumnCalculation:
                       tableChartConfig?.showColumnCalculation,
+                  embedToken,
               }
             : {
                   metricQuery: resultsData?.metricQuery,
@@ -210,6 +213,8 @@ const useTableConfig = (
                   itemsMap,
                   showColumnCalculation:
                       tableChartConfig?.showColumnCalculation,
+                  // embed token is not necessary here because embeds don't use metricQuery for table calculations
+                  embedToken: undefined,
               },
     );
 

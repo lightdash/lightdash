@@ -4543,7 +4543,7 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
-            "ApiChartAndResultsResponse": {
+            "ApiEmbedChartAndResultsResponse": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -4594,6 +4594,29 @@
             "DateGranularity": {
                 "enum": ["Day", "Week", "Month", "Quarter", "Year"],
                 "type": "string"
+            },
+            "Record_string.number_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ApiCalculateTotalResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/Record_string.number_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "FieldValueSearchResult": {
                 "properties": {
@@ -8540,29 +8563,6 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/ChartVersion"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "Record_string.number_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ApiCalculateTotalResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/Record_string.number_"
                     },
                     "status": {
                         "type": "string",
@@ -15816,7 +15816,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1568.1",
+        "version": "0.1572.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

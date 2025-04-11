@@ -31,6 +31,7 @@ import {
     columnHelper,
     type TableColumn,
 } from '../components/common/Table/types';
+import useEmbed from '../ee/providers/Embed/useEmbed';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
@@ -93,6 +94,8 @@ export const useColumns = (): TableColumn[] => {
         refetchOnMount: false,
     });
 
+    const { embedToken } = useEmbed();
+
     const itemsMap = useMemo<ItemsMap | undefined>(() => {
         if (exploreData) {
             // Explore items for new columns and result items for existing columns with format overrides
@@ -154,6 +157,7 @@ export const useColumns = (): TableColumn[] => {
             ? itemsInMetricQuery(resultsMetricQuery)
             : undefined,
         itemsMap: activeItemsMap,
+        embedToken,
     });
 
     return useMemo(() => {
