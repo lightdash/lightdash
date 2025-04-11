@@ -515,22 +515,21 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                             charNumber,
                         });
                     }
-                    break;
+                    // If no line number match, return the full error message
+                    return new WarehouseQueryError(error.message);
                 }
-                break;
+                // If no location or message, return a more descriptive error
+                return new WarehouseQueryError(
+                    error?.message || 'Bigquery warehouse error: invalid query',
+                );
+
             default:
-                break;
+                // For all other error types, return the full error message
+                return new WarehouseQueryError(
+                    error?.message ||
+                        `Bigquery warehouse error: ${error?.reason}`,
+                );
         }
-        console.error(
-            `Unknown bigquery warehouse error reason: ${JSON.stringify(
-                error,
-                null,
-                2,
-            )}`,
-        );
-        return new WarehouseQueryError(
-            `Bigquery warehouse error: ${error?.reason}`,
-        );
     }
 
     async executeAsyncQuery(
