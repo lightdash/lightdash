@@ -33,6 +33,10 @@ import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import type { ResultsCacheModel } from '../../models/ResultsCacheModel/ResultsCacheModel';
+import type {
+    CacheHitCacheResult,
+    MissCacheResult,
+} from '../../models/ResultsCacheModel/types';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -70,6 +74,7 @@ import {
     user,
     validExplore,
 } from './ProjectService.mock';
+import type { ExecuteAsyncQueryReturn } from './types';
 
 jest.mock('@lightdash/warehouses', () => ({
     SshTunnel: jest.fn(() => ({
@@ -493,10 +498,16 @@ describe('ProjectService', () => {
 
             test('should return queryUuid when cache is hit', async () => {
                 // Mock the resultsCacheModel to return a cache hit
-                const mockCacheResult = {
+                const createdAt = new Date();
+                const updatedAt = new Date();
+                const mockCacheResult: CacheHitCacheResult = {
                     cacheHit: true,
                     cacheKey: 'test-cache-key',
                     totalRowCount: 10,
+                    createdAt,
+                    updatedAt,
+                    write: undefined,
+                    close: undefined,
                 };
 
                 (
@@ -535,7 +546,11 @@ describe('ProjectService', () => {
 
                 expect(result).toEqual({
                     queryUuid: 'test-query-uuid',
-                });
+                    cacheMetadata: {
+                        cacheHit: true,
+                        cacheUpdatedTime: updatedAt,
+                    },
+                } satisfies ExecuteAsyncQueryReturn);
 
                 // Verify that the query history was updated with READY status
                 expect(
@@ -560,11 +575,16 @@ describe('ProjectService', () => {
 
             test('should trigger background query when cache is not hit', async () => {
                 // Mock the resultsCacheModel to return a cache miss
-                const mockCacheResult = {
+                const createdAt = new Date();
+                const updatedAt = new Date();
+                const mockCacheResult: MissCacheResult = {
                     cacheHit: false,
                     cacheKey: 'test-cache-key',
                     write,
                     close,
+                    createdAt,
+                    updatedAt,
+                    totalRowCount: null,
                 };
 
                 (
@@ -603,7 +623,11 @@ describe('ProjectService', () => {
 
                 expect(result).toEqual({
                     queryUuid: 'test-query-uuid',
-                });
+                    cacheMetadata: {
+                        cacheHit: false,
+                        cacheUpdatedTime: updatedAt,
+                    },
+                } satisfies ExecuteAsyncQueryReturn);
 
                 // Verify that the query history was not updated with READY status
                 expect(
@@ -760,7 +784,11 @@ describe('ProjectService', () => {
 
                 expect(result).toEqual({
                     queryUuid: 'test-query-uuid',
-                });
+                    cacheMetadata: {
+                        cacheHit: false,
+                        cacheUpdatedTime: undefined,
+                    },
+                } satisfies ExecuteAsyncQueryReturn);
 
                 // Verify that resultsCacheModel.createOrGetExistingCache was not called
                 expect(
