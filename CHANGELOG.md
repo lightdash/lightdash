@@ -1,3 +1,10 @@
+# [0.1569.0](https://github.com/lightdash/lightdash/compare/0.1568.1...0.1569.0) (2025-04-11)
+
+
+### Features
+
+* nested spaces (backend) ([#14285](https://github.com/lightdash/lightdash/issues/14285)) ([f703123](https://github.com/lightdash/lightdash/commit/f703123272d07c49822877328d40a527c10266d5))
+
 ## [0.1568.1](https://github.com/lightdash/lightdash/compare/0.1568.0...0.1568.1) (2025-04-11)
 
 
