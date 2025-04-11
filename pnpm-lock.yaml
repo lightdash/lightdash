@@ -183,6 +183,9 @@ importers:
       '@types/async':
         specifier: ^3.2.16
         version: 3.2.16
+      '@types/node-cache':
+        specifier: ^4.2.5
+        version: 4.2.5
       '@types/sshpk':
         specifier: ^1.17.1
         version: 1.17.1
@@ -4953,6 +4956,10 @@ packages:
 
   '@types/mysql@2.15.26':
     resolution: {integrity: sha512-DSLCOXhkvfS5WNNPbfn2KdICAmk8lLc+/PNvnPnF7gOdMZCxopXduqv0OQ13y/yA/zXTSikZZqVgybUxOEg6YQ==}
+
+  '@types/node-cache@4.2.5':
+    resolution: {integrity: sha512-faK2Owokboz53g8ooq2dw3iDJ6/HMTCIa2RvMte5WMTiABy+wA558K+iuyRtlR67Un5q9gEKysSDtqZYbSa0Pg==}
+    deprecated: This is a stub types definition. node-cache provides its own type definitions, so you do not need this installed.
 
   '@types/node-fetch@2.5.12':
     resolution: {integrity: sha512-MKgC4dlq4kKNa/mYrwpKfzQMB5X3ee5U6fSprkKpToBqBmX4nFZL9cW5jl6sWn+xpRJ7ypWh2yyqqr8UUCstSw==}
@@ -18315,6 +18322,10 @@ snapshots:
   '@types/mysql@2.15.26':
     dependencies:
       '@types/node': 22.13.1
+
+  '@types/node-cache@4.2.5':
+    dependencies:
+      node-cache: 5.1.2
 
   '@types/node-fetch@2.5.12':
     dependencies:

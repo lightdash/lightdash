@@ -59,6 +59,7 @@
         "@slack/web-api": "^6.12.1",
         "@tsoa/runtime": "^6.6.0",
         "@types/async": "^3.2.16",
+        "@types/node-cache": "^4.2.5",
         "@types/sshpk": "^1.17.1",
         "ajv": "^8.3.0",
         "ajv-formats": "^2.1.0",
