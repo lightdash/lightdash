@@ -4281,6 +4281,10 @@
                     "cacheHit": {
                         "type": "boolean"
                     },
+                    "cacheExpiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "cacheUpdatedTime": {
                         "type": "string",
                         "format": "date-time"
