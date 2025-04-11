@@ -1801,7 +1801,8 @@ const useEchartsCartesianConfig = (
             confine: true,
             trigger: 'axis',
             enterable: true,
-            extraCssText: 'overflow-y: auto; max-height:280px;',
+            extraCssText:
+                'overflow-y: auto; max-height:280px; position: fixed; pointer-events: auto;',
             axisPointer: {
                 type: 'shadow',
                 label: {
