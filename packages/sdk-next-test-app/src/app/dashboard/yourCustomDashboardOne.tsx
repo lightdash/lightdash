@@ -26,8 +26,8 @@ export default function YourCustomDashboard() {
                 }}
             >
                 <LightdashDashboard
-                    instanceUrl="http://localhost:3000/"
-                    token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJkYXNoYm9hcmQiLCJwcm9qZWN0VXVpZCI6IjM2NzViNjllLTgzMjQtNDExMC1iZGNhLTA1OTAzMWFhOGRhMyIsImRhc2hib2FyZFV1aWQiOiJhODQzYzQ5MS00ZmJhLTQzMzItYWFkOS0zYjY0ZjkzMmVjNTgiLCJkYXNoYm9hcmRGaWx0ZXJzSW50ZXJhY3Rpdml0eSI6eyJlbmFibGVkIjoibm9uZSJ9LCJjYW5FeHBvcnRDc3YiOmZhbHNlLCJjYW5FeHBvcnRJbWFnZXMiOmZhbHNlLCJpc1ByZXZpZXciOmZhbHNlLCJjYW5EYXRlWm9vbSI6ZmFsc2UsImNhbkV4cG9ydFBhZ2VQZGYiOmZhbHNlfSwidXNlckF0dHJpYnV0ZXMiOnsiIjoiIn0sInVzZXIiOnsiZW1haWwiOiJkZW1vQGxpZ2h0ZGFzaC5jb20ifSwiaWF0IjoxNzQ0MzMyMDY5LCJleHAiOjE3NzU4ODk2Njl9.peiD6nQH2_RGklSfePQJl3uapTzNQRkzsJ-GASiYkV0"
+                    instanceUrl="<your-instance-url>"
+                    token="<your-token>"
                 />
             </div>
         </>

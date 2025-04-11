@@ -1155,8 +1155,8 @@ importers:
   packages/sdk-test-app:
     dependencies:
       '@lightdash/sdk':
-        specifier: 0.1512.2
-        version: 0.1512.2(react-dom@18.0.0(react@18.0.0))(react@18.0.0)
+        specifier: workspace:*
+        version: link:../frontend/sdk
       i18next:
         specifier: ^24.2.2
         version: 24.2.2(typescript@5.5.4)
@@ -2873,12 +2873,6 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       '@langchain/core': '>=0.2.21 <0.4.0'
-
-  '@lightdash/sdk@0.1512.2':
-    resolution: {integrity: sha512-O0cZIB3GaPLQU3HTaNz5V0btFDbkWcVNJjcSWvZ0Bq40UqlhauXdBtzCuwUN63iiWT7VpmUUdebfJEDzrVn2KA==}
-    peerDependencies:
-      react: '>=18.0.0 && <=19.0.0'
-      react-dom: '>=18.0.0 && <=19.0.0'
 
   '@mantine/core@6.0.21':
     resolution: {integrity: sha512-Kx4RrRfv0I+cOCIcsq/UA2aWcYLyXgW3aluAuW870OdXnbII6qg7RW28D+r9D76SHPxWFKwIKwmcucAG08Divg==}
@@ -15890,11 +15884,6 @@ snapshots:
     dependencies:
       '@langchain/core': 0.3.36(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.23.3))
       js-tiktoken: 1.0.16
-
-  '@lightdash/sdk@0.1512.2(react-dom@18.0.0(react@18.0.0))(react@18.0.0)':
-    dependencies:
-      react: 18.0.0
-      react-dom: 18.0.0(react@18.0.0)
 
   '@mantine/core@6.0.21(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/hooks@6.0.21(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
