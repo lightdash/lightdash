@@ -111,7 +111,13 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
         !!apiChartAndResults?.metricQuery?.metadata?.hasADateDimension;
 
     const fetchChartAndResults = useCallback<
-        () => Promise<ApiChartAndResults & { queryUuid?: string }>
+        () => Promise<
+            ApiChartAndResults & {
+                queryUuid?: string;
+                warehouseExecutionTimeMs?: number;
+                totalTimeMs?: number;
+            }
+        >
     >(async () => {
         if (queryPaginationEnabled?.enabled) {
             const chart = await getSavedQuery(chartUuid!);
@@ -147,6 +153,8 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
                 rows: results.rows,
                 fields: results.fields,
                 queryUuid: results.queryUuid,
+                warehouseExecutionTimeMs: results.warehouseExecutionTimeMs,
+                totalTimeMs: results.totalTimeMs,
             };
         }
         return getChartAndResults({
@@ -182,7 +190,14 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
         return prev;
     });
 
-    return useQuery<ApiChartAndResults & { queryUuid?: string }, ApiError>({
+    return useQuery<
+        ApiChartAndResults & {
+            queryUuid?: string;
+            warehouseExecutionTimeMs?: number;
+            totalTimeMs?: number;
+        },
+        ApiError
+    >({
         queryKey:
             hasADateDimension && granularity
                 ? queryKey.concat([granularity])

@@ -45,8 +45,12 @@ export const getQueryPaginatedResults = async (
     ApiQueryResults & {
         queryUuid: string;
         appliedDashboardFilters: DashboardFilters | null;
+        warehouseExecutionTimeMs?: number;
+        totalTimeMs?: number;
     }
 > => {
+    const startTime = new Date();
+
     const executeQueryResponse =
         await lightdashApi<ApiExecuteAsyncQueryResults>({
             url: `/projects/${projectUuid}/query`,
@@ -127,12 +131,20 @@ export const getQueryPaginatedResults = async (
         }
     }
 
+    const endTime = new Date();
+    const totalTime = endTime.getTime() - startTime.getTime();
+
     return {
         queryUuid: currentPage.queryUuid,
         metricQuery: currentPage.metricQuery,
         cacheMetadata: executeQueryResponse.cacheMetadata,
         rows: allRows,
         fields: currentPage.fields,
+        warehouseExecutionTimeMs:
+            currentPage.status === QueryHistoryStatus.READY
+                ? currentPage.initialQueryExecutionMs
+                : undefined,
+        totalTimeMs: totalTime,
         appliedDashboardFilters: executeQueryResponse.appliedDashboardFilters,
     };
 };
