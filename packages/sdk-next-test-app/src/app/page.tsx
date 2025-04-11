@@ -27,16 +27,16 @@ export default function Home() {
                         width={20}
                         height={20}
                     />
-                    Check out Lightdash Dashboard
+                    Check out Lightdash Dashboard One
                 </a>
 
                 <a
-                    href="https://nextjs.org/docs/app/building-your-application/optimizing/lazy-loading#nextdynamic"
+                    className={styles.secondary}
+                    href="/dashboard-two"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={styles.secondary}
                 >
-                    Read more about lazy loading
+                    Check out Lightdash Dashboard Two
                 </a>
             </div>
         </>

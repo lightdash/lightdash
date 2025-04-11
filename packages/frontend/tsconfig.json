@@ -19,9 +19,10 @@
         "moduleResolution": "node",
         "resolveJsonModule": true,
         "isolatedModules": true,
-        "declarationDir": "./build/types",
+        "declarationDir": "./dist/types",
         "importHelpers": true,
         "jsx": "react-jsx",
+        "jsxImportSource": "react",
         "types": [
             "node",
             "vite/client",
@@ -32,6 +33,7 @@
     },
     "include": [
         "src",
+        "rollup.config.ts",
         "vite-env.d.ts",
     ],
 }

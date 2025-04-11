@@ -25,9 +25,7 @@ import { useCalculateTotal } from '../useCalculateTotal';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import getDataAndColumns from './getDataAndColumns';
 
-const createWorker = createWorkerFactory(
-    () => import('@lightdash/common/src/pivotTable/pivotQueryResults'),
-);
+const createWorker = createWorkerFactory(() => import('@lightdash/common'));
 
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,

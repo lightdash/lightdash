@@ -5,21 +5,19 @@
     "files": [
         "dist"
     ],
-    "main": "./dist/frontend.js",
-    "module": "./dist/frontend.mjs",
-    "types": "./dist/frontend.d.ts",
     "exports": {
-        ".": {
-            "import": "./dist/frontend.mjs",
-            "require": "./dist/frontend.js"
-        },
-        "./style.css": "./dist/frontend.css"
+        "types": "./dist/sdk.d.ts",
+        "require": "./dist/sdk.cjs.js",
+        "import": "./dist/sdk.es.js"
     },
+    "main": "./dist/sdk.cjs.js",
+    "module": "./dist/sdk.es.js",
+    "types": "./dist/sdk.d.ts",
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
         "dev": "vite",
         "build": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build",
-        "build-lib": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 VITE_LIB=true vite build",
+        "build-sdk": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build --config vite.config.sdk.ts",
         "serve": "vite preview",
         "test": "vitest run",
         "test-watch": "vitest dev",
@@ -34,8 +32,8 @@
         "build-storybook": "storybook build"
     },
     "peerDependencies": {
-        "react": "19.0.0",
-        "react-dom": "19.0.0"
+        "react": "^18.x || ^19.x",
+        "react-dom": "^18.x || ^19.x"
     },
     "dependencies": {
         "@casl/ability": "^5.4.4",
@@ -47,7 +45,6 @@
         "@emotion/react": "^11.10.6",
         "@hello-pangea/dnd": "^16.5.0",
         "@hookform/error-message": "^2.0.0",
-        "@lightdash/common": "workspace:*",
         "@mantine/core": "^6.0.21",
         "@mantine/dates": "^6.0.21",
         "@mantine/form": "^7.5.2",
@@ -131,12 +128,12 @@
         "use-context-selector": "^1.4.1",
         "use-local-storage-state": "17",
         "uuid": "^8.3.2",
-        "vega": "^5.32.0",
         "vega-lite": "^5.16.1",
         "zod": "^3.22.4"
     },
     "devDependencies": {
         "@chromatic-com/storybook": "^3",
+        "@lightdash/common": "workspace:^",
         "@mantine/styles": "6.0.21",
         "@storybook/addon-essentials": "^8.6.6",
         "@storybook/addon-interactions": "^8.6.6",
@@ -176,11 +173,11 @@
         "react-test-renderer": "^19.0.0",
         "storybook": "^8.6.6",
         "ts-unused-exports": "^9.0.4",
-        "vite": "^6.1.3",
+        "vite": "^6.2.6",
         "vite-plugin-compression2": "^1.3.3",
-        "vite-plugin-dts": "^4.5.0",
+        "vite-plugin-dts": "^4.5.3",
         "vite-plugin-monaco-editor": "^1.1.0",
         "vite-plugin-svgr": "^4.3.0",
-        "vitest": "^3.0.5"
+        "vitest": "^3.1.1"
     }
 }

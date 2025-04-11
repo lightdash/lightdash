@@ -1,12 +1,12 @@
-import YourCustomDashboard from './yourCustomDashboard';
+import YourCustomDashboardOne from './yourCustomDashboardOne';
 
-export default function DashboardPage() {
+export default function DashboardOne() {
     return (
         <>
             <div>
-                <h1>LightdashDashboard demo in Next.js</h1>
+                <h1>Lightdash Dashboard</h1>
 
-                <YourCustomDashboard />
+                <YourCustomDashboardOne />
             </div>
         </>
     );

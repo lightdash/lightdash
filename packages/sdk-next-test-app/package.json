@@ -4,12 +4,12 @@
     "private": true,
     "scripts": {
         "dev": "next dev --turbopack --port 9898",
-        "build": "next build",
-        "start": "next start",
+        "build": "NODE_ENV=production next build",
+        "start": "NODE_ENV=production next start --port 9998",
         "lint": "next lint"
     },
     "dependencies": {
-        "@lightdash/sdk": "^0.1484.5",
+        "@lightdash/frontend": "workspace:*",
         "next": "15.3.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0"
