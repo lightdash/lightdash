@@ -1,21 +1,20 @@
-import {
-    AbilityProvider,
-    AppProvider,
-    ChartColorMappingContextProvider,
-    EmbedDashboard,
-    EmbedProvider,
-    ErrorBoundary,
-    FullscreenProvider,
-    LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
-    MantineProvider,
-    MemoryRouter,
-    ReactQueryProvider,
-    ThirdPartyServicesProvider,
-    TrackingProvider,
-    type LanguageMap,
-    type SdkFilter,
-} from '@lightdash/frontend';
-import { FC, PropsWithChildren, useEffect, useState } from 'react';
+import { type LanguageMap } from '@lightdash/common';
+import { type FC, type PropsWithChildren, useEffect, useState } from 'react';
+import { MemoryRouter } from 'react-router';
+import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
+import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
+import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
+import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
+import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
+import AbilityProvider from '../src/providers/Ability/AbilityProvider';
+import AppProvider from '../src/providers/App/AppProvider';
+import FullscreenProvider from '../src/providers/Fullscreen/FullscreenProvider';
+import MantineProvider from '../src/providers/MantineProvider';
+import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
+import ThirdPartyServicesProvider from '../src/providers/ThirdPartyServicesProvider';
+import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
+const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
+    '__lightdash_sdk_instance_url';
 
 type Props = {
     instanceUrl: string;
@@ -106,15 +105,15 @@ const Dashboard: FC<Props> = ({
     const [token, setToken] = useState<string | null>(null);
     const [projectUuid, setProjectUuid] = useState<string | null>(null);
 
-    const handleDecodeToken = (token: string) => {
-        const { payload } = decodeJWT(token);
+    const handleDecodeToken = (tokenToDecode: string) => {
+        const { payload } = decodeJWT(tokenToDecode);
 
         if (
             payload &&
             'content' in payload &&
             'projectUuid' in payload.content
         ) {
-            setToken(token);
+            setToken(tokenToDecode);
             setProjectUuid(payload.content.projectUuid);
         } else {
             throw new Error('Error decoding token');
@@ -128,8 +127,8 @@ const Dashboard: FC<Props> = ({
             handleDecodeToken(tokenOrTokenPromise);
         } else {
             tokenOrTokenPromise
-                .then((token) => {
-                    handleDecodeToken(token);
+                .then((tokenToDecode) => {
+                    handleDecodeToken(tokenToDecode);
                 })
                 .catch((error) => {
                     console.error(error);
@@ -166,4 +165,7 @@ const Dashboard: FC<Props> = ({
 
 const Lightdash = { Dashboard };
 
+// ts-unused-exports:disable-next-line
+export { Dashboard };
+// ts-unused-exports:disable-next-line
 export default Lightdash;

@@ -19,9 +19,4 @@
     "include": [
         "src"
     ],
-    "references": [
-        {
-            "path": "../sdk"
-        }
-    ]
 }

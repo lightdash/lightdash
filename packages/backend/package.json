@@ -1,6 +1,7 @@
 {
-    "name": "backend",
+    "name": "@lightdash/backend",
     "version": "0.1573.1",
+    "private": true,
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
