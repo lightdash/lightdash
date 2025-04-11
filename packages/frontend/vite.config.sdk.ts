@@ -13,13 +13,13 @@ export default defineConfig({
     plugins: [svgrPlugin(), dts({ rollupTypes: true })],
     mode: 'production',
     build: {
-        outDir: 'dist',
+        outDir: 'sdk/dist',
         emptyOutDir: true,
         target: 'es2020',
         // minify: 'esbuild',
         sourcemap: true,
         lib: {
-            entry: resolve(__dirname, 'src', 'sdk', 'index.tsx'),
+            entry: resolve(__dirname, 'sdk', 'index.tsx'),
             name: 'LightdashSDK',
             formats: ['es', 'cjs'],
             fileName: (ext) => `sdk.${ext}.js`,

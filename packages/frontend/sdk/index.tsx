@@ -1,18 +1,18 @@
 import { type LanguageMap } from '@lightdash/common';
 import { type FC, type PropsWithChildren, useEffect, useState } from 'react';
 import { MemoryRouter } from 'react-router';
-import { type SdkFilter } from '../ee/features/embed/EmbedDashboard/types';
-import EmbedDashboard from '../ee/pages/EmbedDashboard';
-import EmbedProvider from '../ee/providers/Embed/EmbedProvider';
-import ErrorBoundary from '../features/errorBoundary/ErrorBoundary';
-import ChartColorMappingContextProvider from '../hooks/useChartColorConfig/ChartColorMappingContextProvider';
-import AbilityProvider from '../providers/Ability/AbilityProvider';
-import AppProvider from '../providers/App/AppProvider';
-import FullscreenProvider from '../providers/Fullscreen/FullscreenProvider';
-import MantineProvider from '../providers/MantineProvider';
-import ReactQueryProvider from '../providers/ReactQuery/ReactQueryProvider';
-import ThirdPartyServicesProvider from '../providers/ThirdPartyServicesProvider';
-import TrackingProvider from '../providers/Tracking/TrackingProvider';
+import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
+import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
+import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
+import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
+import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
+import AbilityProvider from '../src/providers/Ability/AbilityProvider';
+import AppProvider from '../src/providers/App/AppProvider';
+import FullscreenProvider from '../src/providers/Fullscreen/FullscreenProvider';
+import MantineProvider from '../src/providers/MantineProvider';
+import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
+import ThirdPartyServicesProvider from '../src/providers/ThirdPartyServicesProvider';
+import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 
@@ -165,5 +165,7 @@ const Dashboard: FC<Props> = ({
 
 const Lightdash = { Dashboard };
 
+// ts-unused-exports:disable-next-line
 export { Dashboard };
+// ts-unused-exports:disable-next-line
 export default Lightdash;

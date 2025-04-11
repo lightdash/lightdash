@@ -33,7 +33,7 @@
     },
     "include": [
         "src",
-        "rollup.config.ts",
+        "sdk",
         "vite-env.d.ts",
     ],
 }

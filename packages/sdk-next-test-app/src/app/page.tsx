@@ -14,12 +14,7 @@ export default function Home() {
             />
 
             <div className={styles.ctas}>
-                <a
-                    className={styles.primary}
-                    href="/dashboard"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
+                <a className={styles.primary} href="/dashboard">
                     <Image
                         className={styles.logo}
                         src="/vercel.svg"
@@ -27,16 +22,7 @@ export default function Home() {
                         width={20}
                         height={20}
                     />
-                    Check out Lightdash Dashboard One
-                </a>
-
-                <a
-                    className={styles.secondary}
-                    href="/dashboard-two"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    Check out Lightdash Dashboard Two
+                    Check out Lightdash Dashboard
                 </a>
             </div>
         </>

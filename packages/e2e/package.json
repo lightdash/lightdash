@@ -1,6 +1,7 @@
 {
-    "name": "e2e",
+    "name": "@lightdash/e2e",
     "version": "0.1573.1",
+    "private": true,
     "main": "index.js",
     "license": "MIT",
     "scripts": {
