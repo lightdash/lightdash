@@ -45,7 +45,7 @@ interface ActionModalProps {
     onSubmitForm?: (data: Space | null) => void;
     isDisabled: boolean;
     shouldRedirect?: boolean;
-    parentSpaceUuid?: Space['uuid'];
+    parentSpaceUuid: Space['parentSpaceUuid'];
 }
 
 export interface SpaceModalBody {
@@ -61,7 +61,7 @@ export interface CreateSpaceModalBody {
     privateAccessType: SpacePrivateAccessType;
     onPrivateAccessTypeChange: (type: SpacePrivateAccessType) => void;
     organizationUsers: OrganizationMemberProfile[] | undefined;
-    parentSpaceUuid?: Space['uuid'];
+    parentSpaceUuid: Space['parentSpaceUuid'];
 }
 
 const validate = z.object({
