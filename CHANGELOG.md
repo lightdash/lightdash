@@ -1,3 +1,17 @@
+# [0.1572.0](https://github.com/lightdash/lightdash/compare/0.1571.0...0.1572.0) (2025-04-11)
+
+
+### Features
+
+* handle creation/update of nested spaces ([#14377](https://github.com/lightdash/lightdash/issues/14377)) ([95b70e9](https://github.com/lightdash/lightdash/commit/95b70e93d74c9f07c312727396724702c1ea1dbe))
+
+# [0.1571.0](https://github.com/lightdash/lightdash/compare/0.1570.0...0.1571.0) (2025-04-11)
+
+
+### Features
+
+* prometheus metrics for database ([#14379](https://github.com/lightdash/lightdash/issues/14379)) ([63416b7](https://github.com/lightdash/lightdash/commit/63416b7999d3af7c46b3a8bb6d8aac68008fc90f))
+
 # [0.1570.0](https://github.com/lightdash/lightdash/compare/0.1569.0...0.1570.0) (2025-04-11)
 
 
