@@ -1,3 +1,10 @@
+## [0.1573.1](https://github.com/lightdash/lightdash/compare/0.1573.0...0.1573.1) (2025-04-11)
+
+
+### Bug Fixes
+
+* error when cacheMetadata is undefined ([#14386](https://github.com/lightdash/lightdash/issues/14386)) ([b641347](https://github.com/lightdash/lightdash/commit/b641347e03ead98f0eabae9257adbde8acb833a7))
+
 # [0.1573.0](https://github.com/lightdash/lightdash/compare/0.1572.1...0.1573.0) (2025-04-11)
 
 
