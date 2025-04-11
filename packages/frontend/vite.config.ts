@@ -50,7 +50,7 @@ export default defineConfig({
         transformer: 'lightningcss',
     },
     optimizeDeps: {
-        exclude: ['@lightdash/common'],
+        exclude: ['@lightdash/common', '@lightdash/mantine-v7'],
     },
     build: {
         outDir: isLib ? 'dist' : 'build',

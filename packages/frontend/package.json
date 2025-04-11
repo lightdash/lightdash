@@ -49,6 +49,7 @@
         "@hookform/error-message": "^2.0.0",
         "@lightdash/common": "workspace:*",
         "@mantine/core": "^6.0.21",
+        "@lightdash/mantine-v7": "workspace:*",
         "@mantine/dates": "^6.0.21",
         "@mantine/form": "^7.5.2",
         "@mantine/hooks": "^6.0.21",

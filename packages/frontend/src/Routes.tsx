@@ -26,6 +26,7 @@ import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
 import PasswordRecovery from './pages/PasswordRecovery';
 import PasswordReset from './pages/PasswordReset';
+import Playground from './pages/Playground';
 import Projects from './pages/Projects';
 import Register from './pages/Register';
 import SavedDashboards from './pages/SavedDashboards';
@@ -524,6 +525,17 @@ const PRIVATE_ROUTES: RouteObject[] = [
                         <NavBar />
                         <TrackPage name={PageName.SHARE}>
                             <ShareRedirect />
+                        </TrackPage>
+                    </>
+                ),
+            },
+            {
+                path: '/playground',
+                element: (
+                    <>
+                        <NavBar />
+                        <TrackPage name={PageName.HOME}>
+                            <Playground />
                         </TrackPage>
                     </>
                 ),
