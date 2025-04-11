@@ -9924,7 +9924,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug_": {
+            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -9952,6 +9952,9 @@
                     },
                     "slug": {
                         "type": "string"
+                    },
+                    "parentSpaceUuid": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -9970,14 +9973,10 @@
             "SpaceSummary": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug_"
+                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid_"
                     },
                     {
                         "properties": {
-                            "parentSpaceUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
                             "dashboardCount": {
                                 "type": "number",
                                 "format": "double"
@@ -9996,12 +9995,7 @@
                                 "$ref": "#/components/schemas/SpaceShare"
                             }
                         },
-                        "required": [
-                            "parentSpaceUuid",
-                            "dashboardCount",
-                            "chartCount",
-                            "access"
-                        ],
+                        "required": ["dashboardCount", "chartCount", "access"],
                         "type": "object"
                     }
                 ]
