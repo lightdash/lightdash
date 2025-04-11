@@ -1,3 +1,24 @@
+# [0.1570.0](https://github.com/lightdash/lightdash/compare/0.1569.0...0.1570.0) (2025-04-11)
+
+
+### Features
+
+* add updated_at column to results cache and return in cache metadata ([#14376](https://github.com/lightdash/lightdash/issues/14376)) ([9160ceb](https://github.com/lightdash/lightdash/commit/9160ceb1906e16ba2af55c512effe2dea6068cab))
+
+# [0.1569.0](https://github.com/lightdash/lightdash/compare/0.1568.1...0.1569.0) (2025-04-11)
+
+
+### Features
+
+* nested spaces (backend) ([#14285](https://github.com/lightdash/lightdash/issues/14285)) ([f703123](https://github.com/lightdash/lightdash/commit/f703123272d07c49822877328d40a527c10266d5))
+
+## [0.1568.1](https://github.com/lightdash/lightdash/compare/0.1568.0...0.1568.1) (2025-04-11)
+
+
+### Bug Fixes
+
+* reduce msteams webhook badges ([#14350](https://github.com/lightdash/lightdash/issues/14350)) ([cd63400](https://github.com/lightdash/lightdash/commit/cd634007e3a67833cda19999d5bd2e396c893bbc))
+
 # [0.1568.0](https://github.com/lightdash/lightdash/compare/0.1567.6...0.1568.0) (2025-04-10)
 
 

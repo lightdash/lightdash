@@ -241,6 +241,7 @@ export default class App {
 
     async start() {
         this.prometheusMetrics.start();
+        this.prometheusMetrics.monitorDatabase(this.database);
         // @ts-ignore
         // eslint-disable-next-line no-extend-native, func-names
         BigInt.prototype.toJSON = function () {

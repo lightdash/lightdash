@@ -4,6 +4,9 @@ export type CacheHitCacheResult = {
     close: undefined;
     cacheHit: true;
     totalRowCount: number;
+    createdAt: Date;
+    updatedAt: Date;
+    expiresAt: Date;
 };
 
 export type MissCacheResult = {
@@ -12,6 +15,9 @@ export type MissCacheResult = {
     close: () => Promise<void>;
     cacheHit: false;
     totalRowCount: null;
+    createdAt: Date;
+    updatedAt: Date;
+    expiresAt: Date;
 };
 
 export type CreateCacheResult = CacheHitCacheResult | MissCacheResult;
