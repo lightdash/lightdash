@@ -133,6 +133,8 @@ export const spaceEntry: SpaceTable['base'] = {
     project_id: 0,
     organization_uuid: 'organizationUuid',
     search_vector: '',
+    parent_space_uuid: null,
+    path: 'space-name',
 };
 export const savedChartEntry: SavedChartTable['base'] = {
     saved_query_id: 0,

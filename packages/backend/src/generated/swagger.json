@@ -7374,6 +7374,9 @@
             },
             "Space": {
                 "properties": {
+                    "hasParent": {
+                        "type": "boolean"
+                    },
                     "slug": {
                         "type": "string"
                     },
@@ -7471,6 +7474,9 @@
             },
             "CreateSpace": {
                 "properties": {
+                    "parentSpaceUuid": {
+                        "type": "string"
+                    },
                     "access": {
                         "items": {
                             "$ref": "#/components/schemas/Pick_SpaceShare.userUuid-or-role_"
@@ -8700,7 +8706,7 @@
                 "enum": ["no changes", "create", "update", "delete"],
                 "type": "string"
             },
-            "Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess__": {
+            "Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess-or-parentSpaceUuid__": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -8760,12 +8766,12 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_SpaceSummary.userAccess_": {
-                "$ref": "#/components/schemas/Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess__",
+            "Omit_SpaceSummary.userAccess-or-parentSpaceUuid_": {
+                "$ref": "#/components/schemas/Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess-or-parentSpaceUuid__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "PromotedSpace": {
-                "$ref": "#/components/schemas/Omit_SpaceSummary.userAccess_"
+                "$ref": "#/components/schemas/Omit_SpaceSummary.userAccess-or-parentSpaceUuid_"
             },
             "Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__": {
                 "properties": {
@@ -9968,6 +9974,10 @@
                     },
                     {
                         "properties": {
+                            "parentSpaceUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "dashboardCount": {
                                 "type": "number",
                                 "format": "double"
@@ -9986,7 +9996,12 @@
                                 "$ref": "#/components/schemas/SpaceShare"
                             }
                         },
-                        "required": ["dashboardCount", "chartCount", "access"],
+                        "required": [
+                            "parentSpaceUuid",
+                            "dashboardCount",
+                            "chartCount",
+                            "access"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -15793,7 +15808,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1567.6",
+        "version": "0.1568.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

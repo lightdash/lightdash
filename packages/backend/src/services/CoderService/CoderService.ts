@@ -857,17 +857,22 @@ export class CoderService extends BaseService {
         }
 
         console.info(`Creating new public space with slug ${spaceSlug}`);
-        const newSpace = await this.spaceModel.createSpace(
+
+        const isNestedSpace = spaceSlug.includes('/');
+        const newSpace = await this.spaceModel.createSpaceWithAncestors({
+            isNestedSpace,
             projectUuid,
-            friendlyName(spaceSlug),
-            user.userId,
-            false,
-            spaceSlug,
-            true, // forceSameSlug
-        );
+            name: friendlyName(spaceSlug),
+            userId: user.userId,
+            isPrivate: false,
+            slug: spaceSlug,
+            forceSameSlug: true,
+        });
+
         return {
             space: {
                 ...newSpace,
+                parentSpaceUuid: null,
                 chartCount: 0,
                 dashboardCount: 0,
                 access: [],
