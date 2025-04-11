@@ -479,6 +479,7 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 
 export type CacheMetadata = {
     cacheUpdatedTime?: Date;
+    cacheExpiresAt?: Date;
     cacheHit: boolean;
 };
 
@@ -492,6 +493,7 @@ export type ApiQueryResults = {
 export type ApiExecuteAsyncQueryResults = {
     queryUuid: string;
     appliedDashboardFilters: DashboardFilters | null;
+    cacheMetadata: CacheMetadata;
 };
 
 export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {

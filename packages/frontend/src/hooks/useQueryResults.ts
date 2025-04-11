@@ -47,12 +47,13 @@ export const getQueryPaginatedResults = async (
         appliedDashboardFilters: DashboardFilters | null;
     }
 > => {
-    const firstPage = await lightdashApi<ApiExecuteAsyncQueryResults>({
-        url: `/projects/${projectUuid}/query`,
-        version: 'v2',
-        method: 'POST',
-        body: JSON.stringify(data),
-    });
+    const executeQueryResponse =
+        await lightdashApi<ApiExecuteAsyncQueryResults>({
+            url: `/projects/${projectUuid}/query`,
+            version: 'v2',
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
 
     // Get all page rows in sequence
     let allRows: ResultRow[] = [];
@@ -80,9 +81,9 @@ export const getQueryPaginatedResults = async (
 
         const urlQueryParams = searchParams.toString();
         currentPage = await lightdashApi<ApiGetAsyncQueryResults>({
-            url: `/projects/${projectUuid}/query/${firstPage.queryUuid}${
-                urlQueryParams ? `?${urlQueryParams}` : ''
-            }`,
+            url: `/projects/${projectUuid}/query/${
+                executeQueryResponse.queryUuid
+            }${urlQueryParams ? `?${urlQueryParams}` : ''}`,
             version: 'v2',
             method: 'GET',
             body: undefined,
@@ -129,13 +130,10 @@ export const getQueryPaginatedResults = async (
     return {
         queryUuid: currentPage.queryUuid,
         metricQuery: currentPage.metricQuery,
-        cacheMetadata: {
-            // todo: to be replaced once we have save query metadata in the DB
-            cacheHit: false,
-        },
+        cacheMetadata: executeQueryResponse.cacheMetadata,
         rows: allRows,
         fields: currentPage.fields,
-        appliedDashboardFilters: firstPage.appliedDashboardFilters,
+        appliedDashboardFilters: executeQueryResponse.appliedDashboardFilters,
     };
 };
 
