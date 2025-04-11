@@ -194,6 +194,12 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                 dashboardViewItem,
                 ResourceViewItemType.DASHBOARD,
             );
+        case ContentType.SPACE:
+            const spaceViewItem: ResourceViewSpaceItem['data'] = {
+                ...content,
+                parentSpaceUuid: content.parentSpaceUuid ?? undefined,
+            };
+            return wrapResource(spaceViewItem, ResourceViewItemType.SPACE);
         default:
             return assertUnreachable(content, `Unsupported content type`);
     }

@@ -1474,9 +1474,64 @@ export class SpaceModel {
         return spaceAccessMap;
     }
 
+    async getSpaceBreadcrumb(
+        spaceUuid: string,
+        projectUuid: string,
+    ): Promise<
+        {
+            name: string;
+            uuid: string;
+        }[]
+    > {
+        const space = await this.database(SpaceTableName)
+            .select('path', 'name', 'space_uuid')
+            .where('space_uuid', spaceUuid)
+            .first();
+
+        if (!space) {
+            throw new NotFoundError(
+                `Space with uuid ${spaceUuid} does not exist`,
+            );
+        }
+
+        // gets names of ancestors spaces in an array like : ['Parent Space', 'Child Space']
+        const ancestorsNamesOrderByLevel = await this.database(SpaceTableName)
+            .leftJoin(
+                `${ProjectTableName}`,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereRaw('path @> ?::ltree AND path != ?::ltree', [
+                space.path,
+                space.path,
+            ])
+            .select<DbSpace[]>(
+                `${SpaceTableName}.*`,
+                this.database.raw('nlevel(path) as level'),
+            )
+            .orderBy('level', 'asc');
+
+        const breadcrumbs = ancestorsNamesOrderByLevel
+            .map((ancestor) => ({
+                name: ancestor.name,
+                uuid: ancestor.space_uuid,
+            }))
+            .concat({
+                name: space.name,
+                uuid: space.space_uuid,
+            });
+
+        return breadcrumbs;
+    }
+
     async getFullSpace(spaceUuid: string): Promise<Space> {
         const space = await this.get(spaceUuid);
         const rootSpaceUuid = await this.getSpaceRoot(spaceUuid);
+        const breadcrumb = await this.getSpaceBreadcrumb(
+            spaceUuid,
+            space.projectUuid,
+        );
         return {
             organizationUuid: space.organizationUuid,
             name: space.name,
@@ -1493,6 +1548,7 @@ export class SpaceModel {
             groupsAccess: await this._getGroupAccess(rootSpaceUuid),
             slug: space.slug,
             parentSpaceUuid: space.parentSpaceUuid,
+            breadcrumb,
         };
     }
 

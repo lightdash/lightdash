@@ -1,7 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    ChartContent,
-    ContentType,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotExistsError,

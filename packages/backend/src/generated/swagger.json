@@ -7374,6 +7374,12 @@
             },
             "Space": {
                 "properties": {
+                    "breadcrumb": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "parentSpaceUuid": {
                         "type": "string"
                     },
@@ -7430,6 +7436,7 @@
                     }
                 },
                 "required": [
+                    "breadcrumb",
                     "slug",
                     "pinnedListOrder",
                     "pinnedListUuid",
@@ -9924,7 +9931,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug_": {
+            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -9952,6 +9959,9 @@
                     },
                     "slug": {
                         "type": "string"
+                    },
+                    "parentSpaceUuid": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -9970,14 +9980,10 @@
             "SpaceSummary": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug_"
+                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid_"
                     },
                     {
                         "properties": {
-                            "parentSpaceUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
                             "dashboardCount": {
                                 "type": "number",
                                 "format": "double"
@@ -9996,12 +10002,7 @@
                                 "$ref": "#/components/schemas/SpaceShare"
                             }
                         },
-                        "required": [
-                            "parentSpaceUuid",
-                            "dashboardCount",
-                            "chartCount",
-                            "access"
-                        ],
+                        "required": ["dashboardCount", "chartCount", "access"],
                         "type": "object"
                     }
                 ]
@@ -15431,7 +15432,7 @@
                 "type": "string"
             },
             "ContentType": {
-                "enum": ["chart", "dashboard"],
+                "enum": ["chart", "dashboard", "space"],
                 "type": "string"
             },
             "ChartContent": {
@@ -15730,6 +15731,195 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "ContentType.SPACE": {
+                "enum": ["space"],
+                "type": "string"
+            },
+            "SpaceContent": {
+                "properties": {
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.SPACE"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "pinnedList": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "parentSpaceUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "isPrivate": {
+                        "type": "boolean"
+                    },
+                    "access": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "accessListLength": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dashboardCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "chartCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "contentType",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "description",
+                    "createdAt",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy",
+                    "project",
+                    "organization",
+                    "space",
+                    "pinnedList",
+                    "views",
+                    "firstViewedAt",
+                    "parentSpaceUuid",
+                    "isPrivate",
+                    "access",
+                    "accessListLength",
+                    "dashboardCount",
+                    "chartCount",
+                    "pinnedListUuid",
+                    "pinnedListOrder",
+                    "projectUuid",
+                    "organizationUuid"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
             "SummaryContent": {
                 "anyOf": [
                     {
@@ -15737,6 +15927,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DashboardContent"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SpaceContent"
                     }
                 ]
             },

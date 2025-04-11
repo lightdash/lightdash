@@ -89,6 +89,7 @@ export const useSpaceDeleteMutation = (projectUuid: string) => {
                     'spaces',
                 ]);
                 await queryClient.invalidateQueries(['pinned_items']);
+                await queryClient.invalidateQueries(['content']);
                 showToastSuccess({
                     title: `Success! Space was deleted.`,
                 });
@@ -141,6 +142,8 @@ export const useUpdateMutation = (
                     data,
                 );
 
+                await queryClient.invalidateQueries(['content']);
+
                 showToastSuccess({
                     title: `Success! Space was updated.`,
                 });
@@ -184,6 +187,8 @@ export const useCreateMutation = (
                 ]);
 
                 options?.onSuccess?.(space);
+
+                await queryClient.invalidateQueries(['content']);
 
                 showToastSuccess({
                     title: `Success! Space was created.`,
