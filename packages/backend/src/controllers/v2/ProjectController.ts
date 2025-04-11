@@ -96,6 +96,7 @@ export class V2ProjectController extends BaseController {
         const commonArgs = {
             user: req.user!,
             projectUuid,
+            invalidateCache: body.invalidateCache,
         };
 
         if (isExecuteAsyncMetricQueryRequest(body)) {

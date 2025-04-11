@@ -115,9 +115,12 @@ export class ExploreController extends BaseController {
         this.setStatus(200);
 
         const results = (
-            await this.services
-                .getProjectService()
-                .compileQuery(req.user!, body, projectUuid, exploreId)
+            await this.services.getProjectService().compileQuery({
+                user: req.user!,
+                metricQuery: body,
+                projectUuid,
+                exploreName: exploreId,
+            })
         ).query;
 
         return {

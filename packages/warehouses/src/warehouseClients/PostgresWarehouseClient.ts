@@ -236,6 +236,26 @@ export class PostgresClient<
                         // typecast is necessary to fix the type issue described above
                     ) as unknown as QueryStream;
 
+                    const writable = new Writable({
+                        objectMode: true,
+                        write(
+                            chunk: {
+                                row: AnyType;
+                                fields: QueryResult<AnyType>['fields'];
+                            },
+                            encoding,
+                            callback,
+                        ) {
+                            streamCallback({
+                                fields: PostgresClient.convertQueryResultFields(
+                                    chunk.fields,
+                                ),
+                                rows: [chunk.row],
+                            });
+                            callback();
+                        },
+                    });
+
                     // release the client when the stream is finished
                     stream.on('end', () => {
                         done();
@@ -245,32 +265,10 @@ export class PostgresClient<
                         reject(err2);
                         done();
                     });
-                    stream
-                        .pipe(
-                            new Writable({
-                                objectMode: true,
-                                write(
-                                    chunk: {
-                                        row: AnyType;
-                                        fields: QueryResult<AnyType>['fields'];
-                                    },
-                                    encoding,
-                                    callback,
-                                ) {
-                                    streamCallback({
-                                        fields: PostgresClient.convertQueryResultFields(
-                                            chunk.fields,
-                                        ),
-                                        rows: [chunk.row],
-                                    });
-                                    callback();
-                                },
-                            }),
-                        )
-                        .on('error', (err2) => {
-                            reject(err2);
-                            done();
-                        });
+                    stream.pipe(writable).on('error', (err2) => {
+                        reject(err2);
+                        done();
+                    });
                 };
 
                 if (options?.timezone) {

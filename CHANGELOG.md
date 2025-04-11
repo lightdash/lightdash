@@ -1,3 +1,38 @@
+## [0.1568.1](https://github.com/lightdash/lightdash/compare/0.1568.0...0.1568.1) (2025-04-11)
+
+
+### Bug Fixes
+
+* reduce msteams webhook badges ([#14350](https://github.com/lightdash/lightdash/issues/14350)) ([cd63400](https://github.com/lightdash/lightdash/commit/cd634007e3a67833cda19999d5bd2e396c893bbc))
+
+# [0.1568.0](https://github.com/lightdash/lightdash/compare/0.1567.6...0.1568.0) (2025-04-10)
+
+
+### Features
+
+* release results caching and update swagger ([#14362](https://github.com/lightdash/lightdash/issues/14362)) ([7b33365](https://github.com/lightdash/lightdash/commit/7b3336500a261f8225767d193e48f32395f6b61f))
+
+## [0.1567.6](https://github.com/lightdash/lightdash/compare/0.1567.5...0.1567.6) (2025-04-10)
+
+
+### Bug Fixes
+
+* optimize query that counts charts per catalog field ([#14358](https://github.com/lightdash/lightdash/issues/14358)) ([9aaebf6](https://github.com/lightdash/lightdash/commit/9aaebf6ca8f04ce49b8ee62834db49786b68cd25))
+
+## [0.1567.5](https://github.com/lightdash/lightdash/compare/0.1567.4...0.1567.5) (2025-04-10)
+
+
+### Bug Fixes
+
+* remove certificates from require SSL ([#14354](https://github.com/lightdash/lightdash/issues/14354)) ([8f4954e](https://github.com/lightdash/lightdash/commit/8f4954eaa30c0d54919008f3610c939f23bafe8f))
+
+## [0.1567.4](https://github.com/lightdash/lightdash/compare/0.1567.3...0.1567.4) (2025-04-10)
+
+
+### Bug Fixes
+
+* monaco custom tooltip UI issues ([#14342](https://github.com/lightdash/lightdash/issues/14342)) ([6c98c05](https://github.com/lightdash/lightdash/commit/6c98c05a62c12ca946b36aa60fa0e31737009ab0))
+
 ## [0.1567.3](https://github.com/lightdash/lightdash/compare/0.1567.2...0.1567.3) (2025-04-09)
 
 

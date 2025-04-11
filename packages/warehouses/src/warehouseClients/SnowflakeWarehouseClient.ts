@@ -291,12 +291,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             : {};
     }
 
-    async executeAsyncQuery({
-        sql,
-        values,
-        tags,
-        timezone,
-    }: WarehouseExecuteAsyncQueryArgs): Promise<WarehouseExecuteAsyncQuery> {
+    async executeAsyncQuery(
+        { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
+        resultsStreamCallback?: (rows: WarehouseResults['rows']) => void,
+    ): Promise<WarehouseExecuteAsyncQuery> {
         const connection = await this.getConnection();
         await this.prepareWarehouse(connection, {
             timezone,
@@ -304,9 +302,14 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         });
 
         const { queryId, durationMs, totalRows } =
-            await this.executeAsyncStatement(connection, sql, {
-                values,
-            });
+            await this.executeAsyncStatement(
+                connection,
+                sql,
+                {
+                    values,
+                },
+                resultsStreamCallback,
+            );
 
         return {
             queryId,
@@ -371,6 +374,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         options?: {
             values?: AnyType[];
         },
+        resultsStreamCallback?: (rows: WarehouseResults['rows']) => void,
     ) {
         const startTime = performance.now();
         const { queryId, totalRows, durationMs } = await new Promise<{
@@ -412,6 +416,28 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 },
             });
         });
+
+        // If we have a callback, stream the rows to the callback.
+        // This is used when writing to the results cache.
+        if (resultsStreamCallback) {
+            const completedStatement = await connection.getResultsFromQueryId({
+                sqlText: '',
+                queryId,
+            });
+            await new Promise<void>((resolve, reject) => {
+                completedStatement
+                    .streamRows()
+                    .on('error', (e) => {
+                        reject(e);
+                    })
+                    .on('data', (row) => {
+                        resultsStreamCallback([row]);
+                    })
+                    .on('end', () => {
+                        resolve();
+                    });
+            });
+        }
 
         return {
             queryId,
@@ -483,6 +509,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
         try {
             await this.prepareWarehouse(connection, options);
+
             await this.executeStreamStatement(
                 connection,
                 sql,

@@ -14385,7 +14385,10 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { context: { ref: 'QueryExecutionContext' } },
+            nestedProperties: {
+                invalidateCache: { dataType: 'boolean' },
+                context: { ref: 'QueryExecutionContext' },
+            },
             validators: {},
         },
     },

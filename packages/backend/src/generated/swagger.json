@@ -15200,6 +15200,9 @@
             },
             "CommonPaginatedQueryRequestParams": {
                 "properties": {
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
                     "context": {
                         "$ref": "#/components/schemas/QueryExecutionContext"
                     }
