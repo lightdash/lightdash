@@ -4,7 +4,7 @@ import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import useQueryError from './useQueryError';
 
-export const getExplore = async (projectUuid: string, exploreId: string) =>
+const getExplore = async (projectUuid: string, exploreId: string) =>
     lightdashApi<ApiExploreResults>({
         url: `/projects/${projectUuid}/explores/${exploreId}`,
         method: 'GET',
