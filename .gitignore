@@ -30,7 +30,7 @@ lightdash_dev.yml
 /packages/warehouses/dist
 /packages/sdk/dist
 /packages/sdk-test-app/dist
-
+/packages/mantine-v7/dist
 # misc
 .DS_Store
 .env.local

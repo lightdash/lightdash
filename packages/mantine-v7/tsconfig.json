@@ -9,7 +9,8 @@
         "moduleResolution": "node",
         "strict": true,
         "outDir": "./dist",
-        "jsx": "react",
+        "jsx": "react-jsx",
+        "jsxImportSource": "react",
         "lib": [
             "ESNEXT",
             "DOM",
@@ -19,9 +20,4 @@
     "include": [
         "src"
     ],
-    "references": [
-        {
-            "path": "../frontend"
-        }
-    ]
 }
