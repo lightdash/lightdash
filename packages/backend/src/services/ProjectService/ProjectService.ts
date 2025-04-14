@@ -2032,7 +2032,7 @@ export class ProjectService extends BaseService {
         let roundedDurationMs: number;
         if (resultsCacheEnabled && cacheKey) {
             const {
-                result: { rows, totalRowCount: cacheTotalRowCount },
+                result: { rows, totalRowCount: cacheTotalRowCount, expiresAt },
                 durationMs,
             } = await measureTime(
                 () =>
@@ -2058,7 +2058,42 @@ export class ProjectService extends BaseService {
                 pageCount,
             );
 
-            // TODO: add analytics event
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'results_cache.read',
+                properties: {
+                    queryId: queryHistory.queryUuid,
+                    projectId: projectUuid,
+                    cacheKey,
+                    page,
+                    requestedPageSize: defaultedPageSize,
+                    rowCount: rows.length,
+                    resultsPageExecutionMs: roundedDurationMs,
+                },
+            });
+
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'query_page.fetched',
+                properties: {
+                    queryId: queryHistory.queryUuid,
+                    projectId: projectUuid,
+                    warehouseType:
+                        queryHistory?.warehouseQueryMetadata?.type ?? null,
+                    page,
+                    columnsCount: Object.keys(queryHistory.fields).length,
+                    totalRowCount: cacheTotalRowCount,
+                    totalPageCount: pageCount,
+                    resultsPageSize: rows.length,
+                    resultsPageExecutionMs: roundedDurationMs,
+                    status,
+                    cacheMetadata: {
+                        cacheHit: true,
+                        cacheExpiresAt: expiresAt,
+                        cacheKey,
+                    },
+                },
+            });
 
             returnObject = {
                 rows,
@@ -2170,6 +2205,7 @@ export class ProjectService extends BaseService {
                     resultsPageSize: result.rows.length,
                     resultsPageExecutionMs: roundedDurationMs,
                     status,
+                    cacheMetadata: null,
                 },
             });
 
@@ -2289,6 +2325,16 @@ export class ProjectService extends BaseService {
                         total_row_count: totalRows,
                     },
                 );
+                this.analytics.track({
+                    userId: user.userUuid,
+                    event: 'results_cache.write',
+                    properties: {
+                        queryId: queryHistoryUuid,
+                        projectId: projectUuid,
+                        cacheKey: resultsCache.cacheKey,
+                        totalRowCount: totalRows,
+                    },
+                });
             }
 
             await this.queryHistoryModel.update(
@@ -2331,6 +2377,15 @@ export class ProjectService extends BaseService {
                     resultsCache.cacheKey,
                     projectUuid,
                 );
+                this.analytics.track({
+                    userId: user.userUuid,
+                    event: 'results_cache.delete',
+                    properties: {
+                        queryId: queryHistoryUuid,
+                        projectId: projectUuid,
+                        cacheKey: resultsCache.cacheKey,
+                    },
+                });
             }
         } finally {
             void sshTunnel.disconnect();
@@ -2486,6 +2541,20 @@ export class ProjectService extends BaseService {
                                 this.resultsCacheStorageClient,
                                 args.invalidateCache,
                             );
+
+                        if (!resultsCache.cacheHit) {
+                            this.analytics.track({
+                                userId: user.userUuid,
+                                event: 'results_cache.create',
+                                properties: {
+                                    projectId: projectUuid,
+                                    cacheKey: resultsCache.cacheKey,
+                                    totalRowCount: resultsCache.totalRowCount,
+                                    createdAt: resultsCache.createdAt,
+                                    expiresAt: resultsCache.expiresAt,
+                                },
+                            });
+                        }
                     }
 
                     const { queryUuid: queryHistoryUuid } =
@@ -2523,6 +2592,11 @@ export class ProjectService extends BaseService {
                                     explore,
                                 },
                             ),
+                            cacheMetadata: {
+                                cacheHit: resultsCache?.cacheHit || false,
+                                cacheUpdatedTime: resultsCache?.updatedAt,
+                                cacheExpiresAt: resultsCache?.expiresAt,
+                            },
                         },
                     });
 
@@ -2559,7 +2633,8 @@ export class ProjectService extends BaseService {
                         warehouseClient,
                         sshTunnel,
                         queryHistoryUuid,
-                        // resultsCache is either MissCacheResult or undefined at this point, meaning that the cache was not hit or that cache is not enabled
+                        // resultsCache is either MissCacheResult or undefined at this point,
+                        // meaning that the cache was not hit or that cache is not enabled
                         resultsCache,
                     });
 
