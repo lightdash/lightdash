@@ -120,6 +120,7 @@ COPY .eslintrc.js .
 COPY packages/common/package.json ./packages/common/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
+COPY packages/mantine-v7/package.json ./packages/mantine-v7/
 COPY packages/frontend/package.json ./packages/frontend/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --prefer-offline
@@ -142,6 +143,11 @@ RUN pnpm -F @lightdash/warehouses build
 COPY packages/backend/tsconfig.json ./packages/backend/
 COPY packages/backend/src/ ./packages/backend/src
 RUN pnpm -F backend build
+
+# Build mantine-v7
+COPY packages/mantine-v7/tsconfig.json ./packages/mantine-v7/
+COPY packages/mantine-v7/src/ ./packages/mantine-v7/src/
+RUN pnpm -F mantine-v7 build
 
 # Build frontend
 COPY packages/frontend ./packages/frontend

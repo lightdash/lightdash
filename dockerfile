@@ -171,6 +171,10 @@ RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY
     pnpm -F backend build; \
     fi
 
+# Build mantine-v7
+COPY packages/mantine-v7 ./packages/mantine-v7
+RUN pnpm -F mantine-v7 build
+
 # Build frontend
 COPY packages/frontend ./packages/frontend
 # Build frontend with sourcemaps (Vite generates them by default)
