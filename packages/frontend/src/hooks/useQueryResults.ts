@@ -392,7 +392,7 @@ export type InfiniteQueryResults = Partial<
     fetchMoreRows: () => void;
     setFetchAll: (value: boolean) => void;
     hasFetchedAllRows: boolean;
-    totalTimeMs: number;
+    totalTimeMs: number | undefined;
     fetchAll: boolean;
 };
 
@@ -516,14 +516,14 @@ export const useInfiniteQueryResults = (
 
     const totalTimeMs = useMemo(() => {
         if (fetchedPages.length === 0) {
-            return 0;
+            return undefined;
         }
 
         return fetchAll
             ? fetchedPages.reduce((acc, page) => {
                   return acc + page.resultsPageExecutionMs;
               }, 0)
-            : fetchedPages[0]?.resultsPageExecutionMs ?? 0; // If we're not fetching all pages, only return the time for the first page (enough to render the viz)
+            : fetchedPages[0]?.resultsPageExecutionMs; // If we're not fetching all pages, only return the time for the first page (enough to render the viz)
     }, [fetchAll, fetchedPages]);
 
     return useMemo(

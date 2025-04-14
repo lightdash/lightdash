@@ -1273,11 +1273,15 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
     );
 };
 
-type DashboardChartTileProps = Omit<DashboardChartTileMainProps, 'query'> & {
+type DashboardChartTileProps = Omit<
+    DashboardChartTileMainProps,
+    'query' | 'resultsData'
+> & {
     minimal?: boolean;
     canExportCsv?: boolean;
     canExportImages?: boolean;
-    query: DashboardChartReadyQuery | undefined;
+    query?: DashboardChartReadyQuery;
+    resultsData?: InfiniteQueryResults;
 };
 
 // Abstraction needed for enterprise version
@@ -1292,8 +1296,8 @@ export const GenericDashboardChartTile: FC<
     tile,
     isEditMode,
     isLoading,
-    resultsData,
     query,
+    resultsData,
     error,
     canExportCsv = false,
     canExportImages = false,
@@ -1333,7 +1337,7 @@ export const GenericDashboardChartTile: FC<
         );
     }
 
-    if (error !== null || !query)
+    if (error !== null || !query || !resultsData)
         return (
             <TileBase
                 title=""
