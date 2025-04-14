@@ -12,7 +12,7 @@ export const postEmbedDashboard = (projectUuid: string, embedToken: string) => {
         url: `/embed/${projectUuid}/dashboard`,
         method: 'POST',
         headers: {
-            'Lightdash-Embed-Token': embedToken!,
+            'Lightdash-Embed-Token': embedToken,
         },
         body: undefined,
     });
@@ -29,7 +29,7 @@ export const postEmbedChartAndResults = (
         url: `/embed/${projectUuid}/chart-and-results`,
         method: 'POST',
         headers: {
-            'Lightdash-Embed-Token': embedToken!,
+            'Lightdash-Embed-Token': embedToken,
         },
         body: JSON.stringify({
             tileUuid,
