@@ -535,7 +535,7 @@ export const useInfiniteQueryResults = (
                       return acc + page.clientFetchTimeMs;
                   }, 0),
               )
-            : fetchedPages[0]?.clientFetchTimeMs; // If we're not fetching all pages, only return the time for the first page (enough to render the viz)
+            : Math.round(fetchedPages[0]?.clientFetchTimeMs ?? 0); // If we're not fetching all pages, only return the time for the first page (enough to render the viz)
     }, [fetchAll, fetchedPages]);
 
     const isInitialLoading = useMemo(() => {
