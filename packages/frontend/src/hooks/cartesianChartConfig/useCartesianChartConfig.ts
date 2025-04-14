@@ -5,6 +5,7 @@ import {
     isCompleteEchartsConfig,
     isCompleteLayout,
     isNumericItem,
+    isPivotReferenceWithValues,
     XAxisSort,
     XAxisSortType,
     type CartesianChart,
@@ -58,9 +59,15 @@ const applyReferenceLines = (
     series: Series[],
     dirtyLayout: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
     referenceLines: ReferenceLineField[],
+    pivotKeys: string[] | undefined,
 ): Series[] => {
     let appliedReferenceLines: string[] = []; // Don't apply the same reference line to multiple series
     return series.map((serie) => {
+        // Skip if the series does not match current pivot
+        if (pivotKeys && !isPivotReferenceWithValues(serie.encode.yRef)) {
+            return { ...serie, markLine: undefined };
+        }
+
         const referenceLinesForSerie = referenceLines.filter(
             (referenceLine) => {
                 if (referenceLine.fieldId === undefined) return false;
@@ -884,6 +891,7 @@ const useCartesianChartConfig = ({
                     newSeries,
                     dirtyLayout,
                     referenceLines,
+                    pivotKeys,
                 );
 
                 return {
