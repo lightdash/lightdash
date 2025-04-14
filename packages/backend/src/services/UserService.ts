@@ -1502,19 +1502,17 @@ export class UserService extends BaseService {
     }
 
     async findSessionUser(passportUser: { id: string; organization: string }) {
-        return wrapSentryTransaction(
+        const user = await wrapSentryTransaction(
             'Passport.deserializeUser',
             {},
-            async (span) => {
-                const { sessionUser, cacheHit } =
-                    await this.userModel.getSessionUserFromCacheOrDB(
-                        passportUser.id,
-                        passportUser.organization,
-                    );
-                span.setAttribute('cacheHit', cacheHit);
-                return sessionUser;
-            },
+            () =>
+                this.userModel.findSessionUserAndOrgByUuid(
+                    passportUser.id,
+                    passportUser.organization,
+                ),
         );
+
+        return user;
     }
 
     private static async generateGoogleAccessToken(
