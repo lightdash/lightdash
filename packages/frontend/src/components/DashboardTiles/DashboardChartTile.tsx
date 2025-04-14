@@ -21,7 +21,6 @@ import {
     isTableChartConfig,
     type ApiChartAndResults,
     type ApiError,
-    type ApiExecuteAsyncQueryResults,
     type Dashboard,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -240,9 +239,8 @@ const computeDashboardChartSeries = (
 
 const ValidDashboardChartTile: FC<{
     tileUuid: string;
-    query: ApiExecuteAsyncQueryResults;
+    query: DashboardChartReadyQuery;
     resultsData: InfiniteQueryResults;
-    chart: SavedChart;
     isTitleHidden?: boolean;
     project: string;
     onSeriesContextMenu?: (
@@ -253,7 +251,6 @@ const ValidDashboardChartTile: FC<{
 }> = ({
     tileUuid,
     isTitleHidden = false,
-    chart,
     query,
     resultsData,
     onSeriesContextMenu,
@@ -268,7 +265,7 @@ const ValidDashboardChartTile: FC<{
 
     const { health } = useApp();
 
-    const { cacheMetadata } = query;
+    const { cacheMetadata, chart } = query;
 
     useEffect(() => {
         addResultsCacheTime(cacheMetadata);
@@ -1158,7 +1155,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         tileUuid={tileUuid}
                         query={query}
                         resultsData={resultsData}
-                        chart={chart}
                         project={chart.projectUuid}
                         isTitleHidden={hideTitle}
                         onSeriesContextMenu={onSeriesContextMenu}
