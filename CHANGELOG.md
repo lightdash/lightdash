@@ -1,3 +1,10 @@
+# [0.1576.0](https://github.com/lightdash/lightdash/compare/0.1575.2...0.1576.0) (2025-04-14)
+
+
+### Features
+
+* display nested space breadcrumbs ([#14393](https://github.com/lightdash/lightdash/issues/14393)) ([e7d2553](https://github.com/lightdash/lightdash/commit/e7d25533d697ed9d899ede9ea941f0357427e836))
+
 ## [0.1575.2](https://github.com/lightdash/lightdash/compare/0.1575.1...0.1575.2) (2025-04-14)
 
 
