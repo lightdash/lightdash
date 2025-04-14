@@ -134,11 +134,6 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                             `${SpaceTableName}.parent_space_uuid`,
                             filters.space.parentSpaceUuid,
                         );
-                    } else if (filters.spaceUuids) {
-                        void builder.whereIn(
-                            `${SpaceTableName}.space_uuid`,
-                            filters.spaceUuids,
-                        );
                     } else {
                         void builder.whereNull(
                             `${SpaceTableName}.parent_space_uuid`,
