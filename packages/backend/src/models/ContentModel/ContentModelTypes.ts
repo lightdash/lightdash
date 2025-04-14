@@ -14,7 +14,9 @@ export type ContentFilters = {
         sources?: ChartContent['source'][];
     };
     search?: string;
-    parentSpaceUuid?: string;
+    space?: {
+        parentSpaceUuid?: string;
+    };
 };
 
 export type ContentArgs = {

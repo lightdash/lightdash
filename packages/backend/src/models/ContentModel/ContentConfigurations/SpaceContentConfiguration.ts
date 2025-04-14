@@ -2,10 +2,7 @@ import { ContentType, SpaceContent } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { OrganizationTableName } from '../../../database/entities/organizations';
-import {
-    PinnedListTableName,
-    PinnedSpaceTableName,
-} from '../../../database/entities/pinnedList';
+import { PinnedSpaceTableName } from '../../../database/entities/pinnedList';
 import { ProjectTableName } from '../../../database/entities/projects';
 import { SavedChartsTableName } from '../../../database/entities/savedCharts';
 import {
@@ -134,10 +131,10 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                         );
                     }
 
-                    if (filters.parentSpaceUuid) {
+                    if (filters.space?.parentSpaceUuid) {
                         void builder.where(
                             `${SpaceTableName}.parent_space_uuid`,
-                            filters.parentSpaceUuid,
+                            filters.space.parentSpaceUuid,
                         );
                     } else {
                         void builder.whereNull(
