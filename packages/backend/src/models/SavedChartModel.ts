@@ -702,41 +702,63 @@ export class SavedChartModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
     }
 
-    async getChartCountPerField(projectUuid: string) {
-        const chartSummaryQuery = this.getChartSummaryQuery().clearSelect();
-        const results = await chartSummaryQuery
+    async getChartCountPerField(projectUuid: string, fieldIds: string[]) {
+        // First CTE: Get relevant saved_query_ids for the project through spaces and dashboards
+        const relevantCharts = this.database
+            .select(`${SavedChartsTableName}.saved_query_id`)
+            .distinct()
+            .from(SavedChartsTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(SpaceTableName, function spaceJoin() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                );
+            })
+            .innerJoin(
+                ProjectTableName,
+                `${SpaceTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        // Get latest versions for these charts
+        const latestVersions = this.database
+            .select('saved_query_id')
+            .max('saved_queries_version_id')
+            .from(SavedChartVersionsTableName)
+            .whereIn('saved_query_id', relevantCharts)
+            .groupBy('saved_query_id')
+            .as('latest_versions');
+
+        const results = await this.database
             .select({
                 fieldId: `${SavedChartVersionFieldsTableName}.name`,
             })
-            // Count returns by default as BigInt, so we need to cast to number
             .count<{ fieldId: string; count: BigInt }[]>(
-                `${SavedChartsTableName}.saved_query_uuid`,
+                `latest_versions.saved_query_id`,
             )
-            .leftJoin(
-                SavedChartVersionsTableName,
-                `${SavedChartsTableName}.saved_query_id`,
-                `${SavedChartVersionsTableName}.saved_query_id`,
-            )
-            .leftJoin(
-                SavedChartVersionFieldsTableName,
-                `${SavedChartVersionsTableName}.saved_queries_version_id`,
+            .from(SavedChartVersionFieldsTableName)
+            .innerJoin(
+                latestVersions,
                 `${SavedChartVersionFieldsTableName}.saved_queries_version_id`,
+                'latest_versions.max',
             )
-            .where(
-                // filter by last version
-                `${SavedChartVersionsTableName}.saved_queries_version_id`,
-                this.database.raw(`(select saved_queries_version_id
-                               from ${SavedChartVersionsTableName}
-                               where saved_queries.saved_query_id = ${SavedChartVersionsTableName}.saved_query_id
-                               order by ${SavedChartVersionsTableName}.created_at desc
-                               limit 1)`),
-            )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereIn(`${SavedChartVersionFieldsTableName}.name`, fieldIds)
             .groupBy(`${SavedChartVersionFieldsTableName}.name`);
 
         return results.map(({ fieldId, count }) => ({
             fieldId,
-            count: Number(count),
+            count: Number(count), // Count returns by default as BigInt, so we need to cast to number
         }));
     }
 

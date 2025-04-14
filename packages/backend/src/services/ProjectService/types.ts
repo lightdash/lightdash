@@ -1,5 +1,6 @@
 import {
     MetricQuery,
+    type CacheMetadata,
     type DashboardFilters,
     type DateGranularity,
     type Filters,
@@ -46,4 +47,9 @@ export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {
     underlyingDataSourceQueryUuid: string;
     filters: Filters;
     underlyingDataItemId?: string;
+};
+
+export type ExecuteAsyncQueryReturn = {
+    queryUuid: string;
+    cacheMetadata: CacheMetadata;
 };

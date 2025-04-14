@@ -1,3 +1,88 @@
+## [0.1573.1](https://github.com/lightdash/lightdash/compare/0.1573.0...0.1573.1) (2025-04-11)
+
+
+### Bug Fixes
+
+* error when cacheMetadata is undefined ([#14386](https://github.com/lightdash/lightdash/issues/14386)) ([b641347](https://github.com/lightdash/lightdash/commit/b641347e03ead98f0eabae9257adbde8acb833a7))
+
+# [0.1573.0](https://github.com/lightdash/lightdash/compare/0.1572.1...0.1573.0) (2025-04-11)
+
+
+### Features
+
+* show tile query execution timing ([#14380](https://github.com/lightdash/lightdash/issues/14380)) ([b186e9e](https://github.com/lightdash/lightdash/commit/b186e9e2e85d3ec57d18f2a4ce3504e4410f0ebe))
+
+## [0.1572.1](https://github.com/lightdash/lightdash/compare/0.1572.0...0.1572.1) (2025-04-11)
+
+
+### Bug Fixes
+
+* add user_id index to project_memberships table ([#14382](https://github.com/lightdash/lightdash/issues/14382)) ([58cd380](https://github.com/lightdash/lightdash/commit/58cd380561e7404afc4c675ec275fefb62727868))
+* cache user session ([#14381](https://github.com/lightdash/lightdash/issues/14381)) ([ea55590](https://github.com/lightdash/lightdash/commit/ea55590b8f3f9eafa4af6c542b0b1b6f0130d124))
+
+# [0.1572.0](https://github.com/lightdash/lightdash/compare/0.1571.0...0.1572.0) (2025-04-11)
+
+
+### Features
+
+* handle creation/update of nested spaces ([#14377](https://github.com/lightdash/lightdash/issues/14377)) ([95b70e9](https://github.com/lightdash/lightdash/commit/95b70e93d74c9f07c312727396724702c1ea1dbe))
+
+# [0.1571.0](https://github.com/lightdash/lightdash/compare/0.1570.0...0.1571.0) (2025-04-11)
+
+
+### Features
+
+* prometheus metrics for database ([#14379](https://github.com/lightdash/lightdash/issues/14379)) ([63416b7](https://github.com/lightdash/lightdash/commit/63416b7999d3af7c46b3a8bb6d8aac68008fc90f))
+
+# [0.1570.0](https://github.com/lightdash/lightdash/compare/0.1569.0...0.1570.0) (2025-04-11)
+
+
+### Features
+
+* add updated_at column to results cache and return in cache metadata ([#14376](https://github.com/lightdash/lightdash/issues/14376)) ([9160ceb](https://github.com/lightdash/lightdash/commit/9160ceb1906e16ba2af55c512effe2dea6068cab))
+
+# [0.1569.0](https://github.com/lightdash/lightdash/compare/0.1568.1...0.1569.0) (2025-04-11)
+
+
+### Features
+
+* nested spaces (backend) ([#14285](https://github.com/lightdash/lightdash/issues/14285)) ([f703123](https://github.com/lightdash/lightdash/commit/f703123272d07c49822877328d40a527c10266d5))
+
+## [0.1568.1](https://github.com/lightdash/lightdash/compare/0.1568.0...0.1568.1) (2025-04-11)
+
+
+### Bug Fixes
+
+* reduce msteams webhook badges ([#14350](https://github.com/lightdash/lightdash/issues/14350)) ([cd63400](https://github.com/lightdash/lightdash/commit/cd634007e3a67833cda19999d5bd2e396c893bbc))
+
+# [0.1568.0](https://github.com/lightdash/lightdash/compare/0.1567.6...0.1568.0) (2025-04-10)
+
+
+### Features
+
+* release results caching and update swagger ([#14362](https://github.com/lightdash/lightdash/issues/14362)) ([7b33365](https://github.com/lightdash/lightdash/commit/7b3336500a261f8225767d193e48f32395f6b61f))
+
+## [0.1567.6](https://github.com/lightdash/lightdash/compare/0.1567.5...0.1567.6) (2025-04-10)
+
+
+### Bug Fixes
+
+* optimize query that counts charts per catalog field ([#14358](https://github.com/lightdash/lightdash/issues/14358)) ([9aaebf6](https://github.com/lightdash/lightdash/commit/9aaebf6ca8f04ce49b8ee62834db49786b68cd25))
+
+## [0.1567.5](https://github.com/lightdash/lightdash/compare/0.1567.4...0.1567.5) (2025-04-10)
+
+
+### Bug Fixes
+
+* remove certificates from require SSL ([#14354](https://github.com/lightdash/lightdash/issues/14354)) ([8f4954e](https://github.com/lightdash/lightdash/commit/8f4954eaa30c0d54919008f3610c939f23bafe8f))
+
+## [0.1567.4](https://github.com/lightdash/lightdash/compare/0.1567.3...0.1567.4) (2025-04-10)
+
+
+### Bug Fixes
+
+* monaco custom tooltip UI issues ([#14342](https://github.com/lightdash/lightdash/issues/14342)) ([6c98c05](https://github.com/lightdash/lightdash/commit/6c98c05a62c12ca946b36aa60fa0e31737009ab0))
+
 ## [0.1567.3](https://github.com/lightdash/lightdash/compare/0.1567.2...0.1567.3) (2025-04-09)
 
 

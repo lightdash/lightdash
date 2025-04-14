@@ -3,13 +3,10 @@ import {
     type ApiError,
     type ContentSortByColumns,
     type ContentType,
-    type ResourceViewItem,
 } from '@lightdash/common';
 import {
     useInfiniteQuery,
-    useQuery,
     type UseInfiniteQueryOptions,
-    type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 
@@ -43,25 +40,6 @@ const getContent = async (args: ContentArgs) => {
         url: `/content?${params}`,
         method: 'GET',
         body: undefined,
-    });
-};
-
-export const useContent = (
-    args: ContentArgs,
-    useQueryOptions?: UseQueryOptions<
-        ApiContentResponse['results'],
-        ApiError,
-        ResourceViewItem[]
-    >,
-) => {
-    return useQuery<
-        ApiContentResponse['results'],
-        ApiError,
-        ResourceViewItem[]
-    >({
-        queryKey: ['content', args],
-        queryFn: () => getContent(args),
-        ...useQueryOptions,
     });
 };
 

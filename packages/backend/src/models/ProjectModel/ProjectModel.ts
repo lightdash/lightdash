@@ -85,7 +85,7 @@ import {
     SavedChartCustomSqlDimensionsTableName,
 } from '../../database/entities/savedCharts';
 import { DbSavedSql, InsertSql } from '../../database/entities/savedSql';
-import { DbSpace } from '../../database/entities/spaces';
+import { DbSpace, SpaceTableName } from '../../database/entities/spaces';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logging/logger';
@@ -424,11 +424,15 @@ export class ProjectModel {
                 data.warehouseConnection,
             );
 
-            await trx('spaces').insert({
+            const slug = generateSlug('Shared');
+
+            await trx(SpaceTableName).insert({
                 project_id: project.project_id,
                 name: 'Shared',
                 is_private: false,
-                slug: generateSlug('Shared'),
+                slug,
+                parent_space_uuid: null,
+                path: slug,
             });
 
             return project.project_uuid;
