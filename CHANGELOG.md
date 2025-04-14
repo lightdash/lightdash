@@ -1,3 +1,10 @@
+## [0.1575.1](https://github.com/lightdash/lightdash/compare/0.1575.0...0.1575.1) (2025-04-14)
+
+
+### Bug Fixes
+
+* only fetch explore once ([#14392](https://github.com/lightdash/lightdash/issues/14392)) ([6f377ff](https://github.com/lightdash/lightdash/commit/6f377ff17c9b812c6fd0f2a00b24ded6aca966e6))
+
 # [0.1575.0](https://github.com/lightdash/lightdash/compare/0.1574.0...0.1575.0) (2025-04-14)
 
 
