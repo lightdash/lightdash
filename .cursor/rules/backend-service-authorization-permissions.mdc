@@ -1,0 +1,11 @@
+---
+description: Rules for writing authorization, access and permission checks in backend services. Every service method should have access checks.
+globs: 
+alwaysApply: false
+---
+- All permission checks are performed with CASL
+- All permission logic is written in [organizationMemberAbility.ts](mdc:packages/common/src/authorization/organizationMemberAbility.ts) + [projectMemberAbility.ts](mdc:packages/common/src/authorization/projectMemberAbility.ts)
+- All service methods must have permission checks
+- Permission checks should use the [caslAuditWrapper.ts](mdc:packages/backend/src/logging/caslAuditWrapper.ts) for auditing
+- Permission checks always execute against a subject using fields only from the subject
+- Never insert user properties (including user's org uuid) in the subject field
