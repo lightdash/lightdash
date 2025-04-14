@@ -1,3 +1,10 @@
+## [0.1577.1](https://github.com/lightdash/lightdash/compare/0.1577.0...0.1577.1) (2025-04-14)
+
+
+### Bug Fixes
+
+* Allow admins to save to private dashboards ([#14409](https://github.com/lightdash/lightdash/issues/14409)) ([58529ca](https://github.com/lightdash/lightdash/commit/58529ca340e05e03b18c1eaa8775b28d45ef2e13))
+
 # [0.1577.0](https://github.com/lightdash/lightdash/compare/0.1576.0...0.1577.0) (2025-04-14)
 
 
