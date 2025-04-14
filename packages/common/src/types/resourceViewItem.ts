@@ -194,6 +194,19 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                 dashboardViewItem,
                 ResourceViewItemType.DASHBOARD,
             );
+        case ContentType.SPACE:
+            return wrapResource(
+                spaceToResourceViewItem({
+                    ...content,
+                    organizationUuid: content.organization.uuid,
+                    projectUuid: content.project.uuid,
+                    pinnedListUuid: content.pinnedList?.uuid || null,
+                    pinnedListOrder: content.pinnedList?.order || null,
+                    // This propery is not needed for the resource view item
+                    userAccess: undefined,
+                }),
+                ResourceViewItemType.SPACE,
+            );
         default:
             return assertUnreachable(content, `Unsupported content type`);
     }
