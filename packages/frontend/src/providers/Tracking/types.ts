@@ -1,4 +1,4 @@
-import { type SearchItemType, type TimeFrames } from '@lightdash/common';
+import { type CacheMetadata, type SearchItemType, type TimeFrames } from '@lightdash/common';
 import { type FormState } from 'react-hook-form';
 import type * as rudderSDK from 'rudder-sdk-js';
 import {
@@ -383,6 +383,23 @@ type CustomMetricReplacementEvent = {
     };
 };
 
+type DashboardChartLoadedEvent = {
+    name: EventName.DASHBOARD_CHART_LOADED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        dashboardId: string;
+        chartId: string;
+        queryId: string;
+        warehouseExecutionTimeMs: number | null;
+        totalTimeMs: number | null;
+        totalResults: number;
+        loadedRows: number;
+        // cacheMetadata: CacheMetadata;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -415,6 +432,7 @@ export type EventData =
     | MetricsCatalogTreesEdgeRemovedEvent
     | MetricsCatalogTreesCanvasModeClickedEvent
     | WriteBackEvent
+    | DashboardChartLoadedEvent
     | CustomMetricReplacementEvent;
 
 export type IdentifyData = {
