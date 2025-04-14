@@ -530,9 +530,11 @@ export const useInfiniteQueryResults = (
         }
 
         return fetchAll
-            ? fetchedPages.reduce((acc, page) => {
-                  return acc + page.clientFetchTimeMs;
-              }, 0)
+            ? Math.round(
+                  fetchedPages.reduce((acc, page) => {
+                      return acc + page.clientFetchTimeMs;
+                  }, 0),
+              )
             : fetchedPages[0]?.clientFetchTimeMs; // If we're not fetching all pages, only return the time for the first page (enough to render the viz)
     }, [fetchAll, fetchedPages]);
 
