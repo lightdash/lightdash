@@ -136,10 +136,13 @@ const Space: FC = () => {
                                 title: 'Spaces',
                                 to: `/projects/${projectUuid}/spaces`,
                             },
-                            {
-                                title: space.name,
-                                active: true,
-                            },
+                            ...(space.breadcrumbs?.map((breadcrumb, index) => ({
+                                title: breadcrumb.name,
+                                active:
+                                    index ===
+                                    (space.breadcrumbs?.length ?? 0) - 1,
+                                to: `/projects/${projectUuid}/spaces/${breadcrumb.uuid}`,
+                            })) ?? []),
                         ]}
                     />
 
@@ -295,7 +298,7 @@ const Space: FC = () => {
                         spaceUuids: [spaceUuid],
                     }}
                     contentTypeFilter={{
-                        defaultValue: ContentType.DASHBOARD,
+                        defaultValue: undefined,
                         options: [ContentType.DASHBOARD, ContentType.CHART],
                     }}
                 />
@@ -333,14 +336,10 @@ const Space: FC = () => {
                         confirmButtonLabel="Create"
                         icon={IconFolderPlus}
                         onClose={() => setIsCreateNestedSpaceOpen(false)}
-                        onSubmitForm={(newSpace) => {
-                            if (newSpace) {
-                                void navigate(
-                                    `/projects/${projectUuid}/spaces/${newSpace.uuid}`,
-                                );
-                            }
+                        onSubmitForm={() => {
                             setIsCreateNestedSpaceOpen(false);
                         }}
+                        shouldRedirect={false}
                     />
                 )}
             </Stack>
