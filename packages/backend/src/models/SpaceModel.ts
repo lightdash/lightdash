@@ -1512,7 +1512,8 @@ export class SpaceModel {
                 space.path,
             ])
             .select<DbSpace[]>(
-                `${SpaceTableName}.*`,
+                `${SpaceTableName}.name`,
+                `${SpaceTableName}.space_uuid`,
                 this.database.raw('nlevel(path) as level'),
             )
             .orderBy('level', 'asc');
