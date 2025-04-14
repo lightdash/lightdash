@@ -6712,7 +6712,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                breadcrumb: {
+                breadcrumbs: {
                     dataType: 'array',
                     array: {
                         dataType: 'nestedObjectLiteral',
