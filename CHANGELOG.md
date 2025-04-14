@@ -1,3 +1,10 @@
+## [0.1577.2](https://github.com/lightdash/lightdash/compare/0.1577.1...0.1577.2) (2025-04-14)
+
+
+### Bug Fixes
+
+* reference line for pivot series ([#14410](https://github.com/lightdash/lightdash/issues/14410)) ([b817795](https://github.com/lightdash/lightdash/commit/b8177955e44485e4d084de3b2dbcb0fda77897e3))
+
 ## [0.1577.1](https://github.com/lightdash/lightdash/compare/0.1577.0...0.1577.1) (2025-04-14)
 
 
