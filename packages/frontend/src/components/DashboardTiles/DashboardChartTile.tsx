@@ -1337,7 +1337,7 @@ export const GenericDashboardChartTile: FC<
         );
     }
 
-    if (error !== null)
+    if (error !== null) {
         return (
             <TileBase
                 title=""
@@ -1366,6 +1366,7 @@ export const GenericDashboardChartTile: FC<
                 ></SuboptimalState>
             </TileBase>
         );
+    }
 
     return (
         <MetricQueryDataProvider
@@ -1413,7 +1414,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     return (
         <GenericDashboardChartTile
             {...props}
-            isLoading={readyQuery.isInitialLoading}
+            isLoading={resultsData.isInitialLoading}
             resultsData={resultsData}
             query={readyQuery.data}
             error={readyQuery.error}

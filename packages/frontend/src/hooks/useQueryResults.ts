@@ -388,12 +388,12 @@ export type InfiniteQueryResults = Partial<
 > & {
     projectUuid?: string;
     rows: ResultRow[];
+    isInitialLoading: boolean;
     isFetchingRows: boolean;
     fetchMoreRows: () => void;
     setFetchAll: (value: boolean) => void;
     hasFetchedAllRows: boolean;
     totalTimeMs: number | undefined;
-    fetchAll: boolean;
 };
 
 // This hook lazy load results has they are needed in the UI
@@ -499,6 +499,8 @@ export const useInfiniteQueryResults = (
     useEffect(() => {
         // Reset fetched pages before updating the fetch args
         setFetchedPages([]);
+        // Reset fetchAll before updating the fetch args
+        setFetchAll(false);
         setFetchArgs({
             queryUuid,
             projectUuid,
@@ -526,6 +528,10 @@ export const useInfiniteQueryResults = (
             : fetchedPages[0]?.resultsPageExecutionMs; // If we're not fetching all pages, only return the time for the first page (enough to render the viz)
     }, [fetchAll, fetchedPages]);
 
+    const isInitialLoading = useMemo(() => {
+        return fetchAll ? !hasFetchedAllRows : fetchedPages.length < 1;
+    }, [fetchedPages, fetchAll, hasFetchedAllRows]);
+
     return useMemo(
         () => ({
             projectUuid,
@@ -538,8 +544,8 @@ export const useInfiniteQueryResults = (
             isFetchingRows,
             fetchMoreRows,
             setFetchAll,
-            fetchAll,
             totalTimeMs,
+            isInitialLoading,
         }),
         [
             projectUuid,
@@ -549,8 +555,8 @@ export const useInfiniteQueryResults = (
             fetchedRows,
             isFetchingRows,
             fetchMoreRows,
-            fetchAll,
             totalTimeMs,
+            isInitialLoading,
         ],
     );
 };
