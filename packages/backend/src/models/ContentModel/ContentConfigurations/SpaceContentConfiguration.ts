@@ -180,7 +180,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                 uuid: value.uuid,
                 slug: value.slug,
                 name: value.name,
-                description: value.description,
+                description: null,
                 createdAt: value.created_at,
                 createdBy: value.created_by_user_uuid
                     ? {
@@ -212,8 +212,8 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                 views: value.views,
                 firstViewedAt: value.first_viewed_at,
                 parentSpaceUuid: value.metadata?.parentSpaceUuid ?? undefined,
-                isPrivate: false,
-                access: [],
+                isPrivate: value.metadata.isPrivate,
+                access: value.metadata.access,
                 dashboardCount: value.metadata.dashboardCount,
                 chartCount: value.metadata.chartCount,
             };
