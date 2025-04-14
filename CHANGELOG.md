@@ -1,3 +1,10 @@
+# [0.1575.0](https://github.com/lightdash/lightdash/compare/0.1574.0...0.1575.0) (2025-04-14)
+
+
+### Features
+
+* embedding table totals ([#14335](https://github.com/lightdash/lightdash/issues/14335)) ([5474e4b](https://github.com/lightdash/lightdash/commit/5474e4b7caf2bf138d06669172f24b41a4bb317d))
+
 # [0.1574.0](https://github.com/lightdash/lightdash/compare/0.1573.1...0.1574.0) (2025-04-14)
 
 
