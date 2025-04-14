@@ -125,7 +125,7 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
                 queryUuid: results.queryUuid,
                 warehouseExecutionTimeMs: results.warehouseExecutionTimeMs,
                 totalTimeMs: results.totalTimeMs,
-            } as ApiChartAndResults & {
+            } satisfies ApiChartAndResults & {
                 queryUuid?: string;
                 warehouseExecutionTimeMs?: number;
                 totalTimeMs?: number;
