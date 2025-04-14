@@ -19,6 +19,9 @@ export type ContentArgs = {
     search?: string;
     sortBy?: ContentSortByColumns;
     sortDirection?: 'asc' | 'desc';
+    space?: {
+        parentSpaceUuid?: string;
+    };
 };
 
 function createQueryString(params: Record<string, any>): string {

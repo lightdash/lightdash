@@ -21,6 +21,7 @@ import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
+import { ColumnVisibility } from '../components/common/ResourceView/types';
 import ShareSpaceModal from '../components/common/ShareSpaceModal';
 import SpaceActionModal from '../components/common/SpaceActionModal';
 import { ActionType } from '../components/common/SpaceActionModal/types';
@@ -296,10 +297,16 @@ const Space: FC = () => {
                     filters={{
                         projectUuid,
                         spaceUuids: [spaceUuid],
+                        space: {
+                            parentSpaceUuid: spaceUuid,
+                        },
                     }}
                     contentTypeFilter={{
                         defaultValue: undefined,
                         options: [ContentType.DASHBOARD, ContentType.CHART],
+                    }}
+                    columnVisibility={{
+                        [ColumnVisibility.SPACE]: false,
                     }}
                 />
 
