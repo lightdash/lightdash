@@ -1,3 +1,10 @@
+# [0.1574.0](https://github.com/lightdash/lightdash/compare/0.1573.1...0.1574.0) (2025-04-14)
+
+
+### Features
+
+* Only show root spaces in navbar ([#14370](https://github.com/lightdash/lightdash/issues/14370)) ([e16c0d0](https://github.com/lightdash/lightdash/commit/e16c0d062cc54479b8f57aacabf40ad71502b785))
+
 ## [0.1573.1](https://github.com/lightdash/lightdash/compare/0.1573.0...0.1573.1) (2025-04-11)
 
 
