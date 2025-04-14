@@ -40,8 +40,8 @@ import { useNavigate, useParams } from 'react-router';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
+    useGetReadyQueryResults,
     useInfiniteQueryResults,
-    useQueryResults,
     type QueryResultsProps,
 } from '../../hooks/useQueryResults';
 import ExplorerContext from './context';
@@ -1496,7 +1496,7 @@ const ExplorerProvider: FC<
 
     const [validQueryArgs, setValidQueryArgs] =
         useState<QueryResultsProps | null>(null);
-    const query = useQueryResults(validQueryArgs);
+    const query = useGetReadyQueryResults(validQueryArgs);
     const queryResults = useInfiniteQueryResults(
         validQueryArgs?.projectUuid,
         query.data?.queryUuid,

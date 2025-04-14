@@ -37,7 +37,7 @@ export type QueryResultsProps = {
 /**
  * Aggregates pagination results for a query
  */
-export const getQueryPaginatedResults = async (
+const getQueryPaginatedResults = async (
     projectUuid: string,
     data: ExecuteAsyncQueryRequestParams,
     pageSize?: number, // pageSize is used when getting the results but not when creating the query
@@ -149,13 +149,41 @@ export const getQueryPaginatedResults = async (
     };
 };
 
+export const useUnderlyingDataResults = (
+    filters: MetricQuery['filters'],
+    underlyingDataSourceQueryUuid?: string,
+    underlyingDataItemId?: string,
+) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    return useQuery<ApiQueryResults, ApiError>({
+        queryKey: [
+            'underlyingDataResults',
+            projectUuid,
+            underlyingDataSourceQueryUuid,
+            underlyingDataItemId,
+            filters,
+        ],
+        enabled: Boolean(projectUuid) && Boolean(underlyingDataSourceQueryUuid),
+        queryFn: () => {
+            return getQueryPaginatedResults(projectUuid!, {
+                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                underlyingDataSourceQueryUuid: underlyingDataSourceQueryUuid!,
+                underlyingDataItemId,
+                filters: convertDateFilters(filters),
+            });
+        },
+        retry: false,
+    });
+};
+
 /**
  * Run query & get first results page
  */
-const getFirstPage = async (
+export const executeQueryAndGetFirstPage = async (
     projectUuid: string,
     data: ExecuteAsyncQueryRequestParams,
-): Promise<ReadyQueryResultsPage> => {
+): Promise<ReadyQueryResultsPage & ApiExecuteAsyncQueryResults> => {
     const query = await lightdashApi<ApiExecuteAsyncQueryResults>({
         url: `/projects/${projectUuid}/query`,
         version: 'v2',
@@ -211,10 +239,13 @@ const getFirstPage = async (
         }
     }
 
-    return firstPage as ReadyQueryResultsPage;
+    return {
+        ...(firstPage as ReadyQueryResultsPage),
+        ...query,
+    };
 };
 
-export const useQueryResults = (data: QueryResultsProps | null) => {
+export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
     const queryClient = useQueryClient();
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
@@ -226,18 +257,18 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
         queryKey: ['create-query', data],
         queryFn: () => {
             if (data?.chartUuid && data?.chartVersionUuid) {
-                return getFirstPage(data.projectUuid, {
+                return executeQueryAndGetFirstPage(data.projectUuid, {
                     context: QueryExecutionContext.CHART_HISTORY,
                     chartUuid: data.chartUuid,
                     versionUuid: data.chartVersionUuid,
                 });
             } else if (data?.chartUuid) {
-                return getFirstPage(data.projectUuid, {
+                return executeQueryAndGetFirstPage(data.projectUuid, {
                     context: QueryExecutionContext.CHART,
                     chartUuid: data.chartUuid,
                 });
             } else if (data?.query) {
-                return getFirstPage(data.projectUuid, {
+                return executeQueryAndGetFirstPage(data.projectUuid, {
                     context: QueryExecutionContext.EXPLORE,
                     query: {
                         ...data.query,
@@ -281,33 +312,6 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
     return result;
 };
 
-export const useUnderlyingDataResults = (
-    filters: MetricQuery['filters'],
-    underlyingDataSourceQueryUuid?: string,
-    underlyingDataItemId?: string,
-) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-
-    return useQuery<ApiQueryResults, ApiError>({
-        queryKey: [
-            'underlyingDataResults',
-            projectUuid,
-            underlyingDataSourceQueryUuid,
-            underlyingDataItemId,
-            filters,
-        ],
-        enabled: Boolean(projectUuid) && Boolean(underlyingDataSourceQueryUuid),
-        queryFn: () => {
-            return getQueryPaginatedResults(projectUuid!, {
-                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
-                underlyingDataSourceQueryUuid: underlyingDataSourceQueryUuid!,
-                underlyingDataItemId,
-                filters: convertDateFilters(filters),
-            });
-        },
-        retry: false,
-    });
-};
 /**
  * Get single results page
  */
@@ -385,6 +389,8 @@ export type InfiniteQueryResults = Partial<
     fetchMoreRows: () => void;
     setFetchAll: (value: boolean) => void;
     hasFetchedAllRows: boolean;
+    totalTimeMs: number;
+    fetchAll: boolean;
 };
 
 // This hook lazy load results has they are needed in the UI
@@ -428,10 +434,30 @@ export const useInfiniteQueryResults = (
         return rows;
     }, [fetchedPages]);
 
+    const hasFetchedAllRows = useMemo(() => {
+        if (fetchedPages.length === 0) {
+            return false;
+        }
+
+        return fetchedRows.length >= fetchedPages[0].totalResults;
+    }, [fetchedRows, fetchedPages]);
+
     const isFetchingRows = useMemo(() => {
         const isFetchingPage = fetchArgs.page > fetchedPages.length;
-        return !!projectUuid && !!queryUuid && isFetchingPage;
-    }, [fetchedPages, fetchArgs.page, projectUuid, queryUuid]);
+
+        return (
+            !!projectUuid &&
+            !!queryUuid &&
+            (isFetchingPage || (fetchAll && !hasFetchedAllRows))
+        );
+    }, [
+        fetchedPages,
+        fetchArgs.page,
+        projectUuid,
+        queryUuid,
+        fetchAll,
+        hasFetchedAllRows,
+    ]);
 
     const nextPage = useQuery<ReadyQueryResultsPage, ApiError>({
         enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
@@ -485,13 +511,17 @@ export const useInfiniteQueryResults = (
         }
     }, [fetchAll, fetchMoreRows]);
 
-    const hasFetchedAllRows = useMemo(() => {
+    const totalTimeMs = useMemo(() => {
         if (fetchedPages.length === 0) {
-            return false;
+            return 0;
         }
 
-        return fetchedRows.length >= fetchedPages[0].totalResults;
-    }, [fetchedRows, fetchedPages]);
+        return fetchAll
+            ? fetchedPages.reduce((acc, page) => {
+                  return acc + page.resultsPageExecutionMs;
+              }, 0)
+            : fetchedPages[0]?.resultsPageExecutionMs ?? 0; // If we're not fetching all pages, only return the time for the first page (enough to render the viz)
+    }, [fetchAll, fetchedPages]);
 
     return useMemo(
         () => ({
@@ -505,6 +535,8 @@ export const useInfiniteQueryResults = (
             isFetchingRows,
             fetchMoreRows,
             setFetchAll,
+            fetchAll,
+            totalTimeMs,
         }),
         [
             projectUuid,
@@ -514,6 +546,8 @@ export const useInfiniteQueryResults = (
             fetchedRows,
             isFetchingRows,
             fetchMoreRows,
+            fetchAll,
+            totalTimeMs,
         ],
     );
 };

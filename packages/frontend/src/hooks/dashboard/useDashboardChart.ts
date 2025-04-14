@@ -1,19 +1,31 @@
 import {
-    type ApiChartAndResults,
     type ApiError,
+    type ApiExecuteAsyncQueryResults,
+    type ApiExploreResults,
     QueryExecutionContext,
+    type ReadyQueryResultsPage,
+    type SavedChart,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import { useExplore } from '../useExplore';
-import { getQueryPaginatedResults } from '../useQueryResults';
+import { executeQueryAndGetFirstPage } from '../useQueryResults';
 import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
-const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
+export type DashboardChartReadyQuery = ReadyQueryResultsPage &
+    ApiExecuteAsyncQueryResults & {
+        chart: SavedChart;
+        explore: ApiExploreResults;
+    };
+
+export const useDashboardChartReadyQuery = (
+    tileUuid: string,
+    chartUuid: string | null,
+) => {
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
@@ -84,14 +96,7 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
         ],
     );
 
-    return useQuery<
-        ApiChartAndResults & {
-            queryUuid?: string;
-            warehouseExecutionTimeMs?: number;
-            totalTimeMs?: number;
-        },
-        ApiError
-    >({
+    return useQuery<DashboardChartReadyQuery, ApiError>({
         queryKey:
             hasADateDimension && granularity
                 ? queryKey.concat([granularity])
@@ -101,34 +106,25 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
                 throw new Error('Chart or explore is undefined');
             }
 
-            const results = await getQueryPaginatedResults(chart.projectUuid, {
-                context: autoRefresh
-                    ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
-                    : context || QueryExecutionContext.DASHBOARD,
-                chartUuid: chartUuid!,
-                dashboardUuid: dashboardUuid!,
-                dashboardFilters: timezoneFixFilters,
-                dashboardSorts,
-                granularity,
-                invalidateCache,
-            });
+            const results = await executeQueryAndGetFirstPage(
+                chart.projectUuid,
+                {
+                    context: autoRefresh
+                        ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
+                        : context || QueryExecutionContext.DASHBOARD,
+                    chartUuid: chartUuid!,
+                    dashboardUuid: dashboardUuid!,
+                    dashboardFilters: timezoneFixFilters,
+                    dashboardSorts,
+                    granularity,
+                    invalidateCache,
+                },
+            );
 
             return {
                 chart,
                 explore,
-                appliedDashboardFilters:
-                    results.appliedDashboardFilters ?? undefined,
-                metricQuery: results.metricQuery,
-                cacheMetadata: results.cacheMetadata,
-                rows: results.rows,
-                fields: results.fields,
-                queryUuid: results.queryUuid,
-                warehouseExecutionTimeMs: results.warehouseExecutionTimeMs,
-                totalTimeMs: results.totalTimeMs,
-            } satisfies ApiChartAndResults & {
-                queryUuid?: string;
-                warehouseExecutionTimeMs?: number;
-                totalTimeMs?: number;
+                ...results,
             };
         },
         enabled: Boolean(chartUuid && dashboardUuid && chart && explore),
@@ -136,5 +132,3 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
         refetchOnMount: false,
     });
 };
-
-export default useDashboardChart;
