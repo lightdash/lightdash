@@ -1,3 +1,10 @@
+## [0.1575.2](https://github.com/lightdash/lightdash/compare/0.1575.1...0.1575.2) (2025-04-14)
+
+
+### Bug Fixes
+
+* Revert "fix: cache user session ([#14381](https://github.com/lightdash/lightdash/issues/14381))" ([#14395](https://github.com/lightdash/lightdash/issues/14395)) ([a2bb34f](https://github.com/lightdash/lightdash/commit/a2bb34fd99efebc36fe091947d83ab27f3e5e146))
+
 ## [0.1575.1](https://github.com/lightdash/lightdash/compare/0.1575.0...0.1575.1) (2025-04-14)
 
 
