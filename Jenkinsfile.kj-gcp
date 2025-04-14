@@ -1,0 +1,132 @@
+// Uses Declarative syntax to run commands inside a container.
+@Library('shared-library') _
+
+String abortMergeCommand = 'git merge --abort'
+
+def sendSlackMessage(String channelId, String messageText) {
+    String messageResponse = sh(script: """
+        curl -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer ${env.SLACK_BOT_TOKEN}" \
+            -H "Content-Type: application/json;charset=utf-8" \
+            -d '{
+                "channel": "${channelId}",
+                "text": "${messageText}"
+            }'
+    """, returnStdout: true).trim()
+
+    // Print the message response payload (response body) for debugging
+    echo "Message Response Payload: ${messageResponse}"
+
+    // Optional: Check if the message was successfully sent
+    responseJson = readJSON(text: messageResponse)
+    if (responseJson.ok != true) {
+        error 'Failed to send the message'
+    }
+}
+
+// def sendFormattedSlackMessage(String channelId, String blocks) {
+//     String messageResponse = sh(script: """
+//         curl -X POST https://slack.com/api/chat.postMessage \
+//             -H "Authorization: Bearer ${env.SLACK_BOT_TOKEN}" \
+//             -H "Content-Type: application/json;charset=utf-8" \
+//             -d '{
+//                 "channel": "${channelId}",
+//                 "blocks": "${blocks}"
+//             }'
+//     """, returnStdout: true).trim()
+
+//     // Print the message response payload (response body) for debugging
+//     echo "Message Response Payload: ${messageResponse}"
+
+//     // Optional: Check if the message was successfully sent
+//     responseJson = readJSON(text: messageResponse)
+//     if (responseJson.ok != true) {
+//         error 'Failed to send the messages'
+//     }
+// }
+
+pipeline {
+    // Run on GKE Docker in Docker node
+    agent {
+        kubernetes {
+            cloud 'gke-cloud'
+            defaultContainer 'jnlp'
+            yamlFile 'jenkins-agent.yml'
+        }
+    }
+
+    stages {
+        stage('Setup') {
+            steps {
+                script {
+                    ghe.co(scm)
+                }
+            }
+        }
+        stage('Rebase & Validate Feature Branches') {
+            environment {
+                    GIT_COMMITTER_NAME = 'portal-buildadm'
+                    GIT_COMMITTER_EMAIL = 'portal-admin@workday.com'
+                    SLACK_BOT_TOKEN = credentials('slack-bot-token')
+            }
+            steps {
+                script {
+                    withCredentials([gitUsernamePassword(credentialsId: 'portal-buildadm-ghe-token', gitToolName: 'git-tool')]) {
+                        // Set up Git configuration
+                        sh "git config user.name ${GIT_COMMITTER_NAME}"
+                        sh "git config user.email ${GIT_COMMITTER_EMAIL}"
+
+                        // List<String> branches = sh(script: "git branch -r | grep -e 'origin/internal/.*' ", returnStdout: true).trim().split('\n')
+
+                        // branches.each { branch ->
+                        //     String remoteBranchName = branch.trim()
+                        //     String branchName = remoteBranchName.replace('origin/', '')
+
+                        //     echo "Rebasing branch ${branchName}"
+
+                        //     sh "git checkout -b ${branchName} origin/${branchName}"
+                        //     sh 'git checkout master'
+
+                        //     // Attempt to merge the feature branch into the target branch
+                        //     Integer mergeResult = sh(script: "git merge ${branchName} --no-commit --no-ff", returnStatus: true)
+
+                        //     // Check if the merge was successful or if there were conflicts
+                        //     if (mergeResult != 0) {
+                        //         // Merge conflicts detected
+                        //         echo 'Merge conflicts detected! for branch ' + branchName
+                        //         // Use git status to list the conflicted files
+                        //         def conflictFiles = sh(script: 'git status', returnStdout: true).split('\n').findAll { it.contains('both modified') }
+                        //         echo "Conflicted files: ${conflictFiles.join(', ')}"
+                        //         // Abort the merge to leave the repository in a clean state
+                        //         sh abortMergeCommand
+
+                        //     // PLACEHOLDER: SEND SLACK NOTIFICATION
+                        //     } else {
+                        //         // No conflicts, merge was successful
+                        //         echo 'Merge smoke test successful, no conflicts for branch ' + branchName
+                        //         // Abort the merge since no commit is needed
+                        //         sh abortMergeCommand
+
+                        //         // Start rebasing the feature branch
+                        //         sh "git checkout ${branchName}"
+                        //         Integer rebaseResult = sh(script: 'git rebase master', returnStatus: true)
+                        //         if (rebaseResult != 0) {
+                        //             // Rebase conflicts detected
+                        //             echo 'Rebase failed for branch ' + branchName
+                        //         } else {
+                        //             // No conflicts, rebase was successful
+                        //             echo 'Rebase successful for branch ' + branchName
+                        //             // Optionally, abort the rebase since no commit is needed
+                        //             sh "git push origin ${branchName} -f"
+                        //         }
+
+                        //     }
+                        // }
+
+                        sendSlackMessage('@shifan.gu', 'Rebase & Validate Feature Branches stage completed successfully.')
+                    }
+                }
+            }
+        }
+    }
+}

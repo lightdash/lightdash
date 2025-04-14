@@ -1,0 +1,69 @@
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    kubernetes.io/os: linux
+  imagePullSecrets:
+    - name: "docker-dev-artifactory-ro-cred"
+  containers:
+    - name: jnlp
+      image: "docker-dev-artifactory.workday.com/kj-common/agent-base:4.13-2023.11.175940"
+      imagePullPolicy: Always
+      resources:
+        limits:
+          cpu: "2.0"
+          memory: "5Gi"
+      env:
+        - name: DOCKER_HOST
+          value: tcp://localhost:2376
+        - name: DOCKER_CERT_PATH
+          value: /certs/client
+        - name: DOCKER_TLS_VERIFY
+          value: "1"
+      tty: true
+      volumeMounts:
+        - name: certs
+          mountPath: /certs
+        - mountPath: "/home/jenkins/agent"
+          name: "workspace-volume"
+          readOnly: false
+    - name: dind
+      image: "docker-dev-artifactory.workday.com/docker:24-dind"
+      imagePullPolicy: "Always"
+      env:
+        - name: DOCKER_TLS_CERTDIR
+          value: /certs
+      readinessProbe:
+        tcpSocket:
+          port: 2376
+        initialDelaySeconds: 5
+        periodSeconds: 20
+      resources:
+        limits:
+          memory: "6Gi"
+          cpu: "2"
+      command:
+        - "dockerd-entrypoint.sh"
+        - "--mtu=1450"
+      securityContext:
+        privileged: true
+      volumeMounts:
+        - name: cgroup
+          mountPath: /sys/fs/cgroup
+        - name: modules
+          mountPath: /lib/modules
+          readonly: true
+        - name: storage
+          mountPath: /var/lib/docker
+        - name: certs
+          mountPath: /certs
+  volumes:
+    - name: certs
+      emptyDir: {}
+    - name: cgroup
+      hostPath:
+        path: /sys/fs/cgroup
+    - name: modules
+      hostPath:
+        path: /lib/modules
+    - name: storage
+      emptyDir: {}
