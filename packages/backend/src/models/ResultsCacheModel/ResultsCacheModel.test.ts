@@ -452,6 +452,7 @@ describe('ResultsCacheModel', () => {
                     { value: 'test4' },
                 ],
                 totalRowCount: 100,
+                expiresAt: futureDate,
             });
 
             expect(mockStorageClient.getDowloadStream).toHaveBeenCalledWith(
@@ -487,6 +488,7 @@ describe('ResultsCacheModel', () => {
             expect(result).toEqual({
                 rows: [],
                 totalRowCount: 0,
+                expiresAt: futureDate,
             });
         });
 
@@ -560,6 +562,7 @@ describe('ResultsCacheModel', () => {
             expect(result).toEqual({
                 rows: [{ value: 'test3' }, { value: 'test4' }],
                 totalRowCount: 100,
+                expiresAt: futureDate,
             });
 
             expect(mockStorageClient.getDowloadStream).toHaveBeenCalledWith(
@@ -615,6 +618,7 @@ describe('ResultsCacheModel', () => {
                     { value: 'test3' },
                 ],
                 totalRowCount: 100,
+                expiresAt: futureDate,
             });
         });
     });
