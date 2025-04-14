@@ -1313,7 +1313,7 @@ export const GenericDashboardChartTile: FC<
         query?.chart &&
         user.data?.ability?.can('manage', subject('SavedChart', query.chart));
 
-    if (isLoading) {
+    if (isLoading || !query || !resultsData) {
         return (
             <TileBase
                 isEditMode={isEditMode}
@@ -1337,7 +1337,7 @@ export const GenericDashboardChartTile: FC<
         );
     }
 
-    if (error !== null || !query || !resultsData)
+    if (error !== null)
         return (
             <TileBase
                 title=""
