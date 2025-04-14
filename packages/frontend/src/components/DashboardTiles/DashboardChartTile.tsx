@@ -80,7 +80,7 @@ import {
 import {
     useDashboardChartReadyQuery,
     type DashboardChartReadyQuery,
-} from '../../hooks/dashboard/useDashboardChart';
+} from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
@@ -1398,7 +1398,7 @@ export const GenericDashboardChartTile: FC<
 const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     const readyQuery = useDashboardChartReadyQuery(
         props.tile.uuid,
-        props.tile.properties?.savedChartUuid ?? null,
+        props.tile.properties?.savedChartUuid,
     );
 
     const resultsData = useInfiniteQueryResults(

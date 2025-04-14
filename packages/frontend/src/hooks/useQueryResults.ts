@@ -252,7 +252,10 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
         forbiddenToastTitle: 'Error running query',
     });
 
-    const result = useQuery<ReadyQueryResultsPage, ApiError>({
+    const result = useQuery<
+        ReadyQueryResultsPage & ApiExecuteAsyncQueryResults,
+        ApiError
+    >({
         enabled: !!data,
         queryKey: ['create-query', data],
         queryFn: () => {
