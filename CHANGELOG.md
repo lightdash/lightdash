@@ -1,3 +1,10 @@
+# [0.1577.0](https://github.com/lightdash/lightdash/compare/0.1576.0...0.1577.0) (2025-04-14)
+
+
+### Features
+
+* **backend:** content api for Spaces ([#14399](https://github.com/lightdash/lightdash/issues/14399)) ([f84c5cd](https://github.com/lightdash/lightdash/commit/f84c5cd9fa32a071ef7ffda99d93e5625a743b82)), closes [#14335](https://github.com/lightdash/lightdash/issues/14335) [#14392](https://github.com/lightdash/lightdash/issues/14392)
+
 # [0.1576.0](https://github.com/lightdash/lightdash/compare/0.1575.2...0.1576.0) (2025-04-14)
 
 
