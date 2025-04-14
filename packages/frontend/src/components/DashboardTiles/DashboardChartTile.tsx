@@ -871,7 +871,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         )}
                         {showExecutionTime &&
                             query.initialQueryExecutionMs !== undefined &&
-                            resultsData.totalTimeMs !== undefined && (
+                            resultsData.totalClientFetchTimeMs !==
+                                undefined && (
                                 <HoverCard
                                     withArrow
                                     withinPortal
@@ -888,7 +889,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                         </Text>
                                         <Text size="xs" color="gray.6" fw={600}>
                                             Total time:{' '}
-                                            {resultsData.totalTimeMs}ms
+                                            {resultsData.totalClientFetchTimeMs}
+                                            ms
                                         </Text>
                                     </HoverCard.Dropdown>
                                     <HoverCard.Target>

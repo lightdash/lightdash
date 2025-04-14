@@ -71,6 +71,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
         if (!translatedChartData) return undefined;
 
         return {
+            queryUuid: '', // Does not use paginated query therefore there's no queryUuid
             appliedDashboardFilters:
                 translatedChartData.appliedDashboardFilters ?? null,
             cacheMetadata: translatedChartData.cacheMetadata,
@@ -79,38 +80,34 @@ const EmbedDashboardChartTile: FC<Props> = ({
             fields: translatedChartData.fields,
             metricQuery: translatedChartData.metricQuery,
             rows: translatedChartData.rows,
-            queryUuid: '',
             status: QueryHistoryStatus.READY,
             initialQueryExecutionMs: 0,
             resultsPageExecutionMs: 0,
             totalResults: translatedChartData.rows.length,
-            isFetchingRows: false,
-            hasFetchedAllRows: true,
-            totalTimeMs: undefined,
-            fetchAll: true,
             pageSize: translatedChartData.rows.length,
             page: 1,
             totalPageCount: 1,
             nextPage: undefined,
             previousPage: undefined,
-        };
+        } satisfies DashboardChartReadyQuery;
     }, [translatedChartData]);
 
     const resultData = useMemo<InfiniteQueryResults>(
-        () => ({
-            metricQuery: translatedChartData?.metricQuery,
-            cacheMetadata: translatedChartData?.cacheMetadata,
-            fields: translatedChartData?.fields,
-            rows: translatedChartData?.rows ?? [],
-            totalResults: translatedChartData?.rows.length,
-            isFetchingRows: false,
-            fetchMoreRows: () => undefined,
-            setFetchAll: () => undefined,
-            hasFetchedAllRows: true,
-            totalTimeMs: 0,
-            fetchAll: true,
-            isInitialLoading: false,
-        }),
+        () =>
+            ({
+                queryUuid: '', // Does not use paginated query therefore there's no queryUuid
+                metricQuery: translatedChartData?.metricQuery,
+                fields: translatedChartData?.fields,
+                rows: translatedChartData?.rows ?? [],
+                totalResults: translatedChartData?.rows.length,
+                isFetchingRows: false,
+                fetchMoreRows: () => undefined,
+                setFetchAll: () => undefined,
+                hasFetchedAllRows: true,
+                totalClientFetchTimeMs: 0,
+                isInitialLoading: false,
+                projectUuid: translatedChartData?.chart.projectUuid,
+            } satisfies InfiniteQueryResults),
         [translatedChartData],
     );
 

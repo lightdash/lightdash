@@ -46,7 +46,7 @@ const getQueryPaginatedResults = async (
         queryUuid: string;
         appliedDashboardFilters: DashboardFilters | null;
         warehouseExecutionTimeMs?: number;
-        totalTimeMs?: number;
+        totalClientFetchTimeMs?: number;
     }
 > => {
     const startTime = new Date();
@@ -144,7 +144,7 @@ const getQueryPaginatedResults = async (
             currentPage.status === QueryHistoryStatus.READY
                 ? currentPage.initialQueryExecutionMs
                 : undefined,
-        totalTimeMs: totalTime,
+        totalClientFetchTimeMs: totalTime,
         appliedDashboardFilters: executeQueryResponse.appliedDashboardFilters,
     };
 };
@@ -393,7 +393,7 @@ export type InfiniteQueryResults = Partial<
     fetchMoreRows: () => void;
     setFetchAll: (value: boolean) => void;
     hasFetchedAllRows: boolean;
-    totalTimeMs: number | undefined;
+    totalClientFetchTimeMs: number | undefined;
 };
 
 // This hook lazy load results has they are needed in the UI
@@ -416,9 +416,9 @@ export const useInfiniteQueryResults = (
         page: 1,
         pageSize: DEFAULT_RESULTS_PAGE_SIZE,
     });
-    const [fetchedPages, setFetchedPages] = useState<ReadyQueryResultsPage[]>(
-        [],
-    );
+    const [fetchedPages, setFetchedPages] = useState<
+        (ReadyQueryResultsPage & { clientFetchTimeMs: number })[]
+    >([]);
     const [fetchAll, setFetchAll] = useState(false);
 
     const fetchMoreRows = useCallback(() => {
@@ -462,7 +462,10 @@ export const useInfiniteQueryResults = (
         hasFetchedAllRows,
     ]);
 
-    const nextPage = useQuery<ReadyQueryResultsPage, ApiError>({
+    const nextPage = useQuery<
+        ReadyQueryResultsPage & { clientFetchTimeMs: number },
+        ApiError
+    >({
         enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
         queryKey: [
             'query-page',
@@ -471,13 +474,18 @@ export const useInfiniteQueryResults = (
             fetchArgs.page,
             fetchArgs.pageSize,
         ],
-        queryFn: () => {
-            return getResultsPage(
+        queryFn: async () => {
+            const startTime = performance.now();
+            const results = await getResultsPage(
                 fetchArgs.projectUuid!,
                 fetchArgs.queryUuid!,
                 fetchArgs.page,
                 fetchArgs.pageSize,
             );
+            return {
+                ...results,
+                clientFetchTimeMs: performance.now() - startTime,
+            };
         },
         staleTime: Infinity, // the data will never be considered stale
     });
@@ -516,16 +524,16 @@ export const useInfiniteQueryResults = (
         }
     }, [fetchAll, fetchMoreRows]);
 
-    const totalTimeMs = useMemo(() => {
+    const totalClientFetchTimeMs = useMemo(() => {
         if (fetchedPages.length === 0) {
             return undefined;
         }
 
         return fetchAll
             ? fetchedPages.reduce((acc, page) => {
-                  return acc + page.resultsPageExecutionMs;
+                  return acc + page.clientFetchTimeMs;
               }, 0)
-            : fetchedPages[0]?.resultsPageExecutionMs; // If we're not fetching all pages, only return the time for the first page (enough to render the viz)
+            : fetchedPages[0]?.clientFetchTimeMs; // If we're not fetching all pages, only return the time for the first page (enough to render the viz)
     }, [fetchAll, fetchedPages]);
 
     const isInitialLoading = useMemo(() => {
@@ -544,7 +552,7 @@ export const useInfiniteQueryResults = (
             isFetchingRows,
             fetchMoreRows,
             setFetchAll,
-            totalTimeMs,
+            totalClientFetchTimeMs,
             isInitialLoading,
         }),
         [
@@ -555,7 +563,7 @@ export const useInfiniteQueryResults = (
             fetchedRows,
             isFetchingRows,
             fetchMoreRows,
-            totalTimeMs,
+            totalClientFetchTimeMs,
             isInitialLoading,
         ],
     );
