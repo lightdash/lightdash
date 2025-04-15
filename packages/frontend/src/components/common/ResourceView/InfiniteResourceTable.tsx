@@ -291,9 +291,14 @@ const InfiniteResourceTable = ({
             accessorKey: ColumnVisibility.UPDATED_AT,
             enableSorting: true,
             enableEditing: false,
-            header: 'Last Edited',
+            header: 'Last Modified',
             Cell: ({ row }) => {
-                if (isResourceViewSpaceItem(row.original)) return null;
+                if (isResourceViewSpaceItem(row.original))
+                    return (
+                        <Text fz={12} fw={500} color="gray.7">
+                            -
+                        </Text>
+                    );
                 return <ResourceLastEdited item={row.original} />;
             },
         },
