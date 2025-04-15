@@ -321,7 +321,10 @@ const InfiniteResourceTable = ({
                         }
                     >
                         <Flex>
-                            <ResourceAccessInfo item={row.original} />
+                            <ResourceAccessInfo
+                                item={row.original}
+                                type="primary"
+                            />
                         </Flex>
                     </Tooltip>
                 );
