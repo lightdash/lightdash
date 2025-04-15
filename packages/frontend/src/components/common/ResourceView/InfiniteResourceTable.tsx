@@ -332,10 +332,12 @@ const InfiniteResourceTable = ({
                         <AttributeCount
                             Icon={IconLayoutDashboard}
                             count={dashboardCount}
+                            name="Dashboards"
                         />
                         <AttributeCount
                             Icon={IconChartBar}
                             count={chartCount}
+                            name="Charts"
                         />
                     </Group>
                 );
