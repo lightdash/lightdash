@@ -42,6 +42,7 @@ import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../../models/UserModel';
 import { isFeatureFlagEnabled } from '../../../postHog';
+import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
     DashboardSummaryCreated,
@@ -102,6 +103,7 @@ type Dependencies = {
     slackClient: SlackClient;
     lightdashConfig: LightdashConfig;
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
+    featureFlagService: FeatureFlagService;
 };
 
 export class AiService {
@@ -131,6 +133,8 @@ export class AiService {
 
     private readonly lightdashConfig: LightdashConfig;
 
+    private readonly featureFlagService: FeatureFlagService;
+
     constructor(dependencies: Dependencies) {
         this.analytics = dependencies.analytics;
         this.dashboardModel = dependencies.dashboardModel;
@@ -145,6 +149,17 @@ export class AiService {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.organizationModel = dependencies.organizationModel;
         this.slackAuthenticationModel = dependencies.slackAuthenticationModel;
+        this.featureFlagService = dependencies.featureFlagService;
+    }
+
+    private async getIsCopilotEnabled(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+    ) {
+        const aiCopilotFlag = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiCopilot,
+        });
+        return aiCopilotFlag.enabled;
     }
 
     private static async throwOnFeatureDisabled(user: SessionUser) {
@@ -542,7 +557,7 @@ export class AiService {
             throw new Error('Organization not found');
         }
 
-        if (!this.lightdashConfig.ai.copilot.enabled) {
+        if (!(await this.getIsCopilotEnabled(user))) {
             throw new Error('AI Copilot is not enabled');
         }
 
@@ -975,7 +990,7 @@ ${
         user: SessionUser,
         projectUuid: string,
     ): Promise<AiConversation[]> {
-        if (!this.lightdashConfig.ai.copilot.enabled) {
+        if (!(await this.getIsCopilotEnabled(user))) {
             throw new Error('AI Copilot is not enabled');
         }
 
@@ -1019,7 +1034,7 @@ ${
         projectUuid: string,
         aiThreadUuid: string,
     ): Promise<AiConversationMessage[]> {
-        if (!this.lightdashConfig.ai.copilot.enabled) {
+        if (!(await this.getIsCopilotEnabled(user))) {
             throw new Error('AI Copilot is not enabled');
         }
 
@@ -1101,7 +1116,7 @@ ${
         prompt: AiWebAppPrompt;
         rows: Record<string, AnyType>[] | undefined;
     }> {
-        if (!this.lightdashConfig.ai.copilot.enabled) {
+        if (!(await this.getIsCopilotEnabled(user))) {
             throw new Error('AI Copilot is not enabled');
         }
 

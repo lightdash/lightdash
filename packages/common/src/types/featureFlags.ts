@@ -66,6 +66,11 @@ export enum FeatureFlags {
      * Enable the ability to create nested spaces
      */
     NestedSpaces = 'nested-spaces',
+
+    /**
+     * Enable the AI copilot
+     */
+    AiCopilot = 'ai-copilot',
 }
 
 export type FeatureFlag = {

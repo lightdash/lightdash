@@ -356,6 +356,7 @@ export type LightdashConfig = {
     ai: {
         copilot: {
             enabled: boolean;
+            requiresFeatureFlag: boolean;
             embeddingSearchEnabled?: boolean;
         };
     };
@@ -950,6 +951,8 @@ export const parseConfig = (): LightdashConfig => {
         ai: {
             copilot: {
                 enabled: process.env.AI_COPILOT_ENABLED === 'true',
+                requiresFeatureFlag:
+                    process.env.AI_COPILOT_REQUIRES_FEATURE_FLAG === 'true',
                 embeddingSearchEnabled:
                     process.env.AI_COPILOT_EMBEDDING_SEARCH_ENABLED === 'true',
             },

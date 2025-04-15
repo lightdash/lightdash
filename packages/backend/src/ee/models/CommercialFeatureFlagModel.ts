@@ -20,8 +20,6 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             [CommercialFeatureFlags.Embedding]:
                 this.getEmbeddingFlag.bind(this),
             [CommercialFeatureFlags.Scim]: this.getScimFlag.bind(this),
-            [CommercialFeatureFlags.AiCopilot]:
-                this.getAiCopilotFlag.bind(this),
         };
     }
 
@@ -67,13 +65,6 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled,
-        };
-    }
-
-    private async getAiCopilotFlag({ featureFlagId }: FeatureFlagLogicArgs) {
-        return {
-            id: featureFlagId,
-            enabled: this.lightdashConfig.ai.copilot.enabled,
         };
     }
 }

@@ -1,7 +1,4 @@
-import {
-    CommercialFeatureFlags,
-    type SlackAppCustomSettings,
-} from '@lightdash/common';
+import { FeatureFlags, type SlackAppCustomSettings } from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
@@ -67,9 +64,7 @@ const formSchema = z.object({
 });
 
 const SlackSettingsPanel: FC = () => {
-    const { data: aiCopilotFlag } = useFeatureFlag(
-        CommercialFeatureFlags.AiCopilot,
-    );
+    const { data: aiCopilotFlag } = useFeatureFlag(FeatureFlags.AiCopilot);
     const { data: slackInstallation, isInitialLoading } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
 
