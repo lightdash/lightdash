@@ -229,6 +229,7 @@ import {
 import {
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncMetricQueryArgs,
+    type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
@@ -587,6 +588,26 @@ export class ProjectService extends BaseService {
                     `Unknown project type: ${data.type}`,
                 );
         }
+    }
+
+    private async getUserAttributes(
+        user: SessionUser,
+        organizationUuid: string,
+    ) {
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const intrinsicUserAttributes = emailStatus.isVerified
+            ? getIntrinsicUserAttributes(user)
+            : {};
+
+        return { userAttributes, intrinsicUserAttributes };
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -1523,18 +1544,9 @@ export class ProjectService extends BaseService {
                 databricksCompute: explore.databricksCompute,
             },
         );
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
 
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
-            user.userUuid,
-        );
-        const intrinsicUserAttributes = emailStatus.isVerified
-            ? getIntrinsicUserAttributes(user)
-            : {};
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes(user, organizationUuid);
 
         const compiledQuery = await ProjectService._compileQuery(
             metricQuery,
@@ -2346,7 +2358,7 @@ export class ProjectService extends BaseService {
             explore: Explore;
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
-    ) {
+    ): Promise<ExecuteAsyncQueryReturn> {
         return wrapSentryTransaction(
             'ProjectService.executeAsyncQuery',
             {},
@@ -2540,7 +2552,12 @@ export class ProjectService extends BaseService {
 
                         return {
                             queryUuid: queryHistoryUuid,
-                        };
+                            cacheMetadata: {
+                                cacheHit: resultsCache.cacheHit,
+                                cacheUpdatedTime: resultsCache.updatedAt,
+                                cacheExpiresAt: resultsCache.expiresAt,
+                            },
+                        } satisfies ExecuteAsyncQueryReturn;
                     }
 
                     // Trigger query in the background, update query history and cache when complete
@@ -2559,7 +2576,12 @@ export class ProjectService extends BaseService {
 
                     return {
                         queryUuid: queryHistoryUuid,
-                    };
+                        cacheMetadata: {
+                            cacheHit: resultsCache?.cacheHit || false,
+                            cacheUpdatedTime: resultsCache?.updatedAt,
+                            cacheExpiresAt: resultsCache?.expiresAt,
+                        },
+                    } satisfies ExecuteAsyncQueryReturn;
                 } catch (e) {
                     span.setStatus({
                         code: 2, // ERROR
@@ -2629,7 +2651,7 @@ export class ProjectService extends BaseService {
             organizationUuid,
         );
 
-        const { queryUuid } = await this.executeAsyncQuery(
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
                 metricQuery,
@@ -2645,6 +2667,7 @@ export class ProjectService extends BaseService {
 
         return {
             queryUuid,
+            cacheMetadata,
             appliedDashboardFilters: null,
         };
     }
@@ -2733,7 +2756,7 @@ export class ProjectService extends BaseService {
             savedChartOrganizationUuid,
         );
 
-        const { queryUuid } = await this.executeAsyncQuery(
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
@@ -2748,6 +2771,7 @@ export class ProjectService extends BaseService {
 
         return {
             queryUuid,
+            cacheMetadata,
             appliedDashboardFilters: null,
         };
     }
@@ -2883,7 +2907,7 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        const { queryUuid } = await this.executeAsyncQuery(
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
@@ -2899,6 +2923,7 @@ export class ProjectService extends BaseService {
 
         return {
             queryUuid,
+            cacheMetadata,
             appliedDashboardFilters,
         };
     }
@@ -3027,7 +3052,7 @@ export class ProjectService extends BaseService {
             additionalMetrics: [],
         };
 
-        const { queryUuid: underlyingDataQueryUuid } =
+        const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
             await this.executeAsyncQuery(
                 {
                     user,
@@ -3044,6 +3069,7 @@ export class ProjectService extends BaseService {
         return {
             queryUuid: underlyingDataQueryUuid,
             appliedDashboardFilters: null,
+            cacheMetadata,
         };
     }
 
@@ -3350,7 +3376,7 @@ export class ProjectService extends BaseService {
                                     warehouseClient.credentials.type
                                 }" warehouse query:
                                 "${query}"
-                                with query tags: 
+                                with query tags:
                                 ${JSON.stringify(queryTags)}`,
                             );
                             throw e;
@@ -4118,18 +4144,8 @@ export class ProjectService extends BaseService {
                 databricksCompute: explore.databricksCompute,
             },
         );
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
-
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
-            user.userUuid,
-        );
-        const intrinsicUserAttributes = emailStatus.isVerified
-            ? getIntrinsicUserAttributes(user)
-            : {};
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes(user, organizationUuid);
 
         const { query } = await ProjectService._compileQuery(
             metricQuery,
@@ -5901,25 +5917,12 @@ export class ProjectService extends BaseService {
     }
 
     async _getCalculateTotalQuery(
-        user: SessionUser,
+        userAttributes: UserAttributeValueMap,
+        intrinsicUserAttributes: IntrinsicUserAttributes,
         explore: Explore,
         metricQuery: MetricQuery,
-        organizationUuid: string,
         warehouseClient: WarehouseClient,
     ) {
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
-
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
-            user.userUuid,
-        );
-        const intrinsicUserAttributes = emailStatus.isVerified
-            ? getIntrinsicUserAttributes(user)
-            : {};
-
         const totalQuery: MetricQuery = {
             ...metricQuery,
             limit: 1,
@@ -5966,11 +5969,14 @@ export class ProjectService extends BaseService {
             },
         );
 
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes(user, organizationUuid);
+
         const { query } = await this._getCalculateTotalQuery(
-            user,
+            userAttributes,
+            intrinsicUserAttributes,
             explore,
             metricQuery,
-            organizationUuid,
             warehouseClient,
         );
 
@@ -6004,16 +6010,19 @@ export class ProjectService extends BaseService {
             },
         );
 
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes(user, organizationUuid);
+
         const { query, totalQuery } = await this._getCalculateTotalQuery(
-            user,
+            userAttributes,
+            intrinsicUserAttributes,
             explore,
             metricQuery,
-            organizationUuid,
             warehouseClient,
         );
 
         const queryTags: RunQueryTags = {
-            organization_uuid: user.organizationUuid,
+            organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             explore_name: explore.name,
@@ -6037,7 +6046,7 @@ export class ProjectService extends BaseService {
     async calculateTotalFromSavedChart(
         user: SessionUser,
         chartUuid: string,
-        dashboardFilters: DashboardFilters,
+        dashboardFilters?: DashboardFilters,
         invalidateCache: boolean = false,
     ) {
         if (!isUserWithOrg(user)) {

@@ -4,6 +4,7 @@ import { type ChartKind } from './savedCharts';
 export enum ContentType {
     CHART = 'chart',
     DASHBOARD = 'dashboard',
+    SPACE = 'space',
 }
 
 export interface Content {
@@ -73,9 +74,22 @@ export interface DashboardContent extends Content {
     contentType: ContentType.DASHBOARD;
 }
 
+export interface SpaceContent extends Content {
+    contentType: ContentType.SPACE;
+    parentSpaceUuid?: string;
+    isPrivate: boolean;
+    access: string[];
+    dashboardCount: number;
+    chartCount: number;
+    pinnedList: {
+        uuid: string;
+        order: number;
+    } | null;
+}
+
 // Group types
 
-export type SummaryContent = ChartContent | DashboardContent; // Note: more types will be added.
+export type SummaryContent = ChartContent | DashboardContent | SpaceContent; // Note: more types will be added.
 
 // API types
 

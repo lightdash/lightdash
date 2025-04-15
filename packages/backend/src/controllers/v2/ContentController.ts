@@ -36,6 +36,7 @@ export class ContentController extends BaseController {
         @Request() req: express.Request,
         @Query() projectUuids?: string[],
         @Query() spaceUuids?: string[],
+        @Query() parentSpaceUuid?: string,
         @Query() contentTypes?: ContentType[],
         @Query() pageSize?: number,
         @Query() page?: number,
@@ -53,6 +54,9 @@ export class ContentController extends BaseController {
                     spaceUuids,
                     contentTypes,
                     search,
+                    space: {
+                        parentSpaceUuid,
+                    },
                 },
                 {
                     sortBy,

@@ -1,0 +1,23 @@
+{
+    "name": "@lightdash/sdk-next-test-app",
+    "version": "0.0.0",
+    "private": true,
+    "scripts": {
+        "dev": "next dev --turbopack --port 9898",
+        "build": "NODE_ENV=production next build",
+        "start": "NODE_ENV=production next start --port 9998",
+        "lint": "next lint"
+    },
+    "dependencies": {
+        "@lightdash/sdk": "workspace:*",
+        "next": "15.3.0",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "typescript": "^5"
+    }
+}

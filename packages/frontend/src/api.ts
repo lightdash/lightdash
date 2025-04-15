@@ -8,7 +8,10 @@ import {
 } from '@lightdash/common';
 import { spanToTraceHeader, startSpan } from '@sentry/react';
 import fetch from 'isomorphic-fetch';
-import { LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY } from './sdk';
+
+// TODO: import from common or fix the instantiation of the request module
+const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
+    '__lightdash_sdk_instance_url';
 
 export const BASE_API_URL =
     import.meta.env.VITEST === 'true'

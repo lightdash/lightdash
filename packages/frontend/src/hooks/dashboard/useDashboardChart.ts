@@ -12,10 +12,10 @@ import { useCallback, useMemo } from 'react';
 import { lightdashApi } from '../../api';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
-import { getExplore } from '../useExplore';
+import { useExplore } from '../useExplore';
 import { useFeatureFlag } from '../useFeatureFlagEnabled';
 import { getQueryPaginatedResults } from '../useQueryResults';
-import { getSavedQuery } from '../useSavedQuery';
+import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
@@ -81,6 +81,7 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
         dashboardSorts
             ?.map((ds) => `${ds.fieldId}.${ds.descending}`)
             ?.join(',') || '';
+
     const queryKey = useMemo(
         () => [
             'savedChartResults',
@@ -102,6 +103,23 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
             autoRefresh,
         ],
     );
+
+    const { data: chart, isFetched: isChartFetched } = useSavedQuery({
+        id: chartUuid!,
+        useQueryOptions: {
+            enabled: !!chartUuid && queryPaginationEnabled?.enabled,
+        },
+    });
+
+    const { data: explore, isFetched: isExploreFetched } = useExplore(
+        chart?.metricQuery?.exploreName,
+        {
+            enabled:
+                !!chart?.metricQuery?.exploreName &&
+                queryPaginationEnabled?.enabled,
+        },
+    );
+
     const apiChartAndResults =
         queryClient.getQueryData<ApiChartAndResults>(queryKey);
 
@@ -111,16 +129,16 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
         !!apiChartAndResults?.metricQuery?.metadata?.hasADateDimension;
 
     const fetchChartAndResults = useCallback<
-        () => Promise<ApiChartAndResults & { queryUuid?: string }>
+        () => Promise<
+            ApiChartAndResults & {
+                queryUuid?: string;
+                warehouseExecutionTimeMs?: number;
+                totalTimeMs?: number;
+            }
+        >
     >(async () => {
-        if (queryPaginationEnabled?.enabled) {
-            const chart = await getSavedQuery(chartUuid!);
-            const explorePromise = getExplore(
-                chart.projectUuid,
-                chart.metricQuery.exploreName,
-            );
-
-            const resultsPromise = getQueryPaginatedResults(chart.projectUuid, {
+        if (queryPaginationEnabled?.enabled && explore && chart) {
+            const results = await getQueryPaginatedResults(chart.projectUuid, {
                 context: autoRefresh
                     ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
                     : context || QueryExecutionContext.DASHBOARD,
@@ -132,11 +150,6 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
                 invalidateCache,
             });
 
-            const [explore, results] = await Promise.all([
-                explorePromise,
-                resultsPromise,
-            ]);
-
             return {
                 chart,
                 explore,
@@ -147,6 +160,8 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
                 rows: results.rows,
                 fields: results.fields,
                 queryUuid: results.queryUuid,
+                warehouseExecutionTimeMs: results.warehouseExecutionTimeMs,
+                totalTimeMs: results.totalTimeMs,
             };
         }
         return getChartAndResults({
@@ -160,7 +175,9 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
             context,
         });
     }, [
-        queryPaginationEnabled,
+        queryPaginationEnabled?.enabled,
+        explore,
+        chart,
         chartUuid,
         dashboardUuid,
         timezoneFixFilters,
@@ -182,13 +199,27 @@ const useDashboardChart = (tileUuid: string, chartUuid: string | null) => {
         return prev;
     });
 
-    return useQuery<ApiChartAndResults & { queryUuid?: string }, ApiError>({
+    return useQuery<
+        ApiChartAndResults & {
+            queryUuid?: string;
+            warehouseExecutionTimeMs?: number;
+            totalTimeMs?: number;
+        },
+        ApiError
+    >({
         queryKey:
             hasADateDimension && granularity
                 ? queryKey.concat([granularity])
                 : queryKey,
         queryFn: fetchChartAndResults,
-        enabled: !!chartUuid && !!dashboardUuid && isQueryPaginationFetched,
+        enabled:
+            !!chartUuid &&
+            !!dashboardUuid &&
+            isQueryPaginationFetched &&
+            ((isExploreFetched &&
+                isChartFetched &&
+                queryPaginationEnabled?.enabled) ||
+                !queryPaginationEnabled?.enabled),
         retry: false,
         refetchOnMount: false,
     });

@@ -54,6 +54,8 @@ export const space: SpaceTable['base'] = {
     project_id: 0,
     organization_uuid: user.organizationUuid!,
     search_vector: '',
+    parent_space_uuid: null,
+    path: 'space-name',
 };
 
 export const publicSpace: Space = {

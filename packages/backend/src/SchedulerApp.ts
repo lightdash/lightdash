@@ -86,6 +86,8 @@ export default class SchedulerApp {
 
     private readonly models: ModelRepository;
 
+    private readonly database: Knex;
+
     private readonly schedulerWorkerFactory: typeof schedulerWorkerFactory;
 
     constructor(args: SchedulerAppArguments) {
@@ -105,7 +107,7 @@ export default class SchedulerApp {
             },
         });
 
-        const database = knex(
+        this.database = knex(
             this.environment === 'production'
                 ? args.knexConfig.production
                 : args.knexConfig.development,
@@ -118,7 +120,7 @@ export default class SchedulerApp {
         this.models = new ModelRepository({
             modelProviders: args.modelProviders,
             lightdashConfig: this.lightdashConfig,
-            database,
+            database: this.database,
             utils,
         });
 
@@ -152,6 +154,7 @@ export default class SchedulerApp {
 
     public async start() {
         this.prometheusMetrics.start();
+        this.prometheusMetrics.monitorDatabase(this.database);
         // @ts-ignore
         // eslint-disable-next-line no-extend-native, func-names
         BigInt.prototype.toJSON = function () {

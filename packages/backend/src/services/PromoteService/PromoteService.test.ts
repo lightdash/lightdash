@@ -17,6 +17,7 @@ import {
     promotedDashboardWithChartWithinDashboard,
     promotedDashboardWithNewPrivateSpace,
     upstreamFullSpace,
+    upstreamSpace,
     user,
 } from './PromoteService.mock';
 
@@ -33,10 +34,12 @@ const spaceModel = {
     find: jest.fn(async () => [existingUpstreamChart.space]),
     getUserSpaceAccess: jest.fn(async () => []),
     createSpace: jest.fn(async () => existingUpstreamChart.space),
+    createSpaceWithAncestors: jest.fn(async () => existingUpstreamChart.space),
     getFullSpace: jest.fn(async () => upstreamFullSpace),
     addSpaceAccess: jest.fn(async () => {}),
     addSpaceGroupAccess: jest.fn(async () => {}),
     update: jest.fn(async () => {}),
+    isRootSpace: jest.fn(async () => true),
 };
 const dashboardModel = {
     create: jest.fn(async () => existingUpstreamDashboard.dashboard),
@@ -439,7 +442,11 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes.dashboards.length).toBe(1);
         expect(changes.spaces[0].action).toBe('no changes');
 
-        const newChanges = await service.upsertSpaces(user, changes);
+        const newChanges = await service.upsertSpaces(
+            user,
+            promotedDashboard.projectUuid,
+            changes,
+        );
 
         expect(changes).toEqual(newChanges);
     });
@@ -462,9 +469,14 @@ describe('PromoteService promoting and mutating changes', () => {
             promotedDashboard.dashboard.spaceUuid,
         );
 
-        const newChanges = await service.upsertSpaces(user, changes);
+        const newChanges = await service.upsertSpaces(
+            user,
+            promotedDashboard.projectUuid,
+            changes,
+        );
 
-        expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
+        // expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
+        expect(spaceModel.createSpaceWithAncestors).toHaveBeenCalledTimes(1);
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(0);
         expect(spaceModel.addSpaceGroupAccess).toHaveBeenCalledTimes(0);
 
@@ -511,17 +523,32 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes.spaces[0].action).toBe('create');
         expect(changes.spaces[0].data.isPrivate).toBe(true);
 
-        await service.upsertSpaces(user, changes);
+        (
+            spaceModel.createSpaceWithAncestors as jest.Mock
+        ).mockImplementationOnce(async () => ({
+            ...promotedDashboardWithNewPrivateSpace.space,
+            projectUuid: missingUpstreamDashboard.projectUuid,
+            uuid: upstreamSpace?.uuid,
+            rootSpaceUuid: upstreamSpace?.uuid,
+        }));
 
-        expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
-        expect(spaceModel.createSpace).toHaveBeenCalledWith(
-            'upstream-project-uuid',
-            'Private space',
-            0,
-            true, // isPrivate
-            'jaffle-shop',
-            true, // forceSameSlug
+        await service.upsertSpaces(
+            user,
+            promotedDashboardWithNewPrivateSpace.projectUuid,
+            changes,
         );
+
+        expect(spaceModel.createSpaceWithAncestors).toHaveBeenCalledTimes(1);
+        expect(spaceModel.createSpaceWithAncestors).toHaveBeenCalledWith({
+            baseProjectUuid: promotedDashboardWithNewPrivateSpace.projectUuid,
+            forceSameSlug: true,
+            isNestedSpace: false,
+            isPrivate: true,
+            name: 'Private space',
+            projectUuid: missingUpstreamDashboard.projectUuid,
+            slug: 'jaffle-shop',
+            userId: 0,
+        });
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(1);
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledWith(
             'upstream-space-uuid',
@@ -543,7 +570,11 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes.spaces[0].action).toBe('update');
         expect(changes.spaces[0].data.isPrivate).toBe(false); // Existing space is not private, so it should be kept that way
 
-        await service.upsertSpaces(user, changes);
+        await service.upsertSpaces(
+            user,
+            promotedDashboardWithNewPrivateSpace.projectUuid,
+            changes,
+        );
 
         expect(spaceModel.update).toHaveBeenCalledTimes(1);
         expect(spaceModel.update).toHaveBeenCalledWith('upstream-space-uuid', {

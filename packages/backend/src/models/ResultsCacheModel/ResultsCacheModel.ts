@@ -45,9 +45,9 @@ export class ResultsCacheModel {
         return crypto.createHash('sha256').update(queryHashKey).digest('hex');
     }
 
-    private getCacheExpiresAt() {
+    private getCacheUpdatedAt(baseDate: Date) {
         return new Date(
-            Date.now() +
+            baseDate.getTime() +
                 this.lightdashConfig.resultsCache.cacheStateTimeSeconds * 1000,
         );
     }
@@ -78,6 +78,9 @@ export class ResultsCacheModel {
         ) {
             return {
                 cacheKey: existingCache.cache_key,
+                createdAt: existingCache.created_at,
+                updatedAt: existingCache.updated_at,
+                expiresAt: existingCache.expires_at,
                 cacheHit: true,
                 write: undefined,
                 close: undefined,
@@ -91,15 +94,22 @@ export class ResultsCacheModel {
             DEFAULT_RESULTS_PAGE_SIZE,
         );
 
+        const now = new Date();
+        const newExpiresAt = this.getCacheUpdatedAt(now);
+
         // Case 2: Cache exists but is invalid or being invalidated
         if (existingCache) {
             // Update expiration time
             await this.update(existingCache.cache_key, projectUuid, {
-                expires_at: this.getCacheExpiresAt(),
+                expires_at: newExpiresAt,
+                updated_at: now,
             });
 
             return {
                 cacheKey: existingCache.cache_key,
+                createdAt: existingCache.created_at,
+                updatedAt: now,
+                expiresAt: newExpiresAt,
                 cacheHit: false,
                 write,
                 close,
@@ -112,10 +122,10 @@ export class ResultsCacheModel {
             .insert({
                 cache_key: cacheKey,
                 project_uuid: projectUuid,
-                expires_at: this.getCacheExpiresAt(),
+                expires_at: newExpiresAt,
                 total_row_count: null,
             })
-            .returning('cache_key');
+            .returning(['cache_key', 'created_at', 'updated_at', 'expires_at']);
 
         if (!createdCache) {
             await close();
@@ -124,6 +134,9 @@ export class ResultsCacheModel {
 
         return {
             cacheKey: createdCache.cache_key,
+            createdAt: createdCache.created_at,
+            updatedAt: createdCache.updated_at,
+            expiresAt: createdCache.expires_at,
             write,
             close,
             cacheHit: false,
