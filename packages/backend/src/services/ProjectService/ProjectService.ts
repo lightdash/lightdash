@@ -222,6 +222,7 @@ import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
+import { ValidationService } from '../ValidationService/ValidationService';
 import {
     getNextAndPreviousPage,
     validatePagination,
@@ -6268,13 +6269,27 @@ export class ProjectService extends BaseService {
             async (subtotalDimensions) => {
                 let subtotals: Record<string, unknown>[] = [];
 
+                const dimensions = [
+                    ...subtotalDimensions,
+                    ...(pivotDimensions || []), // we always need to include the pivot dimensions in the subtotal query
+                ];
+                // Exclude table calculations that require dims/metrics that are not in subtotal query
+                const tableCalculations = metricQuery.tableCalculations.filter(
+                    (tc) => {
+                        const referencedFields =
+                            ValidationService.getTableCalculationFieldIds([tc]);
+                        return referencedFields.every(
+                            (field) =>
+                                dimensions.includes(field) ||
+                                metricQuery.metrics.includes(field),
+                        );
+                    },
+                );
                 try {
                     subtotals = await runQueryAndFormatRaw({
                         ...metricQuery,
-                        dimensions: [
-                            ...subtotalDimensions,
-                            ...(pivotDimensions || []), // we always need to include the pivot dimensions in the subtotal query
-                        ],
+                        dimensions,
+                        tableCalculations,
                         sorts: [],
                     });
                 } catch (e) {
