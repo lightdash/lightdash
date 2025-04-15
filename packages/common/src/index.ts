@@ -481,7 +481,7 @@ export type CacheMetadata = {
     cacheUpdatedTime?: Date;
     cacheExpiresAt?: Date;
     cacheKey?: string;
-    cacheHit: boolean;
+    cacheHit?: boolean;
 };
 
 export type ApiQueryResults = {

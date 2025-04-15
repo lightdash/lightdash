@@ -2088,7 +2088,6 @@ export class ProjectService extends BaseService {
                     resultsPageExecutionMs: roundedDurationMs,
                     status,
                     cacheMetadata: {
-                        cacheHit: true,
                         cacheExpiresAt: expiresAt,
                         cacheKey,
                     },
