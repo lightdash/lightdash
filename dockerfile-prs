@@ -145,8 +145,7 @@ COPY packages/backend/src/ ./packages/backend/src
 RUN pnpm -F backend build
 
 # Build mantine-v7
-COPY packages/mantine-v7/tsconfig.json ./packages/mantine-v7/
-COPY packages/mantine-v7/src/ ./packages/mantine-v7/src/
+COPY packages/mantine-v7 ./packages/mantine-v7
 RUN pnpm -F mantine-v7 build
 
 # Build frontend
