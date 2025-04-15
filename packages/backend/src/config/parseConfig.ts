@@ -375,6 +375,9 @@ export type LightdashConfig = {
     microsoftTeams: {
         enabled: boolean;
     };
+    googleCloudPlatform: {
+        projectId?: string;
+    };
 };
 
 export type SlackConfig = {
@@ -980,6 +983,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         microsoftTeams: {
             enabled: process.env.MICROSOFT_TEAMS_ENABLED === 'true',
+        },
+        googleCloudPlatform: {
+            projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
     };
 };
