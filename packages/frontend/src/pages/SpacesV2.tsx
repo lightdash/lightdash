@@ -38,6 +38,14 @@ const SpacesV2: FC = () => {
         }),
     );
 
+    const userCanManageProject = user.data?.ability?.can(
+        'manage',
+        subject('Project', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid: projectUuid,
+        }),
+    );
+
     if (
         user.data?.ability?.cannot(
             'view',
@@ -94,6 +102,7 @@ const SpacesV2: FC = () => {
                         [ColumnVisibility.ACCESS]: true,
                         [ColumnVisibility.CONTENT]: true,
                     }}
+                    adminContentView={userCanManageProject}
                 />
 
                 {isCreateModalOpen && (

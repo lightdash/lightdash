@@ -52,11 +52,16 @@ import {
     useInfiniteContent,
     type ContentArgs,
 } from '../../../hooks/useContent';
-import { useSpaceSummaries } from '../../../hooks/useSpaces';
+import {
+    hasDirectAccessToSpace,
+    useSpaceSummaries,
+} from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
 import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
 import { ResourceInfoPopup } from '../ResourceInfoPopup/ResourceInfoPopup';
+import AdminContentViewFilter from './AdminContentViewFilter';
 import ContentTypeFilter from './ContentTypeFilter';
 import ResourceAccessInfo from './ResourceAccessInfo';
 import ResourceActionHandlers from './ResourceActionHandlers';
@@ -85,20 +90,22 @@ type ResourceView2Props = {
         options: ContentType[];
     };
     columnVisibility?: ColumnVisibilityConfig;
+    adminContentView?: boolean;
 };
 
 const InfiniteResourceTable = ({
     filters,
     contentTypeFilter,
     columnVisibility,
+    adminContentView = false,
 }: ResourceView2Props) => {
+    const [selectedAdminContentType, setSelectedAdminContentType] = useState<
+        'all' | 'shared'
+    >('shared');
     const theme = useMantineTheme();
     const navigate = useNavigate();
-    const { data: spaces = [] } = useSpaceSummaries(
-        filters.projectUuid,
-        true,
-        {},
-    );
+    const { data: spaces = [] } = useSpaceSummaries(filters.projectUuid, true);
+    const { user } = useApp();
     const canUserManageValidation = useValidationUserAbility(
         filters.projectUuid,
     );
@@ -396,10 +403,17 @@ const InfiniteResourceTable = ({
 
     const flatData = useMemo(() => {
         if (!data) return [];
-        return data.pages.flatMap((page) =>
-            page.data.map(contentToResourceViewItem),
-        );
-    }, [data]);
+        return data.pages
+            .flatMap((page) => page.data.map(contentToResourceViewItem))
+            .filter((content) => {
+                if (!isResourceViewSpaceItem(content)) return true;
+                if (selectedAdminContentType === 'all') return true;
+                return (
+                    !!user.data &&
+                    hasDirectAccessToSpace(content.data, user.data.userUuid)
+                );
+            });
+    }, [data, selectedAdminContentType, user.data]);
 
     // Temporary workaround to resolve a memoization issue with react-mantine-table.
     // In certain scenarios, the content fails to render properly even when the data is updated.
@@ -705,6 +719,12 @@ const InfiniteResourceTable = ({
                                     options={contentTypeFilter.options}
                                 />
                             </>
+                        ) : null}
+                        {adminContentView ? (
+                            <AdminContentViewFilter
+                                value={selectedAdminContentType}
+                                onChange={setSelectedAdminContentType}
+                            />
                         ) : null}
                     </Group>
                 </Group>

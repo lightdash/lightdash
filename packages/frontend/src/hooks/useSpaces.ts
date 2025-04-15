@@ -23,6 +23,13 @@ const getSpaceSummaries = async (projectUuid: string) => {
     });
 };
 
+export const hasDirectAccessToSpace = (
+    space: Pick<SpaceSummary, 'isPrivate' | 'access'>,
+    userUuid: string,
+) => {
+    return !space.isPrivate || space.access.includes(userUuid);
+};
+
 export const useSpaceSummaries = (
     projectUuid?: string,
     includePrivateSpaces: boolean = false,
@@ -35,13 +42,13 @@ export const useSpaceSummaries = (
         {
             select: (data) =>
                 // only get spaces that the user has direct access to
-                !includePrivateSpaces
-                    ? data.filter(
+                includePrivateSpaces
+                    ? data
+                    : data.filter(
                           (space) =>
-                              !space.isPrivate ||
-                              (!!user && space.access.includes(user.userUuid)),
-                      )
-                    : data,
+                              !!user &&
+                              hasDirectAccessToSpace(space, user.userUuid),
+                      ),
             enabled: !!projectUuid,
             ...queryOptions,
         },
