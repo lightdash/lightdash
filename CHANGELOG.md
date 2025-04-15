@@ -1,3 +1,10 @@
+# [0.1578.0](https://github.com/lightdash/lightdash/compare/0.1577.3...0.1578.0) (2025-04-15)
+
+
+### Features
+
+* display nested spaces in space ([#14404](https://github.com/lightdash/lightdash/issues/14404)) ([642529f](https://github.com/lightdash/lightdash/commit/642529fb13393a79568a99bcfdca62cf815508d5))
+
 ## [0.1577.3](https://github.com/lightdash/lightdash/compare/0.1577.2...0.1577.3) (2025-04-15)
 
 
