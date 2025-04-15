@@ -72,7 +72,7 @@ export const useDashboardChartReadyQuery = (
 
     const queryKey = useMemo(
         () => [
-            'dashboardChart',
+            'savedChartResults',
             [
                 chart?.projectUuid,
                 chartUuid,
