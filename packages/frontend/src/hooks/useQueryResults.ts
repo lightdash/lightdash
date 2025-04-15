@@ -392,6 +392,7 @@ export type InfiniteQueryResults = Partial<
     isFetchingRows: boolean;
     fetchMoreRows: () => void;
     setFetchAll: (value: boolean) => void;
+    fetchAll: boolean;
     hasFetchedAllRows: boolean;
     totalClientFetchTimeMs: number | undefined;
 };
@@ -556,6 +557,7 @@ export const useInfiniteQueryResults = (
             setFetchAll,
             totalClientFetchTimeMs,
             isInitialLoading,
+            fetchAll,
         }),
         [
             projectUuid,
@@ -567,6 +569,7 @@ export const useInfiniteQueryResults = (
             fetchMoreRows,
             totalClientFetchTimeMs,
             isInitialLoading,
+            fetchAll,
         ],
     );
 };

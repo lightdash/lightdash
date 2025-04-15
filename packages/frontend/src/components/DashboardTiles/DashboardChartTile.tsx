@@ -1412,7 +1412,10 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     return (
         <GenericDashboardChartTile
             {...props}
-            isLoading={readyQuery.isFetching || resultsData.isFetchingRows}
+            isLoading={
+                (resultsData.fetchAll && !resultsData.hasFetchedAllRows) ||
+                readyQuery.isInitialLoading
+            }
             resultsData={resultsData}
             query={readyQuery.data}
             error={readyQuery.error}
