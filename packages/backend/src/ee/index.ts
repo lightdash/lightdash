@@ -98,6 +98,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     organizationModel: models.getOrganizationModel(),
                     slackAuthenticationModel:
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
+                    featureFlagService: repository.getFeatureFlagService(),
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({

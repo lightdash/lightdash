@@ -157,6 +157,7 @@ export const lightdashConfigMock: LightdashConfig = {
     ai: {
         copilot: {
             enabled: false,
+            requiresFeatureFlag: false,
         },
     },
     embedding: {
