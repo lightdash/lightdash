@@ -1,3 +1,10 @@
+# [0.1579.0](https://github.com/lightdash/lightdash/compare/0.1578.1...0.1579.0) (2025-04-15)
+
+
+### Features
+
+* ai colilot for cloud under the feature flag ([#14426](https://github.com/lightdash/lightdash/issues/14426)) ([4c2463e](https://github.com/lightdash/lightdash/commit/4c2463e4dde29ddb367fd3581150db5601d9ae33))
+
 ## [0.1578.1](https://github.com/lightdash/lightdash/compare/0.1578.0...0.1578.1) (2025-04-15)
 
 
