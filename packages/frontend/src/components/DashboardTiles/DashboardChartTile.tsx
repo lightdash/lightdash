@@ -1412,7 +1412,7 @@ export const GenericDashboardChartTile: FC<
 };
 
 const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
-    const { isInitialLoading, data, error } = useDashboardChart(
+    const { isLoading, data, error } = useDashboardChart(
         props.tile.uuid,
         props.tile.properties?.savedChartUuid ?? null,
     );
@@ -1420,7 +1420,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     return (
         <GenericDashboardChartTile
             {...props}
-            isLoading={isInitialLoading}
+            isLoading={isLoading}
             data={data}
             error={error}
         />
