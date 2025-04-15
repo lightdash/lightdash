@@ -300,7 +300,7 @@ type QueryPageEvent = BaseTrack & {
         resultsPageSize: number;
         resultsPageExecutionMs: number;
         status: QueryHistoryStatus;
-        cacheMetadata: CacheMetadata | null;
+        cacheMetadata: Omit<CacheMetadata, 'cacheHit'> | null;
     };
 };
 
