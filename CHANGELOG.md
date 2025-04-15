@@ -1,3 +1,10 @@
+## [0.1578.1](https://github.com/lightdash/lightdash/compare/0.1578.0...0.1578.1) (2025-04-15)
+
+
+### Bug Fixes
+
+* dashboard loading states ([#14419](https://github.com/lightdash/lightdash/issues/14419)) ([6f7a458](https://github.com/lightdash/lightdash/commit/6f7a4586127c7edda178e058c8afc15ec5a42ae5))
+
 # [0.1578.0](https://github.com/lightdash/lightdash/compare/0.1577.3...0.1578.0) (2025-04-15)
 
 
