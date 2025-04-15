@@ -21,7 +21,6 @@ import {
     ProjectType,
     SemanticLayerType,
     SpaceSummary,
-    SupportedDbtAdapter,
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
@@ -48,7 +47,6 @@ import {
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import { merge } from 'lodash';
-import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -91,6 +89,7 @@ import { WarehouseCredentialTableName } from '../../database/entities/warehouseC
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { ExploreCache } from './ExploreCache';
 import Transaction = Knex.Transaction;
 
 export type ProjectModelArguments = {
@@ -108,10 +107,13 @@ export class ProjectModel {
 
     private encryptionUtil: EncryptionUtil;
 
+    private readonly exploreCacheByName: ExploreCache;
+
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.encryptionUtil = args.encryptionUtil;
+        this.exploreCacheByName = new ExploreCache();
     }
 
     static mergeMissingDbtConfigSecrets(
@@ -855,24 +857,85 @@ export class ProjectModel {
                 exploreNames,
             },
             async (span) => {
+                const result: Record<string, Explore | ExploreError> = {};
+                const missingExploreNames: string[] = [];
+
+                // If exploreNames is provided, try to get each explore from cache
+                if (exploreNames?.length) {
+                    for (const name of exploreNames) {
+                        const cachedExplore =
+                            this.exploreCacheByName.getIndividualExplore(
+                                projectUuid,
+                                name,
+                            );
+
+                        if (cachedExplore) {
+                            result[name] = cachedExplore;
+                        } else {
+                            missingExploreNames.push(name);
+                        }
+                    }
+                } else {
+                    // If no exploreNames provided, try to get all explores for the project
+                    const cachedExplores =
+                        this.exploreCacheByName.getAllExplores(projectUuid);
+
+                    if (cachedExplores) {
+                        span.setAttribute('cacheHit', true);
+                        return cachedExplores;
+                    }
+                }
+
+                // If we have all explores cached, return them
+                if (
+                    missingExploreNames.length === 0 &&
+                    exploreNames &&
+                    exploreNames.length > 0
+                ) {
+                    span.setAttribute('cacheHit', true);
+                    return result;
+                }
+
+                // Query only the missing explores from the database
                 const query = this.database(CachedExploreTableName)
                     .select('explore')
                     .where('project_uuid', projectUuid);
-                if (exploreNames) {
-                    void query.whereIn('name', exploreNames);
+
+                if (missingExploreNames.length > 0) {
+                    void query.whereIn('name', missingExploreNames);
                 }
+
                 const explores = await query;
                 span.setAttribute('foundExplores', !!explores.length);
-                return explores.reduce<Record<string, Explore | ExploreError>>(
-                    (acc, { explore }) => {
-                        acc[explore.name] =
-                            ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-                                explore,
-                            );
-                        return acc;
-                    },
-                    {},
-                );
+
+                // Process and cache the results
+                const exploresMap = explores.reduce<
+                    Record<string, Explore | ExploreError>
+                >((acc, { explore }) => {
+                    const processedExplore =
+                        ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                            explore,
+                        );
+                    acc[explore.name] = processedExplore;
+                    // Cache each explore individually
+                    this.exploreCacheByName.setIndividualExplore(
+                        projectUuid,
+                        explore.name,
+                        processedExplore,
+                    );
+                    return acc;
+                }, {});
+
+                // If no exploreNames provided, cache all explores for the project
+                if (!exploreNames?.length) {
+                    this.exploreCacheByName.setAllExplores(
+                        projectUuid,
+                        exploresMap,
+                    );
+                }
+
+                // Merge cached and newly fetched explores
+                return { ...result, ...exploresMap };
             },
         );
     }
@@ -1039,6 +1102,9 @@ export class ProjectModel {
                         .onConflict('project_uuid')
                         .merge()
                         .returning('*');
+
+                    // Invalidate cache after saving explores
+                    this.exploreCacheByName.invalidateCache(projectUuid);
 
                     return {
                         cachedExploreUuids: individualCachedExplores.map(
@@ -2161,6 +2227,12 @@ export class ProjectModel {
             })
             .returning('*');
 
+        this.exploreCacheByName.setIndividualExplore(
+            projectUuid,
+            virtualView.name,
+            virtualView,
+        );
+
         return virtualView;
     }
 
@@ -2223,6 +2295,12 @@ export class ProjectModel {
             })
             .returning('*');
 
+        this.exploreCacheByName.setIndividualExplore(
+            projectUuid,
+            exploreName,
+            translatedToExplore,
+        );
+
         return translatedToExplore;
     }
 
@@ -2240,18 +2318,21 @@ export class ProjectModel {
             .update({
                 explores: this.database.raw(
                     `
-                    (
-                        SELECT COALESCE(
-                            jsonb_agg(explore_obj),
-                            '[]'::jsonb
+                        (
+                            SELECT COALESCE(
+                                jsonb_agg(explore_obj),
+                                '[]'::jsonb
+                            )
+                            FROM jsonb_array_elements(explores) AS explore_obj
+                            WHERE explore_obj->>'name' != ?
                         )
-                        FROM jsonb_array_elements(explores) AS explore_obj
-                        WHERE explore_obj->>'name' != ?
-                    )
-                `,
+                    `,
                     [name],
                 ),
             });
+
+        // Invalidate cache for this specific explore
+        this.exploreCacheByName.invalidateCache(projectUuid, name);
     }
 
     private static isSemanticLayerConnectionValid(
