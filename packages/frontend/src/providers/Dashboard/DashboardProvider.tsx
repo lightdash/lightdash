@@ -203,12 +203,13 @@ const DashboardProvider: React.FC<
                             overridesForSavedDashboardFilters,
                         ),
                     };
+                    setHaveFiltersChanged(true);
                 } else {
                     updatedDashboardFilters = dashboard.filters;
+                    setHaveFiltersChanged(false);
                 }
 
                 setDashboardFilters(updatedDashboardFilters);
-                setHaveFiltersChanged(false);
             }
 
             setOriginalDashboardFilters(dashboard.filters);
