@@ -1,3 +1,59 @@
+## [0.1577.2](https://github.com/lightdash/lightdash/compare/0.1577.1...0.1577.2) (2025-04-14)
+
+
+### Bug Fixes
+
+* reference line for pivot series ([#14410](https://github.com/lightdash/lightdash/issues/14410)) ([b817795](https://github.com/lightdash/lightdash/commit/b8177955e44485e4d084de3b2dbcb0fda77897e3))
+
+## [0.1577.1](https://github.com/lightdash/lightdash/compare/0.1577.0...0.1577.1) (2025-04-14)
+
+
+### Bug Fixes
+
+* Allow admins to save to private dashboards ([#14409](https://github.com/lightdash/lightdash/issues/14409)) ([58529ca](https://github.com/lightdash/lightdash/commit/58529ca340e05e03b18c1eaa8775b28d45ef2e13))
+
+# [0.1577.0](https://github.com/lightdash/lightdash/compare/0.1576.0...0.1577.0) (2025-04-14)
+
+
+### Features
+
+* **backend:** content api for Spaces ([#14399](https://github.com/lightdash/lightdash/issues/14399)) ([f84c5cd](https://github.com/lightdash/lightdash/commit/f84c5cd9fa32a071ef7ffda99d93e5625a743b82)), closes [#14335](https://github.com/lightdash/lightdash/issues/14335) [#14392](https://github.com/lightdash/lightdash/issues/14392)
+
+# [0.1576.0](https://github.com/lightdash/lightdash/compare/0.1575.2...0.1576.0) (2025-04-14)
+
+
+### Features
+
+* display nested space breadcrumbs ([#14393](https://github.com/lightdash/lightdash/issues/14393)) ([e7d2553](https://github.com/lightdash/lightdash/commit/e7d25533d697ed9d899ede9ea941f0357427e836))
+
+## [0.1575.2](https://github.com/lightdash/lightdash/compare/0.1575.1...0.1575.2) (2025-04-14)
+
+
+### Bug Fixes
+
+* Revert "fix: cache user session ([#14381](https://github.com/lightdash/lightdash/issues/14381))" ([#14395](https://github.com/lightdash/lightdash/issues/14395)) ([a2bb34f](https://github.com/lightdash/lightdash/commit/a2bb34fd99efebc36fe091947d83ab27f3e5e146))
+
+## [0.1575.1](https://github.com/lightdash/lightdash/compare/0.1575.0...0.1575.1) (2025-04-14)
+
+
+### Bug Fixes
+
+* only fetch explore once ([#14392](https://github.com/lightdash/lightdash/issues/14392)) ([6f377ff](https://github.com/lightdash/lightdash/commit/6f377ff17c9b812c6fd0f2a00b24ded6aca966e6))
+
+# [0.1575.0](https://github.com/lightdash/lightdash/compare/0.1574.0...0.1575.0) (2025-04-14)
+
+
+### Features
+
+* embedding table totals ([#14335](https://github.com/lightdash/lightdash/issues/14335)) ([5474e4b](https://github.com/lightdash/lightdash/commit/5474e4b7caf2bf138d06669172f24b41a4bb317d))
+
+# [0.1574.0](https://github.com/lightdash/lightdash/compare/0.1573.1...0.1574.0) (2025-04-14)
+
+
+### Features
+
+* Only show root spaces in navbar ([#14370](https://github.com/lightdash/lightdash/issues/14370)) ([e16c0d0](https://github.com/lightdash/lightdash/commit/e16c0d062cc54479b8f57aacabf40ad71502b785))
+
 ## [0.1573.1](https://github.com/lightdash/lightdash/compare/0.1573.0...0.1573.1) (2025-04-11)
 
 
