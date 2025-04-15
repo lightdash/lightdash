@@ -1,3 +1,10 @@
+## [0.1579.1](https://github.com/lightdash/lightdash/compare/0.1579.0...0.1579.1) (2025-04-15)
+
+
+### Bug Fixes
+
+* get dashboards from allowed private space when embedding ([#14421](https://github.com/lightdash/lightdash/issues/14421)) ([0d1bff4](https://github.com/lightdash/lightdash/commit/0d1bff4b56761eaebc47ff5ec91e2751ae239ea6))
+
 # [0.1579.0](https://github.com/lightdash/lightdash/compare/0.1578.1...0.1579.0) (2025-04-15)
 
 
