@@ -103,6 +103,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
                 isFetchingRows: false,
                 fetchMoreRows: () => undefined,
                 setFetchAll: () => undefined,
+                fetchAll: true,
                 hasFetchedAllRows: true,
                 totalClientFetchTimeMs: 0,
                 isInitialLoading: false,
