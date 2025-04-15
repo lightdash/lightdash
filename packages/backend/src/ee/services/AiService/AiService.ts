@@ -14,6 +14,7 @@ import {
     AiWebAppPrompt,
     AnyType,
     CatalogType,
+    CommercialFeatureFlags,
     DashboardDAO,
     DashboardSummary,
     FeatureFlags,
@@ -157,7 +158,7 @@ export class AiService {
     ) {
         const aiCopilotFlag = await this.featureFlagService.get({
             user,
-            featureFlagId: FeatureFlags.AiCopilot,
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
         });
         return aiCopilotFlag.enabled;
     }

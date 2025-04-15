@@ -20,6 +20,8 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             [CommercialFeatureFlags.Embedding]:
                 this.getEmbeddingFlag.bind(this),
             [CommercialFeatureFlags.Scim]: this.getScimFlag.bind(this),
+            [CommercialFeatureFlags.AiCopilot]:
+                this.getAiCopilotFlag.bind(this),
         };
     }
 
@@ -62,6 +64,39 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
                       },
                   )
                 : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getAiCopilotFlag({
+        featureFlagId,
+        user,
+    }: FeatureFlagLogicArgs) {
+        let enabled = false;
+
+        if (
+            this.lightdashConfig.ai.copilot.enabled &&
+            this.lightdashConfig.ai.copilot.requiresFeatureFlag
+        ) {
+            if (!user) {
+                throw new Error(
+                    'User is required to check if AI copilot is enabled',
+                );
+            }
+
+            enabled = await isFeatureFlagEnabled(
+                CommercialFeatureFlags.AiCopilot as AnyType as FeatureFlags,
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                },
+            );
+        } else {
+            enabled = this.lightdashConfig.ai.copilot.enabled;
+        }
+
         return {
             id: featureFlagId,
             enabled,

@@ -31,7 +31,6 @@ export class FeatureFlagModel {
         this.featureFlagHandlers = {
             [FeatureFlags.UserGroupsEnabled]:
                 this.getUserGroupsEnabled.bind(this),
-            [FeatureFlags.AiCopilot]: this.getAiCopilotFlag.bind(this),
         };
     }
 
@@ -85,36 +84,6 @@ export class FeatureFlagModel {
                       },
                   )
                 : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getAiCopilotFlag({
-        featureFlagId,
-        user,
-    }: FeatureFlagLogicArgs) {
-        let enabled = false;
-
-        if (
-            this.lightdashConfig.ai.copilot.enabled &&
-            this.lightdashConfig.ai.copilot.requiresFeatureFlag
-        ) {
-            if (!user) {
-                throw new Error(
-                    'User is required to check if AI copilot is enabled',
-                );
-            }
-
-            enabled = await isFeatureFlagEnabled(FeatureFlags.AiCopilot, {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-            });
-        } else {
-            enabled = this.lightdashConfig.ai.copilot.enabled;
-        }
-
         return {
             id: featureFlagId,
             enabled,
