@@ -1,3 +1,15 @@
+# [0.1580.0](https://github.com/lightdash/lightdash/compare/0.1579.1...0.1580.0) (2025-04-15)
+
+
+### Bug Fixes
+
+* subtotal calculation when table calculation references missing … ([#14403](https://github.com/lightdash/lightdash/issues/14403)) ([42337ac](https://github.com/lightdash/lightdash/commit/42337ac8f9c41c104d13fe9d4012437ad488f5d9))
+
+
+### Features
+
+* lazy load dashboard charts ([#14405](https://github.com/lightdash/lightdash/issues/14405)) ([efa16a6](https://github.com/lightdash/lightdash/commit/efa16a6a063f320b4d108e331f50861fb5c74cc4))
+
 ## [0.1579.1](https://github.com/lightdash/lightdash/compare/0.1579.0...0.1579.1) (2025-04-15)
 
 
