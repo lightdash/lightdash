@@ -13,6 +13,7 @@ import {
     Anchor,
     Box,
     Divider,
+    Flex,
     Group,
     Stack,
     Text,
@@ -25,6 +26,8 @@ import {
     IconArrowDown,
     IconArrowsSort,
     IconArrowUp,
+    IconChartBar,
+    IconLayoutDashboard,
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
@@ -55,8 +58,10 @@ import MantineIcon from '../MantineIcon';
 import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
 import { ResourceInfoPopup } from '../ResourceInfoPopup/ResourceInfoPopup';
 import ContentTypeFilter from './ContentTypeFilter';
+import ResourceAccessInfo from './ResourceAccessInfo';
 import ResourceActionHandlers from './ResourceActionHandlers';
 import ResourceActionMenu from './ResourceActionMenu';
+import AttributeCount from './ResourceAttributeCount';
 import ResourceLastEdited from './ResourceLastEdited';
 import {
     getResourceTypeName,
@@ -69,6 +74,7 @@ import {
     type ColumnVisibilityConfig,
     type ResourceViewItemActionState,
 } from './types';
+import { getResourceAccessLabel } from './utils';
 
 type ResourceView2Props = {
     filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes' | 'space'> & {
@@ -284,6 +290,57 @@ const InfiniteResourceTable = ({
                 return <ResourceLastEdited item={row.original} />;
             },
         },
+        {
+            accessorKey: ColumnVisibility.ACCESS,
+            enableSorting: false,
+            enableEditing: false,
+            header: 'Access',
+            Cell: ({ row }) => {
+                if (!isResourceViewSpaceItem(row.original)) return null;
+                return (
+                    <Tooltip
+                        withinPortal
+                        withArrow
+                        position="top"
+                        label={
+                            <Text lineClamp={1} fz="xs" fw={600} color="white">
+                                {getResourceAccessLabel(row.original)}
+                            </Text>
+                        }
+                    >
+                        <Flex>
+                            <ResourceAccessInfo item={row.original} />
+                        </Flex>
+                    </Tooltip>
+                );
+            },
+        },
+        {
+            accessorKey: ColumnVisibility.CONTENT,
+            enableSorting: false,
+            enableEditing: false,
+            header: 'Content',
+            Cell: ({ row }) => {
+                if (!isResourceViewSpaceItem(row.original)) return null;
+                const {
+                    original: {
+                        data: { dashboardCount, chartCount },
+                    },
+                } = row;
+                return (
+                    <Group>
+                        <AttributeCount
+                            Icon={IconLayoutDashboard}
+                            count={dashboardCount}
+                        />
+                        <AttributeCount
+                            Icon={IconChartBar}
+                            count={chartCount}
+                        />
+                    </Group>
+                );
+            },
+        },
     ];
     const initialSorting: MRT_SortingState = [
         {
@@ -301,6 +358,21 @@ const InfiniteResourceTable = ({
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+    const sortBy = useMemo(() => {
+        if (sorting.length === 0) return undefined;
+
+        const firstSorting = sorting[0].id;
+
+        if (firstSorting === ContentSortByColumns.NAME) {
+            return ContentSortByColumns.NAME;
+        }
+
+        if (firstSorting === ContentSortByColumns.SPACE_NAME) {
+            return ContentSortByColumns.SPACE_NAME;
+        }
+
+        return ContentSortByColumns.LAST_UPDATED_AT;
+    }, [sorting]);
     const { data, isInitialLoading, isFetching, hasNextPage, fetchNextPage } =
         useInfiniteContent(
             {
@@ -312,15 +384,7 @@ const InfiniteResourceTable = ({
                 page: 1,
                 pageSize: 25,
                 search: deferredSearch,
-                ...(sorting.length > 0 && {
-                    sortBy:
-                        sorting[0].id === 'name'
-                            ? ContentSortByColumns.NAME
-                            : sorting[0].id === 'space'
-                            ? ContentSortByColumns.SPACE_NAME
-                            : ContentSortByColumns.LAST_UPDATED_AT,
-                    sortDirection: sorting[0].desc ? 'desc' : 'asc',
-                }),
+                sortBy,
                 ...(filters.space?.parentSpaceUuid && {
                     parentSpaceUuid: filters.space.parentSpaceUuid,
                 }),
@@ -621,7 +685,8 @@ const InfiniteResourceTable = ({
                                 }
                             />
                         </Tooltip>
-                        {contentTypeFilter && (
+                        {contentTypeFilter &&
+                        contentTypeFilter.options.length > 1 ? (
                             <>
                                 <Divider
                                     orientation="vertical"
@@ -635,10 +700,10 @@ const InfiniteResourceTable = ({
                                 <ContentTypeFilter
                                     value={selectedContentType}
                                     onChange={setSelectedContentType}
-                                    options={contentTypeFilter?.options}
+                                    options={contentTypeFilter.options}
                                 />
                             </>
-                        )}
+                        ) : null}
                     </Group>
                 </Group>
                 <Divider color="gray.2" />

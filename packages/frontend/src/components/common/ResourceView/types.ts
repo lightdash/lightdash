@@ -94,10 +94,20 @@ export enum ColumnVisibility {
     NAME = 'name',
     SPACE = 'space',
     UPDATED_AT = 'updatedAt',
+    ACCESS = 'access',
+    CONTENT = 'content',
 }
 
 export type ColumnVisibilityConfig = {
     [ColumnVisibility.NAME]?: boolean;
     [ColumnVisibility.SPACE]?: boolean;
     [ColumnVisibility.UPDATED_AT]?: boolean;
+    [ColumnVisibility.ACCESS]?: boolean;
+    [ColumnVisibility.CONTENT]?: boolean;
 };
+
+export enum ResourceAccess {
+    Private = 'private',
+    Public = 'public',
+    Shared = 'shared',
+}
