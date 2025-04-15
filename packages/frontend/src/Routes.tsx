@@ -36,7 +36,6 @@ import SemanticViewerViewPage from './pages/SemanticViewerView';
 import Settings from './pages/Settings';
 import ShareRedirect from './pages/ShareRedirect';
 import Space from './pages/Space';
-import Spaces from './pages/Spaces';
 import SpacesV2 from './pages/SpacesV2';
 import SqlRunner from './pages/SqlRunner';
 import UserActivity from './pages/UserActivity';
@@ -319,17 +318,6 @@ const TABLES_ROUTES: RouteObject[] = [
 const SPACES_ROUTES: RouteObject[] = [
     {
         path: '/projects/:projectUuid/spaces',
-        element: (
-            <>
-                <NavBar />
-                <TrackPage name={PageName.SPACES}>
-                    <Spaces />
-                </TrackPage>
-            </>
-        ),
-    },
-    {
-        path: '/projects/:projectUuid/spacesv2',
         element: (
             <>
                 <NavBar />
