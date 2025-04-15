@@ -18,7 +18,7 @@ import {
     generateSlug,
     hasChartsInDashboard,
     isChartScheduler,
-    isChartTile,
+    isDashboardChartTileType,
     isDashboardScheduler,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
@@ -266,7 +266,7 @@ export class DashboardService extends BaseService {
     ): string[] {
         return dashboard.tiles.reduce<string[]>((acc, tile) => {
             if (
-                isChartTile(tile) &&
+                isDashboardChartTileType(tile) &&
                 !!tile.properties.belongsToDashboard &&
                 !!tile.properties.savedChartUuid
             ) {
@@ -425,7 +425,7 @@ export class DashboardService extends BaseService {
             const updatedTiles = await Promise.all(
                 newDashboard.tiles.map(async (tile) => {
                     if (
-                        isChartTile(tile) &&
+                        isDashboardChartTileType(tile) &&
                         tile.properties.belongsToDashboard &&
                         tile.properties.savedChartUuid
                     ) {
@@ -890,7 +890,7 @@ export class DashboardService extends BaseService {
                 await Promise.all(
                     tiles.map(async (tile) => {
                         if (
-                            isChartTile(tile) &&
+                            isDashboardChartTileType(tile) &&
                             tile.properties.belongsToDashboard &&
                             tile.properties.savedChartUuid
                         ) {

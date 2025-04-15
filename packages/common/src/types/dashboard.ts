@@ -101,10 +101,6 @@ export type CreateDashboardSemanticViewerChartTile = CreateDashboardTileBase &
 export type DashboardSemanticViewerChartTile = DashboardTileBase &
     DashboardSemanticViewerChartTileProperties;
 
-export const isChartTile = (
-    tile: DashboardTileBase,
-): tile is DashboardChartTile => tile.type === DashboardTileTypes.SAVED_CHART;
-
 export type CreateDashboard = {
     name: string;
     description?: string;
@@ -299,7 +295,9 @@ export const getDefaultChartTileSize = (
 
 export const hasChartsInDashboard = (dashboard: DashboardDAO) =>
     dashboard.tiles.some(
-        (tile) => isChartTile(tile) && tile.properties.belongsToDashboard,
+        (tile) =>
+            isDashboardChartTileType(tile) &&
+            tile.properties.belongsToDashboard,
     );
 
 export type ApiGetDashboardsResponse = {

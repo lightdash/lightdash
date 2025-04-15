@@ -1,4 +1,7 @@
-import { hasChartsInDashboard, isChartTile } from '@lightdash/common';
+import {
+    hasChartsInDashboard,
+    isDashboardChartTileType,
+} from '@lightdash/common';
 import {
     Button,
     Group,
@@ -41,7 +44,9 @@ const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
     };
 
     const chartsInDashboardTiles = dashboard.tiles.filter(
-        (tile) => isChartTile(tile) && tile.properties.belongsToDashboard,
+        (tile) =>
+            isDashboardChartTileType(tile) &&
+            tile.properties.belongsToDashboard,
     );
 
     return (
@@ -68,7 +73,7 @@ const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
                         <List size="sm">
                             {chartsInDashboardTiles.map(
                                 (tile) =>
-                                    isChartTile(tile) && (
+                                    isDashboardChartTileType(tile) && (
                                         <List.Item key={tile.uuid}>
                                             <Text>
                                                 {tile.properties.chartName}
