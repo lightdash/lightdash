@@ -2,11 +2,12 @@ import {
     type ApiError,
     type ApiExecuteAsyncQueryResults,
     type ApiExploreResults,
+    DEFAULT_RESULTS_PAGE_SIZE,
     QueryExecutionContext,
     type ReadyQueryResultsPage,
     type SavedChart,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
@@ -26,6 +27,7 @@ export const useDashboardChartReadyQuery = (
     tileUuid: string,
     chartUuid: string | null,
 ) => {
+    const queryClient = useQueryClient();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
@@ -119,6 +121,17 @@ export const useDashboardChartReadyQuery = (
                     granularity,
                     invalidateCache,
                 },
+            );
+
+            queryClient.setQueryData(
+                [
+                    'query-page',
+                    chart?.projectUuid,
+                    results.queryUuid,
+                    1,
+                    DEFAULT_RESULTS_PAGE_SIZE,
+                ],
+                results,
             );
 
             return {
