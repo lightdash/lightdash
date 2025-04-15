@@ -28,10 +28,15 @@ type SpaceContentRow = SummaryContentRow<{
 
 export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
     {
-        shouldQueryBeIncluded: (filters: ContentFilters) =>
-            // TODO backwards-compatibility: figure out if we should include spaces by default
-            // !filters.contentTypes ||
-            filters.contentTypes?.includes(ContentType.SPACE) ?? false,
+        shouldQueryBeIncluded: (filters: ContentFilters) => {
+            if (filters.contentTypes?.includes(ContentType.SPACE)) {
+                return true;
+            }
+            if (!filters.contentTypes && !!filters.space?.parentSpaceUuid) {
+                return true;
+            }
+            return false;
+        },
         getSummaryQuery: (
             knex: Knex,
             filters: ContentFilters,
@@ -121,13 +126,6 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                         void builder.whereIn(
                             `${ProjectTableName}.project_uuid`,
                             filters.projectUuids,
-                        );
-                    }
-
-                    if (filters.spaceUuids) {
-                        void builder.whereIn(
-                            `${SpaceTableName}.space_uuid`,
-                            filters.spaceUuids,
                         );
                     }
 

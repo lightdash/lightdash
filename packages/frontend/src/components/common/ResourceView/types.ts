@@ -89,3 +89,15 @@ export interface ResourceEmptyStateProps {
     description?: string;
     action?: ReactNode;
 }
+
+export enum ColumnVisibility {
+    NAME = 'name',
+    SPACE = 'space',
+    UPDATED_AT = 'updatedAt',
+}
+
+export type ColumnVisibilityConfig = {
+    [ColumnVisibility.NAME]?: boolean;
+    [ColumnVisibility.SPACE]?: boolean;
+    [ColumnVisibility.UPDATED_AT]?: boolean;
+};
