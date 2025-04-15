@@ -239,7 +239,7 @@ const computeDashboardChartSeries = (
 
 const ValidDashboardChartTile: FC<{
     tileUuid: string;
-    query: DashboardChartReadyQuery;
+    dashboardChartReadyQuery: DashboardChartReadyQuery;
     resultsData: InfiniteQueryResults;
     isTitleHidden?: boolean;
     project: string;
@@ -251,7 +251,7 @@ const ValidDashboardChartTile: FC<{
 }> = ({
     tileUuid,
     isTitleHidden = false,
-    query,
+    dashboardChartReadyQuery,
     resultsData,
     onSeriesContextMenu,
     setEchartsRef,
@@ -265,7 +265,10 @@ const ValidDashboardChartTile: FC<{
 
     const { health } = useApp();
 
-    const { cacheMetadata, chart } = query;
+    const {
+        executeQueryResponse: { cacheMetadata },
+        chart,
+    } = dashboardChartReadyQuery;
 
     useEffect(() => {
         addResultsCacheTime(cacheMetadata);
@@ -378,7 +381,7 @@ interface DashboardChartTileMainProps
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > {
     tile: IDashboardChartTile;
-    query: DashboardChartReadyQuery;
+    dashboardChartReadyQuery: DashboardChartReadyQuery;
     resultsData: InfiniteQueryResults;
     onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void;
     canExportCsv?: boolean;
@@ -406,12 +409,18 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 belongsToDashboard,
             },
         },
-        query,
+        dashboardChartReadyQuery,
         resultsData,
         isEditMode,
     } = props;
 
-    const { appliedDashboardFilters, chart, explore } = query;
+    const {
+        executeQueryResponse: { appliedDashboardFilters },
+        firstPage: { initialQueryExecutionMs },
+        chart,
+        explore,
+    } = dashboardChartReadyQuery;
+
     const { metricQuery, rows } = resultsData;
 
     const { projectUuid, dashboardUuid } = useParams<{
@@ -870,7 +879,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             </HoverCard>
                         )}
                         {showExecutionTime &&
-                            query.initialQueryExecutionMs !== undefined &&
+                            initialQueryExecutionMs !== undefined &&
                             resultsData.totalClientFetchTimeMs !==
                                 undefined && (
                                 <HoverCard
@@ -884,7 +893,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     <HoverCard.Dropdown>
                                         <Text size="xs" color="gray.6" fw={600}>
                                             Warehouse execution time:{' '}
-                                            {query.initialQueryExecutionMs}
+                                            {initialQueryExecutionMs}
                                             ms
                                         </Text>
                                         <Text size="xs" color="gray.6" fw={600}>
@@ -1155,7 +1164,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
                     <ValidDashboardChartTile
                         tileUuid={tileUuid}
-                        query={query}
+                        dashboardChartReadyQuery={dashboardChartReadyQuery}
                         resultsData={resultsData}
                         project={chart.projectUuid}
                         isTitleHidden={hideTitle}
@@ -1214,13 +1223,13 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
             uuid: tileUuid,
             properties: { savedChartUuid, hideTitle, title },
         },
-        query,
+        dashboardChartReadyQuery,
         resultsData,
         canExportCsv,
         canExportImages,
     } = props;
 
-    const { chart, explore } = query;
+    const { chart, explore } = dashboardChartReadyQuery;
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [echartRef, setEchartRef] = useState<
         RefObject<EChartsReact | null> | undefined
@@ -1273,12 +1282,12 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
 
 type DashboardChartTileProps = Omit<
     DashboardChartTileMainProps,
-    'query' | 'resultsData'
+    'dashboardChartReadyQuery' | 'resultsData'
 > & {
     minimal?: boolean;
     canExportCsv?: boolean;
     canExportImages?: boolean;
-    query?: DashboardChartReadyQuery;
+    dashboardChartReadyQuery?: DashboardChartReadyQuery;
     resultsData?: InfiniteQueryResults;
 };
 
@@ -1294,7 +1303,7 @@ export const GenericDashboardChartTile: FC<
     tile,
     isEditMode,
     isLoading,
-    query,
+    dashboardChartReadyQuery,
     resultsData,
     error,
     canExportCsv = false,
@@ -1308,10 +1317,13 @@ export const GenericDashboardChartTile: FC<
     const { user } = useApp();
 
     const userCanManageChart =
-        query?.chart &&
-        user.data?.ability?.can('manage', subject('SavedChart', query.chart));
+        dashboardChartReadyQuery?.chart &&
+        user.data?.ability?.can(
+            'manage',
+            subject('SavedChart', dashboardChartReadyQuery.chart),
+        );
 
-    if (isLoading || !query || !resultsData) {
+    if (isLoading || !dashboardChartReadyQuery || !resultsData) {
         return (
             <TileBase
                 isEditMode={isEditMode}
@@ -1369,9 +1381,9 @@ export const GenericDashboardChartTile: FC<
     return (
         <MetricQueryDataProvider
             metricQuery={resultsData.metricQuery}
-            tableName={query.chart.tableName || ''}
-            explore={query.explore}
-            queryUuid={query.queryUuid}
+            tableName={dashboardChartReadyQuery.chart.tableName || ''}
+            explore={dashboardChartReadyQuery.explore}
+            queryUuid={dashboardChartReadyQuery.executeQueryResponse.queryUuid}
         >
             {minimal ? (
                 <DashboardChartTileMinimal
@@ -1379,7 +1391,7 @@ export const GenericDashboardChartTile: FC<
                     tile={tile}
                     isEditMode={isEditMode}
                     resultsData={resultsData}
-                    query={query}
+                    dashboardChartReadyQuery={dashboardChartReadyQuery}
                     canExportCsv={canExportCsv}
                     canExportImages={canExportImages}
                 />
@@ -1389,7 +1401,7 @@ export const GenericDashboardChartTile: FC<
                     tile={tile}
                     isEditMode={isEditMode}
                     resultsData={resultsData}
-                    query={query}
+                    dashboardChartReadyQuery={dashboardChartReadyQuery}
                 />
             )}
             <UnderlyingDataModal />
@@ -1406,7 +1418,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
 
     const resultsData = useInfiniteQueryResults(
         readyQuery.data?.chart.projectUuid,
-        readyQuery.data?.queryUuid,
+        readyQuery.data?.executeQueryResponse.queryUuid,
     );
 
     return (
@@ -1417,7 +1429,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
                 readyQuery.isInitialLoading
             }
             resultsData={resultsData}
-            query={readyQuery.data}
+            dashboardChartReadyQuery={readyQuery.data}
             error={readyQuery.error}
         />
     );

@@ -1499,7 +1499,7 @@ const ExplorerProvider: FC<
     const query = useGetReadyQueryResults(validQueryArgs);
     const queryResults = useInfiniteQueryResults(
         validQueryArgs?.projectUuid,
-        query.data?.queryUuid,
+        query.data?.executeQueryResponse.queryUuid,
     );
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { remove: clearQueryResults } = query;

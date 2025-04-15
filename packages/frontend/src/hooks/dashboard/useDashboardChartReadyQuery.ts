@@ -1,10 +1,8 @@
 import {
-    type ApiError,
-    type ApiExecuteAsyncQueryResults,
-    type ApiExploreResults,
     DEFAULT_RESULTS_PAGE_SIZE,
     QueryExecutionContext,
-    type ReadyQueryResultsPage,
+    type ApiError,
+    type ApiExploreResults,
     type SavedChart,
 } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,16 +10,19 @@ import { useMemo } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import { useExplore } from '../useExplore';
-import { executeQueryAndGetFirstPage } from '../useQueryResults';
+import {
+    executeQueryAndGetFirstPage,
+    type ChartReadyQueryQuery,
+    type ReadyQueryResultsPageWithClientFetchTimeMs,
+} from '../useQueryResults';
 import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
-export type DashboardChartReadyQuery = ReadyQueryResultsPage &
-    ApiExecuteAsyncQueryResults & {
-        chart: SavedChart;
-        explore: ApiExploreResults;
-    };
+export type DashboardChartReadyQuery = ChartReadyQueryQuery & {
+    chart: SavedChart;
+    explore: ApiExploreResults;
+};
 
 export const useDashboardChartReadyQuery = (
     tileUuid: string,
@@ -127,18 +128,18 @@ export const useDashboardChartReadyQuery = (
                 [
                     'query-page',
                     chart?.projectUuid,
-                    results.queryUuid,
+                    results.executeQueryResponse.queryUuid,
                     1,
                     DEFAULT_RESULTS_PAGE_SIZE,
                 ],
-                results,
+                results.firstPage satisfies ReadyQueryResultsPageWithClientFetchTimeMs,
             );
 
             return {
                 chart,
                 explore,
                 ...results,
-            };
+            } satisfies DashboardChartReadyQuery;
         },
         enabled: Boolean(chartUuid && dashboardUuid && chart && explore),
         retry: false,

@@ -71,24 +71,30 @@ const EmbedDashboardChartTile: FC<Props> = ({
         if (!translatedChartData) return undefined;
 
         return {
-            queryUuid: '', // Does not use paginated query therefore there's no queryUuid
-            appliedDashboardFilters:
-                translatedChartData.appliedDashboardFilters ?? null,
-            cacheMetadata: translatedChartData.cacheMetadata,
+            executeQueryResponse: {
+                queryUuid: '', // Does not use paginated query therefore there's no queryUuid
+                appliedDashboardFilters:
+                    translatedChartData.appliedDashboardFilters ?? null,
+                cacheMetadata: translatedChartData.cacheMetadata,
+            },
+            firstPage: {
+                queryUuid: '', // Does not use paginated query therefore there's no queryUuid
+                fields: translatedChartData.fields,
+                metricQuery: translatedChartData.metricQuery,
+                rows: translatedChartData.rows,
+                status: QueryHistoryStatus.READY,
+                initialQueryExecutionMs: 0,
+                resultsPageExecutionMs: 0,
+                totalResults: translatedChartData.rows.length,
+                pageSize: translatedChartData.rows.length,
+                page: 1,
+                totalPageCount: 1,
+                nextPage: undefined,
+                previousPage: undefined,
+                clientFetchTimeMs: 0,
+            },
             chart: translatedChartData.chart,
             explore: translatedChartData.explore,
-            fields: translatedChartData.fields,
-            metricQuery: translatedChartData.metricQuery,
-            rows: translatedChartData.rows,
-            status: QueryHistoryStatus.READY,
-            initialQueryExecutionMs: 0,
-            resultsPageExecutionMs: 0,
-            totalResults: translatedChartData.rows.length,
-            pageSize: translatedChartData.rows.length,
-            page: 1,
-            totalPageCount: 1,
-            nextPage: undefined,
-            previousPage: undefined,
         } satisfies DashboardChartReadyQuery;
     }, [translatedChartData]);
 
@@ -135,7 +141,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
             canExportPagePdf={canExportPagePdf}
             canDateZoom={canDateZoom}
             resultsData={resultData}
-            query={query}
+            dashboardChartReadyQuery={query}
             error={error}
         />
     );

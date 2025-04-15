@@ -180,10 +180,22 @@ export const useUnderlyingDataResults = (
 /**
  * Run query & get first results page
  */
+
+export type ReadyQueryResultsPageWithClientFetchTimeMs =
+    ReadyQueryResultsPage & {
+        clientFetchTimeMs: number;
+    };
+
+export type ChartReadyQueryQuery = {
+    executeQueryResponse: ApiExecuteAsyncQueryResults;
+    firstPage: ReadyQueryResultsPageWithClientFetchTimeMs;
+};
+
 export const executeQueryAndGetFirstPage = async (
     projectUuid: string,
     data: ExecuteAsyncQueryRequestParams,
-): Promise<ReadyQueryResultsPage & ApiExecuteAsyncQueryResults> => {
+): Promise<ChartReadyQueryQuery> => {
+    const startTime = performance.now();
     const query = await lightdashApi<ApiExecuteAsyncQueryResults>({
         url: `/projects/${projectUuid}/query`,
         version: 'v2',
@@ -240,9 +252,12 @@ export const executeQueryAndGetFirstPage = async (
     }
 
     return {
-        ...(firstPage as ReadyQueryResultsPage),
-        ...query,
-    };
+        executeQueryResponse: query,
+        firstPage: {
+            ...(firstPage as ReadyQueryResultsPage),
+            clientFetchTimeMs: performance.now() - startTime,
+        },
+    } satisfies ChartReadyQueryQuery;
 };
 
 export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
@@ -252,10 +267,7 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
         forbiddenToastTitle: 'Error running query',
     });
 
-    const result = useQuery<
-        ReadyQueryResultsPage & ApiExecuteAsyncQueryResults,
-        ApiError
-    >({
+    const result = useQuery<ChartReadyQueryQuery, ApiError>({
         enabled: !!data,
         queryKey: ['create-query', data],
         queryFn: () => {
@@ -296,11 +308,11 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
                 [
                     'query-page',
                     data?.projectUuid,
-                    result.data.queryUuid,
+                    result.data.executeQueryResponse.queryUuid,
                     1,
                     DEFAULT_RESULTS_PAGE_SIZE,
                 ],
-                result.data,
+                result.data.firstPage,
             );
         }
     }, [data?.projectUuid, result.data, queryClient]);
@@ -464,7 +476,7 @@ export const useInfiniteQueryResults = (
     ]);
 
     const nextPage = useQuery<
-        ReadyQueryResultsPage & { clientFetchTimeMs: number },
+        ReadyQueryResultsPageWithClientFetchTimeMs,
         ApiError
     >({
         enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
@@ -486,7 +498,7 @@ export const useInfiniteQueryResults = (
             return {
                 ...results,
                 clientFetchTimeMs: performance.now() - startTime,
-            };
+            } satisfies ReadyQueryResultsPageWithClientFetchTimeMs;
         },
         staleTime: Infinity, // the data will never be considered stale
     });
