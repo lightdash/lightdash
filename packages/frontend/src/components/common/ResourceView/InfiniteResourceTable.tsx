@@ -459,6 +459,8 @@ const InfiniteResourceTable = ({
             [ColumnVisibility.NAME]: true,
             [ColumnVisibility.SPACE]: true,
             [ColumnVisibility.UPDATED_AT]: true,
+            [ColumnVisibility.ACCESS]: false,
+            [ColumnVisibility.CONTENT]: false,
             ...columnVisibility,
         }),
         [columnVisibility],
