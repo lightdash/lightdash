@@ -94,6 +94,7 @@ import {
     JobStepType,
     JobType,
     LightdashError,
+    MAX_PIVOT_COLUMN_LIMIT,
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
@@ -3791,11 +3792,26 @@ export class ProjectService extends BaseService {
 
         if (groupByColumns && groupByColumns.length > 0) {
             // Wrap the original query in a CTE
-            let pivotedSql = `WITH original_query AS (${userSql}), group_by_query AS (${groupByQuery}), pivot_query AS (${pivotQuery})`;
+            const totalColumnsQuery = `
+                SELECT COUNT(DISTINCT ${groupByColumns
+                    .map((col) => `${q}${col.reference}${q}`)
+                    .join(', ')}
+            `;
+            let pivotedSql = `
+            WITH original_query AS (${userSql}), 
+                 group_by_query AS (${groupByQuery}), 
+                 pivot_query AS (${pivotQuery}),
+                 total_columns AS (${totalColumnsQuery})
+            FROM group_by_query
+            )`;
 
-            pivotedSql += `\nSELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${
+            // Add a max column limit to avoid too many columns and performance issues.
+            // Warn the user if we exceed it.
+
+            pivotedSql += `\nSELECT p.*, t.total_columns FROM pivot_query p CROSS JOIN total_columns t WHERE p.${q}row_index${q} <= ${
                 limit ?? 500
-            } and ${q}column_index${q} <= 10 order by ${q}row_index${q}, ${q}column_index${q}`;
+            } and p.${q}column_index${q} <= ${MAX_PIVOT_COLUMN_LIMIT} order by p.${q}row_index${q}, p.${q}column_index${q}`;
+
             return pivotedSql;
         }
 
@@ -3868,6 +3884,8 @@ export class ProjectService extends BaseService {
         let currentTransformedRow: ResultRow | undefined;
         const valuesColumnData = new Map<string, PivotValuesColumn>();
 
+        let columnCount: undefined | number;
+
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,
         )(
@@ -3877,6 +3895,9 @@ export class ProjectService extends BaseService {
                     await warehouseClient.streamQuery(
                         pivotedSql,
                         async ({ rows, fields }) => {
+                            if ('total_columns' in rows[0]) {
+                                columnCount = rows[0].total_columns;
+                            }
                             if (
                                 !groupByColumns ||
                                 groupByColumns.length === 0
@@ -3972,6 +3993,7 @@ export class ProjectService extends BaseService {
             fileUrl,
             valuesColumns: processedColumns,
             indexColumn,
+            columnCount: Number(columnCount) || undefined,
         };
     }
 
