@@ -31,6 +31,7 @@ import {
     columnHelper,
     type TableColumn,
 } from '../components/common/Table/types';
+import useEmbed from '../ee/providers/Embed/useEmbed';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
@@ -83,15 +84,17 @@ export const useColumns = (): TableColumn[] => {
         (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
     const resultsMetricQuery = useExplorerContext(
-        (context) => context.query.data?.metricQuery,
+        (context) => context.query.data?.firstPage.metricQuery,
     );
     const resultsFields = useExplorerContext(
-        (context) => context.query.data?.fields,
+        (context) => context.query.data?.firstPage.fields,
     );
 
     const { data: exploreData } = useExplore(tableName, {
         refetchOnMount: false,
     });
+
+    const { embedToken } = useEmbed();
 
     const itemsMap = useMemo<ItemsMap | undefined>(() => {
         if (exploreData) {
@@ -154,6 +157,7 @@ export const useColumns = (): TableColumn[] => {
             ? itemsInMetricQuery(resultsMetricQuery)
             : undefined,
         itemsMap: activeItemsMap,
+        embedToken,
     });
 
     return useMemo(() => {

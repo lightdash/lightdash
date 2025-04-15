@@ -113,9 +113,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
 
         // Load all the rows
         resultsData?.setFetchAll(true);
-        return () => {
-            resultsData?.setFetchAll(false);
-        };
     }, [shouldPaginateResults, resultsData]);
 
     if (!isTableVisualizationConfig(visualizationConfig)) return null;

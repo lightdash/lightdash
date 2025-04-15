@@ -1,4 +1,4 @@
-import { SessionUser } from '@lightdash/common';
+import { LightdashUser } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { BaseService } from '../BaseService';
@@ -23,7 +23,7 @@ export class FeatureFlagService extends BaseService {
         user,
         featureFlagId,
     }: {
-        user?: SessionUser;
+        user?: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>;
         featureFlagId: string;
     }) {
         return this.featureFlagModel.get({ user, featureFlagId });

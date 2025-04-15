@@ -356,6 +356,7 @@ export type LightdashConfig = {
     ai: {
         copilot: {
             enabled: boolean;
+            requiresFeatureFlag: boolean;
             embeddingSearchEnabled?: boolean;
         };
     };
@@ -374,6 +375,9 @@ export type LightdashConfig = {
     };
     microsoftTeams: {
         enabled: boolean;
+    };
+    googleCloudPlatform: {
+        projectId?: string;
     };
 };
 
@@ -950,6 +954,8 @@ export const parseConfig = (): LightdashConfig => {
         ai: {
             copilot: {
                 enabled: process.env.AI_COPILOT_ENABLED === 'true',
+                requiresFeatureFlag:
+                    process.env.AI_COPILOT_REQUIRES_FEATURE_FLAG === 'true',
                 embeddingSearchEnabled:
                     process.env.AI_COPILOT_EMBEDDING_SEARCH_ENABLED === 'true',
             },
@@ -980,6 +986,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         microsoftTeams: {
             enabled: process.env.MICROSOFT_TEAMS_ENABLED === 'true',
+        },
+        googleCloudPlatform: {
+            projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
     };
 };

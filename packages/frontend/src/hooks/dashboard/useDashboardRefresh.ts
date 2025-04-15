@@ -6,7 +6,7 @@ import {
 import { useCallback, useMemo } from 'react';
 
 const QUERIES_TO_REFRESH = [
-    'savedChartResults',
+    'dashboard_chart_ready_query',
     'saved_query',
     'saved_dashboard_query',
     'dashboards',

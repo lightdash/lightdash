@@ -21,6 +21,7 @@ import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
+import { ColumnVisibility } from '../components/common/ResourceView/types';
 import ShareSpaceModal from '../components/common/ShareSpaceModal';
 import SpaceActionModal from '../components/common/SpaceActionModal';
 import { ActionType } from '../components/common/SpaceActionModal/types';
@@ -136,10 +137,13 @@ const Space: FC = () => {
                                 title: 'Spaces',
                                 to: `/projects/${projectUuid}/spaces`,
                             },
-                            {
-                                title: space.name,
-                                active: true,
-                            },
+                            ...(space.breadcrumbs?.map((breadcrumb, index) => ({
+                                title: breadcrumb.name,
+                                active:
+                                    index ===
+                                    (space.breadcrumbs?.length ?? 0) - 1,
+                                to: `/projects/${projectUuid}/spaces/${breadcrumb.uuid}`,
+                            })) ?? []),
                         ]}
                     />
 
@@ -293,10 +297,16 @@ const Space: FC = () => {
                     filters={{
                         projectUuid,
                         spaceUuids: [spaceUuid],
+                        space: {
+                            parentSpaceUuid: spaceUuid,
+                        },
                     }}
                     contentTypeFilter={{
-                        defaultValue: ContentType.DASHBOARD,
+                        defaultValue: undefined,
                         options: [ContentType.DASHBOARD, ContentType.CHART],
+                    }}
+                    columnVisibility={{
+                        [ColumnVisibility.SPACE]: false,
                     }}
                 />
 
@@ -333,14 +343,10 @@ const Space: FC = () => {
                         confirmButtonLabel="Create"
                         icon={IconFolderPlus}
                         onClose={() => setIsCreateNestedSpaceOpen(false)}
-                        onSubmitForm={(newSpace) => {
-                            if (newSpace) {
-                                void navigate(
-                                    `/projects/${projectUuid}/spaces/${newSpace.uuid}`,
-                                );
-                            }
+                        onSubmitForm={() => {
                             setIsCreateNestedSpaceOpen(false);
                         }}
+                        shouldRedirect={false}
                     />
                 )}
             </Stack>

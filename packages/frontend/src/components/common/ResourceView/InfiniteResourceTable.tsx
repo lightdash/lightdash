@@ -1,4 +1,5 @@
 import {
+    capitalize,
     ContentSortByColumns,
     contentToResourceViewItem,
     isResourceViewItemChart,
@@ -22,8 +23,8 @@ import {
 import {
     IconAlertTriangleFilled,
     IconArrowDown,
-    IconArrowUp,
     IconArrowsSort,
+    IconArrowUp,
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
@@ -63,23 +64,27 @@ import {
     getResourceViewsSinceWhenDescription,
 } from './resourceUtils';
 import {
+    ColumnVisibility,
     ResourceViewItemAction,
+    type ColumnVisibilityConfig,
     type ResourceViewItemActionState,
 } from './types';
 
 type ResourceView2Props = {
-    filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes'> & {
+    filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes' | 'space'> & {
         projectUuid: string;
     };
     contentTypeFilter?: {
         defaultValue: ContentType | undefined;
         options: ContentType[];
     };
+    columnVisibility?: ColumnVisibilityConfig;
 };
 
 const InfiniteResourceTable = ({
     filters,
     contentTypeFilter,
+    columnVisibility,
 }: ResourceView2Props) => {
     const theme = useMantineTheme();
     const navigate = useNavigate();
@@ -103,8 +108,8 @@ const InfiniteResourceTable = ({
 
     const ResourceColumns: MRT_ColumnDef<ResourceViewItem>[] = [
         {
-            accessorKey: 'name',
-            header: 'Name',
+            accessorKey: ColumnVisibility.NAME,
+            header: capitalize(ColumnVisibility.NAME),
             enableSorting: true,
             enableEditing: false,
             size: 300,
@@ -239,10 +244,10 @@ const InfiniteResourceTable = ({
             },
         },
         {
-            accessorKey: 'space',
+            accessorKey: ColumnVisibility.SPACE,
             enableSorting: true,
             enableEditing: false,
-            header: 'Space',
+            header: capitalize(ColumnVisibility.SPACE),
             Cell: ({ row }) => {
                 const item = row.original;
                 if (isResourceViewSpaceItem(item)) {
@@ -270,7 +275,7 @@ const InfiniteResourceTable = ({
             },
         },
         {
-            accessorKey: 'updatedAt',
+            accessorKey: ColumnVisibility.UPDATED_AT,
             enableSorting: true,
             enableEditing: false,
             header: 'Last Edited',
@@ -315,6 +320,9 @@ const InfiniteResourceTable = ({
                             ? ContentSortByColumns.SPACE_NAME
                             : ContentSortByColumns.LAST_UPDATED_AT,
                     sortDirection: sorting[0].desc ? 'desc' : 'asc',
+                }),
+                ...(filters.space?.parentSpaceUuid && {
+                    parentSpaceUuid: filters.space.parentSpaceUuid,
                 }),
             },
             { keepPreviousData: true },
@@ -365,6 +373,16 @@ const InfiniteResourceTable = ({
     useEffect(() => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
+
+    const defaultColumnVisibility = useMemo(
+        () => ({
+            [ColumnVisibility.NAME]: true,
+            [ColumnVisibility.SPACE]: true,
+            [ColumnVisibility.UPDATED_AT]: true,
+            ...columnVisibility,
+        }),
+        [columnVisibility],
+    );
 
     const table = useMantineReactTable({
         columns: ResourceColumns,
@@ -694,9 +712,7 @@ const InfiniteResourceTable = ({
         },
         initialState: {
             showGlobalFilter: true, // Show search input by default
-            columnVisibility: {
-                categories: false,
-            },
+            columnVisibility: defaultColumnVisibility,
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { overscan: 40 },

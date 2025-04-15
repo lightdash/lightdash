@@ -61,6 +61,11 @@ const applyReferenceLines = (
 ): Series[] => {
     let appliedReferenceLines: string[] = []; // Don't apply the same reference line to multiple series
     return series.map((serie) => {
+        // Skip if the series is filtered out
+        if (serie.isFilteredOut) {
+            return { ...serie, markLine: undefined };
+        }
+
         const referenceLinesForSerie = referenceLines.filter(
             (referenceLine) => {
                 if (referenceLine.fieldId === undefined) return false;

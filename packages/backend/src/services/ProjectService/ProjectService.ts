@@ -222,6 +222,7 @@ import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
+import { ValidationService } from '../ValidationService/ValidationService';
 import {
     getNextAndPreviousPage,
     validatePagination,
@@ -588,6 +589,26 @@ export class ProjectService extends BaseService {
                     `Unknown project type: ${data.type}`,
                 );
         }
+    }
+
+    private async getUserAttributes(
+        user: SessionUser,
+        organizationUuid: string,
+    ) {
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const intrinsicUserAttributes = emailStatus.isVerified
+            ? getIntrinsicUserAttributes(user)
+            : {};
+
+        return { userAttributes, intrinsicUserAttributes };
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -1524,18 +1545,9 @@ export class ProjectService extends BaseService {
                 databricksCompute: explore.databricksCompute,
             },
         );
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
 
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
-            user.userUuid,
-        );
-        const intrinsicUserAttributes = emailStatus.isVerified
-            ? getIntrinsicUserAttributes(user)
-            : {};
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes(user, organizationUuid);
 
         const compiledQuery = await ProjectService._compileQuery(
             metricQuery,
@@ -2032,7 +2044,7 @@ export class ProjectService extends BaseService {
         let roundedDurationMs: number;
         if (resultsCacheEnabled && cacheKey) {
             const {
-                result: { rows, totalRowCount: cacheTotalRowCount },
+                result: { rows, totalRowCount: cacheTotalRowCount, expiresAt },
                 durationMs,
             } = await measureTime(
                 () =>
@@ -2058,7 +2070,41 @@ export class ProjectService extends BaseService {
                 pageCount,
             );
 
-            // TODO: add analytics event
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'results_cache.read',
+                properties: {
+                    queryId: queryHistory.queryUuid,
+                    projectId: projectUuid,
+                    cacheKey,
+                    page,
+                    requestedPageSize: defaultedPageSize,
+                    rowCount: rows.length,
+                    resultsPageExecutionMs: roundedDurationMs,
+                },
+            });
+
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'query_page.fetched',
+                properties: {
+                    queryId: queryHistory.queryUuid,
+                    projectId: projectUuid,
+                    warehouseType:
+                        queryHistory?.warehouseQueryMetadata?.type ?? null,
+                    page,
+                    columnsCount: Object.keys(queryHistory.fields).length,
+                    totalRowCount: cacheTotalRowCount,
+                    totalPageCount: pageCount,
+                    resultsPageSize: rows.length,
+                    resultsPageExecutionMs: roundedDurationMs,
+                    status,
+                    cacheMetadata: {
+                        cacheExpiresAt: expiresAt,
+                        cacheKey,
+                    },
+                },
+            });
 
             returnObject = {
                 rows,
@@ -2170,6 +2216,7 @@ export class ProjectService extends BaseService {
                     resultsPageSize: result.rows.length,
                     resultsPageExecutionMs: roundedDurationMs,
                     status,
+                    cacheMetadata: null,
                 },
             });
 
@@ -2289,6 +2336,16 @@ export class ProjectService extends BaseService {
                         total_row_count: totalRows,
                     },
                 );
+                this.analytics.track({
+                    userId: user.userUuid,
+                    event: 'results_cache.write',
+                    properties: {
+                        queryId: queryHistoryUuid,
+                        projectId: projectUuid,
+                        cacheKey: resultsCache.cacheKey,
+                        totalRowCount: totalRows,
+                    },
+                });
             }
 
             await this.queryHistoryModel.update(
@@ -2331,6 +2388,15 @@ export class ProjectService extends BaseService {
                     resultsCache.cacheKey,
                     projectUuid,
                 );
+                this.analytics.track({
+                    userId: user.userUuid,
+                    event: 'results_cache.delete',
+                    properties: {
+                        queryId: queryHistoryUuid,
+                        projectId: projectUuid,
+                        cacheKey: resultsCache.cacheKey,
+                    },
+                });
             }
         } finally {
             void sshTunnel.disconnect();
@@ -2486,6 +2552,20 @@ export class ProjectService extends BaseService {
                                 this.resultsCacheStorageClient,
                                 args.invalidateCache,
                             );
+
+                        if (!resultsCache.cacheHit) {
+                            this.analytics.track({
+                                userId: user.userUuid,
+                                event: 'results_cache.create',
+                                properties: {
+                                    projectId: projectUuid,
+                                    cacheKey: resultsCache.cacheKey,
+                                    totalRowCount: resultsCache.totalRowCount,
+                                    createdAt: resultsCache.createdAt,
+                                    expiresAt: resultsCache.expiresAt,
+                                },
+                            });
+                        }
                     }
 
                     const { queryUuid: queryHistoryUuid } =
@@ -2523,6 +2603,11 @@ export class ProjectService extends BaseService {
                                     explore,
                                 },
                             ),
+                            cacheMetadata: {
+                                cacheHit: resultsCache?.cacheHit || false,
+                                cacheUpdatedTime: resultsCache?.updatedAt,
+                                cacheExpiresAt: resultsCache?.expiresAt,
+                            },
                         },
                     });
 
@@ -2559,7 +2644,8 @@ export class ProjectService extends BaseService {
                         warehouseClient,
                         sshTunnel,
                         queryHistoryUuid,
-                        // resultsCache is either MissCacheResult or undefined at this point, meaning that the cache was not hit or that cache is not enabled
+                        // resultsCache is either MissCacheResult or undefined at this point,
+                        // meaning that the cache was not hit or that cache is not enabled
                         resultsCache,
                     });
 
@@ -3365,7 +3451,7 @@ export class ProjectService extends BaseService {
                                     warehouseClient.credentials.type
                                 }" warehouse query:
                                 "${query}"
-                                with query tags: 
+                                with query tags:
                                 ${JSON.stringify(queryTags)}`,
                             );
                             throw e;
@@ -4133,18 +4219,8 @@ export class ProjectService extends BaseService {
                 databricksCompute: explore.databricksCompute,
             },
         );
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
-
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
-            user.userUuid,
-        );
-        const intrinsicUserAttributes = emailStatus.isVerified
-            ? getIntrinsicUserAttributes(user)
-            : {};
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes(user, organizationUuid);
 
         const { query } = await ProjectService._compileQuery(
             metricQuery,
@@ -5916,25 +5992,12 @@ export class ProjectService extends BaseService {
     }
 
     async _getCalculateTotalQuery(
-        user: SessionUser,
+        userAttributes: UserAttributeValueMap,
+        intrinsicUserAttributes: IntrinsicUserAttributes,
         explore: Explore,
         metricQuery: MetricQuery,
-        organizationUuid: string,
         warehouseClient: WarehouseClient,
     ) {
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
-
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
-            user.userUuid,
-        );
-        const intrinsicUserAttributes = emailStatus.isVerified
-            ? getIntrinsicUserAttributes(user)
-            : {};
-
         const totalQuery: MetricQuery = {
             ...metricQuery,
             limit: 1,
@@ -5981,11 +6044,14 @@ export class ProjectService extends BaseService {
             },
         );
 
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes(user, organizationUuid);
+
         const { query } = await this._getCalculateTotalQuery(
-            user,
+            userAttributes,
+            intrinsicUserAttributes,
             explore,
             metricQuery,
-            organizationUuid,
             warehouseClient,
         );
 
@@ -6019,16 +6085,19 @@ export class ProjectService extends BaseService {
             },
         );
 
+        const { userAttributes, intrinsicUserAttributes } =
+            await this.getUserAttributes(user, organizationUuid);
+
         const { query, totalQuery } = await this._getCalculateTotalQuery(
-            user,
+            userAttributes,
+            intrinsicUserAttributes,
             explore,
             metricQuery,
-            organizationUuid,
             warehouseClient,
         );
 
         const queryTags: RunQueryTags = {
-            organization_uuid: user.organizationUuid,
+            organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
             explore_name: explore.name,
@@ -6052,7 +6121,7 @@ export class ProjectService extends BaseService {
     async calculateTotalFromSavedChart(
         user: SessionUser,
         chartUuid: string,
-        dashboardFilters: DashboardFilters,
+        dashboardFilters?: DashboardFilters,
         invalidateCache: boolean = false,
     ) {
         if (!isUserWithOrg(user)) {
@@ -6274,13 +6343,27 @@ export class ProjectService extends BaseService {
             async (subtotalDimensions) => {
                 let subtotals: Record<string, unknown>[] = [];
 
+                const dimensions = [
+                    ...subtotalDimensions,
+                    ...(pivotDimensions || []), // we always need to include the pivot dimensions in the subtotal query
+                ];
+                // Exclude table calculations that require dims/metrics that are not in subtotal query
+                const tableCalculations = metricQuery.tableCalculations.filter(
+                    (tc) => {
+                        const referencedFields =
+                            ValidationService.getTableCalculationFieldIds([tc]);
+                        return referencedFields.every(
+                            (field) =>
+                                dimensions.includes(field) ||
+                                metricQuery.metrics.includes(field),
+                        );
+                    },
+                );
                 try {
                     subtotals = await runQueryAndFormatRaw({
                         ...metricQuery,
-                        dimensions: [
-                            ...subtotalDimensions,
-                            ...(pivotDimensions || []), // we always need to include the pivot dimensions in the subtotal query
-                        ],
+                        dimensions,
+                        tableCalculations,
                         sorts: [],
                     });
                 } catch (e) {

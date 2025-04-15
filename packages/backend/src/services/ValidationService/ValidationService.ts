@@ -87,7 +87,7 @@ export class ValidationService extends BaseService {
         this.schedulerClient = schedulerClient;
     }
 
-    private static getTableCalculationFieldIds(
+    static getTableCalculationFieldIds(
         tableCalculations: TableCalculation[],
     ): string[] {
         const parseTableField = (field: string) =>

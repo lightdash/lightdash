@@ -1,5 +1,6 @@
 import { type ApiError, type DecodedEmbed } from '@lightdash/common';
 import {
+    Anchor,
     Button,
     Flex,
     Paper,
@@ -98,8 +99,11 @@ const useEmbedConfigUpdateMutation = (projectUuid: string) => {
 const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { health } = useApp();
     const { isLoading, data: embedConfig, error } = useEmbedConfig(projectUuid);
-    const { isLoading: isLoadingDashboards, data: dashboards } =
-        useDashboards(projectUuid);
+    const { isLoading: isLoadingDashboards, data: dashboards } = useDashboards(
+        projectUuid,
+        undefined,
+        true,
+    );
     const { mutate: createEmbedConfig, isLoading: isCreating } =
         useEmbedConfigCreateMutation(projectUuid);
     const { mutate: updateEmbedConfig, isLoading: isUpdating } =
@@ -172,13 +176,12 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         The secret is used to generate embed tokens for
                         embedding dashboards.
                     </Text>
-                    {/* Uncomment once we have a docs page */}
-                    {/*<Text color="dimmed">*/}
-                    {/*    Read more about using embed secret in our{' '}*/}
-                    {/*    <Anchor href="https://docs.lightdash.com/guides/embed">*/}
-                    {/*        docs guide*/}
-                    {/*    </Anchor>*/}
-                    {/*</Text>*/}
+                    <Text color="dimmed" fz="xs">
+                        Read more about using embed secret in our{' '}
+                        <Anchor href="https://docs.lightdash.com/references/embedding">
+                            docs guide
+                        </Anchor>
+                    </Text>
                 </Stack>
                 <Stack>
                     <PasswordInput

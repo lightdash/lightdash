@@ -297,7 +297,7 @@ describe('Dashboard', () => {
         cy.wait(2000);
 
         // get the fourth button with class  mantine-ActionIcon-root
-        cy.get('.mantine-ActionIcon-root').eq(4).click();
+        cy.get('.mantine-ActionIcon-root').eq(5).click();
         cy.contains('Export dashboard').click();
         cy.findByText('Generate preview').click();
 

@@ -65,6 +65,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     embedModel: models.getEmbedModel(),
                     projectModel: models.getProjectModel(),
                     savedChartModel: models.getSavedChartModel(),
+                    userModel: models.getUserModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                 }),
@@ -97,6 +98,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     organizationModel: models.getOrganizationModel(),
                     slackAuthenticationModel:
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
+                    featureFlagService: repository.getFeatureFlagService(),
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({

@@ -222,6 +222,7 @@ export class ResultsCacheModel {
         return {
             rows,
             totalRowCount: cache.total_row_count ?? 0,
+            expiresAt: cache.expires_at,
         };
     }
 }
