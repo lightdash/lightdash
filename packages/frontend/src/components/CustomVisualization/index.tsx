@@ -20,7 +20,6 @@ const CustomVisualization: FC<Props> = (props) => {
     useEffect(() => {
         // Load all the rows
         resultsData?.setFetchAll(true);
-        return () => resultsData?.setFetchAll(false);
     }, [resultsData]);
 
     if (isLoading) {
