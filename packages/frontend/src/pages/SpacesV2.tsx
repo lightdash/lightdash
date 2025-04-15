@@ -1,14 +1,11 @@
 import { subject } from '@casl/ability';
-import { ContentType, FeatureFlags, LightdashMode } from '@lightdash/common';
-import { Button, Group, Menu, Stack } from '@mantine/core';
+import { ContentType, LightdashMode } from '@lightdash/common';
+import { Button, Group, Stack } from '@mantine/core';
 import { IconFolderPlus, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useParams } from 'react-router';
 
 import ForbiddenPanel from '../components/ForbiddenPanel';
-import ErrorState from '../components/common/ErrorState';
-import LoadingState from '../components/common/LoadingState';
-import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
@@ -16,9 +13,7 @@ import { ColumnVisibility } from '../components/common/ResourceView/types';
 
 import SpaceActionModal from '../components/common/SpaceActionModal';
 import { ActionType } from '../components/common/SpaceActionModal/types';
-import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
-import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
-import { useSpaceSummaries } from '../hooks/useSpaces';
+
 import useApp from '../providers/App/useApp';
 
 const SpacesV2: FC = () => {
@@ -26,23 +21,7 @@ const SpacesV2: FC = () => {
         projectUuid: string;
     };
 
-    const {
-        /* eslint-disable-next-line */
-        data: rootSpaces,
-        isInitialLoading,
-        error,
-    } = useSpaceSummaries(projectUuid, true, {
-        select: (data) => data.filter((s) => !s.parentSpaceUuid),
-    });
-
-    /* eslint-disable-next-line */
-    const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
     const { user, health } = useApp();
-
-    /* eslint-disable-next-line */
-    const areNestedSpacesEnabled = useFeatureFlagEnabled(
-        FeatureFlags.NestedSpaces,
-    );
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
 
@@ -58,14 +37,6 @@ const SpacesV2: FC = () => {
             projectUuid,
         }),
     );
-
-    if (isInitialLoading) {
-        return <LoadingState title="Loading space" />;
-    }
-
-    if (error) {
-        return <ErrorState error={error.error} />;
-    }
 
     if (
         user.data?.ability?.cannot(
@@ -99,42 +70,12 @@ const SpacesV2: FC = () => {
 
                     <Group spacing="xs">
                         {!isDemo && userCanManageSpace && (
-                            <Menu
-                                position="bottom-end"
-                                shadow="md"
-                                closeOnItemClick
-                                withArrow
-                                arrowPosition="center"
+                            <Button
+                                leftIcon={<IconPlus size={18} />}
+                                onClick={handleCreateSpace}
                             >
-                                <Menu.Target>
-                                    <Button
-                                        leftIcon={<IconPlus size={18} />}
-                                        onClick={handleCreateSpace}
-                                    >
-                                        Add
-                                    </Button>
-                                </Menu.Target>
-
-                                <Menu.Dropdown>
-                                    {userCanManageSpace && (
-                                        <>
-                                            <Menu.Item
-                                                icon={
-                                                    <MantineIcon
-                                                        icon={IconFolderPlus}
-                                                    />
-                                                }
-                                                onClick={() => {
-                                                    setIsCreateModalOpen(true);
-                                                }}
-                                            >
-                                                Create space
-                                            </Menu.Item>
-                                            <Menu.Divider />
-                                        </>
-                                    )}
-                                </Menu.Dropdown>
-                            </Menu>
+                                Add
+                            </Button>
                         )}
                     </Group>
                 </Group>
