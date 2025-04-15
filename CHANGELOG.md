@@ -1,3 +1,10 @@
+## [0.1577.3](https://github.com/lightdash/lightdash/compare/0.1577.2...0.1577.3) (2025-04-15)
+
+
+### Bug Fixes
+
+* react sdk jsx runtime ([#14388](https://github.com/lightdash/lightdash/issues/14388)) ([28430dd](https://github.com/lightdash/lightdash/commit/28430dd0f4ef603e7fbb7a4e31803e88a12a646e))
+
 ## [0.1577.2](https://github.com/lightdash/lightdash/compare/0.1577.1...0.1577.2) (2025-04-14)
 
 
