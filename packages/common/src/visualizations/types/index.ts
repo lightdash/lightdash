@@ -112,6 +112,7 @@ export type PivotChartData = {
     indexColumn: PivotIndexColum;
     valuesColumns: PivotValuesColumn[];
     columns: VizColumn[];
+    columnCount: number | undefined;
 };
 
 // TODO: This type is used by both the cartesian and pie chart data models,

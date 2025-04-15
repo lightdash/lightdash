@@ -3801,7 +3801,7 @@ export class ProjectService extends BaseService {
             WITH original_query AS (${userSql}), 
                  group_by_query AS (${groupByQuery}), 
                  pivot_query AS (${pivotQuery}),
-                 total_columns AS (${totalColumnsQuery})
+                 total_columns AS (${totalColumnsQuery}) as total_columns
             FROM group_by_query
             )`;
 
