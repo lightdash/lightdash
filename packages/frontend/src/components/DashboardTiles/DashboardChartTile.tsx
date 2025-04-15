@@ -1429,6 +1429,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     // State used to only track event on initial load. Excluding lazy load updates for table charts.
     const hasTrackedLoadEvent = useRef(false);
     useEffect(() => {
+<<<<<<< HEAD
         if (readyQuery.data?.executeQueryResponse?.queryUuid) {
             // Reset the tracking flag when queryUuid changes
             hasTrackedLoadEvent.current = false;
