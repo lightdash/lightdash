@@ -21,7 +21,6 @@ import {
     ProjectType,
     SemanticLayerType,
     SpaceSummary,
-    SupportedDbtAdapter,
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
@@ -48,7 +47,6 @@ import {
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import { merge } from 'lodash';
-import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -91,6 +89,7 @@ import { WarehouseCredentialTableName } from '../../database/entities/warehouseC
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { ExploreCache } from './ExploreCache';
 import Transaction = Knex.Transaction;
 
 export type ProjectModelArguments = {
@@ -108,10 +107,13 @@ export class ProjectModel {
 
     private encryptionUtil: EncryptionUtil;
 
+    private readonly exploreCache: ExploreCache;
+
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.encryptionUtil = args.encryptionUtil;
+        this.exploreCache = new ExploreCache();
     }
 
     static mergeMissingDbtConfigSecrets(
@@ -846,8 +848,12 @@ export class ProjectModel {
 
     async findExploresFromCache(
         projectUuid: string,
-        exploreNames?: string[],
+        exploreNamesWithDuplicates?: string[],
     ): Promise<Record<string, Explore | ExploreError>> {
+        // dedupe values
+        const exploreNames = exploreNamesWithDuplicates
+            ? [...new Set(exploreNamesWithDuplicates)]
+            : undefined;
         return wrapSentryTransaction(
             'ProjectModel.findExploresFromCache',
             {
@@ -855,6 +861,17 @@ export class ProjectModel {
                 exploreNames,
             },
             async (span) => {
+                // Try to get from cache first
+                const cachedExplores = this.exploreCache?.getExplores(
+                    projectUuid,
+                    exploreNames,
+                );
+                if (cachedExplores) {
+                    span.setAttribute('cacheHit', true);
+                    // Return cached explores
+                    return cachedExplores;
+                }
+                // If not in cache, get from database
                 const query = this.database(CachedExploreTableName)
                     .select('explore')
                     .where('project_uuid', projectUuid);
@@ -863,16 +880,22 @@ export class ProjectModel {
                 }
                 const explores = await query;
                 span.setAttribute('foundExplores', !!explores.length);
-                return explores.reduce<Record<string, Explore | ExploreError>>(
-                    (acc, { explore }) => {
-                        acc[explore.name] =
-                            ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-                                explore,
-                            );
-                        return acc;
-                    },
-                    {},
+                const finalExplores = explores.reduce<
+                    Record<string, Explore | ExploreError>
+                >((acc, { explore }) => {
+                    acc[explore.name] =
+                        ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                            explore,
+                        );
+                    return acc;
+                }, {});
+                // Store in cache
+                this.exploreCache?.setExplores(
+                    projectUuid,
+                    exploreNames,
+                    finalExplores,
                 );
+                return finalExplores;
             },
         );
     }
