@@ -6739,9 +6739,11 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
-                        { dataType: 'undefined' },
+                        { dataType: 'enum', enums: [null] },
                     ],
+                    required: true,
                 },
+                path: { dataType: 'string', required: true },
                 access: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -6777,6 +6779,15 @@ const models: TsoaRoute.Models = {
                         },
                     },
                 },
+                path: { dataType: 'string', required: true },
+                parentSpaceUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 childSpaces: {
                     dataType: 'array',
                     array: {
@@ -6785,7 +6796,6 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
-                parentSpaceUuid: { dataType: 'string' },
                 slug: { dataType: 'string', required: true },
                 pinnedListOrder: {
                     dataType: 'union',
@@ -7912,7 +7922,7 @@ const models: TsoaRoute.Models = {
         enums: ['no changes', 'create', 'update', 'delete'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess-or-parentSpaceUuid__':
+    'Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess-or-parentSpaceUuid-or-path__':
         {
             dataType: 'refAlias',
             type: {
@@ -7952,10 +7962,10 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_SpaceSummary.userAccess-or-parentSpaceUuid_': {
+    'Omit_SpaceSummary.userAccess-or-parentSpaceUuid-or-path_': {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess-or-parentSpaceUuid__',
+            ref: 'Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess-or-parentSpaceUuid-or-path__',
             validators: {},
         },
     },
@@ -7963,7 +7973,7 @@ const models: TsoaRoute.Models = {
     PromotedSpace: {
         dataType: 'refAlias',
         type: {
-            ref: 'Omit_SpaceSummary.userAccess-or-parentSpaceUuid_',
+            ref: 'Omit_SpaceSummary.userAccess-or-parentSpaceUuid-or-path_',
             validators: {},
         },
     },
@@ -9132,7 +9142,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid_':
+    'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_':
         {
             dataType: 'refAlias',
             type: {
@@ -9164,9 +9174,11 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
-                            { dataType: 'undefined' },
+                            { dataType: 'enum', enums: [null] },
                         ],
+                        required: true,
                     },
+                    path: { dataType: 'string', required: true },
                 },
                 validators: {},
             },
@@ -9178,7 +9190,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid_',
+                    ref: 'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -10892,7 +10904,7 @@ const models: TsoaRoute.Models = {
         enums: ['space'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid_':
+    'Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path_':
         {
             dataType: 'refAlias',
             type: {
@@ -10923,9 +10935,11 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
-                            { dataType: 'undefined' },
+                            { dataType: 'enum', enums: [null] },
                         ],
+                        required: true,
                     },
+                    path: { dataType: 'string', required: true },
                 },
                 validators: {},
             },
@@ -10940,7 +10954,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'intersection',
                     subSchemas: [
                         {
-                            ref: 'Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid_',
+                            ref: 'Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path_',
                         },
                         {
                             dataType: 'nestedObjectLiteral',
@@ -15053,7 +15067,6 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
-            parentSpaceUuid: { dataType: 'string' },
             isPrivate: { dataType: 'boolean', required: true },
             access: {
                 dataType: 'array',
@@ -15062,6 +15075,15 @@ const models: TsoaRoute.Models = {
             },
             dashboardCount: { dataType: 'double', required: true },
             chartCount: { dataType: 'double', required: true },
+            parentSpaceUuid: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            path: { dataType: 'string', required: true },
         },
         additionalProperties: true,
     },
