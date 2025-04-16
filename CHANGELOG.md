@@ -1,3 +1,10 @@
+## [0.1582.2](https://github.com/lightdash/lightdash/compare/0.1582.1...0.1582.2) (2025-04-16)
+
+
+### Bug Fixes
+
+* no new sessions in trx blocks ([#14436](https://github.com/lightdash/lightdash/issues/14436)) ([aaf03ff](https://github.com/lightdash/lightdash/commit/aaf03ff84b6ac4e59fdfc6e470c08d8dbbb962a2))
+
 ## [0.1582.1](https://github.com/lightdash/lightdash/compare/0.1582.0...0.1582.1) (2025-04-16)
 
 
