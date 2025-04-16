@@ -1,0 +1,23 @@
+.actionIcon {
+    opacity: 0.8;
+
+    &:hover {
+        opacity: 1;
+    }
+}
+
+.label {
+    &:where([data-selected]) {
+        background-color: transparent;
+    }
+
+    position: relative;
+
+    &::before {
+        content: '';
+        display: block;
+        width: 1px;
+        height: 100%;
+        background-color: red;
+    }
+}
