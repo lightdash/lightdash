@@ -21,7 +21,7 @@ export class ExploreCache {
         projectUuid: string,
         exploreNames?: string[] | undefined,
     ): string {
-        return `explores::${projectUuid}::${exploreNames?.join(',') || ''}`;
+        return `explores::${projectUuid}::${exploreNames?.join(',') || 'all'}`;
     }
 
     public getExplores(
