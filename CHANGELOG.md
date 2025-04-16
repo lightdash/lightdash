@@ -1,3 +1,10 @@
+## [0.1580.1](https://github.com/lightdash/lightdash/compare/0.1580.0...0.1580.1) (2025-04-16)
+
+
+### Bug Fixes
+
+* re-add session user in memory cache ([#14429](https://github.com/lightdash/lightdash/issues/14429)) ([5e72685](https://github.com/lightdash/lightdash/commit/5e726855d9f449aac5efffd5ae2fcf8dca8d7ec1))
+
 # [0.1580.0](https://github.com/lightdash/lightdash/compare/0.1579.1...0.1580.0) (2025-04-15)
 
 
