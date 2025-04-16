@@ -1,13 +1,22 @@
 import { isField, type SortField } from '@lightdash/common';
-import { Badge, Group, Popover, Text } from '@mantine/core';
-import { useClickOutside, useDisclosure } from '@mantine/hooks';
+import {
+    Badge,
+    Box,
+    Button,
+    Group,
+    Popover,
+    Select,
+    Text,
+} from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowUp,
     IconChevronDown,
+    IconPlus,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { useColumns } from '../../hooks/useColumns';
+import useExplorerContext from '../../providers/Explorer/useExplorerContext';
 import MantineIcon from '../common/MantineIcon';
 import Sorting from './Sorting';
 
@@ -17,12 +26,10 @@ export type Props = {
 };
 
 const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
-    const [opened, { open, close, toggle }] = useDisclosure();
-    const ref = useClickOutside(
-        () => setTimeout(() => close(), 0),
-        ['mouseup', 'touchend'],
-    );
     const columns = useColumns();
+    const addSortField = useExplorerContext(
+        (context) => context.actions.addSortField,
+    );
 
     const getSortText = () => {
         if (sorts.length === 0) return 'No sort';
@@ -36,20 +43,31 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
         return `${sorts.length} fields`;
     };
 
+    const [showSortFieldSelector, setShowSortFieldSelector] = useState(false);
+    const availableColumnsToAddToSort = useMemo(
+        () =>
+            columns
+                .map((c) => ({
+                    label: isField(c.meta?.item)
+                        ? c.meta?.item?.label
+                        : c.meta?.item?.name,
+                    value: c.id || '',
+                }))
+                .filter((c) => !sorts.some((s) => s.fieldId === c.value)),
+        [columns, sorts],
+    );
+
     return (
         <Popover
-            opened={opened}
             position="right"
             withArrow
             shadow="subtle"
             radius="md"
             withinPortal
+            disabled={!isEditMode}
         >
             <Popover.Target>
                 <Badge
-                    onClick={isEditMode ? toggle : undefined}
-                    onMouseEnter={isEditMode ? undefined : open}
-                    onMouseLeave={isEditMode ? undefined : close}
                     variant="light"
                     color="blue"
                     sx={{
@@ -85,7 +103,38 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
             </Popover.Target>
 
             <Popover.Dropdown p="xs">
-                <Sorting ref={ref} sorts={sorts} isEditMode={isEditMode} />
+                <Sorting sorts={sorts} isEditMode={isEditMode} />
+                {isEditMode && availableColumnsToAddToSort.length > 0 && (
+                    <Box p="xs">
+                        <Button
+                            variant="subtle"
+                            size="xs"
+                            onClick={() => {
+                                setShowSortFieldSelector(true);
+                            }}
+                            compact
+                            leftIcon={<MantineIcon icon={IconPlus} />}
+                        >
+                            Add sort
+                        </Button>
+                        {showSortFieldSelector && (
+                            <Select
+                                placeholder={
+                                    availableColumnsToAddToSort.length === 0
+                                        ? 'No available columns'
+                                        : 'Add sort field'
+                                }
+                                size="xs"
+                                data={availableColumnsToAddToSort}
+                                withinPortal
+                                onChange={(value: string) => {
+                                    addSortField(value);
+                                    setShowSortFieldSelector(false);
+                                }}
+                            />
+                        )}
+                    </Box>
+                )}
             </Popover.Dropdown>
         </Popover>
     );
