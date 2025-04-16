@@ -7402,6 +7402,73 @@
                 "required": ["spaceRole", "groupName", "groupUuid"],
                 "type": "object"
             },
+            "Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "isPrivate": {
+                        "type": "boolean"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "parentSpaceUuid": {
+                        "type": "string"
+                    },
+                    "access": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "chartCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dashboardCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "name",
+                    "projectUuid",
+                    "uuid",
+                    "organizationUuid",
+                    "isPrivate",
+                    "pinnedListUuid",
+                    "pinnedListOrder",
+                    "slug",
+                    "access",
+                    "chartCount",
+                    "dashboardCount"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_SpaceSummary.userAccess_": {
+                "$ref": "#/components/schemas/Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
             "Space": {
                 "properties": {
                     "breadcrumbs": {
@@ -7416,6 +7483,12 @@
                             },
                             "required": ["uuid", "name"],
                             "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "childSpaces": {
+                        "items": {
+                            "$ref": "#/components/schemas/Omit_SpaceSummary.userAccess_"
                         },
                         "type": "array"
                     },
@@ -7475,6 +7548,7 @@
                     }
                 },
                 "required": [
+                    "childSpaces",
                     "slug",
                     "pinnedListOrder",
                     "pinnedListUuid",

@@ -351,16 +351,14 @@ export class SpaceModel {
         };
     }
 
-    async find(
-        filters: {
-            projectUuid?: string;
-            projectUuids?: string[];
-            spaceUuid?: string;
-            spaceUuids?: string[];
-            slug?: string;
-        },
-        { trx = this.database }: { trx?: Knex } = { trx: this.database },
-    ): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
+    async find(filters: {
+        projectUuid?: string;
+        projectUuids?: string[];
+        spaceUuid?: string;
+        spaceUuids?: string[];
+        slug?: string;
+        parentSpaceUuid?: string;
+    }): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
         return Sentry.startSpan(
             {
                 op: 'SpaceModel.find',
@@ -460,6 +458,12 @@ export class SpaceModel {
                     void query.whereIn(
                         `${SpaceTableName}.space_uuid`,
                         filters.spaceUuids,
+                    );
+                }
+                if (filters.parentSpaceUuid) {
+                    void query.where(
+                        `${SpaceTableName}.parent_space_uuid`,
+                        filters.parentSpaceUuid,
                     );
                 }
                 if (filters.slug) {
@@ -1551,6 +1555,9 @@ export class SpaceModel {
             pinnedListOrder: space.pinnedListOrder,
             queries: await this.getSpaceQueries([space.uuid]),
             dashboards: await this.getSpaceDashboards([space.uuid]),
+            childSpaces: await this.find({
+                parentSpaceUuid: spaceUuid,
+            }),
             access:
                 (await this._getSpaceAccess([rootSpaceUuid]))[rootSpaceUuid] ??
                 [],
