@@ -25,6 +25,7 @@ import {
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
+import NodeCache from 'node-cache';
 import { LightdashConfig } from '../config/parseConfig';
 import {
     createEmail,
@@ -120,13 +121,42 @@ export class UserModel {
 
     private readonly database: Knex;
 
+    private readonly sessionUserCache: NodeCache;
+
     constructor({ database, lightdashConfig }: UserModelArguments) {
         this.database = database;
         this.lightdashConfig = lightdashConfig;
+
+        // Initialize cache with 30 seconds TTL
+        this.sessionUserCache = new NodeCache({
+            stdTTL: 30, // time to live in seconds
+            checkperiod: 60, // cleanup interval in seconds
+        });
     }
 
     private canTrackingBeAnonymized() {
         return this.lightdashConfig.mode !== LightdashMode.CLOUD_BETA;
+    }
+
+    async getSessionUserFromCacheOrDB(
+        userUuid: string,
+        organizationUuid: string,
+    ) {
+        const cacheKey = `${userUuid}::${organizationUuid}`;
+        // Try to get from cache first
+        const cachedUser = this.sessionUserCache.get<SessionUser>(cacheKey);
+        if (cachedUser) {
+            // Return cached user
+            return { sessionUser: cachedUser, cacheHit: true };
+        }
+        // If not in cache, get from database
+        const sessionUser = await this.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+        // Store in cache
+        this.sessionUserCache.set(cacheKey, sessionUser);
+        return { sessionUser, cacheHit: false };
     }
 
     // DB Errors:
