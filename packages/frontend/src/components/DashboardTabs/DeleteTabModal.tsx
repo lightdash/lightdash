@@ -1,5 +1,5 @@
 import {
-    isChartTile,
+    isDashboardChartTileType,
     type DashboardChartTile,
     type DashboardTab,
     type DashboardTile,
@@ -69,7 +69,9 @@ export const TabDeleteModal: FC<AddProps> = ({
     const { showToastSuccess } = useToaster();
 
     const isNewSavedChart = (tile: DashboardTile) => {
-        return isChartTile(tile) && tile.properties.belongsToDashboard;
+        return (
+            isDashboardChartTileType(tile) && tile.properties.belongsToDashboard
+        );
     };
 
     const tilesToRemove = useMemo(

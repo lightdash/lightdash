@@ -36,7 +36,7 @@ const addSentryTraceId = winston.format(
             sentryTraceId: traceId,
             ...(gcpProjectId &&
                 traceId && {
-                    trace: `projects/${gcpProjectId}/traces/${traceId}`,
+                    'logging.googleapis.com/trace': `projects/${gcpProjectId}/traces/${traceId}`,
                 }),
         };
     },

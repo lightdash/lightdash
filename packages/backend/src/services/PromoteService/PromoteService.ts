@@ -5,7 +5,7 @@ import {
     DashboardDAO,
     ForbiddenError,
     getErrorMessage,
-    isChartTile,
+    isDashboardChartTileType,
     NotFoundError,
     ParameterError,
     PromotedChart as PromotedChangeChart,
@@ -125,8 +125,9 @@ export class PromoteService extends BaseService {
                         : upstreamContent.dashboard !== undefined,
                 chartsCount:
                     'dashboard' in promotedContent
-                        ? promotedContent.dashboard.tiles.filter(isChartTile)
-                              .length
+                        ? promotedContent.dashboard.tiles.filter(
+                              isDashboardChartTileType,
+                          ).length
                         : undefined,
                 error,
             },
@@ -563,7 +564,7 @@ export class PromoteService extends BaseService {
                     ...dashboardChange.data,
                     tiles: dashboardChange.data.tiles.map((tile) => {
                         if (
-                            isChartTile(tile) &&
+                            isDashboardChartTileType(tile) &&
                             tile.properties.savedChartUuid
                         ) {
                             const newTileChart = getChartByOldUuid(
@@ -1105,7 +1106,10 @@ export class PromoteService extends BaseService {
 
         const chartUuids = promotedDashboard.dashboard.tiles.reduce<string[]>(
             (acc, tile) => {
-                if (isChartTile(tile) && tile.properties.savedChartUuid) {
+                if (
+                    isDashboardChartTileType(tile) &&
+                    tile.properties.savedChartUuid
+                ) {
                     return [...acc, tile.properties.savedChartUuid];
                 }
                 return acc;

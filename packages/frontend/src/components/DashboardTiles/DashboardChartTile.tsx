@@ -15,8 +15,8 @@ import {
     getVisibleFields,
     hasCustomDimension,
     isCartesianChartConfig,
-    isChartTile,
     isCompleteLayout,
+    isDashboardChartTileType,
     isFilterableField,
     isTableChartConfig,
     type ApiChartAndResults,
@@ -1187,7 +1187,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         setDashboardTiles(
                             (currentDashboardTiles) =>
                                 currentDashboardTiles?.map((tile) =>
-                                    tile.uuid === tileUuid && isChartTile(tile)
+                                    tile.uuid === tileUuid &&
+                                    isDashboardChartTileType(tile)
                                         ? {
                                               ...tile,
                                               properties: {
@@ -1426,7 +1427,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
             {...props}
             isLoading={
                 (resultsData.fetchAll && !resultsData.hasFetchedAllRows) ||
-                readyQuery.isInitialLoading
+                readyQuery.isFetching
             }
             resultsData={resultsData}
             dashboardChartReadyQuery={readyQuery.data}

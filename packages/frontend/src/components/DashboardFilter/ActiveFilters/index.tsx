@@ -130,7 +130,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );
-    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const haveFiltersChanged = useDashboardContext(
+        (c) =>
+            c.haveFiltersChanged ||
+            c.dashboardTemporaryFilters.dimensions.length > 0,
+    );
 
     const mouseSensor = useSensor(MouseSensor, {
         activationConstraint: { distance: 10 },

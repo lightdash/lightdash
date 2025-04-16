@@ -146,8 +146,7 @@ export class CatalogModel {
                                         ),
                                         BATCH_SIZE,
                                     )
-                                    .returning('*')
-                                    .transacting(trx);
+                                    .returning('*');
 
                                 // Create project yaml tag insert objects depending on the ID of the catalog insert
                                 const yamlTagInserts: DbCatalogTagIn[] =
@@ -172,8 +171,7 @@ export class CatalogModel {
                                 if (yamlTagInserts.length > 0) {
                                     await trx(CatalogTagsTableName)
                                         .insert(yamlTagInserts)
-                                        .returning('*')
-                                        .transacting(trx);
+                                        .returning('*');
                                 }
 
                                 return results;

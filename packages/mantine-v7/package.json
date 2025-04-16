@@ -1,0 +1,33 @@
+{
+    "name": "@lightdash/mantine-v7",
+    "private": true,
+    "version": "1.0.0",
+    "type": "module",
+    "main": "dist/index.cjs.js",
+    "module": "dist/index.es.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.es.js",
+            "require": "./dist/index.cjs.js"
+        },
+        "./style.css": "./dist/style.css"
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "vite build"
+    },
+    "peerDependencies": {
+        "react": "^18.x || ^19.x",
+        "react-dom": "^18.x || ^19.x"
+    },
+    "devDependencies": {
+        "@mantine/core": "7.17.4",
+        "@mantine/hooks": "7.17.4",
+        "vite": "^6.1.3",
+        "vite-plugin-dts": "^4.5.0"
+    }
+}

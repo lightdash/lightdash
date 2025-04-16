@@ -108,9 +108,7 @@ export class WarehouseAvailableTablesModel {
                 .del();
 
             if (rows.length !== 0) {
-                await this.database
-                    .batchInsert(WarehouseAvailableTablesTableName, rows)
-                    .transacting(trx);
+                await trx.batchInsert(WarehouseAvailableTablesTableName, rows);
             }
         });
     }
@@ -138,9 +136,7 @@ export class WarehouseAvailableTablesModel {
                 )
                 .del();
             if (rows.length !== 0) {
-                await this.database
-                    .batchInsert(WarehouseAvailableTablesTableName, rows)
-                    .transacting(trx);
+                await trx.batchInsert(WarehouseAvailableTablesTableName, rows);
             }
         });
     }

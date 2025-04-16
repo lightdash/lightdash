@@ -92,14 +92,64 @@ export default class PrometheusMetrics {
         const pgConnectionAcquireTime = new prometheus.Histogram({
             name: 'pg_connection_acquire_time',
             help: 'Time to acquire a connection from the PG pool (ms)',
-            buckets: [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000],
+            buckets: [
+                1,
+                5,
+                10,
+                25,
+                50,
+                100,
+                250,
+                500,
+                1000, // 1 second
+                2500, // 2.5 second
+                5000, // 5 second
+                10000, // 10 second
+                25000, // 25 second
+                50000, // 50 second
+                60000, // 1 min
+                120000, // 2 min
+                180000, // 3 min
+                240000, // 4 min
+                300000, // 5 min
+                600000, // 10 min
+                900000, // 15 min
+                1200000, // 20 min
+                1500000, // 25 min
+                1800000, // 30 min
+            ],
             ...rest,
         });
 
         const pgQueryDurationHistogram = new prometheus.Histogram({
             name: 'pg_query_duration',
             help: 'Histogram of PG query execution time (ms)',
-            buckets: [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000],
+            buckets: [
+                1,
+                5,
+                10,
+                25,
+                50,
+                100,
+                250,
+                500,
+                1000, // 1 second
+                2500, // 2.5 second
+                5000, // 5 second
+                10000, // 10 second
+                25000, // 25 second
+                50000, // 50 second
+                60000, // 1 min
+                120000, // 2 min
+                180000, // 3 min
+                240000, // 4 min
+                300000, // 5 min
+                600000, // 10 min
+                900000, // 15 min
+                1200000, // 20 min
+                1500000, // 25 min
+                1800000, // 30 min
+            ],
             ...rest,
         });
 

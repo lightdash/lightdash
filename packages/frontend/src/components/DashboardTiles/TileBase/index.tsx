@@ -1,6 +1,6 @@
 import {
     DashboardTileTypes,
-    isChartTile,
+    isDashboardChartTileType,
     type Dashboard,
     type DashboardTab,
 } from '@lightdash/common';
@@ -94,7 +94,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             ? tile.properties.hideTitle
             : false;
     const belongsToDashboard: boolean =
-        isChartTile(tile) && !!tile.properties.belongsToDashboard;
+        isDashboardChartTileType(tile) && !!tile.properties.belongsToDashboard;
 
     const isMarkdownTileTitleEmpty =
         tile.type === DashboardTileTypes.MARKDOWN && !title;

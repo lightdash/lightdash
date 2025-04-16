@@ -1,3 +1,52 @@
+## [0.1582.2](https://github.com/lightdash/lightdash/compare/0.1582.1...0.1582.2) (2025-04-16)
+
+
+### Bug Fixes
+
+* no new sessions in trx blocks ([#14436](https://github.com/lightdash/lightdash/issues/14436)) ([aaf03ff](https://github.com/lightdash/lightdash/commit/aaf03ff84b6ac4e59fdfc6e470c08d8dbbb962a2))
+
+## [0.1582.1](https://github.com/lightdash/lightdash/compare/0.1582.0...0.1582.1) (2025-04-16)
+
+
+### Bug Fixes
+
+* loading state on dashboard charts refresh ([#14434](https://github.com/lightdash/lightdash/issues/14434)) ([67bf4bc](https://github.com/lightdash/lightdash/commit/67bf4bc45fb08a36c467e8c7e9b4546b04550b24))
+
+# [0.1582.0](https://github.com/lightdash/lightdash/compare/0.1581.0...0.1582.0) (2025-04-16)
+
+
+### Features
+
+* warn user of max column limit (sql runner) ([#14430](https://github.com/lightdash/lightdash/issues/14430)) ([2965237](https://github.com/lightdash/lightdash/commit/29652378b5b81c00a8173efbb1fffbf8a7fe422f))
+
+# [0.1581.0](https://github.com/lightdash/lightdash/compare/0.1580.3...0.1581.0) (2025-04-16)
+
+
+### Features
+
+* cache explores in memory ([#14427](https://github.com/lightdash/lightdash/issues/14427)) ([cce1a05](https://github.com/lightdash/lightdash/commit/cce1a051ca5c9e81fe88d0da96dd788e36b841a1))
+
+## [0.1580.3](https://github.com/lightdash/lightdash/compare/0.1580.2...0.1580.3) (2025-04-16)
+
+
+### Bug Fixes
+
+* google trace metadata field ([#14435](https://github.com/lightdash/lightdash/issues/14435)) ([01d0e6e](https://github.com/lightdash/lightdash/commit/01d0e6eb2733c4b5d0160553bee132e4d971e127))
+
+## [0.1580.2](https://github.com/lightdash/lightdash/compare/0.1580.1...0.1580.2) (2025-04-16)
+
+
+### Bug Fixes
+
+* show reset filters if url overrides dashboard filters ([#14422](https://github.com/lightdash/lightdash/issues/14422)) ([406572b](https://github.com/lightdash/lightdash/commit/406572bdcfd73178ce6ed6374ac2d93b70a3166b))
+
+## [0.1580.1](https://github.com/lightdash/lightdash/compare/0.1580.0...0.1580.1) (2025-04-16)
+
+
+### Bug Fixes
+
+* re-add session user in memory cache ([#14429](https://github.com/lightdash/lightdash/issues/14429)) ([5e72685](https://github.com/lightdash/lightdash/commit/5e726855d9f449aac5efffd5ae2fcf8dca8d7ec1))
+
 # [0.1580.0](https://github.com/lightdash/lightdash/compare/0.1579.1...0.1580.0) (2025-04-15)
 
 

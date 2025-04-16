@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.1580.0",
+    "version": "0.1582.2",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -100,7 +100,7 @@
         "fix-format": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend -F e2e -F @lightdash/cli fix-format",
         "test": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend -F e2e -F @lightdash/cli test",
         "dev": "pnpm -r --stream --parallel -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend run dev",
-        "build": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F backend -F frontend build",
+        "build": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F backend -F @lightdash/mantine-v7 -F frontend build",
         "build-published-packages": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F @lightdash/cli build",
         "release-packages": "pnpm -r --stream --sequential -F @lightdash/common -F @lightdash/warehouses -F @lightdash/cli release",
         "start": "pnpm run backend-start",
