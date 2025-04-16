@@ -1,3 +1,10 @@
+# [0.1581.0](https://github.com/lightdash/lightdash/compare/0.1580.3...0.1581.0) (2025-04-16)
+
+
+### Features
+
+* cache explores in memory ([#14427](https://github.com/lightdash/lightdash/issues/14427)) ([cce1a05](https://github.com/lightdash/lightdash/commit/cce1a051ca5c9e81fe88d0da96dd788e36b841a1))
+
 ## [0.1580.3](https://github.com/lightdash/lightdash/compare/0.1580.2...0.1580.3) (2025-04-16)
 
 
