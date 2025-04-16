@@ -59,7 +59,8 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
 
     return (
         <Popover
-            position="right"
+            position="top"
+            offset={-2}
             withArrow
             shadow="subtle"
             radius="md"
