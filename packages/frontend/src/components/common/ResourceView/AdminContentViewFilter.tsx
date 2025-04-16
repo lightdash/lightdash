@@ -26,7 +26,6 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                 h={20}
                 sx={{
                     alignSelf: 'center',
-                    borderColor: '#DEE2E6',
                 }}
             />
             <SegmentedControl

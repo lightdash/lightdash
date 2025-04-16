@@ -1,7 +1,8 @@
 import { type ResourceViewSpaceItem } from '@lightdash/common';
-import { Group, Text, useMantineTheme } from '@mantine/core';
+import { Group, Text } from '@mantine/core';
 import { IconLock, IconUser, IconUsers } from '@tabler/icons-react';
 import React, { useMemo } from 'react';
+import MantineIcon from '../MantineIcon';
 import { ResourceAccess } from './types';
 import { getResourceAccessType } from './utils';
 
@@ -32,21 +33,16 @@ const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
     const { Icon, status } =
         ResourceAccessInfoData[getResourceAccessType(item)];
 
-    const theme = useMantineTheme();
-
     const styles = useMemo(() => {
         return {
-            color:
-                type === 'primary'
-                    ? theme.colors.gray[7]
-                    : theme.colors.gray[6],
+            color: type === 'primary' ? 'gray.7' : 'gray.6',
             size: type === 'primary' ? 14 : 12,
         };
-    }, [theme, type]);
+    }, [type]);
 
     return (
         <Group spacing={4}>
-            <Icon color={styles.color} size={styles.size} />
+            <MantineIcon icon={Icon} color={styles.color} size={styles.size} />
 
             <Text size={styles.size} color={styles.color}>
                 {status}
