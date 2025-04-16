@@ -46,6 +46,12 @@ controllers -> services -> models -> database
 When building a new endpoint see [routes.ts](mdc:packages/backend/src/generated/routes.ts) and [swagger.json](mdc:packages/backend/src/generated/swagger.json), ensure that you make changes to the controller, service, model, but also update types in packages/common. 
 Remind user to call `pnpm generate-api` to rebuild tsoa. 
 
+### Testing
+
+Don't write unit tests that test implementation, only write unit tests for new business logic
+ - Good tests: business logic, complex rules, nested conditionals
+ - Bad tests: database calls, implementation details, data transformation, prometheus usage
+
 ### Controllers
 - Keep controllers thin - delegate business logic to services
 - Implement proper request validation using `zod`
