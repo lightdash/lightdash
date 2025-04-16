@@ -1,22 +1,12 @@
 import { isField, type SortField } from '@lightdash/common';
-import {
-    Badge,
-    Box,
-    Button,
-    Group,
-    Popover,
-    Select,
-    Text,
-} from '@mantine/core';
+import { Badge, Group, Popover, Text } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowUp,
     IconChevronDown,
-    IconPlus,
 } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { type FC } from 'react';
 import { useColumns } from '../../hooks/useColumns';
-import useExplorerContext from '../../providers/Explorer/useExplorerContext';
 import MantineIcon from '../common/MantineIcon';
 import Sorting from './Sorting';
 
@@ -27,9 +17,6 @@ export type Props = {
 
 const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
     const columns = useColumns();
-    const addSortField = useExplorerContext(
-        (context) => context.actions.addSortField,
-    );
 
     const getSortText = () => {
         if (sorts.length === 0) return 'No sort';
@@ -43,23 +30,9 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
         return `${sorts.length} fields`;
     };
 
-    const [showSortFieldSelector, setShowSortFieldSelector] = useState(false);
-    const availableColumnsToAddToSort = useMemo(
-        () =>
-            columns
-                .map((c) => ({
-                    label: isField(c.meta?.item)
-                        ? c.meta?.item?.label
-                        : c.meta?.item?.name,
-                    value: c.id || '',
-                }))
-                .filter((c) => !sorts.some((s) => s.fieldId === c.value)),
-        [columns, sorts],
-    );
-
     return (
         <Popover
-            position="top"
+            position="top-start"
             offset={-2}
             withArrow
             shadow="subtle"
@@ -105,37 +78,6 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
 
             <Popover.Dropdown p="xs">
                 <Sorting sorts={sorts} isEditMode={isEditMode} />
-                {isEditMode && availableColumnsToAddToSort.length > 0 && (
-                    <Box p="xs">
-                        <Button
-                            variant="subtle"
-                            size="xs"
-                            onClick={() => {
-                                setShowSortFieldSelector(true);
-                            }}
-                            compact
-                            leftIcon={<MantineIcon icon={IconPlus} />}
-                        >
-                            Add sort
-                        </Button>
-                        {showSortFieldSelector && (
-                            <Select
-                                placeholder={
-                                    availableColumnsToAddToSort.length === 0
-                                        ? 'No available columns'
-                                        : 'Add sort field'
-                                }
-                                size="xs"
-                                data={availableColumnsToAddToSort}
-                                withinPortal
-                                onChange={(value: string) => {
-                                    addSortField(value);
-                                    setShowSortFieldSelector(false);
-                                }}
-                            />
-                        )}
-                    </Box>
-                )}
             </Popover.Dropdown>
         </Popover>
     );
