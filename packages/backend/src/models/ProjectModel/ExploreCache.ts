@@ -1,93 +1,46 @@
 import { Explore, ExploreError } from '@lightdash/common';
 import NodeCache from 'node-cache';
 
-type CachedExplore = Explore | ExploreError;
+type CachedExplores = Record<string, Explore | ExploreError>;
 
 export class ExploreCache {
-    private readonly cache: NodeCache;
+    private readonly cache: NodeCache | undefined;
 
     constructor() {
         // Initialize cache with 30 seconds TTL
-        this.cache = new NodeCache({
-            stdTTL: 30, // time to live in seconds
-            checkperiod: 60, // cleanup interval in seconds
-        });
+        this.cache =
+            process.env.EXPERIMENTAL_CACHE === 'true'
+                ? new NodeCache({
+                      stdTTL: 30, // time to live in seconds
+                      checkperiod: 60, // cleanup interval in seconds
+                  })
+                : undefined;
     }
 
-    private static getIndividualExploreKey(
+    private static getCacheKey(
         projectUuid: string,
-        exploreName: string,
+        exploreNames?: string[] | undefined,
     ): string {
-        return `explores::${projectUuid}::${exploreName}`;
+        return `explores::${projectUuid}::${exploreNames?.join(',') || ''}`;
     }
 
-    private static getAllExploresKey(projectUuid: string): string {
-        return `explores::${projectUuid}::all`;
-    }
-
-    public getIndividualExplore(
+    public getExplores(
         projectUuid: string,
-        exploreName: string,
-    ): CachedExplore | undefined {
-        return this.cache.get<CachedExplore>(
-            ExploreCache.getIndividualExploreKey(projectUuid, exploreName),
+        exploreNames: string[] | undefined,
+    ): CachedExplores | undefined {
+        return this.cache?.get<CachedExplores>(
+            ExploreCache.getCacheKey(projectUuid, exploreNames),
         );
     }
 
-    public setIndividualExplore(
+    public setExplores(
         projectUuid: string,
-        exploreName: string,
-        explore: CachedExplore,
+        exploreNames: string[] | undefined,
+        explore: CachedExplores,
     ): void {
-        this.cache.set(
-            ExploreCache.getIndividualExploreKey(projectUuid, exploreName),
+        this.cache?.set(
+            ExploreCache.getCacheKey(projectUuid, exploreNames),
             explore,
         );
-    }
-
-    public getAllExplores(
-        projectUuid: string,
-    ): Record<string, CachedExplore> | undefined {
-        return this.cache.get<Record<string, CachedExplore>>(
-            ExploreCache.getAllExploresKey(projectUuid),
-        );
-    }
-
-    public setAllExplores(
-        projectUuid: string,
-        explores: Record<string, CachedExplore>,
-    ): void {
-        this.cache.set(ExploreCache.getAllExploresKey(projectUuid), explores);
-    }
-
-    private delIndividualExplore(
-        projectUuid: string,
-        exploreName: string,
-    ): void {
-        this.cache.del(
-            ExploreCache.getIndividualExploreKey(projectUuid, exploreName),
-        );
-    }
-
-    private delAllExplores(projectUuid: string): void {
-        this.cache.del(ExploreCache.getAllExploresKey(projectUuid));
-    }
-
-    public invalidateCache(projectUuid: string, exploreName?: string): void {
-        if (exploreName) {
-            // Delete the individual explore
-            this.delIndividualExplore(projectUuid, exploreName);
-            // Delete the all key since it's no longer valid
-            this.delAllExplores(projectUuid);
-        } else {
-            // Delete all individual explores for the project and the all key
-            this.cache.del(
-                this.cache
-                    .keys()
-                    .filter((key: string) =>
-                        key.startsWith(`explores::${projectUuid}::`),
-                    ),
-            );
-        }
     }
 }

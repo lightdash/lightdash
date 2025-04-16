@@ -107,13 +107,13 @@ export class ProjectModel {
 
     private encryptionUtil: EncryptionUtil;
 
-    private readonly exploreCacheByName: ExploreCache;
+    private readonly exploreCache: ExploreCache;
 
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.encryptionUtil = args.encryptionUtil;
-        this.exploreCacheByName = new ExploreCache();
+        this.exploreCache = new ExploreCache();
     }
 
     static mergeMissingDbtConfigSecrets(
@@ -848,8 +848,12 @@ export class ProjectModel {
 
     async findExploresFromCache(
         projectUuid: string,
-        exploreNames?: string[],
+        exploreNamesWithDuplicates?: string[],
     ): Promise<Record<string, Explore | ExploreError>> {
+        // dedupe values
+        const exploreNames = exploreNamesWithDuplicates
+            ? [...new Set(exploreNamesWithDuplicates)]
+            : undefined;
         return wrapSentryTransaction(
             'ProjectModel.findExploresFromCache',
             {
@@ -857,85 +861,41 @@ export class ProjectModel {
                 exploreNames,
             },
             async (span) => {
-                const result: Record<string, Explore | ExploreError> = {};
-                const missingExploreNames: string[] = [];
-
-                // If exploreNames is provided, try to get each explore from cache
-                if (exploreNames?.length) {
-                    for (const name of exploreNames) {
-                        const cachedExplore =
-                            this.exploreCacheByName.getIndividualExplore(
-                                projectUuid,
-                                name,
-                            );
-
-                        if (cachedExplore) {
-                            result[name] = cachedExplore;
-                        } else {
-                            missingExploreNames.push(name);
-                        }
-                    }
-                } else {
-                    // If no exploreNames provided, try to get all explores for the project
-                    const cachedExplores =
-                        this.exploreCacheByName.getAllExplores(projectUuid);
-
-                    if (cachedExplores) {
-                        span.setAttribute('cacheHit', true);
-                        return cachedExplores;
-                    }
-                }
-
-                // If we have all explores cached, return them
-                if (
-                    missingExploreNames.length === 0 &&
-                    exploreNames &&
-                    exploreNames.length > 0
-                ) {
+                // Try to get from cache first
+                const cachedExplores = this.exploreCache?.getExplores(
+                    projectUuid,
+                    exploreNames,
+                );
+                if (cachedExplores) {
                     span.setAttribute('cacheHit', true);
-                    return result;
+                    // Return cached explores
+                    return cachedExplores;
                 }
-
-                // Query only the missing explores from the database
+                // If not in cache, get from database
                 const query = this.database(CachedExploreTableName)
                     .select('explore')
                     .where('project_uuid', projectUuid);
-
-                if (missingExploreNames.length > 0) {
-                    void query.whereIn('name', missingExploreNames);
+                if (exploreNames) {
+                    void query.whereIn('name', exploreNames);
                 }
-
                 const explores = await query;
                 span.setAttribute('foundExplores', !!explores.length);
-
-                // Process and cache the results
-                const exploresMap = explores.reduce<
+                const finalExplores = explores.reduce<
                     Record<string, Explore | ExploreError>
                 >((acc, { explore }) => {
-                    const processedExplore =
+                    acc[explore.name] =
                         ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
                             explore,
                         );
-                    acc[explore.name] = processedExplore;
-                    // Cache each explore individually
-                    this.exploreCacheByName.setIndividualExplore(
-                        projectUuid,
-                        explore.name,
-                        processedExplore,
-                    );
                     return acc;
                 }, {});
-
-                // If no exploreNames provided, cache all explores for the project
-                if (!exploreNames?.length) {
-                    this.exploreCacheByName.setAllExplores(
-                        projectUuid,
-                        exploresMap,
-                    );
-                }
-
-                // Merge cached and newly fetched explores
-                return { ...result, ...exploresMap };
+                // Store in cache
+                this.exploreCache?.setExplores(
+                    projectUuid,
+                    exploreNames,
+                    finalExplores,
+                );
+                return finalExplores;
             },
         );
     }
@@ -1102,9 +1062,6 @@ export class ProjectModel {
                         .onConflict('project_uuid')
                         .merge()
                         .returning('*');
-
-                    // Invalidate cache after saving explores
-                    this.exploreCacheByName.invalidateCache(projectUuid);
 
                     return {
                         cachedExploreUuids: individualCachedExplores.map(
@@ -2227,12 +2184,6 @@ export class ProjectModel {
             })
             .returning('*');
 
-        this.exploreCacheByName.setIndividualExplore(
-            projectUuid,
-            virtualView.name,
-            virtualView,
-        );
-
         return virtualView;
     }
 
@@ -2295,12 +2246,6 @@ export class ProjectModel {
             })
             .returning('*');
 
-        this.exploreCacheByName.setIndividualExplore(
-            projectUuid,
-            exploreName,
-            translatedToExplore,
-        );
-
         return translatedToExplore;
     }
 
@@ -2330,9 +2275,6 @@ export class ProjectModel {
                     [name],
                 ),
             });
-
-        // Invalidate cache for this specific explore
-        this.exploreCacheByName.invalidateCache(projectUuid, name);
     }
 
     private static isSemanticLayerConnectionValid(
