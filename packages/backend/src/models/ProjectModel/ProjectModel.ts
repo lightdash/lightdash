@@ -1811,8 +1811,7 @@ export class ProjectModel {
                         }),
                         batchSize,
                     )
-                    .returning('*')
-                    .transacting(trx);
+                    .returning('*');
 
                 return newContent;
             };

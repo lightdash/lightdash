@@ -159,10 +159,11 @@ export class OpenIdIdentityModel {
 
     async deleteIdentity(userId: number, issuer: string, email: string) {
         await this.database.transaction(async (trx) => {
-            const identities = await this.database(
-                OpenIdIdentitiesTableName,
-            ).where('openid_identities.user_id', userId);
-            const passwords = await this.database(PasswordLoginTableName).where(
+            const identities = await trx(OpenIdIdentitiesTableName).where(
+                'openid_identities.user_id',
+                userId,
+            );
+            const passwords = await trx(PasswordLoginTableName).where(
                 'user_id',
                 userId,
             );
