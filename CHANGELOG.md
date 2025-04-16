@@ -1,3 +1,10 @@
+## [0.1580.3](https://github.com/lightdash/lightdash/compare/0.1580.2...0.1580.3) (2025-04-16)
+
+
+### Bug Fixes
+
+* google trace metadata field ([#14435](https://github.com/lightdash/lightdash/issues/14435)) ([01d0e6e](https://github.com/lightdash/lightdash/commit/01d0e6eb2733c4b5d0160553bee132e4d971e127))
+
 ## [0.1580.2](https://github.com/lightdash/lightdash/compare/0.1580.1...0.1580.2) (2025-04-16)
 
 
