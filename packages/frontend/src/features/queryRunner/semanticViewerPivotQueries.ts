@@ -126,6 +126,7 @@ export const getPivotQueryFunctionForSemanticViewer = (
             valuesColumns,
             columns: vizColumns,
             fileUrl,
+            columnCount: pivotedResults.columns.length,
         };
     };
 };

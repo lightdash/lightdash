@@ -104,6 +104,7 @@ export class BaseResultsRunner implements IResultsRunner {
             indexColumn: undefined,
             valuesColumns: [],
             columns: [],
+            columnCount: undefined,
         };
 
         if (!query) {
