@@ -35,7 +35,6 @@ import {
     getErrorMessage,
     getFilterInteractivityValue,
     getItemId,
-    isChartTile,
     isDashboardChartTileType,
     isDashboardSlugContent,
     isDashboardSqlChartTile,
@@ -713,7 +712,7 @@ export class EmbedService extends BaseService {
         tileUuid: string,
     ) {
         const tile = dashboard.tiles
-            .filter(isChartTile)
+            .filter(isDashboardChartTileType)
             .find(({ uuid }) => uuid === tileUuid);
 
         if (!tile) {

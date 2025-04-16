@@ -48,7 +48,7 @@ type CoderServiceArguments = {
     promoteService: PromoteService;
 };
 
-const isChartTile = (
+const isAnyChartTile = (
     tile: DashboardTileAsCode | DashboardTile,
 ): tile is DashboardTile & {
     properties: { chartSlug: string; hideTitle: boolean };
@@ -137,18 +137,18 @@ export class CoderService extends BaseService {
         uuid: string,
     ) => {
         const tile = dashboard.tiles.find((t) => t.uuid === uuid);
-        if (tile && isChartTile(tile)) {
+        if (tile && isAnyChartTile(tile)) {
             const hasMultipleTilesWithSameChartSlug =
                 dashboard.tiles.filter(
                     (t) =>
-                        isChartTile(t) &&
+                        isAnyChartTile(t) &&
                         t.properties.chartSlug === tile.properties.chartSlug,
                 ).length > 1;
             if (hasMultipleTilesWithSameChartSlug) {
                 const chartSlugIndex = dashboard.tiles
                     .filter(
                         (t) =>
-                            isChartTile(t) &&
+                            isAnyChartTile(t) &&
                             t.properties.chartSlug ===
                                 tile.properties.chartSlug,
                     )
@@ -212,7 +212,7 @@ export class CoderService extends BaseService {
                     (acc, [tileSlug, target]) => {
                         const tileUuid = tilesWithUuids.find(
                             (t) =>
-                                isChartTile(t) &&
+                                isAnyChartTile(t) &&
                                 t.properties.chartSlug === tileSlug,
                         )?.uuid;
                         if (!tileUuid) {
@@ -253,7 +253,7 @@ export class CoderService extends BaseService {
 
         const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.map(
             (tile): DashboardTileAsCode => {
-                if (isChartTile(tile)) {
+                if (isAnyChartTile(tile)) {
                     return {
                         ...tile,
                         uuid: undefined,
@@ -303,7 +303,9 @@ export class CoderService extends BaseService {
     ): Promise<DashboardTile[]> {
         const chartSlugs: string[] = tiles.reduce<string[]>(
             (acc, tile) =>
-                isChartTile(tile) ? [...acc, tile.properties.chartSlug] : acc,
+                isAnyChartTile(tile)
+                    ? [...acc, tile.properties.chartSlug]
+                    : acc,
             [],
         );
 
@@ -315,7 +317,7 @@ export class CoderService extends BaseService {
         });
 
         return tiles.map((tile) => {
-            if (isChartTile(tile)) {
+            if (isAnyChartTile(tile)) {
                 const savedChart = charts.find(
                     (chart) => chart.slug === tile.properties.chartSlug,
                 );
