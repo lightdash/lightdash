@@ -30,6 +30,8 @@
         "@emotion/react": "^11.10.6",
         "@hello-pangea/dnd": "^16.5.0",
         "@hookform/error-message": "^2.0.0",
+        "@lightdash/common": "workspace:*",
+        "@lightdash/mantine-v7": "workspace:*",
         "@mantine/core": "^6.0.21",
         "@mantine/dates": "^6.0.21",
         "@mantine/form": "^7.5.2",
@@ -118,7 +120,6 @@
     },
     "devDependencies": {
         "@chromatic-com/storybook": "^3",
-        "@lightdash/common": "workspace:^",
         "@mantine/styles": "6.0.21",
         "@storybook/addon-essentials": "^8.6.6",
         "@storybook/addon-interactions": "^8.6.6",

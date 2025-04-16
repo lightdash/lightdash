@@ -127,6 +127,7 @@ COPY packages/common/package.json ./packages/common/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/frontend/package.json ./packages/frontend/
+COPY packages/mantine-v7/package.json ./packages/mantine-v7/
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --prefer-offline
@@ -170,6 +171,10 @@ RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY
     echo "Building backend without sourcemaps"; \
     pnpm -F backend build; \
     fi
+
+# Build mantine-v7
+COPY packages/mantine-v7 ./packages/mantine-v7
+RUN pnpm -F mantine-v7 build
 
 # Build frontend
 COPY packages/frontend ./packages/frontend
