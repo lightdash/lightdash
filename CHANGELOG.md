@@ -1,3 +1,10 @@
+## [0.1582.1](https://github.com/lightdash/lightdash/compare/0.1582.0...0.1582.1) (2025-04-16)
+
+
+### Bug Fixes
+
+* loading state on dashboard charts refresh ([#14434](https://github.com/lightdash/lightdash/issues/14434)) ([67bf4bc](https://github.com/lightdash/lightdash/commit/67bf4bc45fb08a36c467e8c7e9b4546b04550b24))
+
 # [0.1582.0](https://github.com/lightdash/lightdash/compare/0.1581.0...0.1582.0) (2025-04-16)
 
 
