@@ -1427,7 +1427,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
             {...props}
             isLoading={
                 (resultsData.fetchAll && !resultsData.hasFetchedAllRows) ||
-                readyQuery.isInitialLoading
+                readyQuery.isFetching
             }
             resultsData={resultsData}
             dashboardChartReadyQuery={readyQuery.data}
