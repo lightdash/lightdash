@@ -331,6 +331,7 @@ export const spacesWithSavedCharts: Space[] = [
         ],
         projectUuid,
         dashboards: [],
+        childSpaces: [],
         access: [],
         groupsAccess: [],
     },
@@ -351,6 +352,7 @@ export const spacesWithNoSavedCharts: Space[] = [
         dashboards: [],
         access: [],
         groupsAccess: [],
+        childSpaces: [],
     },
 ];
 

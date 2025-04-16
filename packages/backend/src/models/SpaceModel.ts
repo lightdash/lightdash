@@ -345,20 +345,24 @@ export class SpaceModel {
             })),
             projectUuid,
             dashboards: [],
+            childSpaces: [],
             access: [],
             groupsAccess: [],
             slug: space.slug,
         };
     }
 
-    async find(filters: {
-        projectUuid?: string;
-        projectUuids?: string[];
-        spaceUuid?: string;
-        spaceUuids?: string[];
-        slug?: string;
-        parentSpaceUuid?: string;
-    }): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
+    async find(
+        filters: {
+            projectUuid?: string;
+            projectUuids?: string[];
+            spaceUuid?: string;
+            spaceUuids?: string[];
+            slug?: string;
+            parentSpaceUuid?: string;
+        },
+        { trx = this.database }: { trx?: Knex } = { trx: this.database },
+    ): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
         return Sentry.startSpan(
             {
                 op: 'SpaceModel.find',
@@ -477,7 +481,10 @@ export class SpaceModel {
     async get(
         spaceUuid: string,
     ): Promise<
-        Omit<Space, 'queries' | 'dashboards' | 'access' | 'groupsAccess'>
+        Omit<
+            Space,
+            'queries' | 'dashboards' | 'access' | 'groupsAccess' | 'childSpaces'
+        >
     > {
         const [row] = await this.database(SpaceTableName)
             .leftJoin(
@@ -1696,6 +1703,7 @@ export class SpaceModel {
             uuid: space.space_uuid,
             projectUuid,
             dashboards: [],
+            childSpaces: [],
             access: [],
             groupsAccess: [],
             pinnedListUuid: null,

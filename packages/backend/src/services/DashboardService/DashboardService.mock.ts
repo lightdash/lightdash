@@ -66,6 +66,7 @@ export const publicSpace: Space = {
     queries: [],
     projectUuid: 'projectUuid',
     dashboards: [],
+    childSpaces: [],
     access: [],
     groupsAccess: [],
     name: 'public-space',
