@@ -351,20 +351,23 @@ export class SpaceModel {
         };
     }
 
-    async find(filters: {
-        projectUuid?: string;
-        projectUuids?: string[];
-        spaceUuid?: string;
-        spaceUuids?: string[];
-        slug?: string;
-    }): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
+    async find(
+        filters: {
+            projectUuid?: string;
+            projectUuids?: string[];
+            spaceUuid?: string;
+            spaceUuids?: string[];
+            slug?: string;
+        },
+        { trx = this.database }: { trx?: Knex } = { trx: this.database },
+    ): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
         return Sentry.startSpan(
             {
                 op: 'SpaceModel.find',
                 name: 'SpaceModel.find',
             },
             async () => {
-                const query = this.database(SpaceTableName)
+                const query = trx(SpaceTableName)
                     .innerJoin(
                         ProjectTableName,
                         `${ProjectTableName}.project_id`,
@@ -407,16 +410,16 @@ export class SpaceModel {
                         organizationUuid: `${OrganizationTableName}.organization_uuid`,
                         projectUuid: `${ProjectTableName}.project_uuid`,
                         uuid: `${SpaceTableName}.space_uuid`,
-                        name: this.database.raw('max(spaces.name)'),
-                        isPrivate: this.database.raw(
+                        name: trx.raw('max(spaces.name)'),
+                        isPrivate: trx.raw(
                             SpaceModel.getRootSpaceIsPrivateQuery(),
                         ),
-                        access: this.database.raw(
+                        access: trx.raw(
                             SpaceModel.getRootSpaceAccessQuery('shared_with'),
                         ),
                         pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
                         pinnedListOrder: `${PinnedSpaceTableName}.order`,
-                        chartCount: this.database
+                        chartCount: trx
                             .countDistinct(
                                 `${SavedChartsTableName}.saved_query_id`,
                             )
@@ -424,7 +427,7 @@ export class SpaceModel {
                             .whereRaw(
                                 `${SavedChartsTableName}.space_id = ${SpaceTableName}.space_id`,
                             ),
-                        dashboardCount: this.database
+                        dashboardCount: trx
                             .countDistinct(
                                 `${DashboardsTableName}.dashboard_id`,
                             )
@@ -1619,47 +1622,79 @@ export class SpaceModel {
         forceSameSlug: boolean = false,
         parentSpaceUuid: string | null = null,
     ): Promise<Space> {
-        return this.database.transaction(async (trx) => {
-            const [project] = await trx(ProjectTableName)
-                .select('project_id')
-                .where('project_uuid', projectUuid);
-
-            const spaceSlug = await SpaceModel.getSpaceSlug({
-                slug,
-                parentSpaceUuid,
-                trx,
-                forceSameSlug,
-            });
-
-            const spacePath = getLtreePathFromSlug(spaceSlug);
-
-            const [space] = await trx(SpaceTableName)
-                .insert({
-                    project_id: project.project_id,
-                    is_private: isPrivate,
-                    name,
-                    created_by_user_id: userId,
-                    slug: spaceSlug,
-                    parent_space_uuid: parentSpaceUuid,
-                    path: spacePath,
-                })
-                .returning('*');
-
-            return {
-                organizationUuid: space.organization_uuid,
-                name: space.name,
-                queries: [],
-                isPrivate: space.is_private,
-                uuid: space.space_uuid,
+        return this._createSpace(
+            {
                 projectUuid,
-                dashboards: [],
-                access: [],
-                groupsAccess: [],
-                pinnedListUuid: null,
-                pinnedListOrder: null,
-                slug: space.slug,
-            };
+                name,
+                userId,
+                isPrivate,
+                slug,
+                forceSameSlug,
+                parentSpaceUuid,
+            },
+            { trx: this.database },
+        );
+    }
+
+    private async _createSpace(
+        {
+            projectUuid,
+            name,
+            userId,
+            isPrivate,
+            slug,
+            forceSameSlug = false,
+            parentSpaceUuid = null,
+        }: {
+            projectUuid: string;
+            name: string;
+            userId: number;
+            isPrivate: boolean;
+            slug: string;
+            forceSameSlug: boolean;
+            parentSpaceUuid: string | null;
+        },
+        { trx }: { trx: Knex } = { trx: this.database },
+    ): Promise<Space> {
+        const [project] = await trx(ProjectTableName)
+            .select('project_id')
+            .where('project_uuid', projectUuid);
+
+        const spaceSlug = await SpaceModel.getSpaceSlug({
+            slug,
+            parentSpaceUuid,
+            trx,
+            forceSameSlug,
         });
+
+        const spacePath = getLtreePathFromSlug(spaceSlug);
+
+        const [space] = await trx(SpaceTableName)
+            .insert({
+                project_id: project.project_id,
+                is_private: isPrivate,
+                name,
+                created_by_user_id: userId,
+                slug: spaceSlug,
+                parent_space_uuid: parentSpaceUuid,
+                path: spacePath,
+            })
+            .returning('*');
+
+        return {
+            organizationUuid: space.organization_uuid,
+            name: space.name,
+            queries: [],
+            isPrivate: space.is_private,
+            uuid: space.space_uuid,
+            projectUuid,
+            dashboards: [],
+            access: [],
+            groupsAccess: [],
+            pinnedListUuid: null,
+            pinnedListOrder: null,
+            slug: space.slug,
+        };
     }
 
     async deleteSpace(spaceUuid: string): Promise<void> {
@@ -1994,10 +2029,13 @@ export class SpaceModel {
             // Add ancestors to the created spaces sequentially so we can use the parent space uuid to build the hierarchy
             for (const ancestor of ancestorsOrderedByLevel) {
                 // eslint-disable-next-line no-await-in-loop
-                const [spaceInUpstreamProject] = await this.find({
-                    projectUuid,
-                    slug: ancestor.slug,
-                });
+                const [spaceInUpstreamProject] = await this.find(
+                    {
+                        projectUuid,
+                        slug: ancestor.slug,
+                    },
+                    { trx },
+                );
 
                 // If space exists, use it
                 if (spaceInUpstreamProject) {
@@ -2027,14 +2065,19 @@ export class SpaceModel {
                 const parentSpaceUuid = spacesBySlug.get(parentSlug);
 
                 // eslint-disable-next-line no-await-in-loop
-                const createdSpace = await this.createSpace(
-                    projectUuid,
-                    ancestor.name,
-                    userId,
-                    ancestor.parent_space_uuid ? false : ancestor.is_private,
-                    getLabelFromSlug(ancestor.slug),
-                    forceSameSlug,
-                    parentSpaceUuid ?? null,
+                const createdSpace = await this._createSpace(
+                    {
+                        projectUuid,
+                        name: ancestor.name,
+                        userId,
+                        isPrivate: ancestor.parent_space_uuid
+                            ? false
+                            : ancestor.is_private,
+                        slug: getLabelFromSlug(ancestor.slug),
+                        forceSameSlug,
+                        parentSpaceUuid: parentSpaceUuid ?? null,
+                    },
+                    { trx },
                 );
 
                 // If this is the first one in the hierarchy, it's our root
@@ -2054,14 +2097,17 @@ export class SpaceModel {
 
             // Finally, create the space with the given slug
             const spaceSlug = getLabelFromSlug(slug);
-            const spaceWhereContentIsSaved = await this.createSpace(
-                projectUuid,
-                name,
-                userId,
-                false,
-                spaceSlug,
-                forceSameSlug,
-                directParentUuid,
+            const spaceWhereContentIsSaved = await this._createSpace(
+                {
+                    projectUuid,
+                    name,
+                    userId,
+                    isPrivate: false,
+                    slug: spaceSlug,
+                    forceSameSlug,
+                    parentSpaceUuid: directParentUuid,
+                },
+                { trx },
             );
 
             return {
