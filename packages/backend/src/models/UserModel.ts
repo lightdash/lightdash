@@ -981,12 +981,12 @@ export class UserModel {
 
             const projectMemberships = Object.entries(projects || {}).map(
                 async ([projectUuid, projectRole]) => {
-                    const [project] = await this.database('projects')
+                    const [project] = await trx('projects')
                         .select('project_id')
                         .where('project_uuid', projectUuid);
 
                     if (project) {
-                        await this.database('project_memberships').insert({
+                        await trx('project_memberships').insert({
                             project_id: project.project_id,
                             role: projectRole,
                             user_id: user.user_id,
