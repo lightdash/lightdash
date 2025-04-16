@@ -1,3 +1,10 @@
+# [0.1582.0](https://github.com/lightdash/lightdash/compare/0.1581.0...0.1582.0) (2025-04-16)
+
+
+### Features
+
+* warn user of max column limit (sql runner) ([#14430](https://github.com/lightdash/lightdash/issues/14430)) ([2965237](https://github.com/lightdash/lightdash/commit/29652378b5b81c00a8173efbb1fffbf8a7fe422f))
+
 # [0.1581.0](https://github.com/lightdash/lightdash/compare/0.1580.3...0.1581.0) (2025-04-16)
 
 
