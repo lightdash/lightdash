@@ -416,6 +416,7 @@ const DashboardHeader = ({
 
                     {!isFullscreen && (
                         <Menu
+                            data-testid="dashboard-header-menu"
                             position="bottom"
                             withArrow
                             withinPortal
