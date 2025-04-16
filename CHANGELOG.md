@@ -1,3 +1,10 @@
+## [0.1580.2](https://github.com/lightdash/lightdash/compare/0.1580.1...0.1580.2) (2025-04-16)
+
+
+### Bug Fixes
+
+* show reset filters if url overrides dashboard filters ([#14422](https://github.com/lightdash/lightdash/issues/14422)) ([406572b](https://github.com/lightdash/lightdash/commit/406572bdcfd73178ce6ed6374ac2d93b70a3166b))
+
 ## [0.1580.1](https://github.com/lightdash/lightdash/compare/0.1580.0...0.1580.1) (2025-04-16)
 
 
