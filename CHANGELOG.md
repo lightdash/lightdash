@@ -1,3 +1,10 @@
+# [0.1589.0](https://github.com/lightdash/lightdash/compare/0.1588.0...0.1589.0) (2025-04-17)
+
+
+### Features
+
+* tree component add value and onChange props ([#14454](https://github.com/lightdash/lightdash/issues/14454)) ([57c2d3b](https://github.com/lightdash/lightdash/commit/57c2d3b5886f6ac463c4b90a111e0e657b9a03cc))
+
 # [0.1588.0](https://github.com/lightdash/lightdash/compare/0.1587.0...0.1588.0) (2025-04-17)
 
 
