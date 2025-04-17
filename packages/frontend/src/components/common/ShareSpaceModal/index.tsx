@@ -45,6 +45,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
 
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const isNestedSpace = !!space.parentSpaceUuid;
+    const rootSpaceBreadcrumb = space.breadcrumbs?.[0] ?? null;
 
     return (
         <>
@@ -90,8 +91,20 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                 icon={<IconAlertCircle size="1rem" />}
                             >
                                 <Text color="blue.9">
-                                    Nested spaces inherit permissions from their
-                                    root space
+                                    <Text span weight={600}>
+                                        {space.name}
+                                    </Text>{' '}
+                                    inherits permissions from it's root space:{' '}
+                                    <Text span weight={600}>
+                                        <Link
+                                            onClick={() => {
+                                                setIsOpen(false);
+                                            }}
+                                            to={`/projects/${projectUuid}/spaces/${rootSpaceBreadcrumb?.uuid}`}
+                                        >
+                                            {rootSpaceBreadcrumb?.name}
+                                        </Link>
+                                    </Text>
                                 </Text>
                             </Alert>
                         )}
@@ -118,7 +131,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                         />
                     </Stack>
 
-                    {!space.parentSpaceUuid ? (
+                    {!isNestedSpace ? (
                         <Box
                             bg="gray.0"
                             p="md"
