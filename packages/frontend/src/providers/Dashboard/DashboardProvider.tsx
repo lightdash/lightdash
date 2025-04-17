@@ -302,17 +302,15 @@ const DashboardProvider: React.FC<
             const unsavedDashboardFilters = JSON.parse(
                 unsavedDashboardFiltersRaw,
             );
-            // TODO: this should probably merge with the filters
-            // from the database. This will break if they diverge,
-            // meaning there is a subtle race condition here
             setDashboardFilters(unsavedDashboardFilters);
         }
         if (tempFilterSearchParam) {
-            setDashboardTemporaryFilters(
-                convertDashboardFiltersParamToDashboardFilters(
-                    JSON.parse(tempFilterSearchParam),
-                ),
+            const tempFilters = convertDashboardFiltersParamToDashboardFilters(
+                JSON.parse(tempFilterSearchParam),
             );
+            setDashboardTemporaryFilters(tempFilters);
+            // Set haveFiltersChanged to true when temporary filters are present in URL
+            setHaveFiltersChanged(true);
         }
     });
 
