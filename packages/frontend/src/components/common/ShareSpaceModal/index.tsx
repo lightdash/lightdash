@@ -1,5 +1,6 @@
 import { type Space } from '@lightdash/common';
 import {
+    Alert,
     Anchor,
     Box,
     Button,
@@ -8,14 +9,19 @@ import {
     Stack,
     Text,
     Title,
-    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { IconFolderShare, IconLock, IconUsers } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconFolderShare,
+    IconLock,
+    IconUsers,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
+
 import { ShareSpaceAccessType } from './ShareSpaceAccessType';
 import { ShareSpaceAddUser } from './ShareSpaceAddUser';
 import {
@@ -38,40 +44,28 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
     const { user: sessionUser } = useApp();
 
     const [isOpen, setIsOpen] = useState<boolean>(false);
+    const isNestedSpace = !!space.parentSpaceUuid;
+    const rootSpaceBreadcrumb = space.breadcrumbs?.[0] ?? null;
 
     return (
         <>
-            <Tooltip
-                multiline
-                maw={300}
-                disabled={!space.parentSpaceUuid}
-                label={
-                    'This is a nested space. Access changes are not supported yet - they will be inherited from the root space'
-                }
-                variant="xs"
-                position="bottom"
-            >
-                <Box>
-                    <Button
-                        leftIcon={
-                            selectedAccess.value === SpaceAccessType.PRIVATE ? (
-                                <IconLock size={18} />
-                            ) : (
-                                <IconUsers size={18} />
-                            )
-                        }
-                        onClick={() => {
-                            if (!space.parentSpaceUuid) {
-                                setIsOpen(true);
-                            }
-                        }}
-                        disabled={!!space.parentSpaceUuid}
-                        variant="default"
-                    >
-                        Share
-                    </Button>
-                </Box>
-            </Tooltip>
+            <Box>
+                <Button
+                    leftIcon={
+                        selectedAccess.value === SpaceAccessType.PRIVATE ? (
+                            <IconLock size={18} />
+                        ) : (
+                            <IconUsers size={18} />
+                        )
+                    }
+                    onClick={() => {
+                        setIsOpen(true);
+                    }}
+                    variant="default"
+                >
+                    Share
+                </Button>
+            </Box>
 
             <Modal
                 size="xl"
@@ -91,9 +85,34 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
             >
                 <>
                     <Stack p="md" pt={0}>
+                        {isNestedSpace && (
+                            <Alert
+                                color="blue"
+                                icon={<IconAlertCircle size="1rem" />}
+                            >
+                                <Text color="blue.9">
+                                    <Text span weight={600}>
+                                        {space.name}
+                                    </Text>{' '}
+                                    inherits permissions from it's root space:{' '}
+                                    <Text span weight={600}>
+                                        <Link
+                                            onClick={() => {
+                                                setIsOpen(false);
+                                            }}
+                                            to={`/projects/${projectUuid}/spaces/${rootSpaceBreadcrumb?.uuid}`}
+                                        >
+                                            {rootSpaceBreadcrumb?.name}
+                                        </Link>
+                                    </Text>
+                                </Text>
+                            </Alert>
+                        )}
+
                         <ShareSpaceAddUser
                             space={space}
                             projectUuid={projectUuid}
+                            disabled={isNestedSpace}
                         />
 
                         <ShareSpaceAccessType
@@ -101,55 +120,60 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             space={space}
                             selectedAccess={selectedAccess}
                             setSelectedAccess={setSelectedAccess}
+                            disabled={isNestedSpace}
                         />
 
                         <ShareSpaceUserList
                             projectUuid={projectUuid}
                             space={space}
                             sessionUser={sessionUser.data}
+                            disabled={isNestedSpace}
                         />
                     </Stack>
 
-                    <Box
-                        bg="gray.0"
-                        p="md"
-                        sx={{
-                            borderTop: `1px solid ${theme.colors.gray[2]}`,
-                            padding: 'md',
-                        }}
-                    >
-                        <Text color="gray.7" fz="xs">
-                            {selectedAccess.value === SpaceAccessType.PRIVATE &&
-                            sessionUser.data?.ability?.can(
-                                'create',
-                                'InviteLink',
-                            ) ? (
-                                <>
-                                    Can't find a user? Spaces can only be shared
-                                    with{' '}
-                                    <Anchor
-                                        component={Link}
-                                        to={`/generalSettings/projectManagement/${projectUuid}/projectAccess`}
-                                    >
-                                        existing project members
-                                    </Anchor>
-                                    .
-                                </>
-                            ) : (
-                                <>
-                                    Learn more about permissions in our{' '}
-                                    <Anchor
-                                        href="https://docs.lightdash.com/references/roles"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        docs
-                                    </Anchor>
-                                    .
-                                </>
-                            )}
-                        </Text>
-                    </Box>
+                    {!isNestedSpace ? (
+                        <Box
+                            bg="gray.0"
+                            p="md"
+                            sx={{
+                                borderTop: `1px solid ${theme.colors.gray[2]}`,
+                                padding: 'md',
+                            }}
+                        >
+                            <Text color="gray.7" fz="xs">
+                                {selectedAccess.value ===
+                                    SpaceAccessType.PRIVATE &&
+                                sessionUser.data?.ability?.can(
+                                    'create',
+                                    'InviteLink',
+                                ) ? (
+                                    <>
+                                        Can't find a user? Spaces can only be
+                                        shared with{' '}
+                                        <Anchor
+                                            component={Link}
+                                            to={`/generalSettings/projectManagement/${projectUuid}/projectAccess`}
+                                        >
+                                            existing project members
+                                        </Anchor>
+                                        .
+                                    </>
+                                ) : (
+                                    <>
+                                        Learn more about permissions in our{' '}
+                                        <Anchor
+                                            href="https://docs.lightdash.com/references/roles"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            docs
+                                        </Anchor>
+                                        .
+                                    </>
+                                )}
+                            </Text>
+                        </Box>
+                    ) : null}
                 </>
             </Modal>
         </>

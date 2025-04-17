@@ -235,6 +235,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             icon={IconFolderX}
                             onClose={handleReset}
                             onSubmitForm={handleReset}
+                            parentSpaceUuid={null}
                         />
                     );
 
@@ -267,6 +268,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     icon={IconFolderPlus}
                     onClose={handleReset}
                     onSubmitForm={handleCreateSpace}
+                    parentSpaceUuid={null}
                 />
             );
 

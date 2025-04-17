@@ -19,7 +19,10 @@ export type Space = {
     pinnedListOrder: number | null;
     slug: string;
     // Nested Spaces MVP - disables nested spaces' access changes
-    parentSpaceUuid?: string;
+    childSpaces: Omit<SpaceSummary, 'userAccess'>[];
+    parentSpaceUuid: string | null;
+    // ltree path serialized as string
+    path: string;
     breadcrumbs?: {
         name: string;
         uuid: string;
@@ -37,6 +40,7 @@ export type SpaceSummary = Pick<
     | 'pinnedListOrder'
     | 'slug'
     | 'parentSpaceUuid'
+    | 'path'
 > & {
     userAccess: SpaceShare | undefined;
     access: string[];

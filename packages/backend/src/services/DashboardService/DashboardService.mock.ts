@@ -66,11 +66,14 @@ export const publicSpace: Space = {
     queries: [],
     projectUuid: 'projectUuid',
     dashboards: [],
+    childSpaces: [],
     access: [],
     groupsAccess: [],
     name: 'public-space',
     pinnedListUuid: null,
     pinnedListOrder: null,
+    parentSpaceUuid: null,
+    path: 'public-space',
 };
 export const privateSpace: Space = {
     ...publicSpace,

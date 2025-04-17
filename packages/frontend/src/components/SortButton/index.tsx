@@ -1,8 +1,12 @@
-import { type SortField } from '@lightdash/common';
-import { Badge, Popover, Text } from '@mantine/core';
-import { useClickOutside, useDisclosure } from '@mantine/hooks';
-import { IconChevronDown } from '@tabler/icons-react';
+import { isField, type SortField } from '@lightdash/common';
+import { Badge, Group, Popover, Text } from '@mantine/core';
+import {
+    IconArrowDown,
+    IconArrowUp,
+    IconChevronDown,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useColumns } from '../../hooks/useColumns';
 import MantineIcon from '../common/MantineIcon';
 import Sorting from './Sorting';
 
@@ -12,27 +16,32 @@ export type Props = {
 };
 
 const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
-    const [opened, { open, close, toggle }] = useDisclosure();
-    const ref = useClickOutside(
-        () => setTimeout(() => close(), 0),
-        ['mouseup', 'touchend'],
-    );
+    const columns = useColumns();
+
+    const getSortText = () => {
+        if (sorts.length === 0) return 'No sort';
+        if (sorts.length === 1) {
+            const sort = sorts[0];
+            const column = columns.find((c) => c.id === sort.fieldId);
+            const item = column?.meta?.item;
+            if (!item) return '1 field';
+            return isField(item) ? item.label : item.name;
+        }
+        return `${sorts.length} fields`;
+    };
 
     return (
         <Popover
-            opened={opened}
-            position="top"
+            position="top-start"
+            offset={-2}
             withArrow
-            shadow="md"
-            arrowSize={10}
-            offset={2}
+            shadow="subtle"
+            radius="sm"
+            withinPortal
+            disabled={!isEditMode}
         >
             <Popover.Target>
                 <Badge
-                    onClick={isEditMode ? toggle : undefined}
-                    onMouseEnter={isEditMode ? undefined : open}
-                    onMouseLeave={isEditMode ? undefined : close}
-                    // variant={isEditMode ? 'filled' : 'light'}
                     variant="light"
                     color="blue"
                     sx={{
@@ -47,15 +56,28 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
                         ) : null
                     }
                 >
-                    <Text span fw={500}>
-                        Sorted by
-                    </Text>{' '}
-                    {sorts.length === 1 ? '1 field' : `${sorts.length} fields`}
+                    <Group spacing={2}>
+                        {sorts.length === 1 && (
+                            <MantineIcon
+                                icon={
+                                    sorts[0].descending
+                                        ? IconArrowDown
+                                        : IconArrowUp
+                                }
+                                strokeWidth={3}
+                                size="sm"
+                            />
+                        )}
+                        <Text span fw={400}>
+                            Sorted by
+                        </Text>
+                        <Text fw={600}>{getSortText()}</Text>
+                    </Group>
                 </Badge>
             </Popover.Target>
 
-            <Popover.Dropdown>
-                <Sorting ref={ref} sorts={sorts} isEditMode={isEditMode} />
+            <Popover.Dropdown p="xs">
+                <Sorting sorts={sorts} isEditMode={isEditMode} />
             </Popover.Dropdown>
         </Popover>
     );

@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import {
     Button,
+    Flex,
     Group,
     MantineProvider,
     Modal,
@@ -26,6 +27,7 @@ import {
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
+import MantineModal from '../MantineModal';
 import { SpacePrivateAccessType } from '../ShareSpaceModal/ShareSpaceSelect';
 import CreateSpaceModalContent from './CreateSpaceModalContent';
 import DeleteSpaceModalContent from './DeleteSpaceModalContent';
@@ -45,7 +47,7 @@ interface ActionModalProps {
     onSubmitForm?: (data: Space | null) => void;
     isDisabled: boolean;
     shouldRedirect?: boolean;
-    parentSpaceUuid?: Space['parentSpaceUuid'];
+    parentSpaceUuid: Space['parentSpaceUuid'];
 }
 
 export interface SpaceModalBody {
@@ -116,6 +118,32 @@ const SpaceModal: FC<ActionModalProps> = ({
 
     if (!projectUuid) {
         return null;
+    }
+
+    if (actionType === ActionType.DELETE) {
+        return (
+            <MantineModal
+                opened
+                onClose={onClose}
+                title={title}
+                icon={icon!}
+                size="sm"
+                actions={
+                    <form name={title} onSubmit={form.onSubmit(handleSubmit)}>
+                        <Flex gap="sm">
+                            <Button variant="default" h={32} onClick={onClose}>
+                                Cancel
+                            </Button>
+                            <Button h={32} type="submit" color="red">
+                                Delete Space
+                            </Button>
+                        </Flex>
+                    </form>
+                }
+            >
+                <DeleteSpaceModalContent data={data} form={form} />
+            </MantineModal>
+        );
     }
 
     return (

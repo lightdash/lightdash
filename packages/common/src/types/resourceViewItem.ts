@@ -73,6 +73,7 @@ export type ResourceViewSpaceItem = {
         | 'pinnedListOrder'
         | 'organizationUuid'
         | 'parentSpaceUuid'
+        | 'path'
     > & {
         access: string[];
         accessListLength: number;
@@ -140,7 +141,8 @@ export const spaceToResourceViewItem = (
     dashboardCount: space.dashboardCount,
     chartCount: space.chartCount,
     access: space.access,
-    parentSpaceUuid: space.parentSpaceUuid ?? undefined,
+    parentSpaceUuid: space.parentSpaceUuid,
+    path: space.path,
 });
 
 export type MostPopularAndRecentlyUpdated = {
@@ -202,8 +204,9 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                     projectUuid: content.project.uuid,
                     pinnedListUuid: content.pinnedList?.uuid || null,
                     pinnedListOrder: content.pinnedList?.order || null,
-                    // This propery is not needed for the resource view item
-                    userAccess: undefined,
+                    userAccess: undefined, // This propery is not needed for the resource view item
+                    parentSpaceUuid: content.parentSpaceUuid,
+                    path: content.path,
                 }),
                 ResourceViewItemType.SPACE,
             );

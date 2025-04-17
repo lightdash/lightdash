@@ -76,7 +76,6 @@ export interface DashboardContent extends Content {
 
 export interface SpaceContent extends Content {
     contentType: ContentType.SPACE;
-    parentSpaceUuid?: string;
     isPrivate: boolean;
     access: string[];
     dashboardCount: number;
@@ -85,6 +84,8 @@ export interface SpaceContent extends Content {
         uuid: string;
         order: number;
     } | null;
+    parentSpaceUuid: string | null;
+    path: string;
 }
 
 // Group types

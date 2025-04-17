@@ -64,7 +64,7 @@ export const promotedSpace: PromotedChart['space'] = {
     chartCount: 0,
     dashboardCount: 0,
     slug: 'jaffle-shop',
-    parentSpaceUuid: undefined,
+    parentSpaceUuid: null,
 };
 
 export const upstreamSpace: UpstreamChart['space'] = {
@@ -79,11 +79,13 @@ export const upstreamSpace: UpstreamChart['space'] = {
     chartCount: 0,
     dashboardCount: 0,
     slug: 'jaffle-shop',
-    parentSpaceUuid: undefined,
+    parentSpaceUuid: null,
 };
 
 export const upstreamFullSpace: Space = {
     ...upstreamSpace,
+    childSpaces: [],
+    path: 'jaffle-shop',
     queries: [],
     dashboards: [],
     access: [

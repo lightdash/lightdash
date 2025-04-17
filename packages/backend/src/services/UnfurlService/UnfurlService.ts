@@ -39,12 +39,8 @@ const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
 const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
-const legacyMetricQueryEndpointRegex = /\/runQuery/;
 const createQueryEndpointRegex = /\/query/;
 const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}`);
-const legacyChartAndResultsEndpointRegex =
-    /\/saved\/[a-f0-9-]+\/chart-and-results/;
-const legacyChartResultsEndpointRegex = /\/saved\/[a-f0-9-]+\/results/;
 
 const viewport = {
     width: 1400,
@@ -191,11 +187,21 @@ export class UnfurlService extends BaseService {
             page.on('response', responseHandler);
         });
 
+        // This is needed because tables are lazy loaded so we have no way of knowing when the chart is displayed
+        async function waitForAllLoaded() {
+            // Wait for all the loading overlays to be in the DOM
+            await page.waitForSelector('.loading_chart_overlay', {
+                state: 'attached',
+            });
+
+            // Wait for the loading overlay to be hidden (loading is complete)
+            await page.waitForSelector('.loading_chart_overlay', {
+                state: 'hidden',
+            });
+        }
+
         const timeoutPromise = new Promise<never>((_, reject) => {
             setTimeout(() => {
-                this.logger.info(
-                    `Timeout after ${timeout}ms. Expected ${expectedResponses} but only received ${responseCount} responses.`,
-                );
                 reject(
                     new Error(
                         `Timeout after ${timeout}ms. Expected ${expectedResponses} but only received ${responseCount} responses.`,
@@ -204,7 +210,11 @@ export class UnfurlService extends BaseService {
             }, timeout);
         });
 
-        return Promise.race([responsePromise, timeoutPromise]);
+        return Promise.race([
+            responsePromise,
+            waitForAllLoaded(),
+            timeoutPromise,
+        ]);
     }
 
     private async waitForPaginatedResultsResponse(page: playwright.Page) {
@@ -673,9 +683,6 @@ export class UnfurlService extends BaseService {
                     page.on('response', async (response) => {
                         const responseUrl = response.url();
                         const resultsEndpointRegexes = [
-                            legacyMetricQueryEndpointRegex, // legacy endpoint for explorer page
-                            legacyChartResultsEndpointRegex, // legacy endpoint for chart view page
-                            legacyChartAndResultsEndpointRegex, // legacy endpoint for dashboard page
                             createQueryEndpointRegex, // create query
                             paginatedQueryEndpointRegex, // get paginated results
                         ];
@@ -749,56 +756,19 @@ export class UnfurlService extends BaseService {
                                     `Dashboard screenshot: ${nonNullChartTileUuids.length} non-null chart tiles out of ${chartTileUuids.length} total tiles`,
                                 );
 
-                                const legacyExploreChartResultsPromises =
-                                    chartTileUuids.map((id) => {
-                                        if (page && id) {
-                                            const responsePattern = new RegExp(
-                                                `${id}/chart-and-results`,
-                                            );
-
-                                            this.logger.debug(
-                                                `Dashboard screenshot: Waiting for response pattern ${responsePattern} for chart ID ${id}`,
-                                            );
-
-                                            return page?.waitForResponse(
-                                                responsePattern,
-                                                {
-                                                    timeout:
-                                                        RESPONSE_TIMEOUT_MS,
-                                                },
-                                            ); // NOTE: No await here
-                                        }
-                                        return undefined;
-                                    });
-
-                                const validPromisesCount =
-                                    legacyExploreChartResultsPromises.filter(
-                                        (p) => p !== undefined,
-                                    ).length;
-                                this.logger.info(
-                                    `Dashboard screenshot: Created ${validPromisesCount} legacy response promises out of ${legacyExploreChartResultsPromises.length} chart tiles`,
-                                );
-
                                 const expectedPaginatedResponses =
                                     chartTileUuids.length;
                                 this.logger.info(
                                     `Dashboard screenshot: Expecting ${expectedPaginatedResponses} paginated responses`,
                                 );
 
-                                const paginatedQueryPromise =
+                                exploreChartResultsPromise =
                                     this.waitForAllPaginatedResultsResponse(
                                         page,
                                         expectedPaginatedResponses,
                                         expectedPaginatedResponses *
                                             RESPONSE_TIMEOUT_MS,
                                     ); // NOTE: No await here
-
-                                exploreChartResultsPromise = Promise.race([
-                                    Promise.allSettled(
-                                        legacyExploreChartResultsPromises,
-                                    ),
-                                    paginatedQueryPromise,
-                                ]);
                             }
 
                             // Create separate arrays for each type of SQL response
@@ -880,44 +850,13 @@ export class UnfurlService extends BaseService {
                                 ...(sqlResultsPromises || []),
                                 ...(sqlPivotPromises || []),
                             ];
-                        } else if (lightdashPage === LightdashPage.CHART) {
-                            // Wait for the visualization to load if we are in an saved explore page
-                            const responsePattern = new RegExp(
-                                `${resourceUuid}/results`,
-                            );
-                            // Wait for the visualization to load if we are in an unsaved explore page
-                            const legacyQueryPromise = page?.waitForResponse(
-                                responsePattern,
-                                {
-                                    timeout: RESPONSE_TIMEOUT_MS,
-                                },
-                            ); // NOTE: No await here
-                            const paginatedQueryPromise =
-                                this.waitForPaginatedResultsResponse(page); // NOTE: No await here
-
+                        } else if (
+                            lightdashPage === LightdashPage.CHART ||
+                            lightdashPage === LightdashPage.EXPLORE
+                        ) {
                             chartResultsPromises = [
-                                Promise.race([
-                                    legacyQueryPromise,
-                                    paginatedQueryPromise,
-                                ]),
-                            ];
-                        } else if (lightdashPage === LightdashPage.EXPLORE) {
-                            // Wait for the visualization to load if we are in an unsaved explore page
-                            const legacyQueryPromise = page?.waitForResponse(
-                                legacyMetricQueryEndpointRegex,
-                                {
-                                    timeout: RESPONSE_TIMEOUT_MS,
-                                },
-                            ); // NOTE: No await here
-                            const paginatedQueryPromise =
-                                this.waitForPaginatedResultsResponse(page); // NOTE: No await here
-
-                            chartResultsPromises = [
-                                Promise.race([
-                                    legacyQueryPromise,
-                                    paginatedQueryPromise,
-                                ]),
-                            ];
+                                this.waitForPaginatedResultsResponse(page),
+                            ]; // NOTE: No await here
                         }
 
                         await page.goto(url, {

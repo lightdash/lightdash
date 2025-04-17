@@ -31,20 +31,20 @@ import { BaseService } from '../BaseService';
 export type PromotedChart = {
     projectUuid: string;
     chart: SavedChartDAO;
-    space: Omit<SpaceSummary, 'userAccess'>; // even if chart belongs to dashboard, this is not undefined
+    space: Omit<SpaceSummary, 'userAccess' | 'path'>; // even if chart belongs to dashboard, this is not undefined
     access: SpaceShare[];
 };
 export type UpstreamChart = {
     projectUuid: string;
     chart: (ChartSummary & { updatedAt: Date }) | undefined;
-    space: Omit<SpaceSummary, 'userAccess'> | undefined;
+    space: Omit<SpaceSummary, 'userAccess' | 'path'> | undefined;
     access: SpaceShare[];
     dashboardUuid?: string; // dashboard uuid if chart belongs to dashboard
 };
 export type PromotedDashboard = {
     projectUuid: string;
     dashboard: DashboardDAO;
-    space: Omit<SpaceSummary, 'userAccess'>;
+    space: Omit<SpaceSummary, 'userAccess' | 'path'>;
     access: SpaceShare[];
 };
 
@@ -53,7 +53,7 @@ export type UpstreamDashboard = {
     dashboard:
         | Pick<DashboardDAO, 'uuid' | 'name' | 'spaceUuid' | 'description'>
         | undefined;
-    space: Omit<SpaceSummary, 'userAccess'> | undefined;
+    space: Omit<SpaceSummary, 'userAccess' | 'path'> | undefined;
     access: SpaceShare[];
 };
 
@@ -412,8 +412,8 @@ export class PromoteService extends BaseService {
     }
 
     private static isSpaceUpdated(
-        promotedSpace: Omit<SpaceSummary, 'userAccess'>,
-        upstreamSpace: Omit<SpaceSummary, 'userAccess'>,
+        promotedSpace: Pick<SpaceSummary, 'name'>,
+        upstreamSpace: Pick<SpaceSummary, 'name'>,
     ) {
         return promotedSpace.name !== upstreamSpace.name;
     }
@@ -1039,8 +1039,8 @@ export class PromoteService extends BaseService {
 
     static getSpaceChange(
         upstreamProjectUuid: string,
-        promotedSpace: Omit<SpaceSummary, 'userAccess'>,
-        upstreamSpace: Omit<SpaceSummary, 'userAccess'> | undefined,
+        promotedSpace: Omit<SpaceSummary, 'userAccess' | 'path'>,
+        upstreamSpace: Omit<SpaceSummary, 'userAccess' | 'path'> | undefined,
     ): PromotionChanges['spaces'][number] {
         if (upstreamSpace !== undefined) {
             if (PromoteService.isSpaceUpdated(promotedSpace, upstreamSpace)) {

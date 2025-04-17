@@ -1,3 +1,76 @@
+# [0.1589.0](https://github.com/lightdash/lightdash/compare/0.1588.0...0.1589.0) (2025-04-17)
+
+
+### Features
+
+* tree component add value and onChange props ([#14454](https://github.com/lightdash/lightdash/issues/14454)) ([57c2d3b](https://github.com/lightdash/lightdash/commit/57c2d3b5886f6ac463c4b90a111e0e657b9a03cc))
+
+# [0.1588.0](https://github.com/lightdash/lightdash/compare/0.1587.0...0.1588.0) (2025-04-17)
+
+
+### Bug Fixes
+
+* remove pinned items request from chart and dashboard page ([#14455](https://github.com/lightdash/lightdash/issues/14455)) ([00271cd](https://github.com/lightdash/lightdash/commit/00271cdca88ccf13ae4c4b16efa2b928d7ff47d2))
+
+
+### Features
+
+* show callout for nested spaces and disable share ([#14443](https://github.com/lightdash/lightdash/issues/14443)) ([c0e74fe](https://github.com/lightdash/lightdash/commit/c0e74fe4ddda3863b68e4c08247ff535fe335baa))
+
+# [0.1587.0](https://github.com/lightdash/lightdash/compare/0.1586.1...0.1587.0) (2025-04-17)
+
+
+### Features
+
+* add tree component in storybook ([#14442](https://github.com/lightdash/lightdash/issues/14442)) ([6c59e6a](https://github.com/lightdash/lightdash/commit/6c59e6ae2ba7a5c5257cf9198b74ecd2c92e9d6e))
+
+## [0.1586.1](https://github.com/lightdash/lightdash/compare/0.1586.0...0.1586.1) (2025-04-17)
+
+
+### Bug Fixes
+
+* remove legacy endpoints from unfurl service ([#14448](https://github.com/lightdash/lightdash/issues/14448)) ([7885c25](https://github.com/lightdash/lightdash/commit/7885c2584671cd0310b1228b6a9f8a5c6933dea0))
+
+# [0.1586.0](https://github.com/lightdash/lightdash/compare/0.1585.0...0.1586.0) (2025-04-17)
+
+
+### Features
+
+* expose path for space resource in the api ([#14441](https://github.com/lightdash/lightdash/issues/14441)) ([6381365](https://github.com/lightdash/lightdash/commit/63813659dbba39e4621778f43c57e6669ce99795))
+
+# [0.1585.0](https://github.com/lightdash/lightdash/compare/0.1584.0...0.1585.0) (2025-04-17)
+
+
+### Features
+
+* refreshed delete space modal ([#14438](https://github.com/lightdash/lightdash/issues/14438)) ([8b54419](https://github.com/lightdash/lightdash/commit/8b54419706639a240745d5a449c0122150b5e493))
+
+# [0.1584.0](https://github.com/lightdash/lightdash/compare/0.1583.0...0.1584.0) (2025-04-17)
+
+
+### Features
+
+* Spaces page improvements and nested space support ([#14428](https://github.com/lightdash/lightdash/issues/14428)) ([372ed83](https://github.com/lightdash/lightdash/commit/372ed83da4e32a9b6e35ab5e7f7a426395e7354d))
+
+# [0.1583.0](https://github.com/lightdash/lightdash/compare/0.1582.3...0.1583.0) (2025-04-17)
+
+
+### Bug Fixes
+
+* use single transaction when creating an upstream space ([#14439](https://github.com/lightdash/lightdash/issues/14439)) ([ea5bed2](https://github.com/lightdash/lightdash/commit/ea5bed257612102d7fe135817f1b93e6d8a0db61))
+
+
+### Features
+
+* improve sorting behaviour ux ([#14437](https://github.com/lightdash/lightdash/issues/14437)) ([ffcec72](https://github.com/lightdash/lightdash/commit/ffcec7219b355aef34dffa69decc3426afa6adbf))
+
+## [0.1582.3](https://github.com/lightdash/lightdash/compare/0.1582.2...0.1582.3) (2025-04-17)
+
+
+### Bug Fixes
+
+* respect row limit for column limit warning ([#14444](https://github.com/lightdash/lightdash/issues/14444)) ([d2c27ff](https://github.com/lightdash/lightdash/commit/d2c27ff6aac00e41f5667e11d0c63d5577e381ca))
+
 ## [0.1582.2](https://github.com/lightdash/lightdash/compare/0.1582.1...0.1582.2) (2025-04-16)
 
 

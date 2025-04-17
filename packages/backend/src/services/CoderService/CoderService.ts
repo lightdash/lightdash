@@ -874,7 +874,7 @@ export class CoderService extends BaseService {
         return {
             space: {
                 ...newSpace,
-                parentSpaceUuid: undefined,
+                parentSpaceUuid: null,
                 chartCount: 0,
                 dashboardCount: 0,
                 access: [],

@@ -3866,19 +3866,24 @@ export class ProjectService extends BaseService {
         }${q}) as ${q}column_index${q} FROM group_by_query`;
 
         if (groupByColumns && groupByColumns.length > 0) {
-            // Wrap the original query in a CTE
-            const totalColumnsQuery = `
-                SELECT COUNT(DISTINCT ${groupByColumns
-                    .map((col) => `${q}${col.reference}${q}`)
-                    .join(', ')}
-            `;
+            // Generate filtered rows and total columns so that we can apply a max column limit but also count the total number of columns if we exceed the MAX_PIVOT_COLUMN_LIMIT
             let pivotedSql = `
             WITH original_query AS (${userSql}), 
                  group_by_query AS (${groupByQuery}), 
                  pivot_query AS (${pivotQuery}),
-                 total_columns AS (${totalColumnsQuery}) as total_columns
-            FROM group_by_query
-            )`;
+                 filtered_rows AS (
+                    SELECT * FROM pivot_query WHERE "row_index" <= ${
+                        limit ?? 500
+                    }
+                 ),
+                 total_columns AS (
+                    SELECT (COUNT(DISTINCT ${groupByColumns
+                        .map((col) => `filtered_rows.${q}${col.reference}${q}`)
+                        .join(', ')}) * ${
+                valuesColumns?.length || 1
+            }) as total_columns FROM filtered_rows
+                 )
+            `;
 
             // Add a max column limit to avoid too many columns and performance issues.
             // Warn the user if we exceed it.
