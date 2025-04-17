@@ -107,7 +107,8 @@ const SpacesV2: FC = () => {
 
                 {isCreateModalOpen && (
                     <SpaceActionModal
-                        projectUuid={projectUuid!}
+                        projectUuid={projectUuid}
+                        parentSpaceUuid={null}
                         actionType={ActionType.CREATE}
                         title="Create new space"
                         confirmButtonLabel="Create"
