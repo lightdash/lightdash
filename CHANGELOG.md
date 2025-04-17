@@ -1,3 +1,10 @@
+## [0.1582.3](https://github.com/lightdash/lightdash/compare/0.1582.2...0.1582.3) (2025-04-17)
+
+
+### Bug Fixes
+
+* respect row limit for column limit warning ([#14444](https://github.com/lightdash/lightdash/issues/14444)) ([d2c27ff](https://github.com/lightdash/lightdash/commit/d2c27ff6aac00e41f5667e11d0c63d5577e381ca))
+
 ## [0.1582.2](https://github.com/lightdash/lightdash/compare/0.1582.1...0.1582.2) (2025-04-16)
 
 
