@@ -3844,6 +3844,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 cacheHit: { dataType: 'boolean', required: true },
+                cacheKey: { dataType: 'string' },
                 cacheExpiresAt: { dataType: 'datetime' },
                 cacheUpdatedTime: { dataType: 'datetime' },
             },
