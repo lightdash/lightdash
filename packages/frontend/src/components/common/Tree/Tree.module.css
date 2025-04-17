@@ -4,7 +4,7 @@
     &::before {
         position: absolute;
         z-index: 1;
-        left: calc(var(--label-offset) - 4.5px);
+        left: calc(var(--label-offset) - 10.5px);
         top: 0;
         content: '';
         width: 1px;

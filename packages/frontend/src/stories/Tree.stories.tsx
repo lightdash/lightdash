@@ -6,7 +6,14 @@ import Tree from '../components/common/Tree/Tree';
 const meta: Meta<typeof Tree> = {
     decorators: [
         (renderStory: Function) => (
-            <Paper component={ScrollArea} w="300px" h="500px" withBorder p="sm">
+            <Paper
+                component={ScrollArea}
+                w="300px"
+                h="500px"
+                withBorder
+                px="sm"
+                py="xs"
+            >
                 {renderStory()}
             </Paper>
         ),
