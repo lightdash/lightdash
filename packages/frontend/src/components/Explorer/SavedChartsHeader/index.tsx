@@ -35,7 +35,14 @@ import {
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
-import { Fragment, useEffect, useMemo, useState, type FC } from 'react';
+import {
+    Fragment,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
 import { useBlocker, useLocation, useNavigate, useParams } from 'react-router';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
@@ -51,6 +58,7 @@ import {
 import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
+import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
 import {
@@ -88,15 +96,7 @@ const SpaceTypeLabels = {
     [SpaceType.AdminContentView]: 'Public content view',
 };
 
-type SavedChartsHeaderProps = {
-    isPinned: boolean;
-    onTogglePin: () => void;
-};
-
-const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
-    isPinned,
-    onTogglePin,
-}) => {
+const SavedChartsHeader: FC = () => {
     const { search } = useLocation();
     const { projectUuid } = useParams<{
         projectUuid: string;
@@ -138,6 +138,15 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
     const isValidQuery = useExplorerContext(
         (context) => context.state.isValidQuery,
     );
+
+    const isPinned = useMemo(() => {
+        return Boolean(savedChart?.pinnedListUuid);
+    }, [savedChart?.pinnedListUuid]);
+    const { mutate: togglePinChart } = useChartPinningMutation();
+    const onChartPinning = useCallback(() => {
+        if (!savedChart) return;
+        togglePinChart({ uuid: savedChart.uuid });
+    }, [savedChart, togglePinChart]);
 
     const { clearDashboardStorage } = useDashboardStorage();
     const [isRenamingChart, setIsRenamingChart] = useState(false);
@@ -564,7 +573,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                                     />
                                                 )
                                             }
-                                            onClick={onTogglePin}
+                                            onClick={onChartPinning}
                                         >
                                             {isPinned
                                                 ? 'Unpin from homepage'
