@@ -1,3 +1,10 @@
+# [0.1586.0](https://github.com/lightdash/lightdash/compare/0.1585.0...0.1586.0) (2025-04-17)
+
+
+### Features
+
+* expose path for space resource in the api ([#14441](https://github.com/lightdash/lightdash/issues/14441)) ([6381365](https://github.com/lightdash/lightdash/commit/63813659dbba39e4621778f43c57e6669ce99795))
+
 # [0.1585.0](https://github.com/lightdash/lightdash/compare/0.1584.0...0.1585.0) (2025-04-17)
 
 
