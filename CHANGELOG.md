@@ -1,3 +1,10 @@
+## [0.1586.1](https://github.com/lightdash/lightdash/compare/0.1586.0...0.1586.1) (2025-04-17)
+
+
+### Bug Fixes
+
+* remove legacy endpoints from unfurl service ([#14448](https://github.com/lightdash/lightdash/issues/14448)) ([7885c25](https://github.com/lightdash/lightdash/commit/7885c2584671cd0310b1228b6a9f8a5c6933dea0))
+
 # [0.1586.0](https://github.com/lightdash/lightdash/compare/0.1585.0...0.1586.0) (2025-04-17)
 
 
