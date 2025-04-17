@@ -20,6 +20,7 @@ type Story = StoryObj<typeof Tree>;
 
 export const Primary: Story = {
     args: {
+        value: 'fake11',
         data: [
             {
                 uuid: 'fake0',
@@ -97,7 +98,7 @@ export const Primary: Story = {
                 path: 'kinda_top_level_space3',
             },
         ],
-        onSelect: (selectedUuid) => {
+        onChange: (selectedUuid) => {
             console.info('Selected item UUID:', selectedUuid);
         },
     },

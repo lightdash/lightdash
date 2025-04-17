@@ -22,7 +22,7 @@ import MantineIcon from '../MantineIcon';
 
 import classes from './Tree.module.css';
 import { type NestableItem } from './types';
-import { convertNestableListToTree } from './utils';
+import { convertNestableListToTree, getAllParentPaths } from './utils';
 
 const renderTreeNode = ({
     node,
@@ -91,17 +91,56 @@ const renderTreeNode = ({
 
 type Props = {
     data: NestableItem[];
-    onSelect: (selectedUuid: string | null) => void;
+    value: string | null;
+    onChange: (selectedUuid: string | null) => void;
 };
 
-const Tree: React.FC<Props> = ({ data, onSelect }) => {
-    const tree = useTree();
-
+const Tree: React.FC<Props> = ({ value, data, onChange }) => {
     const treeData = useMemo(() => convertNestableListToTree(data), [data]);
 
+    const item = useMemo(() => {
+        if (!value) return null;
+
+        return data.find((i) => i.uuid === value) ?? null;
+    }, [value, data]);
+
+    const initialSelectedState = useMemo(() => {
+        if (!item) return [];
+
+        return [item.path];
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const initialExpandedState = useMemo(() => {
+        if (!item) return {};
+
+        const allParentPaths = getAllParentPaths(treeData, item.path);
+
+        return allParentPaths.reduce<Record<string, boolean>>((acc, path) => {
+            return { ...acc, [path]: true };
+        }, {});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const tree = useTree({
+        initialSelectedState,
+        initialExpandedState,
+    });
+
     useEffect(() => {
-        onSelect(tree.selectedState[0] ?? null);
-    }, [tree.selectedState, onSelect]);
+        let uuid: string | null = null;
+
+        if (tree.selectedState.length === 0) {
+            uuid = null;
+        } else {
+            const path = tree.selectedState[0];
+            uuid = data.find((i) => i.path === path)?.uuid ?? null;
+        }
+
+        if (uuid !== value) {
+            onChange(uuid);
+        }
+    }, [tree.selectedState, onChange, data, value]);
 
     return (
         <MantineProvider>
