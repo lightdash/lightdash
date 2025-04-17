@@ -13,6 +13,7 @@ savedChartRouter.get(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
+        console.log('savedChartRouter.get');
         req.services
             .getSavedChartService()
             .get(getObjectValue(req.params, 'savedQueryUuid'), req.user!)
