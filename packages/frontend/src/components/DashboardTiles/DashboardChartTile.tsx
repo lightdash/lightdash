@@ -1415,7 +1415,7 @@ export const GenericDashboardChartTile: FC<
 const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     const { user } = useApp();
     const { track } = useTracking();
-    const { dashboardUuid } = useParams<{ dashboardUuid: string; }>();
+    const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const readyQuery = useDashboardChartReadyQuery(
         props.tile.uuid,
         props.tile.properties?.savedChartUuid,
@@ -1436,7 +1436,13 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     }, [readyQuery.data?.executeQueryResponse?.queryUuid]);
     // Track chart loading time
     useEffect(() => {
-        if (!hasTrackedLoadEvent.current && !resultsData.isInitialLoading && readyQuery.data && user.data && dashboardUuid) {
+        if (
+            !hasTrackedLoadEvent.current &&
+            !resultsData.isInitialLoading &&
+            readyQuery.data &&
+            user.data &&
+            dashboardUuid
+        ) {
             track({
                 name: EventName.DASHBOARD_CHART_LOADED,
                 properties: {
@@ -1446,8 +1452,9 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
                     dashboardId: dashboardUuid,
                     chartId: readyQuery.data.chart.uuid,
                     queryId: readyQuery.data.executeQueryResponse.queryUuid,
-                    warehouseExecutionTimeMs: readyQuery.data.firstPage.initialQueryExecutionMs || null,
-                    totalTimeMs: resultsData.totalClientFetchTimeMs || null,
+                    warehouseExecutionTimeMs:
+                        readyQuery.data.firstPage.initialQueryExecutionMs,
+                    totalTimeMs: resultsData.totalClientFetchTimeMs,
                     totalResults: resultsData.totalResults || 0,
                     loadedRows: resultsData.rows.length,
                 },
@@ -1455,7 +1462,14 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
             // track only once
             hasTrackedLoadEvent.current = true;
         }
-    }, [hasTrackedLoadEvent, dashboardUuid, readyQuery, resultsData, track, user.data]);
+    }, [
+        hasTrackedLoadEvent,
+        dashboardUuid,
+        readyQuery,
+        resultsData,
+        track,
+        user.data,
+    ]);
 
     return (
         <GenericDashboardChartTile
