@@ -20,6 +20,7 @@ export type Space = {
     slug: string;
     // Nested Spaces MVP - disables nested spaces' access changes
     parentSpaceUuid?: string;
+    childSpaces: Omit<SpaceSummary, 'userAccess'>[];
     breadcrumbs?: {
         name: string;
         uuid: string;

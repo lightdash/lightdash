@@ -84,6 +84,7 @@ export const upstreamSpace: UpstreamChart['space'] = {
 
 export const upstreamFullSpace: Space = {
     ...upstreamSpace,
+    childSpaces: [],
     queries: [],
     dashboards: [],
     access: [

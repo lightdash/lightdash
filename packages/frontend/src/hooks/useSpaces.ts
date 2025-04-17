@@ -185,7 +185,7 @@ export const useCreateMutation = (
             projectUuid ? createSpace(projectUuid, data) : Promise.reject(),
         {
             mutationKey: ['space_create', projectUuid],
-            onSuccess: async (space) => {
+            onSuccess: async (space, { parentSpaceUuid }) => {
                 await queryClient.invalidateQueries([
                     'projects',
                     projectUuid!,
@@ -193,6 +193,14 @@ export const useCreateMutation = (
                 ]);
 
                 await queryClient.invalidateQueries(['content']);
+
+                if (parentSpaceUuid) {
+                    await queryClient.invalidateQueries([
+                        'space',
+                        projectUuid!,
+                        parentSpaceUuid,
+                    ]);
+                }
 
                 options?.onSuccess?.(space);
 

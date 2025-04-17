@@ -345,6 +345,7 @@ export class SpaceModel {
             })),
             projectUuid,
             dashboards: [],
+            childSpaces: [],
             access: [],
             groupsAccess: [],
             slug: space.slug,
@@ -358,6 +359,7 @@ export class SpaceModel {
             spaceUuid?: string;
             spaceUuids?: string[];
             slug?: string;
+            parentSpaceUuid?: string;
         },
         { trx = this.database }: { trx?: Knex } = { trx: this.database },
     ): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
@@ -462,6 +464,12 @@ export class SpaceModel {
                         filters.spaceUuids,
                     );
                 }
+                if (filters.parentSpaceUuid) {
+                    void query.where(
+                        `${SpaceTableName}.parent_space_uuid`,
+                        filters.parentSpaceUuid,
+                    );
+                }
                 if (filters.slug) {
                     void query.where(`${SpaceTableName}.slug`, filters.slug);
                 }
@@ -473,7 +481,10 @@ export class SpaceModel {
     async get(
         spaceUuid: string,
     ): Promise<
-        Omit<Space, 'queries' | 'dashboards' | 'access' | 'groupsAccess'>
+        Omit<
+            Space,
+            'queries' | 'dashboards' | 'access' | 'groupsAccess' | 'childSpaces'
+        >
     > {
         const [row] = await this.database(SpaceTableName)
             .leftJoin(
@@ -1551,6 +1562,9 @@ export class SpaceModel {
             pinnedListOrder: space.pinnedListOrder,
             queries: await this.getSpaceQueries([space.uuid]),
             dashboards: await this.getSpaceDashboards([space.uuid]),
+            childSpaces: await this.find({
+                parentSpaceUuid: spaceUuid,
+            }),
             access:
                 (await this._getSpaceAccess([rootSpaceUuid]))[rootSpaceUuid] ??
                 [],
@@ -1689,6 +1703,7 @@ export class SpaceModel {
             uuid: space.space_uuid,
             projectUuid,
             dashboards: [],
+            childSpaces: [],
             access: [],
             groupsAccess: [],
             pinnedListUuid: null,
