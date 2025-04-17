@@ -18,7 +18,7 @@ export const convertNestableListToTree = (
                 const children = buildTree(nodes, item.path);
                 return {
                     label: item.name,
-                    value: item.uuid,
+                    value: item.path,
                     nodeProps: { uuid: item.uuid },
                     ...(children.length > 0 ? { children } : {}),
                 };
@@ -27,3 +27,21 @@ export const convertNestableListToTree = (
 
     return buildTree(items);
 };
+
+export function getAllParentPaths(
+    tree: TreeNodeData[],
+    itemPath: string,
+    level = 0,
+): string[] {
+    const [head, ...rest] = itemPath.split('.');
+    const node = tree.find(
+        (n) => n.value.split('.').slice(level).join('.') === head,
+    );
+    if (!node) return [];
+    if (!node.children || rest.length === 0) return [node.value];
+
+    return [
+        node.value,
+        ...getAllParentPaths(node.children, rest.join('.'), level + 1),
+    ];
+}
