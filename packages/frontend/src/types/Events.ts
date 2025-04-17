@@ -148,4 +148,6 @@ export enum EventName {
     WRITE_BACK_FROM_CUSTOM_DIMENSION_CLICKED = 'write_back_from_custom_dimension.clicked',
     WRITE_BACK_FROM_CUSTOM_DIMENSION_HEADER_CLICKED = 'write_back_from_custom_dimension_header.clicked',
     CUSTOM_FIELDS_REPLACEMENT_APPLIED = 'custom_fields_replacement.applied',
+
+    DASHBOARD_CHART_LOADED = 'dashboard_chart.loaded',
 }
