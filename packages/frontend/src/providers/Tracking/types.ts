@@ -1,4 +1,4 @@
-import { type CacheMetadata, type SearchItemType, type TimeFrames } from '@lightdash/common';
+import { type SearchItemType, type TimeFrames } from '@lightdash/common';
 import { type FormState } from 'react-hook-form';
 import type * as rudderSDK from 'rudder-sdk-js';
 import {
@@ -392,8 +392,8 @@ type DashboardChartLoadedEvent = {
         dashboardId: string;
         chartId: string;
         queryId: string;
-        warehouseExecutionTimeMs: number | null;
-        totalTimeMs: number | null;
+        warehouseExecutionTimeMs: number | undefined;
+        totalTimeMs: number | undefined;
         totalResults: number;
         loadedRows: number;
         // cacheMetadata: CacheMetadata;
