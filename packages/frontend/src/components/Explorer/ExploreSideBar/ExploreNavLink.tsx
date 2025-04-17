@@ -1,12 +1,22 @@
 import { InlineErrorType, type SummaryExplore } from '@lightdash/common';
-import { Anchor, Box, Highlight, NavLink, Text, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Anchor,
+    Box,
+    CopyButton,
+    Highlight,
+    HoverCard,
+    NavLink,
+    Text,
+} from '@mantine/core';
 import { useToggle } from '@mantine/hooks';
 import {
     IconAlertTriangle,
+    IconCopy,
     IconInfoCircle,
     IconTable,
 } from '@tabler/icons-react';
-import React from 'react';
+import React, { useState } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ExploreTree/TableTree/ItemDetailPreview';
 
@@ -22,6 +32,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
     onClick,
 }: ExploreNavLinkProps) => {
     const [isHover, toggleHover] = useToggle();
+    const [showCopyButton, setShowCopyButton] = useState(false);
 
     if ('errors' in explore) {
         const showNoDimensionsIcon = explore.errors.every(
@@ -32,52 +43,104 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
             .join('\n');
 
         return (
-            <Tooltip withinPortal position="right" label={errorMessage}>
-                <Box>
-                    <NavLink
-                        role="listitem"
-                        disabled
-                        icon={
-                            <MantineIcon
-                                icon={IconTable}
-                                size="lg"
-                                color="gray.7"
-                            />
-                        }
-                        label={
-                            <Highlight
-                                component={Text}
-                                highlight={query ?? ''}
-                                truncate
-                            >
-                                {explore.label}
-                            </Highlight>
-                        }
-                        rightSection={
-                            showNoDimensionsIcon ? (
-                                <Anchor
-                                    role="button"
-                                    href="https://docs.lightdash.com/guides/how-to-create-dimensions"
-                                    target="_blank"
-                                    rel="noreferrer"
+            <HoverCard
+                withinPortal
+                position="right"
+                withArrow
+                radius="md"
+                shadow="subtle"
+                variant="xs"
+            >
+                <HoverCard.Target>
+                    <Box>
+                        <NavLink
+                            role="listitem"
+                            disabled
+                            icon={
+                                <MantineIcon
+                                    icon={IconTable}
+                                    size="lg"
+                                    color="gray.7"
+                                />
+                            }
+                            label={
+                                <Highlight
+                                    component={Text}
+                                    highlight={query ?? ''}
+                                    truncate
+                                >
+                                    {explore.label}
+                                </Highlight>
+                            }
+                            rightSection={
+                                showNoDimensionsIcon ? (
+                                    <Anchor
+                                        role="button"
+                                        href="https://docs.lightdash.com/guides/how-to-create-dimensions"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        <MantineIcon
+                                            icon={IconInfoCircle}
+                                            color="gray.7"
+                                            size="lg"
+                                        />
+                                    </Anchor>
+                                ) : (
+                                    <MantineIcon
+                                        icon={IconAlertTriangle}
+                                        size="lg"
+                                        color="yellow.9"
+                                    />
+                                )
+                            }
+                        />
+                    </Box>
+                </HoverCard.Target>
+                <HoverCard.Dropdown maw={300} p="xs">
+                    <Box
+                        position="relative"
+                        p="md"
+                        sx={(theme) => ({
+                            backgroundColor: theme.colors.gray[0],
+                            maxHeight: 200,
+                            overflow: 'auto',
+                        })}
+                        onMouseEnter={() => {
+                            setShowCopyButton(true);
+                        }}
+                        onMouseLeave={() => {
+                            setShowCopyButton(false);
+                        }}
+                    >
+                        <CopyButton value={errorMessage}>
+                            {({ copy, copied }) => (
+                                <ActionIcon
+                                    onClick={copy}
+                                    size="xs"
+                                    variant="light"
+                                    sx={() => ({
+                                        position: 'absolute',
+                                        display: showCopyButton
+                                            ? 'block'
+                                            : 'none',
+                                        right: 12,
+                                        top: 12,
+                                    })}
                                 >
                                     <MantineIcon
-                                        icon={IconInfoCircle}
-                                        color="gray.7"
-                                        size="lg"
+                                        color={copied ? 'green' : 'gray'}
+                                        icon={IconCopy}
                                     />
-                                </Anchor>
-                            ) : (
-                                <MantineIcon
-                                    icon={IconAlertTriangle}
-                                    size="lg"
-                                    color="yellow.9"
-                                />
-                            )
-                        }
-                    />
-                </Box>
-            </Tooltip>
+                                </ActionIcon>
+                            )}
+                        </CopyButton>
+                        <Text fz="xs" sx={{ wordBreak: 'break-word' }}>
+                            {errorMessage}
+                        </Text>
+                    </Box>
+                </HoverCard.Dropdown>
+            </HoverCard>
         );
     }
 
