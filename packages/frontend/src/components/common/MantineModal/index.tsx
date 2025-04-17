@@ -8,6 +8,7 @@ import {
     type ModalContentProps,
     type ModalHeaderProps,
     Paper,
+    Stack,
     Text,
 } from '@mantine/core';
 import { type Icon as IconType } from '@tabler/icons-react';
@@ -88,17 +89,16 @@ const MantineModal: React.FC<MantineModalProps> = ({
                 </Modal.Header>
 
                 <Modal.Body p={0} {...modalBodyProps}>
-                    <Flex
-                        direction="column"
+                    <Stack
                         p="xl"
-                        gap="md"
+                        spacing="md"
                         sx={() => ({
                             overflow: 'auto',
                             maxHeight: 'calc(80vh - 130px)',
                         })}
                     >
                         {children}
-                    </Flex>
+                    </Stack>
                 </Modal.Body>
                 {actions ? (
                     <Flex
