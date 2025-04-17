@@ -202,9 +202,6 @@ export class UnfurlService extends BaseService {
 
         const timeoutPromise = new Promise<never>((_, reject) => {
             setTimeout(() => {
-                this.logger.info(
-                    `Timeout after ${timeout}ms. Expected ${expectedResponses} but only received ${responseCount} responses.`,
-                );
                 reject(
                     new Error(
                         `Timeout after ${timeout}ms. Expected ${expectedResponses} but only received ${responseCount} responses.`,
