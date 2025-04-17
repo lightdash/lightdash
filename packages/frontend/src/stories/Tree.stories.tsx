@@ -21,6 +21,7 @@ type Story = StoryObj<typeof Tree>;
 export const Primary: Story = {
     args: {
         value: 'fake11',
+        topLevelLabel: 'All spaces',
         data: [
             {
                 uuid: 'fake0',
