@@ -1055,13 +1055,6 @@ export class EmbedService extends BaseService {
               )
             : chart.metricQuery;
 
-        console.log('---------------------------------- in embed service', {
-            dashboardFilters,
-            onlyRaw,
-            csvLimit,
-            invalidateCache,
-        });
-
         // -> check user permissions
 
         const { jobId } = await this.schedulerClient.downloadCsvJob({
@@ -1086,13 +1079,6 @@ export class EmbedService extends BaseService {
 
     async getCsvUrl(jobId: string) {
         const job = await this.schedulerClient.getCsvUrl(jobId);
-
-        console.log(
-            '---------------------------------- embed service getCsvUrl',
-            {
-                job,
-            },
-        );
 
         return job;
     }

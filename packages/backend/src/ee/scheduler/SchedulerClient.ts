@@ -54,43 +54,10 @@ export class CommercialSchedulerClient extends SchedulerClient {
     async getCsvUrl(jobId: string) {
         const job = await this.schedulerModel.getCsvUrl(jobId, null, true);
 
-        console.log('---------------------------------- in getCsvUrl', {
-            job,
-        });
-
         // -> check user permissions
 
         // -> check job error
 
         return job;
     }
-
-    // async downloadCsvJob(payload: Omit<DownloadCsvPayload, 'userUuid'>) {
-    //     const graphileClient = await this.graphileUtils;
-    //     const now = new Date();
-    //     const { id: jobId } = await graphileClient.addJob(
-    //         EE_SCHEDULER_TASKS.DOWNLOAD_CSV_EMBED,
-    //         payload,
-    //         {
-    //             runAt: now,
-    //             maxAttempts: 1,
-    //         },
-    //     );
-
-    //     await this.schedulerModel.logSchedulerJob({
-    //         task: EE_SCHEDULER_TASKS.DOWNLOAD_CSV_EMBED,
-    //         jobId,
-    //         scheduledTime: now,
-    //         status: SchedulerJobStatus.SCHEDULED,
-    //         details: {
-    //             createdByUserUuid: undefined,
-    //             projectUuid: payload.projectUuid,
-    //             exploreId: payload.exploreId,
-    //             metricQuery: payload.metricQuery,
-    //             organizationUuid: payload.organizationUuid,
-    //         },
-    //     });
-
-    //     return { jobId };
-    // }
 }

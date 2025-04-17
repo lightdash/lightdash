@@ -311,12 +311,6 @@ export class EmbedController extends BaseController {
         @Path() jobId: string,
         @Request() req: express.Request,
     ): Promise<ApiCsvUrlResponse> {
-        console.log(
-            '---------------------------------- in NEW csv controller',
-            {
-                jobId,
-            },
-        );
         this.setStatus(200);
         const csvDetails = await this.getEmbedService().getCsvUrl(jobId);
         return {
