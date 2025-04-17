@@ -38,7 +38,7 @@ import {
     IconUpload,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import AIDashboardSummary from '../../../ee/features/aiDashboardSummary';
@@ -49,6 +49,7 @@ import {
 } from '../../../features/promotion/hooks/usePromoteDashboard';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
+import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
 import { Can } from '../../../providers/Ability';
@@ -78,7 +79,6 @@ type DashboardHeaderProps = {
     isSaving: boolean;
     isFullScreenFeatureEnabled?: boolean;
     isFullscreen: boolean;
-    isPinned: boolean;
     oldestCacheTime?: Date;
     activeTabUuid?: string;
     dashboardTabs?: Dashboard['tabs'];
@@ -91,7 +91,6 @@ type DashboardHeaderProps = {
     onExport: () => void;
     onToggleFullscreen: () => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
-    onTogglePin: () => void;
     onEditClicked: () => void;
 };
 
@@ -105,7 +104,6 @@ const DashboardHeader = ({
     isSaving,
     isFullScreenFeatureEnabled,
     isFullscreen,
-    isPinned,
     oldestCacheTime,
     activeTabUuid,
     dashboardTabs,
@@ -118,7 +116,6 @@ const DashboardHeader = ({
     onExport,
     onToggleFullscreen,
     setAddingTab,
-    onTogglePin,
     onEditClicked,
 }: DashboardHeaderProps) => {
     const { search } = useLocation();
@@ -154,6 +151,15 @@ const DashboardHeader = ({
             toggleScheduledDeliveriesModal(true);
         }
     }, [search, toggleScheduledDeliveriesModal]);
+
+    const isPinned = useMemo(() => {
+        return Boolean(dashboard?.pinnedListUuid);
+    }, [dashboard?.pinnedListUuid]);
+    const { mutate: toggleDashboardPinning } = useDashboardPinningMutation();
+    const onDashboardPinning = useCallback(() => {
+        if (!dashboardUuid) return;
+        toggleDashboardPinning({ uuid: dashboardUuid });
+    }, [dashboardUuid, toggleDashboardPinning]);
 
     const { user } = useApp();
     const userCanManageDashboard = user.data?.ability.can(
@@ -591,7 +597,7 @@ const DashboardHeader = ({
                                                 <MantineIcon icon={IconPin} />
                                             )
                                         }
-                                        onClick={onTogglePin}
+                                        onClick={onDashboardPinning}
                                     >
                                         {isPinned
                                             ? 'Unpin from homepage'
