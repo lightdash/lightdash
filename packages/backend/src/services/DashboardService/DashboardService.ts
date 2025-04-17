@@ -41,6 +41,8 @@ import {
 } from '../../analytics/LightdashAnalytics';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
+import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
+import { logAuditEvent } from '../../logging/winston';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
@@ -237,7 +239,12 @@ export class DashboardService extends BaseService {
             access: spaceAccess,
         };
 
-        if (user.ability.cannot('view', subject('Dashboard', dashboard))) {
+        // TODO: normally this would be pre-constructed (perhaps in the Service Repository or on the user object when we create the CASL type)
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
+        if (auditedAbility.cannot('view', subject('Dashboard', dashboard))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
