@@ -1,10 +1,10 @@
 import { type ResourceViewSpaceItem } from '@lightdash/common';
-import { Group, Text } from '@mantine/core';
+import { Group, Text, Tooltip } from '@mantine/core';
 import { IconLock, IconUser, IconUsers } from '@tabler/icons-react';
 import React, { useMemo } from 'react';
 import MantineIcon from '../MantineIcon';
 import { ResourceAccess } from './types';
-import { getResourceAccessType } from './utils';
+import { getResourceAccessLabel, getResourceAccessType } from './utils';
 
 const ResourceAccessInfoData = {
     [ResourceAccess.Private]: {
@@ -24,11 +24,13 @@ const ResourceAccessInfoData = {
 interface ResourceAccessInfoProps {
     item: ResourceViewSpaceItem;
     type?: 'primary' | 'secondary';
+    withTooltip?: boolean;
 }
 
 const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
     item,
     type = 'secondary',
+    withTooltip = false,
 }) => {
     const { Icon, status } =
         ResourceAccessInfoData[getResourceAccessType(item)];
@@ -41,13 +43,30 @@ const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
     }, [type]);
 
     return (
-        <Group spacing={4}>
-            <MantineIcon icon={Icon} color={styles.color} size={styles.size} />
+        <Tooltip
+            withinPortal
+            withArrow
+            position="top"
+            // Hack the tooltip to never open when `withTooltip` is false
+            opened={withTooltip ? undefined : false}
+            label={
+                <Text lineClamp={1} fz="xs" fw={600} color="white">
+                    {getResourceAccessLabel(item)}
+                </Text>
+            }
+        >
+            <Group spacing={4}>
+                <MantineIcon
+                    icon={Icon}
+                    color={styles.color}
+                    size={styles.size}
+                />
 
-            <Text size={styles.size} color={styles.color}>
-                {status}
-            </Text>
-        </Group>
+                <Text size={styles.size} color={styles.color}>
+                    {status}
+                </Text>
+            </Group>
+        </Tooltip>
     );
 };
 
