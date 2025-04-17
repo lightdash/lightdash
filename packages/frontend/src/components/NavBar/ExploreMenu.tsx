@@ -189,6 +189,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 `/projects/${projectUuid}/spaces/${space.uuid}`,
                             );
                     }}
+                    parentSpaceUuid={null}
                 />
             )}
 

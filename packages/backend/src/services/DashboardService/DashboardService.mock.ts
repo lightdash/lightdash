@@ -72,6 +72,8 @@ export const publicSpace: Space = {
     name: 'public-space',
     pinnedListUuid: null,
     pinnedListOrder: null,
+    parentSpaceUuid: null,
+    path: 'public-space',
 };
 export const privateSpace: Space = {
     ...publicSpace,

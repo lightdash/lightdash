@@ -11,7 +11,7 @@ export enum PromotionAction {
 
 export type PromotedSpace = Omit<
     SpaceSummary,
-    'userAccess' | 'parentSpaceUuid'
+    'userAccess' | 'parentSpaceUuid' | 'path'
 >;
 export type PromotedDashboard = DashboardDAO & {
     spaceSlug: string;

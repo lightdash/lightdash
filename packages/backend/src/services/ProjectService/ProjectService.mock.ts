@@ -304,6 +304,8 @@ export const spacesWithSavedCharts: Space[] = [
         organizationUuid: user.organizationUuid!,
         name: 'space',
         slug: 'space',
+        parentSpaceUuid: null,
+        path: 'space',
 
         isPrivate: false,
         uuid: 'uuid',
@@ -342,6 +344,8 @@ export const spacesWithNoSavedCharts: Space[] = [
         organizationUuid: user.organizationUuid!,
         name: 'space',
         slug: 'space',
+        parentSpaceUuid: null,
+        path: 'space',
 
         uuid: 'uuid',
         pinnedListUuid: null,

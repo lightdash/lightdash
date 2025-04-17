@@ -269,6 +269,7 @@ const Space: FC = () => {
                                     projectUuid={projectUuid}
                                     spaceUuid={space?.uuid}
                                     actionType={ActionType.DELETE}
+                                    parentSpaceUuid={null}
                                     title="Delete space"
                                     confirmButtonLabel="Delete"
                                     confirmButtonColor="red"

@@ -247,6 +247,8 @@ const getAllSpaces = async (
             name: knex.raw(`max(${SpaceTableName}.name)`),
             is_private: knex.raw(SpaceModel.getRootSpaceIsPrivateQuery()),
             access: knex.raw(SpaceModel.getRootSpaceAccessQuery(UserTableName)),
+            parent_space_uuid: `${SpaceTableName}.parent_space_uuid`,
+            path: `${SpaceTableName}.path`,
             access_list_length: knex.raw(`
                 CASE
                     WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
@@ -296,6 +298,8 @@ const getAllSpaces = async (
             dashboardCount: Number(row.dashboard_count),
             chartCount: Number(row.chart_count),
             access: row.access,
+            parentSpaceUuid: row.parent_space_uuid,
+            path: row.path,
         },
     }));
 };

@@ -96,9 +96,9 @@ export class SpaceModel {
         return `
             CASE
                 WHEN ${SpaceTableName}.parent_space_uuid IS NOT NULL THEN
-                    (SELECT ps.is_private 
-                     FROM ${SpaceTableName} ps 
-                     WHERE ps.path @> ${SpaceTableName}.path 
+                    (SELECT ps.is_private
+                     FROM ${SpaceTableName} ps
+                     WHERE ps.path @> ${SpaceTableName}.path
                      AND nlevel(ps.path) = 1
                      AND ps.project_id = ${SpaceTableName}.project_id
                      LIMIT 1)
@@ -319,6 +319,8 @@ export class SpaceModel {
             isPrivate: space.is_private,
             pinnedListUuid: space.pinned_list_uuid,
             pinnedListOrder: space.order,
+            parentSpaceUuid: space.parent_space_uuid,
+            path: space.path,
             queries: savedQueries.map((savedQuery) => ({
                 uuid: savedQuery.saved_query_uuid,
                 name: savedQuery.name,
@@ -439,6 +441,7 @@ export class SpaceModel {
                             ),
                         slug: `${SpaceTableName}.slug`,
                         parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
+                        path: `${SpaceTableName}.path`,
                     });
                 if (filters.projectUuid) {
                     void query.where(
@@ -539,7 +542,8 @@ export class SpaceModel {
             pinnedListUuid: row.pinned_list_uuid,
             pinnedListOrder: row.order,
             slug: row.slug,
-            parentSpaceUuid: row.parent_space_uuid ?? undefined,
+            parentSpaceUuid: row.parent_space_uuid,
+            path: row.path,
         };
     }
 
@@ -1571,6 +1575,7 @@ export class SpaceModel {
             groupsAccess: await this._getGroupAccess(rootSpaceUuid),
             slug: space.slug,
             parentSpaceUuid: space.parentSpaceUuid,
+            path: space.path,
             breadcrumbs,
         };
     }
@@ -1709,6 +1714,8 @@ export class SpaceModel {
             pinnedListUuid: null,
             pinnedListOrder: null,
             slug: space.slug,
+            parentSpaceUuid: space.parent_space_uuid,
+            path: space.path,
         };
     }
 

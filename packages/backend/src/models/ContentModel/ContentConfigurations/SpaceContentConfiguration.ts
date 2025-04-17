@@ -21,6 +21,7 @@ type SpaceContentRow = SummaryContentRow<{
     dashboardCount: number;
     chartCount: number;
     parentSpaceUuid: string | null;
+    path: string;
     access: string[];
     isPrivate: boolean;
     pinnedListOrder: number;
@@ -113,6 +114,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                         WHERE ${DashboardsTableName}.space_id = ${SpaceTableName}.space_id
                                     ),
                                     'parentSpaceUuid', ${SpaceTableName}.parent_space_uuid,
+                                    'path', ${SpaceTableName}.path,
                                     'access', (${SpaceModel.getRootSpaceAccessQuery(
                                         'shared_with',
                                     )}),
@@ -206,7 +208,8 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     : null,
                 views: value.views,
                 firstViewedAt: value.first_viewed_at,
-                parentSpaceUuid: value.metadata?.parentSpaceUuid ?? undefined,
+                parentSpaceUuid: value.metadata.parentSpaceUuid,
+                path: value.metadata.path,
                 isPrivate: value.metadata.isPrivate,
                 access: value.metadata.access,
                 dashboardCount: value.metadata.dashboardCount,
