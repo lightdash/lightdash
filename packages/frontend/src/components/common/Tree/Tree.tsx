@@ -2,6 +2,7 @@ import {
     Box,
     MantineProvider,
     Tree as MantineTree,
+    rem,
     useTree,
     type RenderTreeNodePayload,
 } from '@lightdash/mantine-v7';
@@ -95,11 +96,11 @@ const Tree: React.FC<Props> = ({ topLevelLabel, value, data, onChange }) => {
         <MantineProvider>
             <TreeItem label={topLevelLabel} withPadding={false} isRoot={true} />
 
-            <Box pl="11.5px">
+            <Box pl={rem(13.5)}>
                 <MantineTree
                     data={treeData}
                     tree={tree}
-                    levelOffset="23px"
+                    levelOffset={rem(23)}
                     renderNode={renderTreeNode}
                     allowRangeSelection={false}
                     checkOnSpace={false}
