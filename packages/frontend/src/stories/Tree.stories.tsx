@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
-const Tree = () => {
-    return <>tree</>;
-};
+import Tree from './Tree';
+import { response } from './test.json';
 
 const meta: Meta<typeof Tree> = {
     component: Tree,
@@ -13,5 +12,10 @@ export default meta;
 type Story = StoryObj<typeof Tree>;
 
 export const Primary: Story = {
-    args: {},
+    args: {
+        data: response.results,
+        onSelect: (selectedUuid) => {
+            console.log('Selected item UUID:', selectedUuid);
+        },
+    },
 };
