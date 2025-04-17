@@ -187,6 +187,19 @@ export class UnfurlService extends BaseService {
             page.on('response', responseHandler);
         });
 
+        // This is needed because tables are lazy loaded so we have no way of knowing when the chart is displayed
+        async function waitForAllLoaded() {
+            // Wait for all the loading overlays to be in the DOM
+            await page.waitForSelector('.loading_chart_overlay', {
+                state: 'attached',
+            });
+
+            // Wait for the loading overlay to be hidden (loading is complete)
+            await page.waitForSelector('.loading_chart_overlay', {
+                state: 'hidden',
+            });
+        }
+
         const timeoutPromise = new Promise<never>((_, reject) => {
             setTimeout(() => {
                 this.logger.info(
@@ -200,7 +213,11 @@ export class UnfurlService extends BaseService {
             }, timeout);
         });
 
-        return Promise.race([responsePromise, timeoutPromise]);
+        return Promise.race([
+            responsePromise,
+            waitForAllLoaded(),
+            timeoutPromise,
+        ]);
     }
 
     private async waitForPaginatedResultsResponse(page: playwright.Page) {

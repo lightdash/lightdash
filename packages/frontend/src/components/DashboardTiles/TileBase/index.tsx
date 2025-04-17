@@ -125,6 +125,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             }}
         >
             <LoadingOverlay
+                // ! Very important to have this class name on the tile loading overlay, otherwise the unfurl service will not be able to find it
                 className="loading_chart_overlay"
                 visible={isLoading ?? false}
                 zIndex={getDefaultZIndex('modal') - 10}
