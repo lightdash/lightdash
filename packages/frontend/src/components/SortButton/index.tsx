@@ -36,7 +36,7 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
             offset={-2}
             withArrow
             shadow="subtle"
-            radius="md"
+            radius="sm"
             withinPortal
             disabled={!isEditMode}
         >
