@@ -8,8 +8,9 @@ import {
     Text,
     useTree,
     type RenderTreeNodePayload,
-    type TreeNodeData,
 } from '@lightdash/mantine-v7';
+// FIXME: this won't scale. figure out how to include required mantine 7 styles.
+import '@lightdash/mantine-v7/style.css';
 import {
     IconCheck,
     IconChevronDown,
@@ -17,41 +18,12 @@ import {
     IconFolder,
 } from '@tabler/icons-react';
 import React, { useEffect, useMemo } from 'react';
-import MantineIcon from '../components/common/MantineIcon';
 
-import '@lightdash/mantine-v7/style.css';
+import MantineIcon from '../MantineIcon';
+
 import classes from './Tree.module.css';
-
-type NestableItem = {
-    uuid: string;
-    name: string;
-    path: string;
-};
-
-const convertNestableListToTree = (items: NestableItem[]): TreeNodeData[] => {
-    const buildTree = (
-        nodes: NestableItem[],
-        parentPath = '',
-    ): TreeNodeData[] => {
-        return nodes
-            .filter((item) => {
-                const pathParts = item.path.split('.');
-                const itemParentPath = pathParts.slice(0, -1).join('.');
-                return itemParentPath === parentPath;
-            })
-            .map((item) => {
-                const children = buildTree(nodes, item.path);
-                return {
-                    label: item.name,
-                    value: item.uuid,
-                    nodeProps: { uuid: item.uuid },
-                    ...(children.length > 0 ? { children } : {}),
-                };
-            });
-    };
-
-    return buildTree(items);
-};
+import { type NestableItem } from './types';
+import { convertNestableListToTree } from './utils';
 
 const renderTreeNode = ({
     node,
@@ -155,4 +127,6 @@ const Tree: React.FC<Props> = ({ data, onSelect }) => {
     );
 };
 
+// FIXME: remove this once it's used somewhere else
+// ts-unused-exports:disable-next-line
 export default Tree;
