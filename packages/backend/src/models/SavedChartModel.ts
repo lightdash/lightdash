@@ -884,69 +884,6 @@ export class SavedChartModel {
                     const savedQueriesVersionId =
                         savedQuery.saved_queries_version_id;
 
-                    const fieldsQuery = trx('saved_queries_version_fields')
-                        .select(['name', 'field_type', 'order'])
-                        .where(
-                            'saved_queries_version_id',
-                            savedQueriesVersionId,
-                        )
-                        .orderBy('order', 'asc');
-
-                    const sortsQuery = trx('saved_queries_version_sorts')
-                        .select(['field_name', 'descending'])
-                        .where(
-                            'saved_queries_version_id',
-                            savedQueriesVersionId,
-                        )
-                        .orderBy('order', 'asc');
-                    const tableCalculationsQuery = trx(
-                        'saved_queries_version_table_calculations',
-                    )
-                        .select([
-                            'name',
-                            'display_name',
-                            'calculation_raw_sql',
-                            'order',
-                            'format',
-                            'type',
-                        ])
-                        .where(
-                            'saved_queries_version_id',
-                            savedQueriesVersionId,
-                        );
-
-                    const additionalMetricsQuery = trx(
-                        SavedChartAdditionalMetricTableName,
-                    )
-                        .select([
-                            'table',
-                            'name',
-                            'type',
-                            'label',
-                            'description',
-                            'sql',
-                            'hidden',
-                            'round',
-                            'format',
-                            'percentile',
-                            'filters',
-                            'base_dimension_name',
-                            'uuid',
-                            'compact',
-                            'format_options',
-                        ])
-                        .where(
-                            'saved_queries_version_id',
-                            savedQueriesVersionId,
-                        );
-
-                    const customBinDimensionsQuery = trx(
-                        SavedChartCustomDimensionsTableName,
-                    ).where('saved_queries_version_id', savedQueriesVersionId);
-                    const customSqlDimensionsQuery = trx(
-                        SavedChartCustomSqlDimensionsTableName,
-                    ).where('saved_queries_version_id', savedQueriesVersionId);
-
                     const [
                         fields,
                         sorts,
@@ -955,12 +892,63 @@ export class SavedChartModel {
                         customBinDimensionsRows,
                         customSqlDimensionsRows,
                     ] = await Promise.all([
-                        fieldsQuery,
-                        sortsQuery,
-                        tableCalculationsQuery,
-                        additionalMetricsQuery,
-                        customBinDimensionsQuery,
-                        customSqlDimensionsQuery,
+                        trx('saved_queries_version_fields')
+                            .select(['name', 'field_type', 'order'])
+                            .where(
+                                'saved_queries_version_id',
+                                savedQueriesVersionId,
+                            )
+                            .orderBy('order', 'asc'),
+                        trx('saved_queries_version_sorts')
+                            .select(['field_name', 'descending'])
+                            .where(
+                                'saved_queries_version_id',
+                                savedQueriesVersionId,
+                            )
+                            .orderBy('order', 'asc'),
+                        trx('saved_queries_version_table_calculations')
+                            .select([
+                                'name',
+                                'display_name',
+                                'calculation_raw_sql',
+                                'order',
+                                'format',
+                                'type',
+                            ])
+                            .where(
+                                'saved_queries_version_id',
+                                savedQueriesVersionId,
+                            ),
+                        trx(SavedChartAdditionalMetricTableName)
+                            .select([
+                                'table',
+                                'name',
+                                'type',
+                                'label',
+                                'description',
+                                'sql',
+                                'hidden',
+                                'round',
+                                'format',
+                                'percentile',
+                                'filters',
+                                'base_dimension_name',
+                                'uuid',
+                                'compact',
+                                'format_options',
+                            ])
+                            .where(
+                                'saved_queries_version_id',
+                                savedQueriesVersionId,
+                            ),
+                        trx(SavedChartCustomDimensionsTableName).where(
+                            'saved_queries_version_id',
+                            savedQueriesVersionId,
+                        ),
+                        trx(SavedChartCustomSqlDimensionsTableName).where(
+                            'saved_queries_version_id',
+                            savedQueriesVersionId,
+                        ),
                     ]);
 
                     // Filters out "null" fields
