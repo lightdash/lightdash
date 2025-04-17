@@ -1,3 +1,10 @@
+# [0.1584.0](https://github.com/lightdash/lightdash/compare/0.1583.0...0.1584.0) (2025-04-17)
+
+
+### Features
+
+* Spaces page improvements and nested space support ([#14428](https://github.com/lightdash/lightdash/issues/14428)) ([372ed83](https://github.com/lightdash/lightdash/commit/372ed83da4e32a9b6e35ab5e7f7a426395e7354d))
+
 # [0.1583.0](https://github.com/lightdash/lightdash/compare/0.1582.3...0.1583.0) (2025-04-17)
 
 
