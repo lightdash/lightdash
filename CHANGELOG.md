@@ -1,3 +1,10 @@
+# [0.1587.0](https://github.com/lightdash/lightdash/compare/0.1586.1...0.1587.0) (2025-04-17)
+
+
+### Features
+
+* add tree component in storybook ([#14442](https://github.com/lightdash/lightdash/issues/14442)) ([6c59e6a](https://github.com/lightdash/lightdash/commit/6c59e6ae2ba7a5c5257cf9198b74ecd2c92e9d6e))
+
 ## [0.1586.1](https://github.com/lightdash/lightdash/compare/0.1586.0...0.1586.1) (2025-04-17)
 
 
