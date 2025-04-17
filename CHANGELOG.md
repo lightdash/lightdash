@@ -1,3 +1,15 @@
+# [0.1583.0](https://github.com/lightdash/lightdash/compare/0.1582.3...0.1583.0) (2025-04-17)
+
+
+### Bug Fixes
+
+* use single transaction when creating an upstream space ([#14439](https://github.com/lightdash/lightdash/issues/14439)) ([ea5bed2](https://github.com/lightdash/lightdash/commit/ea5bed257612102d7fe135817f1b93e6d8a0db61))
+
+
+### Features
+
+* improve sorting behaviour ux ([#14437](https://github.com/lightdash/lightdash/issues/14437)) ([ffcec72](https://github.com/lightdash/lightdash/commit/ffcec7219b355aef34dffa69decc3426afa6adbf))
+
 ## [0.1582.3](https://github.com/lightdash/lightdash/compare/0.1582.2...0.1582.3) (2025-04-17)
 
 
