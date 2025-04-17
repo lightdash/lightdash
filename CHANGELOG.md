@@ -1,3 +1,15 @@
+# [0.1588.0](https://github.com/lightdash/lightdash/compare/0.1587.0...0.1588.0) (2025-04-17)
+
+
+### Bug Fixes
+
+* remove pinned items request from chart and dashboard page ([#14455](https://github.com/lightdash/lightdash/issues/14455)) ([00271cd](https://github.com/lightdash/lightdash/commit/00271cdca88ccf13ae4c4b16efa2b928d7ff47d2))
+
+
+### Features
+
+* show callout for nested spaces and disable share ([#14443](https://github.com/lightdash/lightdash/issues/14443)) ([c0e74fe](https://github.com/lightdash/lightdash/commit/c0e74fe4ddda3863b68e4c08247ff535fe335baa))
+
 # [0.1587.0](https://github.com/lightdash/lightdash/compare/0.1586.1...0.1587.0) (2025-04-17)
 
 
