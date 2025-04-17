@@ -1,3 +1,10 @@
+# [0.1585.0](https://github.com/lightdash/lightdash/compare/0.1584.0...0.1585.0) (2025-04-17)
+
+
+### Features
+
+* refreshed delete space modal ([#14438](https://github.com/lightdash/lightdash/issues/14438)) ([8b54419](https://github.com/lightdash/lightdash/commit/8b54419706639a240745d5a449c0122150b5e493))
+
 # [0.1584.0](https://github.com/lightdash/lightdash/compare/0.1583.0...0.1584.0) (2025-04-17)
 
 
