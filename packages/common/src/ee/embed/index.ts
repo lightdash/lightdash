@@ -44,6 +44,7 @@ export const InteractivityOptionsSchema = z.object({
     dashboardFiltersInteractivity:
         DashboardFilterInteractivityOptionsSchema.optional(),
     canExportCsv: z.boolean().optional(),
+    canExportAllResults: z.boolean().optional(),
     canExportImages: z.boolean().optional(),
     canExportPagePdf: z.boolean().optional(),
     canDateZoom: z.boolean().optional(),
@@ -98,6 +99,7 @@ type CommonEmbedJwtContent = {
         allowedFilters?: string[];
     };
     canExportCsv?: boolean;
+    canExportAllResults?: boolean;
     canExportImages?: boolean;
     canDateZoom?: boolean;
     canExportPagePdf?: boolean;

@@ -407,6 +407,8 @@ export class SchedulerService extends BaseService {
     }
 
     async getCsvUrl(user: SessionUser, jobId: string) {
+        console.log('---------------------------------- wrong getCsvUrl');
+
         const job = await this.schedulerModel.getCsvUrl(jobId, user.userUuid);
         if (
             user.ability.cannot(

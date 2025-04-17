@@ -738,6 +738,7 @@ const models: TsoaRoute.Models = {
                 canExportPagePdf: { dataType: 'boolean' },
                 canDateZoom: { dataType: 'boolean' },
                 canExportImages: { dataType: 'boolean' },
+                canExportAllResults: { dataType: 'boolean' },
                 canExportCsv: { dataType: 'boolean' },
                 dashboardFiltersInteractivity: {
                     dataType: 'nestedObjectLiteral',
@@ -1455,6 +1456,7 @@ const models: TsoaRoute.Models = {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
                                 canExportImages: { dataType: 'boolean' },
+                                canExportAllResults: { dataType: 'boolean' },
                                 canExportCsv: { dataType: 'boolean' },
                                 dashboardFiltersInteractivity: {
                                     dataType: 'nestedObjectLiteral',
@@ -3844,6 +3846,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 cacheHit: { dataType: 'boolean', required: true },
+                cacheKey: { dataType: 'string' },
                 cacheExpiresAt: { dataType: 'datetime' },
                 cacheUpdatedTime: { dataType: 'datetime' },
             },
@@ -16743,6 +16746,98 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'embedCalculateTotalFromSavedChart',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsEmbedController_embedDownloadCsvFromSavedChart: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        embedToken: {
+            in: 'header',
+            name: 'Lightdash-Embed-Token',
+            required: true,
+            dataType: 'string',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        savedChartUuid: {
+            in: 'path',
+            name: 'savedChartUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                csvLimit: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                onlyRaw: { dataType: 'boolean', required: true },
+                tileUuid: { dataType: 'string' },
+                invalidateCache: { dataType: 'boolean' },
+                dashboardFilters: { ref: 'AnyType' },
+            },
+        },
+    };
+    app.post(
+        '/api/v1/embed/:projectUuid/chart/:savedChartUuid/downloadCsv',
+        ...fetchMiddlewares<RequestHandler>(EmbedController),
+        ...fetchMiddlewares<RequestHandler>(
+            EmbedController.prototype.embedDownloadCsvFromSavedChart,
+        ),
+
+        async function EmbedController_embedDownloadCsvFromSavedChart(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsEmbedController_embedDownloadCsvFromSavedChart,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<EmbedController>(
+                    EmbedController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'embedDownloadCsvFromSavedChart',
                     controller,
                     response,
                     next,

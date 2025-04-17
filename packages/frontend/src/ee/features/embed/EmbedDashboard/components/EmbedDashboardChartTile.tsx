@@ -1,14 +1,22 @@
 import { mergeExisting, QueryHistoryStatus } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { ActionIcon, Box, Popover, Text } from '@mantine/core';
+import { IconShare2 } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useMemo, type ComponentProps, type FC } from 'react';
+import {
+    COLLAPSABLE_CARD_ACTION_ICON_PROPS,
+    COLLAPSABLE_CARD_POPOVER_PROPS,
+} from '../../../../../components/common/CollapsableCard/constants';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import type DashboardChartTile from '../../../../../components/DashboardTiles/DashboardChartTile';
 import { GenericDashboardChartTile } from '../../../../../components/DashboardTiles/DashboardChartTile';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import type { DashboardChartReadyQuery } from '../../../../../hooks/dashboard/useDashboardChartReadyQuery';
 import type { InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import useEmbed from '../../../../providers/Embed/useEmbed';
+import { downloadCsvFromSavedChart } from '../api';
 import { useEmbedChartAndResults } from '../hooks';
+import ExportEmbedCSV from './ExportEmbedCsv';
 
 type Props = ComponentProps<typeof DashboardChartTile> & {
     projectUuid: string;
@@ -24,6 +32,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
     embedToken,
     locked,
     canExportCsv,
+    canExportAllResults,
     canExportImages,
     canExportPagePdf,
     canDateZoom,
@@ -118,6 +127,19 @@ const EmbedDashboardChartTile: FC<Props> = ({
         [translatedChartData],
     );
 
+    const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
+        return downloadCsvFromSavedChart({
+            embedToken,
+            projectUuid,
+            chartUuid: translatedChartData?.chart.uuid ?? '',
+            dashboardFilters:
+                translatedChartData?.appliedDashboardFilters ?? undefined,
+            tileUuid: translatedTile.uuid,
+            onlyRaw,
+            csvLimit,
+        });
+    };
+
     if (locked) {
         return (
             <Box h="100%">
@@ -137,12 +159,46 @@ const EmbedDashboardChartTile: FC<Props> = ({
             tile={translatedTile}
             isLoading={isLoading}
             canExportCsv={canExportCsv}
+            canExportAllResults={canExportAllResults}
             canExportImages={canExportImages}
             canExportPagePdf={canExportPagePdf}
             canDateZoom={canDateZoom}
             resultsData={resultData}
             dashboardChartReadyQuery={query}
             error={error}
+            extraHeaderElement={
+                canExportCsv &&
+                canExportAllResults && (
+                    <Popover
+                        {...COLLAPSABLE_CARD_POPOVER_PROPS}
+                        position="bottom-end"
+                    >
+                        <Popover.Target>
+                            <ActionIcon
+                                data-testid="export-csv-button"
+                                {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
+                            >
+                                <MantineIcon icon={IconShare2} color="gray" />
+                            </ActionIcon>
+                        </Popover.Target>
+
+                        <Popover.Dropdown>
+                            <Text fw={500} mb="md">
+                                Export CSV
+                            </Text>
+                            <ExportEmbedCSV
+                                projectUuid={projectUuid}
+                                totalResults={resultData.totalResults}
+                                getCsvLink={getCsvLink}
+                                embedToken={embedToken}
+                                overrideCanExportAllResults={
+                                    canExportAllResults
+                                }
+                            />
+                        </Popover.Dropdown>
+                    </Popover>
+                )
+            }
         />
     );
 };

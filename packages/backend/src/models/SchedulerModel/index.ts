@@ -726,7 +726,11 @@ export class SchedulerModel {
         return b.scheduledTime.getTime() - a.scheduledTime.getTime();
     };
 
-    async getCsvUrl(jobId: string, userUuid: string) {
+    async getCsvUrl(
+        jobId: string,
+        userUuid: string | null,
+        canDownloadCsv?: boolean,
+    ) {
         const jobs = await this.database(SchedulerLogTableName)
             .where(`job_id`, jobId)
             .andWhere((query) => {
@@ -741,6 +745,11 @@ export class SchedulerModel {
             (a, b) =>
                 statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),
         )[0];
+
+        if (job && !job.details?.createdByUserUuid && canDownloadCsv) {
+            return job;
+        }
+
         if (!job || job.details?.createdByUserUuid !== userUuid)
             throw new NotFoundError('Download CSV job not found');
 

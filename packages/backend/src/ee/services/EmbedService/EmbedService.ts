@@ -34,6 +34,7 @@ import {
     getDimensions,
     getErrorMessage,
     getFilterInteractivityValue,
+    getHiddenTableFields,
     getItemId,
     isDashboardChartTileType,
     isDashboardSlugContent,
@@ -63,6 +64,7 @@ import { getFilteredExplore } from '../../../services/UserAttributesService/User
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
+import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 
 type Dependencies = {
     lightdashConfig: LightdashConfig;
@@ -75,6 +77,7 @@ type Dependencies = {
     userModel: UserModel;
     userAttributesModel: UserAttributesModel;
     projectService: ProjectService;
+    schedulerClient: CommercialSchedulerClient;
     featureFlagModel: FeatureFlagModel;
 };
 
@@ -99,6 +102,8 @@ export class EmbedService extends BaseService {
 
     private readonly projectService: ProjectService;
 
+    private readonly schedulerClient: CommercialSchedulerClient;
+
     private readonly featureFlagModel: FeatureFlagModel;
 
     constructor(dependencies: Dependencies) {
@@ -113,6 +118,7 @@ export class EmbedService extends BaseService {
         this.userModel = dependencies.userModel;
         this.userAttributesModel = dependencies.userAttributesModel;
         this.projectService = dependencies.projectService;
+        this.schedulerClient = dependencies.schedulerClient;
         this.featureFlagModel = dependencies.featureFlagModel;
     }
 
@@ -398,6 +404,7 @@ export class EmbedService extends BaseService {
                     isDashboardSqlChartTile,
                 ).length,
                 canExportCsv: decodedToken.content.canExportCsv,
+                canExportAllResults: decodedToken.content.canExportAllResults,
                 canExportImages: decodedToken.content.canExportImages,
                 canExportPagePdf: decodedToken.content.canExportPagePdf ?? true,
                 canDateZoom: decodedToken.content.canDateZoom,
@@ -423,6 +430,7 @@ export class EmbedService extends BaseService {
             dashboardFiltersInteractivity:
                 decodedToken.content.dashboardFiltersInteractivity,
             canExportCsv: decodedToken.content.canExportCsv,
+            canExportAllResults: decodedToken.content.canExportAllResults,
             canExportImages: decodedToken.content.canExportImages,
             canExportPagePdf: decodedToken.content.canExportPagePdf ?? true, // enabled by default for backwards compatibility
             canDateZoom: decodedToken.content.canDateZoom,
@@ -859,7 +867,7 @@ export class EmbedService extends BaseService {
         });
 
         return {
-            appliedDashboardFilters: undefined,
+            appliedDashboardFilters,
             chart: {
                 ...chart,
                 isPrivate: false,
@@ -975,6 +983,118 @@ export class EmbedService extends BaseService {
         const row = rows[0];
 
         return row;
+    }
+
+    async scheduleDownloadCsvFromSavedChart(
+        embedToken: string,
+        projectUuid: string,
+        savedChartUuid: string,
+        dashboardFilters?: DashboardFilters,
+        onlyRaw?: boolean,
+        csvLimit?: number | null | undefined,
+        invalidateCache?: boolean,
+    ) {
+        const { encodedSecret, user } = await this.embedModel.get(projectUuid);
+        const decodedToken = this.decodeJwt(embedToken, encodedSecret);
+
+        const dashboardUuid = await this.getDashboardUuidFromContent(
+            decodedToken,
+            projectUuid,
+        );
+
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        const tile = dashboard.tiles
+            .filter(isDashboardChartTileType)
+            .find(
+                ({ properties }) =>
+                    properties.savedChartUuid === savedChartUuid,
+            );
+
+        if (!tile) {
+            throw new ParameterError(
+                `Tile for saved chart ${savedChartUuid} not found`,
+            );
+        }
+
+        if (!tile.properties.savedChartUuid) {
+            throw new ParameterError(
+                `Tile ${savedChartUuid} does not have a saved chart uuid`,
+            );
+        }
+
+        const chart = await this._getChartFromDashboardTiles(
+            dashboard,
+            tile.uuid,
+        );
+
+        const hiddenFields = getHiddenTableFields(chart.chartConfig);
+
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            chart.tableName,
+        );
+
+        if (isExploreError(explore)) {
+            throw new ForbiddenError(
+                `Explore ${chart.tableName} on project ${projectUuid} has errors : ${explore.errors}`,
+            );
+        }
+
+        const appliedDashboardFilters = await this._getAppliedDashboardFilters(
+            decodedToken,
+            explore,
+            dashboard,
+            tile.uuid,
+            dashboardFilters,
+        );
+        const metricQuery = appliedDashboardFilters
+            ? addDashboardFiltersToMetricQuery(
+                  chart.metricQuery,
+                  appliedDashboardFilters,
+              )
+            : chart.metricQuery;
+
+        console.log('---------------------------------- in embed service', {
+            dashboardFilters,
+            onlyRaw,
+            csvLimit,
+            invalidateCache,
+        });
+
+        // -> check user permissions
+
+        const { jobId } = await this.schedulerClient.downloadCsvJob({
+            organizationUuid: dashboard.organizationUuid,
+            projectUuid,
+            exploreId: chart.tableName,
+            metricQuery,
+            onlyRaw: onlyRaw ?? false,
+            csvLimit,
+            showTableNames: true,
+            columnOrder: [],
+            customLabels: {},
+            hiddenFields,
+            chartName: chart.name,
+            fromSavedChart: true,
+        });
+
+        return {
+            jobId,
+        };
+    }
+
+    async getCsvUrl(jobId: string) {
+        const job = await this.schedulerClient.getCsvUrl(jobId);
+
+        console.log(
+            '---------------------------------- embed service getCsvUrl',
+            {
+                job,
+            },
+        );
+
+        return job;
     }
 
     async searchFilterValues({

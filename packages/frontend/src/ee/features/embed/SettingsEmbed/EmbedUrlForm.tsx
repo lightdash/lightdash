@@ -10,6 +10,7 @@ import {
 import {
     ActionIcon,
     Button,
+    Checkbox,
     Flex,
     Group,
     Input,
@@ -64,6 +65,7 @@ type FormValues = {
     }>;
     dashboardFiltersInteractivity: DashboardFilterInteractivityOptions;
     canExportCsv?: boolean;
+    canExportAllResults?: boolean;
     canExportImages?: boolean;
     externalId?: string;
     canExportPagePdf?: boolean;
@@ -93,6 +95,7 @@ const EmbedUrlForm: FC<{
                 enabled: FilterInteractivityValues.none,
             },
             canExportCsv: false,
+            canExportAllResults: false,
             canExportImages: false,
             canDateZoom: false,
             canExportPagePdf: true,
@@ -103,8 +106,20 @@ const EmbedUrlForm: FC<{
                     ? null
                     : 'Dashboard is required';
             },
+            canExportAllResults: (value, values) => {
+                if (value && !values.canExportCsv) {
+                    return 'Cannot export all results unless "Can export CSV" is enabled';
+                }
+                return null;
+            },
+        },
+        onValuesChange: (values, _prevValues) => {
+            if (!values.canExportCsv && values.canExportAllResults) {
+                form.setFieldValue('canExportAllResults', false);
+            }
         },
     });
+
     const { onSubmit, validate, values: formValues } = form;
 
     const convertFormValuesToCreateEmbedJwt = useCallback(
@@ -127,6 +142,7 @@ const EmbedUrlForm: FC<{
                             : {}),
                     },
                     canExportCsv: values.canExportCsv,
+                    canExportAllResults: values.canExportAllResults,
                     canExportImages: values.canExportImages,
                     isPreview,
                     canDateZoom: values.canDateZoom,
@@ -284,11 +300,25 @@ const EmbedUrlForm: FC<{
                     />
                 </Input.Wrapper>
 
-                <Switch
-                    {...form.getInputProps(`canExportCsv`)}
-                    labelPosition="left"
-                    label={`Can export CSV`}
-                />
+                <Group>
+                    <Switch
+                        {...form.getInputProps(`canExportCsv`)}
+                        labelPosition="left"
+                        label={`Can export CSV`}
+                    />
+                    <Checkbox
+                        checked={form.values.canExportAllResults}
+                        onChange={(event) =>
+                            form.setFieldValue(
+                                'canExportAllResults',
+                                event.currentTarget.checked,
+                            )
+                        }
+                        disabled={!form.values.canExportCsv}
+                        labelPosition="left"
+                        label={`Allow users to change export row limit`}
+                    />
+                </Group>
                 <Switch
                     {...form.getInputProps(`canExportImages`)}
                     labelPosition="left"

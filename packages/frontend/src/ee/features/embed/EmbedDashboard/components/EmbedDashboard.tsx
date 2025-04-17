@@ -196,6 +196,9 @@ const EmbedDashboard: FC<{
                                 onDelete={() => {}}
                                 onEdit={() => {}}
                                 canExportCsv={dashboard.canExportCsv}
+                                canExportAllResults={
+                                    dashboard.canExportAllResults
+                                }
                                 canExportImages={dashboard.canExportImages}
                                 locked={hasRequiredDashboardFiltersToSet}
                                 tileIndex={index}

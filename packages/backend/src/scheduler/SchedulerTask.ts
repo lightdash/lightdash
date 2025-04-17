@@ -1342,6 +1342,10 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.STARTED,
             });
 
+            console.log(
+                '---------------------------------- SchedulerTask in download csv',
+            );
+
             const { fileUrl, truncated } = await this.csvService.downloadCsv(
                 jobId,
                 payload,

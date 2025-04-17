@@ -3,6 +3,7 @@ import {
     AndFilterGroup,
     AnyType,
     ApiCalculateTotalResponse,
+    ApiCsvUrlResponse,
     ApiErrorPayload,
     ApiSuccessEmpty,
     CacheMetadata,
@@ -54,6 +55,7 @@ export type ApiEmbedDashboardResponse = {
             allowedFilters?: string[];
         };
         canExportCsv?: boolean;
+        canExportAllResults?: boolean;
         canExportImages?: boolean;
     };
 };
@@ -255,6 +257,75 @@ export class EmbedController extends BaseController {
                 body.dashboardFilters,
                 body.invalidateCache,
             ),
+        };
+    }
+
+    @SuccessResponse('200', 'Success')
+    @Post('/chart/:savedChartUuid/downloadCsv')
+    @OperationId('embedDownloadCsvFromSavedChart')
+    async embedDownloadCsvFromSavedChart(
+        @Header('Lightdash-Embed-Token') embedToken: string,
+        @Path() projectUuid: string,
+        @Path() savedChartUuid: string,
+        @Body()
+        body: {
+            dashboardFilters?: AnyType; // DashboardFilters; temp disable validation
+            invalidateCache?: boolean;
+            tileUuid?: string;
+            onlyRaw: boolean;
+            csvLimit: number | null | undefined;
+        },
+    ): Promise<{ status: 'ok'; results: { jobId: string } }> {
+        this.setStatus(200);
+        const {
+            dashboardFilters,
+            onlyRaw,
+            csvLimit,
+            tileUuid,
+            invalidateCache,
+        } = body;
+
+        const { jobId } =
+            await this.getEmbedService().scheduleDownloadCsvFromSavedChart(
+                embedToken,
+                projectUuid,
+                savedChartUuid,
+                dashboardFilters,
+                onlyRaw,
+                csvLimit,
+                invalidateCache,
+            );
+
+        return {
+            status: 'ok',
+            results: {
+                jobId,
+            },
+        };
+    }
+
+    @SuccessResponse('200', 'Success')
+    @Get('{jobId}')
+    @OperationId('getCsvUrl')
+    async get(
+        @Path() jobId: string,
+        @Request() req: express.Request,
+    ): Promise<ApiCsvUrlResponse> {
+        console.log(
+            '---------------------------------- in NEW csv controller',
+            {
+                jobId,
+            },
+        );
+        this.setStatus(200);
+        const csvDetails = await this.getEmbedService().getCsvUrl(jobId);
+        return {
+            status: 'ok',
+            results: {
+                url: csvDetails.details?.fileUrl,
+                status: csvDetails.status,
+                truncated: !!csvDetails.details?.truncated,
+            },
         };
     }
 

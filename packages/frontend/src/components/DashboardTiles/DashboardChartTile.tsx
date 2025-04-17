@@ -64,6 +64,7 @@ import React, {
     useMemo,
     useState,
     type FC,
+    type ReactNode,
     type RefObject,
 } from 'react';
 import { useParams } from 'react-router';
@@ -385,9 +386,11 @@ interface DashboardChartTileMainProps
     resultsData: InfiniteQueryResults;
     onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void;
     canExportCsv?: boolean;
+    canExportAllResults?: boolean;
     canExportImages?: boolean;
     canExportPagePdf?: boolean;
     canDateZoom?: boolean;
+    extraHeaderElement?: ReactNode;
 }
 
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
@@ -1227,6 +1230,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         dashboardChartReadyQuery,
         resultsData,
         canExportCsv,
+        canExportAllResults,
         canExportImages,
     } = props;
 
@@ -1248,7 +1252,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                 (canExportImages &&
                     !isTableChartConfig(chart.chartConfig.config)) ? (
                     <>
-                        {canExportCsv && (
+                        {canExportCsv && !canExportAllResults && (
                             <DashboardMinimalDownloadCsv
                                 explore={explore}
                                 resultsData={resultsData}
@@ -1287,6 +1291,7 @@ type DashboardChartTileProps = Omit<
 > & {
     minimal?: boolean;
     canExportCsv?: boolean;
+    canExportAllResults?: boolean;
     canExportImages?: boolean;
     dashboardChartReadyQuery?: DashboardChartReadyQuery;
     resultsData?: InfiniteQueryResults;
@@ -1308,6 +1313,7 @@ export const GenericDashboardChartTile: FC<
     resultsData,
     error,
     canExportCsv = false,
+    canExportAllResults = false,
     canExportImages = false,
     ...rest
 }) => {
@@ -1394,6 +1400,7 @@ export const GenericDashboardChartTile: FC<
                     resultsData={resultsData}
                     dashboardChartReadyQuery={dashboardChartReadyQuery}
                     canExportCsv={canExportCsv}
+                    canExportAllResults={canExportAllResults}
                     canExportImages={canExportImages}
                 />
             ) : (

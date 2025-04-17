@@ -286,6 +286,12 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             [SCHEDULER_TASKS.DOWNLOAD_CSV]: async (payload, helpers) => {
+                console.log(
+                    '---------------------------------- in scheduler worker',
+                    {
+                        payload,
+                    },
+                );
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         SCHEDULER_TASKS.DOWNLOAD_CSV,

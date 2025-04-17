@@ -15,7 +15,7 @@ export type SchedulerLog = {
     details: {
         projectUuid: string | undefined; // For project creation, this is undefined
         organizationUuid: string;
-        createdByUserUuid: string;
+        createdByUserUuid: string | undefined; // For embed, this is undefined
         [key: string]: AnyType;
     };
 };

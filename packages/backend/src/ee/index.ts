@@ -53,7 +53,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
-            embedService: ({ repository, context, models }) =>
+            embedService: ({ repository, context, models, clients }) =>
                 new EmbedService({
                     analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
@@ -61,6 +61,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                     }),
                     projectService: repository.getProjectService(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
                     dashboardModel: models.getDashboardModel(),
                     embedModel: models.getEmbedModel(),
                     projectModel: models.getProjectModel(),
