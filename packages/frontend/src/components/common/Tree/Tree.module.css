@@ -1,23 +1,22 @@
-.actionIcon {
-    opacity: 0.8;
+.node {
+    position: relative;
 
-    &:hover {
-        opacity: 1;
+    &::before {
+        position: absolute;
+        z-index: 1;
+        left: calc(var(--label-offset) - 2.5px);
+        top: 0;
+        content: '';
+        width: 1px;
+        height: 100%;
+        background-color: var(--mantine-color-gray-1);
     }
 }
 
 .label {
-    &:where([data-selected]) {
-        background-color: transparent;
-    }
-
     position: relative;
 
-    &::before {
-        content: '';
-        display: block;
-        width: 1px;
-        height: 100%;
-        background-color: red;
+    &:where([data-selected]) {
+        background-color: transparent;
     }
 }

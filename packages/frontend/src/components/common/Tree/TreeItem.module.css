@@ -1,0 +1,22 @@
+.paper {
+    overflow: hidden;
+    background-color: transparent;
+
+    &:where([data-is-root='false']) {
+        &:hover {
+            background-color: var(--mantine-color-gray-0);
+        }
+    }
+
+    &:is([data-selected='true']) {
+        background-color: var(--mantine-color-blue-0);
+    }
+}
+
+.actionIcon {
+    opacity: 0.8;
+
+    &:hover {
+        opacity: 1;
+    }
+}
