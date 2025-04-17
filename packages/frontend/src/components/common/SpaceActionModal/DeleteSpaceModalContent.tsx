@@ -3,7 +3,6 @@ import { type FC } from 'react';
 import { type SpaceModalBody } from '.';
 
 const DeleteSpaceModalContent: FC<SpaceModalBody> = ({ data }) => {
-    console.log('data', data);
     if (
         !data ||
         !(
