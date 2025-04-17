@@ -19,4 +19,8 @@
     &:hover {
         opacity: 1;
     }
+
+    &:where([data-has-children='false']) {
+        visibility: hidden;
+    }
 }

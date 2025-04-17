@@ -96,7 +96,7 @@ const Tree: React.FC<Props> = ({ topLevelLabel, value, data, onChange }) => {
         <MantineProvider>
             <TreeItem label={topLevelLabel} withPadding={false} isRoot={true} />
 
-            <Box pl={rem(13.5)}>
+            <Box ml={rem(6)} pl={rem(13.5)}>
                 <MantineTree
                     data={treeData}
                     tree={tree}

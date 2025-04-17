@@ -41,14 +41,16 @@ const TreeItem: React.FC<Props> = ({
             miw={rem(200)}
             maw={rem(300)}
             gap={rem(4)}
-            wrap="nowrap"
             h={rem(32)}
-            px={withPadding ? 'xs' : undefined}
+            pl={withPadding ? rem(4) : undefined}
+            pr={withPadding ? 'xs' : undefined}
             radius="sm"
+            wrap="nowrap"
             onClick={onToggleSelect}
         >
-            {hasChildren && (
+            {isRoot ? null : (
                 <ActionIcon
+                    data-has-children={hasChildren}
                     className={classes.actionIcon}
                     onClick={(e) => {
                         e.stopPropagation();
@@ -60,6 +62,7 @@ const TreeItem: React.FC<Props> = ({
                     <MantineIcon
                         icon={expanded ? IconChevronDown : IconChevronRight}
                         size="lg"
+                        color="gray.6"
                     />
                 </ActionIcon>
             )}
