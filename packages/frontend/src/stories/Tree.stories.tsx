@@ -1,8 +1,16 @@
+import { Paper, ScrollArea } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react';
 
 import Tree from '../components/common/Tree/Tree';
 
 const meta: Meta<typeof Tree> = {
+    decorators: [
+        (renderStory: Function) => (
+            <Paper component={ScrollArea} w="300px" h="500px" withBorder p="sm">
+                {renderStory()}
+            </Paper>
+        ),
+    ],
     component: Tree,
     tags: ['autodocs'],
 };

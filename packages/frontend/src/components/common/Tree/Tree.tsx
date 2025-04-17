@@ -4,7 +4,6 @@ import {
     MantineProvider,
     Tree as MantineTree,
     Paper,
-    ScrollArea,
     Text,
     useTree,
     type RenderTreeNodePayload,
@@ -106,23 +105,21 @@ const Tree: React.FC<Props> = ({ data, onSelect }) => {
 
     return (
         <MantineProvider>
-            <Paper component={ScrollArea} w="300px" h="500px" withBorder p="sm">
-                <MantineTree
-                    data={treeData}
-                    tree={tree}
-                    levelOffset={23}
-                    renderNode={renderTreeNode}
-                    allowRangeSelection={false}
-                    checkOnSpace={false}
-                    clearSelectionOnOutsideClick={false}
-                    expandOnClick={false}
-                    expandOnSpace={false}
-                    selectOnClick={false}
-                    classNames={{
-                        label: classes.label,
-                    }}
-                />
-            </Paper>
+            <MantineTree
+                data={treeData}
+                tree={tree}
+                levelOffset={23}
+                renderNode={renderTreeNode}
+                allowRangeSelection={false}
+                checkOnSpace={false}
+                clearSelectionOnOutsideClick={false}
+                expandOnClick={false}
+                expandOnSpace={false}
+                selectOnClick={false}
+                classNames={{
+                    label: classes.label,
+                }}
+            />
         </MantineProvider>
     );
 };
