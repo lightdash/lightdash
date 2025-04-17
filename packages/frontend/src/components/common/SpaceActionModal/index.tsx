@@ -47,7 +47,7 @@ interface ActionModalProps {
     onSubmitForm?: (data: Space | null) => void;
     isDisabled: boolean;
     shouldRedirect?: boolean;
-    parentSpaceUuid?: Space['parentSpaceUuid'];
+    parentSpaceUuid: Space['parentSpaceUuid'];
 }
 
 export interface SpaceModalBody {

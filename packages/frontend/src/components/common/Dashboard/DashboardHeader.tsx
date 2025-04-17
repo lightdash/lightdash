@@ -693,6 +693,7 @@ const DashboardHeader = ({
                             confirmButtonLabel="Create"
                             icon={IconFolderPlus}
                             onClose={() => setIsCreatingNewSpace(false)}
+                            parentSpaceUuid={null}
                             onSubmitForm={(space) => {
                                 if (space) onMoveToSpace(space.uuid);
                             }}
