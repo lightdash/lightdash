@@ -171,7 +171,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                         <MantineIcon
                             onClick={() => {
                                 window.open(
-                                    'https://docs.lightdash.com/references/chart-types#custom-tooltip',
+                                    'https://docs.lightdash.com/references/custom-tooltip',
                                     '_blank',
                                 );
                             }}
