@@ -138,6 +138,10 @@ export class UnfurlService extends BaseService {
         expectedResponses: number,
         timeout: number,
     ) {
+        if (expectedResponses === 0) {
+            return undefined;
+        }
+
         let responseCount = 0;
 
         this.logger.info(
