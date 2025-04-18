@@ -345,7 +345,7 @@ export default class SchedulerTask {
                     if (unfurlImage.imageUrl === undefined) {
                         throw new Error('Unable to unfurl image');
                     }
-                    pdfFile = unfurlImage.pdfPath;
+                    pdfFile = unfurlImage.pdfFile;
                     imageUrl = unfurlImage.imageUrl;
                 } catch (error) {
                     if (this.slackClient.isEnabled) {
@@ -646,7 +646,11 @@ export default class SchedulerTask {
                 if (pdfFile && message.ts) {
                     try {
                         // Add the pdf to the thread
-                        const pdfBuffer = await fs.readFile(pdfFile);
+                        const pdfBuffer = this.s3Client.isEnabled()
+                            ? await this.s3Client.getS3FileStream(
+                                  pdfFile.fileName,
+                              )
+                            : await fs.readFile(pdfFile.source);
 
                         await this.slackClient.postFileToThread({
                             organizationUuid,
@@ -1751,7 +1755,7 @@ export default class SchedulerTask {
                     url,
                     schedulerUrl,
                     includeLinks,
-                    pdfFile,
+                    pdfFile?.source,
                     undefined, // expiration days
                     'This is a data alert sent by Lightdash',
                 );
@@ -1774,7 +1778,7 @@ export default class SchedulerTask {
                     url,
                     schedulerUrl,
                     includeLinks,
-                    pdfFile,
+                    pdfFile?.source,
                     this.s3Client.getExpirationWarning()?.days,
                 );
             } else if (savedChartUuid) {

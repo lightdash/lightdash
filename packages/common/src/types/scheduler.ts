@@ -404,7 +404,10 @@ export type NotificationPayloadBase = {
             localPath: string;
             truncated: boolean;
         }[];
-        pdfFile?: string;
+        pdfFile?: {
+            source: string;
+            fileName: string;
+        };
     };
     scheduler: CreateSchedulerAndTargets;
 };
