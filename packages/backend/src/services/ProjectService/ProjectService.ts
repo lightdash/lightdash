@@ -1886,6 +1886,29 @@ export class ProjectService extends BaseService {
             };
         }
 
+        const compliedQuery = await this.compileQuery(
+            user,
+            metricQueryWithDashboardOverrides,
+            projectUuid,
+            explore.name,
+        );
+
+        const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
+            context,
+            query: metricQueryWithDashboardOverrides,
+        };
+
+        const { queryUuid } = await this.queryHistoryModel.create({
+            projectUuid,
+            organizationUuid,
+            createdByUserUuid: user.userUuid,
+            context,
+            fields: compliedQuery.fields,
+            compiledSql: compliedQuery.query,
+            requestParameters,
+            metricQuery: metricQueryWithDashboardOverrides,
+        });
+
         return {
             chart: { ...savedChart, isPrivate: space.isPrivate, access },
             explore,
@@ -1894,6 +1917,7 @@ export class ProjectService extends BaseService {
             rows,
             appliedDashboardFilters,
             fields,
+            queryUuid,
         };
     }
 
