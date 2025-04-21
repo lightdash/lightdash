@@ -16,12 +16,13 @@ import { S3Client } from '../../clients/Aws/S3Client';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
+import { CsvService } from '../CsvService/CsvService';
 
 type AnalyticsServiceArguments = {
     analytics: LightdashAnalytics;
     analyticsModel: AnalyticsModel;
-    s3Client: S3Client;
     projectModel: ProjectModel;
+    csvService: CsvService;
 };
 
 export class AnalyticsService extends BaseService {
@@ -31,14 +32,14 @@ export class AnalyticsService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
-    private readonly s3Client: S3Client;
+    private readonly csvService: CsvService;
 
     constructor(args: AnalyticsServiceArguments) {
         super();
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
         this.analyticsModel = args.analyticsModel;
-        this.s3Client = args.s3Client;
+        this.csvService = args.csvService;
     }
 
     async getDashboardViews(dashboardUuid: string): Promise<number> {
@@ -113,7 +114,6 @@ export class AnalyticsService extends BaseService {
         });
 
         const results = await this.analyticsModel.getViewsRawData(projectUuid);
-        const fileId = `usage-analytics-${projectUuid}-${nanoid()}.csv`;
         const fileName = `lightdash raw usage analytics.csv`;
         const csvHeader = Object.keys(results[0]);
         const csvBody = stringify(results, {
@@ -121,11 +121,12 @@ export class AnalyticsService extends BaseService {
             header: true,
             columns: csvHeader,
         });
-        const s3upload = await this.s3Client.uploadCsv(
-            csvBody,
-            fileId,
+
+        const upload = await this.csvService.downloadCsvFile({
+            csvContent: csvBody,
             fileName,
-        );
-        return s3upload;
+            projectUuid,
+        });
+        return upload.path;
     }
 }
