@@ -1,3 +1,10 @@
+## [0.1589.3](https://github.com/lightdash/lightdash/compare/0.1589.2...0.1589.3) (2025-04-21)
+
+
+### Bug Fixes
+
+* sort series for fallback colors ([#14469](https://github.com/lightdash/lightdash/issues/14469)) ([d91784f](https://github.com/lightdash/lightdash/commit/d91784f2f666669baadaf796ea7d6b812dd02e2e))
+
 ## [0.1589.2](https://github.com/lightdash/lightdash/compare/0.1589.1...0.1589.2) (2025-04-21)
 
 
