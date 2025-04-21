@@ -1,3 +1,10 @@
+## [0.1589.2](https://github.com/lightdash/lightdash/compare/0.1589.1...0.1589.2) (2025-04-21)
+
+
+### Bug Fixes
+
+* slack upload PDF attachment in thread ([#14466](https://github.com/lightdash/lightdash/issues/14466)) ([b492e33](https://github.com/lightdash/lightdash/commit/b492e33b874ebddd04fa41a73fa495e03b70f79e))
+
 ## [0.1589.1](https://github.com/lightdash/lightdash/compare/0.1589.0...0.1589.1) (2025-04-21)
 
 
