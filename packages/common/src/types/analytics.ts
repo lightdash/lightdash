@@ -34,6 +34,16 @@ export type UserActivity = {
     chartViews: ActivityViews[];
 };
 
+export type ApiUserActivity = {
+    status: 'ok';
+    results: UserActivity;
+};
+
+export type ApiUserActivityDownloadCsv = {
+    results: string; // CSV file URL to download
+    status: 'ok';
+};
+
 export type ViewStatistics = {
     views: number;
     firstViewedAt: Date | string | null;

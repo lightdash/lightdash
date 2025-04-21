@@ -231,6 +231,8 @@ export class ServiceRepository
                 new AnalyticsService({
                     analytics: this.context.lightdashAnalytics,
                     analyticsModel: this.models.getAnalyticsModel(),
+                    s3Client: this.clients.getS3Client(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }

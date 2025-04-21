@@ -11,7 +11,10 @@ import {
     AnalyticsDashboardViewsTableName,
 } from '../database/entities/analytics';
 import { DashboardsTableName } from '../database/entities/dashboards';
+import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
+import { SpaceTableName } from '../database/entities/spaces';
+import { UserTableName } from '../database/entities/users';
 import {
     chartViewsSql,
     chartWeeklyAverageQueriesSql,
@@ -246,5 +249,106 @@ export class AnalyticsModel {
             ),
             chartViews: chartViews.rows,
         };
+    }
+
+    /**
+     * Returns a list of rows with dashboards and chart views
+     * we include the details like dashboard/chart names, user names
+     * filtered by projectUuid
+     * order by timestamp desc
+     * @param projectUuid
+     * @returns
+     */
+    async getViewsRawData(projectUuid: string) {
+        type RawViewType = {
+            type: 'chart' | 'dashboard';
+            timestamp: string; // Convert to ISO string in database
+            uuid: string;
+            name: string;
+            user_uuid: string;
+            user_first_name: string;
+            user_last_name: string;
+            space_name: string;
+        };
+        const results = await this.database.transaction(async (trx) => {
+            const chartViews = trx
+                .select<RawViewType[]>(
+                    this.database.raw(`'chart' as type`),
+                    this.database.raw(
+                        `to_char(${AnalyticsChartViewsTableName}.timestamp, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as timestamp`,
+                    ),
+                    `${SavedChartsTableName}.saved_query_uuid as uuid`,
+                    `${SavedChartsTableName}.name as name`,
+                    `${UserTableName}.user_uuid as user_uuid`,
+                    `${UserTableName}.first_name as user_first_name`,
+                    `${UserTableName}.last_name as user_last_name`,
+                    `${SpaceTableName}.name as space_name`,
+                )
+                .from(AnalyticsChartViewsTableName)
+                .leftJoin(
+                    SavedChartsTableName,
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    `${AnalyticsChartViewsTableName}.chart_uuid`,
+                )
+                .leftJoin(
+                    UserTableName,
+                    `${UserTableName}.user_uuid`,
+                    `${AnalyticsChartViewsTableName}.user_uuid`,
+                )
+                .leftJoin(
+                    SpaceTableName,
+                    `${SpaceTableName}.space_id`,
+                    `${SavedChartsTableName}.space_id`,
+                )
+                .leftJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+            const dashboardViews = trx
+                .select<RawViewType[]>(
+                    this.database.raw(`'dashboard' as type`),
+                    this.database.raw(
+                        `to_char(${AnalyticsDashboardViewsTableName}.timestamp, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as timestamp`,
+                    ),
+                    `${DashboardsTableName}.dashboard_uuid as uuid`,
+                    `${DashboardsTableName}.name as name`,
+                    `${UserTableName}.user_uuid as user_uuid`,
+                    `${UserTableName}.first_name as user_first_name`,
+                    `${UserTableName}.last_name as user_last_name`,
+                    `${SpaceTableName}.name as space_name`,
+                )
+                .from(AnalyticsDashboardViewsTableName)
+                .leftJoin(
+                    DashboardsTableName,
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    `${AnalyticsDashboardViewsTableName}.dashboard_uuid`,
+                )
+                .leftJoin(
+                    UserTableName,
+                    `${UserTableName}.user_uuid`,
+                    `${AnalyticsDashboardViewsTableName}.user_uuid`,
+                )
+                .leftJoin(
+                    SpaceTableName,
+                    `${SpaceTableName}.space_id`,
+                    `${DashboardsTableName}.space_id`,
+                )
+                .leftJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+            return chartViews
+                .union(dashboardViews)
+                .orderBy('timestamp', 'desc')
+                .limit(100000); // hard limit to avoid memory issues
+        });
+
+        return results;
     }
 }

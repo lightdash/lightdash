@@ -59,6 +59,7 @@ export class S3Client {
         file: PutObjectCommandInput['Body'],
         contentType: string,
         urlOptions?: { expiresIn: number },
+        fileName?: string, // user friendly name for download, doesn't need to be unique
     ): Promise<string> {
         if (!this.lightdashConfig.s3?.bucket || this.s3 === undefined) {
             throw new MissingConfigError(
@@ -73,7 +74,9 @@ export class S3Client {
                 Body: file,
                 ContentType: contentType,
                 ACL: 'private',
-                ContentDisposition: `attachment; filename="${fileId}"`,
+                ContentDisposition: `attachment; filename="${
+                    fileName || fileId
+                }"`,
             },
         });
         try {
@@ -135,8 +138,9 @@ export class S3Client {
     async uploadCsv(
         csv: PutObjectCommandInput['Body'],
         csvName: string,
+        fileName?: string,
     ): Promise<string> {
-        return this.uploadFile(csvName, csv, 'text/csv');
+        return this.uploadFile(csvName, csv, 'text/csv', undefined, fileName);
     }
 
     async uploadZip(zip: ReadStream, zipName: string): Promise<string> {
