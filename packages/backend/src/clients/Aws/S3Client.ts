@@ -59,7 +59,6 @@ export class S3Client {
         file: PutObjectCommandInput['Body'],
         contentType: string,
         urlOptions?: { expiresIn: number },
-        fileName?: string, // user friendly name for download, doesn't need to be unique
     ): Promise<string> {
         if (!this.lightdashConfig.s3?.bucket || this.s3 === undefined) {
             throw new MissingConfigError(
@@ -74,9 +73,7 @@ export class S3Client {
                 Body: file,
                 ContentType: contentType,
                 ACL: 'private',
-                ContentDisposition: `attachment; filename="${
-                    fileName || fileId
-                }"`,
+                ContentDisposition: `attachment; filename="${fileId}"`,
             },
         });
         try {
@@ -123,8 +120,16 @@ export class S3Client {
         }
     }
 
-    async uploadPdf(pdf: Buffer, id: string): Promise<string> {
-        return this.uploadFile(`${id}.pdf`, pdf, 'application/pdf');
+    async uploadPdf(
+        pdf: Buffer,
+        id: string,
+    ): Promise<{
+        fileName: string;
+        url: string;
+    }> {
+        const fileName = `${id}.pdf`;
+        const url = await this.uploadFile(fileName, pdf, 'application/pdf');
+        return { fileName, url };
     }
 
     async uploadTxt(txt: Buffer, id: string): Promise<string> {
@@ -138,9 +143,8 @@ export class S3Client {
     async uploadCsv(
         csv: PutObjectCommandInput['Body'],
         csvName: string,
-        fileName?: string,
     ): Promise<string> {
-        return this.uploadFile(csvName, csv, 'text/csv', undefined, fileName);
+        return this.uploadFile(csvName, csv, 'text/csv');
     }
 
     async uploadZip(zip: ReadStream, zipName: string): Promise<string> {
