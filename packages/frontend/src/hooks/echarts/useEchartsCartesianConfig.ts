@@ -1882,13 +1882,17 @@ const useEchartsCartesianConfig = (
                         const fieldValueReference = field
                             .replace('${', '')
                             .replace('}', '');
-                        //    .replaceAll('.', '_');
 
                         const fieldValue = firstValue[fieldValueReference];
 
+                        const formattedValue = getFormattedValue(
+                            fieldValue,
+                            fieldValueReference.split('.')[0],
+                            itemsMap,
+                        );
                         tooltipHtml = tooltipHtml.replace(
                             field,
-                            `${fieldValue || '-'}`,
+                            formattedValue,
                         );
                     });
                 }

@@ -138,6 +138,10 @@ export class UnfurlService extends BaseService {
         expectedResponses: number,
         timeout: number,
     ) {
+        if (expectedResponses === 0) {
+            return undefined;
+        }
+
         let responseCount = 0;
 
         this.logger.info(
@@ -342,7 +346,10 @@ export class UnfurlService extends BaseService {
         };
     }
 
-    private async createImagePdf(id: string, buffer: Buffer): Promise<string> {
+    private async createImagePdf(
+        id: string,
+        buffer: Buffer,
+    ): Promise<{ source: string; fileName: string }> {
         // Converts an image to PDF format,
         // The PDF has the size of the image, not DIN A4
         const pdfDoc = await PDFDocument.create();
@@ -351,14 +358,22 @@ export class UnfurlService extends BaseService {
         page.drawImage(pngImage);
         const pdfBytes = await pdfDoc.save();
 
-        let path: string;
+        let source: string;
+        let fileName: string;
         if (this.s3Client.isEnabled()) {
-            path = await this.s3Client.uploadPdf(Buffer.from(pdfBytes), id);
+            const uploadPdfReturn = await this.s3Client.uploadPdf(
+                Buffer.from(pdfBytes),
+                id,
+            );
+            source = uploadPdfReturn.url;
+            fileName = uploadPdfReturn.fileName;
         } else {
-            path = `/tmp/${id}.pdf`;
-            await fsPromise.writeFile(path, pdfBytes);
+            fileName = `${id}.pdf`;
+            source = `/tmp/${fileName}`;
+            await fsPromise.writeFile(source, pdfBytes);
         }
-        return path;
+
+        return { source, fileName };
     }
 
     async unfurlImage({
@@ -383,7 +398,10 @@ export class UnfurlService extends BaseService {
         context: ScreenshotContext;
         contextId?: unknown;
         selectedTabs?: string[];
-    }): Promise<{ imageUrl?: string; pdfPath?: string }> {
+    }): Promise<{
+        imageUrl?: string;
+        pdfFile?: { source: string; fileName: string };
+    }> {
         const cookie = await this.getUserCookie(authUserUuid);
         const details = await this.unfurlDetails(url, selectedTabs);
 
@@ -407,10 +425,11 @@ export class UnfurlService extends BaseService {
         });
 
         let imageUrl;
-        let pdfPath;
+        let pdfFile;
+
         if (buffer !== undefined) {
             if (withPdf) {
-                pdfPath = await this.createImagePdf(imageId, buffer);
+                pdfFile = await this.createImagePdf(imageId, buffer);
             }
 
             if (this.s3Client.isEnabled()) {
@@ -432,7 +451,10 @@ export class UnfurlService extends BaseService {
             }
         }
 
-        return { imageUrl, pdfPath };
+        return {
+            imageUrl,
+            pdfFile,
+        };
     }
 
     async exportDashboard(
