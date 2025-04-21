@@ -1,3 +1,10 @@
+## [0.1589.1](https://github.com/lightdash/lightdash/compare/0.1589.0...0.1589.1) (2025-04-21)
+
+
+### Bug Fixes
+
+* don't trigger unfurl timeout when there are 0 expected responses ([#14463](https://github.com/lightdash/lightdash/issues/14463)) ([e4437f8](https://github.com/lightdash/lightdash/commit/e4437f869c1c3d67be03a142b65d2ff0d3f79521))
+
 # [0.1589.0](https://github.com/lightdash/lightdash/compare/0.1588.0...0.1589.0) (2025-04-17)
 
 
