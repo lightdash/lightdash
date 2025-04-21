@@ -1,3 +1,10 @@
+## [0.1589.4](https://github.com/lightdash/lightdash/compare/0.1589.3...0.1589.4) (2025-04-21)
+
+
+### Bug Fixes
+
+* formatted value custom tooltip ([#14475](https://github.com/lightdash/lightdash/issues/14475)) ([290c54d](https://github.com/lightdash/lightdash/commit/290c54ddaf3271a398fd879bed2d0b97326a7b67))
+
 ## [0.1589.3](https://github.com/lightdash/lightdash/compare/0.1589.2...0.1589.3) (2025-04-21)
 
 
