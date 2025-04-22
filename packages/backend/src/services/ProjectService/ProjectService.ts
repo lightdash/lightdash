@@ -3872,9 +3872,9 @@ export class ProjectService extends BaseService {
                  group_by_query AS (${groupByQuery}), 
                  pivot_query AS (${pivotQuery}),
                  filtered_rows AS (
-                    SELECT * FROM pivot_query WHERE "row_index" <= ${
-                        limit ?? 500
-                    }
+                    SELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${
+                limit ?? 500
+            }
                  ),
                  total_columns AS (
                     SELECT (COUNT(DISTINCT ${groupByColumns
