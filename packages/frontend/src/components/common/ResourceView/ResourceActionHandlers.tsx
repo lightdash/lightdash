@@ -305,6 +305,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         case ResourceViewItemAction.TRANSFER_TO_SPACE:
             return (
                 <TransferItemsModal
+                    projectUuid={projectUuid}
                     opened
                     onClose={handleReset}
                     items={[action.item]}
