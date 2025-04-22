@@ -188,32 +188,38 @@ const getAllSpaces = async (
     const spaces = await knex
         .with('space_counts', (qb) =>
             qb
-                .select(
-                    's.space_id',
-                    knex.raw(
-                        'COUNT(DISTINCT d.dashboard_id) as dashboard_count',
+                .select({
+                    space_id: `${SpaceTableName}.space_id`,
+                    dashboard_count: knex.countDistinct(
+                        `${DashboardsTableName}.dashboard_id`,
                     ),
-                    knex.raw(
-                        'COUNT(DISTINCT sq.saved_query_id) as chart_count',
+                    chart_count: knex.countDistinct(
+                        `${SavedChartsTableName}.saved_query_id`,
                     ),
-                )
-                .from(`${SpaceTableName} as s`)
-                .leftJoin(
-                    `${DashboardsTableName} as d`,
-                    'd.space_id',
-                    's.space_id',
-                )
-                .leftJoin(
-                    `${SavedChartsTableName} as sq`,
-                    'sq.space_id',
-                    's.space_id',
-                )
-                .whereIn('s.space_uuid', function getSpacesByPinnedListUuid() {
-                    return this.select('ps.space_uuid')
-                        .from(`${PinnedSpaceTableName} as ps`)
-                        .where('ps.pinned_list_uuid', pinnedListUuid);
                 })
-                .groupBy('s.space_id'),
+                .from(SpaceTableName)
+                .leftJoin(
+                    DashboardsTableName,
+                    `${DashboardsTableName}.space_id`,
+                    `${SpaceTableName}.space_id`,
+                )
+                .leftJoin(
+                    SavedChartsTableName,
+                    `${SavedChartsTableName}.space_id`,
+                    `${SpaceTableName}.space_id`,
+                )
+                .whereIn(
+                    `${SpaceTableName}.space_uuid`,
+                    function getSpacesByPinnedListUuid() {
+                        return this.select(`${PinnedSpaceTableName}.space_uuid`)
+                            .from(PinnedSpaceTableName)
+                            .where(
+                                `${PinnedSpaceTableName}.pinned_list_uuid`,
+                                pinnedListUuid,
+                            );
+                    },
+                )
+                .groupBy(`${SpaceTableName}.space_id`),
         )
         .from(PinnedListTableName)
         .innerJoin(
