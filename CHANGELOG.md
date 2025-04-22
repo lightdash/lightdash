@@ -1,3 +1,45 @@
+# [0.1591.0](https://github.com/lightdash/lightdash/compare/0.1590.0...0.1591.0) (2025-04-22)
+
+
+### Features
+
+* tree component visual improvements ([#14456](https://github.com/lightdash/lightdash/issues/14456)) ([e3fc7c8](https://github.com/lightdash/lightdash/commit/e3fc7c87c46de8921b67308758c17a7d7f5f88b8))
+
+# [0.1590.0](https://github.com/lightdash/lightdash/compare/0.1589.4...0.1590.0) (2025-04-22)
+
+
+### Features
+
+* display access and contents information for nested spaces ([#14453](https://github.com/lightdash/lightdash/issues/14453)) ([9e467b7](https://github.com/lightdash/lightdash/commit/9e467b78216821cc706f87296701d44718480c72))
+
+## [0.1589.4](https://github.com/lightdash/lightdash/compare/0.1589.3...0.1589.4) (2025-04-21)
+
+
+### Bug Fixes
+
+* formatted value custom tooltip ([#14475](https://github.com/lightdash/lightdash/issues/14475)) ([290c54d](https://github.com/lightdash/lightdash/commit/290c54ddaf3271a398fd879bed2d0b97326a7b67))
+
+## [0.1589.3](https://github.com/lightdash/lightdash/compare/0.1589.2...0.1589.3) (2025-04-21)
+
+
+### Bug Fixes
+
+* sort series for fallback colors ([#14469](https://github.com/lightdash/lightdash/issues/14469)) ([d91784f](https://github.com/lightdash/lightdash/commit/d91784f2f666669baadaf796ea7d6b812dd02e2e))
+
+## [0.1589.2](https://github.com/lightdash/lightdash/compare/0.1589.1...0.1589.2) (2025-04-21)
+
+
+### Bug Fixes
+
+* slack upload PDF attachment in thread ([#14466](https://github.com/lightdash/lightdash/issues/14466)) ([b492e33](https://github.com/lightdash/lightdash/commit/b492e33b874ebddd04fa41a73fa495e03b70f79e))
+
+## [0.1589.1](https://github.com/lightdash/lightdash/compare/0.1589.0...0.1589.1) (2025-04-21)
+
+
+### Bug Fixes
+
+* don't trigger unfurl timeout when there are 0 expected responses ([#14463](https://github.com/lightdash/lightdash/issues/14463)) ([e4437f8](https://github.com/lightdash/lightdash/commit/e4437f869c1c3d67be03a142b65d2ff0d3f79521))
+
 # [0.1589.0](https://github.com/lightdash/lightdash/compare/0.1588.0...0.1589.0) (2025-04-17)
 
 
