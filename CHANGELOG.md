@@ -1,3 +1,10 @@
+## [0.1591.3](https://github.com/lightdash/lightdash/compare/0.1591.2...0.1591.3) (2025-04-22)
+
+
+### Bug Fixes
+
+* add quotes wraping row_index ([#14481](https://github.com/lightdash/lightdash/issues/14481)) ([894ed2d](https://github.com/lightdash/lightdash/commit/894ed2da7972e48cb67b5640917cb8643f66340a))
+
 ## [0.1591.2](https://github.com/lightdash/lightdash/compare/0.1591.1...0.1591.2) (2025-04-22)
 
 
