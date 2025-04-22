@@ -123,6 +123,8 @@ const Space: FC = () => {
 
     console.log(space.breadcrumbs, 'hello');
 
+    console.log(space.parentSpaceUuid);
+
     return (
         <Page
             title={space?.name}
