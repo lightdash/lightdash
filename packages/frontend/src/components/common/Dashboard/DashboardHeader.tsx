@@ -17,6 +17,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconArrowsMaximize,
     IconArrowsMinimize,
@@ -139,10 +140,10 @@ const DashboardHeader = ({
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
     const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
-    const [isTransferToSpaceModalOpen, toggleTransferToSpaceModal] =
-        useToggle(false);
     const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
         useToggle(false);
+    const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
+        useDisclosure(false);
     const handleEditClick = () => {
         setIsUpdating(true);
         track({ name: EventName.UPDATE_DASHBOARD_NAME_CLICKED });
@@ -312,12 +313,12 @@ const DashboardHeader = ({
                 {areNestedSpacesEnabled && isTransferToSpaceModalOpen && (
                     <TransferItemsModal
                         opened={isTransferToSpaceModalOpen}
-                        onClose={() => toggleTransferToSpaceModal(false)}
+                        onClose={transferToSpaceModalHandlers.close}
                         items={[dashboard]}
                         spaces={spaces}
                         onConfirm={(spaceUuid) => {
                             onMoveToSpace(spaceUuid);
-                            toggleTransferToSpaceModal(false);
+                            transferToSpaceModalHandlers.close();
                         }}
                     />
                 )}
@@ -477,11 +478,9 @@ const DashboardHeader = ({
                                                         icon={IconFolderSymlink}
                                                     />
                                                 }
-                                                onClick={() => {
-                                                    toggleTransferToSpaceModal(
-                                                        true,
-                                                    );
-                                                }}
+                                                onClick={
+                                                    transferToSpaceModalHandlers.open
+                                                }
                                             >
                                                 Transfer to space
                                             </Menu.Item>
