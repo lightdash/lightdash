@@ -307,7 +307,8 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                 <TransferItemsModal
                     opened
                     onClose={handleReset}
-                    items={spaces ?? []}
+                    items={[action.item]}
+                    spaces={spaces ?? []}
                     onConfirm={(spaceUuid) => {
                         moveToSpace(action.item, spaceUuid);
                         handleReset();

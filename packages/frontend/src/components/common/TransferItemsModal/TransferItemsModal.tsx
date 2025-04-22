@@ -7,23 +7,33 @@ import {
     ScrollArea,
     Text,
 } from '@mantine/core';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import MantineModal, { type MantineModalProps } from '../MantineModal';
 import Tree from '../Tree/Tree';
 import { type NestableItem } from '../Tree/types';
 
-type Props<T> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
-    items: T[];
+type Props<T, U> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
+    items: T;
+    spaces: U;
     onConfirm: (spaceUuid: string) => void;
 };
 
-const TransferItemsModal = <T extends NestableItem>({
+const TransferItemsModal = <
+    T extends Array<unknown>,
+    U extends Array<NestableItem>,
+>({
     opened,
     onClose,
     items,
+    spaces,
     onConfirm,
-}: Props<T>) => {
+}: Props<T, U>) => {
     const [spaceUuid, setSpaceUuid] = useState<string | null>(null);
+
+    const selectedSpaceLabel = useMemo(() => {
+        if (!spaceUuid) return null;
+        return spaces.find((space) => space.uuid === spaceUuid)?.name;
+    }, [spaceUuid, spaces]);
 
     return (
         <MantineModal
@@ -54,7 +64,8 @@ const TransferItemsModal = <T extends NestableItem>({
             }
         >
             <Text fz="sm" fw={500}>
-                Select a space to transfer items to:
+                Select a space to transfer {items.length > 1 ? 'items' : 'item'}{' '}
+                to:
             </Text>
 
             <Paper
@@ -66,14 +77,22 @@ const TransferItemsModal = <T extends NestableItem>({
                 py="xs"
             >
                 <Tree
-                    data={items}
+                    data={spaces}
                     value={spaceUuid}
                     onChange={setSpaceUuid}
-                    topLevelLabel="Transfer items"
+                    topLevelLabel="Spaces"
                 />
             </Paper>
 
-            <Alert color="gray">balala</Alert>
+            {selectedSpaceLabel ? (
+                <Alert color="gray">
+                    <Text fw={500}>
+                        Transfer {items.length}{' '}
+                        {items.length > 1 ? 'items' : 'item'} to{' '}
+                        {selectedSpaceLabel}.
+                    </Text>
+                </Alert>
+            ) : null}
         </MantineModal>
     );
 };
