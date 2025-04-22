@@ -11,7 +11,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import React, { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useTableTabStyles } from '../../../hooks/styles/useTableTabStyles';
 import MantineIcon from '../MantineIcon';
 import ResourceActionHandlers from './ResourceActionHandlers';

@@ -20,7 +20,7 @@ const modalSizes = {
     lg: 480,
 } as const;
 
-type MantineModalProps = {
+export type MantineModalProps = {
     opened: boolean;
     onClose: () => void;
     title: string;
@@ -96,7 +96,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                     })}
                     {...modalBodyProps}
                 >
-                    <Stack p="xl" spacing="md">
+                    <Stack px="xl" py="md" spacing="md">
                         {children}
                     </Stack>
                 </Modal.Body>
