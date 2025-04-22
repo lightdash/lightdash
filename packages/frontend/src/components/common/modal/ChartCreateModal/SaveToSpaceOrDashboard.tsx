@@ -20,7 +20,7 @@ import {
     Textarea,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
 import {
@@ -42,6 +42,11 @@ import { saveToDashboardSchema, saveToSpaceSchema } from './types';
 enum SaveDestination {
     Dashboard = 'dashboard',
     Space = 'space',
+}
+
+enum ModalStep {
+    InitialInfo,
+    SelectDestination,
 }
 
 const saveToSpaceOrDashboardSchema = z
@@ -86,6 +91,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     const [saveDestination, setSaveDestination] = useState<SaveDestination>(
         SaveDestination.Space,
     );
+    const [currentStep, setCurrentStep] = useState<ModalStep>(
+        ModalStep.InitialInfo,
+    );
 
     const form = useForm<FormValues>({
         validate: zodResolver(saveToSpaceOrDashboardSchema),
@@ -122,37 +130,51 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         staleTime: 0,
     });
 
-    useEffect(() => {
-        if (!isSpacesSuccess || !isDashboardsSuccess) return;
-        if (form.initialized) return;
+    useEffect(
+        function initializeForm() {
+            if (!isSpacesSuccess || !isDashboardsSuccess) return;
+            if (form.initialized) return;
 
-        const isValidDefaultSpaceUuid = spaces.some(
-            (space) => space.uuid === defaultSpaceUuid,
-        );
+            const initialValues: FormValues = {
+                name: '',
+                description: null,
+                newSpaceName: null,
+                dashboardUuid: dashboardInfoFromSavedData.dashboardUuid,
+                spaceUuid: null,
+            };
 
-        const initialSpaceUuid = isValidDefaultSpaceUuid
-            ? defaultSpaceUuid
-            : spaces[0].uuid;
+            form.initialize(initialValues);
+        },
+        [
+            form,
+            dashboardInfoFromSavedData.dashboardUuid,
+            isDashboardsSuccess,
+            isSpacesSuccess,
+        ],
+    );
 
-        const initialValues: FormValues = {
-            name: '',
-            description: null,
+    useEffect(
+        function setSpaceWhenUserReachesSelectionStep() {
+            if (
+                currentStep === ModalStep.SelectDestination &&
+                saveDestination === SaveDestination.Space &&
+                form.values.spaceUuid === null
+            ) {
+                const isValidDefaultSpaceUuid = spaces?.some(
+                    (space) => space.uuid === defaultSpaceUuid,
+                );
 
-            newSpaceName: null,
+                const initialSpaceUuid = isValidDefaultSpaceUuid
+                    ? defaultSpaceUuid
+                    : spaces?.[0]?.uuid;
 
-            dashboardUuid: dashboardInfoFromSavedData.dashboardUuid,
-            spaceUuid: initialSpaceUuid ?? null,
-        };
-
-        form.initialize(initialValues);
-    }, [
-        form,
-        dashboardInfoFromSavedData.dashboardUuid,
-        defaultSpaceUuid,
-        isDashboardsSuccess,
-        isSpacesSuccess,
-        spaces,
-    ]);
+                if (initialSpaceUuid) {
+                    form.setFieldValue('spaceUuid', initialSpaceUuid);
+                }
+            }
+        },
+        [currentStep, saveDestination, form, spaces, defaultSpaceUuid],
+    );
 
     const { mutateAsync: updateDashboard } = useUpdateDashboard(
         form.values.dashboardUuid ?? undefined,
@@ -161,8 +183,28 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         form.values.dashboardUuid ?? undefined,
     );
 
+    const isFormReadyToSave = useMemo(() => {
+        if (currentStep === ModalStep.SelectDestination) {
+            if (saveDestination === SaveDestination.Space) {
+                return (
+                    form.values.newSpaceName ||
+                    (form.values.spaceUuid !== null &&
+                        form.values.spaceUuid !== undefined)
+                );
+            }
+            if (saveDestination === SaveDestination.Dashboard) {
+                return form.values.dashboardUuid;
+            }
+        }
+        return false;
+    }, [currentStep, form.values, saveDestination]);
+
     const handleOnSubmit = useCallback(
         async (values: FormValues) => {
+            if (!isFormReadyToSave) {
+                return;
+            }
+
             let savedQuery: SavedChart | undefined;
             /**
              * Create chart
@@ -231,6 +273,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             }
         },
         [
+            isFormReadyToSave,
             saveDestination,
             selectedDashboard,
             createChart,
@@ -248,62 +291,82 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         isSavingChart ||
         isSavingSpace;
 
+    const handleBack = () => {
+        setCurrentStep(ModalStep.InitialInfo);
+    };
+
+    const handleNextStep = () => {
+        setCurrentStep(ModalStep.SelectDestination);
+    };
+
     return (
-        <form onSubmit={form.onSubmit((values) => handleOnSubmit(values))}>
+        <form
+            onSubmit={(e) => {
+                if (currentStep === ModalStep.InitialInfo) {
+                    return;
+                }
+                form.onSubmit((values) => handleOnSubmit(values))(e);
+            }}
+        >
             <LoadingOverlay visible={isLoading} />
 
             <Box p="md">
-                <Stack spacing="xs">
-                    <TextInput
-                        label="Chart name"
-                        placeholder="eg. How many weekly active users do we have?"
-                        required
-                        {...form.getInputProps('name')}
-                        value={form.values.name ?? ''}
-                        data-testid="ChartCreateModal/NameInput"
-                    />
-                    <Textarea
-                        label="Chart description"
-                        placeholder="A few words to give your team some context"
-                        autosize
-                        maxRows={3}
-                        {...form.getInputProps('description')}
-                        value={form.values.description ?? ''}
-                    />
-                </Stack>
+                {currentStep === ModalStep.InitialInfo && (
+                    <Stack spacing="xs">
+                        <TextInput
+                            label="Chart name"
+                            placeholder="eg. How many weekly active users do we have?"
+                            required
+                            {...form.getInputProps('name')}
+                            value={form.values.name ?? ''}
+                            data-testid="ChartCreateModal/NameInput"
+                        />
+                        <Textarea
+                            label="Chart description"
+                            placeholder="A few words to give your team some context"
+                            autosize
+                            maxRows={3}
+                            {...form.getInputProps('description')}
+                            value={form.values.description ?? ''}
+                        />
 
-                <Stack spacing="sm" mt="sm">
-                    <Radio.Group
-                        size="xs"
-                        value={saveDestination}
-                        onChange={(value: SaveDestination) =>
-                            setSaveDestination(value)
-                        }
-                    >
-                        <Group spacing="xs" mb="xs">
+                        <Stack spacing="sm" mt="sm">
                             <Text fw={500}>Save to</Text>
 
-                            <Radio
-                                value={SaveDestination.Space}
-                                label="Space"
-                                styles={(theme) => ({
-                                    label: {
-                                        paddingLeft: theme.spacing.xs,
-                                    },
-                                })}
-                                disabled={!spaces || isLoadingSpaces}
-                            />
-                            <Radio
-                                value={SaveDestination.Dashboard}
-                                label="Dashboard"
-                                styles={(theme) => ({
-                                    label: {
-                                        paddingLeft: theme.spacing.xs,
-                                    },
-                                })}
-                            />
-                        </Group>
+                            <Radio.Group
+                                value={saveDestination}
+                                onChange={(value: SaveDestination) =>
+                                    setSaveDestination(value)
+                                }
+                            >
+                                <Stack spacing="xs">
+                                    <Radio
+                                        value={SaveDestination.Space}
+                                        label="Space"
+                                        styles={(theme) => ({
+                                            label: {
+                                                paddingLeft: theme.spacing.xs,
+                                            },
+                                        })}
+                                        disabled={!spaces || isLoadingSpaces}
+                                    />
+                                    <Radio
+                                        value={SaveDestination.Dashboard}
+                                        label="Dashboard"
+                                        styles={(theme) => ({
+                                            label: {
+                                                paddingLeft: theme.spacing.xs,
+                                            },
+                                        })}
+                                    />
+                                </Stack>
+                            </Radio.Group>
+                        </Stack>
+                    </Stack>
+                )}
 
+                {currentStep === ModalStep.SelectDestination && (
+                    <>
                         {saveDestination === SaveDestination.Space ? (
                             <SaveToSpaceForm
                                 form={form}
@@ -326,8 +389,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                 `Unknown save destination ${saveDestination}`,
                             )
                         )}
-                    </Radio.Group>
-                </Stack>
+                    </>
+                )}
             </Box>
             <Group
                 position="right"
@@ -338,24 +401,38 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     padding: theme.spacing.md,
                 })}
             >
-                <Button onClick={onClose} variant="outline">
-                    Cancel
-                </Button>
-
-                <Button
-                    type="submit"
-                    loading={isSavingChart || isSavingSpace}
-                    disabled={
-                        !form.values.name ||
-                        (!form.values.newSpaceName &&
-                            saveDestination === SaveDestination.Space &&
-                            !form.values.spaceUuid) ||
-                        (!form.values.dashboardUuid &&
-                            saveDestination === SaveDestination.Dashboard)
-                    }
-                >
-                    Save
-                </Button>
+                {currentStep === ModalStep.InitialInfo ? (
+                    <>
+                        <Button onClick={onClose} variant="outline">
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={(
+                                e: React.MouseEvent<HTMLButtonElement>,
+                            ) => {
+                                e.preventDefault();
+                                handleNextStep();
+                            }}
+                            disabled={!form.values.name}
+                            type="button"
+                        >
+                            Next
+                        </Button>
+                    </>
+                ) : (
+                    <>
+                        <Button onClick={handleBack} variant="outline">
+                            Back
+                        </Button>
+                        <Button
+                            type="submit"
+                            loading={isSavingChart || isSavingSpace}
+                            disabled={!isFormReadyToSave}
+                        >
+                            Save
+                        </Button>
+                    </>
+                )}
             </Group>
         </form>
     );
