@@ -21,10 +21,8 @@ const SaveToDashboardForm = <T extends SaveToDashboardFormType>({
 }: Props<T>) => {
     return (
         <Select
-            description="Select a dashboard to save the chart directly to"
             id="select-dashboard"
             label="Dashboard"
-            size="xs"
             data={dashboards.map((d) => ({
                 value: d.uuid,
                 label: d.name,
