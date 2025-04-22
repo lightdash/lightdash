@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
     type Dashboard,
-    type FeatureFlags,
     type SpaceSummary,
 } from '@lightdash/common';
 import {
@@ -28,6 +28,7 @@ import {
     IconFolder,
     IconFolderPlus,
     IconFolders,
+    IconFolderSymlink,
     IconInfoCircle,
     IconPencil,
     IconPin,
@@ -65,6 +66,7 @@ import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
 import ViewInfo from '../PageHeader/ViewInfo';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
+import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import ShareLinkButton from './ShareLinkButton';
@@ -118,6 +120,12 @@ const DashboardHeader = ({
     setAddingTab,
     onEditClicked,
 }: DashboardHeaderProps) => {
+    const isDashboardSummariesEnabled = useFeatureFlagEnabled(
+        'ai-dashboard-summary' as FeatureFlags,
+    );
+    const areNestedSpacesEnabled =
+        useFeatureFlagEnabled(FeatureFlags.NestedSpaces) || true;
+
     const { search } = useLocation();
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
@@ -130,6 +138,8 @@ const DashboardHeader = ({
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
     const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
+    const [isTransferToSpaceModalOpen, toggleTransferToSpaceModal] =
+        useToggle(false);
     const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
         useToggle(false);
     const handleEditClick = () => {
@@ -195,9 +205,6 @@ const DashboardHeader = ({
         }),
     );
 
-    const isDashboardSummariesEnabled = useFeatureFlagEnabled(
-        'ai-dashboard-summary' as FeatureFlags,
-    );
     const handleDashboardRefreshUpdateEvent = useCallback(
         (intervalMin?: number) => {
             track({
@@ -298,6 +305,19 @@ const DashboardHeader = ({
                         opened={isUpdating}
                         onClose={() => setIsUpdating(false)}
                         onConfirm={() => setIsUpdating(false)}
+                    />
+                )}
+
+                {areNestedSpacesEnabled && isTransferToSpaceModalOpen && (
+                    <TransferItemsModal
+                        opened={isTransferToSpaceModalOpen}
+                        onClose={() => toggleTransferToSpaceModal(false)}
+                        items={[dashboard]}
+                        spaces={spaces}
+                        onConfirm={(spaceUuid) => {
+                            onMoveToSpace(spaceUuid);
+                            toggleTransferToSpaceModal(false);
+                        }}
                     />
                 )}
             </Group>
@@ -449,138 +469,165 @@ const DashboardHeader = ({
                                             Duplicate
                                         </Menu.Item>
 
-                                        <Menu.Item
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconFolders}
-                                                />
-                                            }
-                                            onClick={(
-                                                e: React.MouseEvent<HTMLButtonElement>,
-                                            ) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                            }}
-                                        >
-                                            <Menu
-                                                width={250}
-                                                withArrow
-                                                position="left-start"
-                                                shadow="md"
-                                                offset={40}
-                                                trigger="hover"
+                                        {areNestedSpacesEnabled ? (
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={IconFolderSymlink}
+                                                    />
+                                                }
+                                                onClick={() => {
+                                                    toggleTransferToSpaceModal(
+                                                        true,
+                                                    );
+                                                }}
                                             >
-                                                <Menu.Target>
-                                                    <Flex
-                                                        justify="space-between"
-                                                        align="center"
-                                                    >
-                                                        Move to space
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconChevronRight
-                                                            }
-                                                        />
-                                                    </Flex>
-                                                </Menu.Target>
-                                                <Menu.Dropdown>
-                                                    {spaces
-                                                        ?.filter((space) => {
-                                                            return user.data?.ability.can(
-                                                                'create',
-                                                                subject(
-                                                                    'Dashboard',
-                                                                    {
-                                                                        ...space,
-                                                                        access: space.userAccess
-                                                                            ? [
-                                                                                  space.userAccess,
-                                                                              ]
-                                                                            : [],
-                                                                    },
-                                                                ),
-                                                            );
-                                                        })
-                                                        .map((spaceToMove) => {
-                                                            const isDisabled =
-                                                                dashboard.spaceUuid ===
-                                                                spaceToMove.uuid;
-
-                                                            return (
-                                                                <Menu.Item
-                                                                    icon={
-                                                                        <MantineIcon
-                                                                            icon={
-                                                                                isDisabled
-                                                                                    ? IconCheck
-                                                                                    : IconFolder
-                                                                            }
-                                                                        />
-                                                                    }
-                                                                    color={
-                                                                        isDisabled
-                                                                            ? 'gray.5'
-                                                                            : ''
-                                                                    }
-                                                                    onClick={(
-                                                                        e: React.MouseEvent<HTMLButtonElement>,
-                                                                    ) => {
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation();
-                                                                        if (
-                                                                            dashboard.spaceUuid !==
-                                                                            spaceToMove.uuid
-                                                                        ) {
-                                                                            onMoveToSpace(
-                                                                                spaceToMove.uuid,
-                                                                            );
-                                                                        }
-                                                                    }}
-                                                                    key={
-                                                                        spaceToMove.uuid
-                                                                    }
-                                                                >
-                                                                    {
-                                                                        spaceToMove.name
-                                                                    }
-                                                                </Menu.Item>
-                                                            );
-                                                        })}
-                                                    <Can
-                                                        I="create"
-                                                        this={subject('Space', {
-                                                            organizationUuid:
-                                                                user.data
-                                                                    ?.organizationUuid,
-                                                            projectUuid,
-                                                        })}
-                                                    >
-                                                        <Menu.Divider />
-
-                                                        <Menu.Item
-                                                            icon={
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        IconPlus
-                                                                    }
-                                                                />
-                                                            }
-                                                            onClick={(
-                                                                e: React.MouseEvent<HTMLButtonElement>,
-                                                            ) => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                                setIsCreatingNewSpace(
-                                                                    true,
-                                                                );
-                                                            }}
+                                                Transfer to space
+                                            </Menu.Item>
+                                        ) : (
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={IconFolders}
+                                                    />
+                                                }
+                                                onClick={(
+                                                    e: React.MouseEvent<HTMLButtonElement>,
+                                                ) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                }}
+                                            >
+                                                <Menu
+                                                    width={250}
+                                                    withArrow
+                                                    position="left-start"
+                                                    shadow="md"
+                                                    offset={40}
+                                                    trigger="hover"
+                                                >
+                                                    <Menu.Target>
+                                                        <Flex
+                                                            justify="space-between"
+                                                            align="center"
                                                         >
-                                                            Create new space
-                                                        </Menu.Item>
-                                                    </Can>
-                                                </Menu.Dropdown>
-                                            </Menu>
-                                        </Menu.Item>
+                                                            Move to space
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconChevronRight
+                                                                }
+                                                            />
+                                                        </Flex>
+                                                    </Menu.Target>
+                                                    <Menu.Dropdown>
+                                                        {spaces
+                                                            ?.filter(
+                                                                (space) => {
+                                                                    return user.data?.ability.can(
+                                                                        'create',
+                                                                        subject(
+                                                                            'Dashboard',
+                                                                            {
+                                                                                ...space,
+                                                                                access: space.userAccess
+                                                                                    ? [
+                                                                                          space.userAccess,
+                                                                                      ]
+                                                                                    : [],
+                                                                            },
+                                                                        ),
+                                                                    );
+                                                                },
+                                                            )
+                                                            .map(
+                                                                (
+                                                                    spaceToMove,
+                                                                ) => {
+                                                                    const isDisabled =
+                                                                        dashboard.spaceUuid ===
+                                                                        spaceToMove.uuid;
+
+                                                                    return (
+                                                                        <Menu.Item
+                                                                            icon={
+                                                                                <MantineIcon
+                                                                                    icon={
+                                                                                        isDisabled
+                                                                                            ? IconCheck
+                                                                                            : IconFolder
+                                                                                    }
+                                                                                />
+                                                                            }
+                                                                            color={
+                                                                                isDisabled
+                                                                                    ? 'gray.5'
+                                                                                    : ''
+                                                                            }
+                                                                            onClick={(
+                                                                                e: React.MouseEvent<HTMLButtonElement>,
+                                                                            ) => {
+                                                                                e.preventDefault();
+                                                                                e.stopPropagation();
+                                                                                if (
+                                                                                    dashboard.spaceUuid !==
+                                                                                    spaceToMove.uuid
+                                                                                ) {
+                                                                                    onMoveToSpace(
+                                                                                        spaceToMove.uuid,
+                                                                                    );
+                                                                                }
+                                                                            }}
+                                                                            key={
+                                                                                spaceToMove.uuid
+                                                                            }
+                                                                        >
+                                                                            {
+                                                                                spaceToMove.name
+                                                                            }
+                                                                        </Menu.Item>
+                                                                    );
+                                                                },
+                                                            )}
+                                                        <Can
+                                                            I="create"
+                                                            this={subject(
+                                                                'Space',
+                                                                {
+                                                                    organizationUuid:
+                                                                        user
+                                                                            .data
+                                                                            ?.organizationUuid,
+                                                                    projectUuid,
+                                                                },
+                                                            )}
+                                                        >
+                                                            <Menu.Divider />
+
+                                                            <Menu.Item
+                                                                icon={
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            IconPlus
+                                                                        }
+                                                                    />
+                                                                }
+                                                                onClick={(
+                                                                    e: React.MouseEvent<HTMLButtonElement>,
+                                                                ) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    setIsCreatingNewSpace(
+                                                                        true,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                Create new space
+                                                            </Menu.Item>
+                                                        </Can>
+                                                    </Menu.Dropdown>
+                                                </Menu>
+                                            </Menu.Item>
+                                        )}
                                     </>
                                 )}
 
