@@ -1,3 +1,10 @@
+## [0.1591.1](https://github.com/lightdash/lightdash/compare/0.1591.0...0.1591.1) (2025-04-22)
+
+
+### Bug Fixes
+
+* MantineModal scroll behavior ([#14479](https://github.com/lightdash/lightdash/issues/14479)) ([97ba649](https://github.com/lightdash/lightdash/commit/97ba6490901fc3d754c5040810e570310cce3169))
+
 # [0.1591.0](https://github.com/lightdash/lightdash/compare/0.1590.0...0.1591.0) (2025-04-22)
 
 
