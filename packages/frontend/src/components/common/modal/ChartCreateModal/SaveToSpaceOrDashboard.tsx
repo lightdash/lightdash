@@ -11,7 +11,6 @@ import {
 import {
     Box,
     Button,
-    Group,
     LoadingOverlay,
     Radio,
     Stack,
@@ -20,6 +19,7 @@ import {
     Textarea,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
@@ -35,6 +35,7 @@ import {
     useSpaceSummaries,
 } from '../../../../hooks/useSpaces';
 import useApp from '../../../../providers/App/useApp';
+import MantineModal from '../../MantineModal';
 import SaveToDashboardForm from './SaveToDashboardForm';
 import SaveToSpaceForm from './SaveToSpaceForm';
 import { saveToDashboardSchema, saveToSpaceSchema } from './types';
@@ -81,6 +82,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     onConfirm,
     onClose,
 }) => {
+    // TITLE: Save chart
     const { user } = useApp();
 
     const { mutateAsync: createChart, isLoading: isSavingChart } =
@@ -300,140 +302,146 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     };
 
     return (
-        <form
-            onSubmit={(e) => {
-                if (currentStep === ModalStep.InitialInfo) {
-                    return;
-                }
-                form.onSubmit((values) => handleOnSubmit(values))(e);
-            }}
-        >
-            <LoadingOverlay visible={isLoading} />
-
-            <Box p="md">
-                {currentStep === ModalStep.InitialInfo && (
-                    <Stack spacing="xs">
-                        <TextInput
-                            label="Chart name"
-                            placeholder="eg. How many weekly active users do we have?"
-                            required
-                            {...form.getInputProps('name')}
-                            value={form.values.name ?? ''}
-                            data-testid="ChartCreateModal/NameInput"
-                        />
-                        <Textarea
-                            label="Chart description"
-                            placeholder="A few words to give your team some context"
-                            autosize
-                            maxRows={3}
-                            {...form.getInputProps('description')}
-                            value={form.values.description ?? ''}
-                        />
-
-                        <Stack spacing="sm" mt="sm">
-                            <Text fw={500}>Save to</Text>
-
-                            <Radio.Group
-                                value={saveDestination}
-                                onChange={(value: SaveDestination) =>
-                                    setSaveDestination(value)
-                                }
+        <MantineModal
+            opened={true}
+            onClose={onClose}
+            title="Save chart"
+            icon={IconChartBar}
+            actions={
+                <>
+                    {currentStep === ModalStep.InitialInfo ? (
+                        <>
+                            <Button onClick={onClose} variant="outline">
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={(
+                                    e: React.MouseEvent<HTMLButtonElement>,
+                                ) => {
+                                    e.preventDefault();
+                                    handleNextStep();
+                                }}
+                                disabled={!form.values.name}
+                                type="button"
                             >
-                                <Stack spacing="xs">
-                                    <Radio
-                                        value={SaveDestination.Space}
-                                        label="Space"
-                                        styles={(theme) => ({
-                                            label: {
-                                                paddingLeft: theme.spacing.xs,
-                                            },
-                                        })}
-                                        disabled={!spaces || isLoadingSpaces}
-                                    />
-                                    <Radio
-                                        value={SaveDestination.Dashboard}
-                                        label="Dashboard"
-                                        styles={(theme) => ({
-                                            label: {
-                                                paddingLeft: theme.spacing.xs,
-                                            },
-                                        })}
-                                    />
-                                </Stack>
-                            </Radio.Group>
-                        </Stack>
-                    </Stack>
-                )}
-
-                {currentStep === ModalStep.SelectDestination && (
-                    <>
-                        {saveDestination === SaveDestination.Space ? (
-                            <SaveToSpaceForm
-                                form={form}
-                                isLoading={isLoadingSpaces}
-                                spaces={spaces}
-                                projectUuid={projectUuid}
-                            />
-                        ) : saveDestination === SaveDestination.Dashboard ? (
-                            <SaveToDashboardForm
-                                form={form}
-                                isLoading={
-                                    isLoadingDashboards || isLoadingSpaces
-                                }
-                                spaces={spaces}
-                                dashboards={dashboards}
-                            />
-                        ) : (
-                            assertUnreachable(
-                                saveDestination,
-                                `Unknown save destination ${saveDestination}`,
-                            )
-                        )}
-                    </>
-                )}
-            </Box>
-            <Group
-                position="right"
-                w="100%"
-                sx={(theme) => ({
-                    borderTop: `1px solid ${theme.colors.gray[4]}`,
-                    bottom: 0,
-                    padding: theme.spacing.md,
-                })}
+                                Next
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button onClick={handleBack} variant="outline">
+                                Back
+                            </Button>
+                            <Button
+                                type="submit"
+                                loading={isSavingChart || isSavingSpace}
+                                disabled={!isFormReadyToSave}
+                            >
+                                Save
+                            </Button>
+                        </>
+                    )}
+                </>
+            }
+        >
+            <form
+                onSubmit={(e) => {
+                    if (currentStep === ModalStep.InitialInfo) {
+                        return;
+                    }
+                    form.onSubmit((values) => handleOnSubmit(values))(e);
+                }}
             >
-                {currentStep === ModalStep.InitialInfo ? (
-                    <>
-                        <Button onClick={onClose} variant="outline">
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={(
-                                e: React.MouseEvent<HTMLButtonElement>,
-                            ) => {
-                                e.preventDefault();
-                                handleNextStep();
-                            }}
-                            disabled={!form.values.name}
-                            type="button"
-                        >
-                            Next
-                        </Button>
-                    </>
-                ) : (
-                    <>
-                        <Button onClick={handleBack} variant="outline">
-                            Back
-                        </Button>
-                        <Button
-                            type="submit"
-                            loading={isSavingChart || isSavingSpace}
-                            disabled={!isFormReadyToSave}
-                        >
-                            Save
-                        </Button>
-                    </>
-                )}
-            </Group>
-        </form>
+                <LoadingOverlay visible={isLoading} />
+
+                <Box>
+                    {currentStep === ModalStep.InitialInfo && (
+                        <Stack spacing="xs">
+                            <TextInput
+                                label="Chart name"
+                                placeholder="eg. How many weekly active users do we have?"
+                                required
+                                {...form.getInputProps('name')}
+                                value={form.values.name ?? ''}
+                                data-testid="ChartCreateModal/NameInput"
+                            />
+                            <Textarea
+                                label="Chart description"
+                                placeholder="A few words to give your team some context"
+                                autosize
+                                maxRows={3}
+                                {...form.getInputProps('description')}
+                                value={form.values.description ?? ''}
+                            />
+
+                            <Stack spacing="sm" mt="sm">
+                                <Text fw={500}>Save to</Text>
+
+                                <Radio.Group
+                                    value={saveDestination}
+                                    onChange={(value: SaveDestination) =>
+                                        setSaveDestination(value)
+                                    }
+                                >
+                                    <Stack spacing="xs">
+                                        <Radio
+                                            value={SaveDestination.Space}
+                                            label="Space"
+                                            styles={(theme) => ({
+                                                label: {
+                                                    paddingLeft:
+                                                        theme.spacing.xs,
+                                                },
+                                            })}
+                                            disabled={
+                                                !spaces || isLoadingSpaces
+                                            }
+                                        />
+                                        <Radio
+                                            value={SaveDestination.Dashboard}
+                                            label="Dashboard"
+                                            styles={(theme) => ({
+                                                label: {
+                                                    paddingLeft:
+                                                        theme.spacing.xs,
+                                                },
+                                            })}
+                                        />
+                                    </Stack>
+                                </Radio.Group>
+                            </Stack>
+                        </Stack>
+                    )}
+
+                    {currentStep === ModalStep.SelectDestination && (
+                        <>
+                            {saveDestination === SaveDestination.Space ? (
+                                <SaveToSpaceForm
+                                    form={form}
+                                    isLoading={isLoadingSpaces}
+                                    spaces={spaces}
+                                    projectUuid={projectUuid}
+                                />
+                            ) : saveDestination ===
+                              SaveDestination.Dashboard ? (
+                                <SaveToDashboardForm
+                                    form={form}
+                                    isLoading={
+                                        isLoadingDashboards || isLoadingSpaces
+                                    }
+                                    spaces={spaces}
+                                    dashboards={dashboards}
+                                />
+                            ) : (
+                                assertUnreachable(
+                                    saveDestination,
+                                    `Unknown save destination ${saveDestination}`,
+                                )
+                            )}
+                        </>
+                    )}
+                </Box>
+            </form>
+        </MantineModal>
     );
 };

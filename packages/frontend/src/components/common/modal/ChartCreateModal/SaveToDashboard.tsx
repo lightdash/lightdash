@@ -5,8 +5,9 @@ import {
     type CreateDashboardChartTile,
     type CreateSavedChartVersion,
 } from '@lightdash/common';
-import { Button, Group, Stack, Text, TextInput, Textarea } from '@mantine/core';
+import { Button, Stack, Text, TextInput, Textarea } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
@@ -18,6 +19,7 @@ import {
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
+import MantineModal from '../../MantineModal';
 
 type Props = {
     dashboardName: string | null;
@@ -152,54 +154,57 @@ export const SaveToDashboard: FC<Props> = ({
         ],
     );
     return (
-        <form
-            onSubmit={form.onSubmit((values) =>
-                handleSaveChartInDashboard(values),
-            )}
+        <MantineModal
+            opened={true}
+            icon={IconChartBar}
+            onClose={onClose}
+            actions={
+                <>
+                    <Button onClick={onClose} variant="outline">
+                        Cancel
+                    </Button>
+
+                    <Button type="submit" disabled={!form.values.name}>
+                        Save
+                    </Button>
+                </>
+            }
+            title={`Save chart "${editingDashboardInfo.name}"`}
         >
-            <Stack p="md">
-                <Stack spacing="xs">
-                    <TextInput
-                        label="Chart name"
-                        placeholder="eg. How many weekly active users do we have?"
-                        required
-                        {...form.getInputProps('name')}
-                        data-testid="ChartCreateModal/NameInput"
-                    />
-                    <Textarea
-                        label="Chart description"
-                        placeholder="A few words to give your team some context"
-                        autosize
-                        maxRows={3}
-                        {...form.getInputProps('description')}
-                    />
-                </Stack>
-                <Stack spacing="xxs">
-                    <Text fw={500}>Saving to "{dashboardName}" dashboard</Text>
-                    <Text fw={400} color="gray.6" fz="xs">
-                        This chart will be saved exclusively to the dashboard "
-                        {dashboardName}", keeping your space clutter-free.
-                    </Text>
-                </Stack>
-            </Stack>
-
-            <Group
-                position="right"
-                w="100%"
-                sx={(theme) => ({
-                    borderTop: `1px solid ${theme.colors.gray[4]}`,
-                    bottom: 0,
-                    padding: theme.spacing.md,
-                })}
+            <form
+                onSubmit={form.onSubmit((values) =>
+                    handleSaveChartInDashboard(values),
+                )}
             >
-                <Button onClick={onClose} variant="outline">
-                    Cancel
-                </Button>
-
-                <Button type="submit" disabled={!form.values.name}>
-                    Save
-                </Button>
-            </Group>
-        </form>
+                <Stack p="md">
+                    <Stack spacing="xs">
+                        <TextInput
+                            label="Chart name"
+                            placeholder="eg. How many weekly active users do we have?"
+                            required
+                            {...form.getInputProps('name')}
+                            data-testid="ChartCreateModal/NameInput"
+                        />
+                        <Textarea
+                            label="Chart description"
+                            placeholder="A few words to give your team some context"
+                            autosize
+                            maxRows={3}
+                            {...form.getInputProps('description')}
+                        />
+                    </Stack>
+                    <Stack spacing="xxs">
+                        <Text fw={500}>
+                            Saving to "{dashboardName}" dashboard
+                        </Text>
+                        <Text fw={400} color="gray.6" fz="xs">
+                            This chart will be saved exclusively to the
+                            dashboard "{dashboardName}", keeping your space
+                            clutter-free.
+                        </Text>
+                    </Stack>
+                </Stack>
+            </form>
+        </MantineModal>
     );
 };

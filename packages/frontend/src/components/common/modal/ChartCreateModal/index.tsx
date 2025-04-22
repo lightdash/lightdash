@@ -1,10 +1,7 @@
 import { type CreateSavedChartVersion } from '@lightdash/common';
-import { Group, Modal, Text } from '@mantine/core';
-import { IconChartBar } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
-import MantineIcon from '../../MantineIcon';
 import { SaveToDashboard } from './SaveToDashboard';
 import { SaveToSpaceOrDashboard } from './SaveToSpaceOrDashboard';
 
@@ -43,29 +40,12 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const getModalTitle = useCallback(() => {
-        if (saveMode === SaveMode.TO_DASHBOARD) {
-            return `Save chart "${editingDashboardInfo.name}"`;
-        }
-        return 'Save chart';
-    }, [saveMode, editingDashboardInfo]);
+    if (!isOpen) {
+        return null;
+    }
 
     return (
-        <Modal
-            opened={isOpen}
-            onClose={onClose}
-            keepMounted={false}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon icon={IconChartBar} size="lg" color="gray.7" />
-                    <Text fw={500}>{getModalTitle()}</Text>
-                </Group>
-            }
-            styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
-                body: { padding: 0 },
-            })}
-        >
+        <>
             {saveMode === SaveMode.TO_DASHBOARD && (
                 <SaveToDashboard
                     projectUuid={projectUuid}
@@ -89,7 +69,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                     }}
                 />
             )}
-        </Modal>
+        </>
     );
 };
 
