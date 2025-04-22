@@ -1,3 +1,10 @@
+## [0.1591.2](https://github.com/lightdash/lightdash/compare/0.1591.1...0.1591.2) (2025-04-22)
+
+
+### Bug Fixes
+
+* get all spaces query ([#14461](https://github.com/lightdash/lightdash/issues/14461)) ([5f2c078](https://github.com/lightdash/lightdash/commit/5f2c07836eedc9a6c6fb694283a5ea5e311a4619))
+
 ## [0.1591.1](https://github.com/lightdash/lightdash/compare/0.1591.0...0.1591.1) (2025-04-22)
 
 
