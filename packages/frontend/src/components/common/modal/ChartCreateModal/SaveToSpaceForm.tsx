@@ -1,12 +1,21 @@
 import { subject } from '@casl/ability';
-import { type SpaceSummary } from '@lightdash/common';
-import { Button, Select, Stack, TextInput } from '@mantine/core';
+import { type SpaceSummary, FeatureFlags } from '@lightdash/common';
+import {
+    Button,
+    Paper,
+    ScrollArea,
+    Select,
+    Stack,
+    TextInput,
+} from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
 import { Can } from '../../../../providers/Ability';
 import useApp from '../../../../providers/App/useApp';
 import MantineIcon from '../../MantineIcon';
+import Tree from '../../Tree/Tree';
 import { type SaveToSpaceFormType } from './types';
 
 type Props<T extends SaveToSpaceFormType> = {
@@ -26,6 +35,24 @@ const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
     const [shouldCreateNewSpace, setShouldCreateNewSpace] = useState(false);
     const isCreatingNewSpace =
         shouldCreateNewSpace || (spaces && spaces.length === 0);
+
+    // Check if NestedSpaces feature flag is enabled
+    const isNestedSpacesEnabled = useFeatureFlagEnabled(
+        FeatureFlags.NestedSpaces,
+    );
+
+    // Convert SpaceSummary array to NestableItem array for Tree component
+    const spacesToRenderInTree = useMemo(
+        () =>
+            isNestedSpacesEnabled
+                ? spaces.map((space) => ({
+                      uuid: space.uuid,
+                      name: space.name,
+                      path: space.path,
+                  }))
+                : [],
+        [isNestedSpacesEnabled, spaces],
+    );
 
     if (isCreatingNewSpace) {
         return (
@@ -59,19 +86,37 @@ const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
 
     return (
         <Stack spacing="xs">
-            <Select
-                size="xs"
-                searchable
-                label="Space"
-                description="Select a space to save the chart directly to"
-                withinPortal
-                data={spaces.map((space) => ({
-                    value: space.uuid,
-                    label: space.name,
-                }))}
-                {...form.getInputProps('spaceUuid')}
-                required
-            />
+            {isNestedSpacesEnabled ? (
+                <Paper
+                    component={ScrollArea}
+                    w="100%"
+                    h="200px"
+                    withBorder
+                    px="sm"
+                    py="xs"
+                >
+                    <Tree
+                        data={spacesToRenderInTree}
+                        value={form.values.spaceUuid}
+                        onChange={form.getInputProps('spaceUuid').onChange}
+                        topLevelLabel="Spaces"
+                    />
+                </Paper>
+            ) : (
+                <Select
+                    size="xs"
+                    searchable
+                    label="Space"
+                    description="Select a space to save the chart directly to"
+                    withinPortal
+                    data={spaces.map((space) => ({
+                        value: space.uuid,
+                        label: space.name,
+                    }))}
+                    {...form.getInputProps('spaceUuid')}
+                    required
+                />
+            )}
             <Can
                 I="create"
                 this={subject('Space', {
