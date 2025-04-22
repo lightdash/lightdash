@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     DashboardTileTypes,
+    FeatureFlags,
     assertUnreachable,
     getDefaultChartTileSize,
     type CreateSavedChartVersion,
@@ -20,6 +21,7 @@ import {
     Textarea,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
@@ -29,12 +31,12 @@ import {
     useUpdateDashboard,
 } from '../../../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
+import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
-import {
-    useCreateMutation as useSpaceCreateMutation,
-    useSpaceSummaries,
-} from '../../../../hooks/useSpaces';
+import { useSpaceManagement } from '../../../../hooks/useSpaceManagement';
+import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import useApp from '../../../../providers/App/useApp';
+import MantineIcon from '../../../common/MantineIcon';
 import SaveToDashboardForm from './SaveToDashboardForm';
 import SaveToSpaceForm from './SaveToSpaceForm';
 import { saveToDashboardSchema, saveToSpaceSchema } from './types';
@@ -85,8 +87,6 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
     const { mutateAsync: createChart, isLoading: isSavingChart } =
         useCreateMutation();
-    const { mutateAsync: createSpace, isLoading: isSavingSpace } =
-        useSpaceCreateMutation(projectUuid);
 
     const [saveDestination, setSaveDestination] = useState<SaveDestination>(
         SaveDestination.Space,
@@ -94,6 +94,18 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     const [currentStep, setCurrentStep] = useState<ModalStep>(
         ModalStep.InitialInfo,
     );
+
+    const spaceManagement = useSpaceManagement({
+        projectUuid,
+        defaultSpaceUuid,
+    });
+
+    const {
+        selectedSpaceUuid,
+        isCreatingNewSpace,
+        openCreateSpaceForm,
+        handleCreateNewSpace,
+    } = spaceManagement;
 
     const form = useForm<FormValues>({
         validate: zodResolver(saveToSpaceOrDashboardSchema),
@@ -109,6 +121,10 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             staleTime: 0,
         },
         true,
+    );
+
+    const isNestedSpacesEnabled = useFeatureFlagEnabled(
+        FeatureFlags.NestedSpaces,
     );
 
     const {
@@ -130,6 +146,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         staleTime: 0,
     });
 
+    const { initialize } = form;
+
     useEffect(
         function initializeForm() {
             if (!isSpacesSuccess || !isDashboardsSuccess) return;
@@ -143,21 +161,25 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                 spaceUuid: null,
             };
 
-            form.initialize(initialValues);
+            initialize(initialValues);
         },
         [
-            form,
+            form.initialized,
+            initialize,
             dashboardInfoFromSavedData.dashboardUuid,
             isDashboardsSuccess,
             isSpacesSuccess,
         ],
     );
 
+    const { setFieldValue } = form;
+
     useEffect(
         function setSpaceWhenUserReachesSelectionStep() {
             if (
                 currentStep === ModalStep.SelectDestination &&
                 saveDestination === SaveDestination.Space &&
+                !selectedSpaceUuid &&
                 form.values.spaceUuid === null
             ) {
                 const isValidDefaultSpaceUuid = spaces?.some(
@@ -169,11 +191,25 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     : spaces?.[0]?.uuid;
 
                 if (initialSpaceUuid) {
-                    form.setFieldValue('spaceUuid', initialSpaceUuid);
+                    if (isNestedSpacesEnabled) {
+                        spaceManagement.setSelectedSpaceUuid(initialSpaceUuid);
+                    }
+
+                    setFieldValue('spaceUuid', initialSpaceUuid);
                 }
             }
         },
-        [currentStep, saveDestination, form, spaces, defaultSpaceUuid],
+        [
+            currentStep,
+            saveDestination,
+            setFieldValue,
+            spaces,
+            defaultSpaceUuid,
+            selectedSpaceUuid,
+            spaceManagement,
+            form.values.spaceUuid,
+            isNestedSpacesEnabled,
+        ],
     );
 
     const { mutateAsync: updateDashboard } = useUpdateDashboard(
@@ -201,6 +237,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
     const handleOnSubmit = useCallback(
         async (values: FormValues) => {
+            console.log('values', values);
+            // return;
             if (!isFormReadyToSave) {
                 return;
             }
@@ -248,9 +286,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
              */
             if (saveDestination === SaveDestination.Space) {
                 let newSpace = values.newSpaceName
-                    ? await createSpace({
-                          name: values.newSpaceName,
-                          access: [],
+                    ? await handleCreateNewSpace({
                           isPrivate: true,
                       })
                     : undefined;
@@ -279,7 +315,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             createChart,
             savedData,
             updateDashboard,
-            createSpace,
+            handleCreateNewSpace,
             onConfirm,
         ],
     );
@@ -289,7 +325,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         isLoadingDashboards ||
         isLoadingSpaces ||
         isSavingChart ||
-        isSavingSpace;
+        spaceManagement.createSpaceMutation.isLoading;
 
     const handleBack = () => {
         setCurrentStep(ModalStep.InitialInfo);
@@ -298,6 +334,19 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     const handleNextStep = () => {
         setCurrentStep(ModalStep.SelectDestination);
     };
+
+    // Determine if we should show the "New Space" button
+    const shouldShowNewSpaceButton =
+        isNestedSpacesEnabled &&
+        currentStep === ModalStep.SelectDestination &&
+        saveDestination === SaveDestination.Space &&
+        !isCreatingNewSpace;
+
+    // Get the name of the selected space for display in SpaceCreationForm
+    const selectedSpaceName = useMemo(() => {
+        if (!selectedSpaceUuid) return undefined;
+        return spaces?.find((space) => space.uuid === selectedSpaceUuid)?.name;
+    }, [selectedSpaceUuid, spaces]);
 
     return (
         <form
@@ -373,6 +422,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                 isLoading={isLoadingSpaces}
                                 spaces={spaces}
                                 projectUuid={projectUuid}
+                                spaceManagement={spaceManagement}
+                                selectedSpaceName={selectedSpaceName}
                             />
                         ) : saveDestination === SaveDestination.Dashboard ? (
                             <SaveToDashboardForm
@@ -421,12 +472,27 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     </>
                 ) : (
                     <>
+                        {shouldShowNewSpaceButton && (
+                            <Button
+                                variant="subtle"
+                                size="xs"
+                                leftIcon={<MantineIcon icon={IconPlus} />}
+                                onClick={openCreateSpaceForm}
+                                mr="auto"
+                            >
+                                New Space
+                            </Button>
+                        )}
+
                         <Button onClick={handleBack} variant="outline">
                             Back
                         </Button>
                         <Button
                             type="submit"
-                            loading={isSavingChart || isSavingSpace}
+                            loading={
+                                isSavingChart ||
+                                spaceManagement.createSpaceMutation.isLoading
+                            }
                             disabled={!isFormReadyToSave}
                         >
                             Save
