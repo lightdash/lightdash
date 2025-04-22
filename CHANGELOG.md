@@ -1,3 +1,38 @@
+## [0.1591.3](https://github.com/lightdash/lightdash/compare/0.1591.2...0.1591.3) (2025-04-22)
+
+
+### Bug Fixes
+
+* add quotes wraping row_index ([#14481](https://github.com/lightdash/lightdash/issues/14481)) ([894ed2d](https://github.com/lightdash/lightdash/commit/894ed2da7972e48cb67b5640917cb8643f66340a))
+
+## [0.1591.2](https://github.com/lightdash/lightdash/compare/0.1591.1...0.1591.2) (2025-04-22)
+
+
+### Bug Fixes
+
+* get all spaces query ([#14461](https://github.com/lightdash/lightdash/issues/14461)) ([5f2c078](https://github.com/lightdash/lightdash/commit/5f2c07836eedc9a6c6fb694283a5ea5e311a4619))
+
+## [0.1591.1](https://github.com/lightdash/lightdash/compare/0.1591.0...0.1591.1) (2025-04-22)
+
+
+### Bug Fixes
+
+* MantineModal scroll behavior ([#14479](https://github.com/lightdash/lightdash/issues/14479)) ([97ba649](https://github.com/lightdash/lightdash/commit/97ba6490901fc3d754c5040810e570310cce3169))
+
+# [0.1591.0](https://github.com/lightdash/lightdash/compare/0.1590.0...0.1591.0) (2025-04-22)
+
+
+### Features
+
+* tree component visual improvements ([#14456](https://github.com/lightdash/lightdash/issues/14456)) ([e3fc7c8](https://github.com/lightdash/lightdash/commit/e3fc7c87c46de8921b67308758c17a7d7f5f88b8))
+
+# [0.1590.0](https://github.com/lightdash/lightdash/compare/0.1589.4...0.1590.0) (2025-04-22)
+
+
+### Features
+
+* display access and contents information for nested spaces ([#14453](https://github.com/lightdash/lightdash/issues/14453)) ([9e467b7](https://github.com/lightdash/lightdash/commit/9e467b78216821cc706f87296701d44718480c72))
+
 ## [0.1589.4](https://github.com/lightdash/lightdash/compare/0.1589.3...0.1589.4) (2025-04-21)
 
 

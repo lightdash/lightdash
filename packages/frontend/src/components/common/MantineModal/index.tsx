@@ -88,15 +88,15 @@ const MantineModal: React.FC<MantineModalProps> = ({
                     <Modal.CloseButton />
                 </Modal.Header>
 
-                <Modal.Body p={0} {...modalBodyProps}>
-                    <Stack
-                        p="xl"
-                        spacing="md"
-                        sx={() => ({
-                            overflow: 'auto',
-                            maxHeight: 'calc(80vh - 130px)',
-                        })}
-                    >
+                <Modal.Body
+                    p={0}
+                    sx={() => ({
+                        overflow: 'auto',
+                        maxHeight: 'calc(80vh - 130px)',
+                    })}
+                    {...modalBodyProps}
+                >
+                    <Stack p="xl" spacing="md">
                         {children}
                     </Stack>
                 </Modal.Body>

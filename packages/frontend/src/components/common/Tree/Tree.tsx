@@ -1,28 +1,20 @@
 import {
-    ActionIcon,
-    Group,
+    Box,
     MantineProvider,
     Tree as MantineTree,
-    Paper,
-    Text,
+    rem,
     useTree,
     type RenderTreeNodePayload,
 } from '@lightdash/mantine-v7';
 // FIXME: this won't scale. figure out how to include required mantine 7 styles.
 import '@lightdash/mantine-v7/style.css';
-import {
-    IconCheck,
-    IconChevronDown,
-    IconChevronRight,
-    IconFolder,
-} from '@tabler/icons-react';
 import React, { useEffect, useMemo } from 'react';
 
-import MantineIcon from '../MantineIcon';
-
-import classes from './Tree.module.css';
+import TreeItem from './TreeItem';
 import { type NestableItem } from './types';
 import { convertNestableListToTree, getAllParentPaths } from './utils';
+
+import classes from './Tree.module.css';
 
 const renderTreeNode = ({
     node,
@@ -34,68 +26,26 @@ const renderTreeNode = ({
 }: RenderTreeNodePayload) => {
     return (
         <div {...elementProps}>
-            <Paper
-                component={Group}
-                miw="200px"
-                maw="300px"
-                gap={5}
-                wrap="nowrap"
-                h="32"
-                px="sm"
-                radius="md"
-                bg={selected ? 'blue.0' : 'transparent'}
-                style={{ overflow: 'hidden' }}
-                onClick={() => tree.toggleSelected(node.value)}
-            >
-                {hasChildren && (
-                    <ActionIcon
-                        className={classes.actionIcon}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            tree.toggleExpanded(node.value);
-                        }}
-                        size="xs"
-                        variant="transparent"
-                    >
-                        <MantineIcon
-                            icon={expanded ? IconChevronDown : IconChevronRight}
-                            size="lg"
-                        />
-                    </ActionIcon>
-                )}
-
-                <MantineIcon
-                    icon={IconFolder}
-                    color="gray.7"
-                    size="lg"
-                    stroke={1.5}
-                    style={{ flexShrink: 0 }}
-                />
-
-                <Text inline truncate="end" style={{ flexGrow: 1 }}>
-                    {node.label}
-                </Text>
-
-                {selected && (
-                    <MantineIcon
-                        icon={IconCheck}
-                        size="lg"
-                        color="blue.6"
-                        style={{ flexShrink: 0 }}
-                    />
-                )}
-            </Paper>
+            <TreeItem
+                expanded={expanded}
+                selected={selected}
+                label={node.label}
+                hasChildren={hasChildren}
+                onToggleSelect={() => tree.toggleSelected(node.value)}
+                onToggleExpand={() => tree.toggleExpanded(node.value)}
+            />
         </div>
     );
 };
 
 type Props = {
+    topLevelLabel: string;
     data: NestableItem[];
     value: string | null;
     onChange: (selectedUuid: string | null) => void;
 };
 
-const Tree: React.FC<Props> = ({ value, data, onChange }) => {
+const Tree: React.FC<Props> = ({ topLevelLabel, value, data, onChange }) => {
     const treeData = useMemo(() => convertNestableListToTree(data), [data]);
 
     const item = useMemo(() => {
@@ -144,21 +94,26 @@ const Tree: React.FC<Props> = ({ value, data, onChange }) => {
 
     return (
         <MantineProvider>
-            <MantineTree
-                data={treeData}
-                tree={tree}
-                levelOffset={23}
-                renderNode={renderTreeNode}
-                allowRangeSelection={false}
-                checkOnSpace={false}
-                clearSelectionOnOutsideClick={false}
-                expandOnClick={false}
-                expandOnSpace={false}
-                selectOnClick={false}
-                classNames={{
-                    label: classes.label,
-                }}
-            />
+            <TreeItem label={topLevelLabel} withPadding={false} isRoot={true} />
+
+            <Box ml={rem(6)} pl={rem(13.5)}>
+                <MantineTree
+                    data={treeData}
+                    tree={tree}
+                    levelOffset={rem(23)}
+                    renderNode={renderTreeNode}
+                    allowRangeSelection={false}
+                    checkOnSpace={false}
+                    clearSelectionOnOutsideClick={false}
+                    expandOnClick={false}
+                    expandOnSpace={false}
+                    selectOnClick={false}
+                    classNames={{
+                        label: classes.label,
+                        node: classes.node,
+                    }}
+                />
+            </Box>
         </MantineProvider>
     );
 };

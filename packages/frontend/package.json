@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.1589.4",
+    "version": "0.1591.3",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -17,7 +17,7 @@
         "format": "pnpm run formatter ./src --check",
         "fix-format": "pnpm run formatter ./src --write",
         "unused-exports": "ts-unused-exports ./tsconfig.json --allowUnusedEnums --allowUnusedTypes --showLineNumber --ignoreFiles='build/.*' --ignoreFiles='sdk/dist/.*' --ignoreFiles='.*/__mocks__/.*' --ignoreFiles='src/stories/.*'",
-        "storybook": "storybook dev -p 6006",
+        "storybook": "storybook dev -p 6006 --no-open",
         "build-storybook": "storybook build"
     },
     "dependencies": {
@@ -143,7 +143,7 @@
         "@types/react-syntax-highlighter": "^13.5.2",
         "@types/styled-components": "^5.1.34",
         "@types/uuid": "^8.3.4",
-        "@vitejs/plugin-react": "^4.3.4",
+        "@vitejs/plugin-react": "^4.4.1",
         "eslint-plugin-css-modules": "^2.11.0",
         "eslint-plugin-jest-dom": "^5.1.0",
         "eslint-plugin-jsx-a11y": "^6.6.1",
@@ -159,11 +159,11 @@
         "react-test-renderer": "^19.0.0",
         "storybook": "^8.6.6",
         "ts-unused-exports": "^9.0.4",
-        "vite": "^6.2.6",
+        "vite": "^6.3.2",
         "vite-plugin-compression2": "^1.3.3",
         "vite-plugin-dts": "^4.5.3",
         "vite-plugin-monaco-editor": "^1.1.0",
         "vite-plugin-svgr": "^4.3.0",
-        "vitest": "^3.1.1"
+        "vitest": "^3.1.2"
     }
 }

@@ -150,4 +150,7 @@ export enum EventName {
     CUSTOM_FIELDS_REPLACEMENT_APPLIED = 'custom_fields_replacement.applied',
 
     DASHBOARD_CHART_LOADED = 'dashboard_chart.loaded',
+
+    // Spaces
+    SPACE_BREADCRUMB_CLICKED = 'space_breadcrumb.clicked',
 }
