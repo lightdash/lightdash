@@ -123,8 +123,9 @@ const DashboardHeader = ({
     const isDashboardSummariesEnabled = useFeatureFlagEnabled(
         'ai-dashboard-summary' as FeatureFlags,
     );
-    const areNestedSpacesEnabled =
-        useFeatureFlagEnabled(FeatureFlags.NestedSpaces) || true;
+    const areNestedSpacesEnabled = useFeatureFlagEnabled(
+        FeatureFlags.NestedSpaces,
+    );
 
     const { search } = useLocation();
     const { projectUuid, dashboardUuid } = useParams<{
