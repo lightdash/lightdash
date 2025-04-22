@@ -310,18 +310,21 @@ const DashboardHeader = ({
                     />
                 )}
 
-                {areNestedSpacesEnabled && isTransferToSpaceModalOpen && (
-                    <TransferItemsModal
-                        opened={isTransferToSpaceModalOpen}
-                        onClose={transferToSpaceModalHandlers.close}
-                        items={[dashboard]}
-                        spaces={spaces}
-                        onConfirm={(spaceUuid) => {
-                            onMoveToSpace(spaceUuid);
-                            transferToSpaceModalHandlers.close();
-                        }}
-                    />
-                )}
+                {areNestedSpacesEnabled &&
+                    isTransferToSpaceModalOpen &&
+                    projectUuid && (
+                        <TransferItemsModal
+                            projectUuid={projectUuid}
+                            opened={isTransferToSpaceModalOpen}
+                            onClose={transferToSpaceModalHandlers.close}
+                            items={[dashboard]}
+                            spaces={spaces}
+                            onConfirm={(spaceUuid) => {
+                                onMoveToSpace(spaceUuid);
+                                transferToSpaceModalHandlers.close();
+                            }}
+                        />
+                    )}
             </Group>
 
             {oldestCacheTime && (

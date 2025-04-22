@@ -965,23 +965,26 @@ const SavedChartsHeader: FC = () => {
                 />
             )}
 
-            {areNestedSpacesEnabled && isTransferToSpaceModalOpen && (
-                <TransferItemsModal
-                    opened={isTransferToSpaceModalOpen}
-                    items={[savedChart]}
-                    spaces={spaces}
-                    onClose={transferToSpaceModalHandlers.close}
-                    onConfirm={(newSpaceUuid) => {
-                        if (savedChart) {
-                            moveChartToSpace({
-                                uuid: savedChart.uuid,
-                                spaceUuid: newSpaceUuid,
-                            });
-                        }
-                        transferToSpaceModalHandlers.close();
-                    }}
-                />
-            )}
+            {areNestedSpacesEnabled &&
+                isTransferToSpaceModalOpen &&
+                projectUuid && (
+                    <TransferItemsModal
+                        projectUuid={projectUuid}
+                        opened={isTransferToSpaceModalOpen}
+                        items={[savedChart]}
+                        spaces={spaces}
+                        onClose={transferToSpaceModalHandlers.close}
+                        onConfirm={(newSpaceUuid) => {
+                            if (savedChart) {
+                                moveChartToSpace({
+                                    uuid: savedChart.uuid,
+                                    spaceUuid: newSpaceUuid,
+                                });
+                            }
+                            transferToSpaceModalHandlers.close();
+                        }}
+                    />
+                )}
         </TrackSection>
     );
 };
