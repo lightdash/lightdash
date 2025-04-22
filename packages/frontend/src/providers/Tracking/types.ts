@@ -400,6 +400,15 @@ type DashboardChartLoadedEvent = {
     };
 };
 
+type SpaceBreadcrumbClickedEvent = {
+    name: EventName.SPACE_BREADCRUMB_CLICKED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -433,7 +442,8 @@ export type EventData =
     | MetricsCatalogTreesCanvasModeClickedEvent
     | WriteBackEvent
     | DashboardChartLoadedEvent
-    | CustomMetricReplacementEvent;
+    | CustomMetricReplacementEvent
+    | SpaceBreadcrumbClickedEvent;
 
 export type IdentifyData = {
     id: string;
