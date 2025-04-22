@@ -1,3 +1,10 @@
+# [0.1590.0](https://github.com/lightdash/lightdash/compare/0.1589.4...0.1590.0) (2025-04-22)
+
+
+### Features
+
+* display access and contents information for nested spaces ([#14453](https://github.com/lightdash/lightdash/issues/14453)) ([9e467b7](https://github.com/lightdash/lightdash/commit/9e467b78216821cc706f87296701d44718480c72))
+
 ## [0.1589.4](https://github.com/lightdash/lightdash/compare/0.1589.3...0.1589.4) (2025-04-21)
 
 
