@@ -121,6 +121,8 @@ const Space: FC = () => {
         subject('SavedChart', { ...space }),
     );
 
+    console.log(space.breadcrumbs);
+
     return (
         <Page
             title={space?.name}
