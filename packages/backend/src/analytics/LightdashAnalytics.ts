@@ -694,6 +694,7 @@ type SpaceEvent = BaseTrack & {
         projectId: string;
         isPrivate: boolean;
         userAccessCount: number;
+        isNested: boolean;
     };
 };
 
@@ -705,6 +706,7 @@ type SpaceDeleted = BaseTrack & {
         name: string;
         spaceId: string;
         projectId: string;
+        isNested: boolean;
     };
 };
 
