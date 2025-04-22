@@ -12,9 +12,17 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { getTabUuidsForFilterRules } from '@lightdash/common';
-import { Group, Skeleton, useMantineTheme } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Skeleton,
+    Tooltip,
+    useMantineTheme,
+} from '@mantine/core';
+import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import MantineIcon from '../../common/MantineIcon';
 import Filter from '../Filter';
 import InvalidFilter from '../InvalidFilter';
 
@@ -24,6 +32,7 @@ interface ActiveFiltersProps {
     openPopoverId: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
+    onResetDashboardFilters: () => void;
 }
 
 const DraggableItem: FC<{
@@ -89,6 +98,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     openPopoverId,
     onPopoverOpen,
     onPopoverClose,
+    onResetDashboardFilters,
 }) => {
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
@@ -119,6 +129,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     );
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
+    );
+    const haveFiltersChanged = useDashboardContext(
+        (c) =>
+            c.haveFiltersChanged ||
+            c.dashboardTemporaryFilters.dimensions.length > 0,
     );
 
     const mouseSensor = useSensor(MouseSensor, {
@@ -213,6 +228,21 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
     return (
         <>
+            {!isEditMode && haveFiltersChanged && (
+                <Tooltip label="Reset all filters">
+                    <Button
+                        size="xs"
+                        variant="default"
+                        color="gray"
+                        onClick={() => {
+                            setHaveFiltersChanged(false);
+                            onResetDashboardFilters();
+                        }}
+                    >
+                        <MantineIcon icon={IconRotate2} />
+                    </Button>
+                </Tooltip>
+            )}
             <DndContext
                 sensors={dragSensors}
                 onDragStart={handleDragStart}

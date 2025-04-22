@@ -157,6 +157,7 @@ export const lightdashConfigMock: LightdashConfig = {
     ai: {
         copilot: {
             enabled: false,
+            requiresFeatureFlag: false,
         },
     },
     embedding: {
@@ -189,5 +190,8 @@ export const lightdashConfigMock: LightdashConfig = {
     appearance: {},
     microsoftTeams: {
         enabled: false,
+    },
+    googleCloudPlatform: {
+        projectId: 'test-project-id',
     },
 };

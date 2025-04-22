@@ -19,9 +19,9 @@
         "moduleResolution": "node",
         "resolveJsonModule": true,
         "isolatedModules": true,
-        "declarationDir": "./build/types",
         "importHelpers": true,
         "jsx": "react-jsx",
+        "jsxImportSource": "react",
         "types": [
             "node",
             "vite/client",
@@ -31,7 +31,8 @@
         "noUncheckedIndexedAccess": false, // TODO fix errors ,then enable
     },
     "include": [
-        "src",
-        "vite-env.d.ts",
+        "./src",
+        "./sdk/index.tsx",
+        "./vite-env.d.ts",
     ],
 }

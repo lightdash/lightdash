@@ -72,6 +72,8 @@ export type ResourceViewSpaceItem = {
         | 'pinnedListUuid'
         | 'pinnedListOrder'
         | 'organizationUuid'
+        | 'parentSpaceUuid'
+        | 'path'
     > & {
         access: string[];
         accessListLength: number;
@@ -139,6 +141,8 @@ export const spaceToResourceViewItem = (
     dashboardCount: space.dashboardCount,
     chartCount: space.chartCount,
     access: space.access,
+    parentSpaceUuid: space.parentSpaceUuid,
+    path: space.path,
 });
 
 export type MostPopularAndRecentlyUpdated = {
@@ -191,6 +195,20 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
             return wrapResource(
                 dashboardViewItem,
                 ResourceViewItemType.DASHBOARD,
+            );
+        case ContentType.SPACE:
+            return wrapResource(
+                spaceToResourceViewItem({
+                    ...content,
+                    organizationUuid: content.organization.uuid,
+                    projectUuid: content.project.uuid,
+                    pinnedListUuid: content.pinnedList?.uuid || null,
+                    pinnedListOrder: content.pinnedList?.order || null,
+                    userAccess: undefined, // This propery is not needed for the resource view item
+                    parentSpaceUuid: content.parentSpaceUuid,
+                    path: content.path,
+                }),
+                ResourceViewItemType.SPACE,
             );
         default:
             return assertUnreachable(content, `Unsupported content type`);

@@ -37,7 +37,7 @@ export type QueryResultsProps = {
 /**
  * Aggregates pagination results for a query
  */
-export const getQueryPaginatedResults = async (
+const getQueryPaginatedResults = async (
     projectUuid: string,
     data: ExecuteAsyncQueryRequestParams,
     pageSize?: number, // pageSize is used when getting the results but not when creating the query
@@ -45,18 +45,24 @@ export const getQueryPaginatedResults = async (
     ApiQueryResults & {
         queryUuid: string;
         appliedDashboardFilters: DashboardFilters | null;
+        warehouseExecutionTimeMs?: number;
+        totalClientFetchTimeMs?: number;
     }
 > => {
-    const firstPage = await lightdashApi<ApiExecuteAsyncQueryResults>({
-        url: `/projects/${projectUuid}/query`,
-        version: 'v2',
-        method: 'POST',
-        body: JSON.stringify(data),
-    });
+    const startTime = new Date();
+
+    const executeQueryResponse =
+        await lightdashApi<ApiExecuteAsyncQueryResults>({
+            url: `/projects/${projectUuid}/query`,
+            version: 'v2',
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
 
     // Get all page rows in sequence
     let allRows: ResultRow[] = [];
     let currentPage: ApiGetAsyncQueryResults | undefined;
+    let backoffMs = 250; // Start with 250ms
 
     while (
         !currentPage ||
@@ -79,9 +85,9 @@ export const getQueryPaginatedResults = async (
 
         const urlQueryParams = searchParams.toString();
         currentPage = await lightdashApi<ApiGetAsyncQueryResults>({
-            url: `/projects/${projectUuid}/query/${firstPage.queryUuid}${
-                urlQueryParams ? `?${urlQueryParams}` : ''
-            }`,
+            url: `/projects/${projectUuid}/query/${
+                executeQueryResponse.queryUuid
+            }${urlQueryParams ? `?${urlQueryParams}` : ''}`,
             version: 'v2',
             method: 'GET',
             body: undefined,
@@ -114,33 +120,82 @@ export const getQueryPaginatedResults = async (
                 allRows = allRows.concat(currentPage.rows);
                 break;
             case QueryHistoryStatus.PENDING:
-                await sleep(200);
+                await sleep(backoffMs);
+                // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
+                if (backoffMs < 1000) {
+                    backoffMs = Math.min(backoffMs * 2, 1000);
+                }
                 break;
             default:
                 return assertUnreachable(status, 'Unknown query status');
         }
     }
 
+    const endTime = new Date();
+    const totalTime = endTime.getTime() - startTime.getTime();
+
     return {
         queryUuid: currentPage.queryUuid,
         metricQuery: currentPage.metricQuery,
-        cacheMetadata: {
-            // todo: to be replaced once we have save query metadata in the DB
-            cacheHit: false,
-        },
+        cacheMetadata: executeQueryResponse.cacheMetadata,
         rows: allRows,
         fields: currentPage.fields,
-        appliedDashboardFilters: firstPage.appliedDashboardFilters,
+        warehouseExecutionTimeMs:
+            currentPage.status === QueryHistoryStatus.READY
+                ? currentPage.initialQueryExecutionMs
+                : undefined,
+        totalClientFetchTimeMs: totalTime,
+        appliedDashboardFilters: executeQueryResponse.appliedDashboardFilters,
     };
+};
+
+export const useUnderlyingDataResults = (
+    filters: MetricQuery['filters'],
+    underlyingDataSourceQueryUuid?: string,
+    underlyingDataItemId?: string,
+) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    return useQuery<ApiQueryResults, ApiError>({
+        queryKey: [
+            'underlyingDataResults',
+            projectUuid,
+            underlyingDataSourceQueryUuid,
+            underlyingDataItemId,
+            filters,
+        ],
+        enabled: Boolean(projectUuid) && Boolean(underlyingDataSourceQueryUuid),
+        queryFn: () => {
+            return getQueryPaginatedResults(projectUuid!, {
+                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                underlyingDataSourceQueryUuid: underlyingDataSourceQueryUuid!,
+                underlyingDataItemId,
+                filters: convertDateFilters(filters),
+            });
+        },
+        retry: false,
+    });
 };
 
 /**
  * Run query & get first results page
  */
-const getFirstPage = async (
+
+export type ReadyQueryResultsPageWithClientFetchTimeMs =
+    ReadyQueryResultsPage & {
+        clientFetchTimeMs: number;
+    };
+
+export type ChartReadyQueryQuery = {
+    executeQueryResponse: ApiExecuteAsyncQueryResults;
+    firstPage: ReadyQueryResultsPageWithClientFetchTimeMs;
+};
+
+export const executeQueryAndGetFirstPage = async (
     projectUuid: string,
     data: ExecuteAsyncQueryRequestParams,
-): Promise<ReadyQueryResultsPage> => {
+): Promise<ChartReadyQueryQuery> => {
+    const startTime = performance.now();
     const query = await lightdashApi<ApiExecuteAsyncQueryResults>({
         url: `/projects/${projectUuid}/query`,
         version: 'v2',
@@ -148,6 +203,8 @@ const getFirstPage = async (
         body: JSON.stringify(data),
     });
     let firstPage: ApiGetAsyncQueryResults | undefined;
+    let backoffMs = 250; // Start with 250ms
+
     // Wait for first page
     while (!firstPage || firstPage.status === QueryHistoryStatus.PENDING) {
         firstPage = await lightdashApi<ApiGetAsyncQueryResults>({
@@ -183,40 +240,50 @@ const getFirstPage = async (
             case QueryHistoryStatus.READY:
                 break;
             case QueryHistoryStatus.PENDING:
-                await sleep(200);
+                await sleep(backoffMs);
+                // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
+                if (backoffMs < 1000) {
+                    backoffMs = Math.min(backoffMs * 2, 1000);
+                }
                 break;
             default:
                 return assertUnreachable(status, 'Unknown query status');
         }
     }
 
-    return firstPage as ReadyQueryResultsPage;
+    return {
+        executeQueryResponse: query,
+        firstPage: {
+            ...(firstPage as ReadyQueryResultsPage),
+            clientFetchTimeMs: performance.now() - startTime,
+        },
+    } satisfies ChartReadyQueryQuery;
 };
 
-export const useQueryResults = (data: QueryResultsProps | null) => {
+export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
     const queryClient = useQueryClient();
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
         forbiddenToastTitle: 'Error running query',
     });
 
-    const result = useQuery<ReadyQueryResultsPage, ApiError>({
+    const result = useQuery<ChartReadyQueryQuery, ApiError>({
         enabled: !!data,
         queryKey: ['create-query', data],
         queryFn: () => {
             if (data?.chartUuid && data?.chartVersionUuid) {
-                return getFirstPage(data.projectUuid, {
+                return executeQueryAndGetFirstPage(data.projectUuid, {
                     context: QueryExecutionContext.CHART_HISTORY,
                     chartUuid: data.chartUuid,
                     versionUuid: data.chartVersionUuid,
                 });
             } else if (data?.chartUuid) {
-                return getFirstPage(data.projectUuid, {
+                return executeQueryAndGetFirstPage(data.projectUuid, {
                     context: QueryExecutionContext.CHART,
                     chartUuid: data.chartUuid,
                 });
             } else if (data?.query) {
-                return getFirstPage(data.projectUuid, {
+                return executeQueryAndGetFirstPage(data.projectUuid, {
                     context: QueryExecutionContext.EXPLORE,
                     query: {
                         ...data.query,
@@ -225,6 +292,7 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
                         exploreName: data.tableId,
                         granularity: data.dateZoomGranularity,
                     },
+                    invalidateCache: true, // Note: do not cache explore queries
                 });
             }
             return Promise.reject(
@@ -240,11 +308,11 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
                 [
                     'query-page',
                     data?.projectUuid,
-                    result.data.queryUuid,
+                    result.data.executeQueryResponse.queryUuid,
                     1,
                     DEFAULT_RESULTS_PAGE_SIZE,
                 ],
-                result.data,
+                result.data.firstPage,
             );
         }
     }, [data?.projectUuid, result.data, queryClient]);
@@ -259,33 +327,6 @@ export const useQueryResults = (data: QueryResultsProps | null) => {
     return result;
 };
 
-export const useUnderlyingDataResults = (
-    filters: MetricQuery['filters'],
-    underlyingDataSourceQueryUuid?: string,
-    underlyingDataItemId?: string,
-) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-
-    return useQuery<ApiQueryResults, ApiError>({
-        queryKey: [
-            'underlyingDataResults',
-            projectUuid,
-            underlyingDataSourceQueryUuid,
-            underlyingDataItemId,
-            filters,
-        ],
-        enabled: Boolean(projectUuid) && Boolean(underlyingDataSourceQueryUuid),
-        queryFn: () => {
-            return getQueryPaginatedResults(projectUuid!, {
-                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
-                underlyingDataSourceQueryUuid: underlyingDataSourceQueryUuid!,
-                underlyingDataItemId,
-                filters: convertDateFilters(filters),
-            });
-        },
-        retry: false,
-    });
-};
 /**
  * Get single results page
  */
@@ -359,10 +400,13 @@ export type InfiniteQueryResults = Partial<
 > & {
     projectUuid?: string;
     rows: ResultRow[];
+    isInitialLoading: boolean;
     isFetchingRows: boolean;
     fetchMoreRows: () => void;
     setFetchAll: (value: boolean) => void;
+    fetchAll: boolean;
     hasFetchedAllRows: boolean;
+    totalClientFetchTimeMs: number | undefined;
 };
 
 // This hook lazy load results has they are needed in the UI
@@ -385,9 +429,9 @@ export const useInfiniteQueryResults = (
         page: 1,
         pageSize: DEFAULT_RESULTS_PAGE_SIZE,
     });
-    const [fetchedPages, setFetchedPages] = useState<ReadyQueryResultsPage[]>(
-        [],
-    );
+    const [fetchedPages, setFetchedPages] = useState<
+        (ReadyQueryResultsPage & { clientFetchTimeMs: number })[]
+    >([]);
     const [fetchAll, setFetchAll] = useState(false);
 
     const fetchMoreRows = useCallback(() => {
@@ -406,12 +450,35 @@ export const useInfiniteQueryResults = (
         return rows;
     }, [fetchedPages]);
 
+    const hasFetchedAllRows = useMemo(() => {
+        if (fetchedPages.length === 0) {
+            return false;
+        }
+
+        return fetchedRows.length >= fetchedPages[0].totalResults;
+    }, [fetchedRows, fetchedPages]);
+
     const isFetchingRows = useMemo(() => {
         const isFetchingPage = fetchArgs.page > fetchedPages.length;
-        return !!projectUuid && !!queryUuid && isFetchingPage;
-    }, [fetchedPages, fetchArgs.page, projectUuid, queryUuid]);
 
-    const nextPage = useQuery<ReadyQueryResultsPage, ApiError>({
+        return (
+            !!projectUuid &&
+            !!queryUuid &&
+            (isFetchingPage || (fetchAll && !hasFetchedAllRows))
+        );
+    }, [
+        fetchedPages,
+        fetchArgs.page,
+        projectUuid,
+        queryUuid,
+        fetchAll,
+        hasFetchedAllRows,
+    ]);
+
+    const nextPage = useQuery<
+        ReadyQueryResultsPageWithClientFetchTimeMs,
+        ApiError
+    >({
         enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
         queryKey: [
             'query-page',
@@ -420,13 +487,18 @@ export const useInfiniteQueryResults = (
             fetchArgs.page,
             fetchArgs.pageSize,
         ],
-        queryFn: () => {
-            return getResultsPage(
+        queryFn: async () => {
+            const startTime = performance.now();
+            const results = await getResultsPage(
                 fetchArgs.projectUuid!,
                 fetchArgs.queryUuid!,
                 fetchArgs.page,
                 fetchArgs.pageSize,
             );
+            return {
+                ...results,
+                clientFetchTimeMs: performance.now() - startTime,
+            } satisfies ReadyQueryResultsPageWithClientFetchTimeMs;
         },
         staleTime: Infinity, // the data will never be considered stale
     });
@@ -448,6 +520,8 @@ export const useInfiniteQueryResults = (
     useEffect(() => {
         // Reset fetched pages before updating the fetch args
         setFetchedPages([]);
+        // Reset fetchAll before updating the fetch args
+        setFetchAll(false);
         setFetchArgs({
             queryUuid,
             projectUuid,
@@ -463,13 +537,23 @@ export const useInfiniteQueryResults = (
         }
     }, [fetchAll, fetchMoreRows]);
 
-    const hasFetchedAllRows = useMemo(() => {
+    const totalClientFetchTimeMs = useMemo(() => {
         if (fetchedPages.length === 0) {
-            return false;
+            return undefined;
         }
 
-        return fetchedRows.length >= fetchedPages[0].totalResults;
-    }, [fetchedRows, fetchedPages]);
+        return fetchAll
+            ? Math.round(
+                  fetchedPages.reduce((acc, page) => {
+                      return acc + page.clientFetchTimeMs;
+                  }, 0),
+              )
+            : Math.round(fetchedPages[0]?.clientFetchTimeMs ?? 0); // If we're not fetching all pages, only return the time for the first page (enough to render the viz)
+    }, [fetchAll, fetchedPages]);
+
+    const isInitialLoading = useMemo(() => {
+        return fetchAll ? !hasFetchedAllRows : fetchedPages.length < 1;
+    }, [fetchedPages, fetchAll, hasFetchedAllRows]);
 
     return useMemo(
         () => ({
@@ -483,6 +567,9 @@ export const useInfiniteQueryResults = (
             isFetchingRows,
             fetchMoreRows,
             setFetchAll,
+            totalClientFetchTimeMs,
+            isInitialLoading,
+            fetchAll,
         }),
         [
             projectUuid,
@@ -492,6 +579,9 @@ export const useInfiniteQueryResults = (
             fetchedRows,
             isFetchingRows,
             fetchMoreRows,
+            totalClientFetchTimeMs,
+            isInitialLoading,
+            fetchAll,
         ],
     );
 };

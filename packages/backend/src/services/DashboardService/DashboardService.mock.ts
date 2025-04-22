@@ -54,6 +54,8 @@ export const space: SpaceTable['base'] = {
     project_id: 0,
     organization_uuid: user.organizationUuid!,
     search_vector: '',
+    parent_space_uuid: null,
+    path: 'space-name',
 };
 
 export const publicSpace: Space = {
@@ -64,11 +66,14 @@ export const publicSpace: Space = {
     queries: [],
     projectUuid: 'projectUuid',
     dashboards: [],
+    childSpaces: [],
     access: [],
     groupsAccess: [],
     name: 'public-space',
     pinnedListUuid: null,
     pinnedListOrder: null,
+    parentSpaceUuid: null,
+    path: 'public-space',
 };
 export const privateSpace: Space = {
     ...publicSpace,

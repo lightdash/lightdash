@@ -61,7 +61,6 @@ const FunnelChart: FC<FunnelChartProps> = memo((props) => {
     useEffect(() => {
         // Load all the rows
         resultsData?.setFetchAll(true);
-        return () => resultsData?.setFetchAll(false);
     }, [resultsData]);
 
     useEffect(() => {

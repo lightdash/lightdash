@@ -1,8 +1,7 @@
 import {
+    capitalize,
     ContentSortByColumns,
     contentToResourceViewItem,
-    isResourceViewItemChart,
-    isResourceViewItemDashboard,
     isResourceViewSpaceItem,
     type ContentType,
     type ResourceViewItem,
@@ -13,17 +12,17 @@ import {
     Box,
     Divider,
     Group,
-    Stack,
     Text,
     TextInput,
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
 import {
-    IconAlertTriangleFilled,
     IconArrowDown,
-    IconArrowUp,
     IconArrowsSort,
+    IconArrowUp,
+    IconChartBar,
+    IconLayoutDashboard,
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
@@ -48,46 +47,54 @@ import {
     useInfiniteContent,
     type ContentArgs,
 } from '../../../hooks/useContent';
-import { useSpaceSummaries } from '../../../hooks/useSpaces';
+import {
+    hasDirectAccessToSpace,
+    useSpaceSummaries,
+} from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
+import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
-import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
-import { ResourceInfoPopup } from '../ResourceInfoPopup/ResourceInfoPopup';
+import AdminContentViewFilter from './AdminContentViewFilter';
 import ContentTypeFilter from './ContentTypeFilter';
+import InfiniteResourceTableColumnName from './InfiniteResourceTableColumnName';
+import ResourceAccessInfo from './ResourceAccessInfo';
 import ResourceActionHandlers from './ResourceActionHandlers';
 import ResourceActionMenu from './ResourceActionMenu';
+import AttributeCount from './ResourceAttributeCount';
 import ResourceLastEdited from './ResourceLastEdited';
+import { getResourceUrl } from './resourceUtils';
 import {
-    getResourceTypeName,
-    getResourceUrl,
-    getResourceViewsSinceWhenDescription,
-} from './resourceUtils';
-import {
+    ColumnVisibility,
     ResourceViewItemAction,
+    type ColumnVisibilityConfig,
     type ResourceViewItemActionState,
 } from './types';
 
 type ResourceView2Props = {
-    filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes'> & {
+    filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes' | 'space'> & {
         projectUuid: string;
     };
     contentTypeFilter?: {
         defaultValue: ContentType | undefined;
         options: ContentType[];
     };
+    columnVisibility?: ColumnVisibilityConfig;
+    adminContentView?: boolean;
 };
 
 const InfiniteResourceTable = ({
     filters,
     contentTypeFilter,
+    columnVisibility,
+    adminContentView = false,
 }: ResourceView2Props) => {
+    const [selectedAdminContentType, setSelectedAdminContentType] = useState<
+        'all' | 'shared'
+    >('shared');
     const theme = useMantineTheme();
     const navigate = useNavigate();
-    const { data: spaces = [] } = useSpaceSummaries(
-        filters.projectUuid,
-        true,
-        {},
-    );
+    const { data: spaces = [] } = useSpaceSummaries(filters.projectUuid, true);
+    const { user } = useApp();
     const canUserManageValidation = useValidationUserAbility(
         filters.projectUuid,
     );
@@ -103,146 +110,26 @@ const InfiniteResourceTable = ({
 
     const ResourceColumns: MRT_ColumnDef<ResourceViewItem>[] = [
         {
-            accessorKey: 'name',
-            header: 'Name',
+            accessorKey: ColumnVisibility.NAME,
+            header: capitalize(ColumnVisibility.NAME),
             enableSorting: true,
             enableEditing: false,
             size: 300,
             Cell: ({ row }) => {
-                const item = row.original;
-                const canBelongToSpace =
-                    isResourceViewItemChart(item) ||
-                    isResourceViewItemDashboard(item);
-
                 return (
-                    <Anchor
-                        component={Link}
-                        sx={{
-                            color: 'unset',
-                            ':hover': {
-                                color: 'unset',
-                                textDecoration: 'none',
-                            },
-                        }}
-                        to={getResourceUrl(filters.projectUuid, item)}
-                        onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
-                            e.stopPropagation()
-                        }
-                    >
-                        <Group noWrap>
-                            {canBelongToSpace &&
-                            item.data.validationErrors?.length ? (
-                                <ResourceIndicator
-                                    iconProps={{
-                                        icon: IconAlertTriangleFilled,
-                                        color: 'red',
-                                    }}
-                                    tooltipProps={{
-                                        maw: 300,
-                                        withinPortal: true,
-                                        multiline: true,
-                                        offset: -2,
-                                        position: 'bottom',
-                                    }}
-                                    tooltipLabel={
-                                        canUserManageValidation ? (
-                                            <>
-                                                This content is broken. Learn
-                                                more about the validation
-                                                error(s){' '}
-                                                <Anchor
-                                                    component={Link}
-                                                    fw={600}
-                                                    to={{
-                                                        pathname: `/generalSettings/projectManagement/${filters.projectUuid}/validator`,
-                                                        search: `?validationId=${item.data.validationErrors[0].validationId}`,
-                                                    }}
-                                                    color="blue.4"
-                                                >
-                                                    here
-                                                </Anchor>
-                                                .
-                                            </>
-                                        ) : (
-                                            <>
-                                                There's an error with this{' '}
-                                                {isResourceViewItemChart(item)
-                                                    ? 'chart'
-                                                    : 'dashboard'}
-                                                .
-                                            </>
-                                        )
-                                    }
-                                >
-                                    <ResourceIcon item={item} />
-                                </ResourceIndicator>
-                            ) : (
-                                <ResourceIcon item={item} />
-                            )}
-
-                            <Stack spacing={2}>
-                                <Group spacing="xs" noWrap>
-                                    <Text
-                                        fw={600}
-                                        lineClamp={1}
-                                        sx={{ overflowWrap: 'anywhere' }}
-                                    >
-                                        {item.data.name}
-                                    </Text>
-                                    {!isResourceViewSpaceItem(item) &&
-                                        // If there is no description, don't show the info icon on dashboards.
-                                        // For charts we still show it for the dashboard list
-                                        (item.data.description ||
-                                            isResourceViewItemChart(item)) &&
-                                        canBelongToSpace && (
-                                            <Box>
-                                                <ResourceInfoPopup
-                                                    resourceUuid={
-                                                        item.data.uuid
-                                                    }
-                                                    projectUuid={
-                                                        filters.projectUuid
-                                                    }
-                                                    description={
-                                                        item.data.description
-                                                    }
-                                                    withChartData={isResourceViewItemChart(
-                                                        item,
-                                                    )}
-                                                />
-                                            </Box>
-                                        )}
-                                </Group>
-                                {canBelongToSpace && (
-                                    <Text fz={12} color="gray.6">
-                                        {getResourceTypeName(item)} •{' '}
-                                        <Tooltip
-                                            position="top-start"
-                                            disabled={
-                                                !item.data.views ||
-                                                !item.data.firstViewedAt
-                                            }
-                                            label={getResourceViewsSinceWhenDescription(
-                                                item,
-                                            )}
-                                        >
-                                            <span>
-                                                {item.data.views || '0'} views
-                                            </span>
-                                        </Tooltip>
-                                    </Text>
-                                )}
-                            </Stack>
-                        </Group>
-                    </Anchor>
+                    <InfiniteResourceTableColumnName
+                        item={row.original}
+                        projectUuid={filters.projectUuid}
+                        canUserManageValidation={canUserManageValidation}
+                    />
                 );
             },
         },
         {
-            accessorKey: 'space',
+            accessorKey: ColumnVisibility.SPACE,
             enableSorting: true,
             enableEditing: false,
-            header: 'Space',
+            header: capitalize(ColumnVisibility.SPACE),
             Cell: ({ row }) => {
                 const item = row.original;
                 if (isResourceViewSpaceItem(item)) {
@@ -270,13 +157,62 @@ const InfiniteResourceTable = ({
             },
         },
         {
-            accessorKey: 'updatedAt',
+            accessorKey: ColumnVisibility.UPDATED_AT,
             enableSorting: true,
             enableEditing: false,
-            header: 'Last Edited',
+            header: 'Last Modified',
             Cell: ({ row }) => {
-                if (isResourceViewSpaceItem(row.original)) return null;
+                if (isResourceViewSpaceItem(row.original))
+                    return (
+                        <Text fz={12} fw={500} color="gray.7">
+                            -
+                        </Text>
+                    );
                 return <ResourceLastEdited item={row.original} />;
+            },
+        },
+        {
+            accessorKey: ColumnVisibility.ACCESS,
+            enableSorting: false,
+            enableEditing: false,
+            header: 'Access',
+            Cell: ({ row }) => {
+                if (!isResourceViewSpaceItem(row.original)) return null;
+                return (
+                    <ResourceAccessInfo
+                        item={row.original}
+                        type="primary"
+                        withTooltip
+                    />
+                );
+            },
+        },
+        {
+            accessorKey: ColumnVisibility.CONTENT,
+            enableSorting: false,
+            enableEditing: false,
+            header: 'Content',
+            Cell: ({ row }) => {
+                if (!isResourceViewSpaceItem(row.original)) return null;
+                const {
+                    original: {
+                        data: { dashboardCount, chartCount },
+                    },
+                } = row;
+                return (
+                    <Group>
+                        <AttributeCount
+                            Icon={IconLayoutDashboard}
+                            count={dashboardCount}
+                            name="Dashboards"
+                        />
+                        <AttributeCount
+                            Icon={IconChartBar}
+                            count={chartCount}
+                            name="Charts"
+                        />
+                    </Group>
+                );
             },
         },
     ];
@@ -296,6 +232,21 @@ const InfiniteResourceTable = ({
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+    const sortBy = useMemo(() => {
+        if (sorting.length === 0) return undefined;
+
+        const firstSorting = sorting[0].id;
+
+        if (firstSorting === ContentSortByColumns.NAME) {
+            return ContentSortByColumns.NAME;
+        }
+
+        if (firstSorting === ContentSortByColumns.SPACE_NAME) {
+            return ContentSortByColumns.SPACE_NAME;
+        }
+
+        return ContentSortByColumns.LAST_UPDATED_AT;
+    }, [sorting]);
     const { data, isInitialLoading, isFetching, hasNextPage, fetchNextPage } =
         useInfiniteContent(
             {
@@ -307,14 +258,9 @@ const InfiniteResourceTable = ({
                 page: 1,
                 pageSize: 25,
                 search: deferredSearch,
-                ...(sorting.length > 0 && {
-                    sortBy:
-                        sorting[0].id === 'name'
-                            ? ContentSortByColumns.NAME
-                            : sorting[0].id === 'space'
-                            ? ContentSortByColumns.SPACE_NAME
-                            : ContentSortByColumns.LAST_UPDATED_AT,
-                    sortDirection: sorting[0].desc ? 'desc' : 'asc',
+                sortBy,
+                ...(filters.space?.parentSpaceUuid && {
+                    parentSpaceUuid: filters.space.parentSpaceUuid,
                 }),
             },
             { keepPreviousData: true },
@@ -322,10 +268,17 @@ const InfiniteResourceTable = ({
 
     const flatData = useMemo(() => {
         if (!data) return [];
-        return data.pages.flatMap((page) =>
-            page.data.map(contentToResourceViewItem),
-        );
-    }, [data]);
+        return data.pages
+            .flatMap((page) => page.data.map(contentToResourceViewItem))
+            .filter((content) => {
+                if (!isResourceViewSpaceItem(content)) return true;
+                if (selectedAdminContentType === 'all') return true;
+                return (
+                    !!user.data &&
+                    hasDirectAccessToSpace(content.data, user.data.userUuid)
+                );
+            });
+    }, [data, selectedAdminContentType, user.data]);
 
     // Temporary workaround to resolve a memoization issue with react-mantine-table.
     // In certain scenarios, the content fails to render properly even when the data is updated.
@@ -365,6 +318,18 @@ const InfiniteResourceTable = ({
     useEffect(() => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
+
+    const defaultColumnVisibility = useMemo(
+        () => ({
+            [ColumnVisibility.NAME]: true,
+            [ColumnVisibility.SPACE]: true,
+            [ColumnVisibility.UPDATED_AT]: true,
+            [ColumnVisibility.ACCESS]: false,
+            [ColumnVisibility.CONTENT]: false,
+            ...columnVisibility,
+        }),
+        [columnVisibility],
+    );
 
     const table = useMantineReactTable({
         columns: ResourceColumns,
@@ -603,7 +568,8 @@ const InfiniteResourceTable = ({
                                 }
                             />
                         </Tooltip>
-                        {contentTypeFilter && (
+                        {contentTypeFilter &&
+                        contentTypeFilter.options.length > 1 ? (
                             <>
                                 <Divider
                                     orientation="vertical"
@@ -617,10 +583,16 @@ const InfiniteResourceTable = ({
                                 <ContentTypeFilter
                                     value={selectedContentType}
                                     onChange={setSelectedContentType}
-                                    options={contentTypeFilter?.options}
+                                    options={contentTypeFilter.options}
                                 />
                             </>
-                        )}
+                        ) : null}
+                        {adminContentView ? (
+                            <AdminContentViewFilter
+                                value={selectedAdminContentType}
+                                onChange={setSelectedAdminContentType}
+                            />
+                        ) : null}
                     </Group>
                 </Group>
                 <Divider color="gray.2" />
@@ -694,9 +666,7 @@ const InfiniteResourceTable = ({
         },
         initialState: {
             showGlobalFilter: true, // Show search input by default
-            columnVisibility: {
-                categories: false,
-            },
+            columnVisibility: defaultColumnVisibility,
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { overscan: 40 },

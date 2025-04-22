@@ -153,12 +153,14 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
             computedSeries && computedSeries.length > 0
                 ? computedSeries
                 : chartConfig.config.eChartsConfig.series;
+
+        const sortedSeriesIdentifiers = (allSeries ?? [])
+            .map((series) => calculateSeriesLikeIdentifier(series).join('|'))
+            .sort((a, b) => b.localeCompare(a));
+
         return Object.fromEntries(
-            (allSeries ?? []).map((series, i) => {
-                return [
-                    calculateSeriesLikeIdentifier(series).join('|'),
-                    colorPalette[i % colorPalette.length],
-                ];
+            sortedSeriesIdentifiers.map((identifier, i) => {
+                return [identifier, colorPalette[i % colorPalette.length]];
             }),
         );
     }, [chartConfig, colorPalette, computedSeries]);

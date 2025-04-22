@@ -1,6 +1,7 @@
 import {
     ChartKind,
     isVizTableConfig,
+    MAX_PIVOT_COLUMN_LIMIT,
     type VizTableConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
@@ -19,6 +20,7 @@ import {
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
+    IconAlertCircle,
     IconChartHistogram,
     IconCodeCircle,
     IconGripHorizontal,
@@ -238,6 +240,13 @@ export const ContentPanel: FC = () => {
 
     const pivotedChartInfo = useAppSelector((state) =>
         selectPivotChartDataByKind(state, selectedChartType),
+    );
+
+    const hasReachedPivotColumnLimit = useMemo(
+        () =>
+            pivotedChartInfo?.data?.columnCount &&
+            pivotedChartInfo?.data?.columnCount > MAX_PIVOT_COLUMN_LIMIT,
+        [pivotedChartInfo],
     );
 
     const resultsFileUrl = useMemo(() => queryResults?.fileUrl, [queryResults]);
@@ -725,24 +734,62 @@ export const ContentPanel: FC = () => {
                                         {selectedChartType &&
                                             pivotedChartInfo?.data
                                                 ?.tableData && (
-                                                <ChartDataTable
-                                                    columnNames={
-                                                        pivotedChartInfo?.data
-                                                            .tableData?.columns
-                                                    }
-                                                    rows={
-                                                        pivotedChartInfo?.data
-                                                            .tableData?.rows ??
-                                                        []
-                                                    }
-                                                    flexProps={{
-                                                        mah: '100%',
-                                                    }}
-                                                    onTHClick={
-                                                        handleTableHeaderClick
-                                                    }
-                                                    thSortConfig={sortConfig}
-                                                />
+                                                <>
+                                                    {hasReachedPivotColumnLimit && (
+                                                        <Group
+                                                            position="center"
+                                                            spacing="xs"
+                                                        >
+                                                            <MantineIcon
+                                                                color="gray"
+                                                                icon={
+                                                                    IconAlertCircle
+                                                                }
+                                                            />
+                                                            <Text
+                                                                fz="xs"
+                                                                fw={400}
+                                                                c="gray.7"
+                                                                ta="center"
+                                                            >
+                                                                This query
+                                                                exceeds the
+                                                                maximum number
+                                                                of columns (
+                                                                {
+                                                                    MAX_PIVOT_COLUMN_LIMIT
+                                                                }
+                                                                ). Showing the
+                                                                first{' '}
+                                                                {
+                                                                    MAX_PIVOT_COLUMN_LIMIT
+                                                                }{' '}
+                                                                columns.
+                                                            </Text>
+                                                        </Group>
+                                                    )}
+                                                    <ChartDataTable
+                                                        columnNames={
+                                                            pivotedChartInfo
+                                                                ?.data.tableData
+                                                                ?.columns
+                                                        }
+                                                        rows={
+                                                            pivotedChartInfo
+                                                                ?.data.tableData
+                                                                ?.rows ?? []
+                                                        }
+                                                        flexProps={{
+                                                            mah: '100%',
+                                                        }}
+                                                        onTHClick={
+                                                            handleTableHeaderClick
+                                                        }
+                                                        thSortConfig={
+                                                            sortConfig
+                                                        }
+                                                    />
+                                                </>
                                             )}
                                     </ConditionalVisibility>
                                 </>

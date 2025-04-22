@@ -16,6 +16,7 @@ import {
     UsersListResponse,
     WebAPICallResult,
     WebClient,
+    type FilesUploadV2Arguments,
 } from '@slack/web-api';
 import { LightdashConfig } from '../../config/parseConfig';
 import { slackErrorHandler } from '../../errors';
@@ -34,7 +35,7 @@ export type PostSlackFile = {
     organizationUuid: string;
     channelId: string;
     threadTs: string;
-    file: Buffer;
+    file: FilesUploadV2Arguments['file'];
     title: string;
     comment?: string;
     filename: string;

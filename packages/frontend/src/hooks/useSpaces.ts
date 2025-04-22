@@ -23,6 +23,13 @@ const getSpaceSummaries = async (projectUuid: string) => {
     });
 };
 
+export const hasDirectAccessToSpace = (
+    space: Pick<SpaceSummary, 'isPrivate' | 'access'>,
+    userUuid: string,
+) => {
+    return !space.isPrivate || space.access.includes(userUuid);
+};
+
 export const useSpaceSummaries = (
     projectUuid?: string,
     includePrivateSpaces: boolean = false,
@@ -35,13 +42,13 @@ export const useSpaceSummaries = (
         {
             select: (data) =>
                 // only get spaces that the user has direct access to
-                !includePrivateSpaces
-                    ? data.filter(
+                includePrivateSpaces
+                    ? data
+                    : data.filter(
                           (space) =>
-                              !space.isPrivate ||
-                              (!!user && space.access.includes(user.userUuid)),
-                      )
-                    : data,
+                              !!user &&
+                              hasDirectAccessToSpace(space, user.userUuid),
+                      ),
             enabled: !!projectUuid,
             ...queryOptions,
         },
@@ -89,6 +96,7 @@ export const useSpaceDeleteMutation = (projectUuid: string) => {
                     'spaces',
                 ]);
                 await queryClient.invalidateQueries(['pinned_items']);
+                await queryClient.refetchQueries(['content']);
                 showToastSuccess({
                     title: `Success! Space was deleted.`,
                 });
@@ -135,6 +143,7 @@ export const useUpdateMutation = (
                     'spaces',
                 ]);
                 await queryClient.invalidateQueries(['pinned_items']);
+                await queryClient.invalidateQueries(['content']);
                 await queryClient.refetchQueries(['spaces', projectUuid]);
                 queryClient.setQueryData(
                     ['space', projectUuid, spaceUuid],
@@ -176,12 +185,22 @@ export const useCreateMutation = (
             projectUuid ? createSpace(projectUuid, data) : Promise.reject(),
         {
             mutationKey: ['space_create', projectUuid],
-            onSuccess: async (space) => {
+            onSuccess: async (space, { parentSpaceUuid }) => {
                 await queryClient.invalidateQueries([
                     'projects',
                     projectUuid!,
                     'spaces',
                 ]);
+
+                await queryClient.invalidateQueries(['content']);
+
+                if (parentSpaceUuid) {
+                    await queryClient.invalidateQueries([
+                        'space',
+                        projectUuid!,
+                        parentSpaceUuid,
+                    ]);
+                }
 
                 options?.onSuccess?.(space);
 

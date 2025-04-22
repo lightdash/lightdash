@@ -67,6 +67,7 @@ services:
             - '8080:8080'
             - '9090:9090'
             - '3000:3000'
+            - '6006:6006'
         command: ''
         entrypoint: ['/bin/sh', '-c', 'sleep infinity']
     db-dev:

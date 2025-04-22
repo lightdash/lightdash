@@ -2,6 +2,7 @@
 import { Type } from '@aws-sdk/client-s3';
 import {
     AnyType,
+    CacheMetadata,
     CartesianSeriesType,
     ChartKind,
     ChartType,
@@ -16,6 +17,7 @@ import {
     PinnedItem,
     ProjectMemberRole,
     QueryExecutionContext,
+    QueryHistoryStatus,
     RequestMethod,
     SchedulerFormat,
     SemanticLayerQuery,
@@ -255,6 +257,7 @@ type QueryExecutionEvent = BaseTrack & {
         context: QueryExecutionContext;
         organizationId: string;
         projectId: string;
+        cacheMetadata?: CacheMetadata;
     } & (
         | PaginatedMetricQueryExecutionProperties
         | MetricQueryExecutionProperties
@@ -289,13 +292,58 @@ type QueryPageEvent = BaseTrack & {
     properties: {
         queryId: string;
         projectId: string;
-        warehouseType: WarehouseTypes;
+        warehouseType: WarehouseTypes | null;
         page: number;
         columnsCount: number;
         totalRowCount: number;
         totalPageCount: number;
         resultsPageSize: number;
         resultsPageExecutionMs: number;
+        status: QueryHistoryStatus;
+        cacheMetadata: Omit<CacheMetadata, 'cacheHit'> | null;
+    };
+};
+
+type ResultsCacheCreateEvent = BaseTrack & {
+    event: 'results_cache.create';
+    properties: {
+        projectId: string;
+        cacheKey: string;
+        totalRowCount: number | null;
+        createdAt: Date;
+        expiresAt: Date;
+    };
+};
+
+type ResultsCacheWriteEvent = BaseTrack & {
+    event: 'results_cache.write';
+    properties: {
+        queryId: string;
+        projectId: string;
+        cacheKey: string;
+        totalRowCount: number | null;
+    };
+};
+
+type ResultsCacheReadEvent = BaseTrack & {
+    event: 'results_cache.read';
+    properties: {
+        queryId: string;
+        projectId: string;
+        cacheKey: string;
+        page: number;
+        requestedPageSize: number;
+        rowCount: number;
+        resultsPageExecutionMs: number;
+    };
+};
+
+type ResultsCacheDeleteEvent = BaseTrack & {
+    event: 'results_cache.delete';
+    properties: {
+        queryId: string;
+        projectId: string;
+        cacheKey: string;
     };
 };
 
@@ -436,6 +484,7 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
             referenceLinesCount: number;
             margins: string;
             showLegend: boolean;
+            hasCustomTooltip: boolean;
         };
         pie?: {
             isDonut: boolean;
@@ -1259,6 +1308,10 @@ type TypedEvent =
     | QueryReadyEvent
     | QueryErrorEvent
     | QueryPageEvent
+    | ResultsCacheCreateEvent
+    | ResultsCacheWriteEvent
+    | ResultsCacheReadEvent
+    | ResultsCacheDeleteEvent
     | ModeDashboardChartEvent
     | UpdateSavedChartEvent
     | DeleteSavedChartEvent

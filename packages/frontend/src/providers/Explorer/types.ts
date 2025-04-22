@@ -24,8 +24,8 @@ import {
     type TimeZone,
 } from '@lightdash/common';
 import {
+    type useGetReadyQueryResults,
     type useInfiniteQueryResults,
-    type useQueryResults,
 } from '../../hooks/useQueryResults';
 
 export enum ExplorerSection {
@@ -273,7 +273,7 @@ export interface ExplorerState extends ExplorerReduceState {
 
 export interface ExplorerContextType {
     state: ExplorerState;
-    query: ReturnType<typeof useQueryResults>;
+    query: ReturnType<typeof useGetReadyQueryResults>;
     queryResults: ReturnType<typeof useInfiniteQueryResults>;
     actions: {
         clearExplore: () => void;

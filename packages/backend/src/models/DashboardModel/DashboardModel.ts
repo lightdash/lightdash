@@ -1135,7 +1135,7 @@ export class DashboardModel {
                         ? {
                               space_id: (
                                   await SpaceModel.getSpaceIdAndName(
-                                      this.database,
+                                      trx,
                                       dashboard.spaceUuid,
                                   )
                               )?.spaceId,

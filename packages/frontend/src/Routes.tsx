@@ -36,7 +36,7 @@ import SemanticViewerViewPage from './pages/SemanticViewerView';
 import Settings from './pages/Settings';
 import ShareRedirect from './pages/ShareRedirect';
 import Space from './pages/Space';
-import Spaces from './pages/Spaces';
+import SpacesV2 from './pages/SpacesV2';
 import SqlRunner from './pages/SqlRunner';
 import UserActivity from './pages/UserActivity';
 import VerifyEmailPage from './pages/VerifyEmail';
@@ -322,7 +322,7 @@ const SPACES_ROUTES: RouteObject[] = [
             <>
                 <NavBar />
                 <TrackPage name={PageName.SPACES}>
-                    <Spaces />
+                    <SpacesV2 />
                 </TrackPage>
             </>
         ),

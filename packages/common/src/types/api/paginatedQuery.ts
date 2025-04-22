@@ -5,6 +5,7 @@ import type { DateGranularity } from '../timeFrames';
 
 type CommonPaginatedQueryRequestParams = {
     context?: QueryExecutionContext;
+    invalidateCache?: boolean;
 };
 
 export type ExecuteAsyncMetricQueryRequestParams =

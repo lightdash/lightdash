@@ -273,7 +273,7 @@ describe('Dashboard', () => {
         // create dashboard with title small
         cy.contains('Create dashboard').click();
         cy.findByLabelText('Name your dashboard *').type('Small');
-        cy.findByText('Create').click();
+        cy.findByTestId('dashboard-create-modal-create-button').click();
 
         // Create chart within dashboard
         cy.findAllByText('Add tile').click({ multiple: true });
@@ -297,7 +297,7 @@ describe('Dashboard', () => {
         cy.wait(2000);
 
         // get the fourth button with class  mantine-ActionIcon-root
-        cy.get('.mantine-ActionIcon-root').eq(4).click();
+        cy.get('[data-testid="dashboard-header-menu"]').click();
         cy.contains('Export dashboard').click();
         cy.findByText('Generate preview').click();
 

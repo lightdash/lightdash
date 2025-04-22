@@ -131,7 +131,7 @@ export class AnalyticsModel {
         userUuid: string,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
-            await this.database(AnalyticsDashboardViewsTableName).insert({
+            await trx(AnalyticsDashboardViewsTableName).insert({
                 dashboard_uuid: dashboardUuid,
                 user_uuid: userUuid,
             });

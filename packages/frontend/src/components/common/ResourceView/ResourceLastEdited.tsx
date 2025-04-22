@@ -21,6 +21,7 @@ const ResourceLastEdited: FC<ResourceLastEditedProps> = ({
     return (
         <div>
             <Tooltip
+                withinPortal
                 position="top-start"
                 label={dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
             >

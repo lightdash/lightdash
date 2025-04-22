@@ -203,12 +203,13 @@ const DashboardProvider: React.FC<
                             overridesForSavedDashboardFilters,
                         ),
                     };
+                    setHaveFiltersChanged(true);
                 } else {
                     updatedDashboardFilters = dashboard.filters;
+                    setHaveFiltersChanged(false);
                 }
 
                 setDashboardFilters(updatedDashboardFilters);
-                setHaveFiltersChanged(false);
             }
 
             setOriginalDashboardFilters(dashboard.filters);
@@ -538,8 +539,12 @@ const DashboardProvider: React.FC<
         [removeSavedFilterOverride],
     );
 
-    const addResultsCacheTime = useCallback((cacheMetadata: CacheMetadata) => {
-        if (cacheMetadata.cacheHit && cacheMetadata.cacheUpdatedTime) {
+    const addResultsCacheTime = useCallback((cacheMetadata?: CacheMetadata) => {
+        if (
+            cacheMetadata &&
+            cacheMetadata.cacheHit &&
+            cacheMetadata.cacheUpdatedTime
+        ) {
             setResultsCacheTimes((old) =>
                 cacheMetadata.cacheUpdatedTime
                     ? [...old, cacheMetadata.cacheUpdatedTime]

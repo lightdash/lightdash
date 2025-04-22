@@ -182,6 +182,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             icon={IconFolderCog}
                             onClose={handleReset}
                             onSubmitForm={handleReset}
+                            parentSpaceUuid={action.item.data.parentSpaceUuid}
                         />
                     );
                 default:
@@ -234,6 +235,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             icon={IconFolderX}
                             onClose={handleReset}
                             onSubmitForm={handleReset}
+                            parentSpaceUuid={null}
                         />
                     );
 
@@ -266,6 +268,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     icon={IconFolderPlus}
                     onClose={handleReset}
                     onSubmitForm={handleCreateSpace}
+                    parentSpaceUuid={null}
                 />
             );
 

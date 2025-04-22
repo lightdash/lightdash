@@ -1,0 +1,62 @@
+### Login
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+### Create Parent Space
+POST http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/spaces
+Content-Type: application/json
+
+{
+  "name": "Parent Space",
+  "isPrivate": false
+}
+
+### Create Child Space
+POST http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/spaces
+Content-Type: application/json
+
+{
+  "name": "Child Space",
+  "isPrivate": false,
+  "parentSpaceUuid": "PARENT_SPACE_UUID"
+}
+
+### Create Grandchild Space
+POST http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/spaces
+Content-Type: application/json
+
+{
+  "name": "Grandchild Space",
+  "isPrivate": false,
+  "parentSpaceUuid": "CHILD_SPACE_UUID"
+}
+
+### Get All spaces in project
+GET http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/spaces
+
+
+### Get All root spaces in project
+GET http://localhost:3000/api/v2/content
+?contentTypes=space
+&projectUuids=3675b69e-8324-4110-bdca-059031aa8da3
+&page=1
+&pageSize=25
+&sortBy=last_updated_at
+&sortDirection=desc
+
+Content-Type: application/json
+
+### Get all child spaces of a space
+GET http://localhost:3000/api/v2/content
+?contentTypes=space
+&parentSpaceUuid=5f54deb8-85c9-4cde-9227-abdc41d7982f
+&projectUuids=3675b69e-8324-4110-bdca-059031aa8da3
+&page=1
+&pageSize=25
+&sortBy=last_updated_at
+&sortDirection=desc

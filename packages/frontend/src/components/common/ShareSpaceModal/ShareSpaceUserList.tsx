@@ -52,6 +52,7 @@ export interface ShareSpaceUserListProps {
     space: Space;
     sessionUser: LightdashUser | undefined;
     projectUuid: string;
+    disabled?: boolean;
 }
 
 const UserAccessSelectItem = forwardRef<HTMLDivElement, AccessOption>(
@@ -149,6 +150,7 @@ type UserAccessListProps = {
         currentUserAccess: SpaceShare,
     ) => void;
     pageSize?: number;
+    disabled?: boolean;
 };
 const UserAccessList: FC<UserAccessListProps> = ({
     isPrivate,
@@ -156,6 +158,7 @@ const UserAccessList: FC<UserAccessListProps> = ({
     sessionUser,
     onAccessChange,
     pageSize,
+    disabled = false,
 }) => {
     const [page, setPage] = useState(1);
 
@@ -300,6 +303,7 @@ const UserAccessList: FC<UserAccessListProps> = ({
                                             />
                                         ) : null
                                     }
+                                    disabled={disabled}
                                 />
                             </Tooltip>
                         )}
@@ -322,6 +326,7 @@ const UserAccessList: FC<UserAccessListProps> = ({
 };
 
 type GroupAccessListProps = {
+    disabled?: boolean;
     isPrivate: boolean;
     groupsAccess: SpaceGroup[];
     onAccessChange: (
@@ -331,6 +336,7 @@ type GroupAccessListProps = {
     pageSize?: number;
 };
 const GroupsAccessList: FC<GroupAccessListProps> = ({
+    disabled = false,
     isPrivate,
     onAccessChange,
     groupsAccess,
@@ -421,6 +427,7 @@ const GroupsAccessList: FC<GroupAccessListProps> = ({
                                     );
                                 }
                             }}
+                            disabled={disabled}
                         />
                     </Group>
                 );
@@ -450,6 +457,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     space,
     projectUuid,
     sessionUser,
+    disabled = false,
 }) => {
     const { showToastError } = useToaster();
     const { mutate: unshareSpaceMutation } = useDeleteSpaceShareMutation(
@@ -619,6 +627,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                         accessList={accessByType.organisation}
                         sessionUser={sessionUser}
                         onAccessChange={handleAccessChange}
+                        disabled={disabled}
                     />
                 </ListCollapse>
             )}
@@ -633,6 +642,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                         accessList={accessByType.project}
                         sessionUser={sessionUser}
                         onAccessChange={handleAccessChange}
+                        disabled={disabled}
                     />
                 </ListCollapse>
             )}
@@ -642,6 +652,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                         Group access
                     </Text>
                     <GroupsAccessList
+                        disabled={disabled}
                         isPrivate={space.isPrivate}
                         groupsAccess={space.groupsAccess}
                         onAccessChange={handleGroupAccessChange}
@@ -660,6 +671,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                         sessionUser={sessionUser}
                         onAccessChange={handleAccessChange}
                         pageSize={5}
+                        disabled={disabled}
                     />
                 </>
             )}

@@ -120,8 +120,16 @@ export class S3Client {
         }
     }
 
-    async uploadPdf(pdf: Buffer, id: string): Promise<string> {
-        return this.uploadFile(`${id}.pdf`, pdf, 'application/pdf');
+    async uploadPdf(
+        pdf: Buffer,
+        id: string,
+    ): Promise<{
+        fileName: string;
+        url: string;
+    }> {
+        const fileName = `${id}.pdf`;
+        const url = await this.uploadFile(fileName, pdf, 'application/pdf');
+        return { fileName, url };
     }
 
     async uploadTxt(txt: Buffer, id: string): Promise<string> {

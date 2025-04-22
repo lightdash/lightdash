@@ -236,8 +236,8 @@ const PostgresForm: FC<{
                             ].map((x) => ({ value: x, label: x }))}
                             disabled={disabled}
                         />
-
-                        {sslMode === 'verify-full' ? (
+                        {sslMode === 'verify-ca' ||
+                        sslMode === 'verify-full' ? (
                             <>
                                 <CertificateFileInput
                                     name={'warehouse.sslcert'}
@@ -271,26 +271,23 @@ const PostgresForm: FC<{
                                         </p>
                                     }
                                 />
+                                <CertificateFileInput
+                                    name={'warehouse.sslrootcert'}
+                                    fileNameProperty={
+                                        'warehouse.sslrootcertFileName'
+                                    }
+                                    label={'SSL root certificate'}
+                                    disabled={disabled}
+                                    accept=".crt,.pem"
+                                    description={
+                                        <p>
+                                            The trusted certificate authority
+                                            (CA) certificate used to verify the
+                                            database server’s identity.
+                                        </p>
+                                    }
+                                />
                             </>
-                        ) : null}
-                        {sslMode === 'verify-ca' ||
-                        sslMode === 'verify-full' ? (
-                            <CertificateFileInput
-                                name={'warehouse.sslrootcert'}
-                                fileNameProperty={
-                                    'warehouse.sslrootcertFileName'
-                                }
-                                label={'SSL root certificate'}
-                                disabled={disabled}
-                                accept=".crt,.pem"
-                                description={
-                                    <p>
-                                        The trusted certificate authority (CA)
-                                        certificate used to verify the database
-                                        server’s identity.
-                                    </p>
-                                }
-                            />
                         ) : null}
 
                         <TextInput

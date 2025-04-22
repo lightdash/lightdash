@@ -1,0 +1,22 @@
+.node {
+    position: relative;
+
+    &::before {
+        position: absolute;
+        z-index: 1;
+        left: calc(var(--label-offset) - 10.5px);
+        top: 0;
+        content: '';
+        width: 1px;
+        height: 100%;
+        background-color: var(--mantine-color-gray-1);
+    }
+}
+
+.label {
+    position: relative;
+
+    &:where([data-selected]) {
+        background-color: transparent;
+    }
+}
