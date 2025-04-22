@@ -2,8 +2,6 @@ import {
     capitalize,
     ContentSortByColumns,
     contentToResourceViewItem,
-    isResourceViewItemChart,
-    isResourceViewItemDashboard,
     isResourceViewSpaceItem,
     type ContentType,
     type ResourceViewItem,
@@ -13,16 +11,13 @@ import {
     Anchor,
     Box,
     Divider,
-    Flex,
     Group,
-    Stack,
     Text,
     TextInput,
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
 import {
-    IconAlertTriangleFilled,
     IconArrowDown,
     IconArrowsSort,
     IconArrowUp,
@@ -59,27 +54,21 @@ import {
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
-import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
-import { ResourceInfoPopup } from '../ResourceInfoPopup/ResourceInfoPopup';
 import AdminContentViewFilter from './AdminContentViewFilter';
 import ContentTypeFilter from './ContentTypeFilter';
+import InfiniteResourceTableColumnName from './InfiniteResourceTableColumnName';
 import ResourceAccessInfo from './ResourceAccessInfo';
 import ResourceActionHandlers from './ResourceActionHandlers';
 import ResourceActionMenu from './ResourceActionMenu';
 import AttributeCount from './ResourceAttributeCount';
 import ResourceLastEdited from './ResourceLastEdited';
-import {
-    getResourceTypeName,
-    getResourceUrl,
-    getResourceViewsSinceWhenDescription,
-} from './resourceUtils';
+import { getResourceUrl } from './resourceUtils';
 import {
     ColumnVisibility,
     ResourceViewItemAction,
     type ColumnVisibilityConfig,
     type ResourceViewItemActionState,
 } from './types';
-import { getResourceAccessLabel } from './utils';
 
 type ResourceView2Props = {
     filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes' | 'space'> & {
@@ -127,132 +116,12 @@ const InfiniteResourceTable = ({
             enableEditing: false,
             size: 300,
             Cell: ({ row }) => {
-                const item = row.original;
-                const canBelongToSpace =
-                    isResourceViewItemChart(item) ||
-                    isResourceViewItemDashboard(item);
-
                 return (
-                    <Anchor
-                        component={Link}
-                        sx={{
-                            color: 'unset',
-                            ':hover': {
-                                color: 'unset',
-                                textDecoration: 'none',
-                            },
-                        }}
-                        to={getResourceUrl(filters.projectUuid, item)}
-                        onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
-                            e.stopPropagation()
-                        }
-                    >
-                        <Group noWrap>
-                            {canBelongToSpace &&
-                            item.data.validationErrors?.length ? (
-                                <ResourceIndicator
-                                    iconProps={{
-                                        icon: IconAlertTriangleFilled,
-                                        color: 'red',
-                                    }}
-                                    tooltipProps={{
-                                        maw: 300,
-                                        withinPortal: true,
-                                        multiline: true,
-                                        offset: -2,
-                                        position: 'bottom',
-                                    }}
-                                    tooltipLabel={
-                                        canUserManageValidation ? (
-                                            <>
-                                                This content is broken. Learn
-                                                more about the validation
-                                                error(s){' '}
-                                                <Anchor
-                                                    component={Link}
-                                                    fw={600}
-                                                    to={{
-                                                        pathname: `/generalSettings/projectManagement/${filters.projectUuid}/validator`,
-                                                        search: `?validationId=${item.data.validationErrors[0].validationId}`,
-                                                    }}
-                                                    color="blue.4"
-                                                >
-                                                    here
-                                                </Anchor>
-                                                .
-                                            </>
-                                        ) : (
-                                            <>
-                                                There's an error with this{' '}
-                                                {isResourceViewItemChart(item)
-                                                    ? 'chart'
-                                                    : 'dashboard'}
-                                                .
-                                            </>
-                                        )
-                                    }
-                                >
-                                    <ResourceIcon item={item} />
-                                </ResourceIndicator>
-                            ) : (
-                                <ResourceIcon item={item} />
-                            )}
-
-                            <Stack spacing={2}>
-                                <Group spacing="xs" noWrap>
-                                    <Text
-                                        fw={600}
-                                        lineClamp={1}
-                                        sx={{ overflowWrap: 'anywhere' }}
-                                    >
-                                        {item.data.name}
-                                    </Text>
-                                    {!isResourceViewSpaceItem(item) &&
-                                        // If there is no description, don't show the info icon on dashboards.
-                                        // For charts we still show it for the dashboard list
-                                        (item.data.description ||
-                                            isResourceViewItemChart(item)) &&
-                                        canBelongToSpace && (
-                                            <Box>
-                                                <ResourceInfoPopup
-                                                    resourceUuid={
-                                                        item.data.uuid
-                                                    }
-                                                    projectUuid={
-                                                        filters.projectUuid
-                                                    }
-                                                    description={
-                                                        item.data.description
-                                                    }
-                                                    withChartData={isResourceViewItemChart(
-                                                        item,
-                                                    )}
-                                                />
-                                            </Box>
-                                        )}
-                                </Group>
-                                {canBelongToSpace && (
-                                    <Text fz={12} color="gray.6">
-                                        {getResourceTypeName(item)} •{' '}
-                                        <Tooltip
-                                            position="top-start"
-                                            disabled={
-                                                !item.data.views ||
-                                                !item.data.firstViewedAt
-                                            }
-                                            label={getResourceViewsSinceWhenDescription(
-                                                item,
-                                            )}
-                                        >
-                                            <span>
-                                                {item.data.views || '0'} views
-                                            </span>
-                                        </Tooltip>
-                                    </Text>
-                                )}
-                            </Stack>
-                        </Group>
-                    </Anchor>
+                    <InfiniteResourceTableColumnName
+                        item={row.original}
+                        projectUuid={filters.projectUuid}
+                        canUserManageValidation={canUserManageValidation}
+                    />
                 );
             },
         },
@@ -310,23 +179,11 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (!isResourceViewSpaceItem(row.original)) return null;
                 return (
-                    <Tooltip
-                        withinPortal
-                        withArrow
-                        position="top"
-                        label={
-                            <Text lineClamp={1} fz="xs" fw={600} color="white">
-                                {getResourceAccessLabel(row.original)}
-                            </Text>
-                        }
-                    >
-                        <Flex>
-                            <ResourceAccessInfo
-                                item={row.original}
-                                type="primary"
-                            />
-                        </Flex>
-                    </Tooltip>
+                    <ResourceAccessInfo
+                        item={row.original}
+                        type="primary"
+                        withTooltip
+                    />
                 );
             },
         },
