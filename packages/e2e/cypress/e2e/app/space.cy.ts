@@ -31,7 +31,7 @@ describe('Space', () => {
             .type(`Private chart ${timestamp}`)
             .should('have.value', `Private chart ${timestamp}`);
 
-        // Saves to space by default - FIX ME - note OWRKING
+        // Saves to space by default
         cy.get('.mantine-Modal-body')
             .find('button')
             .should('not.be.disabled')
@@ -42,6 +42,8 @@ describe('Space', () => {
             .should('not.be.disabled')
             .contains('Save')
             .click();
+
+        cy.contains('Success! Chart was saved.').should('exist');
 
         // Go back to space using breadcrumbs
         cy.contains('Private space').click();
