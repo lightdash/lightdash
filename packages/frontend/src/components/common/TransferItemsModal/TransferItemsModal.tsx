@@ -128,9 +128,18 @@ const TransferItemsModal = <
                     <Text fz="sm" fw={500}>
                         You are creating a new space in{' '}
                         <Text span fw={600}>
-                            "{selectedSpaceLabel}"
+                            "{selectedSpaceLabel}".
                         </Text>
                     </Text>
+
+                    <Alert color="blue" icon={<IconInfoCircle size={16} />}>
+                        <Text fw={500} color="blue">
+                            Permissions will be inherited from{' '}
+                            <Text span fw={600}>
+                                "{selectedSpaceLabel}".
+                            </Text>
+                        </Text>
+                    </Alert>
 
                     <TextInput
                         label="Name"
@@ -140,15 +149,6 @@ const TransferItemsModal = <
                         value={newSpaceName}
                         onChange={(e) => setNewSpaceName(e.target.value)}
                     />
-
-                    <Alert color="blue" icon={<IconInfoCircle size={16} />}>
-                        <Text fw={500} color="blue">
-                            Permissions will be inherited from{' '}
-                            <Text span fw={600}>
-                                '{selectedSpaceLabel}'
-                            </Text>
-                        </Text>
-                    </Alert>
                 </>
             ) : (
                 <>
@@ -172,18 +172,18 @@ const TransferItemsModal = <
                             topLevelLabel="Spaces"
                         />
                     </Paper>
-
-                    {selectedSpaceLabel ? (
-                        <Alert color="gray">
-                            <Text fw={500}>
-                                Transfer {items.length}{' '}
-                                {items.length > 1 ? 'items' : 'item'} to{' '}
-                                "{selectedSpaceLabel}".
-                            </Text>
-                        </Alert>
-                    ) : null}
                 </>
             )}
+
+            {selectedSpaceLabel ? (
+                <Alert color="gray">
+                    <Text fw={500}>
+                        Transfer {items.length}{' '}
+                        {items.length > 1 ? 'items' : 'item'} to "
+                        {selectedSpaceLabel}".
+                    </Text>
+                </Alert>
+            ) : null}
         </MantineModal>
     );
 };
