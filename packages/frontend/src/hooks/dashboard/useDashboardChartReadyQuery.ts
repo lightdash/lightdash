@@ -1,28 +1,25 @@
 import {
-    DEFAULT_RESULTS_PAGE_SIZE,
     getDimensions,
     getItemId,
     isDateItem,
     QueryExecutionContext,
     type ApiError,
+    type ApiExecuteAsyncQueryResults,
     type ApiExploreResults,
     type SavedChart,
 } from '@lightdash/common';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import { useExplore } from '../useExplore';
-import {
-    executeQueryAndGetFirstPage,
-    type ChartReadyQueryQuery,
-    type ReadyQueryResultsPageWithClientFetchTimeMs,
-} from '../useQueryResults';
+import { executeQuery } from '../useQueryResults';
 import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
-export type DashboardChartReadyQuery = ChartReadyQueryQuery & {
+export type DashboardChartReadyQuery = {
+    executeQueryResponse: ApiExecuteAsyncQueryResults;
     chart: SavedChart;
     explore: ApiExploreResults;
 };
@@ -31,7 +28,6 @@ export const useDashboardChartReadyQuery = (
     tileUuid: string,
     chartUuid: string | null,
 ) => {
-    const queryClient = useQueryClient();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
@@ -126,37 +122,23 @@ export const useDashboardChartReadyQuery = (
                 throw new Error('Chart or explore is undefined');
             }
 
-            const results = await executeQueryAndGetFirstPage(
-                chart.projectUuid,
-                {
-                    context: autoRefresh
-                        ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
-                        : context || QueryExecutionContext.DASHBOARD,
-                    chartUuid: chartUuid!,
-                    dashboardUuid: dashboardUuid!,
-                    dashboardFilters: timezoneFixFilters,
-                    dashboardSorts,
-                    granularity,
-                    invalidateCache,
-                },
-            );
-
-            queryClient.setQueryData(
-                [
-                    'query-page',
-                    chart?.projectUuid,
-                    results.executeQueryResponse.queryUuid,
-                    1,
-                    DEFAULT_RESULTS_PAGE_SIZE,
-                ],
-                results.firstPage satisfies ReadyQueryResultsPageWithClientFetchTimeMs,
-            );
+            const executeQueryResponse = await executeQuery(chart.projectUuid, {
+                context: autoRefresh
+                    ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
+                    : context || QueryExecutionContext.DASHBOARD,
+                chartUuid: chartUuid!,
+                dashboardUuid: dashboardUuid!,
+                dashboardFilters: timezoneFixFilters,
+                dashboardSorts,
+                granularity,
+                invalidateCache,
+            });
 
             return {
                 chart,
                 explore,
-                ...results,
-            } satisfies DashboardChartReadyQuery;
+                executeQueryResponse,
+            };
         },
         enabled: Boolean(chartUuid && dashboardUuid && chart && explore),
         retry: false,

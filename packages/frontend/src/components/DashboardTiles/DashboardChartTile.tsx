@@ -418,12 +418,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     const {
         executeQueryResponse: { appliedDashboardFilters },
-        firstPage: { initialQueryExecutionMs },
         chart,
         explore,
     } = dashboardChartReadyQuery;
 
-    const { metricQuery, rows } = resultsData;
+    const { metricQuery, rows, initialQueryExecutionMs } = resultsData;
 
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
@@ -473,8 +472,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     queryId:
                         dashboardChartReadyQuery.executeQueryResponse.queryUuid,
                     warehouseExecutionTimeMs:
-                        dashboardChartReadyQuery.firstPage
-                            .initialQueryExecutionMs,
+                        resultsData.initialQueryExecutionMs,
                     totalTimeMs: resultsData.totalClientFetchTimeMs,
                     totalResults: resultsData.totalResults || 0,
                     loadedRows: resultsData.rows.length,

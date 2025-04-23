@@ -28,8 +28,8 @@ const ExplorerHeader: FC = memo(() => {
     );
     const showLimitWarning = useExplorerContext(
         (context) =>
-            context.query.data &&
-            context.query.data.firstPage.totalResults >=
+            context.queryResults.totalResults &&
+            context.queryResults.totalResults >=
                 context.state.unsavedChartVersion.metricQuery.limit,
     );
     const limit = useExplorerContext(
