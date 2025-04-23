@@ -231,6 +231,8 @@ export class ServiceRepository
                 new AnalyticsService({
                     analytics: this.context.lightdashAnalytics,
                     analyticsModel: this.models.getAnalyticsModel(),
+                    projectModel: this.models.getProjectModel(),
+                    csvService: this.getCsvService(),
                 }),
         );
     }

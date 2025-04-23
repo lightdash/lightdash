@@ -8,7 +8,6 @@ import {
     storeOIDCRedirect,
 } from '../controllers/authentication';
 import { UserModel } from '../models/UserModel';
-import { analyticsRouter } from './analyticsRouter';
 import { dashboardRouter } from './dashboardRouter';
 import { headlessBrowserRouter } from './headlessBrowser';
 import { inviteLinksRouter } from './inviteLinksRouter';
@@ -191,4 +190,3 @@ apiV1Router.use('/password-reset', passwordResetLinksRouter);
 apiV1Router.use('/jobs', jobsRouter);
 apiV1Router.use('/slack', slackRouter);
 apiV1Router.use('/headless-browser', headlessBrowserRouter);
-apiV1Router.use('/analytics', analyticsRouter);

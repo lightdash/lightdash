@@ -382,7 +382,7 @@ export class CsvService extends BaseService {
         return numberRows * numberColumns >= cellsLimit - numberColumns;
     }
 
-    private async downloadCsvFile({
+    public async downloadCsvFile({
         csvContent,
         fileName,
         projectUuid,
