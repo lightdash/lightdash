@@ -3869,10 +3869,9 @@ export class ProjectService extends BaseService {
             // Calculate max allowed columns based on number of value columns
             const valueColumnsCount = valuesColumns?.length || 1;
             const remainingColumns = MAX_PIVOT_COLUMN_LIMIT - 1; // Account for the index column
-            const maxColumnsPerValueColumn =
-                remainingColumns % valueColumnsCount === 0
-                    ? remainingColumns / valueColumnsCount // If it divides evenly, use the exact division
-                    : Math.floor(remainingColumns / valueColumnsCount); // Otherwise floor it
+            const maxColumnsPerValueColumn = Math.floor(
+                remainingColumns / valueColumnsCount,
+            );
 
             // Generate filtered rows and total columns so that we can apply a max column limit but also count the total number of columns if we exceed the MAX_PIVOT_COLUMN_LIMIT
             let pivotedSql = `
