@@ -1,3 +1,10 @@
+## [0.1595.2](https://github.com/lightdash/lightdash/compare/0.1595.1...0.1595.2) (2025-04-23)
+
+
+### Bug Fixes
+
+* conditional formatting coloring for small numbers ([#14506](https://github.com/lightdash/lightdash/issues/14506)) ([96b253f](https://github.com/lightdash/lightdash/commit/96b253f402e90d42eb0665de4162625337cdcc5c))
+
 ## [0.1595.1](https://github.com/lightdash/lightdash/compare/0.1595.0...0.1595.1) (2025-04-23)
 
 
