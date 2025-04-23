@@ -46,8 +46,6 @@ const TransferItemsModal = <
     }, [spaceUuid, spaces]);
 
     const handleCreateNewSpace = useCallback(() => {
-        console.log(newSpaceName);
-
         if (newSpaceName.length === 0) return;
 
         createSpaceMutation.mutate({
