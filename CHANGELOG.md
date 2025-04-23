@@ -1,3 +1,10 @@
+## [0.1596.2](https://github.com/lightdash/lightdash/compare/0.1596.1...0.1596.2) (2025-04-23)
+
+
+### Bug Fixes
+
+* backend build ([#14518](https://github.com/lightdash/lightdash/issues/14518)) ([7fbdfbb](https://github.com/lightdash/lightdash/commit/7fbdfbb59081b0c430dc93f4c60e98dbe3fb9473))
+
 ## [0.1596.1](https://github.com/lightdash/lightdash/compare/0.1596.0...0.1596.1) (2025-04-23)
 
 
