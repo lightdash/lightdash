@@ -1,3 +1,10 @@
+## [0.1595.1](https://github.com/lightdash/lightdash/compare/0.1595.0...0.1595.1) (2025-04-23)
+
+
+### Bug Fixes
+
+* download raw usage analytics ([#14471](https://github.com/lightdash/lightdash/issues/14471)) ([872355e](https://github.com/lightdash/lightdash/commit/872355ee41ca2341ed481b95250010e19dbf3b5b))
+
 # [0.1595.0](https://github.com/lightdash/lightdash/compare/0.1594.0...0.1595.0) (2025-04-23)
 
 
