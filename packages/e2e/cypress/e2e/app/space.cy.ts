@@ -27,12 +27,16 @@ describe('Space', () => {
         cy.contains('Chart name');
 
         cy.get('.mantine-Modal-body').find('button').should('be.disabled');
-        cy.contains('Select a space to save the chart directly to'); // Wait until it finishes loading, otherwise the input will be cleared
         cy.get('[data-testid="ChartCreateModal/NameInput"]')
             .type(`Private chart ${timestamp}`)
             .should('have.value', `Private chart ${timestamp}`);
 
-        // Saves to space by default
+        // Saves to space by default - FIX ME - note OWRKING
+        cy.get('.mantine-Modal-body')
+            .find('button')
+            .should('not.be.disabled')
+            .contains('Next')
+            .click();
         cy.get('.mantine-Modal-body')
             .find('button')
             .should('not.be.disabled')

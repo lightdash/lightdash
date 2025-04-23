@@ -179,7 +179,6 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             if (
                 currentStep === ModalStep.SelectDestination &&
                 saveDestination === SaveDestination.Space &&
-                !selectedSpaceUuid &&
                 form.values.spaceUuid === null
             ) {
                 const isValidDefaultSpaceUuid = spaces?.some(
@@ -237,8 +236,6 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
     const handleOnSubmit = useCallback(
         async (values: FormValues) => {
-            console.log('values', values);
-            // return;
             if (!isFormReadyToSave) {
                 return;
             }

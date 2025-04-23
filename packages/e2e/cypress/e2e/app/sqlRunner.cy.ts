@@ -209,6 +209,7 @@ describe('SQL Runner (new)', () => {
         cy.get(
             'input[placeholder="eg. How many weekly active users do we have?"]',
         ).type('Customers table SQL chart');
+        cy.findByText('Next').click();
         cy.get('section[role="dialog"]')
             .find('button')
             .contains('Save')
