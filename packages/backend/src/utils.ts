@@ -31,7 +31,7 @@ export const isDbPinnedSpace = (data: DbPinnedItem): data is DBPinnedSpace =>
 export const wrapSentryTransaction = <T>(
     name: string,
     context: CustomSamplingContext,
-    funct: (span: Sentry.Span) => Promise<T>,
+    funct: (span: Sentry.Span) => Promise<T> | T,
 ): Promise<T> => {
     const startTime = Date.now();
 
@@ -49,7 +49,8 @@ export const wrapSentryTransaction = <T>(
             );
 
             try {
-                return await funct(span);
+                const result = funct(span);
+                return result instanceof Promise ? await result : result;
             } catch (error) {
                 Logger.error(
                     `Error in wrapped sentry transaction ${
