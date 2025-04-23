@@ -128,7 +128,7 @@ const TransferItemsModal = <
                     <Text fz="sm" fw={500}>
                         You are creating a new space in{' '}
                         <Text span fw={600}>
-                            '{selectedSpaceLabel}'
+                            "{selectedSpaceLabel}"
                         </Text>
                     </Text>
 
@@ -178,7 +178,7 @@ const TransferItemsModal = <
                             <Text fw={500}>
                                 Transfer {items.length}{' '}
                                 {items.length > 1 ? 'items' : 'item'} to{' '}
-                                {selectedSpaceLabel}.
+                                "{selectedSpaceLabel}".
                             </Text>
                         </Alert>
                     ) : null}
