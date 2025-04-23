@@ -1,3 +1,15 @@
+# [0.1592.0](https://github.com/lightdash/lightdash/compare/0.1591.3...0.1592.0) (2025-04-23)
+
+
+### Bug Fixes
+
+* bump echarts to 5.6.0 ([#14495](https://github.com/lightdash/lightdash/issues/14495)) ([676127c](https://github.com/lightdash/lightdash/commit/676127cca4624c6441ec85e143188438e2873341))
+
+
+### Features
+
+* allow adjusting background-color of text on markdown-tiles ([#14502](https://github.com/lightdash/lightdash/issues/14502)) ([b9b13e3](https://github.com/lightdash/lightdash/commit/b9b13e341be2d316e2ee15b081c0cdce7bfae0dc))
+
 ## [0.1591.3](https://github.com/lightdash/lightdash/compare/0.1591.2...0.1591.3) (2025-04-22)
 
 
