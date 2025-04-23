@@ -74,7 +74,6 @@ export const createConditionalFormattingConfigWithColorRange = (
     color: {
         start: '#ffffff',
         end: defaultColor,
-        steps: 5,
     },
     rule: {
         min: 0,
