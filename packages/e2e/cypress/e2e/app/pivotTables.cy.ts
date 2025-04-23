@@ -52,6 +52,7 @@ describe('Pivot Tables', () => {
         cy.get('[data-testid="ChartCreateModal/NameInput"]').type(
             'My Pivot Table Chart',
         );
+        cy.findByText('Next').click();
         cy.findByText('Save').click();
         cy.contains('Chart was saved');
         cy.contains('My Pivot Table Chart');
