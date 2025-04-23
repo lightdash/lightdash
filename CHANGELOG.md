@@ -1,3 +1,10 @@
+# [0.1593.0](https://github.com/lightdash/lightdash/compare/0.1592.0...0.1593.0) (2025-04-23)
+
+
+### Features
+
+* transfer to modal ([#14488](https://github.com/lightdash/lightdash/issues/14488)) ([82dd282](https://github.com/lightdash/lightdash/commit/82dd2827b4838b89b4b357841a472c5685d902ab))
+
 # [0.1592.0](https://github.com/lightdash/lightdash/compare/0.1591.3...0.1592.0) (2025-04-23)
 
 
