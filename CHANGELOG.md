@@ -1,3 +1,10 @@
+# [0.1594.0](https://github.com/lightdash/lightdash/compare/0.1593.0...0.1594.0) (2025-04-23)
+
+
+### Features
+
+* transfer dashboard to space ([#14489](https://github.com/lightdash/lightdash/issues/14489)) ([60ea971](https://github.com/lightdash/lightdash/commit/60ea97106f9aecb6a6a7d05d1ed97021f25ddb96))
+
 # [0.1593.0](https://github.com/lightdash/lightdash/compare/0.1592.0...0.1593.0) (2025-04-23)
 
 
