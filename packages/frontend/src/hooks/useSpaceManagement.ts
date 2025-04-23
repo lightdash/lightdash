@@ -24,7 +24,7 @@ export const useSpaceManagement = ({
 
     const handleCreateNewSpace = useCallback(
         async ({ isPrivate }: { isPrivate?: boolean } = {}) => {
-            if (newSpaceName.length === 0) return null;
+            if (newSpaceName.length === 0) return;
 
             const result = await createSpaceMutation.mutateAsync({
                 name: newSpaceName,

@@ -1,4 +1,4 @@
-import { ChartKind } from '@lightdash/common';
+import { ChartKind, FeatureFlags } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -18,6 +18,7 @@ import { selectCompleteConfigByKind } from '../../../components/DataViz/store/se
 import MantineIcon from '../../../components/common/MantineIcon';
 import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useModalSteps } from '../../../hooks/useModalSteps';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
@@ -44,6 +45,9 @@ type FormValues = z.infer<typeof saveChartFormSchema>;
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
 const SaveChartForm: FC<Pick<Props, 'onClose'>> = ({ onClose }) => {
+    const isNestedSpacesEnabled = useFeatureFlagEnabled(
+        FeatureFlags.NestedSpaces,
+    );
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const hasUnrunChanges = useAppSelector(
@@ -180,9 +184,10 @@ const SaveChartForm: FC<Pick<Props, 'onClose'>> = ({ onClose }) => {
 
     const shouldShowNewSpaceButton = useMemo(
         () =>
+            isNestedSpacesEnabled &&
             modalSteps.currentStep === ModalStep.SelectDestination &&
             !isCreatingNewSpace,
-        [modalSteps.currentStep, isCreatingNewSpace],
+        [isNestedSpacesEnabled, modalSteps.currentStep, isCreatingNewSpace],
     );
 
     const isFormReadyToSave = useMemo(
