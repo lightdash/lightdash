@@ -12,8 +12,9 @@ export enum ResourceViewItemAction {
     DUPLICATE,
     ADD_TO_DASHBOARD,
     CREATE_SPACE,
-    MOVE_TO_SPACE,
     PIN_TO_HOMEPAGE,
+    TRANSFER_TO_SPACE,
+    MOVE_TO_SPACE, // TODO: remove these once we shift to the new nested spaces
 }
 
 export enum ResourceViewType {
@@ -27,7 +28,9 @@ export enum ResourceSortDirection {
 }
 
 export type ResourceViewItemActionState =
-    | { type: ResourceViewItemAction.CLOSE }
+    | {
+          type: ResourceViewItemAction.CLOSE;
+      }
     | {
           type: ResourceViewItemAction.UPDATE;
           item: ResourceViewItem;
@@ -56,6 +59,10 @@ export type ResourceViewItemActionState =
           type: ResourceViewItemAction.MOVE_TO_SPACE;
           item: ResourceViewChartItem | ResourceViewDashboardItem;
           data: { spaceUuid: string };
+      }
+    | {
+          type: ResourceViewItemAction.TRANSFER_TO_SPACE;
+          item: ResourceViewChartItem | ResourceViewDashboardItem; // TODO: implement spaces
       };
 
 type TabType = {
