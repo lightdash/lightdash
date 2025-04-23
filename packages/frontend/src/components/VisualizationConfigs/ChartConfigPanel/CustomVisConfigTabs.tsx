@@ -1,7 +1,16 @@
 import {
+    getItemId,
+    isDateItem,
+    isDimension,
+    isMetric,
+    isNumericType,
+} from '@lightdash/common';
+import {
+    Button,
     getDefaultZIndex,
     Group,
     Loader,
+    Modal,
     Select,
     Tabs,
     Text,
@@ -10,11 +19,12 @@ import { useDebouncedValue } from '@mantine/hooks';
 import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
 import merge from 'lodash/merge';
 import { type IDisposable, type languages } from 'monaco-editor';
-import React, { memo, useEffect, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useDeepCompareEffect } from 'react-use';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { isCustomVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { getTemplateByType, TemplateType } from './vegaTemplates';
 
 type Schema = {
     readonly uri: string;
@@ -35,6 +45,22 @@ const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     lineDecorationsWidth: 0,
     lineNumbersMinChars: 0,
     fixedOverflowWidgets: true,
+};
+
+const generateVegaTemplate = (
+    templateType: TemplateType,
+    xField: string | undefined,
+    yField: string | undefined,
+    extraField?: string,
+) => {
+    const templateJson = getTemplateByType(templateType);
+    let templateString = JSON.stringify(templateJson, null, 2);
+    if (xField) templateString = templateString.replaceAll('field_x', xField);
+    if (yField) templateString = templateString.replaceAll('field_y', yField);
+    if (extraField)
+        templateString = templateString.replaceAll('field_extra', extraField);
+
+    return templateString;
 };
 
 const initVegaLazySchema = async (fields: string[]) => {
@@ -138,8 +164,13 @@ const CustomVisConfigTabs: React.FC = memo(() => {
         void initVegaAsync();
     }, [isCustomConfig, visualizationConfig.chartConfig]);
 
-    const [editorConfig, setEditorConfig] = useState<string>('');
+    const [editorConfig, setEditorConfig] = useState<string>(
+        isCustomConfig ? visualizationConfig.chartConfig.visSpec || '' : '',
+    );
     const [debouncedTooltipValue] = useDebouncedValue(editorConfig, 1000);
+    const [selectedTemplate, setSelectedTemplate] = useState<
+        TemplateType | undefined
+    >();
 
     useEffect(() => {
         if (!isCustomConfig || isLoading) return;
@@ -175,6 +206,28 @@ const CustomVisConfigTabs: React.FC = memo(() => {
             overflowWidgetsDomNode: container,
         });
     }, [monacoOptions]);
+    const { itemsMap } = useVisualizationContext();
+
+    const loadTemplate = useCallback(
+        (template: TemplateType) => {
+            if (!isCustomConfig) return null;
+
+            const xField = Object.values(itemsMap || {})
+                .filter((item) => isDimension(item) && isDateItem(item))
+                .sort((a, b) => a.name.localeCompare(b.name))[0];
+            const [yField, extraField] = Object.values(itemsMap || {})
+                .filter((item) => isMetric(item) && isNumericType(item.type))
+                .sort((a, b) => a.name.localeCompare(b.name));
+            const templateString = generateVegaTemplate(
+                template,
+                getItemId(xField),
+                getItemId(yField),
+                getItemId(extraField),
+            );
+            setEditorConfig(templateString);
+        },
+        [isCustomConfig, itemsMap],
+    );
 
     if (!monacoOptions) return null; // we should not load monaco before options are set with the overflowWidgetsDomNode
 
@@ -185,12 +238,56 @@ const CustomVisConfigTabs: React.FC = memo(() => {
     if (!isCustomConfig) return null;
     const { series } = visualizationConfig.chartConfig;
 
+    const isEditorEmpty = (editorConfig || '')?.length === 0;
+
     return (
         <>
-            <Group>
-                <Text>Load template</Text>
-                <Select data={['', 'config', 'data']} defaultValue="config" />
-            </Group>
+            <Modal
+                title="Load template"
+                opened={!!selectedTemplate}
+                onClose={() => {
+                    setSelectedTemplate(undefined);
+                }}
+            >
+                <Text>
+                    Loading a new template will overwrite your current chart
+                    configuration. Are you sure you want to continue?
+                </Text>
+                <Group position="right" mt="sm">
+                    <Button
+                        color="dark"
+                        variant="outline"
+                        onClick={() => {
+                            setSelectedTemplate(undefined);
+                        }}
+                    >
+                        Keep config
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            if (selectedTemplate)
+                                loadTemplate(selectedTemplate);
+                            setSelectedTemplate(undefined);
+                        }}
+                    >
+                        Load template
+                    </Button>
+                </Group>
+            </Modal>
+
+            <Select
+                label="Load vega lite template"
+                placeholder="Select template"
+                data={Object.values(TemplateType)}
+                onChange={(value) => {
+                    if (!value) return;
+                    if (isEditorEmpty) {
+                        loadTemplate(value as TemplateType);
+                    } else {
+                        setSelectedTemplate(value as TemplateType);
+                    }
+                }}
+            />
             <Tabs
                 defaultValue="config"
                 style={{ flexGrow: 1 }}
@@ -216,7 +313,7 @@ const CustomVisConfigTabs: React.FC = memo(() => {
 
                 <Tabs.Panel value="config">
                     {/* Hack to show a monaco placeholder */}
-                    {(editorConfig || '')?.length === 0 ? (
+                    {isEditorEmpty ? (
                         <Text
                             ml="xl"
                             pos="absolute"
