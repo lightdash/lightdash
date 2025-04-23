@@ -1,3 +1,10 @@
+## [0.1596.1](https://github.com/lightdash/lightdash/compare/0.1596.0...0.1596.1) (2025-04-23)
+
+
+### Bug Fixes
+
+* enforce limit on pivoted columns ([#14511](https://github.com/lightdash/lightdash/issues/14511)) ([6facfb2](https://github.com/lightdash/lightdash/commit/6facfb2a7d8a54d16785292d3998528530fc5b88))
+
 # [0.1596.0](https://github.com/lightdash/lightdash/compare/0.1595.2...0.1596.0) (2025-04-23)
 
 
