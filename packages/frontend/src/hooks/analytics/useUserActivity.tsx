@@ -1,4 +1,8 @@
-import { type ApiError, type UserActivity } from '@lightdash/common';
+import {
+    type ApiError,
+    type ApiUserActivityDownloadCsv,
+    type UserActivity,
+} from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 
 import { lightdashApi } from '../../api';
@@ -21,3 +25,10 @@ export const useUserActivity = (projectUuid?: string) => {
         onError: (result) => setErrorResponse(result),
     });
 };
+
+export const downloadUserActivityCsv = async (projectUuid: string) =>
+    lightdashApi<ApiUserActivityDownloadCsv['results']>({
+        url: `/analytics/user-activity/${projectUuid}/download`,
+        method: 'POST',
+        body: undefined,
+    });

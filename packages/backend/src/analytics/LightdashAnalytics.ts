@@ -924,7 +924,7 @@ type PromoteContent = BaseTrack & {
 };
 
 type AnalyticsDashboardView = BaseTrack & {
-    event: 'usage_analytics.dashboard_viewed';
+    event: 'usage_analytics.dashboard_viewed' | 'usage_analytics.csv_download';
     userId: string;
     properties: {
         projectId: string;

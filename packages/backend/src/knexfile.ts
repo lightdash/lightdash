@@ -19,6 +19,12 @@ const development: Knex.Config<Knex.PgConnectionConfig> = {
     pool: {
         min: lightdashConfig.database.minConnections || 0,
         max: lightdashConfig.database.maxConnections || 10,
+        acquireTimeoutMillis: 30000, // (default) 30 seconds - max time the application will wait for a connection from the pool before failing (awaited connect will reject)
+        createTimeoutMillis: 30000, // (default) 30 seconds - max time that the knex pool will wait for a connection to the postgres database to be created before failing (create operation is cancelled)
+        destroyTimeoutMillis: 5000, // (default) 5 seconds - max time that the knex pool will wait for a connection to be destroyed before failing (new resources are created after timeout)
+        idleTimeoutMillis: 30000, // (default) 30 seconds - max time that a connection can be idle (not used by the application) before being destroyed (disconnected from postgres) (only happens if minConnections is 0)
+        reapIntervalMillis: 1000, // (default) 1 second - how often the pool will check for idle connections that need to be reaped
+        createRetryIntervalMillis: 200, // (default) 0.2 seconds - how long the pool will wait before retrying to create a connection to postgres after a failure
     },
     migrations: {
         directory: [

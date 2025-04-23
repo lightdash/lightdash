@@ -13,7 +13,6 @@ export type ConditionalFormattingMinMax<T = number> = {
 export type ConditionalFormattingColorRange = {
     start: string;
     end: string;
-    steps: number;
 };
 
 export type ConditionalFormattingWithValues<T = number | string> =
@@ -59,9 +58,7 @@ export type ConditionalFormattingConfigWithColorRange = {
 export const isConditionalFormattingConfigWithColorRange = (
     config: ConditionalFormattingConfig,
 ): config is ConditionalFormattingConfigWithColorRange =>
-    'color' in config &&
-    typeof config.color === 'object' &&
-    'steps' in config.color;
+    'color' in config && typeof config.color === 'object';
 
 export type ConditionalFormattingConfig =
     | ConditionalFormattingConfigWithSingleColor
