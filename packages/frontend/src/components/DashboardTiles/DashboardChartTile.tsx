@@ -1471,13 +1471,26 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         readyQuery.data?.executeQueryResponse.queryUuid,
     );
 
+    const isLoading = useMemo(() => {
+        const isCreatingQuery = readyQuery.isFetching;
+        const isFetchingFirstPage =
+            resultsData.totalResults === undefined ||
+            (resultsData.totalResults > 0 && resultsData.rows.length === 0);
+        const isFetchingAllRows =
+            resultsData.fetchAll && !resultsData.hasFetchedAllRows;
+        return isCreatingQuery || isFetchingFirstPage || isFetchingAllRows;
+    }, [
+        readyQuery.isFetching,
+        resultsData.fetchAll,
+        resultsData.hasFetchedAllRows,
+        resultsData.rows.length,
+        resultsData.totalResults,
+    ]);
+
     return (
         <GenericDashboardChartTile
             {...props}
-            isLoading={
-                (resultsData.fetchAll && !resultsData.hasFetchedAllRows) ||
-                readyQuery.isFetching
-            }
+            isLoading={isLoading}
             resultsData={resultsData}
             dashboardChartReadyQuery={readyQuery.data}
             error={readyQuery.error}
