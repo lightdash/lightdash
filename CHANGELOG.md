@@ -1,3 +1,10 @@
+# [0.1596.0](https://github.com/lightdash/lightdash/compare/0.1595.2...0.1596.0) (2025-04-23)
+
+
+### Features
+
+* add audit logging for casl checks ([#14416](https://github.com/lightdash/lightdash/issues/14416)) ([b2f1a55](https://github.com/lightdash/lightdash/commit/b2f1a55247411a7f416aa6f360feda25d60ffce4))
+
 ## [0.1595.2](https://github.com/lightdash/lightdash/compare/0.1595.1...0.1595.2) (2025-04-23)
 
 
