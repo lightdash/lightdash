@@ -1,3 +1,10 @@
+# [0.1595.0](https://github.com/lightdash/lightdash/compare/0.1594.0...0.1595.0) (2025-04-23)
+
+
+### Features
+
+* create space within transfer modal (only nested) ([#14492](https://github.com/lightdash/lightdash/issues/14492)) ([dfea909](https://github.com/lightdash/lightdash/commit/dfea9096de5cf55531fa5ce915ea8ed5e2ae6de4))
+
 # [0.1594.0](https://github.com/lightdash/lightdash/compare/0.1593.0...0.1594.0) (2025-04-23)
 
 
