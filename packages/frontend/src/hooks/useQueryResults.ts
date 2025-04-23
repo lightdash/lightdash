@@ -16,7 +16,7 @@ import {
     type ResultRow,
     sleep,
 } from '@lightdash/common';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
@@ -186,104 +186,40 @@ export type ReadyQueryResultsPageWithClientFetchTimeMs =
         clientFetchTimeMs: number;
     };
 
-export type ChartReadyQueryQuery = {
-    executeQueryResponse: ApiExecuteAsyncQueryResults;
-    firstPage: ReadyQueryResultsPageWithClientFetchTimeMs;
-};
-
-export const executeQueryAndGetFirstPage = async (
+export const executeQuery = async (
     projectUuid: string,
     data: ExecuteAsyncQueryRequestParams,
-): Promise<ChartReadyQueryQuery> => {
-    const startTime = performance.now();
-    const query = await lightdashApi<ApiExecuteAsyncQueryResults>({
+): Promise<ApiExecuteAsyncQueryResults> =>
+    lightdashApi<ApiExecuteAsyncQueryResults>({
         url: `/projects/${projectUuid}/query`,
         version: 'v2',
         method: 'POST',
         body: JSON.stringify(data),
     });
-    let firstPage: ApiGetAsyncQueryResults | undefined;
-    let backoffMs = 250; // Start with 250ms
-
-    // Wait for first page
-    while (!firstPage || firstPage.status === QueryHistoryStatus.PENDING) {
-        firstPage = await lightdashApi<ApiGetAsyncQueryResults>({
-            url: `/projects/${projectUuid}/query/${query.queryUuid}?pageSize=${DEFAULT_RESULTS_PAGE_SIZE}`,
-            version: 'v2',
-            method: 'GET',
-            body: undefined,
-        });
-
-        const { status } = firstPage;
-
-        switch (status) {
-            case QueryHistoryStatus.CANCELLED:
-                throw <ApiError>{
-                    status: 'error',
-                    error: {
-                        name: 'Error',
-                        statusCode: 500,
-                        message: 'Query cancelled',
-                        data: {},
-                    },
-                };
-            case QueryHistoryStatus.ERROR:
-                throw <ApiError>{
-                    status: 'error',
-                    error: {
-                        name: 'Error',
-                        statusCode: 500,
-                        message: firstPage.error ?? 'Query failed',
-                        data: {},
-                    },
-                };
-            case QueryHistoryStatus.READY:
-                break;
-            case QueryHistoryStatus.PENDING:
-                await sleep(backoffMs);
-                // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
-                if (backoffMs < 1000) {
-                    backoffMs = Math.min(backoffMs * 2, 1000);
-                }
-                break;
-            default:
-                return assertUnreachable(status, 'Unknown query status');
-        }
-    }
-
-    return {
-        executeQueryResponse: query,
-        firstPage: {
-            ...(firstPage as ReadyQueryResultsPage),
-            clientFetchTimeMs: performance.now() - startTime,
-        },
-    } satisfies ChartReadyQueryQuery;
-};
 
 export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
-    const queryClient = useQueryClient();
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
         forbiddenToastTitle: 'Error running query',
     });
 
-    const result = useQuery<ChartReadyQueryQuery, ApiError>({
+    const result = useQuery<ApiExecuteAsyncQueryResults, ApiError>({
         enabled: !!data,
         queryKey: ['create-query', data],
         queryFn: () => {
             if (data?.chartUuid && data?.chartVersionUuid) {
-                return executeQueryAndGetFirstPage(data.projectUuid, {
+                return executeQuery(data.projectUuid, {
                     context: QueryExecutionContext.CHART_HISTORY,
                     chartUuid: data.chartUuid,
                     versionUuid: data.chartVersionUuid,
                 });
             } else if (data?.chartUuid) {
-                return executeQueryAndGetFirstPage(data.projectUuid, {
+                return executeQuery(data.projectUuid, {
                     context: QueryExecutionContext.CHART,
                     chartUuid: data.chartUuid,
                 });
             } else if (data?.query) {
-                return executeQueryAndGetFirstPage(data.projectUuid, {
+                return executeQuery(data.projectUuid, {
                     context: QueryExecutionContext.EXPLORE,
                     query: {
                         ...data.query,
@@ -300,22 +236,6 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
             );
         },
     });
-
-    // On Success
-    useEffect(() => {
-        if (result.data) {
-            queryClient.setQueryData(
-                [
-                    'query-page',
-                    data?.projectUuid,
-                    result.data.executeQueryResponse.queryUuid,
-                    1,
-                    DEFAULT_RESULTS_PAGE_SIZE,
-                ],
-                result.data.firstPage,
-            );
-        }
-    }, [data?.projectUuid, result.data, queryClient]);
 
     // On Error
     useEffect(() => {
@@ -395,7 +315,11 @@ const getResultsPage = async (
 export type InfiniteQueryResults = Partial<
     Pick<
         ReadyQueryResultsPage,
-        'metricQuery' | 'queryUuid' | 'totalResults' | 'fields'
+        | 'metricQuery'
+        | 'queryUuid'
+        | 'totalResults'
+        | 'fields'
+        | 'initialQueryExecutionMs'
     >
 > & {
     projectUuid?: string;
@@ -562,6 +486,7 @@ export const useInfiniteQueryResults = (
             metricQuery: fetchedPages[0]?.metricQuery,
             fields: fetchedPages[0]?.fields,
             totalResults: fetchedPages[0]?.totalResults,
+            initialQueryExecutionMs: fetchedPages[0]?.initialQueryExecutionMs,
             hasFetchedAllRows,
             rows: fetchedRows,
             isFetchingRows,

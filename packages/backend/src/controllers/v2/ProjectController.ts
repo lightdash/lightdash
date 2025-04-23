@@ -63,6 +63,11 @@ export class V2ProjectController extends BaseController {
     ): Promise<ApiGetAsyncQueryResultsResponse> {
         this.setStatus(200);
 
+        // sleep 500ms
+        await new Promise((resolve) => {
+            setTimeout(resolve, 5000);
+        });
+
         const results = await this.services
             .getProjectService()
             .getAsyncQueryResults({
