@@ -1502,11 +1502,18 @@ export class UserService extends BaseService {
     }
 
     async findSessionUser(passportUser: { id: string; organization: string }) {
-        return wrapSentryTransaction('Passport.deserializeUser', {}, () =>
-            this.userModel.findSessionUserAndOrgByUuid(
-                passportUser.id,
-                passportUser.organization,
-            ),
+        return wrapSentryTransaction(
+            'Passport.deserializeUser',
+            {},
+            async (span) => {
+                const { sessionUser, cacheHit } =
+                    await this.userModel.getSessionUserFromCacheOrDB(
+                        passportUser.id,
+                        passportUser.organization,
+                    );
+                span.setAttribute('cacheHit', cacheHit);
+                return sessionUser;
+            },
         );
     }
 
