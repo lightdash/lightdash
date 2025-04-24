@@ -325,7 +325,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                     <MantineIcon
                         icon={IconChartAreaLine}
                         size="lg"
-                        color="blue.8"
+                        color="blue.6"
                     />
 
                     <Title order={4}>Add saved charts</Title>
