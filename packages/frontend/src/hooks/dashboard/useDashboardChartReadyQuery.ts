@@ -1,5 +1,8 @@
 import {
     DEFAULT_RESULTS_PAGE_SIZE,
+    getDimensions,
+    getItemId,
+    isDateItem,
     QueryExecutionContext,
     type ApiError,
     type ApiExploreResults,
@@ -58,7 +61,23 @@ export const useDashboardChartReadyQuery = (
 
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
-    const hasADateDimension = !!chart?.metricQuery?.metadata?.hasADateDimension;
+
+    const hasADateDimension = useMemo(() => {
+        const metricQueryDimensions = [
+            ...(chart?.metricQuery?.dimensions ?? []),
+            ...(chart?.metricQuery?.customDimensions ?? []),
+        ];
+
+        if (!explore) return false;
+        return getDimensions(explore).find(
+            (c) =>
+                metricQueryDimensions.includes(getItemId(c)) && isDateItem(c),
+        );
+    }, [
+        chart?.metricQuery?.customDimensions,
+        chart?.metricQuery?.dimensions,
+        explore,
+    ]);
 
     setChartsWithDateZoomApplied((prev) => {
         if (hasADateDimension) {
@@ -74,17 +93,16 @@ export const useDashboardChartReadyQuery = (
     const queryKey = useMemo(
         () => [
             'dashboard_chart_ready_query',
-            [
-                chart?.projectUuid,
-                chartUuid,
-                dashboardUuid,
-                timezoneFixFilters,
-                dashboardSorts,
-                sortKey,
-                context,
-                autoRefresh,
-                invalidateCache,
-            ],
+            chart?.projectUuid,
+            chartUuid,
+            dashboardUuid,
+            timezoneFixFilters,
+            dashboardSorts,
+            sortKey,
+            context,
+            autoRefresh,
+            invalidateCache,
+            hasADateDimension ? granularity : null,
         ],
         [
             chart?.projectUuid,
@@ -96,14 +114,13 @@ export const useDashboardChartReadyQuery = (
             context,
             autoRefresh,
             invalidateCache,
+            hasADateDimension,
+            granularity,
         ],
     );
 
     return useQuery<DashboardChartReadyQuery, ApiError>({
-        queryKey:
-            hasADateDimension && granularity
-                ? queryKey.concat([granularity])
-                : queryKey,
+        queryKey,
         queryFn: async () => {
             if (!chart || !explore) {
                 throw new Error('Chart or explore is undefined');
