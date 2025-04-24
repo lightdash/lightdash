@@ -49,7 +49,7 @@ const bubblePlotsTemplate = {
     encoding: {
         x: {
             field: 'field_x',
-            type: 'quantitative',
+            type: 'temporal',
         },
         y: {
             field: 'field_y',

@@ -708,6 +708,11 @@ export type ApiAiGetDashboardSummaryResponse = {
     results: DashboardSummary;
 };
 
+export type ApiAiGenerateCustomVizResponse = {
+    status: 'ok';
+    results: string;
+};
+
 type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults

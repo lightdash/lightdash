@@ -4,23 +4,30 @@ import {
     isDimension,
     isMetric,
     isNumericType,
+    type ItemsMap,
 } from '@lightdash/common';
 import {
     Button,
+    Flex,
     getDefaultZIndex,
     Group,
     Loader,
     Modal,
+    Popover,
     Select,
     Tabs,
     Text,
+    Textarea,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
+import { IconSparkles } from '@tabler/icons-react';
 import merge from 'lodash/merge';
 import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
+import { lightdashApi } from '../../../api';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { isCustomVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -84,6 +91,24 @@ const initVegaLazySchema = async (fields: string[]) => {
     ];
 };
 
+const getCustomViz = async (
+    projectUuid: string,
+    prompt: string,
+    itemsMap: ItemsMap | undefined,
+    sampleResults: {
+        [k: string]: unknown;
+    }[],
+) =>
+    lightdashApi<string>({
+        url: `/ai/${projectUuid}/custom-viz`,
+        method: 'POST',
+        body: JSON.stringify({
+            prompt,
+            itemsMap,
+            sampleResults,
+        }),
+    });
+
 const loadMonaco = (monaco: Monaco, schemas: Schema[]) => {
     monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
         comments: 'warning',
@@ -143,70 +168,20 @@ const registerCustomCompletionProvider = (
             triggerCharacters: ['$'],
         });
 };
-
-const CustomVisConfigTabs: React.FC = memo(() => {
-    const { visualizationConfig } = useVisualizationContext();
-
-    const isCustomConfig = isCustomVisualizationConfig(visualizationConfig);
-
-    const [isLoading, setIsLoading] = useState(true);
-    const schemas = useRef<Schema[] | null>(null);
-
-    useEffect(() => {
-        if (!isCustomConfig) return;
-        const fields = visualizationConfig.chartConfig.fields || [];
-
-        async function initVegaAsync() {
-            schemas.current = await initVegaLazySchema(fields);
-            setIsLoading(false);
-        }
-
-        void initVegaAsync();
-    }, [isCustomConfig, visualizationConfig.chartConfig]);
-
-    const [editorConfig, setEditorConfig] = useState<string>(
-        isCustomConfig ? visualizationConfig.chartConfig.visSpec || '' : '',
-    );
-    const [debouncedTooltipValue] = useDebouncedValue(editorConfig, 1000);
+const SelectTemplate = ({
+    itemsMap,
+    isCustomConfig,
+    isEditorEmpty,
+    setEditorConfig,
+}: {
+    itemsMap: ItemsMap | undefined;
+    isCustomConfig: boolean;
+    isEditorEmpty: boolean;
+    setEditorConfig: (config: string) => void;
+}) => {
     const [selectedTemplate, setSelectedTemplate] = useState<
         TemplateType | undefined
     >();
-
-    useEffect(() => {
-        if (!isCustomConfig || isLoading) return;
-        visualizationConfig.chartConfig.setVisSpec(debouncedTooltipValue ?? '');
-    }, [
-        isLoading,
-        isCustomConfig,
-        debouncedTooltipValue,
-        visualizationConfig.chartConfig,
-    ]);
-
-    const [monacoOptions, setMonacoOptions] = useState<
-        EditorProps['options'] | undefined
-    >();
-
-    useDeepCompareEffect(() => {
-        /** Creates a container that belongs to body, outside of the sidebar
-         * so we can place the autocomplete tooltip and it doesn't overflow
-         * CSS for this component is set on `monaco.css`
-         */
-        const containerId = 'monaco-overflow-container';
-        let container = document.getElementById(containerId);
-        if (!container) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'monaco-editor';
-            container = document.createElement('div');
-            container.id = containerId;
-            wrapper.appendChild(container);
-            document.getElementById('root')?.appendChild(wrapper);
-        }
-        setMonacoOptions({
-            ...MONACO_DEFAULT_OPTIONS,
-            overflowWidgetsDomNode: container,
-        });
-    }, [monacoOptions]);
-    const { itemsMap } = useVisualizationContext();
 
     const loadTemplate = useCallback(
         (template: TemplateType) => {
@@ -226,20 +201,8 @@ const CustomVisConfigTabs: React.FC = memo(() => {
             );
             setEditorConfig(templateString);
         },
-        [isCustomConfig, itemsMap],
+        [isCustomConfig, itemsMap, setEditorConfig],
     );
-
-    if (!monacoOptions) return null; // we should not load monaco before options are set with the overflowWidgetsDomNode
-
-    if (isLoading) {
-        return <Loader color="gray" size="xs" />;
-    }
-
-    if (!isCustomConfig) return null;
-    const { series } = visualizationConfig.chartConfig;
-
-    const isEditorEmpty = (editorConfig || '')?.length === 0;
-
     return (
         <>
             <Modal
@@ -288,6 +251,164 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                     }
                 }}
             />
+        </>
+    );
+};
+const GenerateVizWithAi = ({
+    itemsMap,
+    sampleResults,
+    setEditorConfig,
+}: {
+    itemsMap: ItemsMap | undefined;
+    sampleResults: {
+        [k: string]: unknown;
+    }[];
+    setEditorConfig: (config: string) => void;
+}) => {
+    const { projectUuid } = useParams<{
+        projectUuid: string;
+    }>();
+    const [prompt, setPrompt] = useState('');
+
+    const [isLoading, setIsLoading] = useState(false);
+
+    return (
+        <Popover width="400px" position="bottom" withArrow shadow="md">
+            <Popover.Target>
+                <Button variant="outline" color="blue">
+                    Ask AI <IconSparkles size={16} />
+                </Button>
+            </Popover.Target>
+            <Popover.Dropdown>
+                <Textarea
+                    placeholder="Create a heatmap with detailed tooltips and clear values for fast insights"
+                    autosize
+                    minRows={1}
+                    maxRows={3}
+                    onChange={(event) => setPrompt(event.currentTarget.value)}
+                />
+
+                <Button
+                    mt="sm"
+                    onClick={() => {
+                        setIsLoading(true);
+                        if (prompt && projectUuid)
+                            getCustomViz(
+                                projectUuid,
+                                prompt,
+                                itemsMap,
+                                sampleResults,
+                            )
+                                .then((vizConfig) => {
+                                    // Handle the visualization config
+                                    setEditorConfig(vizConfig);
+                                })
+                                .catch((error) => {
+                                    console.error(
+                                        'Error generating custom viz:',
+                                        error,
+                                    );
+                                })
+                                .finally(() => {
+                                    setIsLoading(false);
+                                });
+                    }}
+                    disabled={isLoading}
+                >
+                    {isLoading ? 'Generating...' : 'Generate'}
+                </Button>
+            </Popover.Dropdown>
+        </Popover>
+    );
+};
+const CustomVisConfigTabs: React.FC = memo(() => {
+    const { visualizationConfig } = useVisualizationContext();
+
+    const isCustomConfig = isCustomVisualizationConfig(visualizationConfig);
+
+    const [isLoading, setIsLoading] = useState(true);
+    const schemas = useRef<Schema[] | null>(null);
+
+    useEffect(() => {
+        if (!isCustomConfig) return;
+        const fields = visualizationConfig.chartConfig.fields || [];
+
+        async function initVegaAsync() {
+            schemas.current = await initVegaLazySchema(fields);
+            setIsLoading(false);
+        }
+
+        void initVegaAsync();
+    }, [isCustomConfig, visualizationConfig.chartConfig]);
+
+    const [editorConfig, setEditorConfig] = useState<string>(
+        isCustomConfig ? visualizationConfig.chartConfig.visSpec || '' : '',
+    );
+    const [debouncedTooltipValue] = useDebouncedValue(editorConfig, 1000);
+
+    useEffect(() => {
+        if (!isCustomConfig || isLoading) return;
+        visualizationConfig.chartConfig.setVisSpec(debouncedTooltipValue ?? '');
+    }, [
+        isLoading,
+        isCustomConfig,
+        debouncedTooltipValue,
+        visualizationConfig.chartConfig,
+    ]);
+
+    const [monacoOptions, setMonacoOptions] = useState<
+        EditorProps['options'] | undefined
+    >();
+
+    useDeepCompareEffect(() => {
+        /** Creates a container that belongs to body, outside of the sidebar
+         * so we can place the autocomplete tooltip and it doesn't overflow
+         * CSS for this component is set on `monaco.css`
+         */
+        const containerId = 'monaco-overflow-container';
+        let container = document.getElementById(containerId);
+        if (!container) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'monaco-editor';
+            container = document.createElement('div');
+            container.id = containerId;
+            wrapper.appendChild(container);
+            document.getElementById('root')?.appendChild(wrapper);
+        }
+        setMonacoOptions({
+            ...MONACO_DEFAULT_OPTIONS,
+            overflowWidgetsDomNode: container,
+        });
+    }, [monacoOptions]);
+    const { itemsMap } = useVisualizationContext();
+
+    if (!monacoOptions) return null; // we should not load monaco before options are set with the overflowWidgetsDomNode
+
+    if (isLoading) {
+        return <Loader color="gray" size="xs" />;
+    }
+
+    if (!isCustomConfig) return null;
+    const { series } = visualizationConfig.chartConfig;
+
+    const isEditorEmpty = (editorConfig || '')?.length === 0;
+
+    return (
+        <>
+            <Flex gap="sm" align="flex-end">
+                <SelectTemplate
+                    itemsMap={itemsMap}
+                    isCustomConfig={isCustomConfig}
+                    isEditorEmpty={isEditorEmpty}
+                    setEditorConfig={setEditorConfig}
+                />
+                <Text>or</Text>
+                <GenerateVizWithAi
+                    itemsMap={itemsMap}
+                    sampleResults={series.slice(0, 3)}
+                    setEditorConfig={setEditorConfig}
+                />
+            </Flex>
             <Tabs
                 defaultValue="config"
                 style={{ flexGrow: 1 }}

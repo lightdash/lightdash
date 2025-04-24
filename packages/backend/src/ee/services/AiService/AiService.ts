@@ -21,13 +21,17 @@ import {
     ItemsMap,
     LightdashUser,
     QueryExecutionContext,
+    ResultRow,
     SessionUser,
     SlackPrompt,
     UnexpectedServerError,
     assertUnreachable,
     getErrorMessage,
+    getItemId,
     isDashboardChartTileType,
+    isField,
     isSlackPrompt,
+    isTableCalculation,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { AgentExecutor } from 'langchain/agents';
@@ -78,6 +82,7 @@ import {
 } from './utils/prepareData';
 import {
     DEFAULT_CHART_SUMMARY_PROMPT,
+    DEFAULT_CUSTOM_VIZ_PROMPT,
     DEFAULT_DASHBOARD_SUMMARY_PROMPT,
 } from './utils/prompts';
 import { getTotalTokenUsage } from './utils/tokens';
@@ -250,6 +255,92 @@ export class AiService {
             chart_name: chartData.name,
             chart_description: chartData.description ?? '',
         });
+    }
+
+    async generateCustomViz({
+        user,
+        projectUuid,
+        prompt,
+        itemsMap,
+        sampleResults,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        prompt: string;
+        itemsMap: ItemsMap;
+        sampleResults: {
+            [k: string]: unknown;
+        }[];
+    }) {
+        const isAIDashboardSummaryEnabled = await isFeatureFlagEnabled(
+            'ai-dashboard-summary' as FeatureFlags,
+            user,
+            {
+                throwOnTimeout: true,
+            },
+        );
+
+        if (!isAIDashboardSummaryEnabled) {
+            throw new Error('AI Dashboard summary feature not enabled!');
+        }
+        let openAiResponse;
+
+        const fields = Object.values(itemsMap).map((item) => ({
+            id: getItemId(item),
+            name: item.name,
+            type: item.type,
+            fieldType: isField(item) ? item.fieldType : undefined,
+        }));
+
+        const startTime = new Date().getTime();
+
+        try {
+            openAiResponse = await this.openAi.run(DEFAULT_CUSTOM_VIZ_PROMPT, {
+                user_prompt: prompt,
+                fields: JSON.stringify(fields),
+                sample_data: JSON.stringify(sampleResults),
+            });
+        } catch (e) {
+            const errorCode =
+                e instanceof Error && 'code' in e ? e.code : getErrorMessage(e);
+            throw new Error(`Failed to generate vega config - ${errorCode}`);
+        }
+
+        const { result: vegaConfigResult, tokenUsage } = openAiResponse;
+
+        const timeOpenAi = new Date().getTime() - startTime;
+
+        const totalTokenUsages = [tokenUsage].filter(
+            (t): t is TokenUsage => t !== undefined,
+        );
+
+        const totalTokens = getTotalTokenUsage(totalTokenUsages);
+
+        if (this.openAi.model === undefined) {
+            throw new UnexpectedServerError('OpenAi model is not initialized');
+        }
+
+        /*
+        this.analytics.track<DashboardSummaryCreated>({
+            userId: user.userUuid,
+            event: 'ai.dashboard_summary.executed',
+            properties: {
+                openAIModelName: this.openAi.model.modelName,
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                dashboardId: dashboardUuid,
+                dashboardSummaryUuid: dashboardSummary.dashboardSummaryUuid,
+                context,
+                responseSize: dashboardSummaryText.length,
+                tokenUsage: totalTokens,
+                timeGetCharts,
+                timeOpenAi,
+                timeTotal: timeOpenAi + timeGetCharts,
+            },
+        });
+        */
+
+        return vegaConfigResult;
     }
 
     async createDashboardSummary(
