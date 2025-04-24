@@ -48,7 +48,7 @@ import {
 } from '@lightdash/common';
 import { isArray } from 'lodash';
 import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
-import { wrapSentryTransaction } from './utils';
+import { wrapSentryTransactionSync } from './utils';
 
 const getDimensionFromId = (
     dimId: FieldId,
@@ -855,8 +855,8 @@ export const buildQuery = ({
     intrinsicUserAttributes,
     userAttributes = {},
     timezone,
-}: BuildQueryProps): Promise<CompiledQuery> =>
-    wrapSentryTransaction('QueryBuilder.buildQuery', {}, () => {
+}: BuildQueryProps): CompiledQuery =>
+    wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () => {
         let hasExampleMetric: boolean = false;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
         const adapterType: SupportedDbtAdapter =
