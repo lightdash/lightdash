@@ -1,19 +1,16 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags, type Dashboard, type Space } from '@lightdash/common';
 import {
-    Box,
     Button,
     Group,
     MantineProvider,
-    Modal,
     Stack,
     TextInput,
     Textarea,
-    Title,
     type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconPlus } from '@tabler/icons-react';
+import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
@@ -22,6 +19,7 @@ import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
+import MantineModal from '../MantineModal';
 import SaveToSpaceForm from './ChartCreateModal/SaveToSpaceForm';
 
 enum ModalStep {
@@ -29,7 +27,9 @@ enum ModalStep {
     SelectDestination = 'selectDestination',
 }
 
-interface DashboardCreateModalProps extends ModalProps {
+interface DashboardCreateModalProps {
+    opened: ModalProps['opened'];
+    onClose: ModalProps['onClose'];
     projectUuid: string;
     defaultSpaceUuid?: string;
     onConfirm?: (dashboard: Dashboard) => void;
@@ -181,72 +181,13 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
 
     return (
         <MantineProvider inherit theme={{ colorScheme: 'light' }}>
-            <Modal
-                title={
-                    <Box>
-                        <Title order={4}>Create Dashboard</Title>
-                    </Box>
-                }
-                onClose={() => handleClose()}
+            <MantineModal
                 {...modalProps}
-                styles={{
-                    body: {
-                        padding: 0,
-                    },
-                }}
-            >
-                <form
-                    title="Create Dashboard"
-                    onSubmit={form.onSubmit((values) => handleConfirm(values))}
-                >
-                    {modalSteps.currentStep === ModalStep.InitialInfo && (
-                        <Stack p="md" pt={0}>
-                            <TextInput
-                                label="Name your dashboard"
-                                placeholder="eg. KPI Dashboard"
-                                disabled={isCreatingDashboard}
-                                required
-                                {...form.getInputProps('dashboardName')}
-                            />
-                            <Textarea
-                                label="Dashboard description"
-                                placeholder="A few words to give your team some context"
-                                disabled={isCreatingDashboard}
-                                autosize
-                                maxRows={3}
-                                {...form.getInputProps('dashboardDescription')}
-                            />
-                        </Stack>
-                    )}
-
-                    {modalSteps.currentStep === ModalStep.SelectDestination && (
-                        <Stack p="md" pt={0}>
-                            <SaveToSpaceForm
-                                form={form}
-                                spaces={spaces}
-                                projectUuid={projectUuid}
-                                isLoading={isLoading}
-                                spaceManagement={spaceManagement}
-                                selectedSpaceName={
-                                    spaces.find(
-                                        (space) =>
-                                            space.uuid ===
-                                            form.values.spaceUuid,
-                                    )?.name
-                                }
-                            />
-                        </Stack>
-                    )}
-
-                    <Group
-                        position="right"
-                        w="100%"
-                        p="md"
-                        sx={(theme) => ({
-                            borderTop: `1px solid ${theme.colors.gray[4]}`,
-                            bottom: 0,
-                        })}
-                    >
+                title="Create Dashboard"
+                icon={IconLayoutDashboard}
+                onClose={() => handleClose()}
+                actions={
+                    <Group position="right" w="100%">
                         {shouldShowNewSpaceButton && (
                             <Button
                                 variant="subtle"
@@ -290,6 +231,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                     disabled={!isFormReadyToSave}
                                     loading={isCreatingDashboard}
                                     type="submit"
+                                    form="dashboard-create-modal"
                                     data-testid="dashboard-create-modal-create-button"
                                 >
                                     Create
@@ -297,8 +239,50 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             </>
                         )}
                     </Group>
+                }
+            >
+                <form
+                    id="dashboard-create-modal"
+                    title="Create Dashboard"
+                    onSubmit={form.onSubmit((values) => handleConfirm(values))}
+                >
+                    {modalSteps.currentStep === ModalStep.InitialInfo && (
+                        <Stack>
+                            <TextInput
+                                label="Name your dashboard"
+                                placeholder="eg. KPI Dashboard"
+                                disabled={isCreatingDashboard}
+                                required
+                                {...form.getInputProps('dashboardName')}
+                            />
+                            <Textarea
+                                label="Dashboard description"
+                                placeholder="A few words to give your team some context"
+                                disabled={isCreatingDashboard}
+                                autosize
+                                maxRows={3}
+                                {...form.getInputProps('dashboardDescription')}
+                            />
+                        </Stack>
+                    )}
+
+                    {modalSteps.currentStep === ModalStep.SelectDestination && (
+                        <SaveToSpaceForm
+                            form={form}
+                            spaces={spaces}
+                            projectUuid={projectUuid}
+                            isLoading={isLoading}
+                            spaceManagement={spaceManagement}
+                            selectedSpaceName={
+                                spaces.find(
+                                    (space) =>
+                                        space.uuid === form.values.spaceUuid,
+                                )?.name
+                            }
+                        />
+                    )}
                 </form>
-            </Modal>
+            </MantineModal>
         </MantineProvider>
     );
 };
