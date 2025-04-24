@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.1596.2",
+    "version": "0.1598.0",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -74,6 +74,7 @@
         "frontend-fix-lint": "pnpm -F frontend fix-lint",
         "frontend-fix-format": "pnpm -F frontend fix-format",
         "frontend-test": "pnpm -F frontend test",
+        "mantine-v7-build": "pnpm -F mantine-v7 build",
         "sdk-build": "pnpm common-build && pnpm frontend-build-sdk",
         "e2e-open": "pnpm -F e2e cypress:open",
         "e2e-run": "pnpm -F e2e cypress:run",

@@ -1,19 +1,11 @@
-import {
-    Alert,
-    Box,
-    Button,
-    Group,
-    Paper,
-    ScrollArea,
-    Text,
-    TextInput,
-} from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { IconArrowLeft, IconInfoCircle, IconPlus } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useCreateMutation } from '../../../hooks/useSpaces';
+import { Alert, Box, Button, Group, Text } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
+import { useCallback, useMemo } from 'react';
+import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
+import MantineIcon from '../MantineIcon';
 import MantineModal, { type MantineModalProps } from '../MantineModal';
-import Tree from '../Tree/Tree';
+import SpaceCreationForm from '../SpaceSelector/SpaceCreationForm';
+import SpaceSelector from '../SpaceSelector/SpaceSelector';
 import { type NestableItem } from '../Tree/types';
 
 type Props<T, U> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
@@ -34,31 +26,41 @@ const TransferItemsModal = <
     spaces,
     onConfirm,
 }: Props<T, U>) => {
-    const [spaceUuid, setSpaceUuid] = useState<string | null>(null);
-    const [isCreateNewSpace, createNewSpaceHandlers] = useDisclosure(false);
-    const [newSpaceName, setNewSpaceName] = useState('');
-
-    const createSpaceMutation = useCreateMutation(projectUuid);
+    const {
+        selectedSpaceUuid,
+        setSelectedSpaceUuid,
+        isCreatingNewSpace,
+        newSpaceName,
+        setNewSpaceName,
+        createSpaceMutation,
+        handleCreateNewSpace,
+        openCreateSpaceForm,
+        closeCreateSpaceForm,
+    } = useSpaceManagement({ projectUuid });
 
     const selectedSpaceLabel = useMemo(() => {
-        if (!spaceUuid) return null;
-        return spaces.find((space) => space.uuid === spaceUuid)?.name;
-    }, [spaceUuid, spaces]);
+        if (!selectedSpaceUuid) return '';
+        return (
+            spaces.find((space) => space.uuid === selectedSpaceUuid)?.name || ''
+        );
+    }, [selectedSpaceUuid, spaces]);
 
-    const handleCreateNewSpace = useCallback(() => {
-        if (newSpaceName.length === 0) return;
-
-        createSpaceMutation.mutate({
-            name: newSpaceName,
-            parentSpaceUuid: spaceUuid ?? undefined,
-        });
-    }, [createSpaceMutation, newSpaceName, spaceUuid]);
-
-    useEffect(() => {
-        if (createSpaceMutation.isSuccess) {
-            onConfirm(createSpaceMutation.data.uuid);
+    const handleConfirm = useCallback(() => {
+        if (selectedSpaceUuid) {
+            onConfirm(selectedSpaceUuid);
         }
-    }, [createSpaceMutation.isSuccess, createSpaceMutation.data, onConfirm]);
+    }, [selectedSpaceUuid, onConfirm]);
+
+    const createSpace = useCallback(async () => {
+        try {
+            const result = await handleCreateNewSpace();
+            if (result?.uuid) {
+                onConfirm(result.uuid);
+            }
+        } catch (error) {
+            console.error('Failed to create space:', error);
+        }
+    }, [handleCreateNewSpace, onConfirm]);
 
     return (
         <MantineModal
@@ -67,12 +69,13 @@ const TransferItemsModal = <
             onClose={onClose}
             actions={
                 <>
-                    {!isCreateNewSpace ? (
+                    {!isCreatingNewSpace ? (
                         <Button
-                            disabled={!spaceUuid}
+                            disabled={!selectedSpaceUuid}
                             variant="subtle"
-                            leftIcon={<IconPlus size={14} />}
-                            onClick={createNewSpaceHandlers.open}
+                            size="xs"
+                            onClick={openCreateSpaceForm}
+                            leftIcon={<MantineIcon icon={IconPlus} />}
                         >
                             New Space
                         </Button>
@@ -89,22 +92,18 @@ const TransferItemsModal = <
                             Cancel
                         </Button>
 
-                        {isCreateNewSpace ? (
+                        {isCreatingNewSpace ? (
                             <Button
                                 loading={createSpaceMutation.isLoading}
                                 disabled={newSpaceName.length === 0}
-                                onClick={handleCreateNewSpace}
+                                onClick={createSpace}
                             >
                                 Create space & transfer
                             </Button>
                         ) : (
                             <Button
-                                disabled={!spaceUuid}
-                                onClick={() => {
-                                    if (spaceUuid) {
-                                        onConfirm(spaceUuid);
-                                    }
-                                }}
+                                disabled={!selectedSpaceUuid}
+                                onClick={handleConfirm}
                             >
                                 Confirm
                             </Button>
@@ -113,43 +112,14 @@ const TransferItemsModal = <
                 </>
             }
         >
-            {isCreateNewSpace ? (
-                <>
-                    <Box>
-                        <Button
-                            variant="subtle"
-                            leftIcon={<IconArrowLeft size={14} />}
-                            onClick={createNewSpaceHandlers.close}
-                        >
-                            Back
-                        </Button>
-                    </Box>
-
-                    <Text fz="sm" fw={500}>
-                        You are creating a new space in{' '}
-                        <Text span fw={600}>
-                            "{selectedSpaceLabel}".
-                        </Text>
-                    </Text>
-
-                    <Alert color="blue" icon={<IconInfoCircle size={16} />}>
-                        <Text fw={500} color="blue">
-                            Permissions will be inherited from{' '}
-                            <Text span fw={600}>
-                                "{selectedSpaceLabel}".
-                            </Text>
-                        </Text>
-                    </Alert>
-
-                    <TextInput
-                        label="Name"
-                        placeholder="Space name"
-                        required
-                        disabled={createSpaceMutation.isLoading}
-                        value={newSpaceName}
-                        onChange={(e) => setNewSpaceName(e.target.value)}
-                    />
-                </>
+            {isCreatingNewSpace ? (
+                <SpaceCreationForm
+                    spaceName={newSpaceName}
+                    onSpaceNameChange={setNewSpaceName}
+                    onCancel={closeCreateSpaceForm}
+                    isLoading={createSpaceMutation.isLoading}
+                    parentSpaceName={selectedSpaceLabel}
+                />
             ) : (
                 <>
                     <Text fz="sm" fw={500}>
@@ -157,21 +127,17 @@ const TransferItemsModal = <
                         {items.length > 1 ? 'items' : 'item'} to:
                     </Text>
 
-                    <Paper
-                        component={ScrollArea}
-                        w="100%"
-                        h="320px"
-                        withBorder
-                        px="sm"
-                        py="xs"
-                    >
-                        <Tree
-                            data={spaces}
-                            value={spaceUuid}
-                            onChange={setSpaceUuid}
-                            topLevelLabel="Spaces"
-                        />
-                    </Paper>
+                    <SpaceSelector
+                        spaces={spaces}
+                        selectedSpaceUuid={selectedSpaceUuid}
+                        onSelectSpace={setSelectedSpaceUuid}
+                        isLoading={createSpaceMutation.isLoading}
+                        scrollingContainerProps={{
+                            // this is a hack that prevents the modal from jumping when the Alert is shown or hidden.
+                            // PX value is based on the height of the Alert component below + spacing after the SpaceSelector.
+                            h: selectedSpaceLabel ? '200px' : '262px',
+                        }}
+                    />
                 </>
             )}
 
@@ -179,8 +145,8 @@ const TransferItemsModal = <
                 <Alert color="gray">
                     <Text fw={500}>
                         Transfer {items.length}{' '}
-                        {items.length > 1 ? 'items' : 'item'} to "
-                        {selectedSpaceLabel}".
+                        {items.length > 1 ? 'items' : 'item'}{' '}
+                        {!isCreatingNewSpace ? `"${selectedSpaceLabel}"` : ''} .
                     </Text>
                 </Alert>
             ) : null}

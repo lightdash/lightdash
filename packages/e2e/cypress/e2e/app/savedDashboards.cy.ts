@@ -20,6 +20,7 @@ describe('Dashboard List', () => {
 
         cy.findByLabelText('Name your dashboard *').type('Untitled dashboard');
         cy.findByLabelText('Dashboard description').type('Description');
+        cy.findByText('Next').click();
         cy.findByText('Create').click();
 
         cy.url().should(
@@ -37,9 +38,7 @@ describe('Dashboard List', () => {
         cy.contains('tr', 'Untitled dashboard').find('button').click();
         // click on rename
         cy.findByRole('menuitem', { name: 'Rename' }).click();
-        cy.findByLabelText('Enter a memorable name for your dashboard *')
-            .clear()
-            .type('e2e dashboard');
+        cy.findByLabelText('Name *').clear().type('e2e dashboard');
         // click on save
         cy.findByRole('button', { name: 'Save' }).click();
 

@@ -103,6 +103,7 @@ const SpacesV2: FC = () => {
                         [ColumnVisibility.CONTENT]: true,
                     }}
                     adminContentView={userCanManageProject}
+                    enableBottomToolbar={false}
                 />
 
                 {isCreateModalOpen && (

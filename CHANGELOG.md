@@ -1,3 +1,33 @@
+# [0.1598.0](https://github.com/lightdash/lightdash/compare/0.1597.1...0.1598.0) (2025-04-24)
+
+
+### Features
+
+* order content by rank ([#14533](https://github.com/lightdash/lightdash/issues/14533)) ([2521e61](https://github.com/lightdash/lightdash/commit/2521e61386e29039be54d242f1b718aaf6175da5))
+
+## [0.1597.1](https://github.com/lightdash/lightdash/compare/0.1597.0...0.1597.1) (2025-04-24)
+
+
+### Bug Fixes
+
+* only set default space if form not initialised ([#14530](https://github.com/lightdash/lightdash/issues/14530)) ([726aacb](https://github.com/lightdash/lightdash/commit/726aacb9a49b01b2fe4eb3a2606fee5df000c61b))
+
+# [0.1597.0](https://github.com/lightdash/lightdash/compare/0.1596.3...0.1597.0) (2025-04-24)
+
+
+### Features
+
+* allow saving content to any space (tree view) ([#14497](https://github.com/lightdash/lightdash/issues/14497)) ([e8f4e06](https://github.com/lightdash/lightdash/commit/e8f4e062e5f972e91fdeda7d8d1ae2aafd974d0e))
+
+## [0.1596.3](https://github.com/lightdash/lightdash/compare/0.1596.2...0.1596.3) (2025-04-24)
+
+
+### Bug Fixes
+
+* allow clicking on space row in InfiniteResourceTable ([#14524](https://github.com/lightdash/lightdash/issues/14524)) ([41e847b](https://github.com/lightdash/lightdash/commit/41e847bdf89b76d9ce0eaa96a61711f17aa7ecad)), closes [#14486](https://github.com/lightdash/lightdash/issues/14486)
+* get cached user ([#14503](https://github.com/lightdash/lightdash/issues/14503)) ([86234f1](https://github.com/lightdash/lightdash/commit/86234f18551cb84d0d6b797ad2580f049b275467))
+* get project charts last version CTE ([#14496](https://github.com/lightdash/lightdash/issues/14496)) ([4d30aab](https://github.com/lightdash/lightdash/commit/4d30aab368421371f52d0d80e1f215bba2dab505))
+
 ## [0.1596.2](https://github.com/lightdash/lightdash/compare/0.1596.1...0.1596.2) (2025-04-23)
 
 

@@ -1,12 +1,16 @@
 import { subject } from '@casl/ability';
-import { type SpaceSummary } from '@lightdash/common';
+import { FeatureFlags, type SpaceSummary } from '@lightdash/common';
 import { Button, Select, Stack, TextInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useEffect } from 'react';
+import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
+import { type useSpaceManagement } from '../../../../hooks/useSpaceManagement';
 import { Can } from '../../../../providers/Ability';
 import useApp from '../../../../providers/App/useApp';
 import MantineIcon from '../../MantineIcon';
+import SpaceCreationForm from '../../SpaceSelector/SpaceCreationForm';
+import SpaceSelector from '../../SpaceSelector/SpaceSelector';
 import { type SaveToSpaceFormType } from './types';
 
 type Props<T extends SaveToSpaceFormType> = {
@@ -14,20 +18,26 @@ type Props<T extends SaveToSpaceFormType> = {
     isLoading: boolean;
     spaces: SpaceSummary[] | undefined;
     projectUuid?: string;
+    spaceManagement: ReturnType<typeof useSpaceManagement>;
+    selectedSpaceName?: string;
 };
 
-const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
+const SaveToSpaceFormSimple = <T extends SaveToSpaceFormType>({
     form,
     isLoading,
-    spaces = [],
+    spaces,
     projectUuid,
+    spaceManagement,
 }: Props<T>) => {
     const { user } = useApp();
-    const [shouldCreateNewSpace, setShouldCreateNewSpace] = useState(false);
-    const isCreatingNewSpace =
-        shouldCreateNewSpace || (spaces && spaces.length === 0);
 
-    if (isCreatingNewSpace) {
+    useEffect(() => {
+        if (spaceManagement.isCreatingNewSpace && form.values.newSpaceName) {
+            spaceManagement.setNewSpaceName(form.values.newSpaceName);
+        }
+    }, [spaceManagement, form.values.newSpaceName]);
+
+    if (spaceManagement.isCreatingNewSpace) {
         return (
             <Stack spacing="xs">
                 <TextInput
@@ -36,7 +46,6 @@ const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
                     description="Create a new space to add this chart to"
                     placeholder="eg. KPIs"
                     {...form.getInputProps('newSpaceName')}
-                    value={form.values.newSpaceName ?? ''}
                 />
                 <Button
                     disabled={isLoading}
@@ -45,7 +54,6 @@ const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
                     mr="auto"
                     compact
                     onClick={() => {
-                        setShouldCreateNewSpace(false);
                         // @ts-ignore, mantine form is not well typed to support generic + null value setting
                         form.setFieldValue('newSpaceName', null);
                     }}
@@ -65,10 +73,12 @@ const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
                 label="Space"
                 description="Select a space to save the chart directly to"
                 withinPortal
-                data={spaces.map((space) => ({
-                    value: space.uuid,
-                    label: space.name,
-                }))}
+                data={
+                    spaces?.map((space) => ({
+                        value: space.uuid,
+                        label: space.name,
+                    })) ?? []
+                }
                 {...form.getInputProps('spaceUuid')}
                 required
             />
@@ -79,6 +89,7 @@ const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
                     projectUuid,
                 })}
             >
+                {' '}
                 <Button
                     disabled={isLoading}
                     size="xs"
@@ -86,12 +97,80 @@ const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
                     mr="auto"
                     compact
                     leftIcon={<MantineIcon icon={IconPlus} />}
-                    onClick={() => setShouldCreateNewSpace(true)}
+                    onClick={() => spaceManagement.setIsCreatingNewSpace(true)}
                 >
                     Create new space
                 </Button>
             </Can>
         </Stack>
+    );
+};
+
+const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
+    form,
+    isLoading,
+    spaces = [],
+    projectUuid,
+    spaceManagement,
+    selectedSpaceName,
+}: Props<T>) => {
+    const isNestedSpacesEnabled = useFeatureFlagEnabled(
+        FeatureFlags.NestedSpaces,
+    );
+
+    if (!isNestedSpacesEnabled) {
+        return (
+            <SaveToSpaceFormSimple
+                form={form}
+                isLoading={isLoading}
+                spaces={spaces}
+                projectUuid={projectUuid}
+                spaceManagement={spaceManagement}
+                selectedSpaceName={selectedSpaceName}
+            />
+        );
+    }
+
+    const {
+        isCreatingNewSpace,
+        newSpaceName,
+        setNewSpaceName,
+        selectedSpaceUuid,
+        setSelectedSpaceUuid,
+        closeCreateSpaceForm,
+    } = spaceManagement;
+
+    if (isCreatingNewSpace) {
+        return (
+            <SpaceCreationForm
+                spaceName={newSpaceName}
+                onSpaceNameChange={(value) => {
+                    setNewSpaceName(value);
+                    // @ts-ignore - form types are complex with generics
+                    form.setFieldValue('newSpaceName', value);
+                }}
+                onCancel={() => {
+                    closeCreateSpaceForm();
+                    // @ts-ignore - form types are complex with generics
+                    form.setFieldValue('newSpaceName', null);
+                }}
+                isLoading={isLoading}
+                parentSpaceName={selectedSpaceName}
+            />
+        );
+    }
+
+    return (
+        <SpaceSelector
+            spaces={spaces}
+            selectedSpaceUuid={selectedSpaceUuid}
+            onSelectSpace={(spaceUuid: string | null) => {
+                setSelectedSpaceUuid(spaceUuid);
+                // @ts-ignore, mantine form is not well typed to support generic + null value setting
+                form.setFieldValue('spaceUuid', spaceUuid);
+            }}
+            isLoading={isLoading}
+        />
     );
 };
 

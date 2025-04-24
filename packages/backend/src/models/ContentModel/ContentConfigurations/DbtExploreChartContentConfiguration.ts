@@ -18,6 +18,7 @@ import { UserTableName } from '../../../database/entities/users';
 import {
     ContentConfiguration,
     ContentFilters,
+    ContentTypePriority,
     SummaryContentRow,
 } from '../ContentModelTypes';
 
@@ -82,6 +83,9 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                 )
                 .select<SelectSavedChart[]>([
                     knex.raw(`'${ContentType.CHART}' as content_type`),
+                    knex.raw(
+                        `${ContentTypePriority.CHART} as content_type_rank`,
+                    ),
                     knex.raw(
                         `${SavedChartsTableName}.saved_query_uuid::text as uuid`,
                     ),

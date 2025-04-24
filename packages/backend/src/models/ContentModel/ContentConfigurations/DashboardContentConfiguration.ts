@@ -12,6 +12,7 @@ import { UserTableName } from '../../../database/entities/users';
 import {
     ContentConfiguration,
     ContentFilters,
+    ContentTypePriority,
     SummaryContentRow,
 } from '../ContentModelTypes';
 
@@ -67,7 +68,10 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                     `last_version.updated_by_user_uuid`,
                 )
                 .select<SummaryContentRow[]>([
-                    knex.raw(`'dashboard' as content_type`),
+                    knex.raw(`'${ContentType.DASHBOARD}' as content_type`),
+                    knex.raw(
+                        `${ContentTypePriority.DASHBOARD} as content_type_rank`,
+                    ),
                     knex.raw(
                         `${DashboardsTableName}.dashboard_uuid::text as uuid`,
                     ),

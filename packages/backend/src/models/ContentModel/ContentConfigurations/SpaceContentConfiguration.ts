@@ -14,6 +14,7 @@ import { SpaceModel } from '../../SpaceModel';
 import {
     ContentConfiguration,
     ContentFilters,
+    ContentTypePriority,
     SummaryContentRow,
 } from '../ContentModelTypes';
 
@@ -75,7 +76,10 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     'shared_with.user_uuid',
                 )
                 .select<SpaceContentRow[]>([
-                    knex.raw(`'space' as content_type`),
+                    knex.raw(`'${ContentType.SPACE}' as content_type`),
+                    knex.raw(
+                        `${ContentTypePriority.SPACE} as content_type_rank`,
+                    ),
                     knex.raw(`${SpaceTableName}.space_uuid::text as uuid`),
                     `${SpaceTableName}.name`,
                     knex.raw(`null as description`),

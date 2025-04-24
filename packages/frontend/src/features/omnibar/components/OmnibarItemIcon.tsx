@@ -1,3 +1,4 @@
+import { SearchItemType } from '@lightdash/common';
 import { Anchor } from '@mantine/core';
 import { IconAlertTriangleFilled } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -19,6 +20,9 @@ export const OmnibarItemIcon: FC<Props> = ({ item }) => {
         <IconBox
             color={getOmnibarItemColor(item.type)}
             icon={getOmnibarItemIcon(item)}
+            {...(item.type === SearchItemType.SPACE && {
+                bg: 'violet.0',
+            })}
         />
     );
 };

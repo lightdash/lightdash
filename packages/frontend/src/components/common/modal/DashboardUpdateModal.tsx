@@ -2,21 +2,23 @@ import { type Dashboard } from '@lightdash/common';
 import {
     Button,
     Group,
-    Modal,
     Stack,
     TextInput,
     Textarea,
-    Title,
     type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../../../hooks/dashboard/useDashboard';
+import MantineModal from '../MantineModal';
 
-interface DashboardUpdateModalProps extends ModalProps {
+interface DashboardUpdateModalProps {
+    opened: ModalProps['opened'];
+    onClose: ModalProps['onClose'];
     uuid: string;
     onConfirm?: () => void;
 }
@@ -62,14 +64,35 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
     });
 
     return (
-        <Modal
-            title={<Title order={4}>Update Dashboard</Title>}
+        <MantineModal
+            title="Update Dashboard"
             {...modalProps}
+            icon={IconLayoutDashboard}
+            actions={
+                <Group position="right">
+                    <Button variant="outline" onClick={modalProps.onClose}>
+                        Cancel
+                    </Button>
+
+                    <Button
+                        disabled={!form.isValid()}
+                        loading={isUpdating}
+                        type="submit"
+                        form="update-dashboard"
+                    >
+                        Save
+                    </Button>
+                </Group>
+            }
         >
-            <form title="Update Dashboard" onSubmit={handleConfirm}>
-                <Stack spacing="lg" pt="sm">
+            <form
+                id="update-dashboard"
+                title="Update Dashboard"
+                onSubmit={handleConfirm}
+            >
+                <Stack spacing="lg">
                     <TextInput
-                        label="Enter a memorable name for your dashboard"
+                        label="Name"
                         required
                         placeholder="eg. KPI Dashboards"
                         disabled={isUpdating}
@@ -84,23 +107,9 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
                         maxRows={3}
                         {...form.getInputProps('description')}
                     />
-
-                    <Group position="right" mt="sm">
-                        <Button variant="outline" onClick={modalProps.onClose}>
-                            Cancel
-                        </Button>
-
-                        <Button
-                            disabled={!form.isValid()}
-                            loading={isUpdating}
-                            type="submit"
-                        >
-                            Save
-                        </Button>
-                    </Group>
                 </Stack>
             </form>
-        </Modal>
+        </MantineModal>
     );
 };
 
