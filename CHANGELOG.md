@@ -1,3 +1,10 @@
+## [0.1598.2](https://github.com/lightdash/lightdash/compare/0.1598.1...0.1598.2) (2025-04-24)
+
+
+### Bug Fixes
+
+* revert queryBuilder to sync function ([#14543](https://github.com/lightdash/lightdash/issues/14543)) ([d9a4ca2](https://github.com/lightdash/lightdash/commit/d9a4ca28007b6b27953ced3aef224901853e7900))
+
 ## [0.1598.1](https://github.com/lightdash/lightdash/compare/0.1598.0...0.1598.1) (2025-04-24)
 
 
