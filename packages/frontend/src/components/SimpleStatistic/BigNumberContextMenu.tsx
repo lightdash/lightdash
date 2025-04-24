@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { hasCustomDimension, type ResultValue } from '@lightdash/common';
+import { hasCustomBinDimension, type ResultValue } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
@@ -139,7 +139,7 @@ const BigNumberContextMenu: FC<React.PropsWithChildren<{}>> = ({
                     </Menu.Item>
                 )}
 
-                {item && !hasCustomDimension(metricQuery) && (
+                {item && !hasCustomBinDimension(metricQuery) && (
                     <Can
                         I="view"
                         this={subject('UnderlyingData', {

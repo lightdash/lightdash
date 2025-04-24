@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import {
-    hasCustomDimension,
+    hasCustomBinDimension,
     isCustomDimension,
     isDimension,
     isDimensionValueInvalidDate,
@@ -148,7 +148,7 @@ const CellContextMenu: FC<
             {item &&
                 !isDimension(item) &&
                 !isCustomDimension(item) &&
-                !hasCustomDimension(metricQuery) && (
+                !hasCustomBinDimension(metricQuery) && (
                     <Can
                         I="view"
                         this={subject('UnderlyingData', {

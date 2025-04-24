@@ -13,7 +13,7 @@ import {
     getItemMap,
     getPivotConfig,
     getVisibleFields,
-    hasCustomDimension,
+    hasCustomBinDimension,
     isCartesianChartConfig,
     isCompleteLayout,
     isDashboardChartTileType,
@@ -1175,7 +1175,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     projectUuid: projectUuid,
                                 })}
                             >
-                                {!hasCustomDimension(metricQuery) && (
+                                {!hasCustomBinDimension(metricQuery) && (
                                     <Menu.Item
                                         icon={<MantineIcon icon={IconStack} />}
                                         onClick={handleViewUnderlyingData}
