@@ -43,12 +43,12 @@ pipeline {
             }
         }
         stage('Rebase & Validate Feature Branches') {
+            environment {
+                GIT_COMMITTER_NAME = 'portal-buildadm'
+                GIT_COMMITTER_EMAIL = 'portal-admin@workday.com'
+                SLACK_BOT_TOKEN = credentials('slack-bot-token')
+            }
             steps {
-                environment {
-                    GIT_COMMITTER_NAME = 'portal-buildadm'
-                    GIT_COMMITTER_EMAIL = 'portal-admin@workday.com'
-                    SLACK_BOT_TOKEN = credentials('slack-bot-token')
-                }
                 script {
                     withCredentials([gitUsernamePassword(credentialsId: 'portal-buildadm-ghe-token', gitToolName: 'git-tool')]) {
                         // Set up Git configuration
