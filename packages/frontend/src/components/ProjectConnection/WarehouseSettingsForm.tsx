@@ -59,6 +59,10 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
                     )}
                     required
                     {...form.getInputProps('warehouse.type')}
+                    onChange={(value) => {
+                        form.reset();
+                        form.getInputProps('warehouse.type').onChange(value);
+                    }}
                     disabled={disabled}
                 />
             )}
