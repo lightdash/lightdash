@@ -1,6 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { Select } from '@mantine/core';
-import { useEffect, type FC } from 'react';
+import { type FC } from 'react';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
 import PostgresForm from './WarehouseForms/PostgresForm';
@@ -29,15 +29,11 @@ const WarehouseTypeForms = {
 
 interface WarehouseSettingsFormProps {
     disabled: boolean;
-    setSelectedWarehouse?: (warehouse: WarehouseTypes) => void;
-    selectedWarehouse?: WarehouseTypes;
     isProjectUpdate?: boolean | undefined;
 }
 
 const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
     disabled,
-    selectedWarehouse,
-    setSelectedWarehouse,
     isProjectUpdate,
 }) => {
     const form = useFormContext();
@@ -45,16 +41,7 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
     const warehouseType: WarehouseTypes =
         form.values?.warehouse?.type ?? WarehouseTypes.BIGQUERY;
 
-    const WarehouseForm =
-        (selectedWarehouse && WarehouseTypeForms[selectedWarehouse]) ||
-        WarehouseTypeForms[warehouseType] ||
-        BigQueryForm;
-
-    useEffect(() => {
-        if (isProjectUpdate && warehouseType && setSelectedWarehouse) {
-            setSelectedWarehouse(warehouseType || WarehouseTypes.BIGQUERY);
-        }
-    }, [warehouseType, setSelectedWarehouse, isProjectUpdate]);
+    const WarehouseForm = WarehouseTypeForms[warehouseType];
 
     return (
         <div

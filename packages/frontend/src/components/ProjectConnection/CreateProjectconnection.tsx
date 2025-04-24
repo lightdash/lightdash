@@ -122,7 +122,6 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                             showGeneralSettings={!isCreatingFirstProject}
                             disabled={isSavingProject}
                             defaultType={health.data?.defaultProject?.type}
-                            selectedWarehouse={selectedWarehouse}
                         />
 
                         <Button

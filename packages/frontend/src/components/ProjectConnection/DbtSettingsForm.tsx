@@ -32,15 +32,14 @@ import { useFormContext } from './formContext';
 interface DbtSettingsFormProps {
     disabled: boolean;
     defaultType?: DbtProjectType;
-    selectedWarehouse?: WarehouseTypes | undefined;
 }
 
 const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     disabled,
     defaultType,
-    selectedWarehouse,
 }) => {
     const form = useFormContext();
+    const selectedWarehouse = form.values.warehouse?.type;
 
     const type: DbtProjectType =
         form.values.dbt.type ?? (defaultType || DbtProjectType.GITHUB);

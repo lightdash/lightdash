@@ -1,6 +1,6 @@
-import { type DbtProjectType, type WarehouseTypes } from '@lightdash/common';
+import { type DbtProjectType } from '@lightdash/common';
 import { Avatar, Flex, Stack, Text, TextInput, Title } from '@mantine/core';
-import { type FC, useState } from 'react';
+import { type FC } from 'react';
 import useApp from '../../providers/App/useApp';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
@@ -14,7 +14,6 @@ interface Props {
     showGeneralSettings: boolean;
     disabled: boolean;
     defaultType?: DbtProjectType;
-    selectedWarehouse?: WarehouseTypes;
     isProjectUpdate?: boolean;
 }
 
@@ -22,12 +21,11 @@ export const ProjectForm: FC<Props> = ({
     showGeneralSettings,
     disabled,
     defaultType,
-    selectedWarehouse,
     isProjectUpdate,
 }) => {
     const { health } = useApp();
-    const [warehouse, setWarehouse] = useState(selectedWarehouse);
     const form = useFormContext();
+    const warehouse = form.values.warehouse?.type;
 
     return (
         <Stack spacing="xl">
@@ -72,8 +70,6 @@ export const ProjectForm: FC<Props> = ({
                 <div>
                     <WarehouseSettingsForm
                         disabled={disabled}
-                        setSelectedWarehouse={setWarehouse}
-                        selectedWarehouse={warehouse}
                         isProjectUpdate={isProjectUpdate}
                     />
                 </div>
@@ -97,7 +93,6 @@ export const ProjectForm: FC<Props> = ({
                     <DbtSettingsForm
                         disabled={disabled}
                         defaultType={defaultType}
-                        selectedWarehouse={warehouse}
                     />
                 </div>
             </SettingsGridCard>
