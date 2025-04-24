@@ -28,6 +28,7 @@ interface ResourceIconProps {
 
 interface IconBoxProps extends MantineIconProps {
     color: string;
+    bg?: string;
     icon: TablerIconType | StyledComponent<'svg', any, {}, never>;
 }
 
@@ -35,6 +36,7 @@ export const IconBox: FC<IconBoxProps> = ({
     color,
     icon,
     size = 'lg',
+    bg = 'gray.0',
     ...mantineIconProps
 }) => (
     <Paper
@@ -42,10 +44,12 @@ export const IconBox: FC<IconBoxProps> = ({
         component={Center}
         w={32}
         h={32}
-        withBorder
-        radius="sm"
-        shadow="sm"
-        sx={{ flexGrow: 0, flexShrink: 0 }}
+        radius="md"
+        bg={bg}
+        sx={{
+            flexGrow: 0,
+            flexShrink: 0,
+        }}
     >
         <MantineIcon
             icon={icon}
@@ -53,6 +57,7 @@ export const IconBox: FC<IconBoxProps> = ({
             fill={color}
             fillOpacity={0.1}
             size={size}
+            strokeWidth={1.6}
             {...mantineIconProps}
         />
     </Paper>
@@ -64,7 +69,7 @@ export const ChartIcon: FC<{
 }> = ({ chartKind, color }) => (
     <IconBox
         icon={getChartIcon(chartKind)}
-        color={color ?? 'blue.8'}
+        color={color ?? 'blue.6'}
         transform={
             chartKind === ChartKind.HORIZONTAL_BAR ? 'rotate(90)' : undefined
         }
@@ -74,9 +79,9 @@ export const ChartIcon: FC<{
 export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
-            return <IconBox icon={IconLayoutDashboard} color="green.8" />;
+            return <IconBox icon={IconLayoutDashboard} color="green.6" />;
         case ResourceViewItemType.SPACE:
-            return <IconBox icon={IconFolder} color="violet.8" />;
+            return <IconBox icon={IconFolder} color="violet.6" bg="violet.0" />;
         case ResourceViewItemType.CHART:
             return <ChartIcon chartKind={item.data.chartKind} />;
         default:

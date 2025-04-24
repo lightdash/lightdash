@@ -1,31 +1,14 @@
 import { ContentType } from '@lightdash/common';
-import { Box, Center, SegmentedControl, Text } from '@mantine/core';
-import {
-    IconChartBar,
-    IconLayoutDashboard,
-    type Icon,
-} from '@tabler/icons-react';
-import React, { type FC } from 'react';
-import MantineIcon from '../MantineIcon';
+import { Center, SegmentedControl, Text } from '@mantine/core';
+import { type FC } from 'react';
 
 interface OptionProps {
     label: string;
     color?: string;
-    icon?: Icon;
 }
 
-const ContentTypeSelectOption = ({ label, icon, color }: OptionProps) => (
+const ContentTypeSelectOption = ({ label }: OptionProps) => (
     <Center px={'xxs'}>
-        {icon && (
-            <Box mr={'xxs'}>
-                <MantineIcon
-                    icon={icon}
-                    fillOpacity={0.1}
-                    fill={color}
-                    color={color}
-                />
-            </Box>
-        )}
         <Text size="sm" color="gray.7">
             {label}
         </Text>
@@ -35,23 +18,11 @@ const ContentTypeSelectOption = ({ label, icon, color }: OptionProps) => (
 const ContentTypeOptions = [
     {
         value: ContentType.DASHBOARD,
-        label: (
-            <ContentTypeSelectOption
-                label={'Dashboards'}
-                color={'green.8'}
-                icon={IconLayoutDashboard}
-            />
-        ),
+        label: <ContentTypeSelectOption label={'Dashboards'} />,
     },
     {
         value: ContentType.CHART,
-        label: (
-            <ContentTypeSelectOption
-                label={'Charts'}
-                color={'blue.8'}
-                icon={IconChartBar}
-            />
-        ),
+        label: <ContentTypeSelectOption label={'Charts'} />,
     },
 ];
 type ContentTypeFilterProps = {

@@ -21,11 +21,11 @@ export const getOmnibarItemColor = (itemType: SearchItemType) => {
             return 'gray.7';
         case SearchItemType.DASHBOARD_TAB:
         case SearchItemType.DASHBOARD:
-            return 'green.8';
+            return 'green.6';
         case SearchItemType.CHART:
-            return 'blue.8';
+            return 'blue.6';
         case SearchItemType.SPACE:
-            return 'violet.8';
+            return 'violet.6';
         case SearchItemType.TABLE:
             return 'cyan.8';
         case SearchItemType.PAGE:

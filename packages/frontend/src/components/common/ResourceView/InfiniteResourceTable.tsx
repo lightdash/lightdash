@@ -31,6 +31,7 @@ import {
     useMantineReactTable,
     type MRT_ColumnDef,
     type MRT_SortingState,
+    type MRT_TableOptions,
     type MRT_Virtualizer,
 } from 'mantine-react-table';
 import {
@@ -70,7 +71,7 @@ import {
     type ResourceViewItemActionState,
 } from './types';
 
-type ResourceView2Props = {
+type ResourceView2Props = Partial<MRT_TableOptions<ResourceViewItem>> & {
     filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes' | 'space'> & {
         projectUuid: string;
     };
@@ -87,6 +88,7 @@ const InfiniteResourceTable = ({
     contentTypeFilter,
     columnVisibility,
     adminContentView = false,
+    ...mrtProps
 }: ResourceView2Props) => {
     const [selectedAdminContentType, setSelectedAdminContentType] = useState<
         'all' | 'shared'
@@ -686,6 +688,7 @@ const InfiniteResourceTable = ({
         enableFilterMatchHighlighting: true,
         enableEditing: true,
         editDisplayMode: 'cell',
+        ...mrtProps,
     });
 
     return (

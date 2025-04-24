@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { ContentType, FeatureFlags, LightdashMode } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Stack } from '@mantine/core';
+import { ActionIcon, Box, Button, Group, Menu, Stack } from '@mantine/core';
 import {
     IconDots,
     IconFolderCog,
@@ -180,16 +180,15 @@ const Space: FC = () => {
                                 >
                                     <Menu.Target>
                                         <Box>
-                                            <ActionIcon
-                                                size={36}
-                                                color="blue"
-                                                variant="filled"
+                                            <Button
+                                                leftIcon={
+                                                    <MantineIcon
+                                                        icon={IconPlus}
+                                                    />
+                                                }
                                             >
-                                                <MantineIcon
-                                                    icon={IconPlus}
-                                                    size="lg"
-                                                />
-                                            </ActionIcon>
+                                                Add
+                                            </Button>
                                         </Box>
                                     </Menu.Target>
 
@@ -328,6 +327,7 @@ const Space: FC = () => {
                     columnVisibility={{
                         [ColumnVisibility.SPACE]: false,
                     }}
+                    enableBottomToolbar={false}
                 />
 
                 {addToSpace && (
