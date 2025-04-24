@@ -1,7 +1,18 @@
 import type { StoryObj } from '@storybook/react';
 
-import { Alert, Button, Flex, Text } from '@mantine/core';
-import { IconTrash } from '@tabler/icons-react';
+import {
+    Alert,
+    Button,
+    Flex,
+    Paper,
+    Stack,
+    Text,
+    TextInput,
+    Title,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { IconSettings, IconTrash } from '@tabler/icons-react';
+import { useState } from 'react';
 import MantineModal from '../components/common/MantineModal';
 
 export default {
@@ -53,5 +64,76 @@ export const Default: Story = {
         modalHeaderProps: {},
         modalBodyProps: {},
         modalActionsProps: {},
+    },
+};
+
+export const WithForm: Story = {
+    render: () => {
+        const [opened, setOpened] = useState(false);
+
+        const form = useForm({
+            initialValues: {
+                name: '',
+            },
+        });
+
+        const handleSubmit = form.onSubmit((values) => {
+            console.log('Form submitted with values:', values);
+            setOpened(false);
+        });
+
+        return (
+            <>
+                <Stack>
+                    <Paper withBorder p="md">
+                        <Title order={3}>Dev notes</Title>
+                        <Text>
+                            Make sure you pass a form "id" to the form
+                            <br />
+                            Make sure you pass a "form" attribute to the submit
+                            button
+                        </Text>
+                    </Paper>
+                    <Button onClick={() => setOpened(true)}>
+                        Open modal with form
+                    </Button>
+                </Stack>
+
+                <MantineModal
+                    title="Form Example"
+                    opened={opened}
+                    onClose={() => setOpened(false)}
+                    icon={IconSettings}
+                    actions={
+                        <Flex gap="sm">
+                            <Button
+                                variant="default"
+                                h={32}
+                                onClick={() => setOpened(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                h={32}
+                                type="submit"
+                                form="modal-form-example"
+                                disabled={!form.isValid()}
+                            >
+                                Submit
+                            </Button>
+                        </Flex>
+                    }
+                >
+                    <form id="modal-form-example" onSubmit={handleSubmit}>
+                        <TextInput
+                            label="Name"
+                            required
+                            placeholder="Enter a name"
+                            {...form.getInputProps('name')}
+                        />
+                    </form>
+                </MantineModal>
+            </>
+        );
     },
 };
