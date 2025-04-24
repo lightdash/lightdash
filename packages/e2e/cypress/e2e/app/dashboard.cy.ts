@@ -80,6 +80,7 @@ describe('Dashboard', () => {
         cy.get('[data-testid="ExploreMenu/NewDashboardButton"]').click();
 
         cy.findByLabelText('Name your dashboard *').type('Title');
+        cy.findByText('Next').click();
         cy.findByText('Create').click();
 
         // Check url has no filters
@@ -94,6 +95,7 @@ describe('Dashboard', () => {
         cy.contains('Create dashboard').click();
         cy.findByLabelText('Name your dashboard *').type('Title');
         cy.findByLabelText('Dashboard description').type('Description');
+        cy.findByText('Next').click();
         cy.findByText('Create').click();
 
         // Add Saved Chart
