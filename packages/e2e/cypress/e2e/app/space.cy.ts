@@ -54,7 +54,8 @@ describe('Space', () => {
         cy.findByPlaceholderText('eg. KPI Dashboard').type(
             `Private dashboard ${timestamp}`,
         );
-        cy.get('.mantine-Modal-body').find('button').contains('Create').click();
+        cy.findByText('Next').click();
+        cy.findByText('Create').click();
         // At this point the dashboard is created, but empty
         // TODO add private chart to dashboard ?
 

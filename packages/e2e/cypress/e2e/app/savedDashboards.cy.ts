@@ -20,6 +20,7 @@ describe('Dashboard List', () => {
 
         cy.findByLabelText('Name your dashboard *').type('Untitled dashboard');
         cy.findByLabelText('Dashboard description').type('Description');
+        cy.findByText('Next').click();
         cy.findByText('Create').click();
 
         cy.url().should(

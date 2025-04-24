@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -15,6 +16,7 @@ import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useModalSteps } from '../../../hooks/useModalSteps';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
@@ -52,6 +54,9 @@ export const UpdateSqlChartModal = ({
     onClose,
     onSuccess,
 }: Props) => {
+    const isNestedSpacesEnabled = useFeatureFlagEnabled(
+        FeatureFlags.NestedSpaces,
+    );
     const {
         data,
         isLoading: isChartLoading,
@@ -138,9 +143,10 @@ export const UpdateSqlChartModal = ({
 
     const shouldShowNewSpaceButton = useMemo(
         () =>
+            isNestedSpacesEnabled &&
             modalSteps.currentStep === ModalStep.SelectDestination &&
             !isCreatingNewSpace,
-        [modalSteps.currentStep, isCreatingNewSpace],
+        [isNestedSpacesEnabled, modalSteps.currentStep, isCreatingNewSpace],
     );
 
     const isFormReadyToSave = useMemo(
