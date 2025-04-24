@@ -61,6 +61,17 @@ export enum FeatureFlags {
      * Enable the ability to show the warehouse execution time and total time in the chart tile.
      */
     ShowExecutionTime = 'show-execution-time',
+
+    /**
+     * Enable the ability to create custom visualizations with AI
+     */
+    AiCustomViz = 'ai-custom-viz',
+
+    /**
+     * Enable the ability to create nested spaces
+     */
+    NestedSpaces = 'nested-spaces',
+
 }
 
 export type FeatureFlag = {

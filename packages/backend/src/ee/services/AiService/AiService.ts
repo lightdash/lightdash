@@ -272,16 +272,16 @@ export class AiService {
             [k: string]: unknown;
         }[];
     }) {
-        const isAIDashboardSummaryEnabled = await isFeatureFlagEnabled(
-            'ai-dashboard-summary' as FeatureFlags,
+        const isAICustomVizEnabled = await isFeatureFlagEnabled(
+            FeatureFlags.AiCustomViz,
             user,
             {
                 throwOnTimeout: true,
             },
         );
 
-        if (!isAIDashboardSummaryEnabled) {
-            throw new Error('AI Dashboard summary feature not enabled!');
+        if (!isAICustomVizEnabled) {
+            throw new Error('AI Custom viz feature not enabled!');
         }
         let openAiResponse;
 

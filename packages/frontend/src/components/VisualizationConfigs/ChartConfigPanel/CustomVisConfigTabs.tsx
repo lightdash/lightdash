@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     getItemId,
     isDateItem,
     isDimension,
@@ -28,6 +29,7 @@ import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
 import { lightdashApi } from '../../../api';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { isCustomVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -360,6 +362,7 @@ const CustomVisConfigTabs: React.FC = memo(() => {
         EditorProps['options'] | undefined
     >();
 
+    const isAiEnabled = useFeatureFlagEnabled(FeatureFlags.AiCustomViz);
     useDeepCompareEffect(() => {
         /** Creates a container that belongs to body, outside of the sidebar
          * so we can place the autocomplete tooltip and it doesn't overflow
@@ -402,12 +405,16 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                     isEditorEmpty={isEditorEmpty}
                     setEditorConfig={setEditorConfig}
                 />
-                <Text>or</Text>
-                <GenerateVizWithAi
-                    itemsMap={itemsMap}
-                    sampleResults={series.slice(0, 3)}
-                    setEditorConfig={setEditorConfig}
-                />
+                {isAiEnabled && (
+                    <>
+                        <Text>or</Text>
+                        <GenerateVizWithAi
+                            itemsMap={itemsMap}
+                            sampleResults={series.slice(0, 3)}
+                            setEditorConfig={setEditorConfig}
+                        />
+                    </>
+                )}
             </Flex>
             <Tabs
                 defaultValue="config"
