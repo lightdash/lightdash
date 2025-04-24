@@ -1,3 +1,10 @@
+# [0.1597.0](https://github.com/lightdash/lightdash/compare/0.1596.3...0.1597.0) (2025-04-24)
+
+
+### Features
+
+* allow saving content to any space (tree view) ([#14497](https://github.com/lightdash/lightdash/issues/14497)) ([e8f4e06](https://github.com/lightdash/lightdash/commit/e8f4e062e5f972e91fdeda7d8d1ae2aafd974d0e))
+
 ## [0.1596.3](https://github.com/lightdash/lightdash/compare/0.1596.2...0.1596.3) (2025-04-24)
 
 
