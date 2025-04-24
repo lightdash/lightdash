@@ -12,22 +12,27 @@ import MantineIcon from '../MantineIcon';
 type AdminContentViewFilterProps = {
     value: 'all' | 'shared';
     onChange: (value: 'all' | 'shared') => void;
+    withDivider?: boolean;
 };
 
 const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
     value,
     onChange,
+    withDivider = true,
 }) => {
     return (
         <>
-            <Divider
-                orientation="vertical"
-                w={1}
-                h={20}
-                sx={{
-                    alignSelf: 'center',
-                }}
-            />
+            {withDivider && (
+                <Divider
+                    orientation="vertical"
+                    w={1}
+                    h={20}
+                    sx={{
+                        alignSelf: 'center',
+                    }}
+                />
+            )}
+
             <SegmentedControl
                 size="xs"
                 radius="md"

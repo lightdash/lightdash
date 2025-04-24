@@ -1,3 +1,4 @@
+import { type SpaceSummary } from '@lightdash/common';
 import { Alert, Box, Button, Group, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
@@ -17,7 +18,7 @@ type Props<T, U> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
 
 const TransferItemsModal = <
     T extends Array<unknown>,
-    U extends Array<NestableItem>,
+    U extends Array<NestableItem & Pick<SpaceSummary, 'isPrivate' | 'access'>>,
 >({
     projectUuid,
     opened,
