@@ -3078,7 +3078,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                steps: { dataType: 'double', required: true },
                 end: { dataType: 'string', required: true },
                 start: { dataType: 'string', required: true },
             },

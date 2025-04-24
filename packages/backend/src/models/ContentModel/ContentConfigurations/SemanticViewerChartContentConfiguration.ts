@@ -14,6 +14,7 @@ import { UserTableName } from '../../../database/entities/users';
 import {
     ContentConfiguration,
     ContentFilters,
+    ContentTypePriority,
     SummaryContentRow,
 } from '../ContentModelTypes';
 
@@ -73,6 +74,9 @@ export const semanticViewerChartContentConfiguration: ContentConfiguration<Selec
                 )
                 .select<SelectSavedSemanticViewerChart[]>([
                     knex.raw(`'${ContentType.CHART}' as content_type`),
+                    knex.raw(
+                        `${ContentTypePriority.CHART} as content_type_rank`,
+                    ),
                     knex.raw(
                         `${SavedSemanticViewerChartsTableName}.saved_semantic_viewer_chart_uuid::text as uuid`,
                     ),
