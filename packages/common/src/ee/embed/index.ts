@@ -6,6 +6,7 @@ export type Embed = {
     projectUuid: string;
     encodedSecret: string;
     dashboardUuids: string[];
+    allowAllDashboards: boolean;
     createdAt: string;
     user: Pick<LightdashUser, 'userUuid' | 'firstName' | 'lastName'>;
 };
@@ -17,6 +18,11 @@ export type DecodedEmbed = Omit<Embed, 'encodedSecret'> & {
 
 export type CreateEmbed = {
     dashboardUuids: string[];
+};
+
+export type UpdateEmbed = {
+    dashboardUuids: string[];
+    allowAllDashboards: boolean;
 };
 
 export enum FilterInteractivityValues {

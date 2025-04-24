@@ -628,6 +628,7 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'string' },
                     required: true,
                 },
+                allowAllDashboards: { dataType: 'boolean', required: true },
                 createdAt: { dataType: 'string', required: true },
                 user: {
                     ref: 'Pick_LightdashUser.userUuid-or-firstName-or-lastName_',
@@ -701,6 +702,22 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 results: { dataType: 'undefined', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateEmbed: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                allowAllDashboards: { dataType: 'boolean', required: true },
+                dashboardUuids: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -16576,19 +16593,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                dashboardUuids: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-            },
-        },
+        body: { in: 'body', name: 'body', required: true, ref: 'UpdateEmbed' },
     };
     app.patch(
         '/api/v1/embed/:projectUuid/config/dashboards',

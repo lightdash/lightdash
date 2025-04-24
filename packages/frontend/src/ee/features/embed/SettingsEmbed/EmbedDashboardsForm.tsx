@@ -1,47 +1,67 @@
-import { type DashboardBasicDetails } from '@lightdash/common';
-import { Button, Flex, MultiSelect, Stack } from '@mantine/core';
+import {
+    type DashboardBasicDetails,
+    type DecodedEmbed,
+    type UpdateEmbed,
+} from '@lightdash/common';
+import { Button, Flex, MultiSelect, Stack, Switch } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import React, { type FC } from 'react';
 
 const EmbedDashboardsForm: FC<{
     disabled: boolean;
-    selectedDashboardsUuids: string[];
+    embedConfig: DecodedEmbed;
     dashboards: DashboardBasicDetails[];
-    onSave: (dashboardUuids: string[]) => void;
-}> = ({ disabled, selectedDashboardsUuids, dashboards, onSave }) => {
+    onSave: (values: UpdateEmbed) => void;
+}> = ({ disabled, embedConfig, dashboards, onSave }) => {
     const form = useForm({
         initialValues: {
-            dashboardUuids: selectedDashboardsUuids,
+            allowAllDashboards: embedConfig.allowAllDashboards,
+            dashboardUuids: embedConfig.dashboardUuids,
         },
     });
 
     const handleSubmit = form.onSubmit((values) => {
-        if (values.dashboardUuids.length > 0) {
-            onSave(values.dashboardUuids);
-        }
+        onSave({
+            dashboardUuids: values.dashboardUuids,
+            allowAllDashboards: values.allowAllDashboards,
+        });
     });
 
     return (
         <form id="add-dashboard-to-embed-config" onSubmit={handleSubmit}>
             <Stack>
-                <MultiSelect
-                    required
-                    label={'Dashboards'}
-                    data={dashboards.map((dashboard) => ({
-                        value: dashboard.uuid,
-                        label: dashboard.name,
-                    }))}
-                    disabled={disabled || dashboards.length === 0}
-                    defaultValue={[]}
-                    placeholder={
-                        dashboards.length === 0
-                            ? 'No dashboards available to embed'
-                            : 'Select a dashboard...'
-                    }
-                    searchable
-                    withinPortal
-                    {...form.getInputProps('dashboardUuids')}
+                <Switch
+                    name="allowAllDashboards"
+                    label="Allow all dashboards"
+                    {...form.getInputProps('allowAllDashboards', {
+                        type: 'checkbox',
+                    })}
                 />
+                {!form.values.allowAllDashboards && (
+                    <MultiSelect
+                        required={!form.values.allowAllDashboards}
+                        label={'Dashboards'}
+                        data={dashboards.map((dashboard) => ({
+                            value: dashboard.uuid,
+                            label: dashboard.name,
+                        }))}
+                        disabled={
+                            disabled ||
+                            dashboards.length === 0 ||
+                            form.values.allowAllDashboards
+                        }
+                        defaultValue={[]}
+                        placeholder={
+                            dashboards.length === 0
+                                ? 'No dashboards available to embed'
+                                : 'Select a dashboard...'
+                        }
+                        searchable
+                        withinPortal
+                        description="Only these dashboards will be allowed to be embedded."
+                        {...form.getInputProps('dashboardUuids')}
+                    />
+                )}
                 <Flex justify="flex-end" gap="sm">
                     <Button
                         type="submit"
