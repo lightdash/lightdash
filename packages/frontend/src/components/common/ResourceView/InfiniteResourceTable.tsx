@@ -460,9 +460,7 @@ const InfiniteResourceTable = ({
         },
         mantineTableBodyRowProps: ({ row }) => ({
             sx: {
-                cursor: isResourceViewSpaceItem(row.original)
-                    ? undefined
-                    : 'pointer',
+                cursor: 'pointer',
                 'td:first-of-type > div > .explore-button-container': {
                     visibility: 'hidden',
                     opacity: 0,
@@ -481,10 +479,6 @@ const InfiniteResourceTable = ({
                 },
             },
             onClick: () => {
-                if (isResourceViewSpaceItem(row.original)) {
-                    return;
-                }
-
                 void navigate(
                     getResourceUrl(filters.projectUuid, row.original),
                 );

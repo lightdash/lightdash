@@ -1152,6 +1152,72 @@ export class SavedChartModel {
         return chartsNotInTilesUuids;
     }
 
+    // CTE to get the last version of each chart in the project
+    private getProjectChartsLastVersionCTE(
+        qb: Knex.QueryBuilder,
+        projectUuid: string,
+    ) {
+        return qb.unionAll([
+            // First part of UNION - charts in space
+            this.database
+                .select({
+                    saved_query_uuid: 'sq.saved_query_uuid',
+                    name: 'sq.name',
+                    saved_queries_version_id: this.database.raw(
+                        'MAX(sqv.saved_queries_version_id)',
+                    ),
+                    dashboard_uuid: 'sq.dashboard_uuid',
+                })
+                .from(`${SavedChartsTableName} as sq`)
+                .innerJoin(
+                    `${SpaceTableName} as s`,
+                    's.space_id',
+                    'sq.space_id',
+                )
+                .innerJoin(
+                    `${ProjectTableName} as p`,
+                    'p.project_id',
+                    's.project_id',
+                )
+                .leftJoin(
+                    `${SavedChartVersionsTableName} as sqv`,
+                    'sq.saved_query_id',
+                    'sqv.saved_query_id',
+                )
+                .where('p.project_uuid', projectUuid)
+                .groupBy('sq.saved_query_uuid', 'sq.name', 'sq.dashboard_uuid'),
+
+            this.database
+                .select({
+                    saved_query_uuid: 'sq.saved_query_uuid',
+                    name: 'sq.name',
+                    saved_queries_version_id: this.database.raw(
+                        'MAX(sqv.saved_queries_version_id)',
+                    ),
+                    dashboard_uuid: 'sq.dashboard_uuid',
+                })
+                .from(`${SavedChartsTableName} as sq`)
+                .innerJoin(
+                    `${DashboardsTableName} as d`,
+                    'd.dashboard_uuid',
+                    'sq.dashboard_uuid',
+                )
+                .innerJoin(`${SpaceTableName} as s`, 's.space_id', 'd.space_id')
+                .innerJoin(
+                    `${ProjectTableName} as p`,
+                    'p.project_id',
+                    's.project_id',
+                )
+                .leftJoin(
+                    `${SavedChartVersionsTableName} as sqv`,
+                    'sq.saved_query_id',
+                    'sqv.saved_query_id',
+                )
+                .where('p.project_uuid', projectUuid)
+                .groupBy('sq.saved_query_uuid', 'sq.name', 'sq.dashboard_uuid'),
+        ]);
+    }
+
     async findChartsForValidation(projectUuid: string): Promise<
         Array<{
             uuid: string;
@@ -1172,51 +1238,9 @@ export class SavedChartModel {
     > {
         const cteName = 'chart_last_version_cte';
         const savedCharts = await this.database
-            // cte to get the last version of each chart in the project
-            .with(cteName, (qb) => {
-                void qb
-                    .select({
-                        saved_query_uuid: 'saved_queries.saved_query_uuid',
-                        name: 'saved_queries.name',
-                        saved_queries_version_id: this.database.raw(
-                            'MAX(saved_queries_versions.saved_queries_version_id)',
-                        ),
-                        dashboard_uuid: 'saved_queries.dashboard_uuid',
-                    })
-                    .from(SavedChartsTableName)
-                    .leftJoin(
-                        DashboardsTableName,
-                        `${DashboardsTableName}.dashboard_uuid`,
-                        `${SavedChartsTableName}.dashboard_uuid`,
-                    )
-                    .innerJoin(SpaceTableName, function spaceJoin() {
-                        this.on(
-                            `${SpaceTableName}.space_id`,
-                            '=',
-                            `${DashboardsTableName}.space_id`,
-                        ).orOn(
-                            `${SpaceTableName}.space_id`,
-                            '=',
-                            `${SavedChartsTableName}.space_id`,
-                        );
-                    })
-                    .leftJoin(
-                        ProjectTableName,
-                        'spaces.project_id',
-                        'projects.project_id',
-                    )
-                    .leftJoin(
-                        SavedChartVersionsTableName,
-                        'saved_queries.saved_query_id',
-                        'saved_queries_versions.saved_query_id',
-                    )
-                    .where('projects.project_uuid', projectUuid)
-                    .groupBy(
-                        'saved_queries.saved_query_uuid',
-                        'saved_queries.name',
-                        'saved_queries.dashboard_uuid',
-                    );
-            })
+            .with(cteName, (qb) =>
+                this.getProjectChartsLastVersionCTE(qb, projectUuid),
+            )
             .select({
                 uuid: `${cteName}.saved_query_uuid`,
                 name: `${cteName}.name`,
@@ -1604,51 +1628,9 @@ export class SavedChartModel {
     > {
         const cteName = 'chart_last_version_cte';
         const savedCharts = await this.database
-            // cte to get the last version of each chart in the project
-            .with(cteName, (qb) => {
-                void qb
-                    .select({
-                        saved_query_uuid: 'saved_queries.saved_query_uuid',
-                        name: 'saved_queries.name',
-                        saved_queries_version_id: this.database.raw(
-                            'MAX(saved_queries_versions.saved_queries_version_id)',
-                        ),
-                        dashboard_uuid: 'saved_queries.dashboard_uuid',
-                    })
-                    .from(SavedChartsTableName)
-                    .leftJoin(
-                        DashboardsTableName,
-                        `${DashboardsTableName}.dashboard_uuid`,
-                        `${SavedChartsTableName}.dashboard_uuid`,
-                    )
-                    .innerJoin(SpaceTableName, function spaceJoin() {
-                        this.on(
-                            `${SpaceTableName}.space_id`,
-                            '=',
-                            `${DashboardsTableName}.space_id`,
-                        ).orOn(
-                            `${SpaceTableName}.space_id`,
-                            '=',
-                            `${SavedChartsTableName}.space_id`,
-                        );
-                    })
-                    .leftJoin(
-                        ProjectTableName,
-                        'spaces.project_id',
-                        'projects.project_id',
-                    )
-                    .leftJoin(
-                        SavedChartVersionsTableName,
-                        'saved_queries.saved_query_id',
-                        'saved_queries_versions.saved_query_id',
-                    )
-                    .where('projects.project_uuid', projectUuid)
-                    .groupBy(
-                        'saved_queries.saved_query_uuid',
-                        'saved_queries.name',
-                        'saved_queries.dashboard_uuid',
-                    );
-            })
+            .with(cteName, (qb) =>
+                this.getProjectChartsLastVersionCTE(qb, projectUuid),
+            )
             .select({
                 uuid: `${cteName}.saved_query_uuid`,
                 name: `${cteName}.name`,
