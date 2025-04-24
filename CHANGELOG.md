@@ -1,3 +1,10 @@
+## [0.1598.1](https://github.com/lightdash/lightdash/compare/0.1598.0...0.1598.1) (2025-04-24)
+
+
+### Bug Fixes
+
+* set pre-selected space on next step ([#14539](https://github.com/lightdash/lightdash/issues/14539)) ([2b9731f](https://github.com/lightdash/lightdash/commit/2b9731f0616c55817b8424844819b548cc6d65e5))
+
 # [0.1598.0](https://github.com/lightdash/lightdash/compare/0.1597.1...0.1598.0) (2025-04-24)
 
 
