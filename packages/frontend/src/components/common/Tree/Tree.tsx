@@ -94,25 +94,31 @@ const Tree: React.FC<Props> = ({ topLevelLabel, value, data, onChange }) => {
 
     return (
         <MantineProvider>
-            <TreeItem label={topLevelLabel} withPadding={false} isRoot={true} />
-
-            <Box ml={rem(6)} pl={rem(13.5)}>
-                <MantineTree
-                    data={treeData}
-                    tree={tree}
-                    levelOffset={rem(23)}
-                    renderNode={renderTreeNode}
-                    allowRangeSelection={false}
-                    checkOnSpace={false}
-                    clearSelectionOnOutsideClick={false}
-                    expandOnClick={false}
-                    expandOnSpace={false}
-                    selectOnClick={false}
-                    classNames={{
-                        label: classes.label,
-                        node: classes.node,
-                    }}
+            <Box px="sm" py="xs">
+                <TreeItem
+                    selected={!value}
+                    label={topLevelLabel}
+                    isRoot={true}
                 />
+
+                <Box ml={rem(6)} pl={rem(13.5)}>
+                    <MantineTree
+                        data={treeData}
+                        tree={tree}
+                        levelOffset={rem(23)}
+                        renderNode={renderTreeNode}
+                        allowRangeSelection={false}
+                        checkOnSpace={false}
+                        clearSelectionOnOutsideClick={false}
+                        expandOnClick={false}
+                        expandOnSpace={false}
+                        selectOnClick={false}
+                        classNames={{
+                            label: classes.label,
+                            node: classes.node,
+                        }}
+                    />
+                </Box>
             </Box>
         </MantineProvider>
     );

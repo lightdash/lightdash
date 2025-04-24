@@ -132,6 +132,11 @@ const TransferItemsModal = <
                         selectedSpaceUuid={selectedSpaceUuid}
                         onSelectSpace={setSelectedSpaceUuid}
                         isLoading={createSpaceMutation.isLoading}
+                        scrollingContainerProps={{
+                            // this is a hack that prevents the modal from jumping when the Alert is shown or hidden.
+                            // PX value is based on the height of the Alert component below + spacing after the SpaceSelector.
+                            h: selectedSpaceLabel ? '200px' : '262px',
+                        }}
                     />
                 </>
             )}
@@ -141,11 +146,7 @@ const TransferItemsModal = <
                     <Text fw={500}>
                         Transfer {items.length}{' '}
                         {items.length > 1 ? 'items' : 'item'}{' '}
-                        {!isCreatingNewSpace
-                            ? `"
-                        ${selectedSpaceLabel}"`
-                            : ''}{' '}
-                        .
+                        {!isCreatingNewSpace ? `"${selectedSpaceLabel}"` : ''} .
                     </Text>
                 </Alert>
             ) : null}

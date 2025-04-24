@@ -1,5 +1,10 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Paper, ScrollArea } from '@mantine/core';
+import {
+    Paper,
+    ScrollArea,
+    type PaperProps,
+    type ScrollAreaProps,
+} from '@mantine/core';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import Tree from '../Tree/Tree';
 import { type NestableItem } from '../Tree/types';
@@ -7,13 +12,16 @@ import { type NestableItem } from '../Tree/types';
 type SpaceSelectorProps = {
     spaces: Array<NestableItem> | undefined;
     selectedSpaceUuid: string | null;
-    onSelectSpace: (spaceUuid: string | null) => void;
+    scrollingContainerProps?: PaperProps & ScrollAreaProps;
     isLoading?: boolean;
+    onSelectSpace: (spaceUuid: string | null) => void;
 };
 
 const SpaceSelector = ({
     spaces = [],
     selectedSpaceUuid,
+    scrollingContainerProps,
+    isLoading: _isLoading, // TODO: implement loading state for the tree.
     onSelectSpace,
 }: SpaceSelectorProps) => {
     const isNestedSpacesEnabled = useFeatureFlagEnabled(
@@ -27,8 +35,7 @@ const SpaceSelector = ({
                 w="100%"
                 h="200px"
                 withBorder
-                px="sm"
-                py="xs"
+                {...scrollingContainerProps}
             >
                 <Tree
                     data={spaces}
