@@ -1,13 +1,17 @@
-import { WarehouseTypes } from '@lightdash/common';
+import {
+    type CreateWarehouseCredentials,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { Select } from '@mantine/core';
 import { type FC } from 'react';
+import { useFormContext } from './formContext';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
+import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
 import PostgresForm from './WarehouseForms/PostgresForm';
 import RedshiftForm from './WarehouseForms/RedshiftForm';
 import SnowflakeForm from './WarehouseForms/SnowflakeForm';
 import TrinoForm from './WarehouseForms/TrinoForm';
-import { useFormContext } from './formContext';
 
 const WarehouseTypeLabels = {
     [WarehouseTypes.BIGQUERY]: 'BigQuery',
@@ -59,9 +63,14 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
                     )}
                     required
                     {...form.getInputProps('warehouse.type')}
-                    onChange={(value) => {
-                        form.reset();
-                        form.getInputProps('warehouse.type').onChange(value);
+                    onChange={(value: WarehouseTypes) => {
+                        if (!value) return;
+
+                        const nextValues = warehouseDefaultValues[value];
+
+                        form.setValues({
+                            warehouse: nextValues as CreateWarehouseCredentials,
+                        });
                     }}
                     disabled={disabled}
                 />
