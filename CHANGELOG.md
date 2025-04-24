@@ -1,3 +1,10 @@
+## [0.1597.1](https://github.com/lightdash/lightdash/compare/0.1597.0...0.1597.1) (2025-04-24)
+
+
+### Bug Fixes
+
+* only set default space if form not initialised ([#14530](https://github.com/lightdash/lightdash/issues/14530)) ([726aacb](https://github.com/lightdash/lightdash/commit/726aacb9a49b01b2fe4eb3a2606fee5df000c61b))
+
 # [0.1597.0](https://github.com/lightdash/lightdash/compare/0.1596.3...0.1597.0) (2025-04-24)
 
 

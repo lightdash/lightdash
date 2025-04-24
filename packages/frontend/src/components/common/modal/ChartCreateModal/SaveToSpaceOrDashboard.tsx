@@ -175,11 +175,14 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     const { setFieldValue } = form;
 
     useEffect(
+        // If default space is set, set the spaceUuid to the default space
+        // This happens when the user creates a chart from a space view, so that space is selected by default
         function setSpaceWhenUserReachesSelectionStep() {
             if (
                 currentStep === ModalStep.SelectDestination &&
                 saveDestination === SaveDestination.Space &&
-                form.values.spaceUuid === null
+                form.values.spaceUuid === null &&
+                !form.initialized
             ) {
                 const isValidDefaultSpaceUuid = spaces?.some(
                     (space) => space.uuid === defaultSpaceUuid,
@@ -208,6 +211,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             spaceManagement,
             form.values.spaceUuid,
             isNestedSpacesEnabled,
+            form.initialized,
         ],
     );
 
