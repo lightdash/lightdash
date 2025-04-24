@@ -1,3 +1,10 @@
+# [0.1598.0](https://github.com/lightdash/lightdash/compare/0.1597.1...0.1598.0) (2025-04-24)
+
+
+### Features
+
+* order content by rank ([#14533](https://github.com/lightdash/lightdash/issues/14533)) ([2521e61](https://github.com/lightdash/lightdash/commit/2521e61386e29039be54d242f1b718aaf6175da5))
+
 ## [0.1597.1](https://github.com/lightdash/lightdash/compare/0.1597.0...0.1597.1) (2025-04-24)
 
 
