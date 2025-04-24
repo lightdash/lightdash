@@ -32,6 +32,8 @@ import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
 import { useSpace } from '../hooks/useSpaces';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
+import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
 
 const Space: FC = () => {
     const { projectUuid, spaceUuid } = useParams<{
@@ -49,6 +51,7 @@ const Space: FC = () => {
 
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
     const { user, health } = useApp();
+    const { track } = useTracking();
 
     const areNestedSpacesEnabled = useFeatureFlagEnabled(
         FeatureFlags.NestedSpaces,
@@ -143,6 +146,22 @@ const Space: FC = () => {
                                     index ===
                                     (space.breadcrumbs?.length ?? 0) - 1,
                                 to: `/projects/${projectUuid}/spaces/${breadcrumb.uuid}`,
+                                onClick: () => {
+                                    if (
+                                        user.data?.userUuid &&
+                                        user.data?.organizationUuid
+                                    ) {
+                                        track({
+                                            name: EventName.SPACE_BREADCRUMB_CLICKED,
+                                            properties: {
+                                                userId: user.data?.userUuid,
+                                                organizationId:
+                                                    user.data?.organizationUuid,
+                                                projectId: projectUuid,
+                                            },
+                                        });
+                                    }
+                                },
                             })) ?? []),
                         ]}
                     />

@@ -21,9 +21,11 @@ import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningM
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
 import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation';
 import { useMoveChartMutation } from '../../../hooks/useSavedQuery';
+import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
+import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import ChartDeleteModal from '../modal/ChartDeleteModal';
 import ChartDuplicateModal from '../modal/ChartDuplicateModal';
 import ChartUpdateModal from '../modal/ChartUpdateModal';
@@ -45,6 +47,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     onAction,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: spaces } = useSpaceSummaries(projectUuid, true, {});
 
     const { mutate: moveChart } = useMoveChartMutation();
     const { mutate: updateSqlChart } = useUpdateSqlChartMutation(
@@ -298,6 +301,21 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         'Resource type not supported',
                     );
             }
+
+        case ResourceViewItemAction.TRANSFER_TO_SPACE:
+            return (
+                <TransferItemsModal
+                    projectUuid={projectUuid}
+                    opened
+                    onClose={handleReset}
+                    items={[action.item]}
+                    spaces={spaces ?? []}
+                    onConfirm={(spaceUuid) => {
+                        moveToSpace(action.item, spaceUuid);
+                        handleReset();
+                    }}
+                />
+            );
 
         case ResourceViewItemAction.CLOSE:
         case ResourceViewItemAction.MOVE_TO_SPACE:

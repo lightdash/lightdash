@@ -3,7 +3,17 @@ import {
     type UserActivity as UserActivityResponse,
     type UserWithCount,
 } from '@lightdash/common';
-import { Box, Card, Group, Stack, Table, Text, Title } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Card,
+    Group,
+    Stack,
+    Table,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import { type FC } from 'react';
@@ -14,7 +24,10 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
-import { useUserActivity } from '../hooks/analytics/useUserActivity';
+import {
+    downloadUserActivityCsv,
+    useUserActivity,
+} from '../hooks/analytics/useUserActivity';
 import useHealth from '../hooks/health/useHealth';
 import { useProject } from '../hooks/useProject';
 import useApp from '../providers/App/useApp';
@@ -194,7 +207,7 @@ const UserActivity: FC = () => {
 
     return (
         <Page title={`User activity for ${project?.name}`} withFitContent>
-            <Box mt={10} mb={30}>
+            <Group mt={10} mb={30} position="apart">
                 <PageBreadcrumbs
                     items={[
                         {
@@ -218,7 +231,22 @@ const UserActivity: FC = () => {
                         },
                     ]}
                 />
-            </Box>
+                <Tooltip label="Export raw chart and dashboard user views in a CSV format">
+                    <Button
+                        variant="outline"
+                        onClick={() => {
+                            if (params.projectUuid)
+                                downloadUserActivityCsv(params.projectUuid)
+                                    .then((url) => {
+                                        if (url) window.open(url, '_blank');
+                                    })
+                                    .catch(console.error);
+                        }}
+                    >
+                        Export CSV
+                    </Button>
+                </Tooltip>
+            </Group>
             <Box
                 sx={{
                     display: 'grid',

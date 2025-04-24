@@ -3866,15 +3866,22 @@ export class ProjectService extends BaseService {
         }${q}) as ${q}column_index${q} FROM group_by_query`;
 
         if (groupByColumns && groupByColumns.length > 0) {
+            // Calculate max allowed columns based on number of value columns
+            const valueColumnsCount = valuesColumns?.length || 1;
+            const remainingColumns = MAX_PIVOT_COLUMN_LIMIT - 1; // Account for the index column
+            const maxColumnsPerValueColumn = Math.floor(
+                remainingColumns / valueColumnsCount,
+            );
+
             // Generate filtered rows and total columns so that we can apply a max column limit but also count the total number of columns if we exceed the MAX_PIVOT_COLUMN_LIMIT
             let pivotedSql = `
             WITH original_query AS (${userSql}), 
                  group_by_query AS (${groupByQuery}), 
                  pivot_query AS (${pivotQuery}),
                  filtered_rows AS (
-                    SELECT * FROM pivot_query WHERE "row_index" <= ${
-                        limit ?? 500
-                    }
+                    SELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${
+                limit ?? 500
+            }
                  ),
                  total_columns AS (
                     SELECT (COUNT(DISTINCT ${groupByColumns
@@ -3887,10 +3894,9 @@ export class ProjectService extends BaseService {
 
             // Add a max column limit to avoid too many columns and performance issues.
             // Warn the user if we exceed it.
-
             pivotedSql += `\nSELECT p.*, t.total_columns FROM pivot_query p CROSS JOIN total_columns t WHERE p.${q}row_index${q} <= ${
                 limit ?? 500
-            } and p.${q}column_index${q} <= ${MAX_PIVOT_COLUMN_LIMIT} order by p.${q}row_index${q}, p.${q}column_index${q}`;
+            } and p.${q}column_index${q} <= ${maxColumnsPerValueColumn} order by p.${q}row_index${q}, p.${q}column_index${q}`;
 
             return pivotedSql;
         }

@@ -212,6 +212,10 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
 
+        can('view', 'Analytics', {
+            projectUuid: member.projectUuid,
+        });
+
         can('manage', 'Project', {
             projectUuid: member.projectUuid,
         });

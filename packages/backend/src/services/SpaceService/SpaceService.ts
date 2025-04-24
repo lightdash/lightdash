@@ -203,6 +203,7 @@ export class SpaceService extends BaseService {
                 projectId: projectUuid,
                 isPrivate: newSpace.isPrivate,
                 userAccessCount: space.access?.length ?? 0,
+                isNested: !!space.parentSpaceUuid,
             },
         });
         return newSpace;
@@ -248,6 +249,7 @@ export class SpaceService extends BaseService {
                 projectId: space.projectUuid,
                 isPrivate: space.isPrivate,
                 userAccessCount: space.access.length,
+                isNested,
             },
         });
         return updatedSpace;
@@ -279,6 +281,7 @@ export class SpaceService extends BaseService {
                 name: space.name,
                 spaceId: spaceUuid,
                 projectId: space.projectUuid,
+                isNested: !!space.parentSpaceUuid,
             },
         });
     }

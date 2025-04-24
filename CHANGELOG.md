@@ -1,3 +1,85 @@
+## [0.1596.2](https://github.com/lightdash/lightdash/compare/0.1596.1...0.1596.2) (2025-04-23)
+
+
+### Bug Fixes
+
+* backend build ([#14518](https://github.com/lightdash/lightdash/issues/14518)) ([7fbdfbb](https://github.com/lightdash/lightdash/commit/7fbdfbb59081b0c430dc93f4c60e98dbe3fb9473))
+
+## [0.1596.1](https://github.com/lightdash/lightdash/compare/0.1596.0...0.1596.1) (2025-04-23)
+
+
+### Bug Fixes
+
+* enforce limit on pivoted columns ([#14511](https://github.com/lightdash/lightdash/issues/14511)) ([6facfb2](https://github.com/lightdash/lightdash/commit/6facfb2a7d8a54d16785292d3998528530fc5b88))
+
+# [0.1596.0](https://github.com/lightdash/lightdash/compare/0.1595.2...0.1596.0) (2025-04-23)
+
+
+### Features
+
+* add audit logging for casl checks ([#14416](https://github.com/lightdash/lightdash/issues/14416)) ([b2f1a55](https://github.com/lightdash/lightdash/commit/b2f1a55247411a7f416aa6f360feda25d60ffce4))
+
+## [0.1595.2](https://github.com/lightdash/lightdash/compare/0.1595.1...0.1595.2) (2025-04-23)
+
+
+### Bug Fixes
+
+* conditional formatting coloring for small numbers ([#14506](https://github.com/lightdash/lightdash/issues/14506)) ([96b253f](https://github.com/lightdash/lightdash/commit/96b253f402e90d42eb0665de4162625337cdcc5c))
+
+## [0.1595.1](https://github.com/lightdash/lightdash/compare/0.1595.0...0.1595.1) (2025-04-23)
+
+
+### Bug Fixes
+
+* download raw usage analytics ([#14471](https://github.com/lightdash/lightdash/issues/14471)) ([872355e](https://github.com/lightdash/lightdash/commit/872355ee41ca2341ed481b95250010e19dbf3b5b))
+
+# [0.1595.0](https://github.com/lightdash/lightdash/compare/0.1594.0...0.1595.0) (2025-04-23)
+
+
+### Features
+
+* create space within transfer modal (only nested) ([#14492](https://github.com/lightdash/lightdash/issues/14492)) ([dfea909](https://github.com/lightdash/lightdash/commit/dfea9096de5cf55531fa5ce915ea8ed5e2ae6de4))
+
+# [0.1594.0](https://github.com/lightdash/lightdash/compare/0.1593.0...0.1594.0) (2025-04-23)
+
+
+### Features
+
+* transfer dashboard to space ([#14489](https://github.com/lightdash/lightdash/issues/14489)) ([60ea971](https://github.com/lightdash/lightdash/commit/60ea97106f9aecb6a6a7d05d1ed97021f25ddb96))
+
+# [0.1593.0](https://github.com/lightdash/lightdash/compare/0.1592.0...0.1593.0) (2025-04-23)
+
+
+### Features
+
+* transfer to modal ([#14488](https://github.com/lightdash/lightdash/issues/14488)) ([82dd282](https://github.com/lightdash/lightdash/commit/82dd2827b4838b89b4b357841a472c5685d902ab))
+
+# [0.1592.0](https://github.com/lightdash/lightdash/compare/0.1591.3...0.1592.0) (2025-04-23)
+
+
+### Bug Fixes
+
+* bump echarts to 5.6.0 ([#14495](https://github.com/lightdash/lightdash/issues/14495)) ([676127c](https://github.com/lightdash/lightdash/commit/676127cca4624c6441ec85e143188438e2873341))
+
+
+### Features
+
+* allow adjusting background-color of text on markdown-tiles ([#14502](https://github.com/lightdash/lightdash/issues/14502)) ([b9b13e3](https://github.com/lightdash/lightdash/commit/b9b13e341be2d316e2ee15b081c0cdce7bfae0dc))
+
+## [0.1591.3](https://github.com/lightdash/lightdash/compare/0.1591.2...0.1591.3) (2025-04-22)
+
+
+### Bug Fixes
+
+* add quotes wraping row_index ([#14481](https://github.com/lightdash/lightdash/issues/14481)) ([894ed2d](https://github.com/lightdash/lightdash/commit/894ed2da7972e48cb67b5640917cb8643f66340a))
+
+## [0.1591.2](https://github.com/lightdash/lightdash/compare/0.1591.1...0.1591.2) (2025-04-22)
+
+
+### Bug Fixes
+
+* get all spaces query ([#14461](https://github.com/lightdash/lightdash/issues/14461)) ([5f2c078](https://github.com/lightdash/lightdash/commit/5f2c07836eedc9a6c6fb694283a5ea5e311a4619))
+
 ## [0.1591.1](https://github.com/lightdash/lightdash/compare/0.1591.0...0.1591.1) (2025-04-22)
 
 

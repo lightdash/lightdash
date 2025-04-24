@@ -5,13 +5,15 @@ import * as expressWinston from 'express-winston';
 import ExecutionContext from 'node-execution-context';
 import * as winston from 'winston';
 import { lightdashConfig } from '../config/lightdashConfig';
+import { AuditLogEvent } from './auditLog';
 
 const levels = {
     error: 0,
     warn: 1,
     info: 2,
     http: 3,
-    debug: 4,
+    audit: 4,
+    debug: 5,
 };
 
 const colors = {
@@ -19,6 +21,7 @@ const colors = {
     warn: 'yellow',
     info: 'green',
     http: 'magenta',
+    audit: 'cyan',
     debug: 'white',
 };
 winston.addColors(colors);
@@ -129,6 +132,18 @@ export const winstonLogger = winston.createLogger({
     levels,
     transports,
 });
+
+export const logAuditEvent = (event: AuditLogEvent): void => {
+    winstonLogger.log({
+        level: 'audit',
+        message: `${event.action} ${event.resource.type}${
+            event.resource.uuid ? ` ${event.resource.uuid}` : ''
+        } by ${event.actor.uuid} (${event.status})${
+            event.reason ? ` - ${event.reason}` : ''
+        }`,
+        ...event,
+    });
+};
 
 declare global {
     namespace Express {

@@ -1,7 +1,11 @@
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { z } from 'zod';
-import { type UserActivity, type ViewStatistics } from './types/analytics';
+import {
+    type ApiUserActivityDownloadCsv,
+    type UserActivity,
+    type ViewStatistics,
+} from './types/analytics';
 import {
     type Dashboard,
     type DashboardAvailableFilters,
@@ -817,7 +821,8 @@ type ApiResults =
     | ApiGetSpotlightTableConfig['results']
     | ApiCalculateSubtotalsResponse['results']
     | ApiExecuteAsyncQueryResults
-    | ApiGetAsyncQueryResults;
+    | ApiGetAsyncQueryResults
+    | ApiUserActivityDownloadCsv['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

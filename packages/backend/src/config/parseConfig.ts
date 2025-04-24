@@ -188,13 +188,13 @@ export const getPemFileContent = (certValue: string | undefined) =>
         decodeUnlessStartsWith: '-----BEGIN ', // -----BEGIN CERTIFICATE | -----BEGIN PRIVATE KEY
     });
 
-type LoggingLevel = 'error' | 'warn' | 'info' | 'http' | 'debug';
+type LoggingLevel = 'error' | 'warn' | 'info' | 'http' | 'debug' | 'audit';
 const assertIsLoggingLevel = (x: string): x is LoggingLevel =>
-    ['error', 'warn', 'info', 'http', 'debug'].includes(x);
+    ['error', 'warn', 'info', 'http', 'debug', 'audit'].includes(x);
 const parseLoggingLevel = (raw: string): LoggingLevel => {
     if (!assertIsLoggingLevel(raw)) {
         throw new ParseError(
-            `Cannot parse environment variable "LIGHTDASH_LOG_LEVEL". Value must be one of "error", "warn", "info", "debug" but LIGHTDASH_LOG_LEVEL=${raw}`,
+            `Cannot parse environment variable "LIGHTDASH_LOG_LEVEL". Value must be one of "error", "warn", "info", "debug", "audit" but LIGHTDASH_LOG_LEVEL=${raw}`,
         );
     }
     return raw;

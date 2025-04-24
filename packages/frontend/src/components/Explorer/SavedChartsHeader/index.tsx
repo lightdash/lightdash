@@ -27,6 +27,7 @@ import {
     IconDots,
     IconFolder,
     IconFolders,
+    IconFolderSymlink,
     IconHistory,
     IconLayoutGridAdd,
     IconPencil,
@@ -78,6 +79,7 @@ import PageHeader from '../../common/Page/PageHeader';
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
+import TransferItemsModal from '../../common/TransferItemsModal/TransferItemsModal';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartDuplicateModal from '../../common/modal/ChartDuplicateModal';
@@ -97,6 +99,13 @@ const SpaceTypeLabels = {
 };
 
 const SavedChartsHeader: FC = () => {
+    const userTimeZonesEnabled = useFeatureFlagEnabled(
+        FeatureFlags.EnableUserTimezones,
+    );
+    const areNestedSpacesEnabled = useFeatureFlagEnabled(
+        FeatureFlags.NestedSpaces,
+    );
+
     const { search } = useLocation();
     const { projectUuid } = useParams<{
         projectUuid: string;
@@ -105,9 +114,6 @@ const SavedChartsHeader: FC = () => {
     const isFromDashboard = !!dashboardUuid;
     const spaceUuid = useSearchParams('fromSpace');
 
-    const userTimeZonesEnabled = useFeatureFlagEnabled(
-        FeatureFlags.EnableUserTimezones,
-    );
     const { data: project } = useProject(projectUuid);
 
     const { mutate: promoteChart } = usePromoteMutation();
@@ -162,6 +168,8 @@ const SavedChartsHeader: FC = () => {
     const [isAddToDashboardModalOpen, addToDashboardModalHandlers] =
         useDisclosure();
     const [isChartDuplicateModalOpen, chartDuplicateModalHandlers] =
+        useDisclosure();
+    const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
         useDisclosure();
 
     const { user, health } = useApp();
@@ -582,7 +590,21 @@ const SavedChartsHeader: FC = () => {
                                     )}
 
                                 {userCanManageChart &&
-                                    !chartBelongsToDashboard && (
+                                    !chartBelongsToDashboard &&
+                                    (areNestedSpacesEnabled ? (
+                                        <Menu.Item
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconFolderSymlink}
+                                                />
+                                            }
+                                            onClick={
+                                                transferToSpaceModalHandlers.open
+                                            }
+                                        >
+                                            Transfer to space
+                                        </Menu.Item>
+                                    ) : (
                                         <Menu.Item
                                             icon={
                                                 <MantineIcon
@@ -720,7 +742,7 @@ const SavedChartsHeader: FC = () => {
                                                 </Menu.Dropdown>
                                             </Menu>
                                         </Menu.Item>
-                                    )}
+                                    ))}
                                 {userCanManageChart && (
                                     <Menu.Item
                                         icon={
@@ -940,8 +962,29 @@ const SavedChartsHeader: FC = () => {
                     onConfirm={() => {
                         if (savedChart?.uuid) promoteChart(savedChart.uuid);
                     }}
-                ></PromotionConfirmDialog>
+                />
             )}
+
+            {areNestedSpacesEnabled &&
+                isTransferToSpaceModalOpen &&
+                projectUuid && (
+                    <TransferItemsModal
+                        projectUuid={projectUuid}
+                        opened={isTransferToSpaceModalOpen}
+                        items={[savedChart]}
+                        spaces={spaces}
+                        onClose={transferToSpaceModalHandlers.close}
+                        onConfirm={(newSpaceUuid) => {
+                            if (savedChart) {
+                                moveChartToSpace({
+                                    uuid: savedChart.uuid,
+                                    spaceUuid: newSpaceUuid,
+                                });
+                            }
+                            transferToSpaceModalHandlers.close();
+                        }}
+                    />
+                )}
         </TrackSection>
     );
 };
