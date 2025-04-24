@@ -39,6 +39,11 @@ export const ExplorerResults = memo(() => {
     const totalRows = useExplorerContext(
         (context) => context.queryResults.totalResults,
     );
+    const isInitialLoading = useExplorerContext(
+        (context) =>
+            context.query.isInitialLoading ||
+            context.queryResults.isInitialLoading,
+    );
     const isFetchingRows = useExplorerContext(
         (context) => context.queryResults.isFetchingRows,
     );
@@ -58,10 +63,9 @@ export const ExplorerResults = memo(() => {
     const setColumnOrder = useExplorerContext(
         (context) => context.actions.setColumnOrder,
     );
-    const { isInitialLoading, data: exploreData } = useExplore(
-        activeTableName,
-        { refetchOnMount: false },
-    );
+    const { data: exploreData } = useExplore(activeTableName, {
+        refetchOnMount: false,
+    });
     const tableCalculations = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
