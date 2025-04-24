@@ -24,27 +24,6 @@ def sendSlackMessage(String channelId, String messageText) {
     }
 }
 
-// def sendFormattedSlackMessage(String channelId, String blocks) {
-//     String messageResponse = sh(script: """
-//         curl -X POST https://slack.com/api/chat.postMessage \
-//             -H "Authorization: Bearer ${env.SLACK_BOT_TOKEN}" \
-//             -H "Content-Type: application/json;charset=utf-8" \
-//             -d '{
-//                 "channel": "${channelId}",
-//                 "blocks": "${blocks}"
-//             }'
-//     """, returnStdout: true).trim()
-
-//     // Print the message response payload (response body) for debugging
-//     echo "Message Response Payload: ${messageResponse}"
-
-//     // Optional: Check if the message was successfully sent
-//     responseJson = readJSON(text: messageResponse)
-//     if (responseJson.ok != true) {
-//         error 'Failed to send the messages'
-//     }
-// }
-
 pipeline {
     // Run on GKE Docker in Docker node
     agent {
@@ -65,9 +44,9 @@ pipeline {
         }
         stage('Rebase & Validate Feature Branches') {
             environment {
-                    GIT_COMMITTER_NAME = 'portal-buildadm'
-                    GIT_COMMITTER_EMAIL = 'portal-admin@workday.com'
-                    SLACK_BOT_TOKEN = credentials('slack-bot-token')
+                GIT_COMMITTER_NAME = 'portal-buildadm'
+                GIT_COMMITTER_EMAIL = 'portal-admin@workday.com'
+                SLACK_BOT_TOKEN = credentials('slack-bot-token')
             }
             steps {
                 script {
@@ -100,19 +79,23 @@ pipeline {
                                 // Abort the merge to leave the repository in a clean state
                                 sh abortMergeCommand
 
+                                sendSlackMessage('#portal-lightdash-pre-release', "Merge conflicts detected for branch `${branchName}`. Please resolve the conflicts and try again.")
+                                sendSlackMessage('#portal-lightdash-pre-release', "Conflicted files: ${conflictFiles.join(', ')}")
+
                             // PLACEHOLDER: SEND SLACK NOTIFICATION
                             } else {
                                 // No conflicts, merge was successful
                                 echo 'Merge smoke test successful, no conflicts for branch ' + branchName
                                 // Abort the merge since no commit is needed
                                 sh abortMergeCommand
-
                                 // Start rebasing the feature branch
                                 sh "git checkout ${branchName}"
                                 Integer rebaseResult = sh(script: 'git rebase master', returnStatus: true)
                                 if (rebaseResult != 0) {
                                     // Rebase conflicts detected
                                     echo 'Rebase failed for branch ' + branchName
+                                    sendSlackMessage('#portal-lightdash-pre-release', "Auto rebase failed for branch `${branchName}`. Please resolve the conflicts and try again.")
+                                    sh 'git rebase --abort'
                                 } else {
                                     // No conflicts, rebase was successful
                                     echo 'Rebase successful for branch ' + branchName
@@ -123,7 +106,7 @@ pipeline {
                             }
                         }
 
-                        sendSlackMessage('@shifan.gu', 'Rebase & Validate Feature Branches stage completed successfully.')
+                        sendSlackMessage('#portal-lightdash-pre-release', '*Rebase & Validate Feature Branches* stage completed successfully. :tada:')
                     }
                 }
             }
