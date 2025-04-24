@@ -174,46 +174,34 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
     const { setFieldValue } = form;
 
-    useEffect(
-        // If default space is set, set the spaceUuid to the default space
-        // This happens when the user creates a chart from a space view, so that space is selected by default
-        function setSpaceWhenUserReachesSelectionStep() {
-            if (
-                currentStep === ModalStep.SelectDestination &&
-                saveDestination === SaveDestination.Space &&
-                form.values.spaceUuid === null &&
-                !form.initialized
-            ) {
-                const isValidDefaultSpaceUuid = spaces?.some(
-                    (space) => space.uuid === defaultSpaceUuid,
-                );
+    // If default space is set, set the spaceUuid to the default space
+    // This happens when the user creates a chart from a space view, so that space is selected by default
+    const setPreselectedSpace = useCallback(() => {
+        if (form.values.spaceUuid === null) {
+            const isValidDefaultSpaceUuid = spaces?.some(
+                (space) => space.uuid === defaultSpaceUuid,
+            );
 
-                const initialSpaceUuid = isValidDefaultSpaceUuid
-                    ? defaultSpaceUuid
-                    : spaces?.[0]?.uuid;
+            const initialSpaceUuid = isValidDefaultSpaceUuid
+                ? defaultSpaceUuid
+                : spaces?.[0]?.uuid;
 
-                if (initialSpaceUuid) {
-                    if (isNestedSpacesEnabled) {
-                        spaceManagement.setSelectedSpaceUuid(initialSpaceUuid);
-                    }
-
-                    setFieldValue('spaceUuid', initialSpaceUuid);
+            if (initialSpaceUuid) {
+                if (isNestedSpacesEnabled) {
+                    spaceManagement.setSelectedSpaceUuid(initialSpaceUuid);
                 }
+
+                setFieldValue('spaceUuid', initialSpaceUuid);
             }
-        },
-        [
-            currentStep,
-            saveDestination,
-            setFieldValue,
-            spaces,
-            defaultSpaceUuid,
-            selectedSpaceUuid,
-            spaceManagement,
-            form.values.spaceUuid,
-            isNestedSpacesEnabled,
-            form.initialized,
-        ],
-    );
+        }
+    }, [
+        setFieldValue,
+        spaces,
+        defaultSpaceUuid,
+        spaceManagement,
+        form.values.spaceUuid,
+        isNestedSpacesEnabled,
+    ]);
 
     const { mutateAsync: updateDashboard } = useUpdateDashboard(
         form.values.dashboardUuid ?? undefined,
@@ -334,6 +322,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
     const handleNextStep = () => {
         setCurrentStep(ModalStep.SelectDestination);
+        if (saveDestination === SaveDestination.Space) {
+            setPreselectedSpace();
+        }
     };
 
     // Determine if we should show the "New Space" button
