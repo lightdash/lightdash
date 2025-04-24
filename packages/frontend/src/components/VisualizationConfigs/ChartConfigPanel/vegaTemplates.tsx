@@ -2,6 +2,9 @@ export enum TemplateType {
     BAR_CHART = 'Bar chart',
     HEATMAP = 'Heatmap',
     BUBBLE_PLOTS = 'Bubble plots',
+    FUNNEL_CHART = 'Funnel chart',
+    WATERFALL_CHART = 'Waterfall chart',
+    MAP = 'World map',
 }
 
 const barChartTemplate = {
@@ -10,7 +13,7 @@ const barChartTemplate = {
     encoding: {
         x: {
             field: 'field_x',
-            type: 'temporal',
+            type: 'field_type_x',
         },
         y: {
             field: 'field_y',
@@ -25,20 +28,17 @@ const heatmapTemplate = {
     encoding: {
         x: {
             field: 'field_x',
-            type: 'temporal',
-            title: 'Week',
+            type: 'field_type_x',
         },
         y: {
             field: 'field_y',
-            type: 'ordinal',
-            title: 'Day of Week',
+            type: 'quantitative',
         },
 
         color: {
             field: 'field_extra',
             type: 'quantitative',
             aggregate: 'sum',
-            title: 'Issues Created',
         },
     },
 };
@@ -49,7 +49,7 @@ const bubblePlotsTemplate = {
     encoding: {
         x: {
             field: 'field_x',
-            type: 'temporal',
+            type: 'field_type_x',
         },
         y: {
             field: 'field_y',
@@ -62,10 +62,221 @@ const bubblePlotsTemplate = {
     },
 };
 
+const funnelChartTemplate = {
+    $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+    config: {
+        view: {
+            strokeWidth: 0,
+        },
+    },
+    transform: [
+        {
+            calculate: "datum.field_y + ' ' + datum.field_x",
+            as: 'label',
+        },
+        {
+            window: [{ op: 'lag', field: 'field_y', as: 'previous_value' }],
+            frame: [1, 0],
+        },
+        {
+            calculate:
+                'datum.previous_value ? (datum.field_y / datum.previous_value) * 100 : null',
+            as: 'percent_of_previous',
+        },
+        {
+            calculate:
+                "isValid(datum.percent_of_previous) ? '↓ ' + format(datum.percent_of_previous, '.1f') + '%' : 'N/A'",
+            as: 'change_label',
+        },
+    ],
+    layer: [
+        {
+            mark: { type: 'bar', color: '#40817c' },
+            encoding: {
+                x: {
+                    field: 'field_y',
+                    type: 'quantitative',
+                    stack: 'center',
+                    axis: null,
+                },
+                y: {
+                    field: 'field_x',
+                    type: 'nominal',
+                    axis: null,
+                    sort: null,
+                    scale: {
+                        padding: 0.5,
+                    },
+                },
+                color: {
+                    field: 'field_y',
+                    scale: {
+                        range: [
+                            '#bde4e2',
+                            '#a2d0ce',
+                            '#87bcb9',
+                            '#6ea8a5',
+                            '#569490',
+                            '#40817c',
+                        ],
+                    },
+                },
+            },
+        },
+        {
+            mark: { type: 'text', color: 'white' },
+            encoding: {
+                y: {
+                    field: 'orders_status',
+                    type: 'nominal',
+                    axis: null,
+                    sort: null,
+                },
+                text: { field: 'label' },
+            },
+        },
+        {
+            mark: { type: 'text', color: 'black' },
+            encoding: {
+                y: {
+                    field: 'orders_status',
+                    type: 'nominal',
+                    axis: null,
+                    sort: null,
+                },
+                yOffset: { value: -9 },
+                text: {
+                    condition: {
+                        test: "datum.change_label !== 'N/A'",
+                        field: 'change_label',
+                    },
+                    value: '',
+                },
+            },
+        },
+    ],
+};
+
+const waterfallChartTemplate = {
+    $schema: 'https://vega.github.io/schema/vega-lite/v2.json',
+    encoding: {
+        x: {
+            field: 'field_x',
+            type: 'field_type_x',
+        },
+        y: {
+            field: 'field_y',
+            type: 'quantitative',
+            axis: { title: 'field_y' },
+        },
+        y2: {
+            field: 'field_extra',
+            type: 'quantitative',
+        },
+    },
+    layer: [
+        {
+            mark: 'bar',
+            encoding: {
+                color: {
+                    type: 'ordinal',
+                    _comment: 'chose a field to color by',
+                    _field: 'type', //placeholder field for type
+                    scale: {
+                        domain: ['total', 'increase', 'decrease'],
+                        range: ['#4FC3F7', '#B2FF59', '#FF5252'],
+                    },
+                },
+            },
+        },
+        {
+            mark: 'text',
+            encoding: {
+                y: {
+                    field: 'field_y',
+                    type: 'quantitative',
+                },
+                text: {
+                    field: 'field_y',
+                    type: 'nominal',
+                },
+                color: {
+                    value: '#1B5E20',
+                },
+            },
+        },
+    ],
+};
+
+const mapTemplate = {
+    projection: {
+        type: 'mercator',
+        _comment: 'change scale and center to zoom into a region',
+        scale: 100,
+        center: [10, 50],
+    },
+    layer: [
+        {
+            data: {
+                url: '/vega-world-map.json',
+                format: {
+                    type: 'topojson',
+                    feature: 'countries',
+                },
+            },
+            mark: {
+                fill: 'lightgray',
+                type: 'geoshape',
+                stroke: 'white',
+            },
+        },
+        {
+            mark: 'circle',
+            encoding: {
+                size: {
+                    type: 'quantitative',
+                    field: 'field_y',
+                    legend: null, // Hide the legend for size
+                },
+                tooltip: [
+                    {
+                        type: 'field_type_x',
+                        field: 'field_x',
+                    },
+                    {
+                        type: 'nominal',
+                        field: 'field_y',
+                    },
+
+                    {
+                        type: 'quantitative',
+                        field: 'latitude',
+                    },
+                    {
+                        type: 'quantitative',
+                        field: 'longitude',
+                    },
+                ],
+                latitude: {
+                    type: 'quantitative',
+                    field: 'latitude',
+                },
+                longitude: {
+                    type: 'quantitative',
+                    field: 'longitude',
+                },
+            },
+        },
+    ],
+};
+
 const templateMap = {
     [TemplateType.BAR_CHART]: barChartTemplate,
     [TemplateType.HEATMAP]: heatmapTemplate,
     [TemplateType.BUBBLE_PLOTS]: bubblePlotsTemplate,
+    [TemplateType.FUNNEL_CHART]: funnelChartTemplate,
+    [TemplateType.WATERFALL_CHART]: waterfallChartTemplate,
+    [TemplateType.MAP]: mapTemplate,
 };
 
 export const getTemplateByType = (type: TemplateType) => {

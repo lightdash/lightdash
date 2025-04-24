@@ -1,22 +1,26 @@
 import {
+    type CustomDimension,
     FeatureFlags,
+    type Field,
+    getErrorMessage,
     getItemId,
+    isCustomDimension,
     isDateItem,
     isDimension,
     isMetric,
     isNumericType,
+    isTableCalculation,
     type ItemsMap,
+    type Metric,
+    type TableCalculation,
 } from '@lightdash/common';
 import {
     Button,
     Flex,
-    getDefaultZIndex,
     Group,
     Loader,
-    Modal,
     Popover,
     Select,
-    Tabs,
     Text,
     Textarea,
 } from '@mantine/core';
@@ -29,6 +33,7 @@ import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
 import { lightdashApi } from '../../../api';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { isCustomVisualizationConfig } from '../../LightdashVisualization/types';
@@ -56,18 +61,35 @@ const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     fixedOverflowWidgets: true,
 };
 
+type VegaFieldType = Field | TableCalculation | CustomDimension | Metric;
 const generateVegaTemplate = (
     templateType: TemplateType,
-    xField: string | undefined,
-    yField: string | undefined,
-    extraField?: string,
+    xField: VegaFieldType | undefined,
+    yField: VegaFieldType | undefined,
+    extraField?: VegaFieldType,
 ) => {
     const templateJson = getTemplateByType(templateType);
     let templateString = JSON.stringify(templateJson, null, 2);
-    if (xField) templateString = templateString.replaceAll('field_x', xField);
-    if (yField) templateString = templateString.replaceAll('field_y', yField);
+    if (xField) {
+        const xFieldType =
+            isDimension(xField) && isDateItem(xField) ? 'temporal' : 'ordinal';
+
+        templateString = templateString.replaceAll('field_type_x', xFieldType);
+        templateString = templateString.replaceAll(
+            'field_x',
+            getItemId(xField),
+        );
+    }
+    if (yField)
+        templateString = templateString.replaceAll(
+            'field_y',
+            getItemId(yField),
+        );
     if (extraField)
-        templateString = templateString.replaceAll('field_extra', extraField);
+        templateString = templateString.replaceAll(
+            'field_extra',
+            getItemId(extraField),
+        );
 
     return templateString;
 };
@@ -173,7 +195,7 @@ const registerCustomCompletionProvider = (
 const SelectTemplate = ({
     itemsMap,
     isCustomConfig,
-    isEditorEmpty,
+    // isEditorEmpty,
     setEditorConfig,
 }: {
     itemsMap: ItemsMap | undefined;
@@ -181,25 +203,59 @@ const SelectTemplate = ({
     isEditorEmpty: boolean;
     setEditorConfig: (config: string) => void;
 }) => {
-    const [selectedTemplate, setSelectedTemplate] = useState<
+    /*const [selectedTemplate, setSelectedTemplate] = useState<
         TemplateType | undefined
-    >();
+    >();*/
 
     const loadTemplate = useCallback(
         (template: TemplateType) => {
             if (!isCustomConfig) return null;
 
-            const xField = Object.values(itemsMap || {})
-                .filter((item) => isDimension(item) && isDateItem(item))
-                .sort((a, b) => a.name.localeCompare(b.name))[0];
-            const [yField, extraField] = Object.values(itemsMap || {})
-                .filter((item) => isMetric(item) && isNumericType(item.type))
-                .sort((a, b) => a.name.localeCompare(b.name));
+            /**
+             * When selecting a field for the x axis,
+             * we want to prioritize dimensions and date items
+             * over metrics and table calculations
+             */
+            const sortedItemsForX = Object.values(itemsMap || {}).sort(
+                (a, b) => {
+                    const getPriority = (item: ItemsMap[string]) => {
+                        if (isDimension(item) && isDateItem(item)) return 1;
+                        if (isDimension(item)) return 2;
+                        if (isCustomDimension(item)) return 3;
+                        if (isMetric(item)) return 4;
+                        return 5; // everything else
+                    };
+                    return getPriority(a) - getPriority(b);
+                },
+            );
+
+            /**
+             * When selecting a field for the y axis (and color/size values),
+             * we want to prioritize numeric metrics and table calculations
+             * over dimensions
+             */
+            const sortedItemsForY = Object.values(itemsMap || {}).sort(
+                (a, b) => {
+                    const getPriorityForY = (item: ItemsMap[string]) => {
+                        if (isMetric(item) && isNumericType(item.type))
+                            return 1;
+                        if (isMetric(item)) return 2;
+                        if (isTableCalculation(item)) return 3;
+                        return 4; // everything else
+                    };
+
+                    return getPriorityForY(a) - getPriorityForY(b);
+                },
+            );
+
+            const xField = sortedItemsForX[0];
+            const [yField, extraField] = sortedItemsForY;
+
             const templateString = generateVegaTemplate(
                 template,
-                getItemId(xField),
-                getItemId(yField),
-                getItemId(extraField),
+                xField,
+                yField,
+                extraField,
             );
             setEditorConfig(templateString);
         },
@@ -207,6 +263,9 @@ const SelectTemplate = ({
     );
     return (
         <>
+            {/*
+            // confirmation modal ? yes or no
+            // you can always do cTRL+z to go back 
             <Modal
                 title="Load template"
                 opened={!!selectedTemplate}
@@ -238,7 +297,7 @@ const SelectTemplate = ({
                         Load template
                     </Button>
                 </Group>
-            </Modal>
+            </Modal>*/}
 
             <Select
                 label="Load vega lite template"
@@ -246,11 +305,11 @@ const SelectTemplate = ({
                 data={Object.values(TemplateType)}
                 onChange={(value) => {
                     if (!value) return;
-                    if (isEditorEmpty) {
-                        loadTemplate(value as TemplateType);
-                    } else {
-                        setSelectedTemplate(value as TemplateType);
-                    }
+                    // if (isEditorEmpty) {
+                    loadTemplate(value as TemplateType);
+                    // } else {
+                    //   setSelectedTemplate(value as TemplateType);
+                    //}
                 }}
             />
         </>
@@ -274,6 +333,7 @@ const GenerateVizWithAi = ({
 
     const [isLoading, setIsLoading] = useState(false);
 
+    const { showToastError } = useToaster();
     return (
         <Popover width="400px" position="bottom" withArrow shadow="md">
             <Popover.Target>
@@ -286,7 +346,7 @@ const GenerateVizWithAi = ({
                     placeholder="Create a heatmap with detailed tooltips and clear values for fast insights"
                     autosize
                     minRows={1}
-                    maxRows={3}
+                    maxRows={5}
                     onChange={(event) => setPrompt(event.currentTarget.value)}
                 />
 
@@ -306,6 +366,10 @@ const GenerateVizWithAi = ({
                                     setEditorConfig(vizConfig);
                                 })
                                 .catch((error) => {
+                                    showToastError({
+                                        title: 'Error generating custom viz with AI',
+                                        subtitle: getErrorMessage(error),
+                                    });
                                     console.error(
                                         'Error generating custom viz:',
                                         error,
@@ -398,7 +462,7 @@ const CustomVisConfigTabs: React.FC = memo(() => {
 
     return (
         <>
-            <Flex gap="sm" align="flex-end">
+            <Flex justify="space-between" align="flex-end">
                 <SelectTemplate
                     itemsMap={itemsMap}
                     isCustomConfig={isCustomConfig}
@@ -415,8 +479,9 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                         />
                     </>
                 )}
+                <DocumentationHelpButton href="https://docs.lightdash.com/references/custom-charts#custom-charts" />
             </Flex>
-            <Tabs
+            {/* <Tabs
                 defaultValue="config"
                 style={{ flexGrow: 1 }}
                 styles={{
@@ -429,56 +494,55 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                     },
                 }}
             >
-                <Tabs.List>
+               <Tabs.List>
                     <Tabs.Tab value="config">Config</Tabs.Tab>
                     <Tabs.Tab value="data">Data</Tabs.Tab>
-                    <DocumentationHelpButton
-                        ml="auto"
-                        mt="xs"
-                        href="https://docs.lightdash.com/references/custom-charts#custom-charts"
-                    />
+                   
                 </Tabs.List>
 
                 <Tabs.Panel value="config">
-                    {/* Hack to show a monaco placeholder */}
-                    {isEditorEmpty ? (
-                        <Text
-                            ml="xl"
-                            pos="absolute"
-                            w="330px"
-                            color="gray.5"
-                            sx={{
-                                pointerEvents: 'none',
-                                zIndex: getDefaultZIndex('overlay'),
-                                fontFamily: 'monospace',
-                            }}
-                        >
-                            {`Write some vega lite JSON or select a template. Check our docs for more info and examples.`}
-                        </Text>
-                    ) : null}
+                */}
+            <Group mt="sm" h="100%">
+                {/* Hack to show a monaco placeholder */}
+                {isEditorEmpty ? (
+                    <Text
+                        ml="xl"
+                        pos="absolute"
+                        w="330px"
+                        color="gray.5"
+                        sx={{
+                            pointerEvents: 'none',
+                            zIndex: 100,
+                            fontFamily: 'monospace',
+                        }}
+                    >
+                        {`Write some vega lite JSON or select a template. Check our docs for more info and examples.`}
+                    </Text>
+                ) : null}
 
-                    <Editor
-                        loading={<Loader color="gray" size="xs" />}
-                        beforeMount={(monaco) => {
-                            loadMonaco(monaco, schemas.current!);
-                            const fields = Object.keys(series[0] || {});
-                            registerCustomCompletionProvider(
-                                monaco,
-                                'json',
-                                fields,
-                            );
-                        }}
-                        defaultLanguage="json"
-                        options={monacoOptions}
-                        value={editorConfig}
-                        onChange={(config) => {
-                            setEditorConfig(config ?? '');
-                        }}
-                        wrapperProps={{
-                            id: 'tooltip-editor-wrapper',
-                        }}
-                    />
-                </Tabs.Panel>
+                <Editor
+                    loading={<Loader color="gray" size="xs" />}
+                    beforeMount={(monaco) => {
+                        loadMonaco(monaco, schemas.current!);
+                        const fields = Object.keys(series[0] || {});
+                        registerCustomCompletionProvider(
+                            monaco,
+                            'json',
+                            fields,
+                        );
+                    }}
+                    defaultLanguage="json"
+                    options={monacoOptions}
+                    value={editorConfig}
+                    onChange={(config) => {
+                        setEditorConfig(config ?? '');
+                    }}
+                    wrapperProps={{
+                        id: 'tooltip-editor-wrapper',
+                    }}
+                />
+            </Group>
+            {/*} </Tabs.Panel>
 
                 <Tabs.Panel value="data">
                     <Editor
@@ -491,7 +555,7 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                         defaultValue={JSON.stringify(series, null, 2)}
                     />
                 </Tabs.Panel>
-            </Tabs>
+            </Tabs>*/}
         </>
     );
 });

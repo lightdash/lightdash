@@ -97,6 +97,7 @@ const BASE_VEGA_LITE_PROMPT = HumanMessagePromptTemplate.fromTemplate(
       7. Do not wrap the JSON in a code block or add any markdown formatting.
       8. Use the field IDs provided in available_fields to build the chart, even if the user specify some fields in the prompt.
       9. Do not include the "data" property in the JSON object, this will be added separately.
+      10. When someone asks for a specific chart type (like waterfall, or funnel chart), use as a template some of the examples in https://vega.github.io/vega-lite/examples/ but adjusted to the fields provided 
       </guidelines>
       
       <tone>
