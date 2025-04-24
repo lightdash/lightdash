@@ -4,7 +4,7 @@ import {
     SshKeyPair,
     validateEmail,
 } from '@lightdash/common';
-import { CustomSamplingContext } from '@sentry/core';
+import { CustomSamplingContext, Scope } from '@sentry/core';
 import * as Sentry from '@sentry/node';
 import { generateKeyPair } from 'crypto';
 import { parseKey } from 'sshpk';
@@ -31,10 +31,9 @@ export const isDbPinnedSpace = (data: DbPinnedItem): data is DBPinnedSpace =>
 export const wrapSentryTransaction = <T>(
     name: string,
     context: CustomSamplingContext,
-    funct: (span: Sentry.Span) => Promise<T> | T,
+    funct: (span: Sentry.Span) => Promise<T>,
 ): Promise<T> => {
     const startTime = Date.now();
-
     return Sentry.startSpanManual<Promise<T>>(
         {
             op: name,
@@ -49,8 +48,7 @@ export const wrapSentryTransaction = <T>(
             );
 
             try {
-                const result = funct(span);
-                return result instanceof Promise ? await result : result;
+                return await funct(span);
             } catch (error) {
                 Logger.error(
                     `Error in wrapped sentry transaction ${
@@ -70,6 +68,46 @@ export const wrapSentryTransaction = <T>(
         },
     );
 };
+
+export function wrapSentryTransactionSync<T>(
+    name: string,
+    context: CustomSamplingContext,
+    funct: (span: Sentry.Span) => T,
+): T {
+    const startTime = Date.now();
+
+    return Sentry.startSpan(
+        {
+            op: name,
+            name,
+            attributes: context,
+        },
+        (span) => {
+            Logger.debug(
+                `Starting sync sentry transaction "${name}" with context: ${JSON.stringify(
+                    context,
+                )}`,
+            );
+
+            try {
+                const result = funct(span);
+                return result;
+            } catch (error) {
+                Logger.error(
+                    `Error in wrapped sync sentry transaction "${name}": ${error}`,
+                );
+                Sentry.captureException(error);
+                throw error;
+            } finally {
+                Logger.debug(
+                    `End sync sentry transaction "${name}", took: ${
+                        Date.now() - startTime
+                    }ms`,
+                );
+            }
+        },
+    );
+}
 
 export function runWorkerThread<T>(worker: Worker): Promise<T> {
     return new Promise((resolve, reject) => {

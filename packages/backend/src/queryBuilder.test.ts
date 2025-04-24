@@ -73,312 +73,270 @@ import {
 } from './queryBuilder.mock';
 
 describe('Query builder', () => {
-    test('Should build simple metric query', async () => {
+    test('Should build simple metric query', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
     });
 
-    test('Should build simple metric query in BigQuery', async () => {
+    test('Should build simple metric query in BigQuery', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE_BIGQUERY,
-                    compiledMetricQuery: METRIC_QUERY,
-                    warehouseClient: bigqueryClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE_BIGQUERY,
+                compiledMetricQuery: METRIC_QUERY,
+                warehouseClient: bigqueryClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_SQL_BIGQUERY);
     });
 
-    test('Should build metric query across two tables', async () => {
+    test('Should build metric query across two tables', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_TWO_TABLES_SQL);
     });
 
-    test('Should build metric query where a field references another table', async () => {
+    test('Should build metric query where a field references another table', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_TABLE_REFERENCE,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_TABLE_REFERENCE,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_TABLE_REFERENCE_SQL);
     });
 
-    test('Should join table from filter dimension', async () => {
+    test('Should join table from filter dimension', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_FILTER,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_FILTER,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_SQL);
     });
 
-    test('should join chain of intermediary tables', async () => {
+    test('should join chain of intermediary tables', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE_JOIN_CHAIN,
-                    compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE_JOIN_CHAIN,
+                compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_JOIN_CHAIN_SQL);
     });
 
-    test('should join chain of intermediary tables', async () => {
+    test('should join chain of intermediary tables', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE_ALL_JOIN_TYPES_CHAIN,
-                    compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE_ALL_JOIN_TYPES_CHAIN,
+                compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL);
     });
 
-    test('Should build query with filter OR operator', async () => {
+    test('Should build query with filter OR operator', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL);
     });
 
-    test('Should build query with disabled filter', async () => {
+    test('Should build query with disabled filter', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_DISABLED_FILTER,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_DISABLED_FILTER,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_DISABLED_FILTER_SQL);
     });
 
-    test('Should build query with a filter and one disabled filter', async () => {
+    test('Should build query with a filter and one disabled filter', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery:
-                        METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery:
+                    METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL);
     });
 
-    test('Should build query with nested filter operators', async () => {
+    test('Should build query with nested filter operators', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery:
-                        METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL);
     });
 
-    test('Should build query with no filter when there are only empty filter groups ', async () => {
+    test('Should build query with no filter when there are only empty filter groups ', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
     });
 
-    test('Should build second query with metric filter', async () => {
+    test('Should build second query with metric filter', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_METRIC_FILTER,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_METRIC_FILTER,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_SQL);
     });
 
-    test('Should build query with metric filter (where filter is disabled) and metric references a dimension from a joined table', async () => {
+    test('Should build query with metric filter (where filter is disabled) and metric references a dimension from a joined table', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery:
-                        METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery:
+                    METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(
             METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM_SQL,
         );
     });
 
-    test('Should build second query with nested metric filters', async () => {
+    test('Should build second query with nested metric filters', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery:
-                        METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL);
     });
 
-    test('Should build query with additional metric', async () => {
+    test('Should build query with additional metric', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_ADDITIONAL_METRIC,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_ADDITIONAL_METRIC,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL);
     });
 
-    test('Should build query with empty filter', async () => {
+    test('Should build query with empty filter', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_FILTER_SQL);
     });
 
-    test('Should build query with empty metric filter', async () => {
+    test('Should build query with empty metric filter', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL);
     });
 
-    test('Should build query with cte in table calculations filter', async () => {
+    test('Should build query with cte in table calculations filter', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery:
-                        METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER,
-                    warehouseClient: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL);
     });
 
-    test('Should throw error if user attributes are missing', async () => {
-        await expect(
-            buildQuery({
-                explore: EXPLORE_WITH_SQL_FILTER,
-                compiledMetricQuery: METRIC_QUERY,
-                warehouseClient: warehouseClientMock,
-                userAttributes: {},
-                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                timezone: QUERY_BUILDER_UTC_TIMEZONE,
-            }),
-        ).rejects.toThrow(ForbiddenError);
-    });
-
-    test('Should replace user attributes from sql filter', async () => {
+    test('Should throw error if user attributes are missing', () => {
         expect(
-            (
-                await buildQuery({
+            () =>
+                buildQuery({
                     explore: EXPLORE_WITH_SQL_FILTER,
-                    compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
+                    compiledMetricQuery: METRIC_QUERY,
                     warehouseClient: warehouseClientMock,
-                    userAttributes: {
-                        country: ['EU'],
-                    },
+                    userAttributes: {},
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+                }).query,
+        ).toThrow(ForbiddenError);
+    });
+
+    test('Should replace user attributes from sql filter', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_SQL_FILTER,
+                compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
+                warehouseClient: warehouseClientMock,
+                userAttributes: {
+                    country: ['EU'],
+                },
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_SQL_FILTER);
     });
 });
 
 describe('replaceUserAttributes', () => {
-    it('method with no user attribute should return same sqlFilter', async () => {
+    it('method with no user attribute should return same sqlFilter', () => {
         expect(
             replaceUserAttributesAsStrings(
                 '${dimension} > 1',
@@ -405,7 +363,7 @@ describe('replaceUserAttributes', () => {
         ).toEqual('${dimension} = ${TABLE}.dimension');
     });
 
-    it('method with missing user attribute should throw error', async () => {
+    it('method with missing user attribute should throw error', () => {
         expect(() =>
             replaceUserAttributesAsStrings(
                 '${lightdash.attribute.test} > 1',
@@ -425,7 +383,7 @@ describe('replaceUserAttributes', () => {
         ).toThrowError(ForbiddenError);
     });
 
-    it('method with no user attribute value should throw error', async () => {
+    it('method with no user attribute value should throw error', () => {
         expect(() =>
             replaceUserAttributesAsStrings(
                 '${lightdash.attribute.test} > 1',
@@ -438,7 +396,7 @@ describe('replaceUserAttributes', () => {
         ).toThrowError(ForbiddenError);
     });
 
-    it('method should replace sqlFilter with user attribute', async () => {
+    it('method should replace sqlFilter with user attribute', () => {
         const userAttributes = { test: ['1'] };
         const expected = "('1' > 1)";
         expect(
@@ -460,7 +418,7 @@ describe('replaceUserAttributes', () => {
         ).toEqual(expected);
     });
 
-    it('method should replace sqlFilter with user attribute with multiple values', async () => {
+    it('method should replace sqlFilter with user attribute with multiple values', () => {
         expect(
             replaceUserAttributesAsStrings(
                 "'1' IN (${lightdash.attribute.test})",
@@ -473,7 +431,7 @@ describe('replaceUserAttributes', () => {
         ).toEqual("('1' IN ('1', '2'))");
     });
 
-    it('method should replace sqlFilter with multiple user attributes', async () => {
+    it('method should replace sqlFilter with multiple user attributes', () => {
         const userAttributes = { test: ['1'], another: ['2'] };
         const sqlFilter =
             '${dimension} IS NOT NULL OR (${lightdash.attribute.test} > 1 AND ${lightdash.attribute.another} = 2)';
@@ -488,7 +446,7 @@ describe('replaceUserAttributes', () => {
         ).toEqual(expected);
     });
 
-    it('method should replace sqlFilter using short aliases', async () => {
+    it('method should replace sqlFilter using short aliases', () => {
         const userAttributes = { test: ['1'], another: ['2'] };
         const expected = "('1' > 1)";
         expect(
@@ -526,7 +484,7 @@ describe('replaceUserAttributes', () => {
         ).toEqual(expected);
     });
 
-    it('method should not replace any invalid attribute', async () => {
+    it('method should not replace any invalid attribute', () => {
         expect(
             replaceUserAttributesAsStrings(
                 '${lightdash.foo.test} > 1',
@@ -537,7 +495,7 @@ describe('replaceUserAttributes', () => {
         ).toEqual('${lightdash.foo.test} > 1');
     });
 
-    it('should replace `email` intrinsic user attribute', async () => {
+    it('should replace `email` intrinsic user attribute', () => {
         expect(
             replaceUserAttributesAsStrings(
                 '${lightdash.user.email} = "mock@lightdash.com"',
@@ -550,7 +508,7 @@ describe('replaceUserAttributes', () => {
 });
 
 describe('assertValidDimensionRequiredAttribute', () => {
-    it('should not throw errors if no user attributes are required', async () => {
+    it('should not throw errors if no user attributes are required', () => {
         const result = assertValidDimensionRequiredAttribute(
             COMPILED_DIMENSION,
             {},
@@ -560,7 +518,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
         expect(result).toBeUndefined();
     });
 
-    it('should throw errors if required attributes are required and user attributes are missing', async () => {
+    it('should throw errors if required attributes are required and user attributes are missing', () => {
         expect(() =>
             assertValidDimensionRequiredAttribute(
                 {
@@ -588,7 +546,7 @@ describe('assertValidDimensionRequiredAttribute', () => {
         ).toThrowError(ForbiddenError);
     });
 
-    it('should not throw errors if required attributes are required and user attributes exist', async () => {
+    it('should not throw errors if required attributes are required and user attributes exist', () => {
         const result = assertValidDimensionRequiredAttribute(
             {
                 ...COMPILED_DIMENSION,
@@ -708,18 +666,16 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
         });
     });
 
-    it('buildQuery with custom dimension bin number', async () => {
+    it('buildQuery with custom dimension bin number', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                    warehouseClient: bigqueryClientMock,
-                    userAttributes: {},
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                warehouseClient: bigqueryClientMock,
+                userAttributes: {},
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
                         FLOOR(MIN("table1".dim1)) AS min_id,
@@ -747,31 +703,29 @@ ORDER BY \`table1_metric1\` DESC
 LIMIT 10`);
     });
 
-    it('buildQuery with custom dimension bin width', async () => {
+    it('buildQuery with custom dimension bin width', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: {
-                        ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                        compiledCustomDimensions: [
-                            {
-                                id: 'age_range',
-                                name: 'Age range',
-                                type: CustomDimensionType.BIN,
-                                dimensionId: 'table1_dim1',
-                                table: 'table1',
-                                binType: BinType.FIXED_WIDTH,
-                                binWidth: 10,
-                            },
-                        ],
-                    },
-                    warehouseClient: bigqueryClientMock,
-                    userAttributes: {},
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                    compiledCustomDimensions: [
+                        {
+                            id: 'age_range',
+                            name: 'Age range',
+                            type: CustomDimensionType.BIN,
+                            dimensionId: 'table1_dim1',
+                            table: 'table1',
+                            binType: BinType.FIXED_WIDTH,
+                            binWidth: 10,
+                        },
+                    ],
+                },
+                warehouseClient: bigqueryClientMock,
+                userAttributes: {},
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(`SELECT
   "table1".dim1 AS \`table1_dim1\`,
 CONCAT(FLOOR("table1".dim1 / 10) * 10, ' - ', (FLOOR("table1".dim1 / 10) + 1) * 10 - 1) AS \`age_range\`,
@@ -784,36 +738,34 @@ ORDER BY \`table1_metric1\` DESC
 LIMIT 10`);
     });
 
-    it('buildQuery with custom dimension and table calculation', async () => {
+    it('buildQuery with custom dimension and table calculation', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: {
-                        ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                        tableCalculations: [
-                            {
-                                name: 'calc3',
-                                displayName: '',
-                                sql: '${table1.dim1} + 1',
-                            },
-                        ],
-                        compiledTableCalculations: [
-                            {
-                                name: 'calc3',
-                                displayName: '',
-                                sql: '${table1.dim1} + 1',
-                                compiledSql: 'table1_dim1 + 1',
-                            },
-                        ],
-                    },
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                    tableCalculations: [
+                        {
+                            name: 'calc3',
+                            displayName: '',
+                            sql: '${table1.dim1} + 1',
+                        },
+                    ],
+                    compiledTableCalculations: [
+                        {
+                            name: 'calc3',
+                            displayName: '',
+                            sql: '${table1.dim1} + 1',
+                            compiledSql: 'table1_dim1 + 1',
+                        },
+                    ],
+                },
 
-                    warehouseClient: bigqueryClientMock,
-                    userAttributes: {},
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+                warehouseClient: bigqueryClientMock,
+                userAttributes: {},
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
                         FLOOR(MIN("table1".dim1)) AS min_id,
@@ -892,22 +844,20 @@ ELSE 2
         });
     });
 
-    it('buildQuery with sorted custom dimension', async () => {
+    it('buildQuery with sorted custom dimension', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: {
-                        ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                        sorts: [{ fieldId: 'age_range', descending: true }],
-                    },
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                    sorts: [{ fieldId: 'age_range', descending: true }],
+                },
 
-                    warehouseClient: bigqueryClientMock,
-                    userAttributes: {},
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+                warehouseClient: bigqueryClientMock,
+                userAttributes: {},
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
                         FLOOR(MIN("table1".dim1)) AS min_id,
@@ -941,32 +891,30 @@ ORDER BY \`age_range_order\` DESC
 LIMIT 10`);
     });
 
-    it('buildQuery with custom dimension bin width on postgres', async () => {
+    it('buildQuery with custom dimension bin width on postgres', () => {
         // Concat function is different in postgres/redshift
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: {
-                        ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                        compiledCustomDimensions: [
-                            {
-                                id: 'age_range',
-                                name: 'Age range',
-                                type: CustomDimensionType.BIN,
-                                dimensionId: 'table1_dim1',
-                                table: 'table1',
-                                binType: BinType.FIXED_WIDTH,
-                                binWidth: 10,
-                            },
-                        ],
-                    },
-                    warehouseClient: warehouseClientMock,
-                    userAttributes: {},
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                    compiledCustomDimensions: [
+                        {
+                            id: 'age_range',
+                            name: 'Age range',
+                            type: CustomDimensionType.BIN,
+                            dimensionId: 'table1_dim1',
+                            table: 'table1',
+                            binType: BinType.FIXED_WIDTH,
+                            binWidth: 10,
+                        },
+                    ],
+                },
+                warehouseClient: warehouseClientMock,
+                userAttributes: {},
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).toStrictEqual(`SELECT
   "table1".dim1 AS "table1_dim1",
 (FLOOR("table1".dim1 / 10) * 10 || ' - ' || (FLOOR("table1".dim1 / 10) + 1) * 10 - 1) AS "age_range",
@@ -979,21 +927,19 @@ ORDER BY "table1_metric1" DESC
 LIMIT 10`);
     });
 
-    it('buildQuery with custom dimension not selected', async () => {
+    it('buildQuery with custom dimension not selected', () => {
         expect(
-            (
-                await buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: {
-                        ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                        dimensions: ['table1_dim1'], // without age_range
-                    },
-                    warehouseClient: bigqueryClientMock,
-                    userAttributes: {},
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                })
-            ).query,
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                    dimensions: ['table1_dim1'], // without age_range
+                },
+                warehouseClient: bigqueryClientMock,
+                userAttributes: {},
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
         ).not.toContain('age_range');
     });
 });
