@@ -232,21 +232,34 @@ const InfiniteResourceTable = ({
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
-    const sortBy = useMemo(() => {
+    const sortBy:
+        | {
+              sortBy: ContentSortByColumns;
+              sortDirection: 'asc' | 'desc';
+          }
+        | undefined = useMemo(() => {
         if (sorting.length === 0) return undefined;
 
         const firstSorting = sorting[0].id;
 
+        let sortByColumn: ContentSortByColumns =
+            ContentSortByColumns.LAST_UPDATED_AT;
+        const sortDirection: 'asc' | 'desc' = sorting[0].desc ? 'desc' : 'asc';
+
         if (firstSorting === ContentSortByColumns.NAME) {
-            return ContentSortByColumns.NAME;
+            sortByColumn = ContentSortByColumns.NAME;
         }
 
         if (firstSorting === ContentSortByColumns.SPACE_NAME) {
-            return ContentSortByColumns.SPACE_NAME;
+            sortByColumn = ContentSortByColumns.SPACE_NAME;
         }
 
-        return ContentSortByColumns.LAST_UPDATED_AT;
+        return {
+            sortBy: sortByColumn,
+            sortDirection,
+        };
     }, [sorting]);
+
     const { data, isInitialLoading, isFetching, hasNextPage, fetchNextPage } =
         useInfiniteContent(
             {
@@ -258,7 +271,8 @@ const InfiniteResourceTable = ({
                 page: 1,
                 pageSize: 25,
                 search: deferredSearch,
-                sortBy,
+                sortBy: sortBy?.sortBy,
+                sortDirection: sortBy?.sortDirection,
                 ...(filters.space?.parentSpaceUuid && {
                     parentSpaceUuid: filters.space.parentSpaceUuid,
                 }),
