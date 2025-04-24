@@ -1,3 +1,12 @@
+## [0.1596.3](https://github.com/lightdash/lightdash/compare/0.1596.2...0.1596.3) (2025-04-24)
+
+
+### Bug Fixes
+
+* allow clicking on space row in InfiniteResourceTable ([#14524](https://github.com/lightdash/lightdash/issues/14524)) ([41e847b](https://github.com/lightdash/lightdash/commit/41e847bdf89b76d9ce0eaa96a61711f17aa7ecad)), closes [#14486](https://github.com/lightdash/lightdash/issues/14486)
+* get cached user ([#14503](https://github.com/lightdash/lightdash/issues/14503)) ([86234f1](https://github.com/lightdash/lightdash/commit/86234f18551cb84d0d6b797ad2580f049b275467))
+* get project charts last version CTE ([#14496](https://github.com/lightdash/lightdash/issues/14496)) ([4d30aab](https://github.com/lightdash/lightdash/commit/4d30aab368421371f52d0d80e1f215bba2dab505))
+
 ## [0.1596.2](https://github.com/lightdash/lightdash/compare/0.1596.1...0.1596.2) (2025-04-23)
 
 
