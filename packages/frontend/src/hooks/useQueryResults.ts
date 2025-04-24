@@ -17,7 +17,7 @@ import {
     sleep,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
@@ -255,7 +255,7 @@ const getResultsPage = async (
     queryUuid: string,
     page: number = 1,
     pageSize: number | null = null,
-): Promise<ReadyQueryResultsPage> => {
+): Promise<ApiGetAsyncQueryResults> => {
     const searchParams = new URLSearchParams();
     if (page) {
         searchParams.set('page', page.toString());
@@ -265,7 +265,7 @@ const getResultsPage = async (
     }
 
     const urlQueryParams = searchParams.toString();
-    const currentPage = await lightdashApi<ApiGetAsyncQueryResults>({
+    return lightdashApi<ApiGetAsyncQueryResults>({
         url: `/projects/${projectUuid}/query/${queryUuid}${
             urlQueryParams ? `?${urlQueryParams}` : ''
         }`,
@@ -273,43 +273,6 @@ const getResultsPage = async (
         method: 'GET',
         body: undefined,
     });
-    const { status } = currentPage;
-    switch (status) {
-        case QueryHistoryStatus.CANCELLED:
-            throw <ApiError>{
-                status: 'error',
-                error: {
-                    name: 'Error',
-                    statusCode: 500,
-                    message: 'Query cancelled',
-                    data: {},
-                },
-            };
-        case QueryHistoryStatus.ERROR:
-            throw <ApiError>{
-                status: 'error',
-                error: {
-                    name: 'Error',
-                    statusCode: 500,
-                    message: currentPage.error ?? 'Query failed',
-                    data: {},
-                },
-            };
-        case QueryHistoryStatus.PENDING:
-            throw <ApiError>{
-                status: 'error',
-                error: {
-                    name: 'Error',
-                    statusCode: 500,
-                    message: 'Query pending',
-                    data: {},
-                },
-            };
-        case QueryHistoryStatus.READY:
-            return currentPage;
-        default:
-            return assertUnreachable(status, 'Unknown query status');
-    }
 };
 
 export type InfiniteQueryResults = Partial<
@@ -400,7 +363,7 @@ export const useInfiniteQueryResults = (
     ]);
 
     const nextPage = useQuery<
-        ReadyQueryResultsPageWithClientFetchTimeMs,
+        ApiGetAsyncQueryResults & { clientFetchTimeMs: number },
         ApiError
     >({
         enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
@@ -422,10 +385,11 @@ export const useInfiniteQueryResults = (
             return {
                 ...results,
                 clientFetchTimeMs: performance.now() - startTime,
-            } satisfies ReadyQueryResultsPageWithClientFetchTimeMs;
+            };
         },
         staleTime: Infinity, // the data will never be considered stale
     });
+    const { data: nextPageData, refetch: refetchNextPage } = nextPage;
 
     // On error
     useEffect(() => {
@@ -434,12 +398,57 @@ export const useInfiniteQueryResults = (
         }
     }, [nextPage.error, setErrorResponse]);
 
+    // Initial backoff time in ms
+    const backoffRef = useRef(250);
     // On success
     useEffect(() => {
-        if (nextPage.data) {
-            setFetchedPages((prevState) => [...prevState, nextPage.data]);
+        if (!nextPageData) return;
+        const { status } = nextPageData;
+        switch (status) {
+            case QueryHistoryStatus.ERROR: {
+                backoffRef.current = 250;
+                setErrorResponse({
+                    status: 'error',
+                    error: {
+                        name: 'Error',
+                        statusCode: 500,
+                        message: nextPageData.error ?? 'Query failed',
+                        data: {},
+                    },
+                });
+                break;
+            }
+            case QueryHistoryStatus.CANCELLED: {
+                backoffRef.current = 250;
+                setErrorResponse({
+                    status: 'error',
+                    error: {
+                        name: 'Error',
+                        statusCode: 500,
+                        message: 'Query cancelled',
+                        data: {},
+                    },
+                });
+                break;
+            }
+            case QueryHistoryStatus.PENDING: {
+                // Re-fetch page
+                void sleep(backoffRef.current).then(() => refetchNextPage());
+                // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
+                if (backoffRef.current < 1000) {
+                    backoffRef.current = Math.min(backoffRef.current * 2, 1000);
+                }
+                break;
+            }
+            case QueryHistoryStatus.READY: {
+                backoffRef.current = 250;
+                setFetchedPages((prevState) => [...prevState, nextPageData]);
+                break;
+            }
+            default:
+                return assertUnreachable(status, 'Unknown query status');
         }
-    }, [nextPage.data]);
+    }, [nextPageData, refetchNextPage, setErrorResponse]);
 
     useEffect(() => {
         // Reset fetched pages before updating the fetch args
