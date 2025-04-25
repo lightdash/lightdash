@@ -1,3 +1,10 @@
+# [0.1600.0](https://github.com/lightdash/lightdash/compare/0.1599.1...0.1600.0) (2025-04-25)
+
+
+### Features
+
+* admin content view for space tree selector ([#14542](https://github.com/lightdash/lightdash/issues/14542)) ([751f3a5](https://github.com/lightdash/lightdash/commit/751f3a58defe981af227c9c4805d6d471c510100))
+
 ## [0.1599.1](https://github.com/lightdash/lightdash/compare/0.1599.0...0.1599.1) (2025-04-25)
 
 
