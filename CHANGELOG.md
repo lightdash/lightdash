@@ -1,3 +1,10 @@
+## [0.1600.1](https://github.com/lightdash/lightdash/compare/0.1600.0...0.1600.1) (2025-04-25)
+
+
+### Bug Fixes
+
+* default time intervals for date ([#14535](https://github.com/lightdash/lightdash/issues/14535)) ([f5c4acd](https://github.com/lightdash/lightdash/commit/f5c4acdcca4b13a76aac0b95e2ba6082b87a26ee))
+
 # [0.1600.0](https://github.com/lightdash/lightdash/compare/0.1599.1...0.1600.0) (2025-04-25)
 
 
