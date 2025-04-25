@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     ApiGetAsyncQueryResults,
+    ApiSuccessEmpty,
     ParameterError,
     QueryExecutionContext,
     isExecuteAsyncDashboardChartRequest,
@@ -88,7 +89,7 @@ export class V2ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Path() queryUuid: string,
         @Request() req: express.Request,
-    ): Promise<{ status: 'ok' }> {
+    ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
 
         await this.services.getProjectService().cancelAsyncQuery({
@@ -99,6 +100,7 @@ export class V2ProjectController extends BaseController {
 
         return {
             status: 'ok',
+            results: undefined,
         };
     }
 

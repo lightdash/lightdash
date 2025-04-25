@@ -3,6 +3,7 @@ import {
     type ApiExecuteAsyncQueryResults,
     type ApiGetAsyncQueryResults,
     type ApiQueryResults,
+    type ApiSuccessEmpty,
     assertUnreachable,
     type DashboardFilters,
     type DateGranularity,
@@ -16,7 +17,7 @@ import {
     type ResultRow,
     sleep,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
@@ -541,4 +542,21 @@ export const useInfiniteQueryResults = (
             nextPageData,
         ],
     );
+};
+
+export const useCancelQuery = (projectUuid?: string, queryUuid?: string) => {
+    return useMutation({
+        mutationKey: ['cancel-query', projectUuid, queryUuid],
+        mutationFn: () => {
+            if (!projectUuid || !queryUuid) {
+                throw new Error('Project UUID or Query UUID is undefined');
+            }
+            return lightdashApi<ApiSuccessEmpty>({
+                method: 'POST',
+                url: `/projects/${projectUuid}/query/${queryUuid}/cancel`,
+                version: 'v2',
+                body: JSON.stringify({}),
+            });
+        },
+    });
 };

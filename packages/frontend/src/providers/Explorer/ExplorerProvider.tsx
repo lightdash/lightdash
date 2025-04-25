@@ -41,6 +41,7 @@ import { useNavigate, useParams } from 'react-router';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
+    useCancelQuery,
     useGetReadyQueryResults,
     useInfiniteQueryResults,
     type QueryResultsProps,
@@ -1618,21 +1619,27 @@ const ExplorerProvider: FC<
     ]);
 
     const queryClient = useQueryClient();
+    const { mutate: cancelQueryMutation } = useCancelQuery(
+        projectUuid,
+        query.data?.queryUuid,
+    );
     const cancelQuery = useCallback(() => {
         // cancel query creation
         void queryClient.cancelQueries({
             queryKey: ['create-query', validQueryArgs],
         });
 
-        // remove current queryUuid from setQueryUuidHistory
         if (query.data?.queryUuid) {
+            // remove current queryUuid from setQueryUuidHistory
             setQueryUuidHistory((prev) => {
                 return prev.filter(
                     (queryUuid) => queryUuid !== query.data.queryUuid,
                 );
             });
+            // mark query as cancelled
+            cancelQueryMutation();
         }
-    }, [queryClient, validQueryArgs, query.data]);
+    }, [queryClient, validQueryArgs, query.data, cancelQueryMutation]);
 
     const actions = useMemo(
         () => ({
