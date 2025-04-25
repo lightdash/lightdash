@@ -505,8 +505,10 @@ export const useInfiniteQueryResults = (
             totalClientFetchTimeMs,
             isInitialLoading,
             isFetchingFirstPage:
-                fetchedPages[0]?.totalResults === undefined ||
-                (fetchedPages[0]?.totalResults > 0 && fetchedRows.length === 0),
+                !!queryUuid &&
+                (fetchedPages[0]?.totalResults === undefined ||
+                    (fetchedPages[0]?.totalResults > 0 &&
+                        fetchedRows.length === 0)),
             fetchAll,
         }),
         [

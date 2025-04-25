@@ -40,7 +40,7 @@ export const ExplorerResults = memo(() => {
         (context) => context.queryResults.totalResults,
     );
     const isInitialLoading = useExplorerContext((context) => {
-        const isCreatingQuery = context.query.isInitialLoading;
+        const isCreatingQuery = context.query.isFetching;
         const isFetchingFirstPage = context.queryResults.isFetchingFirstPage;
         return isCreatingQuery || isFetchingFirstPage;
     });
@@ -158,9 +158,9 @@ export const ExplorerResults = memo(() => {
 
     if (!activeTableName) return <NoTableSelected />;
 
-    if (isInitialLoading) return <EmptyStateExploreLoading />;
-
     if (columns.length === 0) return <EmptyStateNoColumns />;
+
+    if (isInitialLoading) return <EmptyStateExploreLoading />;
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
             <Box px="xs" py="lg">
