@@ -39,11 +39,11 @@ export const ExplorerResults = memo(() => {
     const totalRows = useExplorerContext(
         (context) => context.queryResults.totalResults,
     );
-    const isInitialLoading = useExplorerContext(
-        (context) =>
-            context.query.isInitialLoading ||
-            context.queryResults.isInitialLoading,
-    );
+    const isInitialLoading = useExplorerContext((context) => {
+        const isCreatingQuery = context.query.isInitialLoading;
+        const isFetchingFirstPage = context.queryResults.isFetchingFirstPage;
+        return isCreatingQuery || isFetchingFirstPage;
+    });
     const isFetchingRows = useExplorerContext(
         (context) => context.queryResults.isFetchingRows,
     );
