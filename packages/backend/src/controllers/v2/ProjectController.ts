@@ -82,6 +82,29 @@ export class V2ProjectController extends BaseController {
     @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/query/{queryUuid}/cancel')
+    @OperationId('cancelAsyncQuery')
+    async cancelAsyncQuery(
+        @Path() projectUuid: string,
+        @Path() queryUuid: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok' }> {
+        this.setStatus(200);
+
+        await this.services.getProjectService().cancelAsyncQuery({
+            user: req.user!,
+            projectUuid,
+            queryUuid,
+        });
+
+        return {
+            status: 'ok',
+        };
+    }
+
+    @Hidden()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
     @Post('{projectUuid}/query')
     @OperationId('executeAsyncQuery')
     async executeAsyncQuery(
