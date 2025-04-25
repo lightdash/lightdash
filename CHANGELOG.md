@@ -1,3 +1,10 @@
+## [0.1599.1](https://github.com/lightdash/lightdash/compare/0.1599.0...0.1599.1) (2025-04-25)
+
+
+### Bug Fixes
+
+* improve UI export CSV analytics ([#14546](https://github.com/lightdash/lightdash/issues/14546)) ([ff22492](https://github.com/lightdash/lightdash/commit/ff224927e4f5bf8237dfeddd8d0722763b1231eb))
+
 # [0.1599.0](https://github.com/lightdash/lightdash/compare/0.1598.2...0.1599.0) (2025-04-25)
 
 
