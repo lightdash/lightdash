@@ -12,7 +12,6 @@ import {
     toggleArrayValue,
     updateFieldIdInFilters,
     type AdditionalMetric,
-    type ApiExecuteAsyncQueryResults,
     type ChartConfig,
     type CustomDimension,
     type CustomFormat,
@@ -1620,19 +1619,20 @@ const ExplorerProvider: FC<
 
     const queryClient = useQueryClient();
     const cancelQuery = useCallback(() => {
-        const queryKey = ['create-query', validQueryArgs];
         // cancel query creation
-        void queryClient.cancelQueries({ queryKey });
+        void queryClient.cancelQueries({
+            queryKey: ['create-query', validQueryArgs],
+        });
 
-        const data =
-            queryClient.getQueryData<ApiExecuteAsyncQueryResults>(queryKey);
         // remove current queryUuid from setQueryUuidHistory
-        if (data?.queryUuid) {
+        if (query.data?.queryUuid) {
             setQueryUuidHistory((prev) => {
-                return prev.filter((queryUuid) => queryUuid !== data.queryUuid);
+                return prev.filter(
+                    (queryUuid) => queryUuid !== query.data.queryUuid,
+                );
             });
         }
-    }, [queryClient, validQueryArgs]);
+    }, [queryClient, validQueryArgs, query.data]);
 
     const actions = useMemo(
         () => ({
