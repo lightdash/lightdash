@@ -1,4 +1,3 @@
-import { QueryHistoryStatus } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -10,7 +9,7 @@ import {
 } from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
 import { IconPlayerPlay, IconX } from '@tabler/icons-react';
-import { memo, useCallback, type FC } from 'react';
+import { memo, useCallback, useTransition, type FC } from 'react';
 import useHealth from '../hooks/health/useHealth';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useTracking from '../providers/Tracking/useTracking';
@@ -19,6 +18,7 @@ import LimitButton from './LimitButton';
 import MantineIcon from './common/MantineIcon';
 
 export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
+    const [, startTransition] = useTransition();
     const health = useHealth();
     const maxLimit = health.data?.query.maxLimit ?? 5000;
 
@@ -32,14 +32,14 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const isValidQuery = useExplorerContext(
         (context) => context.state.isValidQuery,
     );
-    const isLoading = useExplorerContext(
-        (context) =>
-            context.query.isFetching ||
-            context.queryResults.isFetchingFirstPage,
-    );
-    const queryStatus = useExplorerContext(
-        (context) => context.queryResults.queryStatus,
-    );
+    const isLoading = useExplorerContext((context) => {
+        const isCreatingQuery = context.query.isFetching;
+        const isFetchingFirstPage = context.queryResults.isFetchingFirstPage;
+        const isFetchingAllRows =
+            context.queryResults.fetchAll &&
+            !context.queryResults.hasFetchedAllRows;
+        return isCreatingQuery || isFetchingFirstPage || isFetchingAllRows;
+    });
     const fetchResults = useExplorerContext(
         (context) => context.actions.fetchResults,
     );
@@ -100,15 +100,22 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                 </Button>
             </Tooltip>
 
-            {isLoading &&
-            (!queryStatus || queryStatus === QueryHistoryStatus.PENDING) ? (
+            {isLoading ? (
                 <Tooltip
                     label={'Cancel query'}
                     position="bottom"
                     withArrow
                     withinPortal
                 >
-                    <Button size={size} p="xs" onClick={cancelQuery}>
+                    <Button
+                        size={size}
+                        p="xs"
+                        onClick={() =>
+                            startTransition(() => {
+                                cancelQuery();
+                            })
+                        }
+                    >
                         <MantineIcon icon={IconX} size="sm" />
                     </Button>
                 </Tooltip>
