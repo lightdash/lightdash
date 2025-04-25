@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     FeatureFlags,
@@ -26,6 +27,7 @@ type SpaceSelectorProps = {
     scrollingContainerProps?: PaperProps & ScrollAreaProps;
     isLoading?: boolean;
     onSelectSpace: (spaceUuid: string | null) => void;
+    projectUuid: string | undefined;
 };
 
 const SpaceSelector = ({
@@ -34,8 +36,17 @@ const SpaceSelector = ({
     scrollingContainerProps,
     isLoading: _isLoading, // TODO: implement loading state for the tree.
     onSelectSpace,
+    projectUuid,
 }: SpaceSelectorProps) => {
     const { user } = useApp();
+
+    const userCanManageProject = user.data?.ability?.can(
+        'manage',
+        subject('Project', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid: projectUuid,
+        }),
+    );
 
     const isNestedSpacesEnabled = useFeatureFlagEnabled(
         FeatureFlags.NestedSpaces,
@@ -66,11 +77,13 @@ const SpaceSelector = ({
     if (isNestedSpacesEnabled) {
         return (
             <Stack>
-                <AdminContentViewFilter
-                    value={selectedAdminContentType}
-                    onChange={setSelectedAdminContentType}
-                    withDivider={false}
-                />
+                {userCanManageProject ? (
+                    <AdminContentViewFilter
+                        value={selectedAdminContentType}
+                        onChange={setSelectedAdminContentType}
+                        withDivider={false}
+                    />
+                ) : null}
 
                 <Paper
                     component={ScrollArea}

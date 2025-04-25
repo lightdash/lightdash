@@ -162,6 +162,7 @@ const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
 
     return (
         <SpaceSelector
+            projectUuid={projectUuid}
             spaces={spaces}
             selectedSpaceUuid={selectedSpaceUuid}
             onSelectSpace={(spaceUuid: string | null) => {

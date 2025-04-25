@@ -128,6 +128,7 @@ const TransferItemsModal = <
                     </Text>
 
                     <SpaceSelector
+                        projectUuid={projectUuid}
                         spaces={spaces}
                         selectedSpaceUuid={selectedSpaceUuid}
                         onSelectSpace={setSelectedSpaceUuid}
