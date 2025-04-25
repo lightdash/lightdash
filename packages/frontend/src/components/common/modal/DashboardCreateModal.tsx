@@ -232,7 +232,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                     loading={isCreatingDashboard}
                                     type="submit"
                                     form="dashboard-create-modal"
-                                    data-testid="dashboard-create-modal-create-button"
                                 >
                                     Create
                                 </Button>

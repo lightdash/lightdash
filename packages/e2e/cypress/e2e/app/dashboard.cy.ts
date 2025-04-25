@@ -275,7 +275,8 @@ describe('Dashboard', () => {
         // create dashboard with title small
         cy.contains('Create dashboard').click();
         cy.findByLabelText('Name your dashboard *').type('Small');
-        cy.findByTestId('dashboard-create-modal-create-button').click();
+        cy.findByText('Next').click();
+        cy.findByText('Create').click();
 
         // Create chart within dashboard
         cy.findAllByText('Add tile').click({ multiple: true });
