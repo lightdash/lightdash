@@ -1,3 +1,10 @@
+# [0.1599.0](https://github.com/lightdash/lightdash/compare/0.1598.2...0.1599.0) (2025-04-25)
+
+
+### Features
+
+* allow creating of root level spaces from the transfer to modal ([#14541](https://github.com/lightdash/lightdash/issues/14541)) ([b67b644](https://github.com/lightdash/lightdash/commit/b67b6445d66b435337720bffba7dbc59c4b2042a))
+
 ## [0.1598.2](https://github.com/lightdash/lightdash/compare/0.1598.1...0.1598.2) (2025-04-24)
 
 
