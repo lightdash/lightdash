@@ -71,7 +71,6 @@ const TransferItemsModal = <
                 <>
                     {!isCreatingNewSpace ? (
                         <Button
-                            disabled={!selectedSpaceUuid}
                             variant="subtle"
                             size="xs"
                             onClick={openCreateSpaceForm}
@@ -141,7 +140,7 @@ const TransferItemsModal = <
                 </>
             )}
 
-            {selectedSpaceLabel ? (
+            {!isCreatingNewSpace && selectedSpaceLabel ? (
                 <Alert color="gray">
                     <Text fw={500}>
                         Transfer {items.length}{' '}
