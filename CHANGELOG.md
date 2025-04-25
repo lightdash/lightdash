@@ -1,3 +1,52 @@
+## [0.1600.4](https://github.com/lightdash/lightdash/compare/0.1600.3...0.1600.4) (2025-04-25)
+
+
+### Bug Fixes
+
+* user queries parallelization ([#14536](https://github.com/lightdash/lightdash/issues/14536)) ([66adc56](https://github.com/lightdash/lightdash/commit/66adc569a8d2ca73560b7fd58770fcbad9a4cfc1))
+
+## [0.1600.3](https://github.com/lightdash/lightdash/compare/0.1600.2...0.1600.3) (2025-04-25)
+
+
+### Bug Fixes
+
+* better error message when project directory path is wrong ([#14556](https://github.com/lightdash/lightdash/issues/14556)) ([3e37be0](https://github.com/lightdash/lightdash/commit/3e37be029c2b2ec0ab3c1fa29ad4f6cef8429604))
+
+## [0.1600.2](https://github.com/lightdash/lightdash/compare/0.1600.1...0.1600.2) (2025-04-25)
+
+
+### Bug Fixes
+
+* dashboard date zoom ([#14532](https://github.com/lightdash/lightdash/issues/14532)) ([97da02c](https://github.com/lightdash/lightdash/commit/97da02ce2ed73ad9051a99db4daa87b5962b9afb))
+
+## [0.1600.1](https://github.com/lightdash/lightdash/compare/0.1600.0...0.1600.1) (2025-04-25)
+
+
+### Bug Fixes
+
+* default time intervals for date ([#14535](https://github.com/lightdash/lightdash/issues/14535)) ([f5c4acd](https://github.com/lightdash/lightdash/commit/f5c4acdcca4b13a76aac0b95e2ba6082b87a26ee))
+
+# [0.1600.0](https://github.com/lightdash/lightdash/compare/0.1599.1...0.1600.0) (2025-04-25)
+
+
+### Features
+
+* admin content view for space tree selector ([#14542](https://github.com/lightdash/lightdash/issues/14542)) ([751f3a5](https://github.com/lightdash/lightdash/commit/751f3a58defe981af227c9c4805d6d471c510100))
+
+## [0.1599.1](https://github.com/lightdash/lightdash/compare/0.1599.0...0.1599.1) (2025-04-25)
+
+
+### Bug Fixes
+
+* improve UI export CSV analytics ([#14546](https://github.com/lightdash/lightdash/issues/14546)) ([ff22492](https://github.com/lightdash/lightdash/commit/ff224927e4f5bf8237dfeddd8d0722763b1231eb))
+
+# [0.1599.0](https://github.com/lightdash/lightdash/compare/0.1598.2...0.1599.0) (2025-04-25)
+
+
+### Features
+
+* allow creating of root level spaces from the transfer to modal ([#14541](https://github.com/lightdash/lightdash/issues/14541)) ([b67b644](https://github.com/lightdash/lightdash/commit/b67b6445d66b435337720bffba7dbc59c4b2042a))
+
 ## [0.1598.2](https://github.com/lightdash/lightdash/compare/0.1598.1...0.1598.2) (2025-04-24)
 
 

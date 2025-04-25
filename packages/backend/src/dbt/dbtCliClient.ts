@@ -332,6 +332,18 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
+    private async ensureDbtProjectDir(): Promise<void> {
+        try {
+            await fs.access(this.dbtProjectDirectory);
+        } catch (e) {
+            throw new DbtError(
+                `dbt project directory not found: /${path.basename(
+                    this.dbtProjectDirectory,
+                )}`,
+            );
+        }
+    }
+
     async test(): Promise<void> {
         return Sentry.startSpan(
             {
@@ -339,6 +351,7 @@ export class DbtCliClient implements DbtClient {
                 name: 'test',
             },
             async () => {
+                await this.ensureDbtProjectDir();
                 await this.installDeps();
                 await this._runDbtCommand('parse');
             },

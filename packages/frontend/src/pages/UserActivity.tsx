@@ -25,7 +25,7 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import {
-    downloadUserActivityCsv,
+    useDownloadUserActivityCsv,
     useUserActivity,
 } from '../hooks/analytics/useUserActivity';
 import useHealth from '../hooks/health/useHealth';
@@ -191,6 +191,8 @@ const UserActivity: FC = () => {
     const { data: project } = useProject(params.projectUuid);
     const { user: sessionUser } = useApp();
     const { data: health } = useHealth();
+    const { mutateAsync: downloadCsv, isLoading: isDownloadingCsv } =
+        useDownloadUserActivityCsv();
 
     const { data, isInitialLoading } = useUserActivity(params.projectUuid);
     if (sessionUser.data?.ability?.cannot('view', 'Analytics')) {
@@ -234,16 +236,27 @@ const UserActivity: FC = () => {
                 <Tooltip label="Export raw chart and dashboard user views in a CSV format">
                     <Button
                         variant="outline"
+                        disabled={isDownloadingCsv}
                         onClick={() => {
                             if (params.projectUuid)
-                                downloadUserActivityCsv(params.projectUuid)
+                                downloadCsv(params.projectUuid)
                                     .then((url) => {
-                                        if (url) window.open(url, '_blank');
+                                        if (url) {
+                                            // If the file takes a while to download,
+                                            // The browser might block the download when using window.open
+                                            // For that we need to create a link and click it
+                                            const link =
+                                                document.createElement('a');
+                                            link.href = url;
+                                            document.body.appendChild(link);
+                                            link.click();
+                                            document.body.removeChild(link);
+                                        }
                                     })
                                     .catch(console.error);
                         }}
                     >
-                        Export CSV
+                        {isDownloadingCsv ? 'Exporting...' : 'Export CSV'}
                     </Button>
                 </Tooltip>
             </Group>

@@ -32,14 +32,20 @@ const SpaceCreationForm = ({
                 </Button>
             </Box>
 
-            {parentSpaceName && (
-                <Text fz="sm" fw={500}>
-                    You are creating a new space in{' '}
-                    <Text span fw={600}>
-                        '{parentSpaceName}'
-                    </Text>
-                </Text>
-            )}
+            <Text fz="sm" fw={500}>
+                You are creating a new {parentSpaceName ? '' : 'top level '}
+                space
+                {parentSpaceName ? (
+                    <>
+                        {' '}
+                        in
+                        <Text span fw={600}>
+                            '{parentSpaceName}'
+                        </Text>
+                    </>
+                ) : null}
+                .
+            </Text>
 
             <TextInput
                 label="Name"
@@ -50,13 +56,20 @@ const SpaceCreationForm = ({
                 onChange={(e) => onSpaceNameChange(e.target.value)}
             />
 
-            {parentSpaceName && (
+            {parentSpaceName ? (
                 <Alert color="blue" icon={<IconInfoCircle size={16} />}>
                     <Text fw={500} color="blue">
                         Permissions will be inherited from{' '}
                         <Text span fw={600}>
                             '{parentSpaceName}'
                         </Text>
+                    </Text>
+                </Alert>
+            ) : (
+                <Alert color="blue" icon={<IconInfoCircle size={16} />}>
+                    <Text fw={500} color="blue">
+                        This space will be private and not visible to other
+                        users. You can change this later.
                     </Text>
                 </Alert>
             )}
