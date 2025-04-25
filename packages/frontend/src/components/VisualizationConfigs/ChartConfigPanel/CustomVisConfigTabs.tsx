@@ -160,6 +160,7 @@ const registerCustomCompletionProvider = (
     language: string,
     fields: string[],
 ) => {
+    console.debug('Loading completion provider with fields', fields);
     return monaco.languages.registerCompletionItemProvider(language, {
         provideCompletionItems: (model, position) => {
             const wordUntilPosition = model.getWordUntilPosition(position);
@@ -412,6 +413,17 @@ const CustomVisConfigTabs: React.FC = memo(() => {
         void initVegaAsync();
     }, [isLoading, chartConfig]);
 
+    useEffect(() => {
+        return () => {
+            if (completionProviderRef.current) {
+                console.debug(
+                    'Clearning Monaco completion provider on unmount',
+                );
+                completionProviderRef.current.dispose();
+            }
+        };
+    }, []);
+
     // Effect to refresh completion provider when fields change
     useEffect(() => {
         if (!monacoInstanceRef.current) return;
@@ -469,13 +481,12 @@ const CustomVisConfigTabs: React.FC = memo(() => {
     }, [monacoOptions]);
     const { itemsMap } = useVisualizationContext();
 
-    if (!monacoOptions) return null; // we should not load monaco before options are set with the overflowWidgetsDomNode
+    if (!isCustomConfig) return null;
 
-    if (isLoading) {
+    if (!monacoOptions || isLoading) {
         return <Loader color="gray" size="xs" />;
     }
 
-    if (!isCustomConfig) return null;
     const { series } = visualizationConfig.chartConfig;
 
     const isEditorEmpty = (editorConfig || '')?.length === 0;
@@ -549,7 +560,7 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                         // Clean up previous provider if it exists
                         if (completionProviderRef.current) {
                             console.debug(
-                                'Clearing Monaco completion provider',
+                                'Clearing Monaco completion provider on beforeMount',
                                 completionProviderRef.current,
                             );
                             completionProviderRef.current.dispose();
