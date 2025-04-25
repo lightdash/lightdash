@@ -1,3 +1,10 @@
+## [0.1601.2](https://github.com/lightdash/lightdash/compare/0.1601.1...0.1601.2) (2025-04-25)
+
+
+### Bug Fixes
+
+* e2e dashboard export tests ([#14561](https://github.com/lightdash/lightdash/issues/14561)) ([bbf5a69](https://github.com/lightdash/lightdash/commit/bbf5a69041ccbeea9c63e4f273c27d1f83de4710))
+
 ## [0.1601.1](https://github.com/lightdash/lightdash/compare/0.1601.0...0.1601.1) (2025-04-25)
 
 
