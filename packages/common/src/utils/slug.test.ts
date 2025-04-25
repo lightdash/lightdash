@@ -173,5 +173,19 @@ describe('Slug', () => {
         test('should handle empty slug', () => {
             expect(getLtreePathFromSlug('')).toEqual('');
         });
+
+        test('should not trim hyphens from slug', () => {
+            expect(
+                getLtreePathFromSlug('-my-space-name-with-hyphens-'),
+            ).toEqual('_my_space_name_with_hyphens_');
+        });
+
+        test('should not trim hyphens from deeply nested slug', () => {
+            expect(
+                getLtreePathFromSlug(
+                    'grandparent-space-/-parent-space/child-space-',
+                ),
+            ).toEqual('grandparent_space_._parent_space.child_space_');
+        });
     });
 });

@@ -21,6 +21,7 @@ import {
     MetricQueryResponse,
     SavedChart,
     SavedChartsInfoForDashboardAvailableFilters,
+    UpdateEmbed,
 } from '@lightdash/common';
 import {
     Body,
@@ -135,13 +136,13 @@ export class EmbedController extends BaseController {
     async updateEmbeddedDashboards(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Body() body: { dashboardUuids: string[] },
+        @Body() body: UpdateEmbed,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
         await this.getEmbedService().updateDashboards(
             req.user!,
             projectUuid,
-            body.dashboardUuids,
+            body,
         );
         return {
             status: 'ok',

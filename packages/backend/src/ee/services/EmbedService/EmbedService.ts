@@ -11,6 +11,7 @@ import {
     DashboardFilters,
     DateGranularity,
     DecodedEmbed,
+    Embed,
     EmbedJwt,
     EmbedJwtSchema,
     EmbedUrl,
@@ -27,6 +28,7 @@ import {
     QueryExecutionContext,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
+    UpdateEmbed,
     UserAttributeValueMap,
     addDashboardFiltersToMetricQuery,
     formatRows,
@@ -226,7 +228,7 @@ export class EmbedService extends BaseService {
     async updateDashboards(
         user: SessionUser,
         projectUuid: string,
-        dashboardUuids: string[],
+        { dashboardUuids, allowAllDashboards }: UpdateEmbed,
     ) {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -246,7 +248,10 @@ export class EmbedService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        await this.embedModel.updateDashboards(projectUuid, dashboardUuids);
+        await this.embedModel.updateDashboards(projectUuid, {
+            dashboardUuids,
+            allowAllDashboards,
+        });
     }
 
     private encodeJwt(
@@ -306,10 +311,13 @@ export class EmbedService extends BaseService {
     }
 
     static async _permissionsGetDashboard(
+        embed: Pick<Embed, 'dashboardUuids' | 'allowAllDashboards'>,
         dashboardUuid: string,
-        dashboardUuids: string[],
     ) {
-        if (!dashboardUuids.includes(dashboardUuid)) {
+        if (
+            !embed.allowAllDashboards &&
+            !embed.dashboardUuids.includes(dashboardUuid)
+        ) {
             throw new ForbiddenError(
                 `Dashboard ${dashboardUuid} is not embedded`,
             );
@@ -356,7 +364,7 @@ export class EmbedService extends BaseService {
         // TODO: WHY IS THIS OPTIONAL??
         checkPermissions: boolean = true,
     ): Promise<Dashboard & InteractivityOptions> {
-        const { encodedSecret, dashboardUuids, user } =
+        const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
         const decodedToken = this.decodeJwt(embedToken, encodedSecret);
         const dashboardUuid = await this.getDashboardUuidFromContent(
@@ -366,8 +374,11 @@ export class EmbedService extends BaseService {
 
         if (checkPermissions)
             await EmbedService._permissionsGetDashboard(
+                {
+                    dashboardUuids,
+                    allowAllDashboards,
+                },
                 dashboardUuid,
-                dashboardUuids,
             );
 
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
@@ -994,7 +1005,7 @@ export class EmbedService extends BaseService {
         filters: AndFilterGroup | undefined;
         forceRefresh: boolean;
     }): Promise<FieldValueSearchResult> {
-        const { encodedSecret, dashboardUuids, user } =
+        const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
         const embedJwt = this.decodeJwt(embedToken, encodedSecret);
         const dashboardUuid = await this.getDashboardUuidFromContent(
@@ -1002,8 +1013,11 @@ export class EmbedService extends BaseService {
             projectUuid,
         );
         await EmbedService._permissionsGetDashboard(
+            {
+                dashboardUuids,
+                allowAllDashboards,
+            },
             dashboardUuid,
-            dashboardUuids,
         );
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         const dashboardFilters = dashboard.filters.dimensions;

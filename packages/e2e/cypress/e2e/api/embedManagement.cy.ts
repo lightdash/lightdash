@@ -31,6 +31,7 @@ const updateEmbedConfigDashboards = (
         method: 'PATCH',
         body: {
             dashboardUuids,
+            allowAllDashboards: false,
         },
         ...requestOptions,
     });
