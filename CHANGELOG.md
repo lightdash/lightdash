@@ -1,3 +1,10 @@
+## [0.1600.3](https://github.com/lightdash/lightdash/compare/0.1600.2...0.1600.3) (2025-04-25)
+
+
+### Bug Fixes
+
+* better error message when project directory path is wrong ([#14556](https://github.com/lightdash/lightdash/issues/14556)) ([3e37be0](https://github.com/lightdash/lightdash/commit/3e37be029c2b2ec0ab3c1fa29ad4f6cef8429604))
+
 ## [0.1600.2](https://github.com/lightdash/lightdash/compare/0.1600.1...0.1600.2) (2025-04-25)
 
 
