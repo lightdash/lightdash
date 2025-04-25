@@ -1,4 +1,4 @@
-import { Embed, NotFoundError } from '@lightdash/common';
+import { Embed, NotFoundError, UpdateEmbed } from '@lightdash/common';
 import { Knex } from 'knex';
 
 type Dependencies = {
@@ -42,6 +42,7 @@ export class EmbedModel {
             projectUuid: embed.project_uuid,
             encodedSecret: embed.encoded_secret,
             dashboardUuids: validDashboardUuids,
+            allowAllDashboards: embed.allow_all_dashboards,
             createdAt: embed.created_at,
             user: {
                 userUuid: embed.user_uuid,
@@ -70,10 +71,13 @@ export class EmbedModel {
 
     async updateDashboards(
         projectUuid: string,
-        dashboardUuids: string[],
+        { dashboardUuids, allowAllDashboards }: UpdateEmbed,
     ): Promise<void> {
         await this.database('embedding')
-            .update('dashboard_uuids', dashboardUuids)
+            .update({
+                dashboard_uuids: dashboardUuids,
+                allow_all_dashboards: allowAllDashboards,
+            })
             .where('project_uuid', projectUuid);
     }
 }
