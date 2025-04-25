@@ -122,6 +122,7 @@ const getCustomViz = async (
     sampleResults: {
         [k: string]: unknown;
     }[],
+    currentVizConfig: string,
 ) =>
     lightdashApi<string>({
         url: `/ai/${projectUuid}/custom-viz`,
@@ -130,6 +131,7 @@ const getCustomViz = async (
             prompt,
             itemsMap,
             sampleResults,
+            currentVizConfig,
         }),
     });
 
@@ -313,12 +315,14 @@ const SelectTemplate = ({
 const GenerateVizWithAi = ({
     itemsMap,
     sampleResults,
+    editorConfig,
     setEditorConfig,
 }: {
     itemsMap: ItemsMap | undefined;
     sampleResults: {
         [k: string]: unknown;
     }[];
+    editorConfig: string;
     setEditorConfig: (config: string) => void;
 }) => {
     const { projectUuid } = useParams<{
@@ -335,7 +339,13 @@ const GenerateVizWithAi = ({
 
         setIsLoading(true);
         if (prompt && projectUuid)
-            getCustomViz(projectUuid, prompt, itemsMap, sampleResults)
+            getCustomViz(
+                projectUuid,
+                prompt,
+                itemsMap,
+                sampleResults,
+                editorConfig,
+            )
                 .then((vizConfig) => {
                     // Handle the visualization config
                     setEditorConfig(vizConfig);
@@ -357,6 +367,7 @@ const GenerateVizWithAi = ({
         itemsMap,
         sampleResults,
         setEditorConfig,
+        editorConfig,
         showToastError,
     ]);
 
@@ -522,6 +533,7 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                             itemsMap={itemsMap}
                             sampleResults={series.slice(0, 3)}
                             setEditorConfig={setEditorConfig}
+                            editorConfig={editorConfig}
                         />
                     </>
                 )}

@@ -272,6 +272,15 @@ export class SavedChartService extends BaseService {
                               (echartsConfig?.tooltip || '').length > 0,
                       }
                     : undefined,
+            custom:
+                savedChart.chartConfig.type === ChartType.CUSTOM
+                    ? {
+                          size: JSON.stringify(
+                              savedChart.chartConfig.config?.spec || {},
+                          ).length,
+                          type: `${savedChart.chartConfig.config?.spec?.mark}`,
+                      }
+                    : undefined,
             ...countCustomDimensionsInMetricQuery(savedChart.metricQuery),
         };
     }

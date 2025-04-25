@@ -74,6 +74,7 @@ const BASE_VEGA_LITE_PROMPT = HumanMessagePromptTemplate.fromTemplate(
       The user will describe the chart they want to see, and you will also receive:
       - A list of available fields with their types (e.g., "timestamp: DATE", "revenue: NUMBER").
       - A small sample of the data (max 2 rows).
+      - The current Vega-Lite configuration of the chart (if any).
       <user_request>
       {user_prompt}
       </user_request>
@@ -86,6 +87,10 @@ const BASE_VEGA_LITE_PROMPT = HumanMessagePromptTemplate.fromTemplate(
       {sample_data}
       </sample_data>
       
+      <current_viz_config>
+      {current_viz_config}
+      </current_viz_config>
+      
       Your task is to generate a complete and correct Vega-Lite JSON specification that fulfills the user's request. Follow these strict guidelines:
       <guidelines>
       1. If the user doesn't specify a chart type, choose the most appropriate one based on the field types and sample data.
@@ -97,7 +102,7 @@ const BASE_VEGA_LITE_PROMPT = HumanMessagePromptTemplate.fromTemplate(
       7. Do not wrap the JSON in a code block or add any markdown formatting.
       8. Use the field IDs provided in available_fields to build the chart, even if the user specify some fields in the prompt.
       9. Do not include the "data" property in the JSON object, this will be added separately.
-      10. When someone asks for a specific chart type (like waterfall, or funnel chart), use as a template some of the examples in https://vega.github.io/vega-lite/examples/ but adjusted to the fields provided 
+      10. Unless the user asks for a new chart, use the current_viz_config to build the chart.
       </guidelines>
       
       <tone>

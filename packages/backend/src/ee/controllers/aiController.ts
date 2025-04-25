@@ -150,6 +150,7 @@ export class AiController extends BaseController {
             sampleResults: {
                 [k: string]: unknown;
             }[];
+            currentVizConfig: string;
         },
     ): Promise<ApiAiGenerateCustomVizResponse> {
         this.setStatus(200);

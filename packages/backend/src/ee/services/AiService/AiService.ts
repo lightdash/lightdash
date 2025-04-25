@@ -50,6 +50,7 @@ import { isFeatureFlagEnabled } from '../../../postHog';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
+    CustomVizGenerated,
     DashboardSummaryCreated,
     DashboardSummaryViewed,
 } from '../../analytics';
@@ -263,6 +264,7 @@ export class AiService {
         prompt,
         itemsMap,
         sampleResults,
+        currentVizConfig,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -271,6 +273,7 @@ export class AiService {
         sampleResults: {
             [k: string]: unknown;
         }[];
+        currentVizConfig: string;
     }) {
         const isAICustomVizEnabled = await isFeatureFlagEnabled(
             FeatureFlags.AiCustomViz,
@@ -299,6 +302,7 @@ export class AiService {
                 user_prompt: prompt,
                 fields: JSON.stringify(fields),
                 sample_data: JSON.stringify(sampleResults),
+                current_viz_config: currentVizConfig,
             });
         } catch (e) {
             const errorCode =
@@ -320,25 +324,19 @@ export class AiService {
             throw new UnexpectedServerError('OpenAi model is not initialized');
         }
 
-        /*
-        this.analytics.track<DashboardSummaryCreated>({
+        this.analytics.track<CustomVizGenerated>({
             userId: user.userUuid,
-            event: 'ai.dashboard_summary.executed',
+            event: 'ai.custom_viz.generated',
             properties: {
                 openAIModelName: this.openAi.model.modelName,
                 organizationId: user.organizationUuid!,
                 projectId: projectUuid,
-                dashboardId: dashboardUuid,
-                dashboardSummaryUuid: dashboardSummary.dashboardSummaryUuid,
-                context,
-                responseSize: dashboardSummaryText.length,
+                prompt,
+                responseSize: vegaConfigResult.length,
                 tokenUsage: totalTokens,
-                timeGetCharts,
                 timeOpenAi,
-                timeTotal: timeOpenAi + timeGetCharts,
             },
         });
-        */
 
         return vegaConfigResult;
     }
