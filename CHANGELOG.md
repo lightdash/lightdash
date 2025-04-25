@@ -1,3 +1,10 @@
+## [0.1600.4](https://github.com/lightdash/lightdash/compare/0.1600.3...0.1600.4) (2025-04-25)
+
+
+### Bug Fixes
+
+* user queries parallelization ([#14536](https://github.com/lightdash/lightdash/issues/14536)) ([66adc56](https://github.com/lightdash/lightdash/commit/66adc569a8d2ca73560b7fd58770fcbad9a4cfc1))
+
 ## [0.1600.3](https://github.com/lightdash/lightdash/compare/0.1600.2...0.1600.3) (2025-04-25)
 
 
