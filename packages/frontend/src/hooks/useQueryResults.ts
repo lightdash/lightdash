@@ -288,6 +288,7 @@ export type InfiniteQueryResults = Partial<
     projectUuid?: string;
     rows: ResultRow[];
     isInitialLoading: boolean;
+    isFetchingFirstPage: boolean;
     isFetchingRows: boolean;
     fetchMoreRows: () => void;
     setFetchAll: (value: boolean) => void;
@@ -503,6 +504,9 @@ export const useInfiniteQueryResults = (
             setFetchAll,
             totalClientFetchTimeMs,
             isInitialLoading,
+            isFetchingFirstPage:
+                fetchedPages[0]?.totalResults === undefined ||
+                (fetchedPages[0]?.totalResults > 0 && fetchedRows.length === 0),
             fetchAll,
         }),
         [

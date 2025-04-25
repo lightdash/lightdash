@@ -1473,9 +1473,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
 
     const isLoading = useMemo(() => {
         const isCreatingQuery = readyQuery.isFetching;
-        const isFetchingFirstPage =
-            resultsData.totalResults === undefined ||
-            (resultsData.totalResults > 0 && resultsData.rows.length === 0);
+        const isFetchingFirstPage = resultsData.isFetchingFirstPage;
         const isFetchingAllRows =
             resultsData.fetchAll && !resultsData.hasFetchedAllRows;
         return isCreatingQuery || isFetchingFirstPage || isFetchingAllRows;
@@ -1483,8 +1481,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         readyQuery.isFetching,
         resultsData.fetchAll,
         resultsData.hasFetchedAllRows,
-        resultsData.rows.length,
-        resultsData.totalResults,
+        resultsData.isFetchingFirstPage,
     ]);
 
     return (
