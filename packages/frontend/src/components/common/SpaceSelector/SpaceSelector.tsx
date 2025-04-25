@@ -88,7 +88,7 @@ const SpaceSelector = ({
                 <Paper
                     component={ScrollArea}
                     w="100%"
-                    h="200px"
+                    h="350px"
                     withBorder
                     {...scrollingContainerProps}
                 >
