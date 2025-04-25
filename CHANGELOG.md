@@ -1,3 +1,10 @@
+# [0.1601.0](https://github.com/lightdash/lightdash/compare/0.1600.4...0.1601.0) (2025-04-25)
+
+
+### Features
+
+* admins can allow all dashboards to be embedded ([#14531](https://github.com/lightdash/lightdash/issues/14531)) ([813f798](https://github.com/lightdash/lightdash/commit/813f798c4c310e0da843e4ed100efbeb1fc23811))
+
 ## [0.1600.4](https://github.com/lightdash/lightdash/compare/0.1600.3...0.1600.4) (2025-04-25)
 
 
