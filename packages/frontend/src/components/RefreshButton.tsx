@@ -1,3 +1,4 @@
+import { QueryHistoryStatus } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -8,7 +9,7 @@ import {
     type MantineSize,
 } from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
-import { IconPlayerPlay } from '@tabler/icons-react';
+import { IconPlayerPlay, IconX } from '@tabler/icons-react';
 import { memo, useCallback, type FC } from 'react';
 import useHealth from '../hooks/health/useHealth';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
@@ -36,8 +37,14 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
             context.query.isFetching ||
             context.queryResults.isFetchingFirstPage,
     );
+    const queryStatus = useExplorerContext(
+        (context) => context.queryResults.queryStatus,
+    );
     const fetchResults = useExplorerContext(
         (context) => context.actions.fetchResults,
+    );
+    const cancelQuery = useExplorerContext(
+        (context) => context.actions.cancelQuery,
     );
 
     const canRunQuery = isValidQuery;
@@ -93,13 +100,27 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                 </Button>
             </Tooltip>
 
-            <LimitButton
-                disabled={!isValidQuery}
-                size={size}
-                maxLimit={maxLimit}
-                limit={limit}
-                onLimitChange={setRowLimit}
-            />
+            {isLoading &&
+            (!queryStatus || queryStatus === QueryHistoryStatus.PENDING) ? (
+                <Tooltip
+                    label={'Cancel query'}
+                    position="bottom"
+                    withArrow
+                    withinPortal
+                >
+                    <Button size={size} p="xs" onClick={cancelQuery}>
+                        <MantineIcon icon={IconX} size="sm" />
+                    </Button>
+                </Tooltip>
+            ) : (
+                <LimitButton
+                    disabled={!isValidQuery}
+                    size={size}
+                    maxLimit={maxLimit}
+                    limit={limit}
+                    onLimitChange={setRowLimit}
+                />
+            )}
         </Button.Group>
     );
 });
