@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import {
     Alert,
+    Anchor,
     Avatar,
     Group,
     Radio,
@@ -16,6 +17,7 @@ import {
 import { IconInfoCircle } from '@tabler/icons-react';
 import upperFirst from 'lodash/upperFirst';
 import { useMemo, useState, type FC } from 'react';
+import { Link } from 'react-router';
 import { type CreateSpaceModalBody } from '.';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import useApp from '../../../providers/App/useApp';
@@ -68,6 +70,8 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
     privateAccessType,
     onPrivateAccessTypeChange,
     parentSpaceUuid,
+    rootSpace,
+    onClose,
 }) => {
     const {
         user: { data: sessionUser },
@@ -155,8 +159,16 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                             variant="light"
                             icon={<MantineIcon icon={IconInfoCircle} />}
                         >
-                            Nested spaces inherit permissions from their root
-                            space.
+                            This space will inherit permissions from the top
+                            level space: "
+                            <Anchor
+                                component={Link}
+                                onClick={onClose}
+                                to={`/projects/${projectUuid}/spaces/${rootSpace?.uuid}?shareSpaceModal=true`}
+                            >
+                                {rootSpace?.name}
+                            </Anchor>
+                            "
                         </Alert>
                     )}
                 </Stack>

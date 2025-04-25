@@ -48,6 +48,7 @@ interface ActionModalProps {
     isDisabled: boolean;
     shouldRedirect?: boolean;
     parentSpaceUuid: Space['parentSpaceUuid'];
+    rootSpace?: Pick<Space, 'name' | 'uuid'>;
 }
 
 export interface SpaceModalBody {
@@ -55,7 +56,8 @@ export interface SpaceModalBody {
     form: UseFormReturnType<Space>;
 }
 
-export interface CreateSpaceModalBody {
+export interface CreateSpaceModalBody
+    extends Pick<ActionModalProps, 'parentSpaceUuid' | 'onClose'> {
     data?: Space;
     modalStep: CreateModalStep;
     projectUuid: string;
@@ -63,7 +65,7 @@ export interface CreateSpaceModalBody {
     privateAccessType: SpacePrivateAccessType;
     onPrivateAccessTypeChange: (type: SpacePrivateAccessType) => void;
     organizationUsers: OrganizationMemberProfile[] | undefined;
-    parentSpaceUuid: Space['parentSpaceUuid'];
+    rootSpace?: Pick<Space, 'name' | 'uuid'>;
 }
 
 const validate = z.object({
@@ -82,6 +84,7 @@ const SpaceModal: FC<ActionModalProps> = ({
     onClose = () => {},
     onSubmitForm,
     parentSpaceUuid,
+    rootSpace,
 }) => {
     const { showToastError } = useToaster();
     const { data: organizationUsers } = useOrganizationUsers();
@@ -170,6 +173,8 @@ const SpaceModal: FC<ActionModalProps> = ({
                             onPrivateAccessTypeChange={setPrivateAccessType}
                             organizationUsers={organizationUsers}
                             parentSpaceUuid={parentSpaceUuid}
+                            rootSpace={rootSpace}
+                            onClose={onClose}
                         />
                     ) : actionType === ActionType.UPDATE ? (
                         <UpdateSpaceModalContent data={data} form={form} />
@@ -332,6 +337,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
             onSubmitForm={handleSubmitForm}
             isDisabled={isWorking}
             parentSpaceUuid={parentSpaceUuid}
+            rootSpace={data?.breadcrumbs?.[0]}
             {...props}
         />
     );

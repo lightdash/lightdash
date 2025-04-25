@@ -18,6 +18,7 @@ import MantineIcon from '../MantineIcon';
 const modalSizes = {
     sm: 380,
     lg: 480,
+    xl: 600,
 } as const;
 
 export type MantineModalProps = {
@@ -104,12 +105,12 @@ const MantineModal: React.FC<MantineModalProps> = ({
                     <Flex
                         sx={(theme) => ({
                             borderTop: `1px solid ${theme.colors.gray[2]}`,
-                            backgroundColor: theme.white,
                             position: 'sticky',
                             bottom: 0,
                             width: '100%',
                             zIndex: 10,
                         })}
+                        bg="white"
                         px="xl"
                         py="md"
                         justify="flex-end"
