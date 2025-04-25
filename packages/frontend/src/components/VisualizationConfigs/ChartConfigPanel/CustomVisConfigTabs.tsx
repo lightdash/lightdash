@@ -329,6 +329,37 @@ const GenerateVizWithAi = ({
     const [isLoading, setIsLoading] = useState(false);
 
     const { showToastError } = useToaster();
+
+    const handleSubmit = useCallback(() => {
+        if (isLoading) return;
+
+        setIsLoading(true);
+        if (prompt && projectUuid)
+            getCustomViz(projectUuid, prompt, itemsMap, sampleResults)
+                .then((vizConfig) => {
+                    // Handle the visualization config
+                    setEditorConfig(vizConfig);
+                })
+                .catch((error) => {
+                    showToastError({
+                        title: 'Error generating custom viz with AI',
+                        subtitle: getErrorMessage(error),
+                    });
+                    console.error('Error generating custom viz:', error);
+                })
+                .finally(() => {
+                    setIsLoading(false);
+                });
+    }, [
+        prompt,
+        projectUuid,
+        isLoading,
+        itemsMap,
+        sampleResults,
+        setEditorConfig,
+        showToastError,
+    ]);
+
     return (
         <Popover width="400px" position="bottom" withArrow shadow="md">
             <Popover.Target>
@@ -340,41 +371,25 @@ const GenerateVizWithAi = ({
                 <Textarea
                     placeholder="Create a heatmap with detailed tooltips and clear values for fast insights"
                     autosize
+                    autoFocus={true}
                     minRows={1}
-                    maxRows={5}
-                    onChange={(event) => setPrompt(event.currentTarget.value)}
+                    maxRows={20}
+                    onChange={(event) => {
+                        setPrompt(event.currentTarget.value);
+                    }}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Enter' && !event.shiftKey) {
+                            event.preventDefault();
+                            handleSubmit();
+                        }
+                    }}
                 />
 
                 <Button
                     mt="sm"
-                    onClick={() => {
-                        setIsLoading(true);
-                        if (prompt && projectUuid)
-                            getCustomViz(
-                                projectUuid,
-                                prompt,
-                                itemsMap,
-                                sampleResults,
-                            )
-                                .then((vizConfig) => {
-                                    // Handle the visualization config
-                                    setEditorConfig(vizConfig);
-                                })
-                                .catch((error) => {
-                                    showToastError({
-                                        title: 'Error generating custom viz with AI',
-                                        subtitle: getErrorMessage(error),
-                                    });
-                                    console.error(
-                                        'Error generating custom viz:',
-                                        error,
-                                    );
-                                })
-                                .finally(() => {
-                                    setIsLoading(false);
-                                });
-                    }}
+                    type="submit"
                     disabled={isLoading}
+                    onClick={handleSubmit}
                 >
                     {isLoading ? 'Generating...' : 'Generate'}
                 </Button>
