@@ -553,7 +553,13 @@ export const getDefaultTimeFrames = (type: DimensionType) =>
               TimeFrames.QUARTER,
               TimeFrames.YEAR,
           ]
-        : [TimeFrames.DAY, TimeFrames.WEEK, TimeFrames.MONTH, TimeFrames.YEAR];
+        : [
+              TimeFrames.DAY,
+              TimeFrames.WEEK,
+              TimeFrames.MONTH,
+              TimeFrames.QUARTER,
+              TimeFrames.YEAR,
+          ];
 
 export const isTimeInterval = (value: string): value is TimeFrames =>
     Object.keys(timeFrameConfigs).includes(value);
