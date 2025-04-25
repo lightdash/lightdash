@@ -29,7 +29,14 @@ import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
 import { IconSparkles } from '@tabler/icons-react';
 import merge from 'lodash/merge';
 import { type IDisposable, type languages } from 'monaco-editor';
-import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { useParams } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
 import { lightdashApi } from '../../../api';
@@ -94,7 +101,7 @@ const generateVegaTemplate = (
     return templateString;
 };
 
-const initVegaLazySchema = async (fields: string[]) => {
+const initVegaLazySchema = async () => {
     const vegaLiteSchema = await import(
         'vega-lite/build/vega-lite-schema.json'
     );
@@ -103,14 +110,7 @@ const initVegaLazySchema = async (fields: string[]) => {
         {
             uri: 'https://lightdash.com/schemas/vega-lite-schema-custom.json',
             fileMatch: ['*'],
-            schema: merge(vegaLiteSchema.default, {
-                definitions: {
-                    FieldName: {
-                        type: 'string',
-                        enum: fields,
-                    },
-                },
-            }),
+            schema: merge(vegaLiteSchema.default, {}),
         },
     ];
 };
@@ -154,43 +154,37 @@ const loadMonaco = (monaco: Monaco, schemas: Schema[]) => {
         diagnostics: true,
     });
 };
-let completionProviderDisposable: IDisposable | null = null;
 
 const registerCustomCompletionProvider = (
     monaco: Monaco,
     language: string,
     fields: string[],
 ) => {
-    if (completionProviderDisposable) {
-        console.debug('Clearing Monaco completion provider');
-        completionProviderDisposable.dispose();
-    }
-    completionProviderDisposable =
-        monaco.languages.registerCompletionItemProvider(language, {
-            provideCompletionItems: (model, position) => {
-                const wordUntilPosition = model.getWordUntilPosition(position);
-                const range = {
-                    startLineNumber: position.lineNumber,
-                    endLineNumber: position.lineNumber,
-                    startColumn: wordUntilPosition.startColumn,
-                    endColumn: wordUntilPosition.endColumn,
-                };
+    return monaco.languages.registerCompletionItemProvider(language, {
+        provideCompletionItems: (model, position) => {
+            const wordUntilPosition = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: wordUntilPosition.startColumn,
+                endColumn: wordUntilPosition.endColumn,
+            };
 
-                const suggestions: languages.CompletionItem[] = fields.map(
-                    (field) => {
-                        return {
-                            label: field,
-                            kind: monaco.languages.CompletionItemKind.Class,
-                            insertText: field,
-                            range,
-                        };
-                    },
-                );
+            const suggestions: languages.CompletionItem[] = fields.map(
+                (field) => {
+                    return {
+                        label: field,
+                        kind: monaco.languages.CompletionItemKind.Class,
+                        insertText: field,
+                        range,
+                    };
+                },
+            );
 
-                return { suggestions };
-            },
-            triggerCharacters: ['$'],
-        });
+            return { suggestions };
+        },
+        triggerCharacters: ['$'],
+    });
 };
 const SelectTemplate = ({
     itemsMap,
@@ -395,17 +389,47 @@ const CustomVisConfigTabs: React.FC = memo(() => {
     const [isLoading, setIsLoading] = useState(true);
     const schemas = useRef<Schema[] | null>(null);
 
-    useEffect(() => {
-        if (!isCustomConfig) return;
-        const fields = visualizationConfig.chartConfig.fields || [];
+    const chartConfig = useMemo(
+        () => (isCustomConfig ? visualizationConfig.chartConfig : undefined),
+        [isCustomConfig, visualizationConfig.chartConfig],
+    );
+    const completionProviderRef = useRef<IDisposable | null>(null);
+    const monacoInstanceRef = useRef<Monaco | null>(null);
+
+    const { fields } = useMemo(() => {
+        return {
+            fields: chartConfig?.fields,
+        };
+    }, [chartConfig]);
+    useDeepCompareEffect(() => {
+        if (!chartConfig || !isLoading) return;
 
         async function initVegaAsync() {
-            schemas.current = await initVegaLazySchema(fields);
+            schemas.current = await initVegaLazySchema();
             setIsLoading(false);
         }
 
         void initVegaAsync();
-    }, [isCustomConfig, visualizationConfig.chartConfig]);
+    }, [isLoading, chartConfig]);
+
+    // Effect to refresh completion provider when fields change
+    useEffect(() => {
+        if (!monacoInstanceRef.current) return;
+
+        // Clean up previous provider if it exists
+        if (completionProviderRef.current) {
+            console.debug(
+                'Refreshing Monaco completion provider with new fields',
+            );
+            completionProviderRef.current.dispose();
+        }
+        if (fields)
+            completionProviderRef.current = registerCustomCompletionProvider(
+                monacoInstanceRef.current,
+                'json',
+                fields,
+            );
+    }, [fields]);
 
     const [editorConfig, setEditorConfig] = useState<string>(
         isCustomConfig ? visualizationConfig.chartConfig.visSpec || '' : '',
@@ -413,14 +437,10 @@ const CustomVisConfigTabs: React.FC = memo(() => {
     const [debouncedTooltipValue] = useDebouncedValue(editorConfig, 1000);
 
     useEffect(() => {
-        if (!isCustomConfig || isLoading) return;
-        visualizationConfig.chartConfig.setVisSpec(debouncedTooltipValue ?? '');
-    }, [
-        isLoading,
-        isCustomConfig,
-        debouncedTooltipValue,
-        visualizationConfig.chartConfig,
-    ]);
+        if (isLoading || !chartConfig) return;
+        if (debouncedTooltipValue)
+            chartConfig.setVisSpec(debouncedTooltipValue);
+    }, [isLoading, debouncedTooltipValue, chartConfig]);
 
     const [monacoOptions, setMonacoOptions] = useState<
         EditorProps['options'] | undefined
@@ -502,7 +522,7 @@ const CustomVisConfigTabs: React.FC = memo(() => {
 
                 <Tabs.Panel value="config">
                 */}
-            <Group mt="sm" h="100%">
+            <Group mt="sm" h="100%" align="top">
                 {/* Hack to show a monaco placeholder */}
                 {isEditorEmpty ? (
                     <Text
@@ -524,12 +544,24 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                     loading={<Loader color="gray" size="xs" />}
                     beforeMount={(monaco) => {
                         loadMonaco(monaco, schemas.current!);
-                        const fields = Object.keys(series[0] || {});
-                        registerCustomCompletionProvider(
-                            monaco,
-                            'json',
-                            fields,
-                        );
+                        monacoInstanceRef.current = monaco;
+
+                        // Clean up previous provider if it exists
+                        if (completionProviderRef.current) {
+                            console.debug(
+                                'Clearing Monaco completion provider',
+                                completionProviderRef.current,
+                            );
+                            completionProviderRef.current.dispose();
+                        }
+
+                        if (fields)
+                            completionProviderRef.current =
+                                registerCustomCompletionProvider(
+                                    monaco,
+                                    'json',
+                                    fields,
+                                );
                     }}
                     defaultLanguage="json"
                     options={monacoOptions}
