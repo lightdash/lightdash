@@ -39,7 +39,7 @@ const TreeItem: React.FC<Props> = ({
             data-is-root={isRoot}
             className={classes.paper}
             miw={rem(200)}
-            maw={rem(300)}
+            w="100%"
             gap={rem(4)}
             h={rem(32)}
             // This component isn't optimized for the top-level root item,
