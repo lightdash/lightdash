@@ -33,8 +33,7 @@ const SpaceCreationForm = ({
             </Box>
 
             <Text fz="sm" fw={500}>
-                You are creating a new {parentSpaceName ? '' : 'top level '}
-                space
+                You are creating a new space
                 {parentSpaceName ? (
                     <>
                         {' '}
