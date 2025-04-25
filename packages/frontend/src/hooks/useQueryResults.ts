@@ -300,7 +300,7 @@ export type InfiniteQueryResults = Partial<
     >
 > & {
     projectUuid?: string;
-    queryStatus?: QueryHistoryStatus;
+    queryStatus: QueryHistoryStatus | null;
     rows: ResultRow[];
     isInitialLoading: boolean;
     isFetchingFirstPage: boolean;
@@ -332,6 +332,9 @@ export const useInfiniteQueryResults = (
         page: 1,
         pageSize: DEFAULT_RESULTS_PAGE_SIZE,
     });
+    const [latestState, setLatestState] = useState<QueryHistoryStatus | null>(
+        null,
+    );
     const [fetchedPages, setFetchedPages] = useState<
         (ReadyQueryResultsPage & { clientFetchTimeMs: number })[]
     >([]);
@@ -420,6 +423,7 @@ export const useInfiniteQueryResults = (
     useEffect(() => {
         if (!nextPageData) return;
         const { status } = nextPageData;
+        setLatestState(status);
         switch (status) {
             case QueryHistoryStatus.ERROR: {
                 backoffRef.current = 250;
@@ -469,6 +473,7 @@ export const useInfiniteQueryResults = (
     useEffect(() => {
         // Reset fetched pages before updating the fetch args
         setFetchedPages([]);
+        setLatestState(null);
         // Reset fetchAll before updating the fetch args
         setFetchAll(false);
         setFetchArgs({
@@ -508,7 +513,7 @@ export const useInfiniteQueryResults = (
         () => ({
             projectUuid,
             queryUuid,
-            queryStatus: nextPageData?.status, // show latest status
+            queryStatus: latestState,
             metricQuery: fetchedPages[0]?.metricQuery,
             fields: fetchedPages[0]?.fields,
             totalResults: fetchedPages[0]?.totalResults,
@@ -538,7 +543,7 @@ export const useInfiniteQueryResults = (
             totalClientFetchTimeMs,
             isInitialLoading,
             fetchAll,
-            nextPageData,
+            latestState,
         ],
     );
 };

@@ -1,4 +1,4 @@
-import { mergeExisting } from '@lightdash/common';
+import { mergeExisting, QueryHistoryStatus } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { produce } from 'immer';
 import { useMemo, type ComponentProps, type FC } from 'react';
@@ -90,6 +90,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
                 fields: translatedChartData?.fields,
                 rows: translatedChartData?.rows ?? [],
                 totalResults: translatedChartData?.rows.length,
+                queryStatus: QueryHistoryStatus.READY,
                 initialQueryExecutionMs: 0,
                 isFetchingRows: false,
                 fetchMoreRows: () => undefined,

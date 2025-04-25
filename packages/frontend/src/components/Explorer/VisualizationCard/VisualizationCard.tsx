@@ -1,9 +1,13 @@
 import {
+    assertUnreachable,
     ECHARTS_DEFAULT_COLORS,
     getHiddenTableFields,
     getPivotConfig,
     NotFoundError,
+    QueryHistoryStatus,
 } from '@lightdash/common';
+import { MantineProvider, RingProgress } from '@lightdash/mantine-v7';
+import { Box, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { type FC, memo, useCallback, useMemo, useState } from 'react';
 import { downloadCsv } from '../../../api/csv';
@@ -27,6 +31,74 @@ export type EchartsClickEvent = {
     event: EchartSeriesClickEvent;
     dimensions: string[];
     series: EChartSeries[];
+};
+
+const QueryProgressState: FC = () => {
+    const isCreatingQuery = useExplorerContext(
+        (context) => context.query.isFetching,
+    );
+    const queryStatus = useExplorerContext(
+        (context) => context.queryResults.queryStatus,
+    );
+    const totalResults = useExplorerContext(
+        (context) => context.queryResults.totalResults,
+    );
+    const fetchedRows = useExplorerContext(
+        (context) => context.queryResults.rows.length,
+    );
+
+    const [tooltip, value] = useMemo(() => {
+        console.log(
+            'QueryProgressState',
+            isCreatingQuery,
+            fetchedRows,
+            queryStatus,
+            totalResults,
+        );
+        if (isCreatingQuery || !queryStatus) {
+            return ['Preparing query', 10];
+        }
+        switch (queryStatus) {
+            case QueryHistoryStatus.PENDING:
+                return ['Executing query', 25];
+            case QueryHistoryStatus.READY:
+                // Start at 30% and progress to 100% based on ratio of fetched rows
+                const basePercentage = 30;
+                const maxAdditionalPercentage = 70; // from 30% to 100%
+                const progressPercentage =
+                    totalResults !== undefined
+                        ? Math.round(
+                              basePercentage +
+                                  maxAdditionalPercentage *
+                                      (fetchedRows / totalResults),
+                          )
+                        : basePercentage;
+                return [
+                    `Loaded ${fetchedRows} of ${totalResults}`,
+                    progressPercentage,
+                ];
+            case QueryHistoryStatus.ERROR:
+                return ['Query error', 100];
+            case QueryHistoryStatus.CANCELLED:
+                return ['Query cancelled', 100];
+            default:
+                return assertUnreachable(queryStatus, 'Unknown query status');
+        }
+    }, [isCreatingQuery, fetchedRows, queryStatus, totalResults]);
+
+    return (
+        <MantineProvider>
+            <RingProgress
+                sections={[{ value, color: 'blue', tooltip }]}
+                transitionDuration={250}
+                label={
+                    <Text c="blue" fw={700} ta="center" size="md">
+                        {value}%
+                    </Text>
+                }
+            />
+        </MantineProvider>
+    );
 };
 
 const VisualizationCard: FC<{
@@ -210,10 +282,28 @@ const VisualizationCard: FC<{
                         )
                     }
                 >
-                    <LightdashVisualization
-                        className="sentry-block ph-no-capture"
-                        data-testid="visualization"
-                    />
+                    {isLoadingQueryResults ? (
+                        <Box h="100%" w="100%" py="xl">
+                            <Stack
+                                spacing="sm"
+                                sx={{
+                                    height: '100%',
+                                    width: '100%',
+                                    alignContent: 'center',
+                                    justifyContent: 'center',
+                                    textAlign: 'center',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                <QueryProgressState />
+                            </Stack>
+                        </Box>
+                    ) : (
+                        <LightdashVisualization
+                            className="sentry-block ph-no-capture"
+                            data-testid="visualization"
+                        />
+                    )}
                     <SeriesContextMenu
                         echartSeriesClickEvent={echartsClickEvent?.event}
                         dimensions={echartsClickEvent?.dimensions}
