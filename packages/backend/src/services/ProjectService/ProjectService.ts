@@ -1963,6 +1963,49 @@ export class ProjectService extends BaseService {
         });
     }
 
+    async cancelAsyncQuery({
+        user,
+        projectUuid,
+        queryUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<void> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            user.userUuid,
+        );
+
+        if (user.userUuid !== queryHistory.createdByUserUuid) {
+            throw new ForbiddenError(
+                'User is not allowed to cancel this query',
+            );
+        }
+
+        await this.queryHistoryModel.update(
+            queryUuid,
+            projectUuid,
+            user.userUuid,
+            {
+                status: QueryHistoryStatus.CANCELLED,
+            },
+        );
+    }
+
     async getAsyncQueryResults({
         user,
         projectUuid,
