@@ -1,12 +1,16 @@
-const sanitizeSlug = (slug: string) =>
-    slug
+const sanitizeSlug = (slug: string, trimHyphens = true) => {
+    let sanitizedSlug = slug
         .toLowerCase()
         // Then replace remaining non-alphanumeric characters with hyphens
-        .replace(/[^a-z0-9]+/g, '-')
-        // Replace multiple hyphens with a single hyphen
-        .replace(/-+/g, '-')
+        .replace(/[^a-z0-9]+/g, '-');
+
+    if (trimHyphens) {
         // Trim leading and trailing hyphens
-        .replace(/^-+|-+$/g, '');
+        sanitizedSlug = sanitizedSlug.replace(/^-+|-+$/g, '');
+    }
+
+    return sanitizedSlug;
+};
 
 export const generateSlug = (name: string) => {
     const sanitizedSlug = sanitizeSlug(name);
@@ -58,7 +62,7 @@ export const getLabelFromSlug = (slug: string) => slug.split('/').pop() ?? slug;
  */
 export const getLtreePathFromSlug = (slug: string) => {
     const slugs = slug.split('/');
-    const sanitizedSlugs = slugs.map(sanitizeSlug);
+    const sanitizedSlugs = slugs.map((s) => sanitizeSlug(s, false));
 
     return sanitizedSlugs.join('.').replace(/-/g, '_');
 };
