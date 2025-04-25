@@ -1,3 +1,10 @@
+## [0.1600.2](https://github.com/lightdash/lightdash/compare/0.1600.1...0.1600.2) (2025-04-25)
+
+
+### Bug Fixes
+
+* dashboard date zoom ([#14532](https://github.com/lightdash/lightdash/issues/14532)) ([97da02c](https://github.com/lightdash/lightdash/commit/97da02ce2ed73ad9051a99db4daa87b5962b9afb))
+
 ## [0.1600.1](https://github.com/lightdash/lightdash/compare/0.1600.0...0.1600.1) (2025-04-25)
 
 
