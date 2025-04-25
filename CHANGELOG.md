@@ -1,3 +1,10 @@
+## [0.1601.1](https://github.com/lightdash/lightdash/compare/0.1601.0...0.1601.1) (2025-04-25)
+
+
+### Bug Fixes
+
+* ltree path generation for slugs with emojis ([#14560](https://github.com/lightdash/lightdash/issues/14560)) ([32c021f](https://github.com/lightdash/lightdash/commit/32c021fbc374ece6ef8ff9de893a9087a60c9f2a))
+
 # [0.1601.0](https://github.com/lightdash/lightdash/compare/0.1600.4...0.1601.0) (2025-04-25)
 
 
