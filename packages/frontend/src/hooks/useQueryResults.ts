@@ -189,12 +189,14 @@ export type ReadyQueryResultsPageWithClientFetchTimeMs =
 export const executeQuery = async (
     projectUuid: string,
     data: ExecuteAsyncQueryRequestParams,
+    options: { signal?: AbortSignal } = {},
 ): Promise<ApiExecuteAsyncQueryResults> =>
     lightdashApi<ApiExecuteAsyncQueryResults>({
         url: `/projects/${projectUuid}/query`,
         version: 'v2',
         method: 'POST',
         body: JSON.stringify(data),
+        signal: options.signal,
     });
 
 export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
@@ -206,30 +208,42 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
     const result = useQuery<ApiExecuteAsyncQueryResults, ApiError>({
         enabled: !!data,
         queryKey: ['create-query', data],
-        queryFn: () => {
+        queryFn: ({ signal }) => {
             if (data?.chartUuid && data?.chartVersionUuid) {
-                return executeQuery(data.projectUuid, {
-                    context: QueryExecutionContext.CHART_HISTORY,
-                    chartUuid: data.chartUuid,
-                    versionUuid: data.chartVersionUuid,
-                });
-            } else if (data?.chartUuid) {
-                return executeQuery(data.projectUuid, {
-                    context: QueryExecutionContext.CHART,
-                    chartUuid: data.chartUuid,
-                });
-            } else if (data?.query) {
-                return executeQuery(data.projectUuid, {
-                    context: QueryExecutionContext.EXPLORE,
-                    query: {
-                        ...data.query,
-                        filters: convertDateFilters(data.query.filters),
-                        timezone: data.query.timezone ?? undefined,
-                        exploreName: data.tableId,
-                        granularity: data.dateZoomGranularity,
+                return executeQuery(
+                    data.projectUuid,
+                    {
+                        context: QueryExecutionContext.CHART_HISTORY,
+                        chartUuid: data.chartUuid,
+                        versionUuid: data.chartVersionUuid,
                     },
-                    invalidateCache: true, // Note: do not cache explore queries
-                });
+                    { signal },
+                );
+            } else if (data?.chartUuid) {
+                return executeQuery(
+                    data.projectUuid,
+                    {
+                        context: QueryExecutionContext.CHART,
+                        chartUuid: data.chartUuid,
+                    },
+                    { signal },
+                );
+            } else if (data?.query) {
+                return executeQuery(
+                    data.projectUuid,
+                    {
+                        context: QueryExecutionContext.EXPLORE,
+                        query: {
+                            ...data.query,
+                            filters: convertDateFilters(data.query.filters),
+                            timezone: data.query.timezone ?? undefined,
+                            exploreName: data.tableId,
+                            granularity: data.dateZoomGranularity,
+                        },
+                        invalidateCache: true, // Note: do not cache explore queries
+                    },
+                    { signal },
+                );
             }
             return Promise.reject(
                 new ParameterError('Missing QueryResultsProps'),
@@ -286,6 +300,7 @@ export type InfiniteQueryResults = Partial<
     >
 > & {
     projectUuid?: string;
+    queryStatus?: QueryHistoryStatus;
     rows: ResultRow[];
     isInitialLoading: boolean;
     isFetchingFirstPage: boolean;
@@ -493,6 +508,7 @@ export const useInfiniteQueryResults = (
         () => ({
             projectUuid,
             queryUuid,
+            queryStatus: nextPageData?.status, // show latest status
             metricQuery: fetchedPages[0]?.metricQuery,
             fields: fetchedPages[0]?.fields,
             totalResults: fetchedPages[0]?.totalResults,
@@ -522,6 +538,7 @@ export const useInfiniteQueryResults = (
             totalClientFetchTimeMs,
             isInitialLoading,
             fetchAll,
+            nextPageData,
         ],
     );
 };

@@ -12,6 +12,7 @@ import {
     toggleArrayValue,
     updateFieldIdInFilters,
     type AdditionalMetric,
+    type ApiExecuteAsyncQueryResults,
     type ChartConfig,
     type CustomDimension,
     type CustomFormat,
@@ -25,6 +26,7 @@ import {
     type TableCalculation,
     type TimeZone,
 } from '@lightdash/common';
+import { useQueryClient } from '@tanstack/react-query';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
 import {
@@ -1497,9 +1499,17 @@ const ExplorerProvider: FC<
     const [validQueryArgs, setValidQueryArgs] =
         useState<QueryResultsProps | null>(null);
     const query = useGetReadyQueryResults(validQueryArgs);
+    const [queryUuidHistory, setQueryUuidHistory] = useState<string[]>([]);
+    useEffect(() => {
+        if (query.data) {
+            setQueryUuidHistory((prev) => [...prev, query.data.queryUuid]);
+        }
+    }, [query.data]);
+
     const queryResults = useInfiniteQueryResults(
         validQueryArgs?.projectUuid,
-        query.data?.queryUuid,
+        // get last value from queryUuidHistory
+        queryUuidHistory[queryUuidHistory.length - 1],
     );
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { remove: clearQueryResults } = query;
@@ -1608,6 +1618,22 @@ const ExplorerProvider: FC<
         runQuery,
     ]);
 
+    const queryClient = useQueryClient();
+    const cancelQuery = useCallback(() => {
+        const queryKey = ['create-query', validQueryArgs];
+        // cancel query creation
+        void queryClient.cancelQueries({ queryKey });
+
+        const data =
+            queryClient.getQueryData<ApiExecuteAsyncQueryResults>(queryKey);
+        // remove current queryUuid from setQueryUuidHistory
+        if (data?.queryUuid) {
+            setQueryUuidHistory((prev) => {
+                return prev.filter((queryUuid) => queryUuid !== data.queryUuid);
+            });
+        }
+    }, [queryClient, validQueryArgs]);
+
     const actions = useMemo(
         () => ({
             clearExplore,
@@ -1637,6 +1663,7 @@ const ExplorerProvider: FC<
             setChartType,
             setChartConfig,
             fetchResults,
+            cancelQuery,
             toggleExpandedSection,
             addCustomDimension,
             editCustomDimension,
@@ -1673,6 +1700,7 @@ const ExplorerProvider: FC<
             setChartType,
             setChartConfig,
             fetchResults,
+            cancelQuery,
             toggleExpandedSection,
             addCustomDimension,
             editCustomDimension,
