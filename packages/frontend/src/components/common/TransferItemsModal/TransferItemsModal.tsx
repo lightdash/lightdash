@@ -136,7 +136,7 @@ const TransferItemsModal = <
                         scrollingContainerProps={{
                             // this is a hack that prevents the modal from jumping when the Alert is shown or hidden.
                             // PX value is based on the height of the Alert component below + spacing after the SpaceSelector.
-                            h: selectedSpaceLabel ? '200px' : '262px',
+                            h: selectedSpaceLabel ? '350px' : '412px',
                         }}
                     />
                 </>
