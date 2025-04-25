@@ -3,7 +3,7 @@ import {
     type ApiUserActivityDownloadCsv,
     type UserActivity,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { lightdashApi } from '../../api';
 import useQueryError from '../useQueryError';
@@ -26,9 +26,18 @@ export const useUserActivity = (projectUuid?: string) => {
     });
 };
 
-export const downloadUserActivityCsv = async (projectUuid: string) =>
+const downloadUserActivityCsv = async (projectUuid: string) =>
     lightdashApi<ApiUserActivityDownloadCsv['results']>({
         url: `/analytics/user-activity/${projectUuid}/download`,
         method: 'POST',
         body: undefined,
     });
+
+export const useDownloadUserActivityCsv = () => {
+    return useMutation<ApiUserActivityDownloadCsv['results'], ApiError, string>(
+        downloadUserActivityCsv,
+        {
+            mutationKey: ['download_user_activity_csv'],
+        },
+    );
+};
