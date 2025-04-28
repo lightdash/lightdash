@@ -75,10 +75,6 @@ const ContextMenu: FC<ContextMenuProps> = ({
         (context) => context.actions.toggleCustomDimensionModal,
     );
 
-    const removeCustomDimension = useExplorerContext(
-        (context) => context.actions.removeCustomDimension,
-    );
-
     if (item && isField(item)) {
         const itemFieldId = getItemId(item);
         return (
@@ -202,7 +198,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     icon={<MantineIcon icon={IconTrash} />}
                     color="red"
                     onClick={() => {
-                        removeCustomDimension(getItemId(item));
+                        removeActiveField(getItemId(item));
                     }}
                 >
                     Remove
