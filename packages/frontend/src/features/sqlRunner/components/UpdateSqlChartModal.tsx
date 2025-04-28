@@ -156,7 +156,11 @@ export const UpdateSqlChartModal = ({
         ],
     );
 
-    const isLoading = isSavingChart || isChartLoading || isSpacesLoading;
+    const isLoading =
+        isSavingChart ||
+        isChartLoading ||
+        isSpacesLoading ||
+        spaceManagement.createSpaceMutation.isLoading;
 
     return (
         <Modal
@@ -230,14 +234,6 @@ export const UpdateSqlChartModal = ({
                             New Space
                         </Button>
                     )}
-
-                    <Button
-                        onClick={onClose}
-                        variant="outline"
-                        disabled={isLoading}
-                    >
-                        Cancel
-                    </Button>
 
                     {modalSteps.currentStep === ModalStep.InitialInfo ? (
                         <Button

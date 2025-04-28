@@ -216,6 +216,11 @@ const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
         ],
     );
 
+    const isLoading =
+        isSaving ||
+        spacesQuery.isLoading ||
+        spaceManagement.createSpaceMutation.isLoading;
+
     return (
         <Modal
             opened={opened}
@@ -291,14 +296,6 @@ const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
                         </Button>
                     )}
 
-                    <Button
-                        onClick={handleClose}
-                        variant="outline"
-                        disabled={isSaving}
-                    >
-                        Cancel
-                    </Button>
-
                     {modalSteps.currentStep === ModalStep.InitialInfo ? (
                         <Button
                             onClick={handleNextStep}
@@ -314,7 +311,7 @@ const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
                             <Button
                                 type="submit"
                                 disabled={!isFormReadyToSave}
-                                loading={isSaving}
+                                loading={isLoading}
                             >
                                 Save
                             </Button>

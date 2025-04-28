@@ -49,14 +49,17 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces } = useSpaceSummaries(projectUuid, true, {});
 
-    const { mutate: moveChart } = useMoveChartMutation();
-    const { mutate: updateSqlChart } = useUpdateSqlChartMutation(
-        projectUuid,
-        '',
-        '', // TODO: get slug or savedSqlUuid to invalidate the query if necessary
-    );
+    const { mutateAsync: moveChart, isLoading: isMovingChart } =
+        useMoveChartMutation();
+    const { mutateAsync: updateSqlChart, isLoading: isUpdatingSqlChart } =
+        useUpdateSqlChartMutation(
+            projectUuid,
+            '',
+            '', // TODO: get slug or savedSqlUuid to invalidate the query if necessary
+        );
 
-    const { mutate: moveDashboard } = useMoveDashboardMutation();
+    const { mutateAsync: moveDashboard, isLoading: isMovingDashboard } =
+        useMoveDashboardMutation();
     const { mutate: pinChart } = useChartPinningMutation();
     const { mutate: pinDashboard } = useDashboardPinningMutation();
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
@@ -103,11 +106,11 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     );
 
     const handleCreateSpace = useCallback(
-        (space: Space | null) => {
+        async (space: Space | null) => {
             if (!space) return;
             if (action.type !== ResourceViewItemAction.CREATE_SPACE) return;
 
-            moveToSpace(action.item, space.uuid);
+            await moveToSpace(action.item, space.uuid);
         },
         [action, moveToSpace],
     );
@@ -298,8 +301,11 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     onClose={handleReset}
                     items={[action.item]}
                     spaces={spaces ?? []}
-                    onConfirm={(spaceUuid) => {
-                        moveToSpace(action.item, spaceUuid);
+                    isLoading={
+                        isMovingChart || isMovingDashboard || isUpdatingSqlChart
+                    }
+                    onConfirm={async (spaceUuid) => {
+                        await moveToSpace(action.item, spaceUuid);
                         handleReset();
                     }}
                 />
