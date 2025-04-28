@@ -1,57 +1,18 @@
-import {
-    type CustomDimension,
-    FeatureFlags,
-    type Field,
-    getErrorMessage,
-    getItemId,
-    isCustomDimension,
-    isDateItem,
-    isDimension,
-    isMetric,
-    isNumericType,
-    isTableCalculation,
-    type ItemsMap,
-    type Metric,
-    type TableCalculation,
-} from '@lightdash/common';
-import {
-    ActionIcon,
-    Button,
-    Flex,
-    Group,
-    Loader,
-    Popover,
-    Text,
-    Textarea,
-} from '@mantine/core';
+import { FeatureFlags } from '@lightdash/common';
+import { Flex, Group, Loader, Text } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
-import { IconSparkles } from '@tabler/icons-react';
 import merge from 'lodash/merge';
 import { type IDisposable, type languages } from 'monaco-editor';
-import React, {
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
-import { useParams } from 'react-router';
+import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useDeepCompareEffect } from 'react-use';
-import { lightdashApi } from '../../../api';
-import useToaster from '../../../hooks/toaster/useToaster';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
-import DocumentationHelpButton from '../../DocumentationHelpButton';
-import { isCustomVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
-import { getTemplateByType, TemplateType } from './vegaTemplates';
-
-type Schema = {
-    readonly uri: string;
-    readonly fileMatch?: string[] | undefined;
-    readonly schema?: any;
-};
+import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
+import DocumentationHelpButton from '../../../DocumentationHelpButton';
+import { isCustomVisualizationConfig } from '../../../LightdashVisualization/types';
+import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { GenerateVizWithAi } from './components/CustomVisAi';
+import { SelectTemplate } from './components/CustomVisTemplate';
+import { type Schema } from './types/types';
 
 const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     cursorBlinking: 'smooth',
@@ -68,39 +29,6 @@ const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     fixedOverflowWidgets: true,
 };
 
-type VegaFieldType = Field | TableCalculation | CustomDimension | Metric;
-const generateVegaTemplate = (
-    templateType: TemplateType,
-    xField: VegaFieldType | undefined,
-    yField: VegaFieldType | undefined,
-    extraField?: VegaFieldType,
-) => {
-    const templateJson = getTemplateByType(templateType);
-    let templateString = JSON.stringify(templateJson, null, 2);
-    if (xField) {
-        const xFieldType =
-            isDimension(xField) && isDateItem(xField) ? 'temporal' : 'ordinal';
-
-        templateString = templateString.replaceAll('field_type_x', xFieldType);
-        templateString = templateString.replaceAll(
-            'field_x',
-            getItemId(xField),
-        );
-    }
-    if (yField)
-        templateString = templateString.replaceAll(
-            'field_y',
-            getItemId(yField),
-        );
-    if (extraField)
-        templateString = templateString.replaceAll(
-            'field_extra',
-            getItemId(extraField),
-        );
-
-    return templateString;
-};
-
 const initVegaLazySchema = async () => {
     const vegaLiteSchema = await import(
         'vega-lite/build/vega-lite-schema.json'
@@ -114,26 +42,6 @@ const initVegaLazySchema = async () => {
         },
     ];
 };
-
-const getCustomViz = async (
-    projectUuid: string,
-    prompt: string,
-    itemsMap: ItemsMap | undefined,
-    sampleResults: {
-        [k: string]: unknown;
-    }[],
-    currentVizConfig: string,
-) =>
-    lightdashApi<string>({
-        url: `/ai/${projectUuid}/custom-viz`,
-        method: 'POST',
-        body: JSON.stringify({
-            prompt,
-            itemsMap,
-            sampleResults,
-            currentVizConfig,
-        }),
-    });
 
 const loadMonaco = (monaco: Monaco, schemas: Schema[]) => {
     monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
@@ -189,207 +97,7 @@ const registerCustomCompletionProvider = (
         triggerCharacters: ['$'],
     });
 };
-const SelectTemplate = ({
-    itemsMap,
-    isCustomConfig,
-    // isEditorEmpty,
-    setEditorConfig,
-}: {
-    itemsMap: ItemsMap | undefined;
-    isCustomConfig: boolean;
-    isEditorEmpty: boolean;
-    setEditorConfig: (config: string) => void;
-}) => {
-    const [opened, setOpened] = useState(false);
 
-    const loadTemplate = useCallback(
-        (template: TemplateType) => {
-            if (!isCustomConfig) return null;
-
-            /**
-             * When selecting a field for the x axis,
-             * we want to prioritize dimensions and date items
-             * over metrics and table calculations
-             */
-            const sortedItemsForX = Object.values(itemsMap || {}).sort(
-                (a, b) => {
-                    const getPriority = (item: ItemsMap[string]) => {
-                        if (isDimension(item) && isDateItem(item)) return 1;
-                        if (isDimension(item)) return 2;
-                        if (isCustomDimension(item)) return 3;
-                        if (isMetric(item)) return 4;
-                        return 5; // everything else
-                    };
-                    return getPriority(a) - getPriority(b);
-                },
-            );
-
-            /**
-             * When selecting a field for the y axis (and color/size values),
-             * we want to prioritize numeric metrics and table calculations
-             * over dimensions
-             */
-            const sortedItemsForY = Object.values(itemsMap || {}).sort(
-                (a, b) => {
-                    const getPriorityForY = (item: ItemsMap[string]) => {
-                        if (isMetric(item) && isNumericType(item.type))
-                            return 1;
-                        if (isMetric(item)) return 2;
-                        if (isTableCalculation(item)) return 3;
-                        return 4; // everything else
-                    };
-
-                    return getPriorityForY(a) - getPriorityForY(b);
-                },
-            );
-
-            const xField = sortedItemsForX[0];
-            const [yField, extraField] = sortedItemsForY;
-
-            const templateString = generateVegaTemplate(
-                template,
-                xField,
-                yField,
-                extraField,
-            );
-            setEditorConfig(templateString);
-            setOpened(false); // Close the popover after selecting a template
-        },
-        [isCustomConfig, itemsMap, setEditorConfig],
-    );
-
-    return (
-        <Popover
-            opened={opened}
-            onChange={setOpened}
-            width="200px"
-            position="bottom"
-            withArrow
-            shadow="md"
-        >
-            <Popover.Target>
-                <ActionIcon
-                    w="200px"
-                    variant="subtle"
-                    color="blue.7"
-                    onClick={() => setOpened((o) => !o)}
-                >
-                    + Select Vega-Lite template
-                </ActionIcon>
-            </Popover.Target>
-            <Popover.Dropdown>
-                <Flex direction="column" gap="xs">
-                    {Object.values(TemplateType).map((template) => (
-                        <Button
-                            key={template}
-                            variant="subtle"
-                            onClick={() => loadTemplate(template)}
-                            fullWidth
-                        >
-                            {template}
-                        </Button>
-                    ))}
-                </Flex>
-            </Popover.Dropdown>
-        </Popover>
-    );
-};
-const GenerateVizWithAi = ({
-    itemsMap,
-    sampleResults,
-    editorConfig,
-    setEditorConfig,
-}: {
-    itemsMap: ItemsMap | undefined;
-    sampleResults: {
-        [k: string]: unknown;
-    }[];
-    editorConfig: string;
-    setEditorConfig: (config: string) => void;
-}) => {
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-    }>();
-    const [prompt, setPrompt] = useState('');
-
-    const [isLoading, setIsLoading] = useState(false);
-
-    const { showToastError } = useToaster();
-
-    const handleSubmit = useCallback(() => {
-        if (isLoading) return;
-
-        setIsLoading(true);
-        if (prompt && projectUuid)
-            getCustomViz(
-                projectUuid,
-                prompt,
-                itemsMap,
-                sampleResults,
-                editorConfig,
-            )
-                .then((vizConfig) => {
-                    // Handle the visualization config
-                    setEditorConfig(vizConfig);
-                })
-                .catch((error) => {
-                    showToastError({
-                        title: 'Error generating custom viz with AI',
-                        subtitle: getErrorMessage(error),
-                    });
-                    console.error('Error generating custom viz:', error);
-                })
-                .finally(() => {
-                    setIsLoading(false);
-                });
-    }, [
-        prompt,
-        projectUuid,
-        isLoading,
-        itemsMap,
-        sampleResults,
-        setEditorConfig,
-        editorConfig,
-        showToastError,
-    ]);
-
-    return (
-        <Popover width="400px" position="bottom" withArrow shadow="md">
-            <Popover.Target>
-                <Button variant="outline" color="blue">
-                    Ask AI <IconSparkles size={16} />
-                </Button>
-            </Popover.Target>
-            <Popover.Dropdown>
-                <Textarea
-                    placeholder="Create a heatmap with detailed tooltips and clear values for fast insights"
-                    autosize
-                    autoFocus={true}
-                    minRows={1}
-                    maxRows={20}
-                    onChange={(event) => {
-                        setPrompt(event.currentTarget.value);
-                    }}
-                    onKeyDown={(event) => {
-                        if (event.key === 'Enter' && !event.shiftKey) {
-                            event.preventDefault();
-                            handleSubmit();
-                        }
-                    }}
-                />
-
-                <Button
-                    mt="sm"
-                    type="submit"
-                    disabled={isLoading}
-                    onClick={handleSubmit}
-                >
-                    {isLoading ? 'Generating...' : 'Generate'}
-                </Button>
-            </Popover.Dropdown>
-        </Popover>
-    );
-};
 const CustomVisConfigTabs: React.FC = memo(() => {
     const { visualizationConfig } = useVisualizationContext();
 
@@ -502,6 +210,11 @@ const CustomVisConfigTabs: React.FC = memo(() => {
     return (
         <>
             <Flex justify="space-between" align="flex-end">
+                <Flex justify="space-between" gap="xs">
+                    <Text>Vega-Lite JSON</Text>
+
+                    <DocumentationHelpButton href="https://docs.lightdash.com/references/custom-charts#custom-charts" />
+                </Flex>
                 <SelectTemplate
                     itemsMap={itemsMap}
                     isCustomConfig={isCustomConfig}
@@ -519,7 +232,6 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                         />
                     </>
                 )}
-                <DocumentationHelpButton href="https://docs.lightdash.com/references/custom-charts#custom-charts" />
             </Flex>
 
             <Group mt="sm" h="100%" align="top">
