@@ -35,9 +35,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const isLoading = useExplorerContext((context) => {
         const isCreatingQuery = context.query.isFetching;
         const isFetchingFirstPage = context.queryResults.isFetchingFirstPage;
-        const isFetchingAllRows =
-            context.queryResults.fetchAll &&
-            !context.queryResults.hasFetchedAllRows;
+        const isFetchingAllRows = context.queryResults.isFetchingAllPages;
         return isCreatingQuery || isFetchingFirstPage || isFetchingAllRows;
     });
     const fetchResults = useExplorerContext(
