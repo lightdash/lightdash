@@ -1,5 +1,5 @@
 import { type SpaceSummary } from '@lightdash/common';
-import { Alert, Box, Button, Group, Text } from '@mantine/core';
+import { Alert, Box, Button, Group, LoadingOverlay, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
@@ -13,6 +13,7 @@ type Props<T, U> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     projectUuid: string;
     items: T;
     spaces: U;
+    isLoading: boolean;
     onConfirm: (spaceUuid: string) => void;
 };
 
@@ -26,6 +27,7 @@ const TransferItemsModal = <
     items,
     spaces,
     onConfirm,
+    isLoading,
 }: Props<T, U>) => {
     const {
         selectedSpaceUuid,
@@ -112,6 +114,9 @@ const TransferItemsModal = <
                 </>
             }
         >
+            <LoadingOverlay
+                visible={createSpaceMutation.isLoading || isLoading}
+            />
             {isCreatingNewSpace ? (
                 <SpaceCreationForm
                     spaceName={newSpaceName}

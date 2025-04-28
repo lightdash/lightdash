@@ -7,6 +7,7 @@ import {
     getFields,
     getFiltersFromGroup,
     getItemId,
+    isCustomBinDimension,
     isDimension,
     isField,
     isMetric,
@@ -58,13 +59,28 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         [underlyingDataConfig?.item],
     );
 
-    const allFields = useMemo(
-        () => (explore ? getFields(explore) : []),
-        [explore],
+    const nonBinCustomDimensions = useMemo(
+        () =>
+            metricQuery?.customDimensions?.filter(
+                (dimension) => !isCustomBinDimension(dimension),
+            ) || [],
+        [metricQuery?.customDimensions],
     );
+
+    const allFields = useMemo(
+        () => [
+            ...nonBinCustomDimensions,
+            ...(explore ? getFields(explore) : []),
+        ],
+        [explore, nonBinCustomDimensions],
+    );
+
     const allDimensions = useMemo(
-        () => (explore ? getDimensions(explore) : []),
-        [explore],
+        () => [
+            ...nonBinCustomDimensions,
+            ...(explore ? getDimensions(explore) : []),
+        ],
+        [explore, nonBinCustomDimensions],
     );
 
     const joinedTables = useMemo(

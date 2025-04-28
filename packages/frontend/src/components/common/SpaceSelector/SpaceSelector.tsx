@@ -1,9 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    assertUnreachable,
-    FeatureFlags,
-    type SpaceSummary,
-} from '@lightdash/common';
+import { assertUnreachable, type SpaceSummary } from '@lightdash/common';
 import {
     Paper,
     ScrollArea,
@@ -12,7 +8,6 @@ import {
     type ScrollAreaProps,
 } from '@mantine/core';
 import { useMemo, useState } from 'react';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { hasDirectAccessToSpace } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import AdminContentViewFilter from '../ResourceView/AdminContentViewFilter';
@@ -48,10 +43,6 @@ const SpaceSelector = ({
         }),
     );
 
-    const isNestedSpacesEnabled = useFeatureFlagEnabled(
-        FeatureFlags.NestedSpaces,
-    );
-
     const [selectedAdminContentType, setSelectedAdminContentType] = useState<
         'all' | 'shared'
     >('shared');
@@ -74,36 +65,32 @@ const SpaceSelector = ({
         }
     }, [user.data, selectedAdminContentType, spaces]);
 
-    if (isNestedSpacesEnabled) {
-        return (
-            <Stack>
-                {userCanManageProject ? (
-                    <AdminContentViewFilter
-                        value={selectedAdminContentType}
-                        onChange={setSelectedAdminContentType}
-                        withDivider={false}
-                    />
-                ) : null}
+    return (
+        <Stack>
+            {userCanManageProject ? (
+                <AdminContentViewFilter
+                    value={selectedAdminContentType}
+                    onChange={setSelectedAdminContentType}
+                    withDivider={false}
+                />
+            ) : null}
 
-                <Paper
-                    component={ScrollArea}
-                    w="100%"
-                    h="350px"
-                    withBorder
-                    {...scrollingContainerProps}
-                >
-                    <Tree
-                        data={filteredSpaces}
-                        value={selectedSpaceUuid}
-                        onChange={onSelectSpace}
-                        topLevelLabel="Spaces"
-                    />
-                </Paper>
-            </Stack>
-        );
-    }
-
-    return null;
+            <Paper
+                component={ScrollArea}
+                w="100%"
+                h="350px"
+                withBorder
+                {...scrollingContainerProps}
+            >
+                <Tree
+                    data={filteredSpaces}
+                    value={selectedSpaceUuid}
+                    onChange={onSelectSpace}
+                    topLevelLabel="Spaces"
+                />
+            </Paper>
+        </Stack>
+    );
 };
 
 export default SpaceSelector;

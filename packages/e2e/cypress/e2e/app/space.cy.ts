@@ -46,10 +46,11 @@ describe('Space', () => {
         cy.contains('Success! Chart was saved.').should('exist');
 
         // Go back to space using breadcrumbs
-        cy.contains('Private space').click();
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
+        cy.contains(`Private space ${timestamp}`).click();
 
         // Create new dashboard
-        cy.get('.tabler-icon-plus').click();
+        cy.get('[data-testid="Space/AddButton"]').click();
         cy.contains('Create new dashboard').click();
         cy.findByPlaceholderText('eg. KPI Dashboard').type(
             `Private dashboard ${timestamp}`,

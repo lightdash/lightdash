@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import {
-    hasCustomDimension,
+    hasCustomBinDimension,
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
@@ -131,7 +131,8 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
                     Copy value
                 </Menu.Item>
 
-                {canViewUnderlyingData && !hasCustomDimension(metricQuery) ? (
+                {canViewUnderlyingData &&
+                !hasCustomBinDimension(metricQuery) ? (
                     <Menu.Item
                         icon={<MantineIcon icon={IconStack} />}
                         onClick={handleOpenUnderlyingDataModal}

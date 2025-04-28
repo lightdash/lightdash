@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { ContentType, FeatureFlags, LightdashMode } from '@lightdash/common';
+import { ContentType, LightdashMode } from '@lightdash/common';
 import { ActionIcon, Box, Button, Group, Menu, Stack } from '@mantine/core';
 import {
     IconDots,
@@ -28,7 +28,6 @@ import { ActionType } from '../components/common/SpaceActionModal/types';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
-import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
 import { useSpace } from '../hooks/useSpaces';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
@@ -53,9 +52,6 @@ const Space: FC = () => {
     const { user, health } = useApp();
     const { track } = useTracking();
 
-    const areNestedSpacesEnabled = useFeatureFlagEnabled(
-        FeatureFlags.NestedSpaces,
-    );
     const canCreateNestedSpaces = useMemo(() => {
         const userCanManageSpace = user.data?.ability?.can(
             'create',
@@ -65,13 +61,8 @@ const Space: FC = () => {
             }),
         );
 
-        return userCanManageSpace && areNestedSpacesEnabled;
-    }, [
-        user.data?.ability,
-        user.data?.organizationUuid,
-        projectUuid,
-        areNestedSpacesEnabled,
-    ]);
+        return userCanManageSpace;
+    }, [user.data?.ability, user.data?.organizationUuid, projectUuid]);
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const navigate = useNavigate();
@@ -181,6 +172,7 @@ const Space: FC = () => {
                                     <Menu.Target>
                                         <Box>
                                             <Button
+                                                data-testid="Space/AddButton"
                                                 leftIcon={
                                                     <MantineIcon
                                                         icon={IconPlus}
@@ -363,6 +355,7 @@ const Space: FC = () => {
                         confirmButtonLabel="Create"
                         icon={IconFolderPlus}
                         onClose={() => setIsCreateNestedSpaceOpen(false)}
+                        spaceUuid={spaceUuid}
                         onSubmitForm={() => {
                             setIsCreateNestedSpaceOpen(false);
                         }}

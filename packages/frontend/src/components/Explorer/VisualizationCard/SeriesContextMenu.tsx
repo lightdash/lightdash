@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { getItemMap, hasCustomDimension } from '@lightdash/common';
+import { getItemMap, hasCustomBinDimension } from '@lightdash/common';
 import { Menu, Portal } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
@@ -167,7 +167,7 @@ export const SeriesContextMenu: FC<{
                         projectUuid: projectUuid,
                     })}
                 >
-                    {!hasCustomDimension(metricQuery) && (
+                    {!hasCustomBinDimension(metricQuery) && (
                         <Menu.Item
                             icon={<MantineIcon icon={IconStack} />}
                             onClick={handleViewUnderlyingData}

@@ -1,8 +1,9 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, type Dashboard, type Space } from '@lightdash/common';
+import { type Dashboard, type Space } from '@lightdash/common';
 import {
     Button,
     Group,
+    LoadingOverlay,
     MantineProvider,
     Stack,
     TextInput,
@@ -13,7 +14,6 @@ import { useForm } from '@mantine/form';
 import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useModalSteps } from '../../../hooks/useModalSteps';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
@@ -43,9 +43,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     ...modalProps
 }) => {
     const { user } = useApp();
-    const isNestedSpacesEnabled = useFeatureFlagEnabled(
-        FeatureFlags.NestedSpaces,
-    );
     const { mutateAsync: createDashboard, isLoading: isCreatingDashboard } =
         useCreateMutation(projectUuid);
 
@@ -153,10 +150,9 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
 
     const shouldShowNewSpaceButton = useMemo(
         () =>
-            isNestedSpacesEnabled &&
             modalSteps.currentStep === ModalStep.SelectDestination &&
             !isCreatingNewSpace,
-        [isNestedSpacesEnabled, modalSteps.currentStep, isCreatingNewSpace],
+        [modalSteps.currentStep, isCreatingNewSpace],
     );
 
     const isFormReadyToSave = useMemo(
@@ -240,6 +236,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                     </Group>
                 }
             >
+                <LoadingOverlay visible={isLoading} />
                 <form
                     id="dashboard-create-modal"
                     title="Create Dashboard"

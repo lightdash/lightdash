@@ -91,7 +91,6 @@ describe('Table calculations', () => {
         cy.contains('Add "rank_1"').click();
         cy.get('button').contains('Run query').click();
 
-        cy.contains('Loading results'); // wait for results to load
         // Check valid results
         cy.contains('rank_1');
         cy.contains('rank_2').should('not.exist');
@@ -134,7 +133,6 @@ describe('Table calculations', () => {
         cy.findByPlaceholderText('Enter value(s)').clear().type('250');
         cy.get('button').contains('Run query').click();
 
-        cy.contains('Loading results'); // wait for results to load
         // Check valid results
         cy.contains('300');
         cy.contains('100').should('not.exist');

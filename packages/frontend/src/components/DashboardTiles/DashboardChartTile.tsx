@@ -13,7 +13,7 @@ import {
     getItemMap,
     getPivotConfig,
     getVisibleFields,
-    hasCustomDimension,
+    hasCustomBinDimension,
     isCartesianChartConfig,
     isCompleteLayout,
     isDashboardChartTileType,
@@ -418,12 +418,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     const {
         executeQueryResponse: { appliedDashboardFilters },
-        firstPage: { initialQueryExecutionMs },
         chart,
         explore,
     } = dashboardChartReadyQuery;
 
-    const { metricQuery, rows } = resultsData;
+    const { metricQuery, rows, initialQueryExecutionMs } = resultsData;
 
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
@@ -473,8 +472,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     queryId:
                         dashboardChartReadyQuery.executeQueryResponse.queryUuid,
                     warehouseExecutionTimeMs:
-                        dashboardChartReadyQuery.firstPage
-                            .initialQueryExecutionMs,
+                        resultsData.initialQueryExecutionMs,
                     totalTimeMs: resultsData.totalClientFetchTimeMs,
                     totalResults: resultsData.totalResults || 0,
                     loadedRows: resultsData.rows.length,
@@ -1175,7 +1173,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     projectUuid: projectUuid,
                                 })}
                             >
-                                {!hasCustomDimension(metricQuery) && (
+                                {!hasCustomBinDimension(metricQuery) && (
                                     <Menu.Item
                                         icon={<MantineIcon icon={IconStack} />}
                                         onClick={handleViewUnderlyingData}
@@ -1473,13 +1471,23 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         readyQuery.data?.executeQueryResponse.queryUuid,
     );
 
+    const isLoading = useMemo(() => {
+        const isCreatingQuery = readyQuery.isFetching;
+        const isFetchingFirstPage = resultsData.isFetchingFirstPage;
+        const isFetchingAllRows =
+            resultsData.fetchAll && !resultsData.hasFetchedAllRows;
+        return isCreatingQuery || isFetchingFirstPage || isFetchingAllRows;
+    }, [
+        readyQuery.isFetching,
+        resultsData.fetchAll,
+        resultsData.hasFetchedAllRows,
+        resultsData.isFetchingFirstPage,
+    ]);
+
     return (
         <GenericDashboardChartTile
             {...props}
-            isLoading={
-                (resultsData.fetchAll && !resultsData.hasFetchedAllRows) ||
-                readyQuery.isFetching
-            }
+            isLoading={isLoading}
             resultsData={resultsData}
             dashboardChartReadyQuery={readyQuery.data}
             error={readyQuery.error}

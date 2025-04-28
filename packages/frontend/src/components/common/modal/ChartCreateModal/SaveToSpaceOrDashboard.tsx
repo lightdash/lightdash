@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     DashboardTileTypes,
-    FeatureFlags,
     assertUnreachable,
     getDefaultChartTileSize,
     type CreateSavedChartVersion,
@@ -31,7 +30,6 @@ import {
     useUpdateDashboard,
 } from '../../../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
-import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
 import { useSpaceManagement } from '../../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
@@ -123,10 +121,6 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         true,
     );
 
-    const isNestedSpacesEnabled = useFeatureFlagEnabled(
-        FeatureFlags.NestedSpaces,
-    );
-
     const {
         data: spaces,
         isLoading: isLoadingSpaces,
@@ -187,9 +181,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                 : spaces?.[0]?.uuid;
 
             if (initialSpaceUuid) {
-                if (isNestedSpacesEnabled) {
-                    spaceManagement.setSelectedSpaceUuid(initialSpaceUuid);
-                }
+                spaceManagement.setSelectedSpaceUuid(initialSpaceUuid);
 
                 setFieldValue('spaceUuid', initialSpaceUuid);
             }
@@ -200,7 +192,6 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         defaultSpaceUuid,
         spaceManagement,
         form.values.spaceUuid,
-        isNestedSpacesEnabled,
     ]);
 
     const { mutateAsync: updateDashboard } = useUpdateDashboard(
@@ -329,7 +320,6 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
     // Determine if we should show the "New Space" button
     const shouldShowNewSpaceButton =
-        isNestedSpacesEnabled &&
         currentStep === ModalStep.SelectDestination &&
         saveDestination === SaveDestination.Space &&
         !isCreatingNewSpace;

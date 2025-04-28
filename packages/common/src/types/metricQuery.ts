@@ -144,8 +144,11 @@ export const countCustomDimensionsInMetricQuery = (
         ).length || 0,
 });
 
-export const hasCustomDimension = (metricQuery: MetricQuery | undefined) =>
-    metricQuery?.customDimensions && metricQuery.customDimensions.length > 0;
+export const hasCustomBinDimension = (metricQuery: MetricQuery | undefined) =>
+    metricQuery?.customDimensions &&
+    metricQuery.customDimensions.some((dimension) =>
+        isCustomBinDimension(dimension),
+    );
 
 export type MetricQueryRequest = {
     // tsoa doesn't support complex types like MetricQuery, so we simplified it
