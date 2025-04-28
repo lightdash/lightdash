@@ -1,3 +1,4 @@
+import { type SpaceSummary } from '@lightdash/common';
 import { Alert, Box, Button, Group, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
@@ -17,7 +18,7 @@ type Props<T, U> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
 
 const TransferItemsModal = <
     T extends Array<unknown>,
-    U extends Array<NestableItem>,
+    U extends Array<NestableItem & Pick<SpaceSummary, 'isPrivate' | 'access'>>,
 >({
     projectUuid,
     opened,
@@ -71,7 +72,6 @@ const TransferItemsModal = <
                 <>
                     {!isCreatingNewSpace ? (
                         <Button
-                            disabled={!selectedSpaceUuid}
                             variant="subtle"
                             size="xs"
                             onClick={openCreateSpaceForm}
@@ -128,24 +128,26 @@ const TransferItemsModal = <
                     </Text>
 
                     <SpaceSelector
+                        projectUuid={projectUuid}
                         spaces={spaces}
                         selectedSpaceUuid={selectedSpaceUuid}
                         onSelectSpace={setSelectedSpaceUuid}
                         isLoading={createSpaceMutation.isLoading}
+                        scrollingContainerProps={{
+                            // this is a hack that prevents the modal from jumping when the Alert is shown or hidden.
+                            // PX value is based on the height of the Alert component below + spacing after the SpaceSelector.
+                            h: selectedSpaceLabel ? '350px' : '412px',
+                        }}
                     />
                 </>
             )}
 
-            {selectedSpaceLabel ? (
+            {!isCreatingNewSpace && selectedSpaceLabel ? (
                 <Alert color="gray">
                     <Text fw={500}>
                         Transfer {items.length}{' '}
                         {items.length > 1 ? 'items' : 'item'}{' '}
-                        {!isCreatingNewSpace
-                            ? `"
-                        ${selectedSpaceLabel}"`
-                            : ''}{' '}
-                        .
+                        {!isCreatingNewSpace ? `"${selectedSpaceLabel}"` : ''} .
                     </Text>
                 </Alert>
             ) : null}

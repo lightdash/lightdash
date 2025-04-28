@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     createDashboardFilterRuleFromField,
-    hasCustomDimension,
+    hasCustomBinDimension,
     isDimension,
     isDimensionValueInvalidDate,
     type ItemsMap,
@@ -196,7 +196,7 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
 
                 {item &&
                 (canViewUnderlyingData || canViewDrillInto) &&
-                !hasCustomDimension(metricQuery) ? (
+                !hasCustomBinDimension(metricQuery) ? (
                     <>
                         {canViewUnderlyingData ? (
                             <Menu.Item

@@ -1,3 +1,108 @@
+## [0.1602.1](https://github.com/lightdash/lightdash/compare/0.1602.0...0.1602.1) (2025-04-28)
+
+
+### Bug Fixes
+
+* stop waiting for first results page ([#14523](https://github.com/lightdash/lightdash/issues/14523)) ([b56645b](https://github.com/lightdash/lightdash/commit/b56645b4846114bc2b13c6bc390926f97bebef9d))
+
+# [0.1602.0](https://github.com/lightdash/lightdash/compare/0.1601.2...0.1602.0) (2025-04-28)
+
+
+### Features
+
+* enable underlying data for charts with custom dimensions ([#14538](https://github.com/lightdash/lightdash/issues/14538)) ([fd3bbd1](https://github.com/lightdash/lightdash/commit/fd3bbd118d9b6d1251fbf02c68c7efd04defe0d5))
+
+## [0.1601.2](https://github.com/lightdash/lightdash/compare/0.1601.1...0.1601.2) (2025-04-25)
+
+
+### Bug Fixes
+
+* e2e dashboard export tests ([#14561](https://github.com/lightdash/lightdash/issues/14561)) ([bbf5a69](https://github.com/lightdash/lightdash/commit/bbf5a69041ccbeea9c63e4f273c27d1f83de4710))
+
+## [0.1601.1](https://github.com/lightdash/lightdash/compare/0.1601.0...0.1601.1) (2025-04-25)
+
+
+### Bug Fixes
+
+* ltree path generation for slugs with emojis ([#14560](https://github.com/lightdash/lightdash/issues/14560)) ([32c021f](https://github.com/lightdash/lightdash/commit/32c021fbc374ece6ef8ff9de893a9087a60c9f2a))
+
+# [0.1601.0](https://github.com/lightdash/lightdash/compare/0.1600.4...0.1601.0) (2025-04-25)
+
+
+### Features
+
+* admins can allow all dashboards to be embedded ([#14531](https://github.com/lightdash/lightdash/issues/14531)) ([813f798](https://github.com/lightdash/lightdash/commit/813f798c4c310e0da843e4ed100efbeb1fc23811))
+
+## [0.1600.4](https://github.com/lightdash/lightdash/compare/0.1600.3...0.1600.4) (2025-04-25)
+
+
+### Bug Fixes
+
+* user queries parallelization ([#14536](https://github.com/lightdash/lightdash/issues/14536)) ([66adc56](https://github.com/lightdash/lightdash/commit/66adc569a8d2ca73560b7fd58770fcbad9a4cfc1))
+
+## [0.1600.3](https://github.com/lightdash/lightdash/compare/0.1600.2...0.1600.3) (2025-04-25)
+
+
+### Bug Fixes
+
+* better error message when project directory path is wrong ([#14556](https://github.com/lightdash/lightdash/issues/14556)) ([3e37be0](https://github.com/lightdash/lightdash/commit/3e37be029c2b2ec0ab3c1fa29ad4f6cef8429604))
+
+## [0.1600.2](https://github.com/lightdash/lightdash/compare/0.1600.1...0.1600.2) (2025-04-25)
+
+
+### Bug Fixes
+
+* dashboard date zoom ([#14532](https://github.com/lightdash/lightdash/issues/14532)) ([97da02c](https://github.com/lightdash/lightdash/commit/97da02ce2ed73ad9051a99db4daa87b5962b9afb))
+
+## [0.1600.1](https://github.com/lightdash/lightdash/compare/0.1600.0...0.1600.1) (2025-04-25)
+
+
+### Bug Fixes
+
+* default time intervals for date ([#14535](https://github.com/lightdash/lightdash/issues/14535)) ([f5c4acd](https://github.com/lightdash/lightdash/commit/f5c4acdcca4b13a76aac0b95e2ba6082b87a26ee))
+
+# [0.1600.0](https://github.com/lightdash/lightdash/compare/0.1599.1...0.1600.0) (2025-04-25)
+
+
+### Features
+
+* admin content view for space tree selector ([#14542](https://github.com/lightdash/lightdash/issues/14542)) ([751f3a5](https://github.com/lightdash/lightdash/commit/751f3a58defe981af227c9c4805d6d471c510100))
+
+## [0.1599.1](https://github.com/lightdash/lightdash/compare/0.1599.0...0.1599.1) (2025-04-25)
+
+
+### Bug Fixes
+
+* improve UI export CSV analytics ([#14546](https://github.com/lightdash/lightdash/issues/14546)) ([ff22492](https://github.com/lightdash/lightdash/commit/ff224927e4f5bf8237dfeddd8d0722763b1231eb))
+
+# [0.1599.0](https://github.com/lightdash/lightdash/compare/0.1598.2...0.1599.0) (2025-04-25)
+
+
+### Features
+
+* allow creating of root level spaces from the transfer to modal ([#14541](https://github.com/lightdash/lightdash/issues/14541)) ([b67b644](https://github.com/lightdash/lightdash/commit/b67b6445d66b435337720bffba7dbc59c4b2042a))
+
+## [0.1598.2](https://github.com/lightdash/lightdash/compare/0.1598.1...0.1598.2) (2025-04-24)
+
+
+### Bug Fixes
+
+* revert queryBuilder to sync function ([#14543](https://github.com/lightdash/lightdash/issues/14543)) ([d9a4ca2](https://github.com/lightdash/lightdash/commit/d9a4ca28007b6b27953ced3aef224901853e7900))
+
+## [0.1598.1](https://github.com/lightdash/lightdash/compare/0.1598.0...0.1598.1) (2025-04-24)
+
+
+### Bug Fixes
+
+* set pre-selected space on next step ([#14539](https://github.com/lightdash/lightdash/issues/14539)) ([2b9731f](https://github.com/lightdash/lightdash/commit/2b9731f0616c55817b8424844819b548cc6d65e5))
+
+# [0.1598.0](https://github.com/lightdash/lightdash/compare/0.1597.1...0.1598.0) (2025-04-24)
+
+
+### Features
+
+* order content by rank ([#14533](https://github.com/lightdash/lightdash/issues/14533)) ([2521e61](https://github.com/lightdash/lightdash/commit/2521e61386e29039be54d242f1b718aaf6175da5))
+
 ## [0.1597.1](https://github.com/lightdash/lightdash/compare/0.1597.0...0.1597.1) (2025-04-24)
 
 

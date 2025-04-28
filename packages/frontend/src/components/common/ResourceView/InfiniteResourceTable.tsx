@@ -31,6 +31,7 @@ import {
     useMantineReactTable,
     type MRT_ColumnDef,
     type MRT_SortingState,
+    type MRT_TableOptions,
     type MRT_Virtualizer,
 } from 'mantine-react-table';
 import {
@@ -70,7 +71,7 @@ import {
     type ResourceViewItemActionState,
 } from './types';
 
-type ResourceView2Props = {
+type ResourceView2Props = Partial<MRT_TableOptions<ResourceViewItem>> & {
     filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes' | 'space'> & {
         projectUuid: string;
     };
@@ -87,6 +88,7 @@ const InfiniteResourceTable = ({
     contentTypeFilter,
     columnVisibility,
     adminContentView = false,
+    ...mrtProps
 }: ResourceView2Props) => {
     const [selectedAdminContentType, setSelectedAdminContentType] = useState<
         'all' | 'shared'
@@ -232,21 +234,34 @@ const InfiniteResourceTable = ({
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
-    const sortBy = useMemo(() => {
+    const sortBy:
+        | {
+              sortBy: ContentSortByColumns;
+              sortDirection: 'asc' | 'desc';
+          }
+        | undefined = useMemo(() => {
         if (sorting.length === 0) return undefined;
 
         const firstSorting = sorting[0].id;
 
+        let sortByColumn: ContentSortByColumns =
+            ContentSortByColumns.LAST_UPDATED_AT;
+        const sortDirection: 'asc' | 'desc' = sorting[0].desc ? 'desc' : 'asc';
+
         if (firstSorting === ContentSortByColumns.NAME) {
-            return ContentSortByColumns.NAME;
+            sortByColumn = ContentSortByColumns.NAME;
         }
 
         if (firstSorting === ContentSortByColumns.SPACE_NAME) {
-            return ContentSortByColumns.SPACE_NAME;
+            sortByColumn = ContentSortByColumns.SPACE_NAME;
         }
 
-        return ContentSortByColumns.LAST_UPDATED_AT;
+        return {
+            sortBy: sortByColumn,
+            sortDirection,
+        };
     }, [sorting]);
+
     const { data, isInitialLoading, isFetching, hasNextPage, fetchNextPage } =
         useInfiniteContent(
             {
@@ -258,7 +273,8 @@ const InfiniteResourceTable = ({
                 page: 1,
                 pageSize: 25,
                 search: deferredSearch,
-                sortBy,
+                sortBy: sortBy?.sortBy,
+                sortDirection: sortBy?.sortDirection,
                 ...(filters.space?.parentSpaceUuid && {
                     parentSpaceUuid: filters.space.parentSpaceUuid,
                 }),
@@ -672,6 +688,7 @@ const InfiniteResourceTable = ({
         enableFilterMatchHighlighting: true,
         enableEditing: true,
         editDisplayMode: 'cell',
+        ...mrtProps,
     });
 
     return (

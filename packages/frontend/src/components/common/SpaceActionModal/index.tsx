@@ -9,8 +9,6 @@ import {
     Flex,
     Group,
     MantineProvider,
-    Modal,
-    Title,
     type DefaultMantineColor,
 } from '@mantine/core';
 import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
@@ -26,7 +24,6 @@ import {
     useSpaceDeleteMutation,
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
-import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
 import { SpacePrivateAccessType } from '../ShareSpaceModal/ShareSpaceSelect';
 import CreateSpaceModalContent from './CreateSpaceModalContent';
@@ -148,18 +145,84 @@ const SpaceModal: FC<ActionModalProps> = ({
 
     return (
         <MantineProvider inherit theme={{ colorScheme: 'light' }}>
-            <Modal
+            <MantineModal
                 opened
                 size="lg"
-                title={
-                    <Group spacing="xs">
-                        {icon && <MantineIcon icon={icon} size="lg" />}
-                        <Title order={4}>{title}</Title>
+                icon={icon}
+                title={title}
+                onClose={onClose}
+                actions={
+                    <Group spacing="xs" position="right">
+                        {actionType === ActionType.CREATE &&
+                            modalStep === CreateModalStep.SET_ACCESS && (
+                                <>
+                                    <Button
+                                        variant="outline"
+                                        onClick={(
+                                            ev: React.MouseEvent<HTMLButtonElement>,
+                                        ) => {
+                                            form.setValues({
+                                                access: undefined,
+                                            });
+                                            setModalStep(
+                                                CreateModalStep.SET_NAME,
+                                            );
+                                            ev.preventDefault();
+                                        }}
+                                    >
+                                        Back
+                                    </Button>
+
+                                    <Button
+                                        type="submit"
+                                        disabled={isDisabled || !form.isValid}
+                                        color={confirmButtonColor}
+                                        loading={isDisabled}
+                                        form="form-space-action-modal"
+                                    >
+                                        {confirmButtonLabel}
+                                    </Button>
+                                </>
+                            )}
+
+                        {actionType === ActionType.CREATE &&
+                            modalStep === CreateModalStep.SET_NAME &&
+                            !(
+                                privateAccessType ===
+                                SpacePrivateAccessType.PRIVATE
+                            ) && (
+                                <Button
+                                    type="submit"
+                                    disabled={isDisabled || !form.isValid}
+                                    form="form-space-action-modal"
+                                >
+                                    Continue
+                                </Button>
+                            )}
+
+                        {(actionType !== ActionType.CREATE ||
+                            (actionType === ActionType.CREATE &&
+                                modalStep === CreateModalStep.SET_NAME &&
+                                privateAccessType ===
+                                    SpacePrivateAccessType.PRIVATE)) && (
+                            <Button
+                                type="submit"
+                                disabled={isDisabled || !form.isValid}
+                                color={confirmButtonColor}
+                                loading={isDisabled}
+                                form="form-space-action-modal"
+                            >
+                                {confirmButtonLabel}
+                            </Button>
+                        )}
                     </Group>
                 }
-                onClose={onClose}
             >
-                <form name={title} onSubmit={form.onSubmit(handleSubmit)}>
+                <form
+                    name={title}
+                    onSubmit={form.onSubmit(handleSubmit)}
+                    id="form-space-action-modal"
+                >
                     {actionType === ActionType.CREATE ? (
                         <CreateSpaceModalContent
                             projectUuid={projectUuid}
@@ -181,70 +244,8 @@ const SpaceModal: FC<ActionModalProps> = ({
                             'Unexpected action in space',
                         )
                     )}
-
-                    <Group spacing="xs" position="right" mt="xl">
-                        {actionType === ActionType.CREATE &&
-                            modalStep === CreateModalStep.SET_ACCESS && (
-                                <>
-                                    <Button
-                                        variant="light"
-                                        onClick={(
-                                            ev: React.MouseEvent<HTMLButtonElement>,
-                                        ) => {
-                                            form.setValues({
-                                                access: undefined,
-                                            });
-                                            setModalStep(
-                                                CreateModalStep.SET_NAME,
-                                            );
-                                            ev.preventDefault();
-                                        }}
-                                    >
-                                        Back
-                                    </Button>
-
-                                    <Button
-                                        type="submit"
-                                        disabled={isDisabled || !form.isValid}
-                                        color={confirmButtonColor}
-                                        loading={isDisabled}
-                                    >
-                                        {confirmButtonLabel}
-                                    </Button>
-                                </>
-                            )}
-
-                        {actionType === ActionType.CREATE &&
-                            modalStep === CreateModalStep.SET_NAME &&
-                            !(
-                                privateAccessType ===
-                                SpacePrivateAccessType.PRIVATE
-                            ) && (
-                                <Button
-                                    type="submit"
-                                    disabled={isDisabled || !form.isValid}
-                                >
-                                    Continue
-                                </Button>
-                            )}
-
-                        {(actionType !== ActionType.CREATE ||
-                            (actionType === ActionType.CREATE &&
-                                modalStep === CreateModalStep.SET_NAME &&
-                                privateAccessType ===
-                                    SpacePrivateAccessType.PRIVATE)) && (
-                            <Button
-                                type="submit"
-                                disabled={isDisabled || !form.isValid}
-                                color={confirmButtonColor}
-                                loading={isDisabled}
-                            >
-                                {confirmButtonLabel}
-                            </Button>
-                        )}
-                    </Group>
                 </form>
-            </Modal>
+            </MantineModal>
         </MantineProvider>
     );
 };

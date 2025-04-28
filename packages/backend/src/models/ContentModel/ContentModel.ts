@@ -61,12 +61,27 @@ export class ContentModel {
         });
 
         if (queryArgs.sortBy) {
-            void query.orderBy(
-                queryArgs.sortBy,
-                queryArgs.sortDirection ?? 'DESC',
-            );
+            void query.orderBy([
+                {
+                    column: 'content_type_rank',
+                    order: 'ASC',
+                },
+                {
+                    column: queryArgs.sortBy,
+                    order: queryArgs.sortDirection ?? 'DESC',
+                },
+            ]);
         } else {
-            void query.orderBy('last_updated_at', 'DESC');
+            void query.orderBy([
+                {
+                    column: 'content_type_rank',
+                    order: 'ASC',
+                },
+                {
+                    column: 'last_updated_at',
+                    order: 'DESC',
+                },
+            ]);
         }
 
         const { pagination, data } = await KnexPaginate.paginate(

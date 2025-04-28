@@ -101,7 +101,7 @@ export const TileAddModal: FC<AddProps> = ({
                 <Group spacing="xs">
                     <MantineIcon
                         size="lg"
-                        color="blue.8"
+                        color="blue.6"
                         icon={
                             type === DashboardTileTypes.MARKDOWN
                                 ? IconMarkdown

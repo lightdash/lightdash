@@ -224,7 +224,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                     label={
                                         <Flex align="center" gap="xxs">
                                             <MantineIcon
-                                                color="blue.8"
+                                                color="blue.6"
                                                 icon={getChartIcon(
                                                     value.tileChartKind,
                                                 )}

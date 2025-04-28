@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     createDashboardFilterRuleFromField,
-    hasCustomDimension,
+    hasCustomBinDimension,
     isDimension,
     isDimensionValueInvalidDate,
     isField,
@@ -149,22 +149,24 @@ const DashboardCellContextMenu: FC<
                 Copy value
             </Menu.Item>
 
-            {item && !isDimension(item) && !hasCustomDimension(metricQuery) && (
-                <Can
-                    I="view"
-                    this={subject('UnderlyingData', {
-                        organizationUuid: user.data?.organizationUuid,
-                        projectUuid: projectUuid,
-                    })}
-                >
-                    <Menu.Item
-                        icon={<MantineIcon icon={IconStack} />}
-                        onClick={handleViewUnderlyingData}
+            {item &&
+                !isDimension(item) &&
+                !hasCustomBinDimension(metricQuery) && (
+                    <Can
+                        I="view"
+                        this={subject('UnderlyingData', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid: projectUuid,
+                        })}
                     >
-                        View underlying data
-                    </Menu.Item>
-                </Can>
-            )}
+                        <Menu.Item
+                            icon={<MantineIcon icon={IconStack} />}
+                            onClick={handleViewUnderlyingData}
+                        >
+                            View underlying data
+                        </Menu.Item>
+                    </Can>
+                )}
 
             <Can
                 I="manage"

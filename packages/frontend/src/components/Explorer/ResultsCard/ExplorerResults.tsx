@@ -39,6 +39,11 @@ export const ExplorerResults = memo(() => {
     const totalRows = useExplorerContext(
         (context) => context.queryResults.totalResults,
     );
+    const isInitialLoading = useExplorerContext((context) => {
+        const isCreatingQuery = context.query.isFetching;
+        const isFetchingFirstPage = context.queryResults.isFetchingFirstPage;
+        return isCreatingQuery || isFetchingFirstPage;
+    });
     const isFetchingRows = useExplorerContext(
         (context) => context.queryResults.isFetchingRows,
     );
@@ -58,10 +63,9 @@ export const ExplorerResults = memo(() => {
     const setColumnOrder = useExplorerContext(
         (context) => context.actions.setColumnOrder,
     );
-    const { isInitialLoading, data: exploreData } = useExplore(
-        activeTableName,
-        { refetchOnMount: false },
-    );
+    const { data: exploreData } = useExplore(activeTableName, {
+        refetchOnMount: false,
+    });
     const tableCalculations = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
@@ -154,9 +158,9 @@ export const ExplorerResults = memo(() => {
 
     if (!activeTableName) return <NoTableSelected />;
 
-    if (isInitialLoading) return <EmptyStateExploreLoading />;
-
     if (columns.length === 0) return <EmptyStateNoColumns />;
+
+    if (isInitialLoading) return <EmptyStateExploreLoading />;
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
             <Box px="xs" py="lg">

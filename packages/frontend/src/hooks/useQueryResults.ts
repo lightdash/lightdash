@@ -16,8 +16,8 @@ import {
     type ResultRow,
     sleep,
 } from '@lightdash/common';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
@@ -186,104 +186,40 @@ export type ReadyQueryResultsPageWithClientFetchTimeMs =
         clientFetchTimeMs: number;
     };
 
-export type ChartReadyQueryQuery = {
-    executeQueryResponse: ApiExecuteAsyncQueryResults;
-    firstPage: ReadyQueryResultsPageWithClientFetchTimeMs;
-};
-
-export const executeQueryAndGetFirstPage = async (
+export const executeQuery = async (
     projectUuid: string,
     data: ExecuteAsyncQueryRequestParams,
-): Promise<ChartReadyQueryQuery> => {
-    const startTime = performance.now();
-    const query = await lightdashApi<ApiExecuteAsyncQueryResults>({
+): Promise<ApiExecuteAsyncQueryResults> =>
+    lightdashApi<ApiExecuteAsyncQueryResults>({
         url: `/projects/${projectUuid}/query`,
         version: 'v2',
         method: 'POST',
         body: JSON.stringify(data),
     });
-    let firstPage: ApiGetAsyncQueryResults | undefined;
-    let backoffMs = 250; // Start with 250ms
-
-    // Wait for first page
-    while (!firstPage || firstPage.status === QueryHistoryStatus.PENDING) {
-        firstPage = await lightdashApi<ApiGetAsyncQueryResults>({
-            url: `/projects/${projectUuid}/query/${query.queryUuid}?pageSize=${DEFAULT_RESULTS_PAGE_SIZE}`,
-            version: 'v2',
-            method: 'GET',
-            body: undefined,
-        });
-
-        const { status } = firstPage;
-
-        switch (status) {
-            case QueryHistoryStatus.CANCELLED:
-                throw <ApiError>{
-                    status: 'error',
-                    error: {
-                        name: 'Error',
-                        statusCode: 500,
-                        message: 'Query cancelled',
-                        data: {},
-                    },
-                };
-            case QueryHistoryStatus.ERROR:
-                throw <ApiError>{
-                    status: 'error',
-                    error: {
-                        name: 'Error',
-                        statusCode: 500,
-                        message: firstPage.error ?? 'Query failed',
-                        data: {},
-                    },
-                };
-            case QueryHistoryStatus.READY:
-                break;
-            case QueryHistoryStatus.PENDING:
-                await sleep(backoffMs);
-                // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
-                if (backoffMs < 1000) {
-                    backoffMs = Math.min(backoffMs * 2, 1000);
-                }
-                break;
-            default:
-                return assertUnreachable(status, 'Unknown query status');
-        }
-    }
-
-    return {
-        executeQueryResponse: query,
-        firstPage: {
-            ...(firstPage as ReadyQueryResultsPage),
-            clientFetchTimeMs: performance.now() - startTime,
-        },
-    } satisfies ChartReadyQueryQuery;
-};
 
 export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
-    const queryClient = useQueryClient();
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
         forbiddenToastTitle: 'Error running query',
     });
 
-    const result = useQuery<ChartReadyQueryQuery, ApiError>({
+    const result = useQuery<ApiExecuteAsyncQueryResults, ApiError>({
         enabled: !!data,
         queryKey: ['create-query', data],
         queryFn: () => {
             if (data?.chartUuid && data?.chartVersionUuid) {
-                return executeQueryAndGetFirstPage(data.projectUuid, {
+                return executeQuery(data.projectUuid, {
                     context: QueryExecutionContext.CHART_HISTORY,
                     chartUuid: data.chartUuid,
                     versionUuid: data.chartVersionUuid,
                 });
             } else if (data?.chartUuid) {
-                return executeQueryAndGetFirstPage(data.projectUuid, {
+                return executeQuery(data.projectUuid, {
                     context: QueryExecutionContext.CHART,
                     chartUuid: data.chartUuid,
                 });
             } else if (data?.query) {
-                return executeQueryAndGetFirstPage(data.projectUuid, {
+                return executeQuery(data.projectUuid, {
                     context: QueryExecutionContext.EXPLORE,
                     query: {
                         ...data.query,
@@ -300,22 +236,6 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
             );
         },
     });
-
-    // On Success
-    useEffect(() => {
-        if (result.data) {
-            queryClient.setQueryData(
-                [
-                    'query-page',
-                    data?.projectUuid,
-                    result.data.executeQueryResponse.queryUuid,
-                    1,
-                    DEFAULT_RESULTS_PAGE_SIZE,
-                ],
-                result.data.firstPage,
-            );
-        }
-    }, [data?.projectUuid, result.data, queryClient]);
 
     // On Error
     useEffect(() => {
@@ -335,7 +255,7 @@ const getResultsPage = async (
     queryUuid: string,
     page: number = 1,
     pageSize: number | null = null,
-): Promise<ReadyQueryResultsPage> => {
+): Promise<ApiGetAsyncQueryResults> => {
     const searchParams = new URLSearchParams();
     if (page) {
         searchParams.set('page', page.toString());
@@ -345,7 +265,7 @@ const getResultsPage = async (
     }
 
     const urlQueryParams = searchParams.toString();
-    const currentPage = await lightdashApi<ApiGetAsyncQueryResults>({
+    return lightdashApi<ApiGetAsyncQueryResults>({
         url: `/projects/${projectUuid}/query/${queryUuid}${
             urlQueryParams ? `?${urlQueryParams}` : ''
         }`,
@@ -353,54 +273,22 @@ const getResultsPage = async (
         method: 'GET',
         body: undefined,
     });
-    const { status } = currentPage;
-    switch (status) {
-        case QueryHistoryStatus.CANCELLED:
-            throw <ApiError>{
-                status: 'error',
-                error: {
-                    name: 'Error',
-                    statusCode: 500,
-                    message: 'Query cancelled',
-                    data: {},
-                },
-            };
-        case QueryHistoryStatus.ERROR:
-            throw <ApiError>{
-                status: 'error',
-                error: {
-                    name: 'Error',
-                    statusCode: 500,
-                    message: currentPage.error ?? 'Query failed',
-                    data: {},
-                },
-            };
-        case QueryHistoryStatus.PENDING:
-            throw <ApiError>{
-                status: 'error',
-                error: {
-                    name: 'Error',
-                    statusCode: 500,
-                    message: 'Query pending',
-                    data: {},
-                },
-            };
-        case QueryHistoryStatus.READY:
-            return currentPage;
-        default:
-            return assertUnreachable(status, 'Unknown query status');
-    }
 };
 
 export type InfiniteQueryResults = Partial<
     Pick<
         ReadyQueryResultsPage,
-        'metricQuery' | 'queryUuid' | 'totalResults' | 'fields'
+        | 'metricQuery'
+        | 'queryUuid'
+        | 'totalResults'
+        | 'fields'
+        | 'initialQueryExecutionMs'
     >
 > & {
     projectUuid?: string;
     rows: ResultRow[];
     isInitialLoading: boolean;
+    isFetchingFirstPage: boolean;
     isFetchingRows: boolean;
     fetchMoreRows: () => void;
     setFetchAll: (value: boolean) => void;
@@ -476,7 +364,7 @@ export const useInfiniteQueryResults = (
     ]);
 
     const nextPage = useQuery<
-        ReadyQueryResultsPageWithClientFetchTimeMs,
+        ApiGetAsyncQueryResults & { clientFetchTimeMs: number },
         ApiError
     >({
         enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
@@ -498,10 +386,11 @@ export const useInfiniteQueryResults = (
             return {
                 ...results,
                 clientFetchTimeMs: performance.now() - startTime,
-            } satisfies ReadyQueryResultsPageWithClientFetchTimeMs;
+            };
         },
         staleTime: Infinity, // the data will never be considered stale
     });
+    const { data: nextPageData, refetch: refetchNextPage } = nextPage;
 
     // On error
     useEffect(() => {
@@ -510,12 +399,57 @@ export const useInfiniteQueryResults = (
         }
     }, [nextPage.error, setErrorResponse]);
 
+    // Initial backoff time in ms
+    const backoffRef = useRef(250);
     // On success
     useEffect(() => {
-        if (nextPage.data) {
-            setFetchedPages((prevState) => [...prevState, nextPage.data]);
+        if (!nextPageData) return;
+        const { status } = nextPageData;
+        switch (status) {
+            case QueryHistoryStatus.ERROR: {
+                backoffRef.current = 250;
+                setErrorResponse({
+                    status: 'error',
+                    error: {
+                        name: 'Error',
+                        statusCode: 500,
+                        message: nextPageData.error ?? 'Query failed',
+                        data: {},
+                    },
+                });
+                break;
+            }
+            case QueryHistoryStatus.CANCELLED: {
+                backoffRef.current = 250;
+                setErrorResponse({
+                    status: 'error',
+                    error: {
+                        name: 'Error',
+                        statusCode: 500,
+                        message: 'Query cancelled',
+                        data: {},
+                    },
+                });
+                break;
+            }
+            case QueryHistoryStatus.PENDING: {
+                // Re-fetch page
+                void sleep(backoffRef.current).then(() => refetchNextPage());
+                // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
+                if (backoffRef.current < 1000) {
+                    backoffRef.current = Math.min(backoffRef.current * 2, 1000);
+                }
+                break;
+            }
+            case QueryHistoryStatus.READY: {
+                backoffRef.current = 250;
+                setFetchedPages((prevState) => [...prevState, nextPageData]);
+                break;
+            }
+            default:
+                return assertUnreachable(status, 'Unknown query status');
         }
-    }, [nextPage.data]);
+    }, [nextPageData, refetchNextPage, setErrorResponse]);
 
     useEffect(() => {
         // Reset fetched pages before updating the fetch args
@@ -562,6 +496,7 @@ export const useInfiniteQueryResults = (
             metricQuery: fetchedPages[0]?.metricQuery,
             fields: fetchedPages[0]?.fields,
             totalResults: fetchedPages[0]?.totalResults,
+            initialQueryExecutionMs: fetchedPages[0]?.initialQueryExecutionMs,
             hasFetchedAllRows,
             rows: fetchedRows,
             isFetchingRows,
@@ -569,6 +504,11 @@ export const useInfiniteQueryResults = (
             setFetchAll,
             totalClientFetchTimeMs,
             isInitialLoading,
+            isFetchingFirstPage:
+                !!queryUuid &&
+                (fetchedPages[0]?.totalResults === undefined ||
+                    (fetchedPages[0]?.totalResults > 0 &&
+                        fetchedRows.length === 0)),
             fetchAll,
         }),
         [

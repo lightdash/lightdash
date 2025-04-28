@@ -31,6 +31,7 @@ import {
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
+    type CustomDimension,
     CustomFormatType,
     DashboardAvailableFilters,
     DashboardBasicDetails,
@@ -45,6 +46,7 @@ import {
     deepEqual,
     DEFAULT_RESULTS_PAGE_SIZE,
     DefaultSupportedDbtVersion,
+    type Dimension,
     DimensionType,
     DownloadFileType,
     type ExecuteAsyncDashboardChartRequestParams,
@@ -78,6 +80,8 @@ import {
     getTimezoneLabel,
     hasIntersection,
     IntrinsicUserAttributes,
+    isCustomBinDimension,
+    isCustomDimension,
     isCustomSqlDimension,
     isDateItem,
     isDimension,
@@ -3028,23 +3032,12 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { metricQuery } = await this.queryHistoryModel.get(
-            underlyingDataSourceQueryUuid,
-            projectUuid,
-            user.userUuid,
-        );
-
-        if (
-            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            user.ability.cannot(
-                'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
+        const { metricQuery, fields: metricQueryFields } =
+            await this.queryHistoryModel.get(
+                underlyingDataSourceQueryUuid,
+                projectUuid,
+                user.userUuid,
             );
-        }
 
         const { exploreName } = metricQuery;
 
@@ -3054,13 +3047,6 @@ export class ProjectService extends BaseService {
             exploreName,
             organizationUuid,
         );
-
-        const { fields: metricQueryFields } = await this.compileQuery({
-            user,
-            metricQuery,
-            projectUuid,
-            explore,
-        });
 
         const underlyingDataItem = underlyingDataItemId
             ? metricQueryFields[underlyingDataItemId]
@@ -3086,13 +3072,25 @@ export class ProjectService extends BaseService {
             ? underlyingDataItem.table
             : undefined;
 
-        const allDimensions = getDimensions(explore);
+        const allDimensions = [
+            ...(metricQuery.customDimensions?.filter(
+                (dimension) => !isCustomBinDimension(dimension),
+            ) || []),
+            ...getDimensions(explore),
+        ];
+
+        const isValidNonCustomDimension = (
+            dimension: CustomDimension | CompiledDimension,
+        ) =>
+            !isCustomDimension(dimension) &&
+            !dimension.timeInterval &&
+            !dimension.hidden;
 
         const availableDimensions = allDimensions.filter(
             (dimension) =>
                 availableTables.has(dimension.table) &&
-                !dimension.timeInterval &&
-                !dimension.hidden &&
+                (isValidNonCustomDimension(dimension) ||
+                    isCustomDimension(dimension)) &&
                 (itemShowUnderlyingValues !== undefined
                     ? (itemShowUnderlyingValues.includes(dimension.name) &&
                           itemShowUnderlyingTable === dimension.table) ||
@@ -3120,6 +3118,10 @@ export class ProjectService extends BaseService {
         const underlyingDataMetricQuery: MetricQuery = {
             exploreName,
             dimensions: availableDimensions.map(getItemId),
+            // Remove custom bin dimensions from underlying data query
+            customDimensions: metricQuery.customDimensions?.filter(
+                (dimension) => !isCustomBinDimension(dimension),
+            ),
             filters,
             metrics: [],
             sorts: [],

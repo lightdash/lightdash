@@ -744,18 +744,19 @@ export class UserModel {
                 `Cannot find user with uuid ${userUuid} and org ${organizationUuid}`,
             );
         }
+        const [hasAuthentication, projectRoles, groupProjectRoles] =
+            await Promise.all([
+                await this.hasAuthentication(user.user_uuid),
+                this.getUserProjectRoles(user.user_id, user.user_uuid),
+                this.getUserGroupProjectRoles(
+                    user.user_id,
+                    user.organization_id,
+                    user.user_uuid,
+                ),
+            ]);
         const lightdashUser = mapDbUserDetailsToLightdashUser(
             user,
-            await this.hasAuthentication(user.user_uuid),
-        );
-        const projectRoles = await this.getUserProjectRoles(
-            user.user_id,
-            user.user_uuid,
-        );
-        const groupProjectRoles = await this.getUserGroupProjectRoles(
-            user.user_id,
-            user.organization_id,
-            user.user_uuid,
+            hasAuthentication,
         );
         const abilityBuilder = getUserAbilityBuilder({
             user: lightdashUser,

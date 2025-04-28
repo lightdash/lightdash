@@ -6,6 +6,15 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
+/**
+ * Priority ranking for content types (lower number = higher priority)
+ */
+export enum ContentTypePriority {
+    SPACE = 1,
+    DASHBOARD = 2,
+    CHART = 3,
+}
+
 export type ContentFilters = {
     projectUuids?: string[];
     spaceUuids?: string[];
@@ -27,7 +36,8 @@ export type ContentArgs = {
 export type SummaryContentRow<
     T extends Record<string, unknown> = Record<string, unknown>,
 > = {
-    content_type: string;
+    content_type: ContentType;
+    content_type_rank: number;
     uuid: string;
     name: string;
     description: string | null;
