@@ -1562,15 +1562,22 @@ const ExplorerProvider: FC<
         dispatch({ type: ActionType.SET_FETCH_RESULTS_FALSE });
     }, [runQuery, state.shouldFetchResults]);
 
+    const queryClient = useQueryClient();
     const clearExplore = useCallback(async () => {
         resetCachedChartConfig();
-
+        // cancel query creation
+        void queryClient.cancelQueries({
+            queryKey: ['create-query'],
+            exact: false,
+        });
+        // reset query history
+        setQueryUuidHistory([]);
         dispatch({
             type: ActionType.RESET,
             payload: defaultStateWithConfig,
         });
         resetQueryResults();
-    }, [resetQueryResults, defaultStateWithConfig]);
+    }, [queryClient, resetQueryResults, defaultStateWithConfig]);
 
     const navigate = useNavigate();
     const clearQuery = useCallback(async () => {
@@ -1617,7 +1624,6 @@ const ExplorerProvider: FC<
         runQuery,
     ]);
 
-    const queryClient = useQueryClient();
     const cancelQuery = useCallback(() => {
         // cancel query creation
         void queryClient.cancelQueries({
