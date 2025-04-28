@@ -1,3 +1,10 @@
+## [0.1602.2](https://github.com/lightdash/lightdash/compare/0.1602.1...0.1602.2) (2025-04-28)
+
+
+### Bug Fixes
+
+* add loading states/overlays when moving ([#14574](https://github.com/lightdash/lightdash/issues/14574)) ([6145cd1](https://github.com/lightdash/lightdash/commit/6145cd134fb0f36a5c82c692bd8db7097ee2fe33))
+
 ## [0.1602.1](https://github.com/lightdash/lightdash/compare/0.1602.0...0.1602.1) (2025-04-28)
 
 
