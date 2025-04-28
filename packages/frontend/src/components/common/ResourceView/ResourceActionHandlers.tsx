@@ -112,11 +112,6 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         [action, moveToSpace],
     );
 
-    const handleMoveToSpace = useCallback(() => {
-        if (action.type !== ResourceViewItemAction.MOVE_TO_SPACE) return;
-        moveToSpace(action.item, action.data.spaceUuid);
-    }, [action, moveToSpace]);
-
     const handlePinToHomepage = useCallback(() => {
         if (action.type !== ResourceViewItemAction.PIN_TO_HOMEPAGE) return;
 
@@ -134,13 +129,6 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                 );
         }
     }, [action, pinChart, pinDashboard, pinSpace]);
-
-    useEffect(() => {
-        if (action.type === ResourceViewItemAction.MOVE_TO_SPACE) {
-            handleMoveToSpace();
-            handleReset();
-        }
-    }, [action, handleMoveToSpace, handleReset]);
 
     useEffect(() => {
         if (action.type === ResourceViewItemAction.PIN_TO_HOMEPAGE) {
@@ -318,7 +306,6 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
             );
 
         case ResourceViewItemAction.CLOSE:
-        case ResourceViewItemAction.MOVE_TO_SPACE:
         case ResourceViewItemAction.PIN_TO_HOMEPAGE:
             return null;
         default:

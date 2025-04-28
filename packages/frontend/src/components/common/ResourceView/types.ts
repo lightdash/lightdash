@@ -14,7 +14,6 @@ export enum ResourceViewItemAction {
     CREATE_SPACE,
     PIN_TO_HOMEPAGE,
     TRANSFER_TO_SPACE,
-    MOVE_TO_SPACE, // TODO: remove these once we shift to the new nested spaces
 }
 
 export enum ResourceViewType {
@@ -54,11 +53,6 @@ export type ResourceViewItemActionState =
     | {
           type: ResourceViewItemAction.PIN_TO_HOMEPAGE;
           item: ResourceViewItem;
-      }
-    | {
-          type: ResourceViewItemAction.MOVE_TO_SPACE;
-          item: ResourceViewChartItem | ResourceViewDashboardItem;
-          data: { spaceUuid: string };
       }
     | {
           type: ResourceViewItemAction.TRANSFER_TO_SPACE;
