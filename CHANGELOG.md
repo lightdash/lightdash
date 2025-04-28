@@ -1,3 +1,10 @@
+## [0.1602.1](https://github.com/lightdash/lightdash/compare/0.1602.0...0.1602.1) (2025-04-28)
+
+
+### Bug Fixes
+
+* stop waiting for first results page ([#14523](https://github.com/lightdash/lightdash/issues/14523)) ([b56645b](https://github.com/lightdash/lightdash/commit/b56645b4846114bc2b13c6bc390926f97bebef9d))
+
 # [0.1602.0](https://github.com/lightdash/lightdash/compare/0.1601.2...0.1602.0) (2025-04-28)
 
 
