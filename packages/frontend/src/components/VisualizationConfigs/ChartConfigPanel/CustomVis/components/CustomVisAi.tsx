@@ -55,7 +55,7 @@ export const GenerateVizWithAi = ({
         <Popover width="400px" position="bottom" withArrow shadow="md">
             <Popover.Target>
                 <Button variant="outline" color="blue">
-                    Ask AI <IconSparkles size={16} />
+                    AI <IconSparkles size={16} />
                 </Button>
             </Popover.Target>
             <Popover.Dropdown>

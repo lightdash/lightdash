@@ -222,15 +222,12 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                     setEditorConfig={setEditorConfig}
                 />
                 {isAiEnabled && (
-                    <>
-                        <Text>or</Text>
-                        <GenerateVizWithAi
-                            itemsMap={itemsMap}
-                            sampleResults={series.slice(0, 3)}
-                            setEditorConfig={setEditorConfig}
-                            editorConfig={editorConfig}
-                        />
-                    </>
+                    <GenerateVizWithAi
+                        itemsMap={itemsMap}
+                        sampleResults={series.slice(0, 3)}
+                        setEditorConfig={setEditorConfig}
+                        editorConfig={editorConfig}
+                    />
                 )}
             </Flex>
 
