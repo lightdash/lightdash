@@ -6,17 +6,29 @@ import {
     type ApiError,
     type ApiExecuteAsyncQueryResults,
     type ApiExploreResults,
+    type ExecuteAsyncDashboardChartRequestParams,
     type SavedChart,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { lightdashApi } from '../../api';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import { useExplore } from '../useExplore';
-import { executeQuery } from '../useQueryResults';
 import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
+
+const executeAsyncDashboardChartQuery = async (
+    projectUuid: string,
+    data: ExecuteAsyncDashboardChartRequestParams,
+): Promise<ApiExecuteAsyncQueryResults> =>
+    lightdashApi<ApiExecuteAsyncQueryResults>({
+        url: `/projects/${projectUuid}/query/dashboard-chart`,
+        version: 'v2',
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
 
 export type DashboardChartReadyQuery = {
     executeQueryResponse: ApiExecuteAsyncQueryResults;
@@ -122,17 +134,20 @@ export const useDashboardChartReadyQuery = (
                 throw new Error('Chart or explore is undefined');
             }
 
-            const executeQueryResponse = await executeQuery(chart.projectUuid, {
-                context: autoRefresh
-                    ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
-                    : context || QueryExecutionContext.DASHBOARD,
-                chartUuid: chartUuid!,
-                dashboardUuid: dashboardUuid!,
-                dashboardFilters: timezoneFixFilters,
-                dashboardSorts,
-                granularity,
-                invalidateCache,
-            });
+            const executeQueryResponse = await executeAsyncDashboardChartQuery(
+                chart.projectUuid,
+                {
+                    context: autoRefresh
+                        ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
+                        : context || QueryExecutionContext.DASHBOARD,
+                    chartUuid: chartUuid!,
+                    dashboardUuid: dashboardUuid!,
+                    dashboardFilters: timezoneFixFilters,
+                    dashboardSorts,
+                    granularity,
+                    invalidateCache,
+                },
+            );
 
             return {
                 chart,

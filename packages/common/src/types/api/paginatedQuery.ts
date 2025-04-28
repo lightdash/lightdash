@@ -40,32 +40,3 @@ export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams;
-
-export function isExecuteAsyncMetricQueryRequest(
-    query: ExecuteAsyncQueryRequestParams,
-): query is ExecuteAsyncMetricQueryRequestParams {
-    return 'query' in query;
-}
-
-export function isExecuteAsyncDashboardChartRequest(
-    query: ExecuteAsyncQueryRequestParams,
-): query is ExecuteAsyncDashboardChartRequestParams {
-    return (
-        'chartUuid' in query &&
-        'dashboardUuid' in query &&
-        'dashboardFilters' in query &&
-        'dashboardSorts' in query
-    );
-}
-
-export function isExecuteAsyncSavedChartRequest(
-    query: ExecuteAsyncQueryRequestParams,
-): query is ExecuteAsyncSavedChartRequestParams {
-    return 'chartUuid' in query && !isExecuteAsyncDashboardChartRequest(query);
-}
-
-export function isExecuteAsyncUnderlyingDataRequest(
-    query: ExecuteAsyncQueryRequestParams,
-): query is ExecuteAsyncUnderlyingDataRequestParams {
-    return 'underlyingDataSourceQueryUuid' in query && 'filters' in query;
-}

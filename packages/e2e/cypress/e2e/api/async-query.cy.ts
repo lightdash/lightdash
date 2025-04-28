@@ -127,7 +127,7 @@ describe('Async Query API', () => {
 
         // First execute the async query
         cy.request({
-            url: `${apiUrl}/projects/${projectUuid}/query`,
+            url: `${apiUrl}/projects/${projectUuid}/query/metric-query`,
             method: 'POST',
             headers: { 'Content-type': 'application/json' },
             body: runQueryBody,
@@ -207,7 +207,7 @@ describe('Async Query API', () => {
 
         cy.log('First execute the async query');
         cy.request({
-            url: `${apiUrl}/projects/${projectUuid}/query`,
+            url: `${apiUrl}/projects/${projectUuid}/query/metric-query`,
             method: 'POST',
             headers: { 'Content-type': 'application/json' },
             body: runQueryBody,
@@ -343,7 +343,7 @@ describe('Async Query API', () => {
 
         cy.log('First execute the async query');
         cy.request({
-            url: `${apiUrl}/projects/${projectUuid}/query`,
+            url: `${apiUrl}/projects/${projectUuid}/query/metric-query`,
             method: 'POST',
             headers: { 'Content-type': 'application/json' },
             body: runQueryBody,
