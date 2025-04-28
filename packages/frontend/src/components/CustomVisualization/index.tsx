@@ -1,8 +1,9 @@
-import { Center, Loader, Text } from '@mantine/core';
+import { Center } from '@mantine/core';
 import { Suspense, lazy, useEffect, type FC } from 'react';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { EmptyChart, LoadingChart } from '../SimpleChart';
 
 const VegaLite = lazy(() =>
     import('react-vega').then((module) => ({ default: module.VegaLite })),
@@ -23,7 +24,7 @@ const CustomVisualization: FC<Props> = (props) => {
     }, [resultsData]);
 
     if (isLoading) {
-        return <Text>Loading...</Text>;
+        return <LoadingChart />;
     }
 
     if (!isCustomVisualizationConfig(visualizationConfig)) return null;
@@ -34,7 +35,7 @@ const CustomVisualization: FC<Props> = (props) => {
         !isCustomVisualizationConfig(visualizationConfig) ||
         !spec
     ) {
-        return null;
+        return <EmptyChart />;
     }
 
     // TODO: 'chartConfig' is more props than config. It has data and
@@ -57,7 +58,7 @@ const CustomVisualization: FC<Props> = (props) => {
             <Suspense
                 fallback={
                     <Center>
-                        <Loader color="gray" />
+                        <LoadingChart />
                     </Center>
                 }
             >

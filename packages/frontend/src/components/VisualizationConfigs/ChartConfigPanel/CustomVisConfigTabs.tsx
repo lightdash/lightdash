@@ -15,12 +15,12 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Button,
     Flex,
     Group,
     Loader,
     Popover,
-    Select,
     Text,
     Textarea,
 } from '@mantine/core';
@@ -200,9 +200,7 @@ const SelectTemplate = ({
     isEditorEmpty: boolean;
     setEditorConfig: (config: string) => void;
 }) => {
-    /*const [selectedTemplate, setSelectedTemplate] = useState<
-        TemplateType | undefined
-    >();*/
+    const [opened, setOpened] = useState(false);
 
     const loadTemplate = useCallback(
         (template: TemplateType) => {
@@ -255,61 +253,45 @@ const SelectTemplate = ({
                 extraField,
             );
             setEditorConfig(templateString);
+            setOpened(false); // Close the popover after selecting a template
         },
         [isCustomConfig, itemsMap, setEditorConfig],
     );
-    return (
-        <>
-            {/*
-            // confirmation modal ? yes or no
-            // you can always do cTRL+z to go back 
-            <Modal
-                title="Load template"
-                opened={!!selectedTemplate}
-                onClose={() => {
-                    setSelectedTemplate(undefined);
-                }}
-            >
-                <Text>
-                    Loading a new template will overwrite your current chart
-                    configuration. Are you sure you want to continue?
-                </Text>
-                <Group position="right" mt="sm">
-                    <Button
-                        color="dark"
-                        variant="outline"
-                        onClick={() => {
-                            setSelectedTemplate(undefined);
-                        }}
-                    >
-                        Keep config
-                    </Button>
-                    <Button
-                        onClick={() => {
-                            if (selectedTemplate)
-                                loadTemplate(selectedTemplate);
-                            setSelectedTemplate(undefined);
-                        }}
-                    >
-                        Load template
-                    </Button>
-                </Group>
-            </Modal>*/}
 
-            <Select
-                label="Load vega lite template"
-                placeholder="Select template"
-                data={Object.values(TemplateType)}
-                onChange={(value) => {
-                    if (!value) return;
-                    // if (isEditorEmpty) {
-                    loadTemplate(value as TemplateType);
-                    // } else {
-                    //   setSelectedTemplate(value as TemplateType);
-                    //}
-                }}
-            />
-        </>
+    return (
+        <Popover
+            opened={opened}
+            onChange={setOpened}
+            width="200px"
+            position="bottom"
+            withArrow
+            shadow="md"
+        >
+            <Popover.Target>
+                <ActionIcon
+                    w="200px"
+                    variant="subtle"
+                    color="blue.7"
+                    onClick={() => setOpened((o) => !o)}
+                >
+                    + Select Vega-Lite template
+                </ActionIcon>
+            </Popover.Target>
+            <Popover.Dropdown>
+                <Flex direction="column" gap="xs">
+                    {Object.values(TemplateType).map((template) => (
+                        <Button
+                            key={template}
+                            variant="subtle"
+                            onClick={() => loadTemplate(template)}
+                            fullWidth
+                        >
+                            {template}
+                        </Button>
+                    ))}
+                </Flex>
+            </Popover.Dropdown>
+        </Popover>
     );
 };
 const GenerateVizWithAi = ({
@@ -539,32 +521,11 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                 )}
                 <DocumentationHelpButton href="https://docs.lightdash.com/references/custom-charts#custom-charts" />
             </Flex>
-            {/* <Tabs
-                defaultValue="config"
-                style={{ flexGrow: 1 }}
-                styles={{
-                    root: {
-                        display: 'flex',
-                        flexDirection: 'column',
-                    },
-                    panel: {
-                        flexGrow: 1,
-                    },
-                }}
-            >
-               <Tabs.List>
-                    <Tabs.Tab value="config">Config</Tabs.Tab>
-                    <Tabs.Tab value="data">Data</Tabs.Tab>
-                   
-                </Tabs.List>
 
-                <Tabs.Panel value="config">
-                */}
             <Group mt="sm" h="100%" align="top">
                 {/* Hack to show a monaco placeholder */}
                 {isEditorEmpty ? (
                     <Text
-                        ml="xl"
                         pos="absolute"
                         w="330px"
                         color="gray.5"
@@ -572,9 +533,13 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                             pointerEvents: 'none',
                             zIndex: 100,
                             fontFamily: 'monospace',
+                            marginLeft: '17px', // Stye to match Monaco text
+                            fontSize: '14px',
+                            lineHeight: '19px',
+                            letterSpacing: '0px',
                         }}
                     >
-                        {`Write some vega lite JSON or select a template. Check our docs for more info and examples.`}
+                        {`Start by entering your Vega-Lite JSON code or choose from our pre-built templates to create your chart.`}
                     </Text>
                 ) : null}
 
@@ -612,20 +577,6 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                     }}
                 />
             </Group>
-            {/*} </Tabs.Panel>
-
-                <Tabs.Panel value="data">
-                    <Editor
-                        loading={<Loader color="gray" size="xs" />}
-                        defaultLanguage="json"
-                        options={{
-                            ...MONACO_DEFAULT_OPTIONS,
-                            readOnly: true,
-                        }}
-                        defaultValue={JSON.stringify(series, null, 2)}
-                    />
-                </Tabs.Panel>
-            </Tabs>*/}
         </>
     );
 });
