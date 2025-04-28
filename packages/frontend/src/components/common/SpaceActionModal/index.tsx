@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import {
     Button,
-    Flex,
     Group,
     MantineProvider,
     type DefaultMantineColor,
@@ -27,7 +26,7 @@ import {
 import MantineModal from '../MantineModal';
 import { SpacePrivateAccessType } from '../ShareSpaceModal/ShareSpaceSelect';
 import CreateSpaceModalContent from './CreateSpaceModalContent';
-import DeleteSpaceModalContent from './DeleteSpaceModalContent';
+import { DeleteSpaceModal } from './DeleteSpaceModal';
 import { ActionType, CreateModalStep } from './types';
 import UpdateSpaceModalContent from './UpdateSpaceModalContent';
 
@@ -45,6 +44,7 @@ interface ActionModalProps {
     isDisabled: boolean;
     shouldRedirect?: boolean;
     parentSpaceUuid: Space['parentSpaceUuid'];
+    rootSpace?: Pick<Space, 'name' | 'uuid'>;
 }
 
 export interface SpaceModalBody {
@@ -52,15 +52,21 @@ export interface SpaceModalBody {
     form: UseFormReturnType<Space>;
 }
 
-export interface CreateSpaceModalBody {
-    data?: Space;
+export interface CreateSpaceModalBody
+    extends Pick<ActionModalProps, 'parentSpaceUuid' | 'onClose' | 'rootSpace'>,
+        SpaceModalBody {
     modalStep: CreateModalStep;
     projectUuid: string;
-    form: UseFormReturnType<Space>;
     privateAccessType: SpacePrivateAccessType;
     onPrivateAccessTypeChange: (type: SpacePrivateAccessType) => void;
     organizationUsers: OrganizationMemberProfile[] | undefined;
-    parentSpaceUuid: Space['parentSpaceUuid'];
+}
+
+export interface DeleteSpaceModalBody
+    extends Pick<CreateSpaceModalBody, 'data' | 'form'>,
+        Pick<ActionModalProps, 'title' | 'icon'> {
+    handleSubmit: (values: Space) => void;
+    onClose: () => void;
 }
 
 const validate = z.object({
@@ -79,6 +85,7 @@ const SpaceModal: FC<ActionModalProps> = ({
     onClose = () => {},
     onSubmitForm,
     parentSpaceUuid,
+    rootSpace,
 }) => {
     const { showToastError } = useToaster();
     const { data: organizationUsers } = useOrganizationUsers();
@@ -119,27 +126,14 @@ const SpaceModal: FC<ActionModalProps> = ({
 
     if (actionType === ActionType.DELETE) {
         return (
-            <MantineModal
-                opened
-                onClose={onClose}
+            <DeleteSpaceModal
+                data={data}
                 title={title}
-                icon={icon!}
-                size="sm"
-                actions={
-                    <form name={title} onSubmit={form.onSubmit(handleSubmit)}>
-                        <Flex gap="sm">
-                            <Button variant="default" h={32} onClick={onClose}>
-                                Cancel
-                            </Button>
-                            <Button h={32} type="submit" color="red">
-                                Delete Space
-                            </Button>
-                        </Flex>
-                    </form>
-                }
-            >
-                <DeleteSpaceModalContent data={data} form={form} />
-            </MantineModal>
+                onClose={onClose}
+                icon={icon}
+                form={form}
+                handleSubmit={handleSubmit}
+            />
         );
     }
 
@@ -233,11 +227,11 @@ const SpaceModal: FC<ActionModalProps> = ({
                             onPrivateAccessTypeChange={setPrivateAccessType}
                             organizationUsers={organizationUsers}
                             parentSpaceUuid={parentSpaceUuid}
+                            rootSpace={rootSpace}
+                            onClose={onClose}
                         />
                     ) : actionType === ActionType.UPDATE ? (
                         <UpdateSpaceModalContent data={data} form={form} />
-                    ) : actionType === ActionType.DELETE ? (
-                        <DeleteSpaceModalContent data={data} form={form} />
                     ) : (
                         assertUnreachable(
                             actionType,
@@ -333,6 +327,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
             onSubmitForm={handleSubmitForm}
             isDisabled={isWorking}
             parentSpaceUuid={parentSpaceUuid}
+            rootSpace={data?.breadcrumbs?.[0]}
             {...props}
         />
     );

@@ -363,6 +363,7 @@ const Space: FC = () => {
                         confirmButtonLabel="Create"
                         icon={IconFolderPlus}
                         onClose={() => setIsCreateNestedSpaceOpen(false)}
+                        spaceUuid={spaceUuid}
                         onSubmitForm={() => {
                             setIsCreateNestedSpaceOpen(false);
                         }}
