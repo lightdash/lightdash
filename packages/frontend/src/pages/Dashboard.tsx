@@ -117,7 +117,10 @@ const Dashboard: FC = () => {
         reset,
         isLoading: isSaving,
     } = useUpdateDashboard(dashboardUuid);
-    const { mutate: moveDashboardToSpace } = useMoveDashboardMutation();
+    const {
+        mutateAsync: moveDashboardToSpace,
+        isLoading: isMovingDashboardToSpace,
+    } = useMoveDashboardMutation();
 
     const [isDeleteModalOpen, deleteModalHandlers] = useDisclosure();
     const [isDuplicateModalOpen, duplicateModalHandlers] = useDisclosure();
@@ -441,10 +444,10 @@ const Dashboard: FC = () => {
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
-        (spaceUuid: string) => {
+        async (spaceUuid: string) => {
             if (!dashboard) return;
 
-            moveDashboardToSpace({
+            await moveDashboardToSpace({
                 uuid: dashboard.uuid,
                 name: dashboard.name,
                 spaceUuid,
@@ -630,6 +633,7 @@ const Dashboard: FC = () => {
                         }}
                         onCancel={handleCancel}
                         onMoveToSpace={handleMoveDashboardToSpace}
+                        isMovingDashboardToSpace={isMovingDashboardToSpace}
                         onDuplicate={duplicateModalHandlers.open}
                         onDelete={deleteModalHandlers.open}
                         onExport={exportDashboardModalHandlers.open}

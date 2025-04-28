@@ -3,6 +3,7 @@ import { type Dashboard, type Space } from '@lightdash/common';
 import {
     Button,
     Group,
+    LoadingOverlay,
     MantineProvider,
     Stack,
     TextInput,
@@ -235,6 +236,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                     </Group>
                 }
             >
+                <LoadingOverlay visible={isLoading} />
                 <form
                     id="dashboard-create-modal"
                     title="Create Dashboard"

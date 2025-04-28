@@ -78,6 +78,7 @@ type DashboardHeaderProps = {
     oldestCacheTime?: Date;
     activeTabUuid?: string;
     dashboardTabs?: Dashboard['tabs'];
+    isMovingDashboardToSpace: boolean;
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     onCancel: () => void;
     onSaveDashboard: () => void;
@@ -98,6 +99,7 @@ const DashboardHeader = ({
     hasNewSemanticLayerChart,
     isEditMode,
     isSaving,
+    isMovingDashboardToSpace,
     isFullScreenFeatureEnabled,
     isFullscreen,
     oldestCacheTime,
@@ -307,8 +309,9 @@ const DashboardHeader = ({
                         onClose={transferToSpaceModalHandlers.close}
                         items={[dashboard]}
                         spaces={spaces}
-                        onConfirm={(spaceUuid) => {
-                            onMoveToSpace(spaceUuid);
+                        isLoading={isMovingDashboardToSpace}
+                        onConfirm={async (spaceUuid) => {
+                            await onMoveToSpace(spaceUuid);
                             transferToSpaceModalHandlers.close();
                         }}
                     />

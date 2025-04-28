@@ -200,6 +200,11 @@ const SaveChartForm: FC<Pick<Props, 'onClose'>> = ({ onClose }) => {
         ],
     );
 
+    const isLoading =
+        isLoadingSpace ||
+        isCreatingSavedSqlChart ||
+        spaceManagement.createSpaceMutation.isLoading;
+
     return (
         <form onSubmit={form.onSubmit(handleOnSubmit)}>
             {modalSteps.currentStep === ModalStep.InitialInfo && (
@@ -258,14 +263,6 @@ const SaveChartForm: FC<Pick<Props, 'onClose'>> = ({ onClose }) => {
                     </Button>
                 )}
 
-                <Button
-                    onClick={onClose}
-                    variant="outline"
-                    disabled={isCreatingSavedSqlChart}
-                >
-                    Cancel
-                </Button>
-
                 {hasUnrunChanges && (
                     <Button
                         leftIcon={<MantineIcon icon={IconArrowBack} />}
@@ -291,7 +288,7 @@ const SaveChartForm: FC<Pick<Props, 'onClose'>> = ({ onClose }) => {
                         <Button
                             type="submit"
                             disabled={!isFormReadyToSave}
-                            loading={isCreatingSavedSqlChart}
+                            loading={isLoading}
                         >
                             Save
                         </Button>

@@ -150,7 +150,8 @@ const SavedChartsHeader: FC = () => {
 
     const { user, health } = useApp();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
-    const { mutate: moveChartToSpace } = useMoveChartMutation();
+    const { mutateAsync: moveChartToSpace, isLoading: isMovingChartToSpace } =
+        useMoveChartMutation();
     const updateSavedChart = useUpdateMutation(
         dashboardUuid ? dashboardUuid : undefined,
         savedChart?.uuid,
@@ -784,10 +785,11 @@ const SavedChartsHeader: FC = () => {
                     opened={isTransferToSpaceModalOpen}
                     items={[savedChart]}
                     spaces={spaces}
+                    isLoading={isMovingChart || isMovingChartToSpace}
                     onClose={transferToSpaceModalHandlers.close}
-                    onConfirm={(newSpaceUuid) => {
+                    onConfirm={async (newSpaceUuid) => {
                         if (savedChart) {
-                            moveChartToSpace({
+                            await moveChartToSpace({
                                 uuid: savedChart.uuid,
                                 spaceUuid: newSpaceUuid,
                             });
