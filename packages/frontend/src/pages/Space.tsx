@@ -172,6 +172,7 @@ const Space: FC = () => {
                                     <Menu.Target>
                                         <Box>
                                             <Button
+                                                data-testid="Space/AddButton"
                                                 leftIcon={
                                                     <MantineIcon
                                                         icon={IconPlus}
