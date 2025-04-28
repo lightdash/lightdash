@@ -717,9 +717,12 @@ importers:
       '@lightdash/common':
         specifier: workspace:*
         version: link:../common
-      '@lightdash/mantine-v7':
-        specifier: workspace:*
-        version: link:../mantine-v7
+      '@mantine-8/core':
+        specifier: npm:@mantine/core@8.0.0-alpha.3
+        version: '@mantine/core@8.0.0-alpha.3(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)'
+      '@mantine-8/hooks':
+        specifier: npm:@mantine/hooks@8.0.0-alpha.3
+        version: '@mantine/hooks@8.0.0-alpha.3(react@19.0.0)'
       '@mantine/core':
         specifier: ^6.0.21
         version: 6.0.22(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/hooks@6.0.22(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -1123,31 +1126,6 @@ importers:
       react-dom:
         specifier: ^18.x || ^19.x
         version: 19.0.0(react@19.0.0)
-
-  packages/mantine-v7:
-    dependencies:
-      react:
-        specifier: ^18.x || ^19.x
-        version: 19.0.0
-      react-dom:
-        specifier: ^18.x || ^19.x
-        version: 19.0.0(react@19.0.0)
-    devDependencies:
-      '@mantine/core':
-        specifier: 7.17.4
-        version: 7.17.4(@mantine/hooks@7.17.4(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@mantine/hooks':
-        specifier: 7.17.4
-        version: 7.17.4(react@19.0.0)
-      '@vitejs/plugin-react':
-        specifier: ^4.4.1
-        version: 4.4.1(vite@6.3.2(@types/node@22.13.1)(lightningcss@1.22.0)(tsx@4.19.2)(yaml@2.7.0))
-      vite:
-        specifier: ^6.3.2
-        version: 6.3.2(@types/node@22.13.1)(lightningcss@1.22.0)(tsx@4.19.2)(yaml@2.7.0)
-      vite-plugin-dts:
-        specifier: ^4.5.3
-        version: 4.5.3(@types/node@22.13.1)(rollup@4.40.0)(typescript@5.7.2)(vite@6.3.2(@types/node@22.13.1)(lightningcss@1.22.0)(tsx@4.19.2)(yaml@2.7.0))
 
   packages/sdk-next-test-app:
     dependencies:
@@ -2963,10 +2941,9 @@ packages:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
 
-  '@mantine/core@7.17.4':
-    resolution: {integrity: sha512-Ea4M/98jxgIWCuxCdM0YIotVYjfLTGQsfIA6zDg0LsClgjo/ZLnnh4zbi+bLNgM+GGjP4ju7gv4MZvaTKuLO8g==}
+  '@mantine/core@8.0.0-alpha.3':
+    resolution: {integrity: sha512-UdT5hPvznbh6qBH0FYhIAJPP9FU4qGzP4dayyX0Eg+sm1Fg7tLjeKhRmu8/I/YBedLiGG4dq7FbmjHEQ8GoLkQ==}
     peerDependencies:
-      '@mantine/hooks': 7.17.4
       react: ^18.x || ^19.x
       react-dom: ^18.x || ^19.x
 
@@ -2988,8 +2965,8 @@ packages:
     peerDependencies:
       react: '>=16.8.0'
 
-  '@mantine/hooks@7.17.4':
-    resolution: {integrity: sha512-PBcJxDAfGm8k1/JJmaDcxzRVQ3JSE1iXGktbgGz+qEOJmCxwbbAYe+CtGFFgi1xX2bPZ+7dtRr/+XFhnKtt/aw==}
+  '@mantine/hooks@8.0.0-alpha.3':
+    resolution: {integrity: sha512-pE3w8jcqxuoQrGwQDL4AbWj836uQqOCkZmKmKwO5I9+oP7nHERG3m/LSIA+lZovlUhbjbBN0kUjxFG+bmcCfVg==}
     peerDependencies:
       react: ^18.x || ^19.x
 
@@ -11478,8 +11455,8 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0
 
-  react-textarea-autosize@8.5.9:
-    resolution: {integrity: sha512-U1DGlIQN5AwgjTyOEnI1oCcMuEr1pv1qOtklB2l4nyMGbHzWrI0eFsYK0zos2YWqAolJyG0IWJaqWmWj5ETh0A==}
+  react-textarea-autosize@8.5.6:
+    resolution: {integrity: sha512-aT3ioKXMa8f6zHYGebhbdMD2L00tKeRX1zuVuDx9YQK/JLLRSaSxq3ugECEmUB9z2kvk6bFSIoRHLkkUv0RJiw==}
     engines: {node: '>=10'}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -16239,16 +16216,16 @@ snapshots:
       - '@emotion/react'
       - '@types/react'
 
-  '@mantine/core@7.17.4(@mantine/hooks@7.17.4(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
+  '@mantine/core@8.0.0-alpha.3(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
       '@floating-ui/react': 0.26.28(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@mantine/hooks': 7.17.4(react@19.0.0)
+      '@mantine/hooks': 8.0.0-alpha.3(react@19.0.0)
       clsx: 2.1.1
       react: 19.0.0
       react-dom: 19.0.0(react@19.0.0)
       react-number-format: 5.4.3(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       react-remove-scroll: 2.6.3(@types/react@19.0.2)(react@19.0.0)
-      react-textarea-autosize: 8.5.9(@types/react@19.0.2)(react@19.0.0)
+      react-textarea-autosize: 8.5.6(@types/react@19.0.2)(react@19.0.0)
       type-fest: 4.32.0
     transitivePeerDependencies:
       - '@types/react'
@@ -16271,7 +16248,7 @@ snapshots:
     dependencies:
       react: 19.0.0
 
-  '@mantine/hooks@7.17.4(react@19.0.0)':
+  '@mantine/hooks@8.0.0-alpha.3(react@19.0.0)':
     dependencies:
       react: 19.0.0
 
@@ -26746,7 +26723,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  react-textarea-autosize@8.5.9(@types/react@19.0.2)(react@19.0.0):
+  react-textarea-autosize@8.5.6(@types/react@19.0.2)(react@19.0.0):
     dependencies:
       '@babel/runtime': 7.27.0
       react: 19.0.0

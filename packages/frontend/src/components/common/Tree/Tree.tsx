@@ -5,9 +5,7 @@ import {
     rem,
     useTree,
     type RenderTreeNodePayload,
-} from '@lightdash/mantine-v7';
-// FIXME: this won't scale. figure out how to include required mantine 7 styles.
-import '@lightdash/mantine-v7/style.css';
+} from '@mantine-8/core';
 import React, { useEffect, useMemo } from 'react';
 
 import TreeItem from './TreeItem';
@@ -114,8 +112,8 @@ const Tree: React.FC<Props> = ({ topLevelLabel, value, data, onChange }) => {
                         expandOnSpace={false}
                         selectOnClick={false}
                         classNames={{
-                            label: classes.label,
                             node: classes.node,
+                            label: classes.label,
                         }}
                     />
                 </Box>
