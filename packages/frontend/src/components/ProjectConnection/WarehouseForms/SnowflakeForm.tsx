@@ -59,9 +59,8 @@ const SnowflakeForm: FC<{
             : true;
 
     const authenticationType: string =
-        form.values.warehouse.authenticationType ?? hasPrivateKey
-            ? 'private_key'
-            : 'password';
+        form.values.warehouse.authenticationType ??
+        (hasPrivateKey ? 'private_key' : 'password');
 
     const [temporaryFile, setTemporaryFile] = useState<File>();
 
