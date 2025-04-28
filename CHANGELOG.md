@@ -1,3 +1,10 @@
+# [0.1602.0](https://github.com/lightdash/lightdash/compare/0.1601.2...0.1602.0) (2025-04-28)
+
+
+### Features
+
+* enable underlying data for charts with custom dimensions ([#14538](https://github.com/lightdash/lightdash/issues/14538)) ([fd3bbd1](https://github.com/lightdash/lightdash/commit/fd3bbd118d9b6d1251fbf02c68c7efd04defe0d5))
+
 ## [0.1601.2](https://github.com/lightdash/lightdash/compare/0.1601.1...0.1601.2) (2025-04-25)
 
 
