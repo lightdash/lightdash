@@ -178,7 +178,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
             const initialSpaceUuid = isValidDefaultSpaceUuid
                 ? defaultSpaceUuid
-                : spaces?.[0]?.uuid;
+                : spaces?.find((space) => !space.parentSpaceUuid)?.uuid;
 
             if (initialSpaceUuid) {
                 spaceManagement.setSelectedSpaceUuid(initialSpaceUuid);
