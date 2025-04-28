@@ -1,4 +1,4 @@
-import { mergeExisting, QueryHistoryStatus } from '@lightdash/common';
+import { mergeExisting } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { produce } from 'immer';
 import { useMemo, type ComponentProps, type FC } from 'react';
@@ -77,22 +77,6 @@ const EmbedDashboardChartTile: FC<Props> = ({
                     translatedChartData.appliedDashboardFilters ?? null,
                 cacheMetadata: translatedChartData.cacheMetadata,
             },
-            firstPage: {
-                queryUuid: '', // Does not use paginated query therefore there's no queryUuid
-                fields: translatedChartData.fields,
-                metricQuery: translatedChartData.metricQuery,
-                rows: translatedChartData.rows,
-                status: QueryHistoryStatus.READY,
-                initialQueryExecutionMs: 0,
-                resultsPageExecutionMs: 0,
-                totalResults: translatedChartData.rows.length,
-                pageSize: translatedChartData.rows.length,
-                page: 1,
-                totalPageCount: 1,
-                nextPage: undefined,
-                previousPage: undefined,
-                clientFetchTimeMs: 0,
-            },
             chart: translatedChartData.chart,
             explore: translatedChartData.explore,
         } satisfies DashboardChartReadyQuery;
@@ -106,6 +90,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
                 fields: translatedChartData?.fields,
                 rows: translatedChartData?.rows ?? [],
                 totalResults: translatedChartData?.rows.length,
+                initialQueryExecutionMs: 0,
                 isFetchingRows: false,
                 fetchMoreRows: () => undefined,
                 setFetchAll: () => undefined,
@@ -113,6 +98,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
                 hasFetchedAllRows: true,
                 totalClientFetchTimeMs: 0,
                 isInitialLoading: false,
+                isFetchingFirstPage: false,
                 projectUuid: translatedChartData?.chart.projectUuid,
             } satisfies InfiniteQueryResults),
         [translatedChartData],
