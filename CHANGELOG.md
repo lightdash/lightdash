@@ -1,3 +1,10 @@
+# [0.1603.0](https://github.com/lightdash/lightdash/compare/0.1602.3...0.1603.0) (2025-04-29)
+
+
+### Features
+
+* cancel explore query ([#14551](https://github.com/lightdash/lightdash/issues/14551)) ([ec7f2ae](https://github.com/lightdash/lightdash/commit/ec7f2aed4ef328034d1ceda6ac1804dba08b2b5a))
+
 ## [0.1602.3](https://github.com/lightdash/lightdash/compare/0.1602.2...0.1602.3) (2025-04-29)
 
 
