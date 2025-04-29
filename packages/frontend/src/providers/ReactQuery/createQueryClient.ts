@@ -14,9 +14,11 @@ export const createQueryClient = (options?: DefaultOptions) => {
                         await queryClient.invalidateQueries(['health']);
                     }
                 },
+                networkMode: 'always',
                 ...options?.queries,
             },
             mutations: {
+                networkMode: 'always',
                 ...options?.mutations,
             },
         },

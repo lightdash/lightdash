@@ -16,7 +16,8 @@ import {
     type VizIndexLayoutOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { QueryClient } from '@tanstack/react-query';
+import { type QueryClient } from '@tanstack/react-query';
+import { createQueryClient } from '../../providers/ReactQuery/createQueryClient';
 
 export function getDimensionTypeFromSemanticLayerFieldType(
     type: SemanticLayerFieldType,
@@ -92,7 +93,7 @@ export class BaseResultsRunner implements IResultsRunner {
             (field) => field.kind === FieldType.METRIC,
         );
 
-        this.queryClient = new QueryClient();
+        this.queryClient = createQueryClient();
     }
 
     async getPivotedVisualizationData(
