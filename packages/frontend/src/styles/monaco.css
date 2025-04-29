@@ -16,7 +16,8 @@
 }
 
 .monaco-editor .core-guide-indent {
-    display: none !important; /* Vertical indent lines */
+    box-shadow: inset 1px 0 0 #e9ecef !important;
+    /* Vertical indent lines , gray.2 */
 }
 .monaco-editor .decorationsOverviewRuler {
     display: none !important; /* Right vertical scrollable bar */

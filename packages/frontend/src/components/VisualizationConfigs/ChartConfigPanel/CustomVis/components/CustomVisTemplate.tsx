@@ -1,11 +1,7 @@
 import {
     type ItemsMap,
-    isCustomDimension,
-    isDateItem,
-    isDimension,
-    isMetric,
-    isNumericType,
-    isTableCalculation,
+    sortedItemsForXAxis,
+    sortedItemsForYAxis,
 } from '@lightdash/common';
 import { Button, Menu } from '@mantine/core';
 import {
@@ -54,45 +50,8 @@ export const SelectTemplate = ({
         (template: TemplateType) => {
             if (!isCustomConfig) return null;
 
-            /**
-             * When selecting a field for the x axis,
-             * we want to prioritize dimensions and date items
-             * over metrics and table calculations
-             */
-            const sortedItemsForX = Object.values(itemsMap || {}).sort(
-                (a, b) => {
-                    const getPriority = (item: ItemsMap[string]) => {
-                        if (isDimension(item) && isDateItem(item)) return 1;
-                        if (isDimension(item)) return 2;
-                        if (isCustomDimension(item)) return 3;
-                        if (isMetric(item)) return 4;
-                        return 5; // everything else
-                    };
-                    return getPriority(a) - getPriority(b);
-                },
-            );
-
-            /**
-             * When selecting a field for the y axis (and color/size values),
-             * we want to prioritize numeric metrics and table calculations
-             * over dimensions
-             */
-            const sortedItemsForY = Object.values(itemsMap || {}).sort(
-                (a, b) => {
-                    const getPriorityForY = (item: ItemsMap[string]) => {
-                        if (isMetric(item) && isNumericType(item.type))
-                            return 1;
-                        if (isMetric(item)) return 2;
-                        if (isTableCalculation(item)) return 3;
-                        return 4; // everything else
-                    };
-
-                    return getPriorityForY(a) - getPriorityForY(b);
-                },
-            );
-
-            const xField = sortedItemsForX[0];
-            const [yField, extraField] = sortedItemsForY;
+            const xField = sortedItemsForXAxis(itemsMap)[0];
+            const [yField, extraField] = sortedItemsForYAxis(itemsMap);
 
             const templateString = generateVegaTemplate(
                 template,

@@ -46,10 +46,10 @@ export const useCustomVis = (projectUuid: string | undefined) => {
                 data.currentVizConfig,
             ),
         {
-            mutationKey: ['custom_dimension_write_back', projectUuid],
+            mutationKey: ['get_custom_vis_ai', projectUuid],
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to write back custom dimension`,
+                    title: `Failed to generate custom visualization`,
                     apiError: error,
                 });
             },
