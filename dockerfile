@@ -123,6 +123,7 @@ COPY pnpm-workspace.yaml .
 COPY pnpm-lock.yaml .
 COPY tsconfig.json .
 COPY .eslintrc.js .
+COPY .pnpmfile.cjs .
 COPY packages/common/package.json ./packages/common/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
