@@ -23,6 +23,7 @@ const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     wordWrap: 'off',
     quickSuggestions: true,
     contextmenu: false,
+    fixedOverflowWidgets: true,
 };
 
 const initVegaLazySchema = async () => {
@@ -234,7 +235,13 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                 </Config.Section>
             </Config>
 
-            <Group mt="sm" h="100%" align="top">
+            <Group
+                h="100%"
+                align="top"
+                sx={{
+                    borderTop: '0.125rem solid #dee2e6',
+                }}
+            >
                 {/* Hack to show a monaco placeholder */}
                 {isEditorEmpty ? (
                     <Text
@@ -283,9 +290,6 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                     value={editorConfig}
                     onChange={(config) => {
                         setEditorConfig(config ?? '');
-                    }}
-                    wrapperProps={{
-                        id: 'tooltip-editor-wrapper',
                     }}
                 />
             </Group>

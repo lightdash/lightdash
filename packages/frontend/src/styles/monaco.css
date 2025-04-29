@@ -3,6 +3,10 @@
     border-bottom: 2px solid red;
 }
 
+.monaco-editor {
+    border: 0px;
+}
+
 .monaco-editor #monaco-overflow-container {
     position: absolute;
     top: 0;
