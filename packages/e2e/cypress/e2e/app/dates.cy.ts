@@ -216,26 +216,30 @@ describe('Date tests', () => {
         cy.findByTestId('Chart-card-expand').click(); // Close chart
 
         // Filter by year
-        cy.get('tbody > :nth-child(1) > :nth-child(5)').click();
+        cy.get(
+            '.mantine-Card-root tbody > :nth-child(1) > :nth-child(5)',
+        ).click();
         cy.contains('Filter by 2018').click();
         cy.get('.mantine-YearPickerInput-input').contains('2018');
         cy.get('.mantine-Prism-code').contains(
             `(DATE_TRUNC('YEAR', "orders".order_date)) = ('2018-01-01')`,
         );
-        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by month
-        cy.get('tbody > :nth-child(1) > :nth-child(4)').click();
+        cy.get(
+            '.mantine-Card-root tbody > :nth-child(1) > :nth-child(4)',
+        ).click();
         cy.contains('Filter by 2018-04').click();
 
         cy.get('.mantine-MonthPickerInput-input').contains('April 2018');
         cy.get('.mantine-Prism-code').contains(
             `(DATE_TRUNC('MONTH', "orders".order_date)) = ('2018-04-01')`,
         );
-        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by week
-        cy.get('tbody > :nth-child(1) > :nth-child(3)').click();
+        cy.get(
+            '.mantine-Card-root tbody > :nth-child(1) > :nth-child(3)',
+        ).click();
         cy.contains('Filter by 2018-04-09').click();
         cy.get('.mantine-DateInput-input').should(
             'have.value',
@@ -244,10 +248,11 @@ describe('Date tests', () => {
         cy.get('.mantine-Prism-code').contains(
             `(DATE_TRUNC('WEEK', "orders".order_date)) = ('2018-04-09')`,
         );
-        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by day
-        cy.get('tbody > :nth-child(1) > :nth-child(2)').click();
+        cy.get(
+            '.mantine-Card-root tbody > :nth-child(1) > :nth-child(2)',
+        ).click();
         cy.contains('Filter by 2018-04-09').click();
         cy.get('.mantine-DateInput-input').should(
             'have.value',
@@ -256,7 +261,6 @@ describe('Date tests', () => {
         cy.get('.mantine-Prism-code').contains(
             `(DATE_TRUNC('DAY', "orders".order_date)) = ('2018-04-09')`,
         );
-        cy.get('.tabler-icon-x').click({ multiple: true });
     });
 
     it('Should filter by datetimes on results table', () => {
@@ -272,7 +276,9 @@ describe('Date tests', () => {
         cy.findByTestId('Chart-card-expand').click(); // Close chart
 
         // Filter by raw
-        cy.get('tbody > :nth-child(1) > :nth-child(2)').click();
+        cy.get(
+            '.mantine-Card-root tbody > :nth-child(1) > :nth-child(2)',
+        ).click();
         cy.contains('Filter by 2020-08-11, 23:44:00:000 (+00:00)').click(); // Server Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
@@ -281,10 +287,11 @@ describe('Date tests', () => {
             `("events".timestamp_tz) = ('2020-08-11 23:44:00')`,
         );
 
-        cy.get('.tabler-icon-x').click({ multiple: true, force: true });
         // Filter by Milisecond
         // FIXME: selecting a different cell is not working
-        cy.get('tbody > :nth-child(1) > :nth-child(3)').click();
+        cy.get(
+            '.mantine-Card-root tbody > :nth-child(1) > :nth-child(3)',
+        ).click();
         cy.contains('Filter by 2020-08-11, 23:44:00:000 (+00:00)').click(); // Server Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
@@ -292,10 +299,11 @@ describe('Date tests', () => {
         cy.get('.mantine-Prism-code').contains(
             `(DATE_TRUNC('MILLISECOND', "events".timestamp_tz)) = ('2020-08-11 23:44:00')`, // Known Milisecond limitation
         );
-        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by Second
-        cy.get('tbody > :nth-child(1) > :nth-child(4)').click();
+        cy.get(
+            '.mantine-Card-root tbody > :nth-child(1) > :nth-child(4)',
+        ).click();
         cy.contains('Filter by 2020-08-11, 23:44:00 (+00:00)').click(); // Server Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
@@ -303,9 +311,11 @@ describe('Date tests', () => {
         cy.get('.mantine-Prism-code').contains(
             `(DATE_TRUNC('SECOND', "events".timestamp_tz)) = ('2020-08-11 23:44:00')`,
         );
-        cy.get('.tabler-icon-x').click({ multiple: true });
+
         // Filter by Minute
-        cy.get('tbody > :nth-child(1) > :nth-child(5)').click();
+        cy.get(
+            '.mantine-Card-root tbody > :nth-child(1) > :nth-child(5)',
+        ).click();
         cy.contains('Filter by 2020-08-11, 23:44 (+00:00)').click(); // Server Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
@@ -313,10 +323,11 @@ describe('Date tests', () => {
         cy.get('.mantine-Prism-code').contains(
             `(DATE_TRUNC('MINUTE', "events".timestamp_tz)) = ('2020-08-11 23:44:00')`,
         );
-        cy.get('.tabler-icon-x').click({ multiple: true });
 
         // Filter by Hour
-        cy.get('tbody > :nth-child(1) > :nth-child(6)').click();
+        cy.get(
+            '.mantine-Card-root tbody > :nth-child(1) > :nth-child(6)',
+        ).click();
         cy.contains('Filter by 2020-08-11, 23 (+00:00)').click(); // Server Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             getLocalTime('2020-08-11 23:00:00'), // Timezone sensitive
@@ -324,7 +335,6 @@ describe('Date tests', () => {
         cy.get('.mantine-Prism-code').contains(
             `(DATE_TRUNC('HOUR', "events".timestamp_tz)) = ('2020-08-11 23:00:00')`,
         );
-        cy.get('.tabler-icon-x').click({ multiple: true });
     });
 
     it('Should change dates on filters', () => {

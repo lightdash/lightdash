@@ -92,6 +92,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
                 totalResults: translatedChartData?.rows.length,
                 initialQueryExecutionMs: 0,
                 isFetchingRows: false,
+                isFetchingAllPages: false,
                 fetchMoreRows: () => undefined,
                 setFetchAll: () => undefined,
                 fetchAll: true,
