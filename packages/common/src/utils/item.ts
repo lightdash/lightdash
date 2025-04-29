@@ -190,7 +190,9 @@ export const canApplyFormattingToCustomMetric = (
  * over metrics and table calculations
  * Used in CustomVisTemplate.tsx
  */
-export const sortedItemsForXAxis = (itemsMap: ItemsMap): ItemsMap[string][] =>
+export const sortedItemsForXAxis = (
+    itemsMap: ItemsMap | undefined,
+): ItemsMap[string][] =>
     Object.values(itemsMap || {}).sort((a, b) => {
         const getPriority = (item: ItemsMap[string]) => {
             if (isDimension(item) && isDateItem(item)) return 1;
@@ -207,7 +209,9 @@ export const sortedItemsForXAxis = (itemsMap: ItemsMap): ItemsMap[string][] =>
  * we want to prioritize numeric metrics and table calculations
  * over dimensions
  */
-export const sortedItemsForYAxis = (itemsMap: ItemsMap): ItemsMap[string][] =>
+export const sortedItemsForYAxis = (
+    itemsMap: ItemsMap | undefined,
+): ItemsMap[string][] =>
     Object.values(itemsMap || {}).sort((a, b) => {
         const getPriorityForY = (item: ItemsMap[string]) => {
             if (isMetric(item) && isNumericType(item.type)) return 1;

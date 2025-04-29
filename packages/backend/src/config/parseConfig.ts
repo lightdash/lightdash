@@ -318,9 +318,6 @@ export type LightdashConfig = {
             daysLimit: number;
         };
     };
-    customVisualizations: {
-        enabled: boolean;
-    };
     // This is the override color palette for the organization
     appearance: {
         overrideColorPalette?: string[];
@@ -842,10 +839,6 @@ export const parseConfig = (): LightdashConfig => {
                         'LIGHTDASH_CHART_VERSION_HISTORY_DAYS_LIMIT',
                     ) || 3,
             },
-        },
-        customVisualizations: {
-            enabled:
-                process.env.CUSTOM_VISUALIZATIONS_ENABLED === 'true' || false,
         },
         pivotTable: {
             maxColumnLimit:
