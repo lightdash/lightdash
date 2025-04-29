@@ -1,9 +1,4 @@
-import {
-    type CustomDimension,
-    type Metric,
-    type TableCalculation,
-} from '@lightdash/common';
-import { type Field } from 'react-hook-form';
+import { type AdditionalMetric, type ItemsMap } from '@lightdash/common';
 
 export type Schema = {
     readonly uri: string;
@@ -11,4 +6,4 @@ export type Schema = {
     readonly schema?: any;
 };
 
-export type VegaFieldType = Field | TableCalculation | CustomDimension | Metric;
+export type VegaFieldType = ItemsMap[string] | AdditionalMetric;
