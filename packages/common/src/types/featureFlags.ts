@@ -71,7 +71,6 @@ export enum FeatureFlags {
      * Enable the ability to create nested spaces
      */
     NestedSpaces = 'nested-spaces',
-
 }
 
 export type FeatureFlag = {
