@@ -15,6 +15,13 @@
     border-radius: 4px;
 }
 
+.monaco-editor .core-guide-indent {
+    display: none !important; /* Vertical indent lines */
+}
+.monaco-editor .decorationsOverviewRuler {
+    display: none !important; /* Right vertical scrollable bar */
+}
+
 #tooltip-editor-wrapper .view-lines.monaco-mouse-cursor-text {
     border: 1px solid #e6e6e6;
     border-radius: 4px;
