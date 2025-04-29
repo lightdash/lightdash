@@ -1,3 +1,17 @@
+# [0.1605.0](https://github.com/lightdash/lightdash/compare/0.1604.2...0.1605.0) (2025-04-29)
+
+
+### Bug Fixes
+
+* remove active field custom dim instead of deleting ([#14579](https://github.com/lightdash/lightdash/issues/14579)) ([1f6b56a](https://github.com/lightdash/lightdash/commit/1f6b56a1e02502fe95f4ac7ddd1cdb5d18cc3afd))
+* Revert "chore: add mantine v8 as an alias" ([#14593](https://github.com/lightdash/lightdash/issues/14593)) ([a48996d](https://github.com/lightdash/lightdash/commit/a48996da490d80fb24d62975796981a787b1e7a2)), closes [#14572](https://github.com/lightdash/lightdash/issues/14572)
+
+
+### Features
+
+* add double legend click handlers ([#14529](https://github.com/lightdash/lightdash/issues/14529)) ([44d0baa](https://github.com/lightdash/lightdash/commit/44d0baa59ecdc2873e0453346488bd74718e72d1))
+* Custom chart UI improvement ([#14537](https://github.com/lightdash/lightdash/issues/14537)) ([4fde108](https://github.com/lightdash/lightdash/commit/4fde1086978480a0fef55720f3ef92afc4e496a9))
+
 ## [0.1604.2](https://github.com/lightdash/lightdash/compare/0.1604.1...0.1604.2) (2025-04-29)
 
 
