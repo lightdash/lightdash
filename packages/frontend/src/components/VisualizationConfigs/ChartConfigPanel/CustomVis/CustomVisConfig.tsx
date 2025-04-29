@@ -17,16 +17,12 @@ import { type Schema } from './types/types';
 const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     cursorBlinking: 'smooth',
     folding: true,
+    lineNumbersMinChars: 1,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
     wordWrap: 'off',
     quickSuggestions: true,
     contextmenu: false,
-    lineNumbers: 'off',
-    glyphMargin: false,
-    lineDecorationsWidth: 0,
-    lineNumbersMinChars: 0,
-    fixedOverflowWidgets: true,
 };
 
 const initVegaLazySchema = async () => {
@@ -249,7 +245,7 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                             pointerEvents: 'none',
                             zIndex: 100,
                             fontFamily: 'monospace',
-                            marginLeft: '17px', // Stye to match Monaco text
+                            marginLeft: '35px', // Stye to match Monaco text
                             fontSize: '14px',
                             lineHeight: '19px',
                             letterSpacing: '0px',
