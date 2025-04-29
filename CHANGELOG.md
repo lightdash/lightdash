@@ -1,3 +1,10 @@
+## [0.1604.1](https://github.com/lightdash/lightdash/compare/0.1604.0...0.1604.1) (2025-04-29)
+
+
+### Bug Fixes
+
+* use networkMode always for tanstack queries and mutations ([#14585](https://github.com/lightdash/lightdash/issues/14585)) ([2a84227](https://github.com/lightdash/lightdash/commit/2a84227f6fdbe40c3d1e1b22b6928e0b9b9507e1))
+
 # [0.1604.0](https://github.com/lightdash/lightdash/compare/0.1603.0...0.1604.0) (2025-04-29)
 
 
