@@ -89,11 +89,16 @@ export class QueryHistoryModel {
         userUuid: string,
         update: DbQueryHistoryUpdate,
     ) {
-        return this.database(QueryHistoryTableName)
+        const query = this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
             .andWhere('project_uuid', projectUuid)
             .andWhere('created_by_user_uuid', userUuid)
             .update(update);
+        // only update pending queries to ready
+        if (update.status === QueryHistoryStatus.READY) {
+            void query.andWhere('status', QueryHistoryStatus.PENDING);
+        }
+        return query;
     }
 
     async get(queryUuid: string, projectUuid: string, userUuid: string) {
