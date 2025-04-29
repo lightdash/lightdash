@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Paper, rem, Text } from '@lightdash/mantine-v7';
+import { ActionIcon, Group, Paper, rem, Text } from '@mantine-8/core';
 import {
     IconCheck,
     IconChevronDown,
@@ -79,13 +79,7 @@ const TreeItem: React.FC<Props> = ({
                 style={{ flexShrink: 0 }}
             />
 
-            <Text
-                inline
-                truncate="end"
-                fz={rem(13)}
-                fw={500}
-                style={{ flexGrow: 1 }}
-            >
+            <Text truncate="end" fz={rem(13)} fw={500} style={{ flexGrow: 1 }}>
                 {label}
             </Text>
 
