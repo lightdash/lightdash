@@ -286,7 +286,10 @@ export class AiService {
         if (!isAICustomVizEnabled) {
             throw new Error('AI Custom viz feature not enabled!');
         }
-        let openAiResponse;
+        let openAiResponse: {
+            result: string;
+            tokenUsage: TokenUsage | undefined;
+        };
 
         const fields = Object.values(itemsMap).map((item) => ({
             id: getItemId(item),

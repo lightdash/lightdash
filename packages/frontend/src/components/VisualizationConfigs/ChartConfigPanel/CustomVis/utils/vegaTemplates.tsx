@@ -7,6 +7,8 @@ export enum TemplateType {
     MAP = 'World map',
 }
 
+const echartsAxisColor = '#6e7079';
+
 const barChartTemplate = {
     $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
     mark: 'bar',
@@ -14,10 +16,18 @@ const barChartTemplate = {
         x: {
             field: 'field_x',
             type: 'field_type_x',
+            axis: {
+                labelColor: echartsAxisColor,
+                tickColor: echartsAxisColor,
+            },
         },
         y: {
             field: 'field_y',
             type: 'quantitative',
+            axis: {
+                labelColor: echartsAxisColor,
+                tickColor: echartsAxisColor,
+            },
         },
     },
 };
@@ -29,10 +39,18 @@ const heatmapTemplate = {
         x: {
             field: 'field_x',
             type: 'field_type_x',
+            axis: {
+                labelColor: echartsAxisColor,
+                tickColor: echartsAxisColor,
+            },
         },
         y: {
             field: 'field_y',
             type: 'quantitative',
+            axis: {
+                labelColor: echartsAxisColor,
+                tickColor: echartsAxisColor,
+            },
         },
 
         color: {
@@ -50,10 +68,18 @@ const bubblePlotsTemplate = {
         x: {
             field: 'field_x',
             type: 'field_type_x',
+            axis: {
+                labelColor: echartsAxisColor,
+                tickColor: echartsAxisColor,
+            },
         },
         y: {
             field: 'field_y',
             type: 'quantitative',
+            axis: {
+                labelColor: echartsAxisColor,
+                tickColor: echartsAxisColor,
+            },
         },
         size: {
             field: 'field_extra',
@@ -91,7 +117,7 @@ const funnelChartTemplate = {
     ],
     layer: [
         {
-            mark: { type: 'bar', color: '#40817c' },
+            mark: { type: 'bar' },
             encoding: {
                 x: {
                     field: 'field_y',
@@ -111,20 +137,13 @@ const funnelChartTemplate = {
                 color: {
                     field: 'field_y',
                     scale: {
-                        range: [
-                            '#bde4e2',
-                            '#a2d0ce',
-                            '#87bcb9',
-                            '#6ea8a5',
-                            '#569490',
-                            '#40817c',
-                        ],
+                        scheme: 'lightgreyteal',
                     },
                 },
             },
         },
         {
-            mark: { type: 'text', color: 'white' },
+            mark: { type: 'text', color: 'black' },
             encoding: {
                 y: {
                     field: 'orders_status',
@@ -136,7 +155,7 @@ const funnelChartTemplate = {
             },
         },
         {
-            mark: { type: 'text', color: 'black' },
+            mark: { type: 'text', color: echartsAxisColor },
             encoding: {
                 y: {
                     field: 'orders_status',
@@ -184,7 +203,7 @@ const waterfallChartTemplate = {
                     _field: 'type', //placeholder field for type
                     scale: {
                         domain: ['total', 'increase', 'decrease'],
-                        range: ['#4FC3F7', '#B2FF59', '#FF5252'],
+                        range: ['blue', 'green', 'red'],
                     },
                 },
             },
@@ -201,7 +220,7 @@ const waterfallChartTemplate = {
                     type: 'nominal',
                 },
                 color: {
-                    value: '#1B5E20',
+                    value: 'black',
                 },
             },
         },

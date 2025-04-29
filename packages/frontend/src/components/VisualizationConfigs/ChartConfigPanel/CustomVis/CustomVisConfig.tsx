@@ -2,7 +2,6 @@ import { FeatureFlags } from '@lightdash/common';
 import { Flex, Group, Loader, Text } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
-import merge from 'lodash/merge';
 import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useDeepCompareEffect } from 'react-use';
@@ -38,7 +37,7 @@ const initVegaLazySchema = async () => {
         {
             uri: 'https://lightdash.com/schemas/vega-lite-schema-custom.json',
             fileMatch: ['*'],
-            schema: merge(vegaLiteSchema.default, {}),
+            schema: vegaLiteSchema.default,
         },
     ];
 };

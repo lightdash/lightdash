@@ -23,9 +23,7 @@ export const GenerateVizWithAi = ({
     }>();
     const [prompt, setPrompt] = useState('');
 
-    const [isLoading, setIsLoading] = useState(false);
-
-    const { mutate: getCustomVis, data } = useCustomVis(projectUuid);
+    const { mutate: getCustomVis, data, isLoading } = useCustomVis(projectUuid);
 
     useEffect(() => {
         if (data) setEditorConfig(data);
@@ -33,7 +31,6 @@ export const GenerateVizWithAi = ({
     const handleSubmit = useCallback(() => {
         if (isLoading) return;
 
-        setIsLoading(true);
         if (prompt && projectUuid)
             getCustomVis({
                 prompt,
