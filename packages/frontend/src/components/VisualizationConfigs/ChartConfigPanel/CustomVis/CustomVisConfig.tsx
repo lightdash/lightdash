@@ -256,7 +256,7 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                             zIndex: 100,
                             fontFamily: 'monospace',
                             marginLeft: '35px', // Stye to match Monaco text
-                            fontSize: '14px',
+                            fontSize: '12px',
                             lineHeight: '19px',
                             letterSpacing: '0px',
                         }}
