@@ -46,7 +46,6 @@ import {
     deepEqual,
     DEFAULT_RESULTS_PAGE_SIZE,
     DefaultSupportedDbtVersion,
-    type Dimension,
     DimensionType,
     DownloadFileType,
     type ExecuteAsyncDashboardChartRequestParams,

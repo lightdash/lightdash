@@ -2,13 +2,12 @@ import {
     type ApiError,
     type ApiExecuteAsyncQueryResults,
     type ApiGetAsyncQueryResults,
-    type ApiQueryResults,
     type ApiSuccessEmpty,
     assertUnreachable,
-    type DashboardFilters,
     type DateGranularity,
     DEFAULT_RESULTS_PAGE_SIZE,
-    type ExecuteAsyncQueryRequestParams,
+    type ExecuteAsyncMetricQueryRequestParams,
+    type ExecuteAsyncSavedChartRequestParams,
     type MetricQuery,
     ParameterError,
     QueryExecutionContext,
@@ -19,7 +18,6 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
@@ -36,149 +34,6 @@ export type QueryResultsProps = {
 };
 
 /**
- * Aggregates pagination results for a query
- */
-const getQueryPaginatedResults = async (
-    projectUuid: string,
-    data: ExecuteAsyncQueryRequestParams,
-    pageSize?: number, // pageSize is used when getting the results but not when creating the query
-): Promise<
-    ApiQueryResults & {
-        queryUuid: string;
-        appliedDashboardFilters: DashboardFilters | null;
-        warehouseExecutionTimeMs?: number;
-        totalClientFetchTimeMs?: number;
-    }
-> => {
-    const startTime = new Date();
-
-    const executeQueryResponse =
-        await lightdashApi<ApiExecuteAsyncQueryResults>({
-            url: `/projects/${projectUuid}/query`,
-            version: 'v2',
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
-
-    // Get all page rows in sequence
-    let allRows: ResultRow[] = [];
-    let currentPage: ApiGetAsyncQueryResults | undefined;
-    let backoffMs = 250; // Start with 250ms
-
-    while (
-        !currentPage ||
-        currentPage.status === QueryHistoryStatus.PENDING ||
-        (currentPage.status === QueryHistoryStatus.READY &&
-            currentPage.nextPage)
-    ) {
-        const page =
-            currentPage?.status === QueryHistoryStatus.READY
-                ? currentPage?.nextPage
-                : 1;
-
-        const searchParams = new URLSearchParams();
-        if (page) {
-            searchParams.set('page', page.toString());
-        }
-        if (pageSize) {
-            searchParams.set('pageSize', pageSize.toString());
-        }
-
-        const urlQueryParams = searchParams.toString();
-        currentPage = await lightdashApi<ApiGetAsyncQueryResults>({
-            url: `/projects/${projectUuid}/query/${
-                executeQueryResponse.queryUuid
-            }${urlQueryParams ? `?${urlQueryParams}` : ''}`,
-            version: 'v2',
-            method: 'GET',
-            body: undefined,
-        });
-
-        const { status } = currentPage;
-
-        switch (status) {
-            case QueryHistoryStatus.CANCELLED:
-                throw <ApiError>{
-                    status: 'error',
-                    error: {
-                        name: 'Error',
-                        statusCode: 500,
-                        message: 'Query cancelled',
-                        data: {},
-                    },
-                };
-            case QueryHistoryStatus.ERROR:
-                throw <ApiError>{
-                    status: 'error',
-                    error: {
-                        name: 'Error',
-                        statusCode: 500,
-                        message: currentPage.error ?? 'Query failed',
-                        data: {},
-                    },
-                };
-            case QueryHistoryStatus.READY:
-                allRows = allRows.concat(currentPage.rows);
-                break;
-            case QueryHistoryStatus.PENDING:
-                await sleep(backoffMs);
-                // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
-                if (backoffMs < 1000) {
-                    backoffMs = Math.min(backoffMs * 2, 1000);
-                }
-                break;
-            default:
-                return assertUnreachable(status, 'Unknown query status');
-        }
-    }
-
-    const endTime = new Date();
-    const totalTime = endTime.getTime() - startTime.getTime();
-
-    return {
-        queryUuid: currentPage.queryUuid,
-        metricQuery: currentPage.metricQuery,
-        cacheMetadata: executeQueryResponse.cacheMetadata,
-        rows: allRows,
-        fields: currentPage.fields,
-        warehouseExecutionTimeMs:
-            currentPage.status === QueryHistoryStatus.READY
-                ? currentPage.initialQueryExecutionMs
-                : undefined,
-        totalClientFetchTimeMs: totalTime,
-        appliedDashboardFilters: executeQueryResponse.appliedDashboardFilters,
-    };
-};
-
-export const useUnderlyingDataResults = (
-    filters: MetricQuery['filters'],
-    underlyingDataSourceQueryUuid?: string,
-    underlyingDataItemId?: string,
-) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-
-    return useQuery<ApiQueryResults, ApiError>({
-        queryKey: [
-            'underlyingDataResults',
-            projectUuid,
-            underlyingDataSourceQueryUuid,
-            underlyingDataItemId,
-            filters,
-        ],
-        enabled: Boolean(projectUuid) && Boolean(underlyingDataSourceQueryUuid),
-        queryFn: () => {
-            return getQueryPaginatedResults(projectUuid!, {
-                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
-                underlyingDataSourceQueryUuid: underlyingDataSourceQueryUuid!,
-                underlyingDataItemId,
-                filters: convertDateFilters(filters),
-            });
-        },
-        retry: false,
-    });
-};
-
-/**
  * Run query & get first results page
  */
 
@@ -187,13 +42,26 @@ export type ReadyQueryResultsPageWithClientFetchTimeMs =
         clientFetchTimeMs: number;
     };
 
-export const executeQuery = async (
+const executeAsyncMetricQuery = async (
     projectUuid: string,
-    data: ExecuteAsyncQueryRequestParams,
+    data: ExecuteAsyncMetricQueryRequestParams,
     options: { signal?: AbortSignal } = {},
 ): Promise<ApiExecuteAsyncQueryResults> =>
     lightdashApi<ApiExecuteAsyncQueryResults>({
-        url: `/projects/${projectUuid}/query`,
+        url: `/projects/${projectUuid}/query/metric-query`,
+        version: 'v2',
+        method: 'POST',
+        body: JSON.stringify(data),
+        signal: options.signal,
+    });
+
+const executeAsyncSavedChartQuery = async (
+    projectUuid: string,
+    data: ExecuteAsyncSavedChartRequestParams,
+    options: { signal?: AbortSignal } = {},
+): Promise<ApiExecuteAsyncQueryResults> =>
+    lightdashApi<ApiExecuteAsyncQueryResults>({
+        url: `/projects/${projectUuid}/query/chart`,
         version: 'v2',
         method: 'POST',
         body: JSON.stringify(data),
@@ -211,7 +79,7 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
         queryKey: ['create-query', data],
         queryFn: ({ signal }) => {
             if (data?.chartUuid && data?.chartVersionUuid) {
-                return executeQuery(
+                return executeAsyncSavedChartQuery(
                     data.projectUuid,
                     {
                         context: QueryExecutionContext.CHART_HISTORY,
@@ -221,7 +89,7 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
                     { signal },
                 );
             } else if (data?.chartUuid) {
-                return executeQuery(
+                return executeAsyncSavedChartQuery(
                     data.projectUuid,
                     {
                         context: QueryExecutionContext.CHART,
@@ -230,7 +98,7 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
                     { signal },
                 );
             } else if (data?.query) {
-                return executeQuery(
+                return executeAsyncMetricQuery(
                     data.projectUuid,
                     {
                         context: QueryExecutionContext.EXPLORE,
