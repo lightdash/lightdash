@@ -2,18 +2,12 @@ import { type PivotReference } from '@lightdash/common';
 import { IconChartBarOff } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
-import {
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-    type FC,
-} from 'react';
+import { memo, useCallback, useEffect, useMemo, type FC } from 'react';
 import useEchartsCartesianConfig, {
     getFormattedValue,
     isLineSeriesOption,
 } from '../../hooks/echarts/useEchartsCartesianConfig';
+import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 
@@ -55,12 +49,6 @@ export type EchartSeriesClickEvent = EchartBaseClickEvent & {
 
 type EchartClickEvent = EchartSeriesClickEvent | EchartBaseClickEvent;
 
-type LegendClickEvent = {
-    selected: {
-        [name: string]: boolean;
-    };
-};
-
 export const EmptyChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
         <SuboptimalState
@@ -95,19 +83,9 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
     const { chartRef, isLoading, onSeriesContextMenu, itemsMap, resultsData } =
         useVisualizationContext();
 
-    const [selectedLegends, setSelectedLegends] = useState({});
-    const [selectedLegendsUpdated, setSelectedLegendsUpdated] = useState({});
-
-    const onLegendChange = useCallback((params: LegendClickEvent) => {
-        setSelectedLegends(params.selected);
-    }, []);
-
-    useEffect(() => {
-        setSelectedLegendsUpdated(selectedLegends);
-    }, [selectedLegends]);
-
+    const { selectedLegends, onLegendChange } = useLegendDoubleClickSelection();
     const eChartsOptions = useEchartsCartesianConfig(
-        selectedLegendsUpdated,
+        selectedLegends,
         props.isInDashboard,
     );
 

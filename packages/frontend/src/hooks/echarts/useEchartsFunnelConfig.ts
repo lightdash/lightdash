@@ -13,6 +13,7 @@ import { round } from 'lodash';
 import { useMemo } from 'react';
 import { isFunnelVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 export type FunnelSeriesDataPoint = NonNullable<
     FunnelSeriesOption['data']
@@ -40,7 +41,10 @@ const getValueAndPercentage = ({
     return { formattedValue, percentOfMax };
 };
 
-const useEchartsFunnelConfig = (isInDashboard: boolean) => {
+const useEchartsFunnelConfig = (
+    selectedLegends?: Record<string, boolean>,
+    isInDashboard?: boolean,
+) => {
     const { visualizationConfig, itemsMap, colorPalette } =
         useVisualizationContext();
 
@@ -148,6 +152,8 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
         };
     }, [chartConfig, colorPalette, seriesData]);
 
+    const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
+
     const eChartsOptions: EChartsOption | undefined = useMemo(() => {
         if (!chartConfig || !funnelSeriesOptions || !seriesData) return;
 
@@ -179,6 +185,8 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
                           top: 'top',
                           align: 'auto',
                       }),
+                selected: selectedLegends,
+                tooltip: legendDoubleClickTooltip,
             },
         };
     }, [
@@ -186,7 +194,9 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
         funnelSeriesOptions,
         seriesData,
         isInDashboard,
-        theme?.other?.chartFont,
+        theme,
+        legendDoubleClickTooltip,
+        selectedLegends,
     ]);
 
     if (!itemsMap) return;
