@@ -1,3 +1,10 @@
+## [0.1604.2](https://github.com/lightdash/lightdash/compare/0.1604.1...0.1604.2) (2025-04-29)
+
+
+### Bug Fixes
+
+* duplicate use query client ([#14587](https://github.com/lightdash/lightdash/issues/14587)) ([8b527a5](https://github.com/lightdash/lightdash/commit/8b527a5749ca134a706e8a031af2556fcc6b490b))
+
 ## [0.1604.1](https://github.com/lightdash/lightdash/compare/0.1604.0...0.1604.1) (2025-04-29)
 
 
