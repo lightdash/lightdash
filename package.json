@@ -13,9 +13,6 @@
         "@types/react-dom": "19.0.2",
         "typescript": "5.5.4"
     },
-    "overrides": {
-        "@mantine/core@8.0.0-alpha.3>@mantine/hooks": "$@mantine-8/hooks"
-    },
     "dependencies": {
         "tslib": "^2.8.1"
     },
@@ -52,6 +49,7 @@
         "typescript": "5.5.4"
     },
     "scripts": {
+        "preinstall": "node -e \"require('fs').existsSync('./scripts/only-allow-pnpm.js') && require('./scripts/only-allow-pnpm.js')\"",
         "common-dev": "pnpm -F common dev",
         "common-build": "pnpm -F common build",
         "common-lint": "pnpm -F common lint",
@@ -76,6 +74,7 @@
         "frontend-fix-lint": "pnpm -F frontend fix-lint",
         "frontend-fix-format": "pnpm -F frontend fix-format",
         "frontend-test": "pnpm -F frontend test",
+        "mantine-v7-build": "pnpm -F mantine-v7 build",
         "sdk-build": "pnpm common-build && pnpm frontend-build-sdk",
         "e2e-open": "pnpm -F e2e cypress:open",
         "e2e-run": "pnpm -F e2e cypress:run",
@@ -102,7 +101,7 @@
         "fix-format": "pnpm -r --stream --sequential -F common -F warehouses -F backend -F frontend -F e2e -F cli fix-format",
         "test": "pnpm -r --stream --sequential -F common -F warehouses -F backend -F frontend -F e2e -F cli test",
         "dev": "pnpm -r --stream --parallel -F common -F warehouses -F backend -F frontend run dev",
-        "build": "pnpm -r --stream --sequential -F common -F warehouses -F backend -F frontend build",
+        "build": "pnpm -r --stream --sequential -F common -F warehouses -F backend -F mantine-v7 -F frontend build",
         "build-published-packages": "pnpm -r --stream --sequential -F common -F warehouses -F cli build",
         "release-packages": "pnpm -r --stream --sequential -F common -F warehouses -F cli release",
         "start": "pnpm run backend-start",

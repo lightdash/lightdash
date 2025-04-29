@@ -1,10 +1,3 @@
 {
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "cssVariables.lookupFiles": [
-    "**/*.css",
-    "**/*.scss",
-    "**/*.sass",
-    "**/*.less",
-    "packages/frontend/node_modules/@mantine-8/core/styles.css"
-  ]
+  "typescript.tsdk": "node_modules/typescript/lib"
 }
