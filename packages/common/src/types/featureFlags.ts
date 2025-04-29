@@ -66,11 +66,6 @@ export enum FeatureFlags {
      * Enable the ability to create custom visualizations with AI
      */
     AiCustomViz = 'ai-custom-viz',
-
-    /**
-     * Enable the ability to create nested spaces
-     */
-    NestedSpaces = 'nested-spaces',
 }
 
 export type FeatureFlag = {

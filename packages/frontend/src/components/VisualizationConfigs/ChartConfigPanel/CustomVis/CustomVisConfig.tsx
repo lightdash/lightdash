@@ -9,6 +9,7 @@ import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { isCustomVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { Config } from '../../common/Config';
 import { GenerateVizWithAi } from './components/CustomVisAi';
 import { SelectTemplate } from './components/CustomVisTemplate';
 import { type Schema } from './types/types';
@@ -208,27 +209,34 @@ const CustomVisConfigTabs: React.FC = memo(() => {
 
     return (
         <>
-            <Flex justify="space-between" align="flex-end">
-                <Flex justify="space-between" gap="xs">
-                    <Text>Vega-Lite JSON</Text>
+            <Config>
+                <Config.Section>
+                    <Config.Group>
+                        <Config.Heading>
+                            <Flex justify="space-between" gap="xs">
+                                <Text>Vega-Lite JSON</Text>
 
-                    <DocumentationHelpButton href="https://docs.lightdash.com/references/custom-charts#custom-charts" />
-                </Flex>
-                <SelectTemplate
-                    itemsMap={itemsMap}
-                    isCustomConfig={isCustomConfig}
-                    isEditorEmpty={isEditorEmpty}
-                    setEditorConfig={setEditorConfig}
-                />
-                {isAiEnabled && (
-                    <GenerateVizWithAi
-                        itemsMap={itemsMap}
-                        sampleResults={series.slice(0, 3)}
-                        setEditorConfig={setEditorConfig}
-                        editorConfig={editorConfig}
-                    />
-                )}
-            </Flex>
+                                <DocumentationHelpButton href="https://docs.lightdash.com/references/custom-charts#custom-charts" />
+                            </Flex>
+                        </Config.Heading>
+
+                        <SelectTemplate
+                            itemsMap={itemsMap}
+                            isCustomConfig={isCustomConfig}
+                            isEditorEmpty={isEditorEmpty}
+                            setEditorConfig={setEditorConfig}
+                        />
+                        {isAiEnabled && (
+                            <GenerateVizWithAi
+                                itemsMap={itemsMap}
+                                sampleResults={series.slice(0, 3)}
+                                setEditorConfig={setEditorConfig}
+                                editorConfig={editorConfig}
+                            />
+                        )}
+                    </Config.Group>
+                </Config.Section>
+            </Config>
 
             <Group mt="sm" h="100%" align="top">
                 {/* Hack to show a monaco placeholder */}

@@ -1,9 +1,11 @@
-import { Center } from '@mantine/core';
+import { Anchor, Center, Text } from '@mantine/core';
+import { IconChartBarOff } from '@tabler/icons-react';
 import { Suspense, lazy, useEffect, type FC } from 'react';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
-import { EmptyChart, LoadingChart } from '../SimpleChart';
+import { LoadingChart } from '../SimpleChart';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 
 const VegaLite = lazy(() =>
     import('react-vega').then((module) => ({ default: module.VegaLite })),
@@ -35,7 +37,27 @@ const CustomVisualization: FC<Props> = (props) => {
         !isCustomVisualizationConfig(visualizationConfig) ||
         !spec
     ) {
-        return <EmptyChart />;
+        return (
+            <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+                <SuboptimalState
+                    title="No visualization loaded"
+                    description={
+                        <Text>
+                            Start by entering your{' '}
+                            <Anchor
+                                href="https://vega.github.io/vega-lite/examples/"
+                                target="_blank"
+                            >
+                                Vega-Lite JSON
+                            </Anchor>{' '}
+                            code or choose from our pre-built templates to
+                            create your chart.
+                        </Text>
+                    }
+                    icon={IconChartBarOff}
+                />
+            </div>
+        );
     }
 
     // TODO: 'chartConfig' is more props than config. It has data and
