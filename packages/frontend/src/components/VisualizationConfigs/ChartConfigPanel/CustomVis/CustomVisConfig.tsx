@@ -212,8 +212,11 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                         <Config.Heading>
                             <Flex justify="space-between" gap="xs">
                                 <Text>Vega-Lite JSON</Text>
-
-                                <DocumentationHelpButton href="https://docs.lightdash.com/references/custom-charts#custom-charts" />
+                                <DocumentationHelpButton
+                                    pos="relative"
+                                    top="2px"
+                                    href="https://docs.lightdash.com/references/custom-charts#custom-charts"
+                                />
                             </Flex>
                         </Config.Heading>
 
