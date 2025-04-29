@@ -1625,7 +1625,6 @@ const ExplorerProvider: FC<
         runQuery,
     ]);
 
-    const queryClient = useQueryClient();
     const { mutate: cancelQueryMutation } = useCancelQuery(
         projectUuid,
         query.data?.queryUuid,
