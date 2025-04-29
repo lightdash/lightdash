@@ -60,3 +60,12 @@ GET http://localhost:3000/api/v2/content
 &pageSize=25
 &sortBy=last_updated_at
 &sortDirection=desc
+
+
+### Move space
+POST http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/spaces/94a72258-03b2-496a-8980-b7c880aabd70/move
+Content-Type: application/json
+
+{
+  "parentSpaceUuid": null
+}

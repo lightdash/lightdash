@@ -5,6 +5,7 @@ import {
     ApiSpaceResponse,
     ApiSuccessEmpty,
     CreateSpace,
+    MoveSpace,
     UpdateSpace,
 } from '@lightdash/common';
 import {
@@ -145,6 +146,38 @@ export class SpaceController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * Move a space to a new parent space
+     * @param projectUuid The uuid of the space's parent project
+     * @param spaceUuid The uuid of the space to move
+     * @param body
+     * @param req
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{spaceUuid}/move')
+    @OperationId('MoveSpace')
+    @Tags('Roles & Permissions')
+    async moveSpace(
+        @Path() projectUuid: string,
+        @Path() spaceUuid: string,
+        @Body() body: MoveSpace,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getSpaceService()
+            .moveSpace(req.user!, spaceUuid, body.parentSpaceUuid);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

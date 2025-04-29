@@ -257,6 +257,65 @@ export class SpaceService extends BaseService {
         return updatedSpace;
     }
 
+    async moveSpace(
+        user: SessionUser,
+        spaceUuid: string,
+        parentSpaceUuid: string | null,
+    ) {
+        const checkSpace = async (uuid: string) => {
+            const space = await this.spaceModel.getSpaceSummary(uuid);
+            const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                uuid,
+            );
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('Space', {
+                        ...space,
+                        access: spaceAccess,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+            return space;
+        };
+
+        const space = await checkSpace(spaceUuid);
+
+        // Space is already in the correct parent space
+        if (space.parentSpaceUuid === parentSpaceUuid) {
+            this.logger.info(
+                `Space ${spaceUuid} is already in the correct parent space ${parentSpaceUuid}`,
+            );
+            return;
+        }
+
+        let parentSpace: Omit<SpaceSummary, 'userAccess'> | null = null;
+        if (parentSpaceUuid) {
+            parentSpace = await checkSpace(parentSpaceUuid);
+
+            if (parentSpace?.projectUuid !== space.projectUuid) {
+                throw new ForbiddenError();
+            }
+        }
+
+        await this.spaceModel.move(spaceUuid, parentSpaceUuid);
+
+        // this.analytics.track({
+        //     event: 'space.moved',
+        //     userId: user.userUuid,
+        //     properties: {
+        //         name: space.name,
+        //         spaceId: spaceUuid,
+        //         projectId: space.projectUuid,
+        //         isPrivate: space.isPrivate,
+        //         userAccessCount: space.access.length,
+        //     },
+        // });;
+    }
+
     async deleteSpace(user: SessionUser, spaceUuid: string): Promise<void> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         const spaceAccess = await this.spaceModel.getUserSpaceAccess(
