@@ -498,6 +498,10 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         bigValue?: {
             hasBigValueComparison?: boolean;
         };
+        custom?: {
+            size: number;
+            type: string;
+        };
         numFixedWidthBinCustomDimensions: number;
         numFixedBinsBinCustomDimensions: number;
         numCustomRangeBinCustomDimensions: number;

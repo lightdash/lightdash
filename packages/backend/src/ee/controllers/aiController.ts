@@ -3,9 +3,13 @@ import {
     ApiAiConversationResponse,
     ApiAiConversations,
     ApiAiDashboardSummaryResponse,
+    ApiAiGenerateCustomVizResponse,
     ApiAiGetDashboardSummaryResponse,
     ApiErrorPayload,
     DashboardSummary,
+    Field,
+    ItemsMap,
+    ResultRow,
 } from '@lightdash/common';
 import {
     Body,
@@ -129,6 +133,34 @@ export class AiController extends BaseController {
                 projectUuid,
                 body.question,
             ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/custom-viz')
+    @OperationId('generateCustomViz')
+    async generateCustomViz(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body()
+        body: {
+            prompt: string;
+            itemsMap: ItemsMap;
+            sampleResults: {
+                [k: string]: unknown;
+            }[];
+            currentVizConfig: string;
+        },
+    ): Promise<ApiAiGenerateCustomVizResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiService().generateCustomViz({
+                user: req.user!,
+                projectUuid,
+                ...body,
+            }),
         };
     }
 

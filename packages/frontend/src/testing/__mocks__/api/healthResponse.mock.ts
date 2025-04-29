@@ -45,7 +45,6 @@ export default function mockHealthResponse(
         pivotTable: {
             maxColumnLimit: 100,
         },
-        customVisualizationsEnabled: true,
         hasSlack: false,
         auth: {
             disablePasswordAuthentication: false,

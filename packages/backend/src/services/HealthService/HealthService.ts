@@ -99,9 +99,6 @@ export class HealthService extends BaseService {
             posthog: this.lightdashConfig.posthog,
             query: this.lightdashConfig.query,
             pivotTable: this.lightdashConfig.pivotTable,
-            customVisualizationsEnabled:
-                this.lightdashConfig.customVisualizations &&
-                this.lightdashConfig.customVisualizations.enabled,
             hasSlack: this.hasSlackConfig(),
             hasGithub: process.env.GITHUB_PRIVATE_KEY !== undefined,
             auth: {

@@ -60,6 +60,19 @@ export type DashboardSummaryViewed = BaseTrack & {
     };
 };
 
+export type CustomVizGenerated = BaseTrack & {
+    event: 'ai.custom_viz.generated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        // Track the metadata of the request and response
+        prompt: string; // the prompt used to generate the custom viz
+        responseSize: number; // length in chars
+        tokenUsage?: TokenUsage;
+        // Track how long is taking to get the response
+        timeOpenAi: number;
+    };
+};
 // SCIM events
 
 export type ScimAccessTokenAuthenticationEvent = BaseTrack & {

@@ -3,12 +3,24 @@
     border-bottom: 2px solid red;
 }
 
+.monaco-editor {
+    border: 0px;
+}
+
 .monaco-editor #monaco-overflow-container {
     position: absolute;
     top: 0;
     left: 0;
     z-index: 1000;
     border-radius: 4px;
+}
+
+.monaco-editor .core-guide-indent {
+    box-shadow: inset 1px 0 0 #e9ecef !important;
+    /* Vertical indent lines , gray.2 */
+}
+.monaco-editor .decorationsOverviewRuler {
+    display: none !important; /* Right vertical scrollable bar */
 }
 
 #tooltip-editor-wrapper .view-lines.monaco-mouse-cursor-text {

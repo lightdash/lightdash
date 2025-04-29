@@ -708,6 +708,11 @@ export type ApiAiGetDashboardSummaryResponse = {
     results: DashboardSummary;
 };
 
+export type ApiAiGenerateCustomVizResponse = {
+    status: 'ok';
+    results: string;
+};
+
 type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
@@ -964,7 +969,6 @@ export type HealthState = {
     pivotTable: {
         maxColumnLimit: number;
     };
-    customVisualizationsEnabled: boolean;
     hasSlack: boolean;
     hasGithub: boolean;
     hasHeadlessBrowser: boolean;
