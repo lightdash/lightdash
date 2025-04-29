@@ -10,8 +10,6 @@ overrides:
   '@types/react-dom': 19.0.2
   typescript: 5.5.4
 
-pnpmfileChecksum: hlkhuubq2i6yzm5vaocaqp3csu
-
 importers:
 
   .:
@@ -719,12 +717,9 @@ importers:
       '@lightdash/common':
         specifier: workspace:*
         version: link:../common
-      '@mantine-8/core':
-        specifier: npm:@mantine/core@8.0.0-alpha.3
-        version: '@mantine/core@8.0.0-alpha.3(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)'
-      '@mantine-8/hooks':
-        specifier: npm:@mantine/hooks@8.0.0-alpha.3
-        version: '@mantine/hooks@8.0.0-alpha.3(react@19.0.0)'
+      '@lightdash/mantine-v7':
+        specifier: workspace:*
+        version: link:../mantine-v7
       '@mantine/core':
         specifier: ^6.0.21
         version: 6.0.22(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/hooks@6.0.22(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -1128,6 +1123,31 @@ importers:
       react-dom:
         specifier: ^18.x || ^19.x
         version: 19.0.0(react@19.0.0)
+
+  packages/mantine-v7:
+    dependencies:
+      react:
+        specifier: ^18.x || ^19.x
+        version: 19.0.0
+      react-dom:
+        specifier: ^18.x || ^19.x
+        version: 19.0.0(react@19.0.0)
+    devDependencies:
+      '@mantine/core':
+        specifier: 7.17.4
+        version: 7.17.4(@mantine/hooks@7.17.4(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@mantine/hooks':
+        specifier: 7.17.4
+        version: 7.17.4(react@19.0.0)
+      '@vitejs/plugin-react':
+        specifier: ^4.4.1
+        version: 4.4.1(vite@6.3.2(@types/node@22.13.1)(lightningcss@1.22.0)(tsx@4.19.2)(yaml@2.7.0))
+      vite:
+        specifier: ^6.3.2
+        version: 6.3.2(@types/node@22.13.1)(lightningcss@1.22.0)(tsx@4.19.2)(yaml@2.7.0)
+      vite-plugin-dts:
+        specifier: ^4.5.3
+        version: 4.5.3(@types/node@22.13.1)(rollup@4.40.0)(typescript@5.7.2)(vite@6.3.2(@types/node@22.13.1)(lightningcss@1.22.0)(tsx@4.19.2)(yaml@2.7.0))
 
   packages/sdk-next-test-app:
     dependencies:
@@ -2943,9 +2963,10 @@ packages:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
 
-  '@mantine/core@8.0.0-alpha.3':
-    resolution: {integrity: sha512-UdT5hPvznbh6qBH0FYhIAJPP9FU4qGzP4dayyX0Eg+sm1Fg7tLjeKhRmu8/I/YBedLiGG4dq7FbmjHEQ8GoLkQ==}
+  '@mantine/core@7.17.4':
+    resolution: {integrity: sha512-Ea4M/98jxgIWCuxCdM0YIotVYjfLTGQsfIA6zDg0LsClgjo/ZLnnh4zbi+bLNgM+GGjP4ju7gv4MZvaTKuLO8g==}
     peerDependencies:
+      '@mantine/hooks': 7.17.4
       react: ^18.x || ^19.x
       react-dom: ^18.x || ^19.x
 
@@ -2967,8 +2988,8 @@ packages:
     peerDependencies:
       react: '>=16.8.0'
 
-  '@mantine/hooks@8.0.0-alpha.3':
-    resolution: {integrity: sha512-pE3w8jcqxuoQrGwQDL4AbWj836uQqOCkZmKmKwO5I9+oP7nHERG3m/LSIA+lZovlUhbjbBN0kUjxFG+bmcCfVg==}
+  '@mantine/hooks@7.17.4':
+    resolution: {integrity: sha512-PBcJxDAfGm8k1/JJmaDcxzRVQ3JSE1iXGktbgGz+qEOJmCxwbbAYe+CtGFFgi1xX2bPZ+7dtRr/+XFhnKtt/aw==}
     peerDependencies:
       react: ^18.x || ^19.x
 
@@ -11457,8 +11478,8 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0
 
-  react-textarea-autosize@8.5.6:
-    resolution: {integrity: sha512-aT3ioKXMa8f6zHYGebhbdMD2L00tKeRX1zuVuDx9YQK/JLLRSaSxq3ugECEmUB9z2kvk6bFSIoRHLkkUv0RJiw==}
+  react-textarea-autosize@8.5.9:
+    resolution: {integrity: sha512-U1DGlIQN5AwgjTyOEnI1oCcMuEr1pv1qOtklB2l4nyMGbHzWrI0eFsYK0zos2YWqAolJyG0IWJaqWmWj5ETh0A==}
     engines: {node: '>=10'}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -16164,7 +16185,7 @@ snapshots:
 
   '@kwsites/file-exists@1.1.1':
     dependencies:
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -16218,16 +16239,16 @@ snapshots:
       - '@emotion/react'
       - '@types/react'
 
-  '@mantine/core@8.0.0-alpha.3(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
+  '@mantine/core@7.17.4(@mantine/hooks@7.17.4(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
       '@floating-ui/react': 0.26.28(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@mantine/hooks': 8.0.0-alpha.3(react@19.0.0)
+      '@mantine/hooks': 7.17.4(react@19.0.0)
       clsx: 2.1.1
       react: 19.0.0
       react-dom: 19.0.0(react@19.0.0)
       react-number-format: 5.4.3(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       react-remove-scroll: 2.6.3(@types/react@19.0.2)(react@19.0.0)
-      react-textarea-autosize: 8.5.6(@types/react@19.0.2)(react@19.0.0)
+      react-textarea-autosize: 8.5.9(@types/react@19.0.2)(react@19.0.0)
       type-fest: 4.32.0
     transitivePeerDependencies:
       - '@types/react'
@@ -16250,7 +16271,7 @@ snapshots:
     dependencies:
       react: 19.0.0
 
-  '@mantine/hooks@8.0.0-alpha.3(react@19.0.0)':
+  '@mantine/hooks@7.17.4(react@19.0.0)':
     dependencies:
       react: 19.0.0
 
@@ -19391,7 +19412,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/type-utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@8.1.1)
       eslint: 8.57.1
       graphemer: 1.4.0
       ignore: 5.2.0
@@ -19408,7 +19429,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/types': 5.62.0
       '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.5.4)
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@8.1.1)
       eslint: 8.57.1
     optionalDependencies:
       typescript: 5.5.4
@@ -19475,7 +19496,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 7.18.0
       '@typescript-eslint/visitor-keys': 7.18.0
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@8.1.1)
       globby: 11.1.0
       is-glob: 4.0.3
       minimatch: 9.0.5
@@ -21035,7 +21056,7 @@ snapshots:
       '@actions/core': 1.11.1
       arg: 5.0.2
       console.table: 0.10.0
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@8.1.1)
       fast-shuffle: 6.1.0
       find-cypress-specs: 1.43.4(@babel/core@7.26.10)
       globby: 11.1.0
@@ -21199,7 +21220,7 @@ snapshots:
       chalk: 2.4.2
       commander: 2.20.3
       core-js: 3.38.0
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@8.1.1)
       fast-json-patch: 3.1.1
       get-stdin: 6.0.0
       http-proxy-agent: 5.0.0
@@ -22490,7 +22511,7 @@ snapshots:
       '@actions/core': 1.11.1
       arg: 5.0.2
       console.table: 0.10.0
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@8.1.1)
       find-test-names: 1.28.18(@babel/core@7.26.10)
       globby: 11.1.0
       minimatch: 3.1.2
@@ -22514,7 +22535,7 @@ snapshots:
       '@babel/parser': 7.27.0
       '@babel/plugin-syntax-jsx': 7.23.3(@babel/core@7.26.10)
       acorn-walk: 8.2.0
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@8.1.1)
       globby: 11.1.0
       simple-bin-help: 1.8.0
     transitivePeerDependencies:
@@ -25447,7 +25468,7 @@ snapshots:
 
   nock@13.5.1:
     dependencies:
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@8.1.1)
       json-stringify-safe: 5.0.1
       propagate: 2.0.1
     transitivePeerDependencies:
@@ -26725,7 +26746,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  react-textarea-autosize@8.5.6(@types/react@19.0.2)(react@19.0.0):
+  react-textarea-autosize@8.5.9(@types/react@19.0.2)(react@19.0.0):
     dependencies:
       '@babel/runtime': 7.27.0
       react: 19.0.0
@@ -27500,7 +27521,7 @@ snapshots:
     dependencies:
       '@kwsites/file-exists': 1.1.1
       '@kwsites/promise-deferred': 1.1.1
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -27638,7 +27659,7 @@ snapshots:
   spec-change@1.11.11:
     dependencies:
       arg: 5.0.2
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@8.1.1)
       deep-equal: 2.2.3
       dependency-tree: 11.0.1
       lazy-ass: 2.0.3
