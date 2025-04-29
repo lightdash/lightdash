@@ -1,3 +1,10 @@
+# [0.1604.0](https://github.com/lightdash/lightdash/compare/0.1603.0...0.1604.0) (2025-04-29)
+
+
+### Features
+
+* cancel query endpoint ([#14562](https://github.com/lightdash/lightdash/issues/14562)) ([699378b](https://github.com/lightdash/lightdash/commit/699378bf72b42a56341fa10ceb53c8113d1fe69c))
+
 # [0.1603.0](https://github.com/lightdash/lightdash/compare/0.1602.3...0.1603.0) (2025-04-29)
 
 
