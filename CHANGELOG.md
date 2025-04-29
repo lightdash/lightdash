@@ -1,3 +1,10 @@
+## [0.1602.3](https://github.com/lightdash/lightdash/compare/0.1602.2...0.1602.3) (2025-04-29)
+
+
+### Bug Fixes
+
+* correctly select and display default space in space tree view ([#14577](https://github.com/lightdash/lightdash/issues/14577)) ([460a426](https://github.com/lightdash/lightdash/commit/460a426157cace1bd98be05e0576dee63e66f51f))
+
 ## [0.1602.2](https://github.com/lightdash/lightdash/compare/0.1602.1...0.1602.2) (2025-04-28)
 
 
