@@ -237,10 +237,10 @@ const CustomVisConfigTabs: React.FC = memo(() => {
                     </Config.Group>
                 </Config.Section>
             </Config>
-
             <Group
-                h="100%"
+                h="calc(100vh - 300px)"
                 align="top"
+                mt="4px"
                 sx={{
                     borderTop: '0.125rem solid #dee2e6',
                 }}
