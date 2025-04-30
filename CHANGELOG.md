@@ -1,3 +1,10 @@
+## [0.1606.1](https://github.com/lightdash/lightdash/compare/0.1606.0...0.1606.1) (2025-04-30)
+
+
+### Bug Fixes
+
+* query refetch after cancelation ([#14603](https://github.com/lightdash/lightdash/issues/14603)) ([90a3ac8](https://github.com/lightdash/lightdash/commit/90a3ac8807e382cb18cfbab81575fdb276000906))
+
 # [0.1606.0](https://github.com/lightdash/lightdash/compare/0.1605.0...0.1606.0) (2025-04-30)
 
 
