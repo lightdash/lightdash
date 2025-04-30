@@ -1,5 +1,5 @@
 import { Knex } from 'knex';
-import type { ResultsCacheStatus } from '../../models/ResultsCacheModel/types';
+import type { ResultsCacheStatus } from '../../services/CacheService/types';
 
 export type DbResultsCache = {
     cache_key: string;

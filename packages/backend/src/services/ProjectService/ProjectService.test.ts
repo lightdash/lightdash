@@ -33,11 +33,6 @@ import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import type { ResultsCacheModel } from '../../models/ResultsCacheModel/ResultsCacheModel';
-import {
-    ResultsCacheStatus,
-    type CacheHitCacheResult,
-    type MissCacheResult,
-} from '../../models/ResultsCacheModel/types';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -49,6 +44,12 @@ import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTa
 import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import type { CacheService } from '../CacheService/CacheService';
+import {
+    CacheHitCacheResult,
+    MissCacheResult,
+    ResultsCacheStatus,
+} from '../CacheService/types';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -163,6 +164,7 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         userModel: {} as UserModel,
         resultsCacheModel: {} as ResultsCacheModel,
         resultsCacheStorageClient: {} as S3ResultsCacheStorageClient,
+        cacheService: {} as CacheService,
     });
 
 describe('ProjectService', () => {
@@ -486,8 +488,9 @@ describe('ProjectService', () => {
 
                 jest.clearAllMocks();
                 // Mock the resultsCacheModel.createOrGetExistingCache method
-                serviceWithCache.resultsCacheModel.createOrGetExistingCache =
-                    jest.fn().mockImplementation(async () => ({
+                serviceWithCache.cacheService.createOrGetExistingCache = jest
+                    .fn()
+                    .mockImplementation(async () => ({
                         cacheHit: false,
                         cacheKey: 'test-cache-key',
                         write,
@@ -517,7 +520,7 @@ describe('ProjectService', () => {
                 };
 
                 (
-                    serviceWithCache.resultsCacheModel
+                    serviceWithCache.cacheService
                         .createOrGetExistingCache as jest.Mock
                 ).mockResolvedValueOnce(mockCacheResult);
 
@@ -599,7 +602,7 @@ describe('ProjectService', () => {
                 };
 
                 (
-                    serviceWithCache.resultsCacheModel
+                    serviceWithCache.cacheService
                         .createOrGetExistingCache as jest.Mock
                 ).mockResolvedValueOnce(mockCacheResult);
 
@@ -679,7 +682,7 @@ describe('ProjectService', () => {
                 };
 
                 (
-                    serviceWithCache.resultsCacheModel
+                    serviceWithCache.cacheService
                         .createOrGetExistingCache as jest.Mock
                 ).mockResolvedValueOnce(mockCacheResult);
 
@@ -714,7 +717,7 @@ describe('ProjectService', () => {
 
                 // Verify that createOrGetExistingCache was called with invalidateCache: true
                 expect(
-                    serviceWithCache.resultsCacheModel.createOrGetExistingCache,
+                    serviceWithCache.cacheService.createOrGetExistingCache,
                 ).toHaveBeenCalledWith(
                     projectUuid,
                     expect.any(Object),
@@ -766,7 +769,7 @@ describe('ProjectService', () => {
 
                 jest.clearAllMocks();
                 // Mock the resultsCacheModel.createOrGetExistingCache method
-                serviceWithoutCache.resultsCacheModel.createOrGetExistingCache =
+                serviceWithoutCache.cacheService.createOrGetExistingCache =
                     jest.fn();
             });
 
@@ -805,8 +808,7 @@ describe('ProjectService', () => {
 
                 // Verify that resultsCacheModel.createOrGetExistingCache was not called
                 expect(
-                    serviceWithoutCache.resultsCacheModel
-                        .createOrGetExistingCache,
+                    serviceWithoutCache.cacheService.createOrGetExistingCache,
                 ).not.toHaveBeenCalled();
 
                 // Verify that the query history was not updated with READY status
@@ -1013,7 +1015,7 @@ describe('ProjectService', () => {
                     .mockResolvedValue(validExplore);
 
                 // Mock the resultsCacheModel.getCachedResultsPage to return cached results
-                serviceWithCache.resultsCacheModel.getCachedResultsPage = jest
+                serviceWithCache.cacheService.getCachedResultsPage = jest
                     .fn()
                     .mockResolvedValue({
                         rows: [expectedFormattedRow],
@@ -1054,7 +1056,7 @@ describe('ProjectService', () => {
                 });
 
                 expect(
-                    serviceWithCache.resultsCacheModel.getCachedResultsPage,
+                    serviceWithCache.cacheService.getCachedResultsPage,
                 ).toHaveBeenCalledWith(
                     'test-cache-key',
                     projectUuid,
@@ -1096,7 +1098,7 @@ describe('ProjectService', () => {
                     .fn()
                     .mockResolvedValue(validExplore);
 
-                serviceWithCache.resultsCacheModel.getCachedResultsPage = jest
+                serviceWithCache.cacheService.getCachedResultsPage = jest
                     .fn()
                     .mockRejectedValue(
                         new NotFoundError(

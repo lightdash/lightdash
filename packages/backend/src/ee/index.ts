@@ -17,6 +17,7 @@ import { ScimOrganizationAccessTokenModel } from './models/ScimOrganizationAcces
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
 import { AiService } from './services/AiService/AiService';
+import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialCatalogService } from './services/CommercialCatalogService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
@@ -131,6 +132,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     organizationModel: models.getOrganizationModel(),
                     unfurlService: repository.getUnfurlService(),
                     projectService: repository.getProjectService(),
+                    lightdashConfig: context.lightdashConfig,
+                }),
+            cacheService: ({ models, context }) =>
+                new CommercialCacheService({
+                    resultsCacheModel: models.getResultsCacheModel(),
                     lightdashConfig: context.lightdashConfig,
                 }),
         },

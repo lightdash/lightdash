@@ -5,6 +5,7 @@ import { ModelRepository } from '../models/ModelRepository';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { BaseService } from './BaseService';
+import { CacheService } from './CacheService/CacheService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
@@ -84,6 +85,7 @@ interface ServiceManifest {
     featureFlagService: FeatureFlagService;
     spotlightService: SpotlightService;
     lightdashAnalyticsService: LightdashAnalyticsService;
+    cacheService: CacheService;
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
@@ -469,6 +471,7 @@ export class ServiceRepository
                     resultsCacheStorageClient:
                         this.clients.getResultsCacheStorageClient(),
                     userModel: this.models.getUserModel(),
+                    cacheService: this.getCacheService(),
                 }),
         );
     }
@@ -820,6 +823,17 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
                     savedChartModel: this.models.getSavedChartModel(),
+                }),
+        );
+    }
+
+    public getCacheService(): CacheService {
+        return this.getService(
+            'cacheService',
+            () =>
+                new CacheService({
+                    resultsCacheModel: this.models.getResultsCacheModel(),
+                    lightdashConfig: this.context.lightdashConfig,
                 }),
         );
     }

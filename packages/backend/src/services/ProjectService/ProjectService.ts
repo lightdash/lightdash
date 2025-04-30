@@ -116,7 +116,6 @@ import {
     ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
-    type QueryHistory,
     QueryHistoryStatus,
     ReplaceableCustomFields,
     ReplaceCustomFields,
@@ -128,7 +127,6 @@ import {
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
     type SemanticLayerConnectionUpdate,
-    SemanticLayerResultRow,
     SessionUser,
     snakeCaseName,
     SortByDirection,
@@ -191,12 +189,6 @@ import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import { ResultsCacheModel } from '../../models/ResultsCacheModel/ResultsCacheModel';
-import {
-    type CacheHitCacheResult,
-    CreateCacheResult,
-    type MissCacheResult,
-    ResultsCacheStatus,
-} from '../../models/ResultsCacheModel/types';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -218,6 +210,12 @@ import { ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { BaseService } from '../BaseService';
+import type { CacheService } from '../CacheService/CacheService';
+import {
+    CreateCacheResult,
+    MissCacheResult,
+    ResultsCacheStatus,
+} from '../CacheService/types';
 import {
     hasDirectAccessToSpace,
     hasViewAccessToSpace,
@@ -270,6 +268,7 @@ type ProjectServiceArguments = {
     resultsCacheModel: ResultsCacheModel;
     resultsCacheStorageClient: IResultsCacheStorageClient;
     userModel: UserModel;
+    cacheService: CacheService;
 };
 
 export class ProjectService extends BaseService {
@@ -331,6 +330,8 @@ export class ProjectService extends BaseService {
 
     userModel: UserModel;
 
+    cacheService: CacheService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -360,6 +361,7 @@ export class ProjectService extends BaseService {
         encryptionUtil,
         resultsCacheStorageClient,
         userModel,
+        cacheService,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -391,6 +393,7 @@ export class ProjectService extends BaseService {
         this.resultsCacheModel = resultsCacheModel;
         this.resultsCacheStorageClient = resultsCacheStorageClient;
         this.userModel = userModel;
+        this.cacheService = cacheService;
     }
 
     static getMetricQueryExecutionProperties({
@@ -2126,7 +2129,7 @@ export class ProjectService extends BaseService {
                 durationMs,
             } = await measureTime(
                 () =>
-                    this.resultsCacheModel.getCachedResultsPage(
+                    this.cacheService.getCachedResultsPage(
                         cacheKey,
                         projectUuid,
                         page,
@@ -2622,7 +2625,7 @@ export class ProjectService extends BaseService {
 
                     if (resultsCacheEnabled) {
                         resultsCache =
-                            await this.resultsCacheModel.createOrGetExistingCache(
+                            await this.cacheService.createOrGetExistingCache(
                                 projectUuid,
                                 {
                                     sql: query,
