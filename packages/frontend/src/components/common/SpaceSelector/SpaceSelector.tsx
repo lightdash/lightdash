@@ -1,12 +1,6 @@
 import { subject } from '@casl/ability';
 import { assertUnreachable, type SpaceSummary } from '@lightdash/common';
-import {
-    Paper,
-    ScrollArea,
-    Stack,
-    type PaperProps,
-    type ScrollAreaProps,
-} from '@mantine/core';
+import { Paper, ScrollArea, Stack } from '@mantine/core';
 import { useMemo, useState } from 'react';
 import { hasDirectAccessToSpace } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
@@ -15,24 +9,23 @@ import Tree from '../Tree/Tree';
 import { type NestableItem } from '../Tree/types';
 
 type SpaceSelectorProps = {
+    projectUuid: string | undefined;
+    selectedSpaceUuid: string | null;
     spaces:
         | Array<Pick<SpaceSummary, 'isPrivate' | 'access'> & NestableItem>
         | undefined;
-    selectedSpaceUuid: string | null;
-    scrollingContainerProps?: PaperProps & ScrollAreaProps;
     isLoading?: boolean;
     onSelectSpace: (spaceUuid: string | null) => void;
-    projectUuid: string | undefined;
 };
 
 const SpaceSelector = ({
-    spaces = [],
+    projectUuid,
     selectedSpaceUuid,
-    scrollingContainerProps,
+    spaces = [],
     isLoading: _isLoading, // TODO: implement loading state for the tree.
     onSelectSpace,
-    projectUuid,
-}: SpaceSelectorProps) => {
+    children,
+}: React.PropsWithChildren<SpaceSelectorProps>) => {
     const { user } = useApp();
 
     const userCanManageProject = user.data?.ability?.can(
@@ -66,21 +59,25 @@ const SpaceSelector = ({
     }, [user.data, selectedAdminContentType, spaces]);
 
     return (
-        <Stack>
+        <Stack h="400px">
             {userCanManageProject ? (
                 <AdminContentViewFilter
                     value={selectedAdminContentType}
                     onChange={setSelectedAdminContentType}
                     withDivider={false}
+                    segmentedControlProps={{
+                        sx: {
+                            flexShrink: 0,
+                        },
+                    }}
                 />
             ) : null}
 
             <Paper
                 component={ScrollArea}
                 w="100%"
-                h="350px"
+                sx={{ flexGrow: 1 }}
                 withBorder
-                {...scrollingContainerProps}
             >
                 <Tree
                     data={filteredSpaces}
@@ -89,6 +86,8 @@ const SpaceSelector = ({
                     topLevelLabel="Spaces"
                 />
             </Paper>
+
+            {children}
         </Stack>
     );
 };

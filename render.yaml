@@ -5,7 +5,7 @@ databases:
     ipAllowList: []
     postgresMajorVersion: 13
     plan: standard
-    previewPlan: basic-512mb
+    previewPlan: basic-1gb
 
 services:
   - type: pserv

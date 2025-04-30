@@ -90,6 +90,7 @@ const bubblePlotsTemplate = {
 
 const funnelChartTemplate = {
     $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+    mark: 'funnel',
     config: {
         view: {
             strokeWidth: 0,
@@ -178,6 +179,7 @@ const funnelChartTemplate = {
 
 const waterfallChartTemplate = {
     $schema: 'https://vega.github.io/schema/vega-lite/v2.json',
+    mark: 'waterfall',
     encoding: {
         x: {
             field: 'field_x',
@@ -234,6 +236,7 @@ const mapTemplate = {
         scale: 100,
         center: [10, 50],
     },
+    mark: 'map',
     layer: [
         {
             data: {
