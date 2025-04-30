@@ -18,9 +18,11 @@ import {
     ChartSourceType,
     ChartSummary,
     CompiledDimension,
+    ConditionalOperator,
     ContentType,
     convertCustomMetricToDbt,
     convertExplores,
+    convertFieldRefToFieldId,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     type CreateDatabricksCredentials,
@@ -29,6 +31,7 @@ import {
     CreateProject,
     CreateProjectMember,
     CreateSnowflakeCredentials,
+    createVirtualView as createVirtualViewObject,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     type CustomDimension,
@@ -233,6 +236,7 @@ import {
     type ExecuteAsyncMetricQueryArgs,
     type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
+    ExecuteAsyncSqlQueryArgs,
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
 } from './types';
@@ -2816,6 +2820,96 @@ export class ProjectService<
                 invalidateCache,
             },
             requestParameters,
+        );
+
+        return {
+            queryUuid,
+            cacheMetadata,
+            appliedDashboardFilters: null,
+        };
+    }
+
+    async executeAsyncSqlQuery({
+        user,
+        projectUuid,
+        sql,
+        context,
+    }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        const { warehouseClient } = await this._getWarehouseClient(
+            projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+        );
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            user_uuid: user.userUuid,
+            query_context: context,
+        };
+
+        // Get one row to get the column definitions
+        const columns: { name: string; type: DimensionType }[] = [];
+        await warehouseClient.streamQuery(
+            applyLimitToSqlQuery({ sqlQuery: sql, limit: 1 }),
+            (row) => {
+                if (row.fields) {
+                    Object.keys(row.fields).forEach((key) => {
+                        columns.push({
+                            name: key,
+                            type: row.fields[key].type,
+                        });
+                    });
+                }
+            },
+            {
+                tags: {},
+            },
+        );
+
+        const vizColumns = columns.map((col) => ({
+            reference: col.name,
+            type: col.type,
+        }));
+
+        const virtualView = createVirtualViewObject(
+            'virtual_view',
+            sql,
+            vizColumns,
+            warehouseClient,
+        );
+
+        const dimensions = Object.values(
+            virtualView.tables[virtualView.baseTable].dimensions,
+        ).map((d) => convertFieldRefToFieldId(d.name, virtualView.name));
+
+        const query: MetricQuery = {
+            exploreName: virtualView.name,
+            dimensions,
+            metrics: [],
+            filters: {},
+            tableCalculations: [],
+            sorts: [],
+            customDimensions: [],
+            additionalMetrics: [],
+            limit: 500,
+        };
+
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
+            {
+                user,
+                projectUuid,
+                explore: virtualView,
+                queryTags,
+                metricQuery: query,
+                context,
+            },
+            {
+                query,
+                invalidateCache: false,
+            },
         );
 
         return {
