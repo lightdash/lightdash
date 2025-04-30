@@ -1,3 +1,10 @@
+# [0.1606.0](https://github.com/lightdash/lightdash/compare/0.1605.0...0.1606.0) (2025-04-30)
+
+
+### Features
+
+* support --defer dbt on CLi preview ([#14594](https://github.com/lightdash/lightdash/issues/14594)) ([74f4ecb](https://github.com/lightdash/lightdash/commit/74f4ecb0e36bd3280d3fcd92975ac6f9c49af2e0))
+
 # [0.1605.0](https://github.com/lightdash/lightdash/compare/0.1604.2...0.1605.0) (2025-04-29)
 
 
