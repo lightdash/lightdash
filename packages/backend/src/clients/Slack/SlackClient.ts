@@ -369,8 +369,29 @@ export class SlackClient {
     async postFileToThread(args: PostSlackFile) {
         const webClient = await this.getWebClient(args.organizationUuid);
 
+        let { channelId } = args;
+        // If the channel ID is a user ID (starts with U), we need to open a DM channel first
+        // Slack API's files.uploadV2 doesn't support uploading files where channel_id is a user ID
+        if (channelId.startsWith('U')) {
+            try {
+                const response = await webClient.conversations.open({
+                    users: channelId,
+                });
+                if (!response.ok || !response.channel?.id) {
+                    throw new Error('Failed to open DM channel');
+                }
+                channelId = response.channel.id;
+            } catch (error) {
+                Logger.error(
+                    `Failed to open DM channel with user ${channelId}`,
+                    error,
+                );
+                throw new Error(`Failed to open DM channel: ${error}`);
+            }
+        }
+
         const result = await webClient.files.uploadV2({
-            channel_id: args.channelId,
+            channel_id: channelId,
             thread_ts: args.threadTs,
             file: args.file,
             title: args.title,
