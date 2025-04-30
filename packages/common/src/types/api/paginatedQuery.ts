@@ -28,6 +28,11 @@ export type ExecuteAsyncDashboardChartRequestParams =
         granularity?: DateGranularity;
     };
 
+export type ExecuteAsyncSqlQueryRequestParams =
+    ExecuteAsyncDashboardChartRequestParams & {
+        sql: string;
+    };
+
 export type ExecuteAsyncUnderlyingDataRequestParams =
     CommonPaginatedQueryRequestParams & {
         underlyingDataSourceQueryUuid: string;
@@ -37,6 +42,7 @@ export type ExecuteAsyncUnderlyingDataRequestParams =
 
 export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncMetricQueryRequestParams
+    | ExecuteAsyncSqlQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams;

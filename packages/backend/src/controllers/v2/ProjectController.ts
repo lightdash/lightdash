@@ -2,6 +2,7 @@ import {
     ApiErrorPayload,
     ApiGetAsyncQueryResults,
     ApiSuccessEmpty,
+    ExecuteAsyncSqlQueryRequestParams,
     QueryExecutionContext,
     type ApiExecuteAsyncQueryResults,
     type ExecuteAsyncDashboardChartRequestParams,
@@ -139,6 +140,36 @@ export class V2ProjectController extends BaseController {
                 metricQuery,
                 context: context ?? QueryExecutionContext.API,
                 granularity: body.query.granularity,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Hidden()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/query/sql')
+    @OperationId('executeAsyncSqlQuery')
+    async executeAsyncSqlQuery(
+        @Body()
+        body: ExecuteAsyncSqlQueryRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiExecuteAsyncQueryResponse> {
+        this.setStatus(200);
+        const context = body.context ?? getContextFromHeader(req);
+
+        const results = await this.services
+            .getProjectService()
+            .executeAsyncSqlQuery({
+                user: req.user!,
+                projectUuid,
+                invalidateCache: body.invalidateCache ?? false,
+                sql: body.sql,
+                context: context ?? QueryExecutionContext.SQL_RUNNER,
             });
 
         return {
