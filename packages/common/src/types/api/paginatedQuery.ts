@@ -29,7 +29,7 @@ export type ExecuteAsyncDashboardChartRequestParams =
     };
 
 export type ExecuteAsyncSqlQueryRequestParams =
-    ExecuteAsyncDashboardChartRequestParams & {
+    CommonPaginatedQueryRequestParams & {
         sql: string;
     };
 
