@@ -15670,6 +15670,41 @@
                     }
                 ]
             },
+            "ExecuteAsyncSqlQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "sql": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["sql"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ExecuteAsyncSavedChartRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "versionUuid": {
+                                "type": "string"
+                            },
+                            "chartUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["chartUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
             "ExecuteAsyncDashboardChartRequestParams": {
                 "allOf": [
                     {
@@ -15702,41 +15737,6 @@
                             "dashboardUuid",
                             "chartUuid"
                         ],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ExecuteAsyncSqlQueryRequestParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/ExecuteAsyncDashboardChartRequestParams"
-                    },
-                    {
-                        "properties": {
-                            "sql": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["sql"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ExecuteAsyncSavedChartRequestParams": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
-                    },
-                    {
-                        "properties": {
-                            "versionUuid": {
-                                "type": "string"
-                            },
-                            "chartUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["chartUuid"],
                         "type": "object"
                     }
                 ]

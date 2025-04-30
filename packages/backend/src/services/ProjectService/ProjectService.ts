@@ -2804,9 +2804,29 @@ export class ProjectService extends BaseService {
         sql,
         context,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User does not belong to an organization');
+        }
+
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
+
+        if (
+            user.ability.cannot(
+                'create',
+                subject('Job', { organizationUuid, projectUuid }),
+            ) ||
+            user.ability.cannot(
+                'manage',
+                subject('SqlRunner', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         const { warehouseClient } = await this._getWarehouseClient(
             projectUuid,
