@@ -109,7 +109,6 @@ export const useDashboardChartReadyQuery = (
             sortKey,
             context,
             autoRefresh,
-            invalidateCache,
             hasADateDimension ? granularity : null,
         ],
         [
@@ -121,7 +120,6 @@ export const useDashboardChartReadyQuery = (
             sortKey,
             context,
             autoRefresh,
-            invalidateCache,
             hasADateDimension,
             granularity,
         ],
