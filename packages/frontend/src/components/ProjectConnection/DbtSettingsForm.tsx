@@ -4,7 +4,6 @@ import {
     DbtProjectTypeLabels,
     FeatureFlags,
     WarehouseTypes,
-    type DbtProjectConfig,
 } from '@lightdash/common';
 import { Anchor, Select, Stack, TextInput } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
@@ -160,15 +159,11 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 <Select
                     name="dbt.type"
                     {...form.getInputProps('dbt.type')}
-                    onChange={(value) => {
+                    onChange={(value: DbtProjectType) => {
                         form.getInputProps('dbt.type').onChange(value);
                         if (value) {
-                            const nextValues = dbtDefaults.formValues[
-                                value as DbtProjectType
-                            ] as DbtProjectConfig;
-
                             form.setValues({
-                                dbt: nextValues,
+                                dbt: dbtDefaults.formValues[value],
                             });
                         }
                     }}

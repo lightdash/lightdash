@@ -3,7 +3,6 @@ import {
     WarehouseTypes,
     isCreateProjectJob,
     type CreateWarehouseCredentials,
-    type DbtProjectConfig,
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
@@ -17,8 +16,8 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { dbtDefaults } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
+import { FormContainer } from './FormContainer';
 import { FormProvider, useForm } from './formContext';
-import { FormContainer } from './ProjectConnection.styles';
 import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import { type ProjectConnectionForm } from './types';
@@ -41,7 +40,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     const { isLoading: isSaving, mutateAsync } = useCreateMutation();
     const onProjectError = useOnProjectError();
 
-    selectedWarehouse = selectedWarehouse ?? WarehouseTypes.BIGQUERY;
+    const warehouseType = selectedWarehouse ?? WarehouseTypes.BIGQUERY;
     const dbtType = health.data?.defaultProject?.type ?? dbtDefaults.dbtType;
     const form = useForm({
         initialValues: {
@@ -49,14 +48,12 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             dbt: {
                 ...dbtDefaults.formValues[dbtType],
                 ...health.data?.defaultProject,
-            } as DbtProjectConfig,
-            warehouse: {
-                ...warehouseDefaultValues[selectedWarehouse],
-            } as CreateWarehouseCredentials,
+            },
+            warehouse: warehouseDefaultValues[warehouseType],
             dbtVersion: dbtDefaults.dbtVersion,
         },
         validate: {
-            warehouse: warehouseValueValidators[selectedWarehouse],
+            warehouse: warehouseValueValidators[warehouseType],
             dbt: dbtFormValidators,
         },
         validateInputOnBlur: true,

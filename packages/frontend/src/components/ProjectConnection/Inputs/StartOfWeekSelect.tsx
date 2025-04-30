@@ -1,4 +1,4 @@
-import { Alert, Select } from '@mantine/core';
+import { Alert, Select, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -44,9 +44,9 @@ const StartOfWeekSelect: FC<{
                 >
                     Going forward, if you use the CLI to deploy the project, you
                     will need to run the deploy command with the option{' '}
-                    <b>
+                    <Text fw={500}>
                         <code>--start-of-week={field.value}</code>
-                    </b>
+                    </Text>
                     , for the changes to take effect.
                 </Alert>
             )}

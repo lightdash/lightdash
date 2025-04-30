@@ -6,7 +6,12 @@ import {
     startWithHTTPSProtocol,
 } from '../../../utils/fieldValidators';
 
-export const warehouseValueValidators = {
+type Validator = (value: string) => string | undefined;
+
+export const warehouseValueValidators: Record<
+    WarehouseTypes,
+    Record<string, Validator>
+> = {
     [WarehouseTypes.BIGQUERY]: {
         dataset: hasNoWhiteSpaces('Data set'),
         project: hasNoWhiteSpaces('Project'),
