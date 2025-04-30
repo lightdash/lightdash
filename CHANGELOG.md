@@ -1,3 +1,10 @@
+## [0.1606.2](https://github.com/lightdash/lightdash/compare/0.1606.1...0.1606.2) (2025-04-30)
+
+
+### Bug Fixes
+
+* slack upload pdf on dm channel ([#14602](https://github.com/lightdash/lightdash/issues/14602)) ([0e331d4](https://github.com/lightdash/lightdash/commit/0e331d4d5d0ff65ca73e6d57675cf3c8c0db9182))
+
 ## [0.1606.1](https://github.com/lightdash/lightdash/compare/0.1606.0...0.1606.1) (2025-04-30)
 
 
