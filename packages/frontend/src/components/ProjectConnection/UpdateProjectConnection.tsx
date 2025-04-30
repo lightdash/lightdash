@@ -3,7 +3,6 @@ import {
     DbtProjectType,
     ProjectType,
     type CreateWarehouseCredentials,
-    type DbtProjectConfig,
     type Project,
 } from '@lightdash/common';
 import { Alert, Anchor, Button, Card, Flex } from '@mantine/core';
@@ -18,8 +17,8 @@ import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { dbtDefaults } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
+import { FormContainer } from './FormContainer';
 import { FormProvider, useForm } from './formContext';
-import { FormContainer } from './ProjectConnection.styles';
 import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
@@ -61,7 +60,7 @@ const UpdateProjectConnection: FC<{
             dbt: {
                 ...dbtDefaults.formValues[project.dbtConnection!.type],
                 ...project.dbtConnection,
-            } as DbtProjectConfig,
+            },
             warehouse: {
                 ...warehouseDefaultValues[project.warehouseConnection!.type],
                 ...project.warehouseConnection,

@@ -1,7 +1,4 @@
-import {
-    type CreateWarehouseCredentials,
-    WarehouseTypes,
-} from '@lightdash/common';
+import { WarehouseTypes } from '@lightdash/common';
 import { Select } from '@mantine/core';
 import { type FC } from 'react';
 import { useFormContext } from './formContext';
@@ -66,10 +63,8 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
                     onChange={(value: WarehouseTypes) => {
                         if (!value) return;
 
-                        const nextValues = warehouseDefaultValues[value];
-
                         form.setValues({
-                            warehouse: nextValues as CreateWarehouseCredentials,
+                            warehouse: warehouseDefaultValues[value],
                         });
                     }}
                     disabled={disabled}

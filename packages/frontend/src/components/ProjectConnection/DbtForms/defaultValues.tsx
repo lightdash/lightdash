@@ -1,6 +1,16 @@
-import { DbtProjectType, DefaultSupportedDbtVersion } from '@lightdash/common';
+import {
+    type DbtAzureDevOpsProjectConfig,
+    type DbtBitBucketProjectConfig,
+    type DbtCloudIDEProjectConfig,
+    type DbtGithubProjectConfig,
+    type DbtGitlabProjectConfig,
+    type DbtLocalProjectConfig,
+    type DbtNoneProjectConfig,
+    DbtProjectType,
+    DefaultSupportedDbtVersion,
+} from '@lightdash/common';
 
-export const githubDefaultValues = {
+export const githubDefaultValues: DbtGithubProjectConfig = {
     type: DbtProjectType.GITHUB,
     environment: [],
     target: '',
@@ -14,7 +24,7 @@ export const githubDefaultValues = {
     host_domain: 'github.com',
 } as const;
 
-export const gitlabDefaultValues = {
+export const gitlabDefaultValues: DbtGitlabProjectConfig = {
     type: DbtProjectType.GITLAB,
     target: '',
     environment: [],
@@ -26,7 +36,7 @@ export const gitlabDefaultValues = {
     host_domain: 'gitlab.com',
 } as const;
 
-export const bitbucketDefaultValues = {
+export const bitbucketDefaultValues: DbtBitBucketProjectConfig = {
     type: DbtProjectType.BITBUCKET,
     target: '',
     environment: [],
@@ -39,7 +49,7 @@ export const bitbucketDefaultValues = {
     host_domain: 'bitbucket.org',
 } as const;
 
-export const azureDevopsDefaultValues = {
+export const azureDevopsDefaultValues: DbtAzureDevOpsProjectConfig = {
     type: DbtProjectType.AZURE_DEVOPS,
     target: '',
     environment: [],
@@ -52,10 +62,8 @@ export const azureDevopsDefaultValues = {
     project_sub_path: '/',
 } as const;
 
-const dbtCloudIdeDefaultValues = {
+const dbtCloudIdeDefaultValues: DbtCloudIDEProjectConfig = {
     type: DbtProjectType.DBT_CLOUD_IDE,
-    target: '',
-    environment: [],
     api_key: '',
     environment_id: '',
     discovery_api_endpoint: '',
@@ -63,7 +71,7 @@ const dbtCloudIdeDefaultValues = {
 } as const;
 
 // Local
-const dbtDefaultValues = {
+const dbtDefaultValues: DbtLocalProjectConfig = {
     type: DbtProjectType.DBT,
     target: '',
     environment: [],
@@ -71,7 +79,7 @@ const dbtDefaultValues = {
 } as const;
 
 // CLI
-const noneDefaultValues = {
+const noneDefaultValues: DbtNoneProjectConfig = {
     type: DbtProjectType.NONE,
     hideRefreshButton: false,
 } as const;

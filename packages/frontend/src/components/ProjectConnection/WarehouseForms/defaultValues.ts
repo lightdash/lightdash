@@ -12,7 +12,7 @@ import type {
 // https://github.com/lightdash/lightdash/blob/427088ec09485f334f463b6026025d4287ad302b/packages/backend/src/models/ProjectModel/ProjectModel.ts#L156
 // only undefined and empty string are considered empty values
 
-export const BigQueryDefaultValues: Partial<CreateBigqueryCredentials> = {
+export const BigQueryDefaultValues: CreateBigqueryCredentials = {
     type: WarehouseTypes.BIGQUERY,
     dataset: '',
     project: '',
@@ -28,7 +28,7 @@ export const BigQueryDefaultValues: Partial<CreateBigqueryCredentials> = {
     startOfWeek: undefined,
 } as const;
 
-const DatabricksDefaultValues: Partial<CreateDatabricksCredentials> = {
+const DatabricksDefaultValues: CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS,
     database: '',
     serverHostName: '',
@@ -39,7 +39,7 @@ const DatabricksDefaultValues: Partial<CreateDatabricksCredentials> = {
     startOfWeek: undefined,
 } as const;
 
-export const PostgresDefaultValues: Partial<CreatePostgresCredentials> = {
+export const PostgresDefaultValues: CreatePostgresCredentials = {
     type: WarehouseTypes.POSTGRES,
     schema: '',
     host: '',
@@ -67,7 +67,7 @@ export const PostgresDefaultValues: Partial<CreatePostgresCredentials> = {
     startOfWeek: undefined,
 } as const;
 
-export const RedshiftDefaultValues: Partial<CreateRedshiftCredentials> = {
+export const RedshiftDefaultValues: CreateRedshiftCredentials = {
     type: WarehouseTypes.REDSHIFT,
     schema: '',
     host: '',
@@ -88,7 +88,7 @@ export const RedshiftDefaultValues: Partial<CreateRedshiftCredentials> = {
     startOfWeek: undefined,
 } as const;
 
-export const SnowflakeDefaultValues: Partial<CreateSnowflakeCredentials> = {
+export const SnowflakeDefaultValues: CreateSnowflakeCredentials = {
     type: WarehouseTypes.SNOWFLAKE,
     schema: '',
     account: '',
@@ -108,7 +108,7 @@ export const SnowflakeDefaultValues: Partial<CreateSnowflakeCredentials> = {
     privateKeyPass: '',
 } as const;
 
-export const TrinoDefaultValues: Partial<CreateTrinoCredentials> = {
+export const TrinoDefaultValues: CreateTrinoCredentials = {
     type: WarehouseTypes.TRINO,
     schema: '',
     host: '',

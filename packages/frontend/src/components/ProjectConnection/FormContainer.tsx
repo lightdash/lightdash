@@ -1,9 +1,9 @@
-import { Flex } from '@mantine/core';
+import { Stack } from '@mantine/core';
 
 export const FormContainer = ({ children }: { children: React.ReactNode }) => {
     return (
-        <Flex direction="column" gap={20} w="100%">
+        <Stack spacing={20} w="100%">
             {children}
-        </Flex>
+        </Stack>
     );
 };
