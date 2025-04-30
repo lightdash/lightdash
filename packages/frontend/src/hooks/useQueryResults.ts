@@ -16,7 +16,7 @@ import {
     type ResultRow,
     sleep,
 } from '@lightdash/common';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
@@ -275,7 +275,7 @@ export const useInfiniteQueryResults = (
         },
         staleTime: Infinity, // the data will never be considered stale
     });
-    const { data: nextPageData, refetch: refetchNextPage } = nextPage;
+    const { data: nextPageData } = nextPage;
 
     // On error
     useEffect(() => {
@@ -284,6 +284,7 @@ export const useInfiniteQueryResults = (
         }
     }, [nextPage.error, setErrorResponse]);
 
+    const queryClient = useQueryClient();
     // Initial backoff time in ms
     const backoffRef = useRef(250);
     // On success
@@ -318,8 +319,10 @@ export const useInfiniteQueryResults = (
                 break;
             }
             case QueryHistoryStatus.PENDING: {
-                // Re-fetch page
-                void sleep(backoffRef.current).then(() => refetchNextPage());
+                // Invalidate page. Note we can't use refetch as it bypasses the "enabled" check: https://github.com/TanStack/query/issues/1965
+                void sleep(backoffRef.current).then(() =>
+                    queryClient.invalidateQueries(['query-page', fetchArgs]),
+                );
                 // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
                 if (backoffRef.current < 1000) {
                     backoffRef.current = Math.min(backoffRef.current * 2, 1000);
@@ -334,7 +337,7 @@ export const useInfiniteQueryResults = (
             default:
                 return assertUnreachable(status, 'Unknown query status');
         }
-    }, [nextPageData, refetchNextPage, setErrorResponse]);
+    }, [fetchArgs, nextPageData, queryClient, setErrorResponse]);
 
     useEffect(() => {
         // Reset fetched pages before updating the fetch args
