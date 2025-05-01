@@ -1,3 +1,10 @@
+## [0.1606.5](https://github.com/lightdash/lightdash/compare/0.1606.4...0.1606.5) (2025-05-01)
+
+
+### Bug Fixes
+
+* default selected space when transferring items ([#14618](https://github.com/lightdash/lightdash/issues/14618)) ([e5e8e4c](https://github.com/lightdash/lightdash/commit/e5e8e4cbe4eac63363812b1964aabb1ada006fc6)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.1606.4](https://github.com/lightdash/lightdash/compare/0.1606.3...0.1606.4) (2025-05-01)
 
 
