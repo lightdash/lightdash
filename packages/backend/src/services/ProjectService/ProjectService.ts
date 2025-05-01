@@ -4067,7 +4067,7 @@ export class ProjectService<
             ),
         ];
 
-        const orderBy: string = sortBy
+        const orderBy: string = sortBy?.length
             ? `ORDER BY ${sortBy
                   .map((s) => `${q}${s.reference}${q} ${s.direction}`)
                   .join(', ')}`
