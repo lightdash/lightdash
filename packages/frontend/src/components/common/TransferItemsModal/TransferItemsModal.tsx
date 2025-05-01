@@ -1,4 +1,9 @@
-import { type SpaceSummary } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ResourceViewItemType,
+    type ResourceViewItem,
+    type SpaceSummary,
+} from '@lightdash/common';
 import { Alert, Box, Button, Group, LoadingOverlay, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
@@ -18,7 +23,8 @@ type Props<T, U> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
 };
 
 const TransferItemsModal = <
-    T extends Array<unknown>,
+    R extends ResourceViewItem,
+    T extends Array<R>,
     U extends Array<NestableItem & Pick<SpaceSummary, 'isPrivate' | 'access'>>,
 >({
     projectUuid,
@@ -29,6 +35,24 @@ const TransferItemsModal = <
     onConfirm,
     isLoading,
 }: Props<T, U>) => {
+    const defaultSpaceUuid = useMemo(() => {
+        // return space uuid only if there's a single item (i.e. not a bulk transfer)
+
+        if (items.length !== 1) return undefined;
+
+        const item = items[0];
+
+        switch (item.type) {
+            case ResourceViewItemType.SPACE:
+                return item.data.parentSpaceUuid ?? undefined;
+            case ResourceViewItemType.CHART:
+            case ResourceViewItemType.DASHBOARD:
+                return item.data.spaceUuid;
+            default:
+                return assertUnreachable(item, 'Invalid item type');
+        }
+    }, [items]);
+
     const {
         selectedSpaceUuid,
         setSelectedSpaceUuid,
@@ -39,7 +63,10 @@ const TransferItemsModal = <
         handleCreateNewSpace,
         openCreateSpaceForm,
         closeCreateSpaceForm,
-    } = useSpaceManagement({ projectUuid });
+    } = useSpaceManagement({
+        projectUuid,
+        defaultSpaceUuid,
+    });
 
     const selectedSpaceLabel = useMemo(() => {
         if (!selectedSpaceUuid) return '';
