@@ -73,6 +73,22 @@ export const generateUniqueSlugScopedToProject = async (
             break;
         case 'saved_sql':
         case 'dashboards':
+            matchingSlugs = await trx(DashboardsTableName)
+                .innerJoin(
+                    SpaceTableName,
+                    `${SpaceTableName}.space_id`,
+                    `${DashboardsTableName}.space_id`,
+                )
+                .innerJoin(
+                    ProjectTableName,
+                    `${SpaceTableName}.project_id`,
+                    `${ProjectTableName}.project_id`,
+                )
+                .where('project_uuid', projectUuid)
+                .select(`${DashboardsTableName}.slug`)
+                .where(`${DashboardsTableName}.slug`, 'like', `${baseSlug}%`)
+                .pluck(`${DashboardsTableName}.slug`);
+            break;
         case 'spaces':
         case 'saved_semantic_viewer_charts':
             throw new Error('Not implemented');

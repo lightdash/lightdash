@@ -112,7 +112,104 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
         });
     }
 
+    async function fixDuplicateDashboardSlugs(opts: { dryRun: boolean }) {
+        if (!opts || !('dryRun' in opts)) {
+            throw new Error('Missing dryRun option!!');
+        }
+
+        const { dryRun } = opts;
+        const dryRunMessage = dryRun ? ' (dry run)' : '';
+
+        return database.transaction(async (trx) => {
+            const queryBase = trx(DashboardsTableName)
+                .innerJoin(
+                    SpaceTableName,
+                    `${SpaceTableName}.space_id`,
+                    `${DashboardsTableName}.space_id`,
+                )
+                .innerJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                );
+
+            const duplicateSlugs = await queryBase
+                .clone()
+                .select<{ slug: string; projectUuid: string }[]>({
+                    slug: `${DashboardsTableName}.slug`,
+                    projectUuid: `${ProjectTableName}.project_uuid`,
+                })
+                .groupBy(
+                    `${DashboardsTableName}.slug`,
+                    `${ProjectTableName}.project_uuid`,
+                )
+                .havingRaw('COUNT(*) > 1');
+
+            console.info(
+                `Found ${duplicateSlugs.length} duplicate slugs across all projects${dryRunMessage}`,
+            );
+
+            for await (const { slug, projectUuid } of duplicateSlugs) {
+                const dashboardsWithSlug = await queryBase
+                    .clone()
+                    .select<
+                        {
+                            dashboard_uuid: string;
+                            slug: string;
+                            name: string;
+                            created_at: Date;
+                        }[]
+                    >(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        `${DashboardsTableName}.slug`,
+                        `${DashboardsTableName}.name`,
+                        `${DashboardsTableName}.created_at`,
+                    )
+                    .where(`${DashboardsTableName}.slug`, slug)
+                    .andWhere(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .orderBy(`${DashboardsTableName}.created_at`, 'asc');
+
+                if (dashboardsWithSlug.length > 1) {
+                    const [firstDashboard, ...restDashboards] =
+                        dashboardsWithSlug;
+
+                    console.info(
+                        `Keeping original slug "${firstDashboard.slug}" for dashboard "${firstDashboard.name}" (${firstDashboard.dashboard_uuid}) in project ${projectUuid}${dryRunMessage}`,
+                    );
+
+                    for await (const dashboard of restDashboards) {
+                        const uniqueSlug =
+                            await generateUniqueSlugScopedToProject(
+                                trx,
+                                projectUuid,
+                                DashboardsTableName,
+                                dashboard.slug,
+                            );
+
+                        console.info(
+                            `Updating slug from "${dashboard.slug}" to "${uniqueSlug}" for chart "${dashboard.name}" (${dashboard.dashboard_uuid}) in project ${projectUuid}${dryRunMessage}`,
+                        );
+
+                        await trx(DashboardsTableName)
+                            .where('dashboard_uuid', dashboard.dashboard_uuid)
+                            .update({ slug: uniqueSlug });
+                    }
+                }
+            }
+
+            if (dryRun) {
+                // Rollback the transaction if it's a dry run, this is because slugs depend on updated charts
+                await trx.rollback();
+            }
+
+            console.info(
+                `Done fixing duplicate slugs for all projects${dryRunMessage}`,
+            );
+        });
+    }
+
     return {
         fixDuplicateChartSlugs,
+        fixDuplicateDashboardSlugs,
     };
 }
