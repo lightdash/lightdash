@@ -80,6 +80,7 @@ import {
     getMetrics,
     getSubtotalKey,
     getTimezoneLabel,
+    GroupByColumn,
     hasIntersection,
     IntrinsicUserAttributes,
     isCustomBinDimension,
@@ -111,7 +112,9 @@ import {
     NotFoundError,
     ParameterError,
     PivotChartData,
+    PivotIndexColum,
     PivotValuesColumn,
+    prefixPivotConfigurationReferences,
     Project,
     ProjectCatalog,
     ProjectGroupAccess,
@@ -134,6 +137,7 @@ import {
     SemanticLayerResultRow,
     SessionUser,
     snakeCaseName,
+    SortBy,
     SortByDirection,
     SortField,
     SpaceQuery,
@@ -151,6 +155,7 @@ import {
     UpdateVirtualViewPayload,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    ValuesColumn,
     VizColumn,
     WarehouseClient,
     WarehouseCredentials,
@@ -2464,6 +2469,12 @@ export class ProjectService extends BaseService {
             explore: Explore;
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
+        pivotConfiguration?: {
+            indexColumn: PivotIndexColum;
+            valuesColumns: ValuesColumn[];
+            groupByColumns: GroupByColumn[] | undefined;
+            sortBy: SortBy | undefined;
+        },
     ): Promise<ExecuteAsyncQueryReturn> {
         return wrapSentryTransaction(
             'ProjectService.executeAsyncQuery',
@@ -2547,10 +2558,26 @@ export class ProjectService extends BaseService {
                     );
 
                     const {
-                        query,
+                        query: compiledQuery,
                         fields: fieldsFromQuery,
                         hasExampleMetric,
                     } = fullQuery;
+
+                    let pivotedQuery = null;
+                    if (pivotConfiguration) {
+                        pivotedQuery =
+                            await ProjectService.applyPivotToSqlQuery({
+                                warehouseType: warehouseClient.credentials.type,
+                                sql: compiledQuery,
+                                indexColumn: pivotConfiguration.indexColumn,
+                                valuesColumns: pivotConfiguration.valuesColumns,
+                                groupByColumns:
+                                    pivotConfiguration.groupByColumns,
+                                sortBy: pivotConfiguration.sortBy,
+                            });
+                    }
+
+                    const query = pivotedQuery || compiledQuery;
 
                     const fieldsWithOverrides: ItemsMap = Object.fromEntries(
                         Object.entries(fieldsFromQuery).map(([key, value]) => {
@@ -2803,6 +2830,7 @@ export class ProjectService extends BaseService {
         projectUuid,
         sql,
         context,
+        pivotConfiguration,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User does not belong to an organization');
@@ -2874,6 +2902,13 @@ export class ProjectService extends BaseService {
             virtualView.tables[virtualView.baseTable].dimensions,
         ).map((d) => convertFieldRefToFieldId(d.name, virtualView.name));
 
+        const prefixedPivotConfiguration = pivotConfiguration
+            ? prefixPivotConfigurationReferences(
+                  pivotConfiguration,
+                  `${virtualView.name}`,
+              )
+            : undefined;
+
         const query: MetricQuery = {
             exploreName: virtualView.name,
             dimensions,
@@ -2899,6 +2934,7 @@ export class ProjectService extends BaseService {
                 query,
                 invalidateCache: false,
             },
+            prefixedPivotConfiguration,
         );
 
         return {

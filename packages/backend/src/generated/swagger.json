@@ -6456,6 +6456,27 @@
                 "enum": ["sum", "count", "avg", "min", "max", "any"],
                 "type": "string"
             },
+            "ValuesColumn": {
+                "properties": {
+                    "aggregation": {
+                        "$ref": "#/components/schemas/VizAggregationOptions"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["aggregation", "reference"],
+                "type": "object"
+            },
+            "GroupByColumn": {
+                "properties": {
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["reference"],
+                "type": "object"
+            },
             "SortByDirection": {
                 "enum": ["ASC", "DESC"],
                 "type": "string"
@@ -6482,28 +6503,13 @@
                     },
                     "groupByColumns": {
                         "items": {
-                            "properties": {
-                                "reference": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["reference"],
-                            "type": "object"
+                            "$ref": "#/components/schemas/GroupByColumn"
                         },
                         "type": "array"
                     },
                     "valuesColumns": {
                         "items": {
-                            "properties": {
-                                "aggregation": {
-                                    "$ref": "#/components/schemas/VizAggregationOptions"
-                                },
-                                "reference": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["aggregation", "reference"],
-                            "type": "object"
+                            "$ref": "#/components/schemas/ValuesColumn"
                         },
                         "type": "array"
                     },
@@ -15670,6 +15676,12 @@
                     }
                 ]
             },
+            "SortBy": {
+                "items": {
+                    "$ref": "#/components/schemas/VizSortBy"
+                },
+                "type": "array"
+            },
             "ExecuteAsyncSqlQueryRequestParams": {
                 "allOf": [
                     {
@@ -15677,6 +15689,30 @@
                     },
                     {
                         "properties": {
+                            "pivotConfiguration": {
+                                "properties": {
+                                    "sortBy": {
+                                        "$ref": "#/components/schemas/SortBy"
+                                    },
+                                    "groupByColumns": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/GroupByColumn"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "valuesColumns": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/ValuesColumn"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "indexColumn": {
+                                        "$ref": "#/components/schemas/PivotIndexColum"
+                                    }
+                                },
+                                "required": ["valuesColumns", "indexColumn"],
+                                "type": "object"
+                            },
                             "sql": {
                                 "type": "string"
                             }
@@ -16336,7 +16372,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1604.2",
+        "version": "0.1606.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

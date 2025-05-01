@@ -170,6 +170,7 @@ export class V2ProjectController extends BaseController {
                 invalidateCache: body.invalidateCache ?? false,
                 sql: body.sql,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
+                pivotConfiguration: body.pivotConfiguration,
             });
 
         return {

@@ -5709,6 +5709,29 @@ const models: TsoaRoute.Models = {
         enums: ['sum', 'count', 'avg', 'min', 'max', 'any'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ValuesColumn: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                aggregation: { ref: 'VizAggregationOptions', required: true },
+                reference: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GroupByColumn: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                reference: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SortByDirection: {
         dataType: 'refEnum',
         enums: ['ASC', 'DESC'],
@@ -5748,13 +5771,8 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'array',
                             array: {
-                                dataType: 'nestedObjectLiteral',
-                                nestedProperties: {
-                                    reference: {
-                                        dataType: 'string',
-                                        required: true,
-                                    },
-                                },
+                                dataType: 'refAlias',
+                                ref: 'GroupByColumn',
                             },
                         },
                         { dataType: 'undefined' },
@@ -5763,16 +5781,7 @@ const models: TsoaRoute.Models = {
                 },
                 valuesColumns: {
                     dataType: 'array',
-                    array: {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            aggregation: {
-                                ref: 'VizAggregationOptions',
-                                required: true,
-                            },
-                            reference: { dataType: 'string', required: true },
-                        },
-                    },
+                    array: { dataType: 'refAlias', ref: 'ValuesColumn' },
                     required: true,
                 },
                 indexColumn: { ref: 'PivotIndexColum', required: true },
@@ -14814,6 +14823,15 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SortBy: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'array',
+            array: { dataType: 'refAlias', ref: 'VizSortBy' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExecuteAsyncSqlQueryRequestParams: {
         dataType: 'refAlias',
         type: {
@@ -14823,6 +14841,45 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        pivotConfiguration: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                sortBy: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { ref: 'SortBy' },
+                                        { dataType: 'undefined' },
+                                    ],
+                                    required: true,
+                                },
+                                groupByColumns: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        {
+                                            dataType: 'array',
+                                            array: {
+                                                dataType: 'refAlias',
+                                                ref: 'GroupByColumn',
+                                            },
+                                        },
+                                        { dataType: 'undefined' },
+                                    ],
+                                    required: true,
+                                },
+                                valuesColumns: {
+                                    dataType: 'array',
+                                    array: {
+                                        dataType: 'refAlias',
+                                        ref: 'ValuesColumn',
+                                    },
+                                    required: true,
+                                },
+                                indexColumn: {
+                                    ref: 'PivotIndexColum',
+                                    required: true,
+                                },
+                            },
+                        },
                         sql: { dataType: 'string', required: true },
                     },
                 },
