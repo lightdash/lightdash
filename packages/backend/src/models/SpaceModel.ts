@@ -6,6 +6,7 @@ import {
     convertProjectRoleToSpaceRole,
     convertSpaceRoleToProjectRole,
     friendlyName,
+    generateSlug,
     getHighestProjectRole,
     getHighestSpaceRole,
     getLabelFromSlug,
@@ -69,7 +70,10 @@ import {
 import { UserTableName } from '../database/entities/users';
 import { DbValidationTable } from '../database/entities/validation';
 import { wrapSentryTransaction } from '../utils';
-import { generateUniqueSlug } from '../utils/SlugUtils';
+import {
+    generateUniqueSlug,
+    generateUniqueSpaceSlug,
+} from '../utils/SlugUtils';
 import type { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 
 type SpaceModelArguments = {
@@ -1630,6 +1634,97 @@ export class SpaceModel {
         }
 
         return generateUniqueSlug(trx, SpaceTableName, slug);
+    }
+
+    async generateSpacePath(
+        spaceSlug: string,
+        parentSpaceUuid: string | null,
+        projectId: number,
+        { trx = this.database }: { trx?: Knex } = {},
+    ) {
+        if (!parentSpaceUuid) {
+            return getLtreePathFromSlug(spaceSlug);
+        }
+
+        const parentSpace = await trx(SpaceTableName)
+            .select('path')
+            .where('space_uuid', parentSpaceUuid)
+            .where('project_id', projectId)
+            .first();
+
+        if (!parentSpace) {
+            throw new NotFoundError(
+                `Parent space with uuid ${parentSpaceUuid} does not exist`,
+            );
+        }
+
+        return `${parentSpace.path}.${getLtreePathFromSlug(spaceSlug)}`;
+    }
+
+    // Temporary function while all the callers for the createSpace function are updated
+    async createSpace2(
+        spaceData: {
+            name: string;
+            isPrivate: boolean;
+            parentSpaceUuid: string | null;
+        },
+        {
+            projectUuid,
+            userId,
+            trx = this.database,
+            slug,
+        }: {
+            trx?: Knex;
+            userId: number;
+            projectUuid: string;
+            slug?: string;
+        },
+    ): Promise<Space> {
+        const [project] = await trx(ProjectTableName)
+            .select('project_id')
+            .where('project_uuid', projectUuid);
+
+        const spaceSlug =
+            slug ??
+            (await generateUniqueSpaceSlug(spaceData.name, project.project_id, {
+                trx,
+            }));
+        const spacePath = await this.generateSpacePath(
+            spaceSlug,
+            spaceData.parentSpaceUuid,
+            project.project_id,
+            { trx },
+        );
+
+        const [space] = await trx(SpaceTableName)
+            .insert({
+                project_id: project.project_id,
+                is_private: spaceData.isPrivate,
+                name: spaceData.name,
+                created_by_user_id: userId,
+                slug: spaceSlug,
+                parent_space_uuid: spaceData.parentSpaceUuid ?? null,
+                path: spacePath,
+            })
+            .returning('*');
+
+        return {
+            organizationUuid: space.organization_uuid,
+            name: space.name,
+            queries: [],
+            isPrivate: space.is_private,
+            uuid: space.space_uuid,
+            projectUuid,
+            dashboards: [],
+            childSpaces: [],
+            access: [],
+            groupsAccess: [],
+            pinnedListUuid: null,
+            pinnedListOrder: null,
+            slug: space.slug,
+            parentSpaceUuid: space.parent_space_uuid,
+            path: space.path,
+        };
     }
 
     async createSpace(

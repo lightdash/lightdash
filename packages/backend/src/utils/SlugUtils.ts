@@ -1,5 +1,6 @@
 import { assertUnreachable, generateSlug } from '@lightdash/common';
 import { Knex } from 'knex';
+import { customAlphabet as createCustomNanoid } from 'nanoid';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
@@ -27,6 +28,31 @@ export const generateUniqueSlug = async (
         slug = `${baseSlug}-${inc}`; // generate new slug with number suffix
     }
     return slug;
+};
+
+const customNanoid = createCustomNanoid(
+    '1234567890abcdefghijklmnopqrstuvwxyz',
+    10,
+);
+
+export const generateUniqueSpaceSlug = async (
+    name: string,
+    projectId: number,
+    { trx }: { trx: Knex },
+) => {
+    const baseSlug = generateSlug(name);
+    const checkSlugExists = (slug: string) =>
+        trx(SpaceTableName)
+            .select('slug')
+            .where('slug', '=', slug)
+            .where('project_id', projectId)
+            .first();
+
+    if (await checkSlugExists(baseSlug)) {
+        return `${baseSlug}-${customNanoid()}`;
+    }
+
+    return baseSlug;
 };
 
 export const generateUniqueSlugScopedToProject = async (
