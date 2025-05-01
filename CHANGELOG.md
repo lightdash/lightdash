@@ -1,3 +1,10 @@
+## [0.1606.6](https://github.com/lightdash/lightdash/compare/0.1606.5...0.1606.6) (2025-05-01)
+
+
+### Bug Fixes
+
+* race condition cache being written while another execute query was called ([#14624](https://github.com/lightdash/lightdash/issues/14624)) ([c180e9c](https://github.com/lightdash/lightdash/commit/c180e9c3f4d7ca84566c07138c7873609702c19d))
+
 ## [0.1606.5](https://github.com/lightdash/lightdash/compare/0.1606.4...0.1606.5) (2025-05-01)
 
 
