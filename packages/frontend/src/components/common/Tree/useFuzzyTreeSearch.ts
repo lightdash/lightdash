@@ -9,12 +9,14 @@ type FuzzySearchItem<T> = T & {
 function useFuzzyTreeSearch<T extends NestableItem>(
     items: T[],
     query: string,
-): FuzzySearchItem<T>[] {
+): [FuzzySearchItem<T>[] | undefined] {
     const [matchedItems] = useFuzzySearch(items, ['name'], query, {
         threshold: 0.3,
     });
 
-    const filteredItems = useMemo<FuzzySearchItem<T>[]>(() => {
+    const filteredItems = useMemo<FuzzySearchItem<T>[] | undefined>(() => {
+        if (!matchedItems) return;
+
         return items
             .map<T | FuzzySearchItem<T>>((item) => {
                 if (matchedItems.includes(item)) {
@@ -38,7 +40,7 @@ function useFuzzyTreeSearch<T extends NestableItem>(
             .filter((item) => 'filteredBy' in item);
     }, [matchedItems, items]);
 
-    return filteredItems;
+    return [filteredItems];
 }
 
 export default useFuzzyTreeSearch;

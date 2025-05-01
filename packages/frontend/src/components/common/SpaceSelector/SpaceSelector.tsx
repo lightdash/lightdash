@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { assertUnreachable, type SpaceSummary } from '@lightdash/common';
 import { Paper, ScrollArea, Stack, TextInput } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { useMemo, useState } from 'react';
 import { hasDirectAccessToSpace } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
@@ -60,8 +61,12 @@ const SpaceSelector = ({
     }, [user.data, selectedAdminContentType, spaces]);
 
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 200);
 
-    const fuzzyFilteredSpaces = useFuzzyTreeSearch(filteredSpaces, searchQuery);
+    const [fuzzyFilteredSpaces] = useFuzzyTreeSearch(
+        filteredSpaces,
+        debouncedSearchQuery,
+    );
 
     return (
         <Stack h="400px">
@@ -91,10 +96,11 @@ const SpaceSelector = ({
                 withBorder
             >
                 <Tree
-                    data={fuzzyFilteredSpaces}
+                    data={fuzzyFilteredSpaces ?? filteredSpaces}
                     value={selectedSpaceUuid}
                     onChange={onSelectSpace}
                     topLevelLabel="Spaces"
+                    isExpanded={fuzzyFilteredSpaces !== undefined}
                 />
             </Paper>
 

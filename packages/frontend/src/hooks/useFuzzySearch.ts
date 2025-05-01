@@ -20,10 +20,8 @@ function useFuzzySearch<T>(
     const items = useMemo(() => {
         if (searchResults) {
             return searchResults.map((r) => r.item);
-        } else {
-            return list;
         }
-    }, [searchResults, list]);
+    }, [searchResults]);
 
     return [items] as const;
 }
