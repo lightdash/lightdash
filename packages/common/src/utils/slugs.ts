@@ -60,6 +60,7 @@ export const getLabelFromSlug = (slug: string) => slug.split('/').pop() ?? slug;
  * @param slug - The slug to get the ltree path from
  * @returns The ltree path
  */
+// TODO: needs backwards compat
 export const getLtreePathFromSlug = (slug: string) => {
     const slugs = slug.split('/');
     const sanitizedSlugs = slugs.map((s) => sanitizeSlug(s, false));
