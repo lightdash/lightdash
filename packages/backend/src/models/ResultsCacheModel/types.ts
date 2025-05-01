@@ -1,9 +1,15 @@
+export enum ResultsCacheStatus {
+    PENDING = 'pending',
+    READY = 'ready',
+}
+
 export type CacheHitCacheResult = {
     cacheKey: string;
     write: undefined;
     close: undefined;
     cacheHit: true;
     totalRowCount: number;
+    status: ResultsCacheStatus;
     createdAt: Date;
     updatedAt: Date;
     expiresAt: Date;

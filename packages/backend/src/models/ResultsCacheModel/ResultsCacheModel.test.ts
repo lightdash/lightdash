@@ -9,6 +9,7 @@ import {
     type DbResultsCache,
 } from '../../database/entities/resultsCache';
 import { ResultsCacheModel } from './ResultsCacheModel';
+import { ResultsCacheStatus } from './types';
 
 // Mock storage client
 const mockStorageClient = {
@@ -119,6 +120,7 @@ describe('ResultsCacheModel', () => {
                 created_at: futureDateCreatedAt,
                 updated_at: futureDateCreatedAt,
                 total_row_count: 100,
+                status: ResultsCacheStatus.READY,
             };
 
             tracker.on.select('results_cache').response([existingCache]);
@@ -139,6 +141,7 @@ describe('ResultsCacheModel', () => {
                 createdAt: futureDateCreatedAt,
                 updatedAt: futureDateCreatedAt,
                 expiresAt: futureDate,
+                status: ResultsCacheStatus.READY,
             });
             expect(tracker.history.select).toHaveLength(1);
             expect(mockStorageClient.createUploadStream).not.toHaveBeenCalled();
@@ -189,6 +192,7 @@ describe('ResultsCacheModel', () => {
                 created_at: pastDateCreatedAt,
                 updated_at: pastDateCreatedAt,
                 total_row_count: 100,
+                status: ResultsCacheStatus.READY,
             };
 
             tracker.on.select('results_cache').response([expiredCache]);
@@ -238,6 +242,7 @@ describe('ResultsCacheModel', () => {
                 total_row_count: 100,
                 created_at: futureDateCreatedAt,
                 updated_at: futureDateCreatedAt,
+                status: ResultsCacheStatus.READY,
             };
 
             tracker.on.select('results_cache').response([existingCache]);
