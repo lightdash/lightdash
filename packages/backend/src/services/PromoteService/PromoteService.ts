@@ -31,20 +31,23 @@ import { BaseService } from '../BaseService';
 export type PromotedChart = {
     projectUuid: string;
     chart: SavedChartDAO;
-    space: Omit<SpaceSummary, 'userAccess' | 'path'>; // even if chart belongs to dashboard, this is not undefined
+    space: PromotedSpace; // even if chart belongs to dashboard, this is not undefined
+    spaces: PromotedSpace[];
     access: SpaceShare[];
 };
 export type UpstreamChart = {
     projectUuid: string;
     chart: (ChartSummary & { updatedAt: Date }) | undefined;
-    space: Omit<SpaceSummary, 'userAccess' | 'path'> | undefined;
+    space: PromotedSpace | undefined;
+    spaces: PromotedSpace[];
     access: SpaceShare[];
     dashboardUuid?: string; // dashboard uuid if chart belongs to dashboard
 };
 export type PromotedDashboard = {
     projectUuid: string;
     dashboard: DashboardDAO;
-    space: Omit<SpaceSummary, 'userAccess' | 'path'>;
+    space: PromotedSpace;
+    spaces: PromotedSpace[];
     access: SpaceShare[];
 };
 
@@ -53,7 +56,8 @@ export type UpstreamDashboard = {
     dashboard:
         | Pick<DashboardDAO, 'uuid' | 'name' | 'spaceUuid' | 'description'>
         | undefined;
-    space: Omit<SpaceSummary, 'userAccess' | 'path'> | undefined;
+    space: PromotedSpace | undefined;
+    spaces: PromotedSpace[];
     access: SpaceShare[];
 };
 
@@ -148,6 +152,17 @@ export class PromoteService extends BaseService {
         const promotedSpace = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );
+
+        const promotedSpaceAncestorUuids =
+            await this.spaceModel.getSpaceAncestors({
+                spaceUuid: savedChart.spaceUuid,
+                projectUuid: savedChart.projectUuid,
+            });
+
+        const promotedSpaceAncestors = await this.spaceModel.find({
+            spaceUuids: promotedSpaceAncestorUuids,
+        });
+
         const upstreamCharts = await this.savedChartModel.find({
             projectUuid: upstreamProjectUuid,
             slug: savedChart.slug,
@@ -160,6 +175,23 @@ export class PromoteService extends BaseService {
         }
         const upstreamChart =
             upstreamCharts.length === 1 ? upstreamCharts[0] : undefined;
+
+        let upstreamSpaceAncestorUuids: string[] = [];
+        let upstreamSpaceAncestors: PromotedSpace[] = [];
+
+        if (upstreamChart) {
+            upstreamSpaceAncestorUuids =
+                await this.spaceModel.getSpaceAncestors({
+                    // TODO: if chart belongs to dashboard and not space what happens?
+                    spaceUuid: upstreamChart.spaceUuid,
+                    projectUuid: upstreamProjectUuid,
+                });
+
+            upstreamSpaceAncestors = await this.spaceModel.find({
+                spaceUuids: upstreamSpaceAncestorUuids,
+            });
+        }
+
         const upstreamSpaces = await this.spaceModel.find({
             projectUuid: upstreamProjectUuid,
             slug: promotedSpace.slug,
@@ -177,6 +209,7 @@ export class PromoteService extends BaseService {
                 chart: savedChart,
                 projectUuid: upstreamProjectUuid,
                 space: promotedSpace,
+                spaces: promotedSpaceAncestors,
                 access: await this.spaceModel.getUserSpaceAccess(
                     user.userUuid,
                     promotedSpace.uuid,
@@ -186,6 +219,7 @@ export class PromoteService extends BaseService {
                 chart: upstreamChart,
                 projectUuid: upstreamProjectUuid,
                 space: upstreamSpace,
+                spaces: upstreamSpaceAncestors,
                 access: upstreamSpace
                     ? await this.spaceModel.getUserSpaceAccess(
                           user.userUuid,
@@ -442,7 +476,8 @@ export class PromoteService extends BaseService {
         return (
             promotedChart.updatedAt > upstreamChart.updatedAt ||
             promotedChart.name !== upstreamChart.name ||
-            promotedChart.description !== upstreamChart.description
+            promotedChart.description !== upstreamChart.description ||
+            promotedChart !== upstreamChart
         );
     }
 
@@ -1039,8 +1074,8 @@ export class PromoteService extends BaseService {
 
     static getSpaceChange(
         upstreamProjectUuid: string,
-        promotedSpace: Omit<SpaceSummary, 'userAccess' | 'path'>,
-        upstreamSpace: Omit<SpaceSummary, 'userAccess' | 'path'> | undefined,
+        promotedSpace: PromotedSpace,
+        upstreamSpace: PromotedSpace | undefined,
     ): PromotionChanges['spaces'][number] {
         if (upstreamSpace !== undefined) {
             if (PromoteService.isSpaceUpdated(promotedSpace, upstreamSpace)) {
@@ -1050,6 +1085,8 @@ export class PromoteService extends BaseService {
                         ...upstreamSpace,
                         name: promotedSpace.name,
                     },
+
+                    // TODO: implement path change and call SpaceService.move
                 };
             }
             return {
@@ -1057,9 +1094,11 @@ export class PromoteService extends BaseService {
                 data: upstreamSpace,
             };
         }
+
         return {
             action: PromotionAction.CREATE,
             data: {
+                // slug in the upstream project can already exist.
                 ...promotedSpace,
                 projectUuid: upstreamProjectUuid,
             },
@@ -1070,19 +1109,36 @@ export class PromoteService extends BaseService {
         promotedChart: PromotedChart,
         upstreamChart: UpstreamChart,
     ): PromotionChanges {
+        const chartChange = PromoteService.getChartChange(
+            promotedChart,
+            upstreamChart,
+        );
+
+        if (chartChange.action === PromotionAction.NO_CHANGES) {
+            return {
+                spaces: [],
+                dashboards: [],
+                charts: [chartChange],
+            };
+        }
+
         const spaceChange = PromoteService.getSpaceChange(
             upstreamChart.projectUuid,
             promotedChart.space,
             upstreamChart.space,
         );
 
-        const chartChange = PromoteService.getChartChange(
-            promotedChart,
-            upstreamChart,
-        );
-
         return {
-            spaces: [spaceChange],
+            spaces: [
+                spaceChange,
+                ...promotedChart.spaces.map((space) =>
+                    PromoteService.getSpaceChange(
+                        upstreamChart.projectUuid,
+                        space,
+                        upstreamChart.spaces.find((s) => s.path === space.path),
+                    ),
+                ),
+            ],
             dashboards: [],
             charts: [chartChange],
         };
@@ -1132,10 +1188,24 @@ export class PromoteService extends BaseService {
                 promotedSpace: promotedDashboard.space,
                 upstreamSpace: upstreamDashboard.space,
             },
-            ...charts.map(({ promotedChart, upstreamChart }) => ({
-                promotedSpace: promotedChart.space,
-                upstreamSpace: upstreamChart.space,
+            ...promotedDashboard.spaces.map((space) => ({
+                promotedSpace: space,
+                upstreamSpace: upstreamDashboard.spaces.find(
+                    (upstreamSpace) => space.path === upstreamSpace.path,
+                ),
             })),
+            ...charts.flatMap(({ promotedChart, upstreamChart }) => [
+                {
+                    promotedSpace: promotedChart.space,
+                    upstreamSpace: upstreamChart.space,
+                },
+                ...promotedChart.spaces.map((space) => ({
+                    promotedSpace: space,
+                    upstreamSpace: upstreamChart.spaces.find(
+                        (upstreamSpace) => space.path === upstreamSpace.path,
+                    ),
+                })),
+            ]),
         ];
 
         const spaceChanges = chartsAndDashboardSpaces.reduce<
@@ -1147,13 +1217,17 @@ export class PromoteService extends BaseService {
             const { promotedSpace, upstreamSpace } = content;
 
             if (promotedSpace === undefined) return acc;
-            if (acc.some((space) => space.data.slug === promotedSpace.slug))
-                return acc; // Space already exists
+
+            // checks if Space already exists in the spaceChanges
+            if (acc.some((space) => space.data.path === promotedSpace.path))
+                return acc;
+
             const spaceChange = PromoteService.getSpaceChange(
                 upstreamProjectUuid,
                 promotedSpace,
                 upstreamSpace,
             );
+
             return [...acc, spaceChange];
         }, []);
 
@@ -1217,6 +1291,16 @@ export class PromoteService extends BaseService {
             dashboard.spaceUuid,
         );
 
+        const promotedSpaceAncestorUuids =
+            await this.spaceModel.getSpaceAncestors({
+                spaceUuid: dashboard.spaceUuid,
+                projectUuid: dashboard.projectUuid,
+            });
+
+        const promotedSpaceAncestors = await this.spaceModel.find({
+            spaceUuids: promotedSpaceAncestorUuids,
+        });
+
         const existingUpstreamDashboards = await this.dashboardModel.find({
             projectUuid: upstreamProjectUuid,
             slug: dashboard.slug,
@@ -1229,7 +1313,7 @@ export class PromoteService extends BaseService {
 
         const upstreamSpaces = await this.spaceModel.find({
             projectUuid: upstreamProjectUuid,
-            slug: promotedSpace.slug,
+            path: promotedSpace.path,
         });
         if (upstreamSpaces.length > 1) {
             throw new AlreadyExistsError(
@@ -1241,6 +1325,7 @@ export class PromoteService extends BaseService {
             dashboard,
             projectUuid: dashboard.projectUuid,
             space: promotedSpace,
+            spaces: promotedSpaceAncestors,
             access: await this.spaceModel.getUserSpaceAccess(
                 user.userUuid,
                 promotedSpace.uuid,
@@ -1248,6 +1333,22 @@ export class PromoteService extends BaseService {
         };
         const upstreamSpace =
             upstreamSpaces.length === 1 ? upstreamSpaces[0] : undefined;
+
+        let upstreamSpaceAncestorUuids: string[] = [];
+        let upstreamSpaceAncestors: PromotedSpace[] = [];
+
+        if (upstreamSpace) {
+            upstreamSpaceAncestorUuids =
+                await this.spaceModel.getSpaceAncestors({
+                    spaceUuid: upstreamSpace.uuid,
+                    projectUuid: upstreamProjectUuid,
+                });
+
+            upstreamSpaceAncestors = await this.spaceModel.find({
+                spaceUuids: upstreamSpaceAncestorUuids,
+            });
+        }
+
         const upstreamDashboard = {
             dashboard:
                 existingUpstreamDashboards.length === 1
@@ -1255,6 +1356,7 @@ export class PromoteService extends BaseService {
                     : undefined,
             projectUuid: upstreamProjectUuid,
             space: upstreamSpace,
+            spaces: upstreamSpaceAncestors,
             access: upstreamSpace
                 ? await this.spaceModel.getUserSpaceAccess(
                       user.userUuid,
