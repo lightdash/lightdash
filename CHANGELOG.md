@@ -1,3 +1,10 @@
+## [0.1606.3](https://github.com/lightdash/lightdash/compare/0.1606.2...0.1606.3) (2025-05-01)
+
+
+### Bug Fixes
+
+* query key invalidation in paginated queries ([#14610](https://github.com/lightdash/lightdash/issues/14610)) ([be1f581](https://github.com/lightdash/lightdash/commit/be1f581db71f1863ca83d2af398c0fbf12c3fdc9))
+
 ## [0.1606.2](https://github.com/lightdash/lightdash/compare/0.1606.1...0.1606.2) (2025-04-30)
 
 
