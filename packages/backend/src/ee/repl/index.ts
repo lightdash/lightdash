@@ -32,8 +32,8 @@ import { getListProjectsScripts } from './scripts/listProjects';
         models,
         database,
         scripts: {
-            fixDuplicateSlugs: getFixDuplicateSlugsScripts(database),
-            listProjects: getListProjectsScripts(database),
+            ...getFixDuplicateSlugsScripts(database),
+            ...getListProjectsScripts(database),
         },
     });
 })();
