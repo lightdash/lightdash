@@ -253,13 +253,7 @@ export const useInfiniteQueryResults = (
         ApiError
     >({
         enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
-        queryKey: [
-            'query-page',
-            fetchArgs.projectUuid,
-            fetchArgs.queryUuid,
-            fetchArgs.page,
-            fetchArgs.pageSize,
-        ],
+        queryKey: ['query-page', fetchArgs],
         queryFn: async () => {
             const startTime = performance.now();
             const results = await getResultsPage(
