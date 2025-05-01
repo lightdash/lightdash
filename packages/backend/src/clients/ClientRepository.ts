@@ -6,8 +6,6 @@ import { S3Client } from './Aws/S3Client';
 import EmailClient from './EmailClient/EmailClient';
 import { GoogleDriveClient } from './Google/GoogleDriveClient';
 import { MicrosoftTeamsClient } from './MicrosoftTeams/MicrosoftTeamsClient';
-import { IResultsCacheStorageClient } from './ResultsCacheStorageClients/ResultsCacheStorageClient';
-import { S3ResultsCacheStorageClient } from './ResultsCacheStorageClients/S3ResultsCacheStorageClient';
 import { SlackClient } from './Slack/SlackClient';
 
 /**
@@ -22,8 +20,9 @@ export interface ClientManifest {
     s3Client: S3Client;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
-    resultsCacheStorageClient: IResultsCacheStorageClient;
     msTeamsClient: MicrosoftTeamsClient;
+    /** An implementation signature for these clients are not available at this stage */
+    resultsCacheStorageClient: unknown;
 }
 
 /**
@@ -178,14 +177,8 @@ export class ClientRepository
         );
     }
 
-    public getResultsCacheStorageClient(): IResultsCacheStorageClient {
-        return this.getClient(
-            'resultsCacheStorageClient',
-            () =>
-                new S3ResultsCacheStorageClient({
-                    lightdashConfig: this.context.lightdashConfig,
-                }),
-        );
+    public getResultsCacheStorageClient<ClientImplT>(): ClientImplT {
+        return this.getClient('resultsCacheStorageClient');
     }
 
     public getMsTeamsClient(): MicrosoftTeamsClient {

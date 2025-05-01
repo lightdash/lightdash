@@ -5,28 +5,40 @@ import {
     ResultRow,
 } from '@lightdash/common';
 import { createInterface } from 'readline';
-import type { IResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/ResultsCacheStorageClient';
 import type { LightdashConfig } from '../../config/parseConfig';
-import { ResultsCacheModel } from '../../models/ResultsCacheModel/ResultsCacheModel';
 import type { ICacheService } from '../../services/CacheService/ICacheService';
-import type { CreateCacheResult } from '../../services/CacheService/types';
+import {
+    ResultsCacheStatus,
+    type CacheHitCacheResult,
+    type CreateCacheResult,
+} from '../../services/CacheService/types';
+import type { IResultsCacheStorageClient } from '../clients/ResultsCacheStorageClients/IResultsCacheStorageClient';
+import type { DbResultsCacheUpdate } from '../database/entities/resultsCache';
+import { ResultsCacheModel } from '../models/ResultsCacheModel/ResultsCacheModel';
 
 type CacheServiceDependencies = {
     resultsCacheModel: ResultsCacheModel;
     lightdashConfig: LightdashConfig;
+    storageClient: IResultsCacheStorageClient;
 };
 
-export class CommercialCacheService implements ICacheService {
+export class CommercialCacheService
+    implements ICacheService<IResultsCacheStorageClient>
+{
     private readonly resultsCacheModel: ResultsCacheModel;
 
     private readonly lightdashConfig: LightdashConfig;
 
+    storageClient: IResultsCacheStorageClient;
+
     constructor({
         resultsCacheModel,
         lightdashConfig,
+        storageClient,
     }: CacheServiceDependencies) {
         this.resultsCacheModel = resultsCacheModel;
         this.lightdashConfig = lightdashConfig;
+        this.storageClient = storageClient;
     }
 
     private getCacheExpiresAt(baseDate: Date) {
@@ -42,7 +54,6 @@ export class CommercialCacheService implements ICacheService {
             sql: string;
             timezone?: string;
         },
-        storageClient: IResultsCacheStorageClient,
         invalidateCache: boolean = false,
     ): Promise<CreateCacheResult> {
         // Generate cache key from project and query identifiers
@@ -72,11 +83,12 @@ export class CommercialCacheService implements ICacheService {
                 write: undefined,
                 close: undefined,
                 totalRowCount: existingCache.total_row_count ?? 0,
+                status: existingCache.status,
             };
         }
 
         // Create upload stream for storing results
-        const { write, close } = storageClient.createUploadStream(
+        const { write, close } = this.storageClient.createUploadStream(
             cacheKey,
             DEFAULT_RESULTS_PAGE_SIZE,
         );
@@ -114,6 +126,7 @@ export class CommercialCacheService implements ICacheService {
             project_uuid: projectUuid,
             expires_at: newExpiresAt,
             total_row_count: null,
+            status: ResultsCacheStatus.PENDING,
         });
 
         if (!createdCache) {
@@ -138,7 +151,6 @@ export class CommercialCacheService implements ICacheService {
         projectUuid: string,
         page: number,
         pageSize: number,
-        storageClient: IResultsCacheStorageClient,
         formatter: (row: ResultRow) => ResultRow,
     ) {
         const cache = await this.resultsCacheModel.find(cacheKey, projectUuid);
@@ -159,7 +171,7 @@ export class CommercialCacheService implements ICacheService {
             );
         }
 
-        const cacheStream = await storageClient.getDowloadStream(cacheKey);
+        const cacheStream = await this.storageClient.getDowloadStream(cacheKey);
 
         const rows: ResultRow[] = [];
         const rl = createInterface({
@@ -188,5 +200,40 @@ export class CommercialCacheService implements ICacheService {
             totalRowCount: cache.total_row_count ?? 0,
             expiresAt: cache.expires_at,
         };
+    }
+
+    async updateCache(
+        cacheKey: string,
+        projectUuid: string,
+        update: DbResultsCacheUpdate,
+    ) {
+        await this.resultsCacheModel.update(cacheKey, projectUuid, update);
+    }
+
+    async deleteCache(cacheKey: string, projectUuid: string) {
+        await this.resultsCacheModel.delete(cacheKey, projectUuid);
+    }
+
+    async findCache(
+        cacheKey: string,
+        projectUuid: string,
+    ): Promise<CacheHitCacheResult | undefined> {
+        const cache = await this.resultsCacheModel.find(cacheKey, projectUuid);
+
+        if (cache) {
+            return {
+                cacheKey,
+                createdAt: cache.created_at,
+                updatedAt: cache.updated_at,
+                expiresAt: cache.expires_at,
+                cacheHit: true,
+                write: undefined,
+                close: undefined,
+                totalRowCount: cache.total_row_count ?? 0,
+                status: cache.status,
+            };
+        }
+
+        return undefined;
     }
 }

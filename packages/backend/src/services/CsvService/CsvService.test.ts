@@ -4,7 +4,6 @@ import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
-import type { S3ResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/S3ResultsCacheStorageClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -17,7 +16,6 @@ import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
-import type { ResultsCacheModel } from '../../models/ResultsCacheModel/ResultsCacheModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -29,7 +27,7 @@ import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredent
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import type { CacheService } from '../CacheService/CacheService';
+import type { ICacheService } from '../CacheService/ICacheService';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
@@ -70,9 +68,7 @@ describe('Csv service', () => {
             encryptionUtil: {} as EncryptionUtil,
             queryHistoryModel: {} as QueryHistoryModel,
             userModel: {} as UserModel,
-            resultsCacheModel: {} as ResultsCacheModel,
-            resultsCacheStorageClient: {} as S3ResultsCacheStorageClient,
-            cacheService: {} as CacheService,
+            cacheService: {} as ICacheService<unknown>,
         }),
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,

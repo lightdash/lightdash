@@ -1,6 +1,6 @@
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
-import type { LightdashConfig } from '../../config/parseConfig';
+import type { LightdashConfig } from '../../../config/parseConfig';
 import {
     ResultsCacheTableName,
     type DbResultsCacheIn,

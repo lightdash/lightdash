@@ -1,5 +1,5 @@
 import { Knex } from 'knex';
-import { ResultsCacheStatus } from '../../models/ResultsCacheModel/types';
+import { ResultsCacheStatus } from '../../services/CacheService/types';
 
 const RESULTS_CACHE_TABLE = 'results_cache';
 

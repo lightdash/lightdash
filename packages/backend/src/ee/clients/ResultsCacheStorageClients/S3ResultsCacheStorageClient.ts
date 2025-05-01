@@ -2,9 +2,9 @@ import { NotFound } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getErrorMessage, WarehouseResults } from '@lightdash/common';
 import { once, PassThrough, Readable, Writable } from 'stream';
-import Logger from '../../logging/logger';
-import { S3CacheClient } from '../Aws/S3CacheClient';
-import { IResultsCacheStorageClient } from './ResultsCacheStorageClient';
+import { S3CacheClient } from '../../../clients/Aws/S3CacheClient';
+import Logger from '../../../logging/logger';
+import { IResultsCacheStorageClient } from './IResultsCacheStorageClient';
 
 export class S3ResultsCacheStorageClient
     extends S3CacheClient

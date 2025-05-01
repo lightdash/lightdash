@@ -1,12 +1,9 @@
 import knex, { Knex } from 'knex';
 import { MockClient, Tracker, getTracker } from 'knex-mock-client';
-import { IResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/ResultsCacheStorageClient';
-import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import {
-    ResultsCacheTableName,
-    type DbResultsCache,
-} from '../../database/entities/resultsCache';
-import { ResultsCacheStatus } from '../../services/CacheService/types';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { ResultsCacheStatus } from '../../../services/CacheService/types';
+import type { IResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/IResultsCacheStorageClient';
+import { ResultsCacheTableName } from '../../database/entities/resultsCache';
 import { ResultsCacheModel } from './ResultsCacheModel';
 
 // Mock storage client

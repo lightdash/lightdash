@@ -171,7 +171,6 @@ import {
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
-import { IResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/ResultsCacheStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { errorHandler } from '../../errors';
@@ -188,7 +187,6 @@ import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel';
-import { ResultsCacheModel } from '../../models/ResultsCacheModel/ResultsCacheModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -210,7 +208,7 @@ import { ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { BaseService } from '../BaseService';
-import type { CacheService } from '../CacheService/CacheService';
+import type { ICacheService } from '../CacheService/ICacheService';
 import {
     CreateCacheResult,
     MissCacheResult,
@@ -239,7 +237,7 @@ import {
     type GetAsyncQueryResultsArgs,
 } from './types';
 
-type ProjectServiceArguments = {
+type ProjectServiceArguments<ResultsCacheStorageClient = unknown> = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
@@ -265,13 +263,13 @@ type ProjectServiceArguments = {
     contentModel: ContentModel;
     queryHistoryModel: QueryHistoryModel;
     encryptionUtil: EncryptionUtil;
-    resultsCacheModel: ResultsCacheModel;
-    resultsCacheStorageClient: IResultsCacheStorageClient;
     userModel: UserModel;
-    cacheService: CacheService;
+    cacheService?: ICacheService<ResultsCacheStorageClient>;
 };
 
-export class ProjectService extends BaseService {
+export class ProjectService<
+    ResultsCacheStorageClient = unknown,
+> extends BaseService {
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -324,13 +322,9 @@ export class ProjectService extends BaseService {
 
     encryptionUtil: EncryptionUtil;
 
-    resultsCacheModel: ResultsCacheModel;
-
-    resultsCacheStorageClient: IResultsCacheStorageClient;
-
     userModel: UserModel;
 
-    cacheService: CacheService;
+    cacheService?: ICacheService<ResultsCacheStorageClient>;
 
     constructor({
         lightdashConfig,
@@ -357,12 +351,10 @@ export class ProjectService extends BaseService {
         catalogModel,
         contentModel,
         queryHistoryModel,
-        resultsCacheModel,
         encryptionUtil,
-        resultsCacheStorageClient,
         userModel,
         cacheService,
-    }: ProjectServiceArguments) {
+    }: ProjectServiceArguments<ResultsCacheStorageClient>) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
@@ -390,8 +382,6 @@ export class ProjectService extends BaseService {
         this.contentModel = contentModel;
         this.queryHistoryModel = queryHistoryModel;
         this.encryptionUtil = encryptionUtil;
-        this.resultsCacheModel = resultsCacheModel;
-        this.resultsCacheStorageClient = resultsCacheStorageClient;
         this.userModel = userModel;
         this.cacheService = cacheService;
     }
@@ -2074,8 +2064,8 @@ export class ProjectService extends BaseService {
                     fields: queryHistory.fields,
                 };
             case QueryHistoryStatus.PENDING:
-                if (resultsCacheEnabled && cacheKey) {
-                    const cache = await this.resultsCacheModel.find(
+                if (resultsCacheEnabled && cacheKey && this.cacheService) {
+                    const cache = await this.cacheService.findCache(
                         cacheKey,
                         projectUuid,
                     );
@@ -2092,7 +2082,7 @@ export class ProjectService extends BaseService {
                             user.userUuid,
                             {
                                 status: QueryHistoryStatus.READY,
-                                total_row_count: cache.total_row_count,
+                                total_row_count: cache.totalRowCount,
                             },
                         );
                     }
@@ -2123,18 +2113,19 @@ export class ProjectService extends BaseService {
 
         let returnObject: ApiGetAsyncQueryResults;
         let roundedDurationMs: number;
-        if (resultsCacheEnabled && cacheKey) {
+        if (resultsCacheEnabled && cacheKey && this.cacheService) {
+            // Need to save to a variable, otherwise TS doesn't carry over the fact that this.cacheService is not undefined through the measureTime call
+            const { cacheService } = this;
             const {
                 result: { rows, totalRowCount: cacheTotalRowCount, expiresAt },
                 durationMs,
             } = await measureTime(
                 () =>
-                    this.cacheService.getCachedResultsPage(
+                    cacheService.getCachedResultsPage(
                         cacheKey,
                         projectUuid,
                         page,
                         defaultedPageSize,
-                        this.resultsCacheStorageClient,
                         formatter,
                     ),
                 'getCachedResultsPage',
@@ -2410,7 +2401,7 @@ export class ProjectService extends BaseService {
             // Wait for the cache to be written before marking the query as ready
             if (resultsCache) {
                 await resultsCache.close();
-                await this.resultsCacheModel.update(
+                await this.cacheService?.updateCache(
                     resultsCache.cacheKey,
                     projectUuid,
                     {
@@ -2466,7 +2457,7 @@ export class ProjectService extends BaseService {
 
             // When the query fails, we delete the cache entry
             if (resultsCache) {
-                await this.resultsCacheModel.delete(
+                await this.cacheService?.deleteCache(
                     resultsCache.cacheKey,
                     projectUuid,
                 );
@@ -2623,7 +2614,7 @@ export class ProjectService extends BaseService {
 
                     let resultsCache: CreateCacheResult | undefined;
 
-                    if (resultsCacheEnabled) {
+                    if (resultsCacheEnabled && this.cacheService) {
                         resultsCache =
                             await this.cacheService.createOrGetExistingCache(
                                 projectUuid,
@@ -2631,7 +2622,6 @@ export class ProjectService extends BaseService {
                                     sql: query,
                                     timezone: metricQuery.timezone,
                                 },
-                                this.resultsCacheStorageClient,
                                 args.invalidateCache,
                             );
 

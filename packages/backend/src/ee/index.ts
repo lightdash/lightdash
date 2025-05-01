@@ -3,9 +3,12 @@ import express, { Express } from 'express';
 import { AppArguments } from '../App';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
+import { ProjectService } from '../services/ProjectService/ProjectService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import LicenseClient from './clients/License/LicenseClient';
 import OpenAi from './clients/OpenAi';
+import type { IResultsCacheStorageClient } from './clients/ResultsCacheStorageClients/IResultsCacheStorageClient';
+import { S3ResultsCacheStorageClient } from './clients/ResultsCacheStorageClients/S3ResultsCacheStorageClient';
 import { CommercialSlackBot } from './clients/Slack/SlackBot';
 import { AiModel } from './models/AiModel';
 import { CommercialCatalogModel } from './models/CommercialCatalogModel';
@@ -13,6 +16,7 @@ import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel'
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
 import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
+import { ResultsCacheModel } from './models/ResultsCacheModel/ResultsCacheModel';
 import { ScimOrganizationAccessTokenModel } from './models/ScimOrganizationAccessTokenModel';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
@@ -134,10 +138,43 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectService: repository.getProjectService(),
                     lightdashConfig: context.lightdashConfig,
                 }),
-            cacheService: ({ models, context }) =>
+            cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({
                     resultsCacheModel: models.getResultsCacheModel(),
                     lightdashConfig: context.lightdashConfig,
+                    storageClient: clients.getResultsCacheStorageClient(),
+                }),
+            projectService: ({ models, context, clients, utils, repository }) =>
+                new ProjectService<IResultsCacheStorageClient>({
+                    lightdashConfig: context.lightdashConfig,
+                    analytics: context.lightdashAnalytics,
+                    projectModel: models.getProjectModel(),
+                    onboardingModel: models.getOnboardingModel(),
+                    savedChartModel: models.getSavedChartModel(),
+                    jobModel: models.getJobModel(),
+                    emailClient: clients.getEmailClient(),
+                    spaceModel: models.getSpaceModel(),
+                    sshKeyPairModel: models.getSshKeyPairModel(),
+                    userAttributesModel: models.getUserAttributesModel(),
+                    s3CacheClient: clients.getS3CacheClient(),
+                    analyticsModel: models.getAnalyticsModel(),
+                    dashboardModel: models.getDashboardModel(),
+                    userWarehouseCredentialsModel:
+                        models.getUserWarehouseCredentialsModel(),
+                    warehouseAvailableTablesModel:
+                        models.getWarehouseAvailableTablesModel(),
+                    emailModel: models.getEmailModel(),
+                    schedulerClient: clients.getSchedulerClient(),
+                    downloadFileModel: models.getDownloadFileModel(),
+                    s3Client: clients.getS3Client(),
+                    groupsModel: models.getGroupsModel(),
+                    tagsModel: models.getTagsModel(),
+                    catalogModel: models.getCatalogModel(),
+                    contentModel: models.getContentModel(),
+                    encryptionUtil: utils.getEncryptionUtil(),
+                    queryHistoryModel: models.getQueryHistoryModel(),
+                    userModel: models.getUserModel(),
+                    cacheService: repository.getCacheService(),
                 }),
         },
         modelProviders: {
@@ -157,6 +194,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new ScimOrganizationAccessTokenModel({ database }),
             featureFlagModel: ({ database }) =>
                 new CommercialFeatureFlagModel({ database, lightdashConfig }),
+            resultsCacheModel: ({ database }) =>
+                new ResultsCacheModel({ database, lightdashConfig }),
         },
         customExpressMiddlewares: [
             (expressApp: Express) => {
@@ -212,6 +251,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     schedulerModel: models.getSchedulerModel(),
+                }),
+            resultsCacheStorageClient: ({ context }) =>
+                new S3ResultsCacheStorageClient({
+                    lightdashConfig: context.lightdashConfig,
                 }),
         },
     };
