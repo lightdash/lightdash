@@ -1,3 +1,10 @@
+## [0.1606.4](https://github.com/lightdash/lightdash/compare/0.1606.3...0.1606.4) (2025-05-01)
+
+
+### Bug Fixes
+
+* remove invalidate cache from query key ([#14613](https://github.com/lightdash/lightdash/issues/14613)) ([b47e010](https://github.com/lightdash/lightdash/commit/b47e010156eba34ab443d688ba3f0d3f75dc8f19))
+
 ## [0.1606.3](https://github.com/lightdash/lightdash/compare/0.1606.2...0.1606.3) (2025-05-01)
 
 
