@@ -365,6 +365,7 @@ export class SpaceModel {
             spaceUuid?: string;
             spaceUuids?: string[];
             slug?: string;
+            path?: string;
             parentSpaceUuid?: string;
         },
         { trx = this.database }: { trx?: Knex } = { trx: this.database },
@@ -479,6 +480,9 @@ export class SpaceModel {
                 }
                 if (filters.slug) {
                     void query.where(`${SpaceTableName}.slug`, filters.slug);
+                }
+                if (filters.path) {
+                    void query.where(`${SpaceTableName}.path`, filters.path);
                 }
                 return query;
             },
@@ -1582,6 +1586,38 @@ export class SpaceModel {
             path: space.path,
             breadcrumbs,
         };
+    }
+
+    async getSpaceAncestors({
+        spaceUuid,
+        projectUuid,
+    }: {
+        spaceUuid: string;
+        projectUuid: string;
+    }) {
+        const space = await this.database(SpaceTableName)
+            .select('path')
+            .where('space_uuid', spaceUuid)
+            .first();
+
+        if (!space) {
+            throw new NotFoundError(
+                `Space with uuid ${spaceUuid} does not exist`,
+            );
+        }
+
+        const ancestors = await this.database(SpaceTableName)
+            .select('space_uuid')
+            .innerJoin(
+                `${ProjectTableName}`,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .whereRaw('?::ltree <@ path', [space.path])
+            .andWhereNot('space_uuid', spaceUuid)
+            .andWhere(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        return ancestors.map((ancestor) => ancestor.space_uuid);
     }
 
     static async getSpaceSlugByUuid({
