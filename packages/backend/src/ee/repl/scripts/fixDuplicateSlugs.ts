@@ -77,6 +77,10 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                 if (chartsWithSlug.length > 1) {
                     const [firstChart, ...restCharts] = chartsWithSlug;
 
+                    console.info(
+                        `Keeping original slug "${firstChart.slug}" for chart "${firstChart.name}" (${firstChart.saved_query_uuid}) in project ${projectUuid}${dryRunMessage}`,
+                    );
+
                     for await (const chart of restCharts) {
                         const uniqueSlug =
                             await generateUniqueSlugScopedToProject(
@@ -87,7 +91,7 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                             );
 
                         console.info(
-                            `Updating chart "${chart.name}"(${chart.saved_query_uuid}) having slug "${chart.slug}" to "${uniqueSlug}" in project ${projectUuid}${dryRunMessage}`,
+                            `Updating slug from "${chart.slug}" to "${uniqueSlug}" for chart "${chart.name}" (${chart.saved_query_uuid}) in project ${projectUuid}${dryRunMessage}`,
                         );
 
                         await trx(SavedChartsTableName)

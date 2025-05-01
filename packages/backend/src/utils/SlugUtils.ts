@@ -40,10 +40,11 @@ export const generateUniqueSlugScopedToProject = async (
         | 'spaces',
     name: string,
 ) => {
-    let matchingSlugsQuery: Knex.QueryBuilder;
+    const baseSlug = generateSlug(name);
+    let matchingSlugs: string[];
     switch (tableName) {
         case 'saved_queries':
-            matchingSlugsQuery = trx(SavedChartsTableName)
+            matchingSlugs = await trx(SavedChartsTableName)
                 .leftJoin(
                     DashboardsTableName,
                     `${DashboardsTableName}.dashboard_uuid`,
@@ -65,7 +66,10 @@ export const generateUniqueSlugScopedToProject = async (
                     `${SpaceTableName}.project_id`,
                     `${ProjectTableName}.project_id`,
                 )
-                .where('project_uuid', projectUuid);
+                .where('project_uuid', projectUuid)
+                .select(`${SavedChartsTableName}.slug`)
+                .where(`${SavedChartsTableName}.slug`, 'like', `${baseSlug}%`)
+                .pluck(`${SavedChartsTableName}.slug`);
             break;
         case 'saved_sql':
         case 'dashboards':
@@ -78,11 +82,6 @@ export const generateUniqueSlugScopedToProject = async (
                 'generateUniqueSlugScopedToProject',
             );
     }
-    const baseSlug = generateSlug(name);
-    const matchingSlugs: string[] = await matchingSlugsQuery
-        .select(`${SavedChartsTableName}.slug`)
-        .where(`${SavedChartsTableName}.slug`, 'like', `${baseSlug}%`)
-        .pluck(`${SavedChartsTableName}.slug`);
 
     let slug = generateSlug(name);
     let inc = 0;
