@@ -4,7 +4,6 @@ import {
     Highlight,
     Paper,
     rem,
-    Text,
 } from '@lightdash/mantine-v7';
 import {
     IconCheck,
@@ -98,13 +97,15 @@ const TreeItem: React.FC<Props> = ({
             />
 
             <Highlight
-                component={Text}
-                inline
                 truncate="end"
                 fz={rem(13)}
                 fw={500}
                 style={{ flexGrow: 1 }}
                 highlight={matchHighlights}
+                highlightStyles={{
+                    backgroundColor: 'transparent',
+                    color: 'var(--mantine-color-blue-8)',
+                }}
             >
                 {stringLabel}
             </Highlight>
