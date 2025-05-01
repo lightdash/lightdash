@@ -13,7 +13,7 @@ import {
     ResultsCacheTableName,
     type DbResultsCacheUpdate,
 } from '../../database/entities/resultsCache';
-import type { CreateCacheResult } from './types';
+import { CreateCacheResult, ResultsCacheStatus } from './types';
 
 export class ResultsCacheModel {
     readonly database: Knex;
@@ -85,6 +85,7 @@ export class ResultsCacheModel {
                 write: undefined,
                 close: undefined,
                 totalRowCount: existingCache.total_row_count ?? 0, // TODO cache: db types need to match the union
+                status: existingCache.status,
             };
         }
 
@@ -124,6 +125,7 @@ export class ResultsCacheModel {
                 project_uuid: projectUuid,
                 expires_at: newExpiresAt,
                 total_row_count: null,
+                status: ResultsCacheStatus.PENDING,
             })
             .returning(['cache_key', 'created_at', 'updated_at', 'expires_at']);
 

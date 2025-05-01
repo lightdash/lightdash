@@ -33,9 +33,10 @@ import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import type { ResultsCacheModel } from '../../models/ResultsCacheModel/ResultsCacheModel';
-import type {
-    CacheHitCacheResult,
-    MissCacheResult,
+import {
+    ResultsCacheStatus,
+    type CacheHitCacheResult,
+    type MissCacheResult,
 } from '../../models/ResultsCacheModel/types';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -510,6 +511,7 @@ describe('ProjectService', () => {
                     createdAt,
                     updatedAt,
                     expiresAt,
+                    status: ResultsCacheStatus.READY,
                     write: undefined,
                     close: undefined,
                 };

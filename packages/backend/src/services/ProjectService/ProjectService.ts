@@ -195,6 +195,7 @@ import {
     type CacheHitCacheResult,
     CreateCacheResult,
     type MissCacheResult,
+    ResultsCacheStatus,
 } from '../../models/ResultsCacheModel/types';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -2058,9 +2059,42 @@ export class ProjectService extends BaseService {
             totalRowCount,
         });
 
+        const resultsCacheEnabled =
+            this.lightdashConfig.resultsCache?.resultsEnabled;
+
         switch (status) {
             case QueryHistoryStatus.CANCELLED:
+                return {
+                    status,
+                    queryUuid,
+                    metricQuery,
+                    fields: queryHistory.fields,
+                };
             case QueryHistoryStatus.PENDING:
+                if (resultsCacheEnabled && cacheKey) {
+                    const cache = await this.resultsCacheModel.find(
+                        cacheKey,
+                        projectUuid,
+                    );
+
+                    if (cache?.status === ResultsCacheStatus.READY) {
+                        // If the cache is ready, we update the query history status to READY and return the current state
+                        // This avoids a race condition where the query history was READY but the cache (triggered by another request) was still being written
+                        this.logger.debug(
+                            `Updating query history status to READY for query ${queryUuid} in project ${projectUuid}. Cache status: ${cache?.status}`,
+                        );
+                        void this.queryHistoryModel.update(
+                            queryUuid,
+                            projectUuid,
+                            user.userUuid,
+                            {
+                                status: QueryHistoryStatus.READY,
+                                total_row_count: cache.total_row_count,
+                            },
+                        );
+                    }
+                }
+
                 return {
                     status,
                     queryUuid,
@@ -2083,9 +2117,6 @@ export class ProjectService extends BaseService {
 
         const formatter = (row: Record<string, unknown>) =>
             formatRow(row, queryHistory.fields);
-
-        const resultsCacheEnabled =
-            this.lightdashConfig.resultsCache?.resultsEnabled;
 
         let returnObject: ApiGetAsyncQueryResults;
         let roundedDurationMs: number;
@@ -2380,6 +2411,7 @@ export class ProjectService extends BaseService {
                     resultsCache.cacheKey,
                     projectUuid,
                     {
+                        status: ResultsCacheStatus.READY,
                         total_row_count: totalRows,
                     },
                 );
@@ -2664,7 +2696,13 @@ export class ProjectService extends BaseService {
                             projectUuid,
                             user.userUuid,
                             {
-                                status: QueryHistoryStatus.READY,
+                                // If the cache is ready, we set the query history status to READY
+                                // Otherwise, we set it to PENDING
+                                status:
+                                    resultsCache.status ===
+                                    ResultsCacheStatus.READY
+                                        ? QueryHistoryStatus.READY
+                                        : QueryHistoryStatus.PENDING,
                                 error: null,
                                 total_row_count: resultsCache.totalRowCount,
                                 warehouse_execution_time_ms: 0, // When cache is hit, no query is executed
