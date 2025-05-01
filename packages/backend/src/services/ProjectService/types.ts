@@ -42,6 +42,15 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
         groupByColumns: GroupByColumn[] | undefined;
         sortBy: SortBy | undefined;
     };
+    dashboardFilters?: DashboardFilters;
+};
+
+export type ExecuteAsyncDashboardSqlQueryArgs = CommonAsyncQueryArgs & {
+    sqlChartUuid?: string;
+    slug?: string;
+    dashboardFilters: DashboardFilters;
+    dashboardSorts: SortField[];
+    granularity?: DateGranularity;
 };
 
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {

@@ -45,6 +45,15 @@ export type ExecuteAsyncSqlQueryRequestParams =
         };
     };
 
+export type ExecuteAsyncDashboardSqlQueryRequestParams =
+    CommonPaginatedQueryRequestParams & {
+        sqlChartUuid: string;
+        slug?: string;
+        dashboardFilters: DashboardFilters;
+        dashboardSorts: SortField[];
+        granularity?: DateGranularity;
+    };
+
 export type ExecuteAsyncUnderlyingDataRequestParams =
     CommonPaginatedQueryRequestParams & {
         underlyingDataSourceQueryUuid: string;

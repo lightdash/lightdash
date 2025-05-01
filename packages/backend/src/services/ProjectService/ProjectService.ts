@@ -21,6 +21,7 @@ import {
     ConditionalOperator,
     ContentType,
     convertCustomMetricToDbt,
+    convertDashboardFiltersToFilters,
     convertExplores,
     convertFieldRefToFieldId,
     countCustomDimensionsInMetricQuery,
@@ -205,6 +206,7 @@ import {
     type MissCacheResult,
 } from '../../models/ResultsCacheModel/types';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import type { TagsModel } from '../../models/TagsModel';
@@ -241,6 +243,7 @@ import {
 } from './resultsPagination';
 import {
     type ExecuteAsyncDashboardChartQueryArgs,
+    ExecuteAsyncDashboardSqlQueryArgs,
     type ExecuteAsyncMetricQueryArgs,
     type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
@@ -278,6 +281,7 @@ type ProjectServiceArguments = {
     resultsCacheModel: ResultsCacheModel;
     resultsCacheStorageClient: IResultsCacheStorageClient;
     userModel: UserModel;
+    savedSqlModel: SavedSqlModel;
 };
 
 export class ProjectService extends BaseService {
@@ -339,6 +343,8 @@ export class ProjectService extends BaseService {
 
     userModel: UserModel;
 
+    savedSqlModel: SavedSqlModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -368,6 +374,7 @@ export class ProjectService extends BaseService {
         encryptionUtil,
         resultsCacheStorageClient,
         userModel,
+        savedSqlModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -399,6 +406,7 @@ export class ProjectService extends BaseService {
         this.resultsCacheModel = resultsCacheModel;
         this.resultsCacheStorageClient = resultsCacheStorageClient;
         this.userModel = userModel;
+        this.savedSqlModel = savedSqlModel;
     }
 
     static getMetricQueryExecutionProperties({
@@ -2831,6 +2839,7 @@ export class ProjectService extends BaseService {
         sql,
         context,
         pivotConfiguration,
+        dashboardFilters,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User does not belong to an organization');
@@ -2913,7 +2922,13 @@ export class ProjectService extends BaseService {
             exploreName: virtualView.name,
             dimensions,
             metrics: [],
-            filters: {},
+            filters: convertDashboardFiltersToFilters(
+                dashboardFilters ?? {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            ),
             tableCalculations: [],
             sorts: [],
             customDimensions: [],
@@ -2942,6 +2957,61 @@ export class ProjectService extends BaseService {
             cacheMetadata,
             appliedDashboardFilters: null,
         };
+    }
+
+    async executeAsyncDashboardSqlQuery({
+        user,
+        projectUuid,
+        sqlChartUuid,
+        slug,
+        dashboardFilters,
+        dashboardSorts,
+        granularity,
+        context,
+    }: ExecuteAsyncDashboardSqlQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User does not belong to an organization');
+        }
+
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        let savedChart;
+        if (sqlChartUuid) {
+            savedChart = await this.savedSqlModel.getByUuid(sqlChartUuid, {
+                projectUuid,
+            });
+        }
+        if (slug) {
+            savedChart = await this.savedSqlModel.getBySlug(projectUuid, slug);
+        }
+
+        if (!savedChart) {
+            throw new NotFoundError('Saved chart not found');
+        }
+
+        console.log('savedChart', savedChart);
+
+        // TODO: a real type check
+        const pivotConfiguration =
+            'fieldConfig' in savedChart.config && savedChart.config.fieldConfig
+                ? {
+                      indexColumn: savedChart.config.fieldConfig.x,
+                      valuesColumns: savedChart.config.fieldConfig.y,
+                      groupByColumns: savedChart.config.fieldConfig.groupBy,
+                      sortBy: savedChart.config.fieldConfig.sortBy,
+                  }
+                : undefined;
+
+        return this.executeAsyncSqlQuery({
+            user,
+            projectUuid,
+            sql: savedChart.sql,
+            context,
+            dashboardFilters,
+            pivotConfiguration,
+        });
     }
 
     async executeAsyncSavedChartQuery({

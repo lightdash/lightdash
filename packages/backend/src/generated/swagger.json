@@ -15722,6 +15722,41 @@
                     }
                 ]
             },
+            "ExecuteAsyncDashboardSqlQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "granularity": {
+                                "$ref": "#/components/schemas/DateGranularity"
+                            },
+                            "dashboardSorts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SortField"
+                                },
+                                "type": "array"
+                            },
+                            "dashboardFilters": {
+                                "$ref": "#/components/schemas/DashboardFilters"
+                            },
+                            "slug": {
+                                "type": "string"
+                            },
+                            "sqlChartUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "dashboardSorts",
+                            "dashboardFilters",
+                            "sqlChartUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
             "ExecuteAsyncSavedChartRequestParams": {
                 "allOf": [
                     {

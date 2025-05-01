@@ -2,6 +2,7 @@ import {
     ApiErrorPayload,
     ApiGetAsyncQueryResults,
     ApiSuccessEmpty,
+    ExecuteAsyncDashboardSqlQueryRequestParams,
     ExecuteAsyncSqlQueryRequestParams,
     QueryExecutionContext,
     type ApiExecuteAsyncQueryResults,
@@ -171,6 +172,39 @@ export class V2ProjectController extends BaseController {
                 sql: body.sql,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
                 pivotConfiguration: body.pivotConfiguration,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Hidden()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/query/dashboard-sql-chart')
+    @OperationId('executeAsyncDashboardSqlQuery')
+    async executeAsyncDashboardSqlQuery(
+        @Body()
+        body: ExecuteAsyncDashboardSqlQueryRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiExecuteAsyncQueryResponse> {
+        this.setStatus(200);
+        const context = body.context ?? getContextFromHeader(req);
+
+        const results = await this.services
+            .getProjectService()
+            .executeAsyncDashboardSqlQuery({
+                user: req.user!,
+                projectUuid,
+                sqlChartUuid: body.sqlChartUuid,
+                slug: body.slug,
+                dashboardFilters: body.dashboardFilters,
+                dashboardSorts: body.dashboardSorts,
+                granularity: body.granularity,
+                context: context ?? QueryExecutionContext.SQL_RUNNER,
             });
 
         return {

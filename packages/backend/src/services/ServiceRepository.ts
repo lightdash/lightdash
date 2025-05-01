@@ -469,6 +469,7 @@ export class ServiceRepository
                     resultsCacheStorageClient:
                         this.clients.getResultsCacheStorageClient(),
                     userModel: this.models.getUserModel(),
+                    savedSqlModel: this.models.getSavedSqlModel(),
                 }),
         );
     }
