@@ -4,44 +4,25 @@ import {
     Tree as MantineTree,
     rem,
     useTree,
-    type RenderTreeNodePayload,
 } from '@lightdash/mantine-v7';
 // FIXME: this won't scale. figure out how to include required mantine 7 styles.
 import '@lightdash/mantine-v7/style.css';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
+import { type FuzzyMatches } from '../../../hooks/useFuzzySearch';
 import TreeItem from './TreeItem';
 import { type NestableItem } from './types';
+import { type FuzzyFilteredItem } from './useFuzzyTreeSearch';
 import { convertNestableListToTree, getAllParentPaths } from './utils';
 
 import classes from './Tree.module.css';
 
-const renderTreeNode = ({
-    node,
-    selected,
-    expanded,
-    hasChildren,
-    elementProps,
-    tree,
-}: RenderTreeNodePayload) => {
-    return (
-        <div {...elementProps}>
-            <TreeItem
-                expanded={expanded}
-                selected={selected}
-                label={node.label}
-                hasChildren={hasChildren}
-                onToggleSelect={() => tree.toggleSelected(node.value)}
-                onToggleExpand={() => tree.toggleExpanded(node.value)}
-            />
-        </div>
-    );
-};
+type Data<T> = T | FuzzyFilteredItem<T> | FuzzyFilteredItem<FuzzyMatches<T>>;
 
 type Props = {
     topLevelLabel: string;
     isExpanded: boolean;
-    data: NestableItem[];
+    data: Data<NestableItem>[];
     value: string | null;
     onChange: (selectedUuid: string | null) => void;
 };
@@ -128,7 +109,47 @@ const Tree: React.FC<Props> = ({
                         data={treeData}
                         tree={tree}
                         levelOffset={rem(23)}
-                        renderNode={renderTreeNode}
+                        renderNode={({
+                            node,
+                            selected,
+                            expanded,
+                            hasChildren,
+                            elementProps,
+                            tree: nTree,
+                        }) => {
+                            const nodeItem = data.find(
+                                (i) => i.path === node.value,
+                            );
+
+                            if (!nodeItem) {
+                                throw new Error(
+                                    `Item with uuid ${node.value} not found`,
+                                );
+                            }
+
+                            const highlights =
+                                '_fuzzyMatches' in nodeItem
+                                    ? nodeItem._fuzzyMatches
+                                    : [];
+
+                            return (
+                                <div {...elementProps}>
+                                    <TreeItem
+                                        expanded={expanded}
+                                        selected={selected}
+                                        label={node.label}
+                                        matchHighlights={highlights}
+                                        hasChildren={hasChildren}
+                                        onToggleSelect={() =>
+                                            nTree.toggleSelected(node.value)
+                                        }
+                                        onToggleExpand={() =>
+                                            nTree.toggleExpanded(node.value)
+                                        }
+                                    />
+                                </div>
+                            );
+                        }}
                         allowRangeSelection={false}
                         checkOnSpace={false}
                         clearSelectionOnOutsideClick={false}

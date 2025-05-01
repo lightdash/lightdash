@@ -1,11 +1,18 @@
-import { ActionIcon, Group, Paper, rem, Text } from '@lightdash/mantine-v7';
+import {
+    ActionIcon,
+    Group,
+    Highlight,
+    Paper,
+    rem,
+    Text,
+} from '@lightdash/mantine-v7';
 import {
     IconCheck,
     IconChevronDown,
     IconChevronRight,
     IconFolder,
 } from '@tabler/icons-react';
-import React from 'react';
+import React, { useMemo } from 'react';
 
 import MantineIcon from '../MantineIcon';
 
@@ -13,6 +20,7 @@ import classes from './TreeItem.module.css';
 
 type Props = {
     label: React.ReactNode;
+    matchHighlights?: string[];
     expanded?: boolean;
     selected?: boolean;
     hasChildren?: boolean;
@@ -24,6 +32,7 @@ type Props = {
 
 const TreeItem: React.FC<Props> = ({
     label,
+    matchHighlights = [],
     expanded = false,
     selected = false,
     hasChildren = false,
@@ -32,6 +41,15 @@ const TreeItem: React.FC<Props> = ({
     onToggleSelect,
     onToggleExpand,
 }) => {
+    const stringLabel = useMemo(() => {
+        if (typeof label === 'string') {
+            return label;
+        }
+        throw new Error(
+            'TreeItem label must always be a string in order to use Highlight',
+        );
+    }, [label]);
+
     return (
         <Paper
             component={Group}
@@ -79,15 +97,17 @@ const TreeItem: React.FC<Props> = ({
                 style={{ flexShrink: 0 }}
             />
 
-            <Text
+            <Highlight
+                component={Text}
                 inline
                 truncate="end"
                 fz={rem(13)}
                 fw={500}
                 style={{ flexGrow: 1 }}
+                highlight={matchHighlights}
             >
-                {label}
-            </Text>
+                {stringLabel}
+            </Highlight>
 
             {!isRoot && selected && (
                 <MantineIcon

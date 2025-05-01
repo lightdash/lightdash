@@ -1,46 +1,54 @@
 import { useMemo } from 'react';
-import useFuzzySearch from '../../../hooks/useFuzzySearch';
+import useFuzzySearch, {
+    type FuzzyMatches,
+} from '../../../hooks/useFuzzySearch';
 import { type NestableItem } from './types';
 
-type FuzzySearchItem<T> = T & {
-    filteredBy: 'match' | 'parent';
+export type FuzzyFilteredItem<T> = T & {
+    _fuzzyFilteredBy: 'match' | 'parent';
 };
 
-function useFuzzyTreeSearch<T extends NestableItem>(
-    items: T[],
-    query: string,
-): [FuzzySearchItem<T>[] | undefined] {
-    const [matchedItems] = useFuzzySearch(items, ['name'], query, {
+function useFuzzyTreeSearch<T extends NestableItem>(items: T[], query: string) {
+    const matchedItems = useFuzzySearch(items, ['name'], query, {
         threshold: 0.3,
+        shouldSort: false,
+        includeMatches: true,
     });
 
-    const filteredItems = useMemo<FuzzySearchItem<T>[] | undefined>(() => {
+    const filteredItems = useMemo(() => {
         if (!matchedItems) return;
 
         return items
-            .map<T | FuzzySearchItem<T>>((item) => {
-                if (matchedItems.includes(item)) {
+            .map<
+                | FuzzyFilteredItem<T>
+                | FuzzyFilteredItem<FuzzyMatches<T>>
+                | undefined
+            >((item) => {
+                const matchedItem = matchedItems.find(
+                    (m) => m.path === item.path,
+                );
+                const isParentMatch = matchedItems.some((m) =>
+                    m.path.startsWith(item.path),
+                );
+
+                if (matchedItem) {
                     return {
-                        ...item,
-                        filteredBy: 'match',
+                        ...matchedItem,
+                        _fuzzyFilteredBy: 'match',
                     };
-                } else if (
-                    matchedItems.some((matchedItem) =>
-                        matchedItem.path.startsWith(item.path),
-                    )
-                ) {
+                } else if (isParentMatch) {
                     return {
                         ...item,
-                        filteredBy: 'parent',
+                        _fuzzyFilteredBy: 'parent',
                     };
                 } else {
-                    return item;
+                    return undefined;
                 }
             })
-            .filter((item) => 'filteredBy' in item);
+            .filter((item) => item !== undefined);
     }, [matchedItems, items]);
 
-    return [filteredItems];
+    return filteredItems;
 }
 
 export default useFuzzyTreeSearch;
