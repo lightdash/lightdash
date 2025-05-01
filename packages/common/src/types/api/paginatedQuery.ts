@@ -1,3 +1,9 @@
+import {
+    type GroupByColumn,
+    type PivotIndexColum,
+    type SortBy,
+    type ValuesColumn,
+} from '../..';
 import type { QueryExecutionContext } from '../analytics';
 import type { DashboardFilters, Filters } from '../filter';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
@@ -31,6 +37,12 @@ export type ExecuteAsyncDashboardChartRequestParams =
 export type ExecuteAsyncSqlQueryRequestParams =
     CommonPaginatedQueryRequestParams & {
         sql: string;
+        pivotConfiguration?: {
+            indexColumn: PivotIndexColum;
+            valuesColumns: ValuesColumn[];
+            groupByColumns: GroupByColumn[] | undefined;
+            sortBy: SortBy | undefined;
+        };
     };
 
 export type ExecuteAsyncUnderlyingDataRequestParams =
