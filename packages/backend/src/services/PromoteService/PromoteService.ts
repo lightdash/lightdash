@@ -707,7 +707,10 @@ export class PromoteService extends BaseService {
             upstreamChart,
         );
 
-        return promotionChanges;
+        return {
+            ...promotionChanges,
+            spaces: PromoteService.sortSpaceChanges(promotionChanges.spaces),
+        };
     }
 
     async getPromoteDashboardDiff(user: SessionUser, dashboardUuid: string) {
@@ -736,7 +739,10 @@ export class PromoteService extends BaseService {
                 upstreamDashboard,
             );
 
-        return promotionChanges;
+        return {
+            ...promotionChanges,
+            spaces: PromoteService.sortSpaceChanges(promotionChanges.spaces),
+        };
     }
 
     private static getSpaceBySlug(
@@ -1105,6 +1111,15 @@ export class PromoteService extends BaseService {
                 projectUuid: upstreamProjectUuid,
             },
         };
+    }
+
+    static sortSpaceChanges(
+        spaceChanges: PromotionChanges['spaces'],
+    ): PromotionChanges['spaces'] {
+        return spaceChanges.sort(
+            (a, b) =>
+                a.data.path.split('.').length - b.data.path.split('.').length,
+        );
     }
 
     async getChartChanges(
