@@ -6,10 +6,7 @@ import { SpaceTableName } from '../../../database/entities/spaces';
 import { generateUniqueSlugScopedToProject } from '../../../utils/SlugUtils';
 
 export function getFixDuplicateSlugsScripts(database: Knex) {
-    async function fixDuplicateChartSlugsForProject(
-        projectUuid: string,
-        opts: { dryRun: boolean },
-    ) {
+    async function fixDuplicateChartSlugs(opts: { dryRun: boolean }) {
         if (!opts || !('dryRun' in opts)) {
             throw new Error('Missing dryRun option!!');
         }
@@ -39,21 +36,26 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                     ProjectTableName,
                     `${SpaceTableName}.project_id`,
                     `${ProjectTableName}.project_id`,
-                )
-                .where(`${ProjectTableName}.project_uuid`, projectUuid);
+                );
 
             const duplicateSlugs = await queryBase
                 .clone()
-                .select<{ slug: string }[]>(`${SavedChartsTableName}.slug`)
-                .groupBy(`${SavedChartsTableName}.slug`)
+                .select<{ slug: string; projectUuid: string }[]>({
+                    slug: `${SavedChartsTableName}.slug`,
+                    projectUuid: `${ProjectTableName}.project_uuid`,
+                })
+                .groupBy(
+                    `${SavedChartsTableName}.slug`,
+                    `${ProjectTableName}.project_uuid`,
+                )
                 .havingRaw('COUNT(*) > 1');
 
             console.info(
-                `Fixing ${duplicateSlugs.length} duplicate slugs for project ${projectUuid}${dryRunMessage}`,
+                `Found ${duplicateSlugs.length} duplicate slugs across all projects${dryRunMessage}`,
             );
 
-            for await (const { slug } of duplicateSlugs) {
-                const chartsWithSlugQuery = queryBase
+            for await (const { slug, projectUuid } of duplicateSlugs) {
+                const chartsWithSlug = await queryBase
                     .clone()
                     .select<
                         {
@@ -69,12 +71,15 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                         `${SavedChartsTableName}.created_at`,
                     )
                     .where(`${SavedChartsTableName}.slug`, slug)
+                    .andWhere(`${ProjectTableName}.project_uuid`, projectUuid)
                     .orderBy(`${SavedChartsTableName}.created_at`, 'asc');
-
-                const chartsWithSlug = await chartsWithSlugQuery;
 
                 if (chartsWithSlug.length > 1) {
                     const [firstChart, ...restCharts] = chartsWithSlug;
+
+                    console.info(
+                        `Keeping original slug "${firstChart.slug}" for chart "${firstChart.name}" (${firstChart.saved_query_uuid}) in project ${projectUuid}${dryRunMessage}`,
+                    );
 
                     for await (const chart of restCharts) {
                         const uniqueSlug =
@@ -86,7 +91,7 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                             );
 
                         console.info(
-                            `Updating chart ${chart.name} having slug ${chart.slug} to ${uniqueSlug} in project ${projectUuid}${dryRunMessage}`,
+                            `Updating slug from "${chart.slug}" to "${uniqueSlug}" for chart "${chart.name}" (${chart.saved_query_uuid}) in project ${projectUuid}${dryRunMessage}`,
                         );
 
                         await trx(SavedChartsTableName)
@@ -102,12 +107,12 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
             }
 
             console.info(
-                `Done fixing duplicate slugs for project ${projectUuid}${dryRunMessage}`,
+                `Done fixing duplicate slugs for all projects${dryRunMessage}`,
             );
         });
     }
 
     return {
-        fixDuplicateChartSlugsForProject,
+        fixDuplicateChartSlugs,
     };
 }
