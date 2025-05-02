@@ -79,6 +79,7 @@ describe('PromoteService chart changes', () => {
             oldUuid: promotedChart.chart.uuid,
             projectUuid: missingUpstreamChart.projectUuid,
             spaceSlug: promotedChart.space.slug,
+            spacePath: promotedChart.space.path,
         });
 
         expect(changes.spaces[0].action).toBe(PromotionAction.CREATE);
@@ -109,6 +110,7 @@ describe('PromoteService chart changes', () => {
             spaceUuid: existingUpstreamChart.space?.uuid,
             projectUuid: missingUpstreamChart.projectUuid,
             spaceSlug: promotedChart.space.slug,
+            spacePath: promotedChart.space.path,
         });
 
         expect(changes.spaces[0].data).toEqual({
@@ -163,6 +165,7 @@ describe('PromoteService chart changes', () => {
             oldUuid: promotedChart.chart.uuid,
             projectUuid: missingUpstreamChart.projectUuid,
             spaceSlug: promotedChart.space.slug,
+            spacePath: promotedChart.space.path,
             updatedAt,
         });
 
@@ -205,6 +208,7 @@ describe('PromoteService chart changes', () => {
             oldUuid: promotedChart.chart.uuid,
             projectUuid: existingUpstreamChart.projectUuid,
             spaceSlug: promotedChart.space.slug,
+            spacePath: promotedChart.space.path,
             updatedAt,
             spaceUuid: promotedChart.chart.spaceUuid, // This is a placeholder, will be updated after creating new space
         });
@@ -256,6 +260,7 @@ describe('PromoteService dashboard changes', () => {
             ...promotedDashboard.dashboard,
             projectUuid: missingUpstreamDashboard.projectUuid,
             spaceSlug: promotedDashboard.space.slug,
+            spacePath: promotedDashboard.space.path,
             tiles: [],
         });
 
@@ -295,6 +300,7 @@ describe('PromoteService dashboard changes', () => {
             ...promotedDashboard.dashboard,
             projectUuid: missingUpstreamDashboard.projectUuid,
             spaceSlug: promotedDashboard.space.slug,
+            spacePath: promotedDashboard.space.path,
         });
 
         expect(promotedCharts.length).toBe(1);
@@ -308,6 +314,7 @@ describe('PromoteService dashboard changes', () => {
             ...promotedChart.chart,
             oldUuid: promotedChart.chart.uuid,
             spaceSlug: promotedChart.space.slug,
+            spacePath: promotedChart.space.path,
             spaceUuid: promotedChart.space.uuid,
             projectUuid: missingUpstreamDashboard.projectUuid,
             dashboardUuid: null, // not within dashboard
@@ -393,6 +400,7 @@ describe('PromoteService dashboard changes', () => {
             ...promotedDashboard.dashboard,
             projectUuid: existingUpstreamDashboard.projectUuid,
             spaceSlug: promotedDashboard.space.slug,
+            spacePath: promotedDashboard.space.path,
             uuid: existingUpstreamDashboard.dashboard?.uuid,
             spaceUuid: existingUpstreamDashboard.space?.uuid,
         });
@@ -403,6 +411,7 @@ describe('PromoteService dashboard changes', () => {
             uuid: existingUpstreamChart.chart?.uuid,
             oldUuid: promotedChart.chart.uuid,
             spaceSlug: promotedChart.space.slug,
+            spacePath: promotedChart.space.path,
             spaceUuid: existingUpstreamDashboard.space?.uuid,
         });
     });
@@ -436,6 +445,7 @@ describe('PromoteService dashboard changes', () => {
             ...promotedDashboardWithChartWithinDashboard.dashboard,
             projectUuid: missingUpstreamDashboard.projectUuid,
             spaceSlug: promotedDashboard.space.slug,
+            spacePath: promotedDashboard.space.path,
         });
 
         expect(promotedCharts.length).toBe(1);
@@ -449,6 +459,7 @@ describe('PromoteService dashboard changes', () => {
             ...promotedChartWithinDashboard.chart,
             oldUuid: promotedChartWithinDashboard.chart.uuid,
             spaceSlug: promotedChartWithinDashboard.space.slug,
+            spacePath: promotedChartWithinDashboard.space.path,
             spaceUuid: promotedChartWithinDashboard.space.uuid,
             projectUuid: missingUpstreamDashboard.projectUuid,
             dashboardUuid:
@@ -597,7 +608,11 @@ describe('PromoteService promoting and mutating changes', () => {
                 name: 'Private space',
                 parentSpaceUuid: null,
             },
-            { projectUuid: 'upstream-project-uuid', userId: 0 },
+            {
+                projectUuid: 'upstream-project-uuid',
+                userId: 0,
+                path: upstreamSpace?.path,
+            },
         );
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(1);
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledWith(
