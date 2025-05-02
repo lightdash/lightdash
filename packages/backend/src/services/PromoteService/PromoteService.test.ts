@@ -1,4 +1,4 @@
-import { DashboardTileTypes } from '@lightdash/common';
+import { DashboardTileTypes, PromotionAction } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -45,8 +45,22 @@ const dashboardModel = {
     create: jest.fn(async () => existingUpstreamDashboard.dashboard),
 };
 describe('PromoteService chart changes', () => {
+    const service = new PromoteService({
+        lightdashConfig: lightdashConfigMock,
+
+        analytics: analyticsMock,
+        projectModel: projectModel as unknown as ProjectModel,
+        savedChartModel: savedChartModel as unknown as SavedChartModel,
+        spaceModel: spaceModel as unknown as SpaceModel,
+        dashboardModel: {} as DashboardModel,
+    });
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
     test('getChartChanges create chart and space', async () => {
-        const changes = PromoteService.getChartChanges(
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        const changes = await service.getChartChanges(
             promotedChart,
             missingUpstreamChart,
         );
@@ -65,13 +79,17 @@ describe('PromoteService chart changes', () => {
             spaceSlug: promotedChart.space.slug,
         });
 
+        expect(changes.spaces[0].action).toBe(PromotionAction.CREATE);
         expect(changes.spaces[0].data).toEqual({
             ...promotedChart.space,
             projectUuid: missingUpstreamChart.projectUuid,
         });
     });
     test('getChartChanges create chart but no space', async () => {
-        const changes = PromoteService.getChartChanges(promotedChart, {
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
+            upstreamSpace,
+        ]);
+        const changes = await service.getChartChanges(promotedChart, {
             ...missingUpstreamChart,
             space: existingUpstreamChart.space,
         });
@@ -97,7 +115,10 @@ describe('PromoteService chart changes', () => {
     });
 
     test('getChartChanges chart with no changes', async () => {
-        const changes = PromoteService.getChartChanges(
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
+            upstreamSpace,
+        ]);
+        const changes = await service.getChartChanges(
             promotedChart,
             existingUpstreamChart,
         );
@@ -112,7 +133,10 @@ describe('PromoteService chart changes', () => {
 
     test('getChartChanges update chart', async () => {
         const updatedAt = new Date();
-        const changes = PromoteService.getChartChanges(
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
+            upstreamSpace,
+        ]);
+        const changes = await service.getChartChanges(
             {
                 ...promotedChart,
                 chart: {
@@ -147,8 +171,8 @@ describe('PromoteService chart changes', () => {
 
     test('getChartChanges update chart and create space', async () => {
         const updatedAt = new Date();
-
-        const changes = PromoteService.getChartChanges(
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        const changes = await service.getChartChanges(
             {
                 ...promotedChart,
                 chart: {
