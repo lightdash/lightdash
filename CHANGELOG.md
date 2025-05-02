@@ -1,3 +1,10 @@
+# [0.1608.0](https://github.com/lightdash/lightdash/compare/0.1607.0...0.1608.0) (2025-05-02)
+
+
+### Features
+
+* add fuzzy search and fuzzy tree search hooks ([#14591](https://github.com/lightdash/lightdash/issues/14591)) ([30d2e05](https://github.com/lightdash/lightdash/commit/30d2e05738bfeec4ea003b9762afab665b9efe5a)), closes [#14550](https://github.com/lightdash/lightdash/issues/14550)
+
 # [0.1607.0](https://github.com/lightdash/lightdash/compare/0.1606.7...0.1607.0) (2025-05-02)
 
 
