@@ -8,7 +8,7 @@ import {
 } from '@lightdash/mantine-v7';
 // FIXME: this won't scale. figure out how to include required mantine 7 styles.
 import '@lightdash/mantine-v7/style.css';
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 
 import TreeItem from './TreeItem';
 import { type NestableItem } from './types';
@@ -40,12 +40,19 @@ const renderTreeNode = ({
 
 type Props = {
     topLevelLabel: string;
+    isExpanded: boolean;
     data: NestableItem[];
     value: string | null;
     onChange: (selectedUuid: string | null) => void;
 };
 
-const Tree: React.FC<Props> = ({ topLevelLabel, value, data, onChange }) => {
+const Tree: React.FC<Props> = ({
+    topLevelLabel,
+    isExpanded,
+    value,
+    data,
+    onChange,
+}) => {
     const treeData = useMemo(() => convertNestableListToTree(data), [data]);
 
     const item = useMemo(() => {
@@ -56,26 +63,41 @@ const Tree: React.FC<Props> = ({ topLevelLabel, value, data, onChange }) => {
 
     const initialSelectedState = useMemo(() => {
         if (!item) return [];
-
         return [item.path];
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    const initialExpandedState = useMemo(() => {
-        if (!item) return {};
-
-        const allParentPaths = getAllParentPaths(treeData, item.path);
-
-        return allParentPaths.reduce<Record<string, boolean>>((acc, path) => {
-            return { ...acc, [path]: true };
-        }, {});
+        // WARNING: this is to get an initial state, so we don't need to re-run this
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const tree = useTree({
         initialSelectedState,
-        initialExpandedState,
     });
+
+    const expandAllParentPaths = useCallback(
+        (node: NestableItem) => {
+            const allParentPaths = getAllParentPaths(treeData, node.path);
+
+            allParentPaths.forEach((path) => {
+                tree.expand(path);
+            });
+        },
+        // WARNING: does not need to be re-created every time tree ref changes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [treeData],
+    );
+
+    useEffect(() => {
+        if (item) {
+            expandAllParentPaths(item);
+        }
+    }, [item, expandAllParentPaths]);
+
+    useEffect(() => {
+        if (isExpanded) {
+            tree.expandAllNodes();
+        }
+        // WARNING: does not need to be re-run every time tree ref changes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isExpanded]);
 
     useEffect(() => {
         let uuid: string | null = null;
@@ -124,6 +146,4 @@ const Tree: React.FC<Props> = ({ topLevelLabel, value, data, onChange }) => {
     );
 };
 
-// FIXME: remove this once it's used somewhere else
-// ts-unused-exports:disable-next-line
 export default Tree;

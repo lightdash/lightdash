@@ -1,12 +1,14 @@
 import { subject } from '@casl/ability';
 import { assertUnreachable, type SpaceSummary } from '@lightdash/common';
-import { Paper, ScrollArea, Stack } from '@mantine/core';
+import { Paper, ScrollArea, Stack, TextInput } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { useMemo, useState } from 'react';
 import { hasDirectAccessToSpace } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import AdminContentViewFilter from '../ResourceView/AdminContentViewFilter';
 import Tree from '../Tree/Tree';
 import { type NestableItem } from '../Tree/types';
+import useFuzzyTreeSearch from '../Tree/useFuzzyTreeSearch';
 
 type SpaceSelectorProps = {
     projectUuid: string | undefined;
@@ -58,6 +60,14 @@ const SpaceSelector = ({
         }
     }, [user.data, selectedAdminContentType, spaces]);
 
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 200);
+
+    const [fuzzyFilteredSpaces] = useFuzzyTreeSearch(
+        filteredSpaces,
+        debouncedSearchQuery,
+    );
+
     return (
         <Stack h="400px">
             {userCanManageProject ? (
@@ -73,6 +83,12 @@ const SpaceSelector = ({
                 />
             ) : null}
 
+            <TextInput
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search spaces"
+            />
+
             <Paper
                 component={ScrollArea}
                 w="100%"
@@ -80,10 +96,11 @@ const SpaceSelector = ({
                 withBorder
             >
                 <Tree
-                    data={filteredSpaces}
+                    data={fuzzyFilteredSpaces ?? filteredSpaces}
                     value={selectedSpaceUuid}
                     onChange={onSelectSpace}
                     topLevelLabel="Spaces"
+                    isExpanded={fuzzyFilteredSpaces !== undefined}
                 />
             </Paper>
 
