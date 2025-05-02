@@ -1,3 +1,10 @@
+# [0.1609.0](https://github.com/lightdash/lightdash/compare/0.1608.0...0.1609.0) (2025-05-02)
+
+
+### Features
+
+* fuzzy tree search with fuzzy highlighting ([#14619](https://github.com/lightdash/lightdash/issues/14619)) ([c3b48d2](https://github.com/lightdash/lightdash/commit/c3b48d25f120686a677faff4258cfce2670a76db))
+
 # [0.1608.0](https://github.com/lightdash/lightdash/compare/0.1607.0...0.1608.0) (2025-05-02)
 
 
