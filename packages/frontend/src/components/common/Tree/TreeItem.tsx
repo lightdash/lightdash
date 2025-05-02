@@ -15,6 +15,7 @@ import React, { useMemo } from 'react';
 
 import MantineIcon from '../MantineIcon';
 
+import { clsx } from '@mantine/core';
 import classes from './TreeItem.module.css';
 
 type Props = {
@@ -23,10 +24,12 @@ type Props = {
     expanded?: boolean;
     selected?: boolean;
     hasChildren?: boolean;
-    withPadding?: boolean;
     isRoot?: boolean;
-    onToggleSelect?: () => void;
-    onToggleExpand?: () => void;
+    className?: string;
+    withPadding?: boolean;
+    withSelectable?: boolean;
+    onClick?: () => void;
+    onClickExpand?: () => void;
 };
 
 const TreeItem: React.FC<Props> = ({
@@ -36,9 +39,11 @@ const TreeItem: React.FC<Props> = ({
     selected = false,
     hasChildren = false,
     withPadding = true,
+    className,
+    withSelectable: _withSelectable = true,
     isRoot = false,
-    onToggleSelect,
-    onToggleExpand,
+    onClick,
+    onClickExpand,
 }) => {
     const stringLabel = useMemo(() => {
         if (typeof label === 'string') {
@@ -54,7 +59,7 @@ const TreeItem: React.FC<Props> = ({
             component={Group}
             data-selected={selected}
             data-is-root={isRoot}
-            className={classes.paper}
+            className={clsx(classes.paper, className)}
             miw={rem(200)}
             w="100%"
             gap={rem(4)}
@@ -67,7 +72,7 @@ const TreeItem: React.FC<Props> = ({
             pr={withPadding ? 'xs' : undefined}
             radius="sm"
             wrap="nowrap"
-            onClick={onToggleSelect}
+            onClick={onClick}
         >
             {isRoot ? null : (
                 <ActionIcon
@@ -75,7 +80,7 @@ const TreeItem: React.FC<Props> = ({
                     className={classes.actionIcon}
                     onClick={(e) => {
                         e.stopPropagation();
-                        onToggleExpand?.();
+                        onClickExpand?.();
                     }}
                     size="xs"
                     variant="transparent"

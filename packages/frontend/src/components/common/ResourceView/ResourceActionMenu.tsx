@@ -319,28 +319,21 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         </Menu.Item>
                     ) : null}
 
-                    {item.type === ResourceViewItemType.CHART ||
-                    item.type === ResourceViewItemType.DASHBOARD ? (
-                        <>
-                            <Menu.Divider
-                                display={isSqlChart ? 'none' : 'block'}
-                            />
+                    <Menu.Divider display={isSqlChart ? 'none' : 'block'} />
 
-                            <Menu.Item
-                                component="button"
-                                role="menuitem"
-                                icon={<IconFolderSymlink size={18} />}
-                                onClick={() => {
-                                    onAction({
-                                        type: ResourceViewItemAction.TRANSFER_TO_SPACE,
-                                        item,
-                                    });
-                                }}
-                            >
-                                Transfer to space
-                            </Menu.Item>
-                        </>
-                    ) : null}
+                    <Menu.Item
+                        component="button"
+                        role="menuitem"
+                        icon={<IconFolderSymlink size={18} />}
+                        onClick={() => {
+                            onAction({
+                                type: ResourceViewItemAction.TRANSFER_TO_SPACE,
+                                item,
+                            });
+                        }}
+                    >
+                        Transfer to space
+                    </Menu.Item>
 
                     {allowDelete && (
                         <>

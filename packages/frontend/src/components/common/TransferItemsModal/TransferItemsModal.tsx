@@ -19,7 +19,7 @@ type Props<T, U> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     items: T;
     spaces: U;
     isLoading: boolean;
-    onConfirm: (spaceUuid: string) => void;
+    onConfirm: (spaceUuid: string | null) => void;
 };
 
 const TransferItemsModal = <
@@ -35,10 +35,11 @@ const TransferItemsModal = <
     onConfirm,
     isLoading,
 }: Props<T, U>) => {
+    const isMovingSingleItem = items.length === 1;
+
     const defaultSpaceUuid = useMemo(() => {
         // return space uuid only if there's a single item (i.e. not a bulk transfer)
-
-        if (items.length !== 1) return undefined;
+        if (!isMovingSingleItem) return undefined;
 
         const item = items[0];
 
@@ -51,7 +52,12 @@ const TransferItemsModal = <
             default:
                 return assertUnreachable(item, 'Invalid item type');
         }
-    }, [items]);
+    }, [isMovingSingleItem, items]);
+
+    const singleItemType = useMemo(() => {
+        if (!isMovingSingleItem) return undefined;
+        return items[0].type;
+    }, [isMovingSingleItem, items]);
 
     const {
         selectedSpaceUuid,
@@ -76,9 +82,7 @@ const TransferItemsModal = <
     }, [selectedSpaceUuid, spaces]);
 
     const handleConfirm = useCallback(() => {
-        if (selectedSpaceUuid) {
-            onConfirm(selectedSpaceUuid);
-        }
+        onConfirm(selectedSpaceUuid);
     }, [selectedSpaceUuid, onConfirm]);
 
     const createSpace = useCallback(async () => {
@@ -91,6 +95,8 @@ const TransferItemsModal = <
             console.error('Failed to create space:', error);
         }
     }, [handleCreateNewSpace, onConfirm]);
+
+    if (items.length === 0) return null;
 
     return (
         <MantineModal
@@ -131,7 +137,11 @@ const TransferItemsModal = <
                             </Button>
                         ) : (
                             <Button
-                                disabled={!selectedSpaceUuid}
+                                disabled={
+                                    !selectedSpaceUuid &&
+                                    singleItemType !==
+                                        ResourceViewItemType.SPACE
+                                }
                                 onClick={handleConfirm}
                             >
                                 Confirm
@@ -144,6 +154,7 @@ const TransferItemsModal = <
             <LoadingOverlay
                 visible={createSpaceMutation.isLoading || isLoading}
             />
+
             {isCreatingNewSpace ? (
                 <SpaceCreationForm
                     spaceName={newSpaceName}
@@ -160,6 +171,7 @@ const TransferItemsModal = <
                     </Text>
 
                     <SpaceSelector
+                        itemType={singleItemType}
                         projectUuid={projectUuid}
                         spaces={spaces}
                         selectedSpaceUuid={selectedSpaceUuid}

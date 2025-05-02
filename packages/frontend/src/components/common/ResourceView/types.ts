@@ -2,6 +2,7 @@ import {
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
     type ResourceViewItem,
+    type ResourceViewSpaceItem,
 } from '@lightdash/common';
 import { type ReactNode } from 'react';
 
@@ -56,7 +57,10 @@ export type ResourceViewItemActionState =
       }
     | {
           type: ResourceViewItemAction.TRANSFER_TO_SPACE;
-          item: ResourceViewChartItem | ResourceViewDashboardItem; // TODO: implement spaces
+          item:
+              | ResourceViewChartItem
+              | ResourceViewDashboardItem
+              | ResourceViewSpaceItem;
       };
 
 type TabType = {

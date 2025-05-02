@@ -1,6 +1,12 @@
 import { subject } from '@casl/ability';
 import { ActionIcon, Box, Menu } from '@mantine/core';
-import { IconEdit, IconPin, IconPinned, IconTrash } from '@tabler/icons-react';
+import {
+    IconEdit,
+    IconFolderSymlink,
+    IconPin,
+    IconPinned,
+    IconTrash,
+} from '@tabler/icons-react';
 import React from 'react';
 import { useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
@@ -71,6 +77,22 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
                         {isPinned ? 'Unpin from homepage' : 'Pin to homepage'}
                     </Menu.Item>
                 )}
+
+                <Menu.Divider />
+
+                <Menu.Item
+                    component="button"
+                    role="menuitem"
+                    icon={<IconFolderSymlink size={18} />}
+                    onClick={() => {
+                        // onAction({
+                        //     type: ResourceViewItemAction.TRANSFER_TO_SPACE,
+                        //     item,
+                        // });
+                    }}
+                >
+                    Transfer to space
+                </Menu.Item>
 
                 <Menu.Item
                     component="button"
