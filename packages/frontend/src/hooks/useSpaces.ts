@@ -448,6 +448,7 @@ export const useMoveSpaceMutation = (projectUuid: string | undefined) => {
                     ]),
                     queryClient.invalidateQueries(['pinned_items']),
                     queryClient.invalidateQueries(['content']),
+                    queryClient.invalidateQueries(['space', projectUuid]),
                 ]);
 
                 showToastSuccess({

@@ -17,6 +17,7 @@ interface Props {
     onRename: () => void;
     onDelete: () => void;
     onTogglePin: () => void;
+    onTransferToSpace: () => void;
 }
 
 export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
@@ -24,6 +25,7 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
     onRename,
     onDelete,
     onTogglePin,
+    onTransferToSpace,
     children,
 }) => {
     const { user } = useApp();
@@ -85,14 +87,13 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
                     role="menuitem"
                     icon={<IconFolderSymlink size={18} />}
                     onClick={() => {
-                        // onAction({
-                        //     type: ResourceViewItemAction.TRANSFER_TO_SPACE,
-                        //     item,
-                        // });
+                        onTransferToSpace();
                     }}
                 >
                     Transfer to space
                 </Menu.Item>
+
+                <Menu.Divider />
 
                 <Menu.Item
                     component="button"
