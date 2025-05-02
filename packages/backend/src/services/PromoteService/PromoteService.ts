@@ -457,8 +457,7 @@ export class PromoteService extends BaseService {
         return (
             promotedChart.updatedAt > upstreamChart.updatedAt ||
             promotedChart.name !== upstreamChart.name ||
-            promotedChart.description !== upstreamChart.description ||
-            promotedChart !== upstreamChart
+            promotedChart.description !== upstreamChart.description
         );
     }
 
@@ -1138,18 +1137,18 @@ export class PromoteService extends BaseService {
             upstreamChart,
         );
 
-        if (chartChange.action === PromotionAction.NO_CHANGES) {
-            return {
-                spaces: [],
-                dashboards: [],
-                charts: [chartChange],
-            };
-        }
-
         const spaceChange = await this.getSpaceChange(
             upstreamChart.projectUuid,
             promotedChart.space,
         );
+
+        if (chartChange.action === PromotionAction.NO_CHANGES) {
+            return {
+                spaces: [spaceChange],
+                dashboards: [],
+                charts: [chartChange],
+            };
+        }
 
         const spaceChanges = await Promise.all(
             promotedChart.spaces.map((space) =>

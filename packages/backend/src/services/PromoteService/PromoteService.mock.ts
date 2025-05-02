@@ -157,6 +157,7 @@ export const promotedChart: PromotedChart = {
     },
     projectUuid: promotedProjectUuid,
     space: promotedSpace,
+    spaces: [],
     access: [],
 };
 
@@ -227,6 +228,7 @@ export const promotedDashboard: PromotedDashboard = {
     },
     projectUuid: promotedProjectUuid,
     space: promotedSpace,
+    spaces: [],
     access: [],
 };
 export const existingUpstreamDashboard: UpstreamDashboard = {
