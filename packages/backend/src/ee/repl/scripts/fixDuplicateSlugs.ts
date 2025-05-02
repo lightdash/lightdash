@@ -198,7 +198,7 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
             }
 
             if (dryRun) {
-                // Rollback the transaction if it's a dry run, this is because slugs depend on updated charts
+                // Rollback the transaction if it's a dry run, this is because slugs depend on updated dashboards
                 await trx.rollback();
             }
 
