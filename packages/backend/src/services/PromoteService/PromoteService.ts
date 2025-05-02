@@ -157,9 +157,12 @@ export class PromoteService extends BaseService {
                 projectUuid: savedChart.projectUuid,
             });
 
-        const promotedSpaceAncestors = await this.spaceModel.find({
-            spaceUuids: promotedSpaceAncestorUuids,
-        });
+        const promotedSpaceAncestors =
+            promotedSpaceAncestorUuids.length > 0
+                ? await this.spaceModel.find({
+                      spaceUuids: promotedSpaceAncestorUuids,
+                  })
+                : [];
 
         const upstreamCharts = await this.savedChartModel.find({
             projectUuid: upstreamProjectUuid,
@@ -176,7 +179,7 @@ export class PromoteService extends BaseService {
 
         const upstreamSpaces = await this.spaceModel.find({
             projectUuid: upstreamProjectUuid,
-            slug: promotedSpace.slug,
+            path: promotedSpace.path,
         });
         if (upstreamSpaces.length > 1) {
             throw new AlreadyExistsError(
@@ -1324,9 +1327,12 @@ export class PromoteService extends BaseService {
                 projectUuid: dashboard.projectUuid,
             });
 
-        const promotedSpaceAncestors = await this.spaceModel.find({
-            spaceUuids: promotedSpaceAncestorUuids,
-        });
+        const promotedSpaceAncestors =
+            promotedSpaceAncestorUuids.length > 0
+                ? await this.spaceModel.find({
+                      spaceUuids: promotedSpaceAncestorUuids,
+                  })
+                : [];
 
         const existingUpstreamDashboards = await this.dashboardModel.find({
             projectUuid: upstreamProjectUuid,
