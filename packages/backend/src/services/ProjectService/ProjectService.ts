@@ -2834,6 +2834,7 @@ export class ProjectService<
         projectUuid,
         sql,
         context,
+        invalidateCache,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User does not belong to an organization');
@@ -2928,7 +2929,7 @@ export class ProjectService<
             },
             {
                 query,
-                invalidateCache: false,
+                invalidateCache,
             },
         );
 
