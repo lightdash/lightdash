@@ -516,6 +516,7 @@ export class PromoteService extends BaseService {
                         ...updatedChart,
                         oldUuid: changeChart.oldUuid,
                         spaceSlug: changeChart.spaceSlug,
+                        spacePath: changeChart.spacePath,
                     }));
             });
         const updatedCharts = await Promise.all(updatedChartPromises);
@@ -555,6 +556,7 @@ export class PromoteService extends BaseService {
                             ...chart,
                             oldUuid: changeChart.oldUuid,
                             spaceSlug: changeChart.spaceSlug,
+                            spacePath: changeChart.spacePath,
                         }));
                 });
         const createdCharts = await Promise.all(createdChartPromises);
@@ -745,14 +747,14 @@ export class PromoteService extends BaseService {
         };
     }
 
-    private static getSpaceBySlug(
+    private static getSpaceByPath(
         spaces: PromotionChanges['spaces'],
-        slug: string,
+        path: string,
     ) {
-        const space = spaces.find((s) => s.data.slug === slug);
+        const space = spaces.find((s) => s.data.path === path);
         if (space === undefined) {
             throw new UnexpectedServerError(
-                `Missing space with slug "${slug}" to promote`,
+                `Missing space with path "${path}" to promote`,
             );
         }
         return space.data;
@@ -808,6 +810,7 @@ export class PromoteService extends BaseService {
                     data: {
                         ...newDashboard,
                         spaceSlug: promotedDashboard.spaceSlug,
+                        spacePath: promotedDashboard.spacePath,
                     },
                 },
             ],
@@ -855,6 +858,7 @@ export class PromoteService extends BaseService {
                     data: {
                         ...updatedDashboard,
                         spaceSlug: promotedDashboard.spaceSlug,
+                        spacePath: promotedDashboard.spacePath,
                     },
                 },
             ],
@@ -933,7 +937,7 @@ export class PromoteService extends BaseService {
                 {
                     projectUuid: data.projectUuid,
                     userId: user.userId,
-                    slug: data.slug,
+                    path: data.path,
                 },
             );
             parentSpaceUuid = space.uuid;
@@ -991,9 +995,9 @@ export class PromoteService extends BaseService {
         const updateChartsWithSpace = promotionChanges.charts.map(
             (chartChange) => {
                 const chart = chartChange.data;
-                const space = PromoteService.getSpaceBySlug(
+                const space = PromoteService.getSpaceByPath(
                     allSpaces,
-                    chart.spaceSlug,
+                    chart.spacePath,
                 );
                 return {
                     ...chartChange,
@@ -1007,9 +1011,9 @@ export class PromoteService extends BaseService {
         const updateDashboardWithSpace = promotionChanges.dashboards.map(
             (dashboardChange) => {
                 const dashboard = dashboardChange.data;
-                const space = PromoteService.getSpaceBySlug(
+                const space = PromoteService.getSpaceByPath(
                     allSpaces,
-                    dashboard.spaceSlug,
+                    dashboard.spacePath,
                 );
                 return {
                     ...dashboardChange,
@@ -1046,6 +1050,7 @@ export class PromoteService extends BaseService {
                     spaceUuid: upstreamChart.chart.spaceUuid,
                     uuid: upstreamChart.chart.uuid,
                     spaceSlug: promotedChart.space?.slug,
+                    spacePath: promotedChart.space?.path,
                     oldUuid: promotedChart.chart.uuid,
                     projectUuid: upstreamChart.projectUuid,
                 },
@@ -1062,6 +1067,7 @@ export class PromoteService extends BaseService {
                     upstreamChart.space?.uuid || promotedChart.space.uuid, // set the new space uuid after creation
                 projectUuid: upstreamChart.projectUuid,
                 spaceSlug: promotedChart.space?.slug,
+                spacePath: promotedChart.space?.path,
                 oldUuid: promotedChart.chart.uuid,
             },
         };
@@ -1264,6 +1270,7 @@ export class PromoteService extends BaseService {
                         uuid: upstreamDashboard.dashboard.uuid,
                         spaceUuid: upstreamDashboard.dashboard.spaceUuid,
                         spaceSlug: promotedDashboard.space?.slug,
+                        spacePath: promotedDashboard.space?.path,
                         projectUuid: upstreamProjectUuid,
                     },
                 };
@@ -1277,6 +1284,7 @@ export class PromoteService extends BaseService {
                         promotedDashboard.dashboard.spaceUuid, // Or set the new space uuid after creation
                     projectUuid: upstreamProjectUuid,
                     spaceSlug: promotedDashboard.space?.slug,
+                    spacePath: promotedDashboard.space?.path,
                 },
             };
         });
