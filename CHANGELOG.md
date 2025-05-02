@@ -1,3 +1,10 @@
+# [0.1607.0](https://github.com/lightdash/lightdash/compare/0.1606.7...0.1607.0) (2025-05-02)
+
+
+### Features
+
+* move caching logic ([#14612](https://github.com/lightdash/lightdash/issues/14612)) ([240e1b9](https://github.com/lightdash/lightdash/commit/240e1b9b7219c20cb987e44f140224efb8108c4e))
+
 ## [0.1606.7](https://github.com/lightdash/lightdash/compare/0.1606.6...0.1606.7) (2025-05-02)
 
 
