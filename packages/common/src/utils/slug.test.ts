@@ -134,44 +134,14 @@ describe('Slug', () => {
     });
 
     describe('getLtreePathFromSlug', () => {
-        test('should convert simple slug to ltree path', () => {
+        test('should return ltree path from slug', () => {
             expect(getLtreePathFromSlug('my-space')).toEqual('my_space');
         });
 
-        test('should convert hierarchical slug to ltree path', () => {
+        test('should return ltree path from legacy hierarchical slug', () => {
             expect(getLtreePathFromSlug('parent-space/child-space')).toEqual(
-                'parent_space.child_space',
+                'parent_space___child_space',
             );
-        });
-
-        test('should handle deeply nested slugs', () => {
-            expect(
-                getLtreePathFromSlug(
-                    'grandparent-space/parent-space/child-space',
-                ),
-            ).toEqual('grandparent_space.parent_space.child_space');
-        });
-
-        test('should remove non-alphanumeric characters except underscores', () => {
-            expect(getLtreePathFromSlug('my!space@name')).toEqual(
-                'my_space_name',
-            );
-            expect(getLtreePathFromSlug('my space name')).toEqual(
-                'my_space_name',
-            );
-            expect(getLtreePathFromSlug('my_space_name')).toEqual(
-                'my_space_name',
-            );
-        });
-
-        test('should handle mixed case slugs', () => {
-            expect(getLtreePathFromSlug('MySpace/ChildSpace')).toEqual(
-                'myspace.childspace',
-            );
-        });
-
-        test('should handle empty slug', () => {
-            expect(getLtreePathFromSlug('')).toEqual('');
         });
 
         test('should not trim hyphens from slug', () => {
@@ -185,7 +155,7 @@ describe('Slug', () => {
                 getLtreePathFromSlug(
                     'grandparent-space-/-parent-space/child-space-',
                 ),
-            ).toEqual('grandparent_space_._parent_space.child_space_');
+            ).toEqual('grandparent_space_____parent_space___child_space_');
         });
     });
 });

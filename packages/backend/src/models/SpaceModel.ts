@@ -1708,29 +1708,45 @@ export class SpaceModel {
             projectUuid,
             userId,
             trx = this.database,
-            slug,
+            path,
         }: {
             trx?: Knex;
             userId: number;
             projectUuid: string;
-            slug?: string;
+            path?: string;
         },
     ): Promise<Space> {
         const [project] = await trx(ProjectTableName)
             .select('project_id')
             .where('project_uuid', projectUuid);
 
-        const spaceSlug =
-            slug ??
-            (await generateUniqueSpaceSlug(spaceData.name, project.project_id, {
-                trx,
-            }));
-        const spacePath = await this.generateSpacePath(
-            spaceSlug,
-            spaceData.parentSpaceUuid,
-            project.project_id,
-            { trx },
-        );
+        let spacePath = '';
+        let spaceSlug = '';
+
+        if (path) {
+            spacePath = path;
+            spaceSlug = await generateUniqueSpaceSlug(
+                spaceData.name,
+                project.project_id,
+                {
+                    trx,
+                },
+            );
+        } else {
+            spaceSlug = await generateUniqueSpaceSlug(
+                spaceData.name,
+                project.project_id,
+                {
+                    trx,
+                },
+            );
+            spacePath = await this.generateSpacePath(
+                spaceSlug,
+                spaceData.parentSpaceUuid,
+                project.project_id,
+                { trx },
+            );
+        }
 
         const [space] = await trx(SpaceTableName)
             .insert({
