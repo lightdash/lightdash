@@ -1,5 +1,6 @@
 import {
     type DbtModelJoinType,
+    type ExploreVariable,
     type LineageGraph,
     type SupportedDbtAdapter,
 } from './dbt';
@@ -37,6 +38,7 @@ export type CompiledTable = TableBase & {
     lineageGraph: LineageGraph;
     source?: Source | undefined;
     uncompiledSqlWhere?: string;
+    variables?: ExploreVariable[];
 };
 
 export enum ExploreType {
@@ -103,6 +105,7 @@ export type Table = TableBase & {
     metrics: { [fieldName: string]: Metric }; //
     lineageGraph: LineageGraph; // DAG structure representing the lineage of the table
     source?: Source;
+    variables?: ExploreVariable[]; // Variables defined on the table
 };
 
 export enum CustomViewType {

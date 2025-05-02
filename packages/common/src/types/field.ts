@@ -570,3 +570,6 @@ export const isSummable = (item: Item | undefined) => {
     const isDatePart = isDimension(item) && item.timeInterval;
     return isNumbericType && !isPercent && !isDatePart;
 };
+
+// Pattern to match variables in SQL strings
+export const lightdashVariablePattern = /\$\{([\w._-]+)\}/g;

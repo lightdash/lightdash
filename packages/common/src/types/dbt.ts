@@ -70,6 +70,15 @@ type DbtLightdashFieldTags = {
 
 export type DbtModelMetadata = DbtModelLightdashConfig & {};
 
+// Define a new type for variables
+export type ExploreVariable = {
+    name: string;
+    type: string;
+    label?: string;
+    description?: string;
+    default?: string; // for now because we only support string variables
+};
+
 type DbtModelLightdashConfig = {
     label?: string;
     joins?: DbtModelJoin[];
@@ -86,6 +95,7 @@ type DbtModelLightdashConfig = {
         field: string;
         interval: TimeFrames;
     };
+    variables?: ExploreVariable[]; // Add variables property
     spotlight?: {
         visibility?: NonNullable<
             LightdashProjectConfig['spotlight']

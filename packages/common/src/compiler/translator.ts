@@ -574,6 +574,7 @@ export const convertTable = (
         requiredFilters: parseFilters(meta.required_filters),
         requiredAttributes: meta.required_attributes,
         groupDetails,
+        variables: meta.variables,
         ...(meta.default_time_dimension
             ? {
                   defaultTimeDimension: {
