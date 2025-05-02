@@ -187,7 +187,7 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                             );
 
                         console.info(
-                            `Updating slug from "${dashboard.slug}" to "${uniqueSlug}" for chart "${dashboard.name}" (${dashboard.dashboard_uuid}) in project ${projectUuid}${dryRunMessage}`,
+                            `Updating slug from "${dashboard.slug}" to "${uniqueSlug}" for dashboard "${dashboard.name}" (${dashboard.dashboard_uuid}) in project ${projectUuid}${dryRunMessage}`,
                         );
 
                         await trx(DashboardsTableName)
