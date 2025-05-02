@@ -144,7 +144,9 @@ export const useDashboardChartReadyQuery = (
                     dashboardUuid: dashboardUuid!,
                     dashboardFilters: timezoneFixFilters,
                     dashboardSorts,
-                    granularity,
+                    dateZoom: {
+                        granularity,
+                    },
                     invalidateCache,
                 },
             );

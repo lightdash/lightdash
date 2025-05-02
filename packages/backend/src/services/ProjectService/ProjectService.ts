@@ -33,7 +33,7 @@ import {
     DashboardAvailableFilters,
     DashboardBasicDetails,
     DashboardFilters,
-    DateGranularity,
+    DateZoom,
     DbtExposure,
     DbtExposureType,
     DbtManifestVersion,
@@ -69,6 +69,7 @@ import {
     getTimezoneLabel,
     hasIntersection,
     IntrinsicUserAttributes,
+    isCartesianChartConfig,
     isCustomSqlDimension,
     isDateItem,
     isDimension,
@@ -343,14 +344,14 @@ export class ProjectService extends BaseService {
     static getMetricQueryExecutionProperties({
         metricQuery,
         hasExampleMetric,
-        granularity,
+        dateZoom,
         chartUuid,
         queryTags,
         explore,
     }: {
         metricQuery: MetricQuery;
         hasExampleMetric: boolean;
-        granularity: DateGranularity | undefined;
+        dateZoom: DateZoom | undefined;
         chartUuid: string | undefined;
         queryTags: Record<string, unknown>;
         explore: Explore;
@@ -432,7 +433,7 @@ export class ProjectService extends BaseService {
                     metric.formatOptions.type === CustomFormatType.CUSTOM,
             ).length,
             ...countCustomDimensionsInMetricQuery(metricQuery),
-            dateZoomGranularity: granularity || null,
+            dateZoomGranularity: dateZoom?.granularity || null,
             timezone: metricQuery.timezone,
             ...(queryTags?.dashboard_uuid
                 ? { dashboardId: queryTags.dashboard_uuid }
@@ -1364,13 +1365,13 @@ export class ProjectService extends BaseService {
         return { adapter, sshTunnel };
     }
 
-    static updateExploreWithGranularity(
+    static updateExploreWithDateZoom(
         explore: Explore,
         metricQuery: MetricQuery,
         warehouseClient: WarehouseClient,
-        granularity?: DateGranularity,
+        dateZoom?: DateZoom,
     ): Explore {
-        if (granularity) {
+        if (dateZoom?.granularity) {
             const timeDimensionsMap: Record<string, CompiledDimension> =
                 Object.values(explore.tables).reduce<
                     Record<string, CompiledDimension>
@@ -1386,16 +1387,21 @@ export class ProjectService extends BaseService {
                     return acc;
                 }, {});
 
-            const firstTimeDimensionIdInMetricQuery =
-                metricQuery.dimensions.find(
-                    (dimension) => !!timeDimensionsMap[dimension],
-                );
-            if (firstTimeDimensionIdInMetricQuery) {
-                const dimToOverride =
-                    timeDimensionsMap[firstTimeDimensionIdInMetricQuery];
-                const { baseDimensionId } = getDateDimension(
-                    firstTimeDimensionIdInMetricQuery,
-                );
+            let timeOrDateDimension = dateZoom?.xAxisFieldId;
+
+            if (!timeOrDateDimension) {
+                const firstTimeDimensionIdInMetricQuery =
+                    metricQuery.dimensions.find(
+                        (dimension) => !!timeDimensionsMap[dimension],
+                    );
+
+                timeOrDateDimension = firstTimeDimensionIdInMetricQuery;
+            }
+
+            if (timeOrDateDimension) {
+                const dimToOverride = timeDimensionsMap[timeOrDateDimension];
+                const { baseDimensionId } =
+                    getDateDimension(timeOrDateDimension);
                 const baseTimeDimension =
                     dimToOverride.timeInterval && baseDimensionId
                         ? timeDimensionsMap[baseDimensionId]
@@ -1406,8 +1412,9 @@ export class ProjectService extends BaseService {
                         baseTimeDimension,
                         explore,
                         warehouseClient,
-                        granularity,
+                        dateZoom?.granularity,
                     );
+
                 return replaceDimensionInExplore(
                     explore,
                     dimWithGranularityOverride,
@@ -1424,13 +1431,13 @@ export class ProjectService extends BaseService {
         intrinsicUserAttributes: IntrinsicUserAttributes,
         userAttributes: UserAttributeValueMap,
         timezone: string,
-        granularity?: DateGranularity,
+        dateZoom?: DateZoom,
     ): Promise<CompiledQuery> {
-        const exploreWithOverride = ProjectService.updateExploreWithGranularity(
+        const exploreWithOverride = ProjectService.updateExploreWithDateZoom(
             explore,
             metricQuery,
             warehouseClient,
-            granularity,
+            dateZoom,
         );
 
         const compiledMetricQuery = compileMetricQuery({
@@ -1698,7 +1705,7 @@ export class ProjectService extends BaseService {
         dashboardFilters,
         invalidateCache,
         dashboardSorts,
-        granularity,
+        dateZoom,
         dashboardUuid,
         autoRefresh,
         context = QueryExecutionContext.DASHBOARD,
@@ -1709,7 +1716,7 @@ export class ProjectService extends BaseService {
         dashboardFilters: DashboardFilters;
         invalidateCache?: boolean;
         dashboardSorts: SortField[];
-        granularity?: DateGranularity;
+        dateZoom?: DateZoom;
         autoRefresh?: boolean;
         context?: QueryExecutionContext;
     }): Promise<ApiChartAndResults> {
@@ -1814,7 +1821,7 @@ export class ProjectService extends BaseService {
                 queryTags,
                 invalidateCache,
                 explore,
-                granularity,
+                dateZoom,
                 chartUuid,
             });
 
@@ -1822,16 +1829,27 @@ export class ProjectService extends BaseService {
             ...metricQueryWithDashboardOverrides.dimensions,
             ...(metricQueryWithDashboardOverrides.customDimensions ?? []),
         ];
-        const hasADateDimension = exploreDimensions.find(
-            (c) =>
-                metricQueryDimensions.includes(getItemId(c)) && isDateItem(c),
-        );
+
+        const xAxisField = isCartesianChartConfig(savedChart.chartConfig.config)
+            ? savedChart.chartConfig.config.layout.xField
+            : undefined;
+
+        const hasADateDimension = xAxisField
+            ? exploreDimensions.find(
+                  (c) => getItemId(c) === xAxisField && isDateItem(c),
+              )
+            : exploreDimensions.find(
+                  (c) =>
+                      metricQueryDimensions.includes(getItemId(c)) &&
+                      isDateItem(c),
+              );
 
         if (hasADateDimension) {
             metricQueryWithDashboardOverrides.metadata = {
                 hasADateDimension: {
                     name: hasADateDimension.name,
                     label: hasADateDimension.label,
+                    table: hasADateDimension.table,
                 },
             };
         }
@@ -1853,7 +1871,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         exploreName: string,
         csvLimit: number | null | undefined,
-        dateZoomGranularity?: DateGranularity,
+        dateZoom?: DateZoom,
         context: QueryExecutionContext = QueryExecutionContext.EXPLORE,
     ): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
@@ -1907,7 +1925,7 @@ export class ProjectService extends BaseService {
             csvLimit,
             context: QueryExecutionContext.EXPLORE,
             queryTags,
-            granularity: dateZoomGranularity,
+            dateZoom,
             chartUuid: undefined,
             invalidateCache: true, // Do not cache results for explore queries
         });
@@ -1923,7 +1941,7 @@ export class ProjectService extends BaseService {
         queryTags,
         invalidateCache,
         explore: validExplore,
-        granularity,
+        dateZoom,
         chartUuid,
     }: {
         user: SessionUser;
@@ -1935,7 +1953,7 @@ export class ProjectService extends BaseService {
         queryTags: RunQueryTags;
         invalidateCache?: boolean;
         explore?: Explore;
-        granularity?: DateGranularity;
+        dateZoom?: DateZoom;
         chartUuid: string | undefined;
     }): Promise<ApiQueryResults> {
         return wrapSentryTransaction(
@@ -1957,7 +1975,7 @@ export class ProjectService extends BaseService {
                         queryTags,
                         invalidateCache,
                         explore,
-                        granularity,
+                        dateZoom,
                         chartUuid,
                     });
                 span.setAttribute('rows', rows.length);
@@ -2255,7 +2273,7 @@ export class ProjectService extends BaseService {
         queryTags,
         invalidateCache,
         explore: loadedExplore,
-        granularity,
+        dateZoom,
         chartUuid,
     }: {
         user: SessionUser;
@@ -2267,7 +2285,7 @@ export class ProjectService extends BaseService {
         queryTags: Omit<RunQueryTags, 'query_context'>; // We already have context in the context parameter
         invalidateCache?: boolean;
         explore?: Explore;
-        granularity?: DateGranularity;
+        dateZoom?: DateZoom;
         chartUuid: string | undefined; // for analytics
     }): Promise<{
         rows: Record<string, AnyType>[];
@@ -2345,7 +2363,7 @@ export class ProjectService extends BaseService {
                         intrinsicUserAttributes,
                         userAttributes,
                         this.lightdashConfig.query.timezone || 'UTC',
-                        granularity,
+                        dateZoom,
                     );
 
                     const { query, hasExampleMetric } = fullQuery;
@@ -2394,7 +2412,7 @@ export class ProjectService extends BaseService {
                                     hasExampleMetric,
                                     queryTags,
                                     chartUuid,
-                                    granularity,
+                                    dateZoom,
                                     explore,
                                 },
                             ),

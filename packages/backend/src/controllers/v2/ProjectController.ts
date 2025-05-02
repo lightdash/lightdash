@@ -139,7 +139,7 @@ export class V2ProjectController extends BaseController {
                 invalidateCache: body.invalidateCache,
                 metricQuery,
                 context: context ?? QueryExecutionContext.API,
-                granularity: body.query.granularity,
+                dateZoom: body.dateZoom,
             });
 
         return {
@@ -236,7 +236,7 @@ export class V2ProjectController extends BaseController {
                 dashboardUuid: body.dashboardUuid,
                 dashboardFilters: body.dashboardFilters,
                 dashboardSorts: body.dashboardSorts,
-                granularity: body.granularity,
+                dateZoom: body.dateZoom,
                 context: context ?? QueryExecutionContext.API,
             });
 
@@ -272,6 +272,7 @@ export class V2ProjectController extends BaseController {
                 filters: body.filters,
                 underlyingDataItemId: body.underlyingDataItemId,
                 context: context ?? QueryExecutionContext.API,
+                dateZoom: body.dateZoom,
             });
 
         return {

@@ -2399,16 +2399,19 @@
                 },
                 "type": "object"
             },
-            "Pick_CompiledDimension.label-or-name_": {
+            "Pick_CompiledDimension.label-or-name-or-table_": {
                 "properties": {
                     "name": {
                         "type": "string"
                     },
                     "label": {
                         "type": "string"
+                    },
+                    "table": {
+                        "type": "string"
                     }
                 },
-                "required": ["name", "label"],
+                "required": ["name", "label", "table"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -2417,7 +2420,7 @@
                     "metadata": {
                         "properties": {
                             "hasADateDimension": {
-                                "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name_"
+                                "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name-or-table_"
                             }
                         },
                         "required": ["hasADateDimension"],
@@ -3593,11 +3596,11 @@
                     "type": {
                         "$ref": "#/components/schemas/DbtModelJoinType"
                     },
-                    "hidden": {
-                        "type": "boolean"
-                    },
                     "table": {
                         "type": "string"
+                    },
+                    "hidden": {
+                        "type": "boolean"
                     },
                     "sqlOn": {
                         "type": "string"
@@ -4227,7 +4230,7 @@
                     "metadata": {
                         "properties": {
                             "hasADateDimension": {
-                                "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name_"
+                                "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name-or-table_"
                             }
                         },
                         "required": ["hasADateDimension"],
@@ -8746,6 +8749,17 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "DateZoom": {
+                "properties": {
+                    "xAxisFieldId": {
+                        "type": "string"
+                    },
+                    "granularity": {
+                        "$ref": "#/components/schemas/DateGranularity"
+                    }
+                },
+                "type": "object"
+            },
             "MetricQueryRequest": {
                 "properties": {
                     "metricOverrides": {
@@ -8757,14 +8771,14 @@
                     "metadata": {
                         "properties": {
                             "hasADateDimension": {
-                                "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name_"
+                                "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name-or-table_"
                             }
                         },
                         "required": ["hasADateDimension"],
                         "type": "object"
                     },
-                    "granularity": {
-                        "$ref": "#/components/schemas/DateGranularity"
+                    "dateZoom": {
+                        "$ref": "#/components/schemas/DateZoom"
                     },
                     "customDimensions": {
                         "items": {
@@ -11490,22 +11504,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -15519,7 +15533,7 @@
                 },
                 "type": "object"
             },
-            "Pick_CompiledDimension.name-or-label_": {
+            "Pick_CompiledDimension.name-or-label-or-table_": {
                 "properties": {},
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -15552,9 +15566,6 @@
                         },
                         "type": "array"
                     },
-                    "granularity": {
-                        "$ref": "#/components/schemas/DateGranularity"
-                    },
                     "exploreName": {
                         "type": "string"
                     },
@@ -15580,10 +15591,13 @@
                         },
                         "type": "array"
                     },
+                    "dateZoom": {
+                        "$ref": "#/components/schemas/DateZoom"
+                    },
                     "metadata": {
                         "properties": {
                             "hasADateDimension": {
-                                "$ref": "#/components/schemas/Pick_CompiledDimension.name-or-label_"
+                                "$ref": "#/components/schemas/Pick_CompiledDimension.name-or-label-or-table_"
                             }
                         },
                         "required": ["hasADateDimension"],
@@ -15619,6 +15633,9 @@
                     },
                     {
                         "properties": {
+                            "dateZoom": {
+                                "$ref": "#/components/schemas/DateZoom"
+                            },
                             "query": {
                                 "$ref": "#/components/schemas/Omit_MetricQueryRequest.csvLimit_"
                             }
@@ -15700,8 +15717,8 @@
                     },
                     {
                         "properties": {
-                            "granularity": {
-                                "$ref": "#/components/schemas/DateGranularity"
+                            "dateZoom": {
+                                "$ref": "#/components/schemas/DateZoom"
                             },
                             "dashboardSorts": {
                                 "items": {
@@ -15736,6 +15753,9 @@
                     },
                     {
                         "properties": {
+                            "dateZoom": {
+                                "$ref": "#/components/schemas/DateZoom"
+                            },
                             "filters": {
                                 "$ref": "#/components/schemas/Filters"
                             },
@@ -18905,8 +18925,8 @@
                                     "autoRefresh": {
                                         "type": "boolean"
                                     },
-                                    "granularity": {
-                                        "$ref": "#/components/schemas/DateGranularity"
+                                    "dateZoom": {
+                                        "$ref": "#/components/schemas/DateZoom"
                                     },
                                     "dashboardUuid": {
                                         "type": "string"

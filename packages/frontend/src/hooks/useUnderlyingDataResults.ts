@@ -6,6 +6,7 @@ import {
     assertUnreachable,
     type DashboardFilters,
     type DateGranularity,
+    type DateZoom,
     type ExecuteAsyncUnderlyingDataRequestParams,
     type MetricQuery,
     QueryExecutionContext,
@@ -148,6 +149,7 @@ export const useUnderlyingDataResults = (
     filters: MetricQuery['filters'],
     underlyingDataSourceQueryUuid?: string,
     underlyingDataItemId?: string,
+    dateZoom?: DateZoom,
 ) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -158,6 +160,7 @@ export const useUnderlyingDataResults = (
             underlyingDataSourceQueryUuid,
             underlyingDataItemId,
             filters,
+            dateZoom,
         ],
         enabled: Boolean(projectUuid) && Boolean(underlyingDataSourceQueryUuid),
         queryFn: () => {
@@ -166,6 +169,7 @@ export const useUnderlyingDataResults = (
                 underlyingDataSourceQueryUuid: underlyingDataSourceQueryUuid!,
                 underlyingDataItemId,
                 filters: convertDateFilters(filters),
+                dateZoom,
             });
         },
         retry: false,

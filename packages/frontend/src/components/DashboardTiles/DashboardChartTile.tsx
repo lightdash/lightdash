@@ -519,6 +519,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         }),
     );
 
+    const dateZoomGranularity = useDashboardContext(
+        (c) => c.dateZoomGranularity,
+    );
+    const chartsWithDateZoomApplied = useDashboardContext(
+        (c) => c.chartsWithDateZoomApplied,
+    );
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
 
     const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
@@ -533,9 +539,22 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const handleViewUnderlyingData = useCallback(() => {
         if (!viewUnderlyingDataOptions) return;
 
+        const applyDateZoom =
+            metricQuery?.metadata?.hasADateDimension &&
+            savedChartUuid &&
+            dateZoomGranularity &&
+            chartsWithDateZoomApplied?.has(savedChartUuid);
+
         openUnderlyingDataModal({
             ...viewUnderlyingDataOptions,
+            ...(applyDateZoom && {
+                dateZoom: {
+                    granularity: dateZoomGranularity,
+                    xAxisFieldId: `${metricQuery?.metadata?.hasADateDimension.table}_${metricQuery?.metadata?.hasADateDimension.name}`,
+                },
+            }),
         });
+
         track({
             name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
             properties: {
@@ -545,11 +564,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             },
         });
     }, [
-        track,
-        user,
-        projectUuid,
-        openUnderlyingDataModal,
         viewUnderlyingDataOptions,
+        dateZoomGranularity,
+        openUnderlyingDataModal,
+        track,
+        user?.data?.organizationUuid,
+        user?.data?.userUuid,
+        projectUuid,
+        metricQuery?.metadata?.hasADateDimension,
+        savedChartUuid,
+        chartsWithDateZoomApplied,
     ]);
 
     const handleCopyToClipboard = useCallback(() => {
@@ -779,13 +803,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 />
             ),
         [showComments, isCommentsMenuOpen, tileUuid],
-    );
-
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
-    const chartsWithDateZoomApplied = useDashboardContext(
-        (c) => c.chartsWithDateZoomApplied,
     );
 
     const editButtonTooltipLabel = useMemo(() => {

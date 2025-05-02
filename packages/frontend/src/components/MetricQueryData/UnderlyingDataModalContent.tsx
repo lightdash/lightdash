@@ -223,7 +223,12 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         error,
         data: resultsData,
         isInitialLoading,
-    } = useUnderlyingDataResults(filters, queryUuid, underlyingDataItemId);
+    } = useUnderlyingDataResults(
+        filters,
+        queryUuid,
+        underlyingDataItemId,
+        underlyingDataConfig?.dateZoom,
+    );
 
     const exploreFromHereUrl = useMemo(() => {
         if (!resultsData) {
