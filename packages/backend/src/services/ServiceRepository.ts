@@ -89,6 +89,7 @@ interface ServiceManifest {
     aiService: unknown;
     scimService: unknown;
     supportService: unknown;
+    cacheService: unknown;
 }
 
 /**
@@ -465,9 +466,6 @@ export class ServiceRepository
                     contentModel: this.models.getContentModel(),
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
-                    resultsCacheModel: this.models.getResultsCacheModel(),
-                    resultsCacheStorageClient:
-                        this.clients.getResultsCacheStorageClient(),
                     userModel: this.models.getUserModel(),
                 }),
         );
@@ -822,6 +820,10 @@ export class ServiceRepository
                     savedChartModel: this.models.getSavedChartModel(),
                 }),
         );
+    }
+
+    public getCacheService<CacheServiceImplT>(): CacheServiceImplT {
+        return this.getService('cacheService');
     }
 
     /**

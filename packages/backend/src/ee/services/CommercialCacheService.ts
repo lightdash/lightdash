@@ -4,48 +4,44 @@ import {
     NotFoundError,
     ResultRow,
 } from '@lightdash/common';
-import * as crypto from 'crypto';
-import { Knex } from 'knex';
 import { createInterface } from 'readline';
-import { IResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/ResultsCacheStorageClient';
 import type { LightdashConfig } from '../../config/parseConfig';
+import type { ICacheService } from '../../services/CacheService/ICacheService';
 import {
-    ResultsCacheTableName,
-    type DbResultsCacheUpdate,
-} from '../../database/entities/resultsCache';
-import { CreateCacheResult, ResultsCacheStatus } from './types';
+    ResultsCacheStatus,
+    type CacheHitCacheResult,
+    type CreateCacheResult,
+} from '../../services/CacheService/types';
+import type { IResultsCacheStorageClient } from '../clients/ResultsCacheStorageClients/IResultsCacheStorageClient';
+import type { DbResultsCacheUpdate } from '../database/entities/resultsCache';
+import { ResultsCacheModel } from '../models/ResultsCacheModel/ResultsCacheModel';
 
-export class ResultsCacheModel {
-    readonly database: Knex;
+type CacheServiceDependencies = {
+    resultsCacheModel: ResultsCacheModel;
+    lightdashConfig: LightdashConfig;
+    storageClient: IResultsCacheStorageClient;
+};
 
-    protected lightdashConfig: LightdashConfig;
+export class CommercialCacheService
+    implements ICacheService<IResultsCacheStorageClient>
+{
+    private readonly resultsCacheModel: ResultsCacheModel;
+
+    private readonly lightdashConfig: LightdashConfig;
+
+    storageClient: IResultsCacheStorageClient;
 
     constructor({
-        database,
+        resultsCacheModel,
         lightdashConfig,
-    }: {
-        database: Knex;
-        lightdashConfig: LightdashConfig;
-    }) {
-        this.database = database;
+        storageClient,
+    }: CacheServiceDependencies) {
+        this.resultsCacheModel = resultsCacheModel;
         this.lightdashConfig = lightdashConfig;
+        this.storageClient = storageClient;
     }
 
-    static getCacheKey(
-        projectUuid: string,
-        resultsIdentifiers: {
-            sql: string;
-            timezone?: string;
-        },
-    ) {
-        const queryHashKey = resultsIdentifiers.timezone
-            ? `${projectUuid}.${resultsIdentifiers.sql}.${resultsIdentifiers.timezone}`
-            : `${projectUuid}.${resultsIdentifiers.sql}`;
-
-        return crypto.createHash('sha256').update(queryHashKey).digest('hex');
-    }
-
-    private getCacheUpdatedAt(baseDate: Date) {
+    private getCacheExpiresAt(baseDate: Date) {
         return new Date(
             baseDate.getTime() +
                 this.lightdashConfig.resultsCache.cacheStateTimeSeconds * 1000,
@@ -58,7 +54,6 @@ export class ResultsCacheModel {
             sql: string;
             timezone?: string;
         },
-        storageClient: IResultsCacheStorageClient,
         invalidateCache: boolean = false,
     ): Promise<CreateCacheResult> {
         // Generate cache key from project and query identifiers
@@ -68,7 +63,10 @@ export class ResultsCacheModel {
         );
 
         // Check if cache already exists
-        const existingCache = await this.find(cacheKey, projectUuid);
+        const existingCache = await this.resultsCacheModel.find(
+            cacheKey,
+            projectUuid,
+        );
 
         // Case 1: Valid cache exists and not being invalidated
         if (
@@ -84,27 +82,31 @@ export class ResultsCacheModel {
                 cacheHit: true,
                 write: undefined,
                 close: undefined,
-                totalRowCount: existingCache.total_row_count ?? 0, // TODO cache: db types need to match the union
+                totalRowCount: existingCache.total_row_count ?? 0,
                 status: existingCache.status,
             };
         }
 
         // Create upload stream for storing results
-        const { write, close } = storageClient.createUploadStream(
+        const { write, close } = this.storageClient.createUploadStream(
             cacheKey,
             DEFAULT_RESULTS_PAGE_SIZE,
         );
 
         const now = new Date();
-        const newExpiresAt = this.getCacheUpdatedAt(now);
+        const newExpiresAt = this.getCacheExpiresAt(now);
 
         // Case 2: Cache exists but is invalid or being invalidated
         if (existingCache) {
             // Update expiration time
-            await this.update(existingCache.cache_key, projectUuid, {
-                expires_at: newExpiresAt,
-                updated_at: now,
-            });
+            await this.resultsCacheModel.update(
+                existingCache.cache_key,
+                projectUuid,
+                {
+                    expires_at: newExpiresAt,
+                    updated_at: now,
+                },
+            );
 
             return {
                 cacheKey: existingCache.cache_key,
@@ -119,15 +121,13 @@ export class ResultsCacheModel {
         }
 
         // Case 3: No cache exists - create new cache entry
-        const [createdCache] = await this.database(ResultsCacheTableName)
-            .insert({
-                cache_key: cacheKey,
-                project_uuid: projectUuid,
-                expires_at: newExpiresAt,
-                total_row_count: null,
-                status: ResultsCacheStatus.PENDING,
-            })
-            .returning(['cache_key', 'created_at', 'updated_at', 'expires_at']);
+        const createdCache = await this.resultsCacheModel.create({
+            cache_key: cacheKey,
+            project_uuid: projectUuid,
+            expires_at: newExpiresAt,
+            total_row_count: null,
+            status: ResultsCacheStatus.PENDING,
+        });
 
         if (!createdCache) {
             await close();
@@ -146,40 +146,14 @@ export class ResultsCacheModel {
         };
     }
 
-    async update(
-        cacheKey: string,
-        projectUuid: string,
-        update: DbResultsCacheUpdate,
-    ) {
-        return this.database(ResultsCacheTableName)
-            .where('cache_key', cacheKey)
-            .andWhere('project_uuid', projectUuid)
-            .update(update);
-    }
-
-    async find(cacheKey: string, projectUuid: string) {
-        return this.database(ResultsCacheTableName)
-            .where('cache_key', cacheKey)
-            .andWhere('project_uuid', projectUuid)
-            .first();
-    }
-
-    async delete(cacheKey: string, projectUuid: string) {
-        return this.database(ResultsCacheTableName)
-            .where('cache_key', cacheKey)
-            .andWhere('project_uuid', projectUuid)
-            .delete();
-    }
-
     async getCachedResultsPage(
         cacheKey: string,
         projectUuid: string,
         page: number,
         pageSize: number,
-        storageClient: IResultsCacheStorageClient,
         formatter: (row: ResultRow) => ResultRow,
     ) {
-        const cache = await this.find(cacheKey, projectUuid);
+        const cache = await this.resultsCacheModel.find(cacheKey, projectUuid);
 
         if (!cache) {
             // TODO: throw a specific error the FE will respond to
@@ -189,7 +163,7 @@ export class ResultsCacheModel {
         }
 
         if (cache.expires_at < new Date()) {
-            await this.delete(cacheKey, projectUuid);
+            await this.resultsCacheModel.delete(cacheKey, projectUuid);
 
             // TODO: throw a specific error the FE will respond to
             throw new ExpiredError(
@@ -197,7 +171,7 @@ export class ResultsCacheModel {
             );
         }
 
-        const cacheStream = await storageClient.getDowloadStream(cacheKey);
+        const cacheStream = await this.storageClient.getDowloadStream(cacheKey);
 
         const rows: ResultRow[] = [];
         const rl = createInterface({
@@ -226,5 +200,40 @@ export class ResultsCacheModel {
             totalRowCount: cache.total_row_count ?? 0,
             expiresAt: cache.expires_at,
         };
+    }
+
+    async updateCache(
+        cacheKey: string,
+        projectUuid: string,
+        update: DbResultsCacheUpdate,
+    ) {
+        await this.resultsCacheModel.update(cacheKey, projectUuid, update);
+    }
+
+    async deleteCache(cacheKey: string, projectUuid: string) {
+        await this.resultsCacheModel.delete(cacheKey, projectUuid);
+    }
+
+    async findCache(
+        cacheKey: string,
+        projectUuid: string,
+    ): Promise<CacheHitCacheResult | undefined> {
+        const cache = await this.resultsCacheModel.find(cacheKey, projectUuid);
+
+        if (cache) {
+            return {
+                cacheKey,
+                createdAt: cache.created_at,
+                updatedAt: cache.updated_at,
+                expiresAt: cache.expires_at,
+                cacheHit: true,
+                write: undefined,
+                close: undefined,
+                totalRowCount: cache.total_row_count ?? 0,
+                status: cache.status,
+            };
+        }
+
+        return undefined;
     }
 }
