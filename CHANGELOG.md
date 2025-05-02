@@ -1,3 +1,10 @@
+## [0.1606.7](https://github.com/lightdash/lightdash/compare/0.1606.6...0.1606.7) (2025-05-02)
+
+
+### Bug Fixes
+
+* transfer items modal props ([#14645](https://github.com/lightdash/lightdash/issues/14645)) ([2b82451](https://github.com/lightdash/lightdash/commit/2b824518e3d51141aba3c71d0e65be4e864b96af))
+
 ## [0.1606.6](https://github.com/lightdash/lightdash/compare/0.1606.5...0.1606.6) (2025-05-01)
 
 
