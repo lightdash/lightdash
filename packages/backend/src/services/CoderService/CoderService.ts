@@ -813,10 +813,11 @@ export class CoderService extends BaseService {
 
         //  we force the new space on the upstreamChart
         if (upstreamChart.chart) upstreamChart.chart.spaceUuid = space.uuid;
-        let promotionChanges: PromotionChanges = PromoteService.getChartChanges(
-            updatedChart,
-            upstreamChart,
-        );
+        let promotionChanges: PromotionChanges =
+            await this.promoteService.getChartChanges(
+                updatedChart,
+                upstreamChart,
+            );
         promotionChanges = await this.promoteService.upsertCharts(
             user,
             promotionChanges,
