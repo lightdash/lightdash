@@ -933,6 +933,7 @@ export class PromoteService extends BaseService {
                 {
                     projectUuid: data.projectUuid,
                     userId: user.userId,
+                    slug: data.slug,
                 },
             );
             parentSpaceUuid = space.uuid;
