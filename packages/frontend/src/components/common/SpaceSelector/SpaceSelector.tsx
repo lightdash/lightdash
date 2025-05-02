@@ -63,7 +63,7 @@ const SpaceSelector = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 200);
 
-    const [fuzzyFilteredSpaces] = useFuzzyTreeSearch(
+    const fuzzyFilteredSpaces = useFuzzyTreeSearch(
         filteredSpaces,
         debouncedSearchQuery,
     );
