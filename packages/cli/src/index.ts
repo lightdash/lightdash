@@ -320,6 +320,16 @@ program
         'Skip `dbt compile` and deploy from the existing ./target/manifest.json',
         false,
     )
+    .option(
+        '--defer',
+        'dbt property. Resolve unselected nodes by deferring to the manifest within the --state directory.',
+        undefined,
+    )
+    .option(
+        '--no-defer',
+        'dbt property. Do not resolve unselected nodes by deferring to the manifest within the --state directory.',
+        undefined,
+    )
     .action(compileHandler);
 
 program
