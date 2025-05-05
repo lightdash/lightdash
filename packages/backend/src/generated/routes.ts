@@ -42,6 +42,8 @@ import { RunViewChartQueryController } from './../controllers/runQueryController
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SavedChartController } from './../controllers/savedChartController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { RenameController } from './../controllers/renameController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ProjectController } from './../controllers/projectController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { PinningController } from './../controllers/pinningController';
@@ -7631,6 +7633,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['indexCatalog'] },
                 { dataType: 'enum', enums: ['generateDailyJobs'] },
                 { dataType: 'enum', enums: ['exportCsvDashboard'] },
+                { dataType: 'enum', enums: ['renameResources'] },
             ],
             validators: {},
         },
@@ -8356,6 +8359,26 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 results: { ref: 'PromotionChanges', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RenameType: {
+        dataType: 'refEnum',
+        enums: ['model', 'field', 'field_id'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiRenameBody: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                model: { dataType: 'string' },
+                test: { dataType: 'boolean' },
+                to: { dataType: 'string', required: true },
+                from: { dataType: 'string', required: true },
+                type: { ref: 'RenameType', required: true },
             },
             validators: {},
         },
@@ -22683,6 +22706,73 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'DownloadCsvFromSavedChart',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsRenameController_post: Record<string, TsoaRoute.ParameterSchema> =
+        {
+            projectUuid: {
+                in: 'path',
+                name: 'projectUuid',
+                required: true,
+                dataType: 'string',
+            },
+            req: {
+                in: 'request',
+                name: 'req',
+                required: true,
+                dataType: 'object',
+            },
+            body: {
+                in: 'body',
+                name: 'body',
+                required: true,
+                ref: 'ApiRenameBody',
+            },
+        };
+    app.post(
+        '/api/v1/projects/:projectUuid/rename',
+        ...fetchMiddlewares<RequestHandler>(RenameController),
+        ...fetchMiddlewares<RequestHandler>(RenameController.prototype.post),
+
+        async function RenameController_post(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsRenameController_post,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<RenameController>(
+                    RenameController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'post',
                     controller,
                     response,
                     next,

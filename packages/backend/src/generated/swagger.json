@@ -8471,7 +8471,8 @@
                     "replaceCustomFields",
                     "indexCatalog",
                     "generateDailyJobs",
-                    "exportCsvDashboard"
+                    "exportCsvDashboard",
+                    "renameResources"
                 ]
             },
             "SchedulerJobStatus": {
@@ -9312,6 +9313,31 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "RenameType": {
+                "enum": ["model", "field", "field_id"],
+                "type": "string"
+            },
+            "ApiRenameBody": {
+                "properties": {
+                    "model": {
+                        "type": "string"
+                    },
+                    "test": {
+                        "type": "boolean"
+                    },
+                    "to": {
+                        "type": "string"
+                    },
+                    "from": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/RenameType"
+                    }
+                },
+                "required": ["to", "from", "type"],
                 "type": "object"
             },
             "ProjectType": {
@@ -16415,7 +16441,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1614.0",
+        "version": "0.1614.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -19438,6 +19464,55 @@
                                 },
                                 "required": ["onlyRaw", "dashboardFilters"],
                                 "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/rename": {
+            "post": {
+                "operationId": "rename",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiJobScheduledResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiRenameBody"
                             }
                         }
                     }

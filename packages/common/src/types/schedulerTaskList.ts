@@ -1,6 +1,7 @@
 import { type SlackPromptJobPayload } from '../ee';
 import { type SchedulerIndexCatalogJobPayload } from './catalog';
 import { type UploadMetricGsheetPayload } from './gdrive';
+import { type RenameResourcesPayload } from './rename';
 import {
     type CompileProjectPayload,
     type DownloadCsvPayload,
@@ -44,6 +45,7 @@ export const SCHEDULER_TASKS = {
     INDEX_CATALOG: 'indexCatalog',
     GENERATE_DAILY_JOBS: 'generateDailyJobs',
     EXPORT_CSV_DASHBOARD: 'exportCsvDashboard',
+    RENAME_RESOURCES: 'renameResources',
     ...EE_SCHEDULER_TASKS,
 } as const;
 
@@ -68,6 +70,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: TraceTaskBase;
     [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: ExportCsvDashboardPayload;
     [SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
+    [SCHEDULER_TASKS.RENAME_RESOURCES]: RenameResourcesPayload;
 }
 
 export interface EETaskPayloadMap {
