@@ -1,3 +1,10 @@
+## [0.1609.2](https://github.com/lightdash/lightdash/compare/0.1609.1...0.1609.2) (2025-05-05)
+
+
+### Bug Fixes
+
+* set cache status to pending when invalidating ([#14658](https://github.com/lightdash/lightdash/issues/14658)) ([f0d1e7f](https://github.com/lightdash/lightdash/commit/f0d1e7f267315289c70d9ebe4e0986a520fbbfd8))
+
 ## [0.1609.1](https://github.com/lightdash/lightdash/compare/0.1609.0...0.1609.1) (2025-05-05)
 
 
