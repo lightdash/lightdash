@@ -168,7 +168,7 @@ export class SpaceService extends BaseService {
             }
         }
 
-        const newSpace = await this.spaceModel.createSpace2(
+        const newSpace = await this.spaceModel.createSpace(
             {
                 name: space.name,
                 isPrivate: space.isPrivate !== false,

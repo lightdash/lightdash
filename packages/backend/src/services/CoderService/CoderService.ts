@@ -913,7 +913,7 @@ export class CoderService extends BaseService {
                 },
             );
 
-            const newSpace = await this.spaceModel.createSpace2(
+            const newSpace = await this.spaceModel.createSpace(
                 {
                     isPrivate: closestAncestorSpace?.isPrivate ?? true,
                     name: friendlyName(currentPath),

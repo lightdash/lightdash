@@ -930,7 +930,7 @@ export class PromoteService extends BaseService {
         for await (const spaceChange of filteredSortedSpaceChanges) {
             const { data } = spaceChange;
 
-            const space = await this.spaceModel.createSpace2(
+            const space = await this.spaceModel.createSpace(
                 {
                     isPrivate: data.isPrivate,
                     name: data.name,
