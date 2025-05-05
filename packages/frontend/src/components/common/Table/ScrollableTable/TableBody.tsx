@@ -7,7 +7,14 @@ import {
     type ConditionalFormattingRowFields,
     type ResultRow,
 } from '@lightdash/common';
-import { Button, Center, Group, Loader, Tooltip } from '@mantine/core';
+import {
+    Button,
+    Center,
+    Group,
+    Loader,
+    Skeleton,
+    Tooltip,
+} from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -264,46 +271,76 @@ const VirtualizedTableBody: FC<{
             : 0;
     const cellsCount = rows[0]?.getVisibleCells().length || 0;
 
+    const skeletonRows = useMemo(() => {
+        const tableColumnsCount = table.getAllColumns().length;
+        const pageSize = table.getState().pagination.pageSize;
+
+        return Array.from({ length: pageSize }).map((_, index) => {
+            return (
+                <tr key={index}>
+                    {new Array(tableColumnsCount).fill(
+                        // Same padding as CellStyles in Table.styles.ts
+                        <td style={{ padding: 8.5 }}>
+                            <Skeleton
+                                w="100%"
+                                // Removing 17px to account for the padding of the table defined in Table.styles.ts
+                                h={`calc(${ROW_HEIGHT_PX}px - 17px)`}
+                            />
+                        </td>,
+                    )}
+                </tr>
+            );
+        });
+    }, [table]);
+
     return (
         <tbody>
             {paddingTop > 0 && (
                 <VirtualizedArea cellCount={cellsCount} padding={paddingTop} />
             )}
-            {virtualRows.map(({ index }) => {
-                // If this is the last row and we're loading, show the loader
-                if (
-                    index + 1 === rows.length &&
-                    isInfiniteScrollEnabled &&
-                    isFetchingRows
-                ) {
-                    return (
-                        <tr key={index}>
-                            <td colSpan={table.getVisibleFlatColumns().length}>
-                                <Center>
-                                    <Tooltip
-                                        withinPortal
-                                        position="top"
-                                        label={`Loading more rows...`}
-                                    >
-                                        <Loader size="xs" color="gray" />
-                                    </Tooltip>
-                                </Center>
-                            </td>
-                        </tr>
-                    );
-                }
 
-                return (
-                    <TableRow
-                        key={index}
-                        index={index}
-                        row={rows[index]}
-                        cellContextMenu={cellContextMenu}
-                        conditionalFormattings={conditionalFormattings}
-                        minMaxMap={minMaxMap}
-                    />
-                );
-            })}
+            {virtualRows.length === 0 && isFetchingRows
+                ? skeletonRows
+                : virtualRows.map(({ index }) => {
+                      // If this is the last row and we're loading, show the loader
+                      if (
+                          isFetchingRows &&
+                          index + 1 === rows.length &&
+                          isInfiniteScrollEnabled
+                      ) {
+                          return (
+                              <tr key={index}>
+                                  <td
+                                      colSpan={
+                                          table.getVisibleFlatColumns().length
+                                      }
+                                  >
+                                      <Center>
+                                          <Tooltip
+                                              withinPortal
+                                              position="top"
+                                              label={`Loading more rows...`}
+                                          >
+                                              <Loader size="xs" color="gray" />
+                                          </Tooltip>
+                                      </Center>
+                                  </td>
+                              </tr>
+                          );
+                      }
+
+                      return (
+                          <TableRow
+                              key={index}
+                              index={index}
+                              row={rows[index]}
+                              cellContextMenu={cellContextMenu}
+                              conditionalFormattings={conditionalFormattings}
+                              minMaxMap={minMaxMap}
+                          />
+                      );
+                  })}
+
             {paddingBottom > 0 && (
                 <VirtualizedArea
                     cellCount={cellsCount}
