@@ -1,3 +1,10 @@
+## [0.1609.1](https://github.com/lightdash/lightdash/compare/0.1609.0...0.1609.1) (2025-05-05)
+
+
+### Bug Fixes
+
+* add defer to cli compile ([#14654](https://github.com/lightdash/lightdash/issues/14654)) ([4acb613](https://github.com/lightdash/lightdash/commit/4acb61368343f950160f78055511130e5da98bde))
+
 # [0.1609.0](https://github.com/lightdash/lightdash/compare/0.1608.0...0.1609.0) (2025-05-02)
 
 
