@@ -1,9 +1,13 @@
 import {
+    GroupByColumn,
     MetricQuery,
+    SortBy,
+    ValuesColumn,
     type CacheMetadata,
     type DashboardFilters,
     type DateGranularity,
     type Filters,
+    type PivotIndexColum,
     type QueryExecutionContext,
     type ResultsPaginationArgs,
     type SessionUser,
@@ -32,6 +36,12 @@ export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
+    pivotConfiguration?: {
+        indexColumn: PivotIndexColum;
+        valuesColumns: ValuesColumn[];
+        groupByColumns: GroupByColumn[] | undefined;
+        sortBy: SortBy | undefined;
+    };
 };
 
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {

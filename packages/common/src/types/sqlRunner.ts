@@ -17,6 +17,7 @@ import {
     type VizTableConfig,
 } from '../visualizations/types';
 import { type Dashboard } from './dashboard';
+import { convertFieldRefToFieldId } from './field';
 import { type Organization } from './organization';
 import { type Project } from './projects';
 import { type RawResultRow } from './results';
@@ -30,14 +31,22 @@ export type SqlRunnerPayload = TraceTaskBase & {
     context: QueryExecutionContext;
 } & SqlRunnerBody;
 
+export type ValuesColumn = {
+    reference: string;
+    aggregation: VizAggregationOptions;
+};
+
+export type GroupByColumn = {
+    reference: string;
+};
+
+export type SortBy = PivotChartLayout['sortBy'];
+
 type ApiSqlRunnerPivotQueryPayload = {
     savedSqlUuid?: string;
     indexColumn: PivotIndexColum;
-    valuesColumns: {
-        reference: string;
-        aggregation: VizAggregationOptions;
-    }[];
-    groupByColumns: { reference: string }[] | undefined;
+    valuesColumns: ValuesColumn[];
+    groupByColumns: GroupByColumn[] | undefined;
     sortBy: PivotChartLayout['sortBy'] | undefined;
 };
 
@@ -216,5 +225,41 @@ export type ApiGithubDbtWritePreview = {
         path: string;
         files: string[];
         owner: string;
+    };
+};
+
+export const prefixPivotConfigurationReferences = (
+    config: {
+        indexColumn: PivotIndexColum;
+        valuesColumns: ValuesColumn[];
+        groupByColumns: GroupByColumn[] | undefined;
+        sortBy: SortBy | undefined;
+    },
+    prefix: string,
+) => {
+    if (!config || !config.indexColumn) {
+        return undefined;
+    }
+    return {
+        ...config,
+        indexColumn: {
+            ...config.indexColumn,
+            reference: convertFieldRefToFieldId(
+                config.indexColumn.reference,
+                prefix,
+            ),
+        },
+        valuesColumns: config.valuesColumns.map((col) => ({
+            ...col,
+            reference: convertFieldRefToFieldId(col.reference, prefix),
+        })),
+        groupByColumns: config.groupByColumns?.map((col) => ({
+            ...col,
+            reference: convertFieldRefToFieldId(col.reference, prefix),
+        })),
+        sortBy: config.sortBy?.map((sort) => ({
+            ...sort,
+            reference: convertFieldRefToFieldId(sort.reference, prefix),
+        })),
     };
 };
