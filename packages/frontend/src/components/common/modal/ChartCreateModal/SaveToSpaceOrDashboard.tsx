@@ -334,6 +334,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         <form
             onSubmit={(e) => {
                 if (currentStep === ModalStep.InitialInfo) {
+                    e.preventDefault();
                     return;
                 }
                 form.onSubmit((values) => handleOnSubmit(values))(e);
