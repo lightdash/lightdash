@@ -103,9 +103,7 @@ const SpaceSelector = ({
             >
                 <Tree
                     // top level item can only be selected for a single space
-                    withTopLevelSelectable={
-                        itemType === ResourceViewItemType.SPACE
-                    }
+                    withRootSelectable={itemType === ResourceViewItemType.SPACE}
                     data={fuzzyFilteredSpaces ?? filteredSpaces}
                     value={selectedSpaceUuid}
                     onChange={onSelectSpace}

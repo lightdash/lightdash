@@ -2,14 +2,16 @@
     overflow: hidden;
     background-color: transparent;
 
-    &:where([data-is-root='false']) {
+    &:where([data-is-selectable='true']) {
+        cursor: pointer;
+
         &:hover {
             background-color: var(--mantine-color-gray-0);
         }
-    }
 
-    &:is([data-selected='true']) {
-        background-color: var(--mantine-color-blue-0);
+        &:is([data-selected='true']) {
+            background-color: var(--mantine-color-blue-0);
+        }
     }
 }
 

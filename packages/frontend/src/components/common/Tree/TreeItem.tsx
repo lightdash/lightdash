@@ -27,7 +27,7 @@ type Props = {
     isRoot?: boolean;
     className?: string;
     withPadding?: boolean;
-    withSelectable?: boolean;
+    withRootSelectable?: boolean;
     onClick?: () => void;
     onClickExpand?: () => void;
 };
@@ -39,9 +39,9 @@ const TreeItem: React.FC<Props> = ({
     selected = false,
     hasChildren = false,
     withPadding = true,
-    className,
-    withSelectable: _withSelectable = true,
+    withRootSelectable = true,
     isRoot = false,
+    className,
     onClick,
     onClickExpand,
 }) => {
@@ -58,7 +58,7 @@ const TreeItem: React.FC<Props> = ({
         <Paper
             component={Group}
             data-selected={selected}
-            data-is-root={isRoot}
+            data-is-selectable={!isRoot || withRootSelectable}
             className={clsx(classes.paper, className)}
             miw={rem(200)}
             w="100%"

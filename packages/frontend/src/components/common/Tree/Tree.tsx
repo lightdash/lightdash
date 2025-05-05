@@ -20,7 +20,7 @@ import classes from './Tree.module.css';
 type Data<T> = T | FuzzyFilteredItem<T> | FuzzyFilteredItem<FuzzyMatches<T>>;
 
 type Props = {
-    withTopLevelSelectable?: boolean;
+    withRootSelectable?: boolean;
     topLevelLabel: string;
     isExpanded: boolean;
     data: Data<NestableItem>[];
@@ -29,7 +29,7 @@ type Props = {
 };
 
 const Tree: React.FC<Props> = ({
-    withTopLevelSelectable = true,
+    withRootSelectable = true,
     topLevelLabel,
     isExpanded,
     value,
@@ -98,16 +98,16 @@ const Tree: React.FC<Props> = ({
     }, [tree.selectedState, onChange, data, value]);
 
     const handleSelectTopLevel = useCallback(() => {
-        if (withTopLevelSelectable) {
+        if (withRootSelectable) {
             tree.clearSelected();
         }
-    }, [withTopLevelSelectable, tree]);
+    }, [withRootSelectable, tree]);
 
     return (
         <MantineProvider>
             <Box px="sm" py="xs">
                 <TreeItem
-                    withSelectable={withTopLevelSelectable}
+                    withRootSelectable={withRootSelectable}
                     selected={!value}
                     label={topLevelLabel}
                     isRoot={true}
