@@ -37,3 +37,33 @@ export const getLtreePathFromContentAsCodePath = (path: string) =>
 
 export const getContentAsCodePathFromLtreePath = (path: string) =>
     path.replace(/_/g, '-').replace(/\./g, '/');
+
+export const getDeepestPaths = (paths: string[]): string[] => {
+    const uniquePaths = Array.from(new Set(paths));
+    const result: string[] = [];
+
+    for (const path of uniquePaths) {
+        const pathSegments = path.split('.');
+
+        const isPrefix = uniquePaths.some((otherPath) => {
+            if (path === otherPath) return false;
+
+            const otherSegments = otherPath.split('.');
+
+            if (pathSegments.length < otherSegments.length) {
+                const potentialPrefix = otherSegments
+                    .slice(0, pathSegments.length)
+                    .join('.');
+                return potentialPrefix === path;
+            }
+
+            return false;
+        });
+
+        if (!isPrefix) {
+            result.push(path);
+        }
+    }
+
+    return result;
+};
