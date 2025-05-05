@@ -2846,10 +2846,6 @@ export class ProjectService<
 
         if (
             user.ability.cannot(
-                'create',
-                subject('Job', { organizationUuid, projectUuid }),
-            ) ||
-            user.ability.cannot(
                 'manage',
                 subject('SqlRunner', {
                     organizationUuid,
@@ -2886,7 +2882,7 @@ export class ProjectService<
                 }
             },
             {
-                tags: {},
+                tags: queryTags,
             },
         );
 
