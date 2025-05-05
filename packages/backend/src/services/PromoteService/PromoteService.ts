@@ -526,7 +526,7 @@ export class PromoteService extends BaseService {
         const createdChartPromises: Promise<PromotedChangeChart>[] =
             promotionChanges.charts
                 .filter((change) => change.action === PromotionAction.CREATE)
-                .map((chartChange) => {
+                .map(async (chartChange) => {
                     const changeChart = chartChange.data;
 
                     // Update dashboard with new space if it was created
@@ -549,17 +549,21 @@ export class PromoteService extends BaseService {
                                   updatedByUser: user,
                                   slug: changeChart.slug,
                               };
-                    return this.savedChartModel
-                        .create(changeChart.projectUuid, user.userUuid, {
+                    const createdChart = await this.savedChartModel.create(
+                        changeChart.projectUuid,
+                        user.userUuid,
+                        {
                             ...chartData,
                             forceSlug: true,
-                        })
-                        .then((chart) => ({
-                            ...chart,
-                            oldUuid: changeChart.oldUuid,
-                            spaceSlug: changeChart.spaceSlug,
-                            spacePath: changeChart.spacePath,
-                        }));
+                        },
+                    );
+
+                    return {
+                        ...createdChart,
+                        oldUuid: changeChart.oldUuid,
+                        spaceSlug: changeChart.spaceSlug,
+                        spacePath: changeChart.spacePath,
+                    };
                 });
         const createdCharts = await Promise.all(createdChartPromises);
 
