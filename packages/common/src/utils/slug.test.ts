@@ -1,9 +1,8 @@
 import {
     generateSlug,
-    getLabelFromSlug,
+    getContentAsCodePathFromLtreePath,
+    getLtreePathFromContentAsCodePath,
     getLtreePathFromSlug,
-    getParentSlug,
-    getSlugsWithHierarchy,
 } from './slugs';
 
 describe('Slug', () => {
@@ -72,67 +71,6 @@ describe('Slug', () => {
         expect(generateSlug('ライトダッシュ').length).toEqual(5);
     });
 
-    describe('getSlugsWithHierarchy', () => {
-        test('should return array with single slug for non-hierarchical slug', () => {
-            expect(getSlugsWithHierarchy('my-space')).toEqual(['my-space']);
-        });
-
-        test('should return array with hierarchical slugs', () => {
-            expect(getSlugsWithHierarchy('parent-space/child-space')).toEqual([
-                'parent-space',
-                'parent-space/child-space',
-            ]);
-        });
-
-        test('should handle multiple levels of hierarchy', () => {
-            expect(
-                getSlugsWithHierarchy(
-                    'grandparent-space/parent-space/child-space',
-                ),
-            ).toEqual([
-                'grandparent-space',
-                'grandparent-space/parent-space',
-                'grandparent-space/parent-space/child-space',
-            ]);
-        });
-    });
-
-    describe('getParentSlug', () => {
-        test('should return empty string for non-hierarchical slug', () => {
-            expect(getParentSlug('my-space')).toEqual('');
-        });
-
-        test('should return parent slug for hierarchical slug', () => {
-            expect(getParentSlug('parent-space/child-space')).toEqual(
-                'parent-space',
-            );
-        });
-
-        test('should return parent path for deeply nested slug', () => {
-            expect(
-                getParentSlug('grandparent-space/parent-space/child-space'),
-            ).toEqual('grandparent-space/parent-space');
-        });
-    });
-
-    describe('getLabelFromSlug', () => {
-        test('should return same slug for non-hierarchical slug', () => {
-            expect(getLabelFromSlug('my-space')).toEqual('my-space');
-        });
-
-        test('should return last part of hierarchical slug', () => {
-            expect(getLabelFromSlug('parent-space/child-space')).toEqual(
-                'child-space',
-            );
-        });
-
-        test('should return last part of deeply nested slug', () => {
-            expect(
-                getLabelFromSlug('grandparent-space/parent-space/child-space'),
-            ).toEqual('child-space');
-        });
-    });
-
     describe('getLtreePathFromSlug', () => {
         test('should return ltree path from slug', () => {
             expect(getLtreePathFromSlug('my-space')).toEqual('my_space');
@@ -157,5 +95,80 @@ describe('Slug', () => {
                 ),
             ).toEqual('grandparent_space_____parent_space___child_space_');
         });
+    });
+});
+
+describe('getLtreePathFromContentAsCodePath', () => {
+    test('root', () => {
+        expect(getLtreePathFromContentAsCodePath('my-space')).toEqual(
+            'my_space',
+        );
+    });
+    test('nested', () => {
+        expect(
+            getLtreePathFromContentAsCodePath(
+                'parent/child/-grandchild/final-child',
+            ),
+        ).toEqual('parent.child._grandchild.final_child');
+        expect(getLtreePathFromContentAsCodePath('-parent-/-child-')).toEqual(
+            '_parent_._child_',
+        );
+    });
+
+    test('new slugs', () => {
+        expect(
+            getLtreePathFromContentAsCodePath(
+                '-foo/-foo___bar/-foo___bar___boo',
+            ),
+        ).toEqual('_foo._foo___bar._foo___bar___boo');
+    });
+});
+
+describe('getContentAsCodePathFromLtreePath', () => {
+    test('root', () => {
+        expect(getContentAsCodePathFromLtreePath('my_space')).toEqual(
+            'my-space',
+        );
+        expect(getContentAsCodePathFromLtreePath('_my_space')).toEqual(
+            '-my-space',
+        );
+    });
+
+    test('nested', () => {
+        expect(
+            getContentAsCodePathFromLtreePath(
+                'parent.child._grandchild.final_child',
+            ),
+        ).toEqual('parent/child/-grandchild/final-child');
+    });
+
+    test('new slugs', () => {
+        expect(
+            getContentAsCodePathFromLtreePath(
+                '_foo._foo___bar._foo___bar___boo',
+            ),
+        ).toEqual('-foo/-foo---bar/-foo---bar---boo');
+    });
+});
+
+describe('getContentAsCodePathFromLtreePath + getLtreePathFromContentAsCodePath', () => {
+    test('should be the inverse of each other', () => {
+        expect(
+            getContentAsCodePathFromLtreePath(
+                getLtreePathFromContentAsCodePath('my-space'),
+            ),
+        ).toEqual('my-space');
+
+        expect(
+            getLtreePathFromContentAsCodePath(
+                getContentAsCodePathFromLtreePath('__my_space_'),
+            ),
+        ).toEqual('__my_space_');
+
+        expect(
+            getLtreePathFromContentAsCodePath(
+                getContentAsCodePathFromLtreePath('__my_space_.foo.bar'),
+            ),
+        ).toEqual('__my_space_.foo.bar');
     });
 });
