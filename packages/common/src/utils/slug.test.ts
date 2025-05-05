@@ -1,6 +1,7 @@
 import {
     generateSlug,
     getContentAsCodePathFromLtreePath,
+    getDeepestPaths,
     getLtreePathFromContentAsCodePath,
     getLtreePathFromSlug,
 } from './slugs';
@@ -170,5 +171,50 @@ describe('getContentAsCodePathFromLtreePath + getLtreePathFromContentAsCodePath'
                 getContentAsCodePathFromLtreePath('__my_space_.foo.bar'),
             ),
         ).toEqual('__my_space_.foo.bar');
+    });
+});
+
+describe('getDeepestPaths', () => {
+    test('should return the deepest paths', () => {
+        expect(
+            getDeepestPaths([
+                'dash',
+                'charts',
+                'charts2',
+                'charts2.charts2_child',
+            ]),
+        ).toEqual(['dash', 'charts', 'charts2.charts2_child']);
+
+        expect(
+            getDeepestPaths([
+                'jaffle_shop.dashboards.dashboards_marketing',
+                'jaffle_shop.sub_charts_2.sub_charts_2_child',
+                'jaffle_shop.dashboards',
+                'jaffle_shop.sub_charts',
+                'jaffle_shop.sub_charts_2',
+            ]),
+        ).toEqual([
+            'jaffle_shop.dashboards.dashboards_marketing',
+            'jaffle_shop.sub_charts_2.sub_charts_2_child',
+            'jaffle_shop.sub_charts',
+        ]);
+
+        expect(
+            getDeepestPaths([
+                'a.b.c.d',
+                'a.b.c',
+                'a.b.c.d.e',
+                'a.b.c.d.e.f',
+                'a.b.c.d.e.f.g',
+                'a.b.c.d.e.f.g.h',
+                'a.b.c.d.e.f.g.h.i',
+                'foo',
+                'bar',
+            ]),
+        ).toEqual(['a.b.c.d.e.f.g.h.i', 'foo', 'bar']);
+
+        expect(getDeepestPaths(['a'])).toEqual(['a']);
+
+        expect(getDeepestPaths(['a', 'b'])).toEqual(['a', 'b']);
     });
 });
