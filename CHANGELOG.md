@@ -1,3 +1,10 @@
+## [0.1609.3](https://github.com/lightdash/lightdash/compare/0.1609.2...0.1609.3) (2025-05-05)
+
+
+### Bug Fixes
+
+* add query execution time to total time ([#14662](https://github.com/lightdash/lightdash/issues/14662)) ([9f898b9](https://github.com/lightdash/lightdash/commit/9f898b9e476ed15950519d7f2f2381936071b56f))
+
 ## [0.1609.2](https://github.com/lightdash/lightdash/compare/0.1609.1...0.1609.2) (2025-05-05)
 
 
