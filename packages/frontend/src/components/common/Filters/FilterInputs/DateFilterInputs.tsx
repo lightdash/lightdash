@@ -23,6 +23,7 @@ import FilterDateRangePicker from './FilterDateRangePicker';
 import FilterDateTimePicker from './FilterDateTimePicker';
 import FilterDateTimeRangePicker from './FilterDateTimeRangePicker';
 import FilterMonthAndYearPicker from './FilterMonthAndYearPicker';
+import FilterQuarterPicker from './FilterQuarterPicker';
 import FilterUnitOfTimeAutoComplete from './FilterUnitOfTimeAutoComplete';
 import FilterWeekPicker from './FilterWeekPicker';
 import FilterYearPicker from './FilterYearPicker';
@@ -130,6 +131,28 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                         ...rule,
                                         values: [
                                             formatDate(value, TimeFrames.MONTH),
+                                        ],
+                                    });
+                                }}
+                            />
+                        );
+                    case TimeFrames.QUARTER:
+                        const ruleValue = rule.values?.[0];
+                        const parsedValue = ruleValue
+                            ? parseDate(ruleValue, TimeFrames.DAY)
+                            : null;
+                        return (
+                            <FilterQuarterPicker
+                                disabled={disabled}
+                                placeholder={placeholder}
+                                autoFocus={true}
+                                popoverProps={popoverProps}
+                                value={parsedValue}
+                                onChange={(newDate: Date) => {
+                                    onChange({
+                                        ...rule,
+                                        values: [
+                                            formatDate(newDate, TimeFrames.DAY),
                                         ],
                                     });
                                 }}
