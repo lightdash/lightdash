@@ -31,7 +31,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
-import { groupBy } from 'lodash';
+import { create, groupBy, property } from 'lodash';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -1720,26 +1720,21 @@ export class SpaceModel {
             .select('project_id')
             .where('project_uuid', projectUuid);
 
-        let spacePath = '';
-        let spaceSlug = '';
+        const spaceSlug = await generateUniqueSpaceSlug(
+            spaceData.name,
+            project.project_id,
+            {
+                trx,
+            },
+        );
 
+        let spacePath = '';
         if (path) {
+            // 1. `path` property is passed to `createSpace` function when Promoting a space or using content as code
+            // 2. If `PromoteService` or `CoderService` call `createSpace` that means that given space was not fount in given project so needs to be created – and existance check was done by using path (1)
+            // 3. So given all the above, it makes sense to create the new space using the passed path (instead of slug) as that's the field we use for matching
             spacePath = path;
-            spaceSlug = await generateUniqueSpaceSlug(
-                spaceData.name,
-                project.project_id,
-                {
-                    trx,
-                },
-            );
         } else {
-            spaceSlug = await generateUniqueSpaceSlug(
-                spaceData.name,
-                project.project_id,
-                {
-                    trx,
-                },
-            );
             spacePath = await this.generateSpacePath(
                 spaceSlug,
                 spaceData.parentSpaceUuid,
