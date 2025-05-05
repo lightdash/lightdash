@@ -358,13 +358,18 @@ export const useInfiniteQueryResults = (
             return undefined;
         }
 
-        return fetchAll
+        const totalPagesFetchTime = fetchAll
             ? Math.round(
                   fetchedPages.reduce((acc, page) => {
                       return acc + page.clientFetchTimeMs;
                   }, 0),
               )
             : Math.round(fetchedPages[0]?.clientFetchTimeMs ?? 0); // If we're not fetching all pages, only return the time for the first page (enough to render the viz)
+
+        return (
+            totalPagesFetchTime +
+            (fetchedPages[0]?.initialQueryExecutionMs ?? 0) // Add the time it took to execute the initial query
+        );
     }, [fetchAll, fetchedPages]);
 
     const isInitialLoading = useMemo(() => {
