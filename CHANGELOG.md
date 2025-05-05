@@ -1,3 +1,10 @@
+## [0.1609.4](https://github.com/lightdash/lightdash/compare/0.1609.3...0.1609.4) (2025-05-05)
+
+
+### Bug Fixes
+
+* dashboard double fetch on first refresh ([#14661](https://github.com/lightdash/lightdash/issues/14661)) ([efe2406](https://github.com/lightdash/lightdash/commit/efe240615b6c4159333668c72cac556b01720cee))
+
 ## [0.1609.3](https://github.com/lightdash/lightdash/compare/0.1609.2...0.1609.3) (2025-05-05)
 
 
