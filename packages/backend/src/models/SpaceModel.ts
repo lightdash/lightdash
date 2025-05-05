@@ -1714,8 +1714,7 @@ export class SpaceModel {
         return `${parentSpace.path}.${getLtreePathFromSlug(spaceSlug)}`;
     }
 
-    // Temporary function while all the callers for the createSpace function are updated
-    async createSpace2(
+    async createSpace(
         spaceData: {
             name: string;
             isPrivate: boolean;
@@ -1768,93 +1767,6 @@ export class SpaceModel {
                 created_by_user_id: userId,
                 slug: spaceSlug,
                 parent_space_uuid: spaceData.parentSpaceUuid ?? null,
-                path: spacePath,
-            })
-            .returning('*');
-
-        return {
-            organizationUuid: space.organization_uuid,
-            name: space.name,
-            queries: [],
-            isPrivate: space.is_private,
-            uuid: space.space_uuid,
-            projectUuid,
-            dashboards: [],
-            childSpaces: [],
-            access: [],
-            groupsAccess: [],
-            pinnedListUuid: null,
-            pinnedListOrder: null,
-            slug: space.slug,
-            parentSpaceUuid: space.parent_space_uuid,
-            path: space.path,
-        };
-    }
-
-    async createSpace(
-        projectUuid: string,
-        name: string,
-        userId: number,
-        isPrivate: boolean,
-        slug: string,
-        forceSameSlug: boolean = false,
-        parentSpaceUuid: string | null = null,
-    ): Promise<Space> {
-        return this._createSpace(
-            {
-                projectUuid,
-                name,
-                userId,
-                isPrivate,
-                slug,
-                forceSameSlug,
-                parentSpaceUuid,
-            },
-            { trx: this.database },
-        );
-    }
-
-    private async _createSpace(
-        {
-            projectUuid,
-            name,
-            userId,
-            isPrivate,
-            slug,
-            forceSameSlug = false,
-            parentSpaceUuid = null,
-        }: {
-            projectUuid: string;
-            name: string;
-            userId: number;
-            isPrivate: boolean;
-            slug: string;
-            forceSameSlug: boolean;
-            parentSpaceUuid: string | null;
-        },
-        { trx }: { trx: Knex } = { trx: this.database },
-    ): Promise<Space> {
-        const [project] = await trx(ProjectTableName)
-            .select('project_id')
-            .where('project_uuid', projectUuid);
-
-        const spaceSlug = await SpaceModel.getSpaceSlug({
-            slug,
-            parentSpaceUuid,
-            trx,
-            forceSameSlug,
-        });
-
-        const spacePath = getLtreePathFromSlug(spaceSlug);
-
-        const [space] = await trx(SpaceTableName)
-            .insert({
-                project_id: project.project_id,
-                is_private: isPrivate,
-                name,
-                created_by_user_id: userId,
-                slug: spaceSlug,
-                parent_space_uuid: parentSpaceUuid,
                 path: spacePath,
             })
             .returning('*');

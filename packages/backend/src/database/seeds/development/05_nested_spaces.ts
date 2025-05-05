@@ -104,13 +104,15 @@ async function createSpaceTree(
     const ids: string[] = [];
     for (const space of spaces) {
         const createdSpace = await spaceModel.createSpace(
-            opts.projectUuid,
-            space.name,
-            opts.userId,
-            space.isPrivate === true, // by default false for seeding purposes
-            generateSlug(space.name),
-            false,
-            parentSpaceUuid,
+            {
+                name: space.name,
+                isPrivate: space.isPrivate === true,
+                parentSpaceUuid,
+            },
+            {
+                projectUuid: opts.projectUuid,
+                userId: opts.userId,
+            },
         );
 
         if (space.access)

@@ -35,7 +35,6 @@ const spaceModel = {
     getSpaceAncestors: jest.fn(async () => []),
     getUserSpaceAccess: jest.fn(async () => []),
     createSpace: jest.fn(async () => existingUpstreamChart.space),
-    createSpace2: jest.fn(async () => existingUpstreamChart.space),
     createSpaceWithAncestors: jest.fn(async () => existingUpstreamChart.space),
     getFullSpace: jest.fn(async () => upstreamFullSpace),
     addSpaceAccess: jest.fn(async () => {}),
@@ -537,7 +536,7 @@ describe('PromoteService promoting and mutating changes', () => {
             changes,
         );
 
-        expect(spaceModel.createSpace2).toHaveBeenCalledTimes(1);
+        expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(0);
         expect(spaceModel.addSpaceGroupAccess).toHaveBeenCalledTimes(0);
 
@@ -601,8 +600,8 @@ describe('PromoteService promoting and mutating changes', () => {
             changes,
         );
 
-        expect(spaceModel.createSpace2).toHaveBeenCalledTimes(1);
-        expect(spaceModel.createSpace2).toHaveBeenCalledWith(
+        expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
+        expect(spaceModel.createSpace).toHaveBeenCalledWith(
             {
                 isPrivate: true,
                 name: 'Private space',
