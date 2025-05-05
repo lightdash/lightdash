@@ -30,6 +30,10 @@ export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     granularity?: DateGranularity;
 };
 
+export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
+    sql: string;
+};
+
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     chartUuid: string;
     versionUuid?: string;
