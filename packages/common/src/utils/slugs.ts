@@ -53,7 +53,6 @@ export const getParentSlug = (slug: string) =>
  */
 export const getLabelFromSlug = (slug: string) => slug.split('/').pop() ?? slug;
 
-// /parent/child -> parent.child
 export const getLtreePathFromSlug = (slug: string) => {
     let path = slug;
     // This is for backwards compatibility with the old slug format that contained hierarchy
