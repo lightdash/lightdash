@@ -1167,7 +1167,7 @@ export class DashboardModel {
     async addVersion(
         dashboardUuid: string,
         version: DashboardVersionedFields,
-        user: Pick<SessionUser, 'userUuid'>,
+        user: Pick<SessionUser, 'userUuid'> | undefined,
         projectUuid: string,
     ): Promise<DashboardDAO> {
         const [dashboard] = await this.database(DashboardsTableName)

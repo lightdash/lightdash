@@ -117,6 +117,7 @@ const schedulerWorkerFactory = (context: {
             context.serviceRepository.getSemanticLayerService(),
         catalogService: context.serviceRepository.getCatalogService(),
         encryptionUtil: context.utils.getEncryptionUtil(),
+        renameService: context.serviceRepository.getRenameService(),
     });
 
 const slackBotFactory = (context: {
