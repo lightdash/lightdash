@@ -110,6 +110,7 @@ export const useDashboardChartReadyQuery = (
             context,
             autoRefresh,
             hasADateDimension ? granularity : null,
+            invalidateCache,
         ],
         [
             chart?.projectUuid,
@@ -122,6 +123,7 @@ export const useDashboardChartReadyQuery = (
             autoRefresh,
             hasADateDimension,
             granularity,
+            invalidateCache,
         ],
     );
 

@@ -105,6 +105,8 @@ export class CommercialCacheService
                 {
                     expires_at: newExpiresAt,
                     updated_at: now,
+                    status: ResultsCacheStatus.PENDING,
+                    total_row_count: null,
                 },
             );
 
