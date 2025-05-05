@@ -1,3 +1,10 @@
+# [0.1610.0](https://github.com/lightdash/lightdash/compare/0.1609.5...0.1610.0) (2025-05-05)
+
+
+### Features
+
+* add table page loading skelleton when not infinite scroll ([#14601](https://github.com/lightdash/lightdash/issues/14601)) ([1020f7d](https://github.com/lightdash/lightdash/commit/1020f7df78fc9633e208a682e3d88f6832601c13))
+
 ## [0.1609.5](https://github.com/lightdash/lightdash/compare/0.1609.4...0.1609.5) (2025-05-05)
 
 
