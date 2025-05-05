@@ -1,3 +1,10 @@
+## [0.1609.5](https://github.com/lightdash/lightdash/compare/0.1609.4...0.1609.5) (2025-05-05)
+
+
+### Bug Fixes
+
+* don't reload page on early submit from chart save ([#14664](https://github.com/lightdash/lightdash/issues/14664)) ([870201d](https://github.com/lightdash/lightdash/commit/870201df947c2ef2fab0d782a007e09dc79d2393))
+
 ## [0.1609.4](https://github.com/lightdash/lightdash/compare/0.1609.3...0.1609.4) (2025-05-05)
 
 
