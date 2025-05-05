@@ -781,8 +781,7 @@ export class CoderService extends BaseService {
                         data: {
                             ...newChart,
                             spaceSlug: chartAsCode.spaceSlug,
-                            // TODO this should be fixed
-                            spacePath: getLtreePathFromSlug(
+                            spacePath: getContentAsCodePathFromLtreePath(
                                 chartAsCode.spaceSlug,
                             ),
                             oldUuid: newChart.uuid,
@@ -849,8 +848,7 @@ export class CoderService extends BaseService {
         user: SessionUser,
     ): Promise<{ space: Omit<SpaceSummary, 'userAccess'>; created: boolean }> {
         const [existingSpace] = await this.spaceModel.find({
-            // FIXME: use path instead of slug
-            slug: spaceSlug,
+            path: getLtreePathFromContentAsCodePath(spaceSlug),
             projectUuid,
         });
 
@@ -1040,8 +1038,7 @@ export class CoderService extends BaseService {
                         data: {
                             ...newDashboard,
                             spaceSlug: dashboardAsCode.spaceSlug,
-                            // TODO this should be fixed: coderservice spaceSlug should be mapped to path
-                            spacePath: getLtreePathFromSlug(
+                            spacePath: getContentAsCodePathFromLtreePath(
                                 dashboardAsCode.spaceSlug,
                             ),
                         },
@@ -1098,7 +1095,7 @@ export class CoderService extends BaseService {
         if (upstreamDashboard.dashboard)
             upstreamDashboard.dashboard.spaceUuid = space.uuid;
 
-        // TODO Check permissions for all chart tiles
+        // TODO: Check permissions for all chart tiles
         // eslint-disable-next-line prefer-const
         let [promotionChanges, promotedCharts] =
             await this.promoteService.getPromotionDashboardChanges(
@@ -1108,7 +1105,7 @@ export class CoderService extends BaseService {
                 true, // includeOrphanChartsWithinDashboard
             );
 
-        // TODO Right now dashboards on promote service always update dashboards
+        // TODO: Right now dashboards on promote service always update dashboards
         // See isDashboardUpdated for more details
 
         promotionChanges = await this.promoteService.getOrCreateDashboard(
