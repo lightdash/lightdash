@@ -303,17 +303,16 @@ export class SpaceService extends BaseService {
 
         await this.spaceModel.move(spaceUuid, parentSpaceUuid);
 
-        // this.analytics.track({
-        //     event: 'space.moved',
-        //     userId: user.userUuid,
-        //     properties: {
-        //         name: space.name,
-        //         spaceId: spaceUuid,
-        //         projectId: space.projectUuid,
-        //         isPrivate: space.isPrivate,
-        //         userAccessCount: space.access.length,
-        //     },
-        // });;
+        this.analytics.track({
+            event: 'space.moved',
+            userId: user.userUuid,
+            properties: {
+                name: space.name,
+                spaceId: spaceUuid,
+                oldParentSpaceId: space.parentSpaceUuid,
+                projectId: space.projectUuid,
+            },
+        });
     }
 
     async deleteSpace(user: SessionUser, spaceUuid: string): Promise<void> {
