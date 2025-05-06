@@ -1,3 +1,10 @@
+## [0.1610.1](https://github.com/lightdash/lightdash/compare/0.1610.0...0.1610.1) (2025-05-06)
+
+
+### Bug Fixes
+
+* generate unique space slugs and use ltree paths ([#14621](https://github.com/lightdash/lightdash/issues/14621)) ([b981225](https://github.com/lightdash/lightdash/commit/b981225a1bea868ddbcf78d29bf7a2ea2b732bcc)), closes [#14642](https://github.com/lightdash/lightdash/issues/14642)
+
 # [0.1610.0](https://github.com/lightdash/lightdash/compare/0.1609.5...0.1610.0) (2025-05-05)
 
 
