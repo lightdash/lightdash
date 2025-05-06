@@ -1,3 +1,10 @@
+## [0.1610.2](https://github.com/lightdash/lightdash/compare/0.1610.1...0.1610.2) (2025-05-06)
+
+
+### Bug Fixes
+
+* QuickCalculations for `trino` ([#14647](https://github.com/lightdash/lightdash/issues/14647)) ([89b302b](https://github.com/lightdash/lightdash/commit/89b302bed07f5e739fc567826e7837d0dff5024a))
+
 ## [0.1610.1](https://github.com/lightdash/lightdash/compare/0.1610.0...0.1610.1) (2025-05-06)
 
 
