@@ -1,3 +1,10 @@
+## [0.1612.2](https://github.com/lightdash/lightdash/compare/0.1612.1...0.1612.2) (2025-05-06)
+
+
+### Bug Fixes
+
+* create space modal input shouldn't be pre-filled with parent space name ([#14686](https://github.com/lightdash/lightdash/issues/14686)) ([9c784b5](https://github.com/lightdash/lightdash/commit/9c784b53311b4b53262959964d14b46a9b62547e))
+
 ## [0.1612.1](https://github.com/lightdash/lightdash/compare/0.1612.0...0.1612.1) (2025-05-06)
 
 
