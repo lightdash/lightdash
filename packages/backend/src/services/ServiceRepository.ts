@@ -4,6 +4,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import { ModelRepository } from '../models/ModelRepository';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
+import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { CoderService } from './CoderService/CoderService';
@@ -84,6 +85,7 @@ interface ServiceManifest {
     featureFlagService: FeatureFlagService;
     spotlightService: SpotlightService;
     lightdashAnalyticsService: LightdashAnalyticsService;
+    asyncQueryService: AsyncQueryService;
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
@@ -465,8 +467,44 @@ export class ServiceRepository
                     catalogModel: this.models.getCatalogModel(),
                     contentModel: this.models.getContentModel(),
                     encryptionUtil: this.utils.getEncryptionUtil(),
-                    queryHistoryModel: this.models.getQueryHistoryModel(),
                     userModel: this.models.getUserModel(),
+                }),
+        );
+    }
+
+    public getAsyncQueryService(): AsyncQueryService {
+        return this.getService(
+            'asyncQueryService',
+            () =>
+                new AsyncQueryService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    onboardingModel: this.models.getOnboardingModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    jobModel: this.models.getJobModel(),
+                    emailClient: this.clients.getEmailClient(),
+                    spaceModel: this.models.getSpaceModel(),
+                    sshKeyPairModel: this.models.getSshKeyPairModel(),
+                    userAttributesModel: this.models.getUserAttributesModel(),
+                    s3CacheClient: this.clients.getS3CacheClient(),
+                    analyticsModel: this.models.getAnalyticsModel(),
+                    dashboardModel: this.models.getDashboardModel(),
+                    userWarehouseCredentialsModel:
+                        this.models.getUserWarehouseCredentialsModel(),
+                    warehouseAvailableTablesModel:
+                        this.models.getWarehouseAvailableTablesModel(),
+                    emailModel: this.models.getEmailModel(),
+                    schedulerClient: this.clients.getSchedulerClient(),
+                    downloadFileModel: this.models.getDownloadFileModel(),
+                    s3Client: this.clients.getS3Client(),
+                    groupsModel: this.models.getGroupsModel(),
+                    tagsModel: this.models.getTagsModel(),
+                    catalogModel: this.models.getCatalogModel(),
+                    contentModel: this.models.getContentModel(),
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                    userModel: this.models.getUserModel(),
+                    queryHistoryModel: this.models.getQueryHistoryModel(),
                 }),
         );
     }
