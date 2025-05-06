@@ -10,9 +10,10 @@ import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
-import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
+import { useDashboardSqlChartResults } from '../../features/sqlRunner/hooks/useDashboardSqlChartResults';
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
 import LinkMenuItem from '../common/LinkMenuItem';
@@ -70,7 +71,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             projectUuid,
         }),
     );
-
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const {
         chartQuery: {
             data: chartData,
@@ -83,7 +84,8 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             error: chartResultsError,
             isFetching: isChartResultsFetching,
         },
-    } = useSavedSqlChartResults({
+    } = useDashboardSqlChartResults({
+        dashboardUuid,
         projectUuid,
         savedSqlUuid,
         context,
