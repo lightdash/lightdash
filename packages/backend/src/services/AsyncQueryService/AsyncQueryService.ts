@@ -1629,7 +1629,14 @@ export class AsyncQueryService<
             throw new Error('Either chartUuid or slug must be provided');
         }
 
-        const { user, projectUuid, context, invalidateCache } = args;
+        const {
+            user,
+            projectUuid,
+            context,
+            invalidateCache,
+            dashboardFilters,
+            dashboardSorts,
+        } = args;
 
         const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
             user,
@@ -1701,6 +1708,22 @@ export class AsyncQueryService<
                   )
                 : undefined;
 
+        const tables = Object.keys(virtualView.tables);
+        const appliedDashboardFilters: DashboardFilters = {
+            dimensions: getDashboardFilterRulesForTables(
+                tables,
+                dashboardFilters.dimensions,
+            ),
+            metrics: getDashboardFilterRulesForTables(
+                tables,
+                dashboardFilters.metrics,
+            ),
+            tableCalculations: getDashboardFilterRulesForTables(
+                tables,
+                dashboardFilters.tableCalculations,
+            ),
+        };
+
         const query: MetricQuery = {
             exploreName: virtualView.name,
             dimensions,
@@ -1713,13 +1736,26 @@ export class AsyncQueryService<
             limit: 500,
         };
 
+        // This override isn't used for anything at the moment since sql charts don't support filters, but it's here for future use
+        const metricQueryWithDashboardOverrides: MetricQuery = {
+            ...addDashboardFiltersToMetricQuery(
+                query,
+                appliedDashboardFilters,
+                virtualView,
+            ),
+            sorts:
+                dashboardSorts && dashboardSorts.length > 0
+                    ? dashboardSorts
+                    : [],
+        };
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
                 explore: virtualView,
                 queryTags,
-                metricQuery: query,
+                metricQuery: metricQueryWithDashboardOverrides,
                 context,
             },
             {
@@ -1733,7 +1769,7 @@ export class AsyncQueryService<
         return {
             queryUuid,
             cacheMetadata,
-            appliedDashboardFilters: null,
+            appliedDashboardFilters,
         };
     }
 }
