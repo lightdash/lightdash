@@ -53,17 +53,12 @@ export const getParentSlug = (slug: string) =>
  */
 export const getLabelFromSlug = (slug: string) => slug.split('/').pop() ?? slug;
 
-/**
- * Get the ltree path from a slug with hierarchy
- * For example, "parent-space/child-space" will return "parent_space.child_space"
- * Verifies that each slug is a valid PostgreSQL ltree label (A-Za-z0-9_)
- * @param slug - The slug to get the ltree path from
- * @returns The ltree path
- */
-// TODO: needs backwards compat
 export const getLtreePathFromSlug = (slug: string) => {
-    const slugs = slug.split('/');
-    const sanitizedSlugs = slugs.map((s) => sanitizeSlug(s, false));
+    let path = slug;
+    // This is for backwards compatibility with the old slug format that contained hierarchy
+    if (path.includes('/')) {
+        path = path.split('/').join('___');
+    }
 
-    return sanitizedSlugs.join('.').replace(/-/g, '_');
+    return path.replace(/-/g, '_');
 };

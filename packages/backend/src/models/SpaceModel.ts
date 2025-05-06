@@ -31,7 +31,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
-import { groupBy } from 'lodash';
+import { create, groupBy, property } from 'lodash';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -365,6 +365,7 @@ export class SpaceModel {
             spaceUuid?: string;
             spaceUuids?: string[];
             slug?: string;
+            path?: string;
             parentSpaceUuid?: string;
         },
         { trx = this.database }: { trx?: Knex } = { trx: this.database },
@@ -479,6 +480,9 @@ export class SpaceModel {
                 }
                 if (filters.slug) {
                     void query.where(`${SpaceTableName}.slug`, filters.slug);
+                }
+                if (filters.path) {
+                    void query.where(`${SpaceTableName}.path`, filters.path);
                 }
                 return query;
             },
@@ -1584,6 +1588,38 @@ export class SpaceModel {
         };
     }
 
+    async getSpaceAncestors({
+        spaceUuid,
+        projectUuid,
+    }: {
+        spaceUuid: string;
+        projectUuid: string;
+    }) {
+        const space = await this.database(SpaceTableName)
+            .select('path')
+            .where('space_uuid', spaceUuid)
+            .first();
+
+        if (!space) {
+            throw new NotFoundError(
+                `Space with uuid ${spaceUuid} does not exist`,
+            );
+        }
+
+        const ancestors = await this.database(SpaceTableName)
+            .select('space_uuid')
+            .innerJoin(
+                `${ProjectTableName}`,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .whereRaw('?::ltree <@ path', [space.path])
+            .andWhereNot('space_uuid', spaceUuid)
+            .andWhere(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        return ancestors.map((ancestor) => ancestor.space_uuid);
+    }
+
     static async getSpaceSlugByUuid({
         trx,
         spaceUuid,
@@ -1672,29 +1708,40 @@ export class SpaceModel {
             projectUuid,
             userId,
             trx = this.database,
-            slug,
+            path,
         }: {
             trx?: Knex;
             userId: number;
             projectUuid: string;
-            slug?: string;
+            path?: string;
         },
     ): Promise<Space> {
         const [project] = await trx(ProjectTableName)
             .select('project_id')
             .where('project_uuid', projectUuid);
 
-        const spaceSlug =
-            slug ??
-            (await generateUniqueSpaceSlug(spaceData.name, project.project_id, {
-                trx,
-            }));
-        const spacePath = await this.generateSpacePath(
-            spaceSlug,
-            spaceData.parentSpaceUuid,
+        const spaceSlug = await generateUniqueSpaceSlug(
+            spaceData.name,
             project.project_id,
-            { trx },
+            {
+                trx,
+            },
         );
+
+        let spacePath = '';
+        if (path) {
+            // 1. `path` property is passed to `createSpace` function when Promoting a space or using content as code
+            // 2. If `PromoteService` or `CoderService` call `createSpace` that means that given space was not fount in given project so needs to be created – and existance check was done by using path (1)
+            // 3. So given all the above, it makes sense to create the new space using the passed path (instead of slug) as that's the field we use for matching
+            spacePath = path;
+        } else {
+            spacePath = await this.generateSpacePath(
+                spaceSlug,
+                spaceData.parentSpaceUuid,
+                project.project_id,
+                { trx },
+            );
+        }
 
         const [space] = await trx(SpaceTableName)
             .insert({

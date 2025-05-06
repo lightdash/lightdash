@@ -16,6 +16,7 @@ import {
     DashboardTileTypes,
     ForbiddenError,
     friendlyName,
+    getLtreePathFromSlug,
     NotFoundError,
     Project,
     PromotionAction,
@@ -772,6 +773,10 @@ export class CoderService extends BaseService {
                         data: {
                             ...newChart,
                             spaceSlug: chartAsCode.spaceSlug,
+                            // TODO this should be fixed
+                            spacePath: getLtreePathFromSlug(
+                                chartAsCode.spaceSlug,
+                            ),
                             oldUuid: newChart.uuid,
                         },
                     },
@@ -813,10 +818,11 @@ export class CoderService extends BaseService {
 
         //  we force the new space on the upstreamChart
         if (upstreamChart.chart) upstreamChart.chart.spaceUuid = space.uuid;
-        let promotionChanges: PromotionChanges = PromoteService.getChartChanges(
-            updatedChart,
-            upstreamChart,
-        );
+        let promotionChanges: PromotionChanges =
+            await this.promoteService.getChartChanges(
+                updatedChart,
+                upstreamChart,
+            );
         promotionChanges = await this.promoteService.upsertCharts(
             user,
             promotionChanges,
@@ -944,6 +950,10 @@ export class CoderService extends BaseService {
                         data: {
                             ...newDashboard,
                             spaceSlug: dashboardAsCode.spaceSlug,
+                            // TODO this should be fixed: coderservice spaceSlug should be mapped to path
+                            spacePath: getLtreePathFromSlug(
+                                dashboardAsCode.spaceSlug,
+                            ),
                         },
                     },
                 ],
