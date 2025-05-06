@@ -49,4 +49,15 @@ export const itemMap: ItemsMap = {
         fieldType: FieldType.DIMENSION,
         sql: '${TABLE}.column_date',
     },
+    column_timestamp: {
+        name: 'column_timestamp',
+        description: undefined,
+        type: 'timestamp',
+        hidden: false,
+        table: 'table',
+        tableLabel: 'table',
+        label: 'column timestamp',
+        fieldType: FieldType.DIMENSION,
+        sql: '${TABLE}.column_timestamp',
+    },
 };

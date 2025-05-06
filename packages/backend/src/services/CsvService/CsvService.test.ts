@@ -1,3 +1,4 @@
+import { DimensionType, Field } from '@lightdash/common';
 import * as fs from 'fs/promises';
 import moment from 'moment';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -202,6 +203,22 @@ $4.00,value_4,2020-03-16
         ]);
 
         expect(csv).toEqual([undefined, 'value_1', '2020-03-16']);
+    });
+
+    it('Should preserve milliseconds when converting timestamp rows to csv', async () => {
+        const row = {
+            column_number: 1,
+            column_string: `value_1`,
+            column_timestamp: '2020-03-16T11:32:55.123Z',
+        };
+
+        const csv = CsvService.convertRowToCsv(row, itemMap, false, [
+            'column_number',
+            'column_string',
+            'column_timestamp',
+        ]);
+
+        expect(csv).toEqual(['$1.00', 'value_1', '2020-03-16 11:32:55.123']);
     });
 
     it('Should generate csv file ids', async () => {
