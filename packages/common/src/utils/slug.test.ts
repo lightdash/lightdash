@@ -1,9 +1,10 @@
 import {
     generateSlug,
-    getLabelFromSlug,
+    getContentAsCodePathFromLtreePath,
+    getDeepestPaths,
+    getLtreePathFromContentAsCodePath,
     getLtreePathFromSlug,
-    getParentSlug,
-    getSlugsWithHierarchy,
+    isSubPath,
 } from './slugs';
 
 describe('Slug', () => {
@@ -72,106 +73,15 @@ describe('Slug', () => {
         expect(generateSlug('ライトダッシュ').length).toEqual(5);
     });
 
-    describe('getSlugsWithHierarchy', () => {
-        test('should return array with single slug for non-hierarchical slug', () => {
-            expect(getSlugsWithHierarchy('my-space')).toEqual(['my-space']);
-        });
-
-        test('should return array with hierarchical slugs', () => {
-            expect(getSlugsWithHierarchy('parent-space/child-space')).toEqual([
-                'parent-space',
-                'parent-space/child-space',
-            ]);
-        });
-
-        test('should handle multiple levels of hierarchy', () => {
-            expect(
-                getSlugsWithHierarchy(
-                    'grandparent-space/parent-space/child-space',
-                ),
-            ).toEqual([
-                'grandparent-space',
-                'grandparent-space/parent-space',
-                'grandparent-space/parent-space/child-space',
-            ]);
-        });
-    });
-
-    describe('getParentSlug', () => {
-        test('should return empty string for non-hierarchical slug', () => {
-            expect(getParentSlug('my-space')).toEqual('');
-        });
-
-        test('should return parent slug for hierarchical slug', () => {
-            expect(getParentSlug('parent-space/child-space')).toEqual(
-                'parent-space',
-            );
-        });
-
-        test('should return parent path for deeply nested slug', () => {
-            expect(
-                getParentSlug('grandparent-space/parent-space/child-space'),
-            ).toEqual('grandparent-space/parent-space');
-        });
-    });
-
-    describe('getLabelFromSlug', () => {
-        test('should return same slug for non-hierarchical slug', () => {
-            expect(getLabelFromSlug('my-space')).toEqual('my-space');
-        });
-
-        test('should return last part of hierarchical slug', () => {
-            expect(getLabelFromSlug('parent-space/child-space')).toEqual(
-                'child-space',
-            );
-        });
-
-        test('should return last part of deeply nested slug', () => {
-            expect(
-                getLabelFromSlug('grandparent-space/parent-space/child-space'),
-            ).toEqual('child-space');
-        });
-    });
-
     describe('getLtreePathFromSlug', () => {
-        test('should convert simple slug to ltree path', () => {
+        test('should return ltree path from slug', () => {
             expect(getLtreePathFromSlug('my-space')).toEqual('my_space');
         });
 
-        test('should convert hierarchical slug to ltree path', () => {
+        test('should return ltree path from legacy hierarchical slug', () => {
             expect(getLtreePathFromSlug('parent-space/child-space')).toEqual(
-                'parent_space.child_space',
+                'parent_space___child_space',
             );
-        });
-
-        test('should handle deeply nested slugs', () => {
-            expect(
-                getLtreePathFromSlug(
-                    'grandparent-space/parent-space/child-space',
-                ),
-            ).toEqual('grandparent_space.parent_space.child_space');
-        });
-
-        test('should remove non-alphanumeric characters except underscores', () => {
-            expect(getLtreePathFromSlug('my!space@name')).toEqual(
-                'my_space_name',
-            );
-            expect(getLtreePathFromSlug('my space name')).toEqual(
-                'my_space_name',
-            );
-            expect(getLtreePathFromSlug('my_space_name')).toEqual(
-                'my_space_name',
-            );
-        });
-
-        test('should handle mixed case slugs', () => {
-            expect(getLtreePathFromSlug('MySpace/ChildSpace')).toEqual(
-                'myspace.childspace',
-            );
-        });
-
-        test('should handle empty slug', () => {
-            expect(getLtreePathFromSlug('')).toEqual('');
         });
 
         test('should not trim hyphens from slug', () => {
@@ -185,7 +95,137 @@ describe('Slug', () => {
                 getLtreePathFromSlug(
                     'grandparent-space-/-parent-space/child-space-',
                 ),
-            ).toEqual('grandparent_space_._parent_space.child_space_');
+            ).toEqual('grandparent_space_____parent_space___child_space_');
         });
+    });
+});
+
+describe('getLtreePathFromContentAsCodePath', () => {
+    test('root', () => {
+        expect(getLtreePathFromContentAsCodePath('my-space')).toEqual(
+            'my_space',
+        );
+    });
+    test('nested', () => {
+        expect(
+            getLtreePathFromContentAsCodePath(
+                'parent/child/-grandchild/final-child',
+            ),
+        ).toEqual('parent.child._grandchild.final_child');
+        expect(getLtreePathFromContentAsCodePath('-parent-/-child-')).toEqual(
+            '_parent_._child_',
+        );
+    });
+
+    test('new slugs', () => {
+        expect(
+            getLtreePathFromContentAsCodePath(
+                '-foo/-foo___bar/-foo___bar___boo',
+            ),
+        ).toEqual('_foo._foo___bar._foo___bar___boo');
+    });
+});
+
+describe('getContentAsCodePathFromLtreePath', () => {
+    test('root', () => {
+        expect(getContentAsCodePathFromLtreePath('my_space')).toEqual(
+            'my-space',
+        );
+        expect(getContentAsCodePathFromLtreePath('_my_space')).toEqual(
+            '-my-space',
+        );
+    });
+
+    test('nested', () => {
+        expect(
+            getContentAsCodePathFromLtreePath(
+                'parent.child._grandchild.final_child',
+            ),
+        ).toEqual('parent/child/-grandchild/final-child');
+    });
+
+    test('new slugs', () => {
+        expect(
+            getContentAsCodePathFromLtreePath(
+                '_foo._foo___bar._foo___bar___boo',
+            ),
+        ).toEqual('-foo/-foo---bar/-foo---bar---boo');
+    });
+});
+
+describe('getContentAsCodePathFromLtreePath + getLtreePathFromContentAsCodePath', () => {
+    test('should be the inverse of each other', () => {
+        expect(
+            getContentAsCodePathFromLtreePath(
+                getLtreePathFromContentAsCodePath('my-space'),
+            ),
+        ).toEqual('my-space');
+
+        expect(
+            getLtreePathFromContentAsCodePath(
+                getContentAsCodePathFromLtreePath('__my_space_'),
+            ),
+        ).toEqual('__my_space_');
+
+        expect(
+            getLtreePathFromContentAsCodePath(
+                getContentAsCodePathFromLtreePath('__my_space_.foo.bar'),
+            ),
+        ).toEqual('__my_space_.foo.bar');
+    });
+});
+
+describe('getDeepestPaths', () => {
+    test('should return the deepest paths', () => {
+        expect(
+            getDeepestPaths([
+                'dash',
+                'charts',
+                'charts2',
+                'charts2.charts2_child',
+            ]),
+        ).toEqual(['dash', 'charts', 'charts2.charts2_child']);
+
+        expect(
+            getDeepestPaths([
+                'jaffle_shop.dashboards.dashboards_marketing',
+                'jaffle_shop.sub_charts_2.sub_charts_2_child',
+                'jaffle_shop.dashboards',
+                'jaffle_shop.sub_charts',
+                'jaffle_shop.sub_charts_2',
+            ]),
+        ).toEqual([
+            'jaffle_shop.dashboards.dashboards_marketing',
+            'jaffle_shop.sub_charts_2.sub_charts_2_child',
+            'jaffle_shop.sub_charts',
+        ]);
+
+        expect(
+            getDeepestPaths([
+                'a.b.c.d',
+                'a.b.c',
+                'a.b.c.d.e',
+                'a.b.c.d.e.f',
+                'a.b.c.d.e.f.g',
+                'a.b.c.d.e.f.g.h',
+                'a.b.c.d.e.f.g.h.i',
+                'foo',
+                'bar',
+            ]),
+        ).toEqual(['a.b.c.d.e.f.g.h.i', 'foo', 'bar']);
+
+        expect(getDeepestPaths(['a'])).toEqual(['a']);
+
+        expect(getDeepestPaths(['a', 'b'])).toEqual(['a', 'b']);
+    });
+});
+
+describe('isSubpath', () => {
+    test('should return true if the path is a subpath of the other path', () => {
+        expect(isSubPath('a.b.c', 'a.b')).toEqual(false);
+        expect(isSubPath('a.b.c', 'a.b.c')).toEqual(false);
+        expect(isSubPath('a.b.c', 'a.b.c.d')).toEqual(true);
+        expect(isSubPath('a', 'a')).toEqual(false);
+        expect(isSubPath('a', 'a.b')).toEqual(true);
     });
 });

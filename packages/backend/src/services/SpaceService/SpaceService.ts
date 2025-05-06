@@ -169,13 +169,15 @@ export class SpaceService extends BaseService {
         }
 
         const newSpace = await this.spaceModel.createSpace(
-            projectUuid,
-            space.name,
-            user.userId,
-            space.isPrivate !== false,
-            generateSlug(space.name),
-            false,
-            space.parentSpaceUuid,
+            {
+                name: space.name,
+                isPrivate: space.isPrivate !== false,
+                parentSpaceUuid: space.parentSpaceUuid ?? null,
+            },
+            {
+                projectUuid,
+                userId: user.userId,
+            },
         );
 
         // Nested spaces MVP: Nested spaces inherit access from their root space, but don't need to have that access added to them explicitly

@@ -33,6 +33,7 @@ import {
     assertUnreachable,
     createVirtualView,
     generateSlug,
+    getLtreePathFromSlug,
     isExploreError,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
@@ -89,6 +90,7 @@ import { WarehouseCredentialTableName } from '../../database/entities/warehouseC
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { generateUniqueSpaceSlug } from '../../utils/SlugUtils';
 import { ExploreCache } from './ExploreCache';
 import Transaction = Knex.Transaction;
 
@@ -426,7 +428,15 @@ export class ProjectModel {
                 data.warehouseConnection,
             );
 
-            const slug = generateSlug('Shared');
+            const slug = await generateUniqueSpaceSlug(
+                'Shared',
+                project.project_id,
+                {
+                    trx,
+                },
+            );
+
+            const path = getLtreePathFromSlug(slug);
 
             await trx(SpaceTableName).insert({
                 project_id: project.project_id,
@@ -434,7 +444,7 @@ export class ProjectModel {
                 is_private: false,
                 slug,
                 parent_space_uuid: null,
-                path: slug,
+                path,
             });
 
             return project.project_uuid;
