@@ -96,7 +96,7 @@ const SpaceModal: FC<ActionModalProps> = ({
     const [modalStep, setModalStep] = useState(CreateModalStep.SET_NAME);
 
     const form = useForm<Space>({
-        initialValues: data,
+        initialValues: actionType === ActionType.CREATE ? undefined : data,
         validate: zodResolver(validate),
     });
 
