@@ -12,6 +12,7 @@ import {
     NotFoundError,
     OrganizationMemberRole,
     OrganizationRole,
+    ParameterError,
     ProjectMemberRole,
     ProjectRole,
     Space,
@@ -1807,6 +1808,62 @@ export class SpaceModel {
             })
             .where('space_uuid', spaceUuid);
         return this.getFullSpace(spaceUuid);
+    }
+
+    async move(
+        spaceUuid: string,
+        parentSpaceUuid: string | null,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            // check if parent space is not subtree of space
+            const isCycle = await trx
+                .with('space', (query) => {
+                    void query
+                        .select('path')
+                        .from(SpaceTableName)
+                        .where('space_uuid', spaceUuid);
+                })
+                .with('parent', (query) => {
+                    void query
+                        .select('path')
+                        .from(SpaceTableName)
+                        .where('space_uuid', parentSpaceUuid);
+                })
+                .select('*')
+                .from('space')
+                .joinRaw('JOIN parent ON parent.path <@ space.path')
+                .first();
+
+            if (isCycle) {
+                throw new ParameterError("Cannot move space to it's child");
+            }
+
+            await trx.raw(
+                `
+                UPDATE ${SpaceTableName} AS s
+                SET
+                    path = COALESCE(p.path, ''::ltree) || subpath(s.path, nlevel(m.path) - 1),
+                    parent_space_uuid = CASE
+                        WHEN s.space_uuid = ? THEN ?
+                        ELSE s.parent_space_uuid
+                    END
+                FROM
+                    ${SpaceTableName} AS m
+                    LEFT JOIN ${SpaceTableName} AS p ON p.space_uuid = ?
+                WHERE
+                    m.space_uuid = ?
+                    AND s.path <@ m.path
+                    AND ((?::uuid) IS NULL OR p.project_id = m.project_id)
+            `,
+                [
+                    spaceUuid,
+                    parentSpaceUuid,
+                    parentSpaceUuid,
+                    spaceUuid,
+                    parentSpaceUuid,
+                ],
+            );
+        });
     }
 
     async addSpaceAccess(
