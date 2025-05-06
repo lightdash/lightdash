@@ -1,3 +1,10 @@
+## [0.1612.3](https://github.com/lightdash/lightdash/compare/0.1612.2...0.1612.3) (2025-05-06)
+
+
+### Bug Fixes
+
+* preserve ms when downloadin timestamp csv ([#14687](https://github.com/lightdash/lightdash/issues/14687)) ([39a59f5](https://github.com/lightdash/lightdash/commit/39a59f5947501b256f27151cb5c3d86eca389486))
+
 ## [0.1612.2](https://github.com/lightdash/lightdash/compare/0.1612.1...0.1612.2) (2025-05-06)
 
 
