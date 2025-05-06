@@ -505,6 +505,7 @@ export class ServiceRepository
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     userModel: this.models.getUserModel(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
+                    savedSqlModel: this.models.getSavedSqlModel(),
                 }),
         );
     }
