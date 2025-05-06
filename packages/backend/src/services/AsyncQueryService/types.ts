@@ -34,16 +34,6 @@ export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     granularity?: DateGranularity;
 };
 
-export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
-    sql: string;
-    pivotConfiguration?: {
-        indexColumn: PivotIndexColum;
-        valuesColumns: ValuesColumn[];
-        groupByColumns: GroupByColumn[] | undefined;
-        sortBy: SortBy | undefined;
-    };
-};
-
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     chartUuid: string;
     versionUuid?: string;
@@ -67,3 +57,37 @@ export type ExecuteAsyncQueryReturn = {
     queryUuid: string;
     cacheMetadata: CacheMetadata;
 };
+
+export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
+    sql: string;
+    pivotConfiguration?: {
+        indexColumn: PivotIndexColum;
+        valuesColumns: ValuesColumn[];
+        groupByColumns: GroupByColumn[] | undefined;
+        sortBy: SortBy | undefined;
+    };
+};
+
+export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {
+    dashboardUuid: string;
+    dashboardFilters: DashboardFilters;
+    dashboardSorts: SortField[];
+};
+
+export type ExecuteAsyncDashboardSqlChartByUuidArgs =
+    ExecuteAsyncDashboardSqlChartCommonArgs & {
+        savedSqlUuid: string;
+    };
+
+export type ExecuteAsyncDashboardSqlChartBySlugArgs =
+    ExecuteAsyncDashboardSqlChartCommonArgs & {
+        slug: string;
+    };
+
+export type ExecuteAsyncDashboardSqlChartArgs =
+    | ExecuteAsyncDashboardSqlChartByUuidArgs
+    | ExecuteAsyncDashboardSqlChartBySlugArgs;
+
+export const isExecuteAsyncDashboardSqlChartByUuid = (
+    args: ExecuteAsyncDashboardSqlChartArgs,
+): args is ExecuteAsyncDashboardSqlChartByUuidArgs => 'savedSqlUuid' in args;

@@ -3,9 +3,11 @@ import {
     ApiGetAsyncQueryResults,
     ApiSuccessEmpty,
     ExecuteAsyncSqlQueryRequestParams,
+    isExecuteAsyncDashboardSqlChartByUuidParams,
     QueryExecutionContext,
     type ApiExecuteAsyncQueryResults,
     type ExecuteAsyncDashboardChartRequestParams,
+    type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
@@ -151,37 +153,6 @@ export class V2ProjectController extends BaseController {
     @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('{projectUuid}/query/sql')
-    @OperationId('executeAsyncSqlQuery')
-    async executeAsyncSqlQuery(
-        @Body()
-        body: ExecuteAsyncSqlQueryRequestParams,
-        @Path() projectUuid: string,
-        @Request() req: express.Request,
-    ): Promise<ApiExecuteAsyncQueryResponse> {
-        this.setStatus(200);
-        const context = body.context ?? getContextFromHeader(req);
-
-        const results = await this.services
-            .getAsyncQueryService()
-            .executeAsyncSqlQuery({
-                user: req.user!,
-                projectUuid,
-                invalidateCache: body.invalidateCache ?? false,
-                sql: body.sql,
-                context: context ?? QueryExecutionContext.SQL_RUNNER,
-                pivotConfiguration: body.pivotConfiguration,
-            });
-
-        return {
-            status: 'ok',
-            results,
-        };
-    }
-
-    @Hidden()
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
     @Post('{projectUuid}/query/chart')
     @OperationId('executeAsyncSavedChartQuery')
     async executeAsyncSavedChartQuery(
@@ -272,6 +243,72 @@ export class V2ProjectController extends BaseController {
                 filters: body.filters,
                 underlyingDataItemId: body.underlyingDataItemId,
                 context: context ?? QueryExecutionContext.API,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Hidden()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/query/sql')
+    @OperationId('executeAsyncSqlQuery')
+    async executeAsyncSqlQuery(
+        @Body()
+        body: ExecuteAsyncSqlQueryRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiExecuteAsyncQueryResponse> {
+        this.setStatus(200);
+        const context = body.context ?? getContextFromHeader(req);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncSqlQuery({
+                user: req.user!,
+                projectUuid,
+                invalidateCache: body.invalidateCache ?? false,
+                sql: body.sql,
+                context: context ?? QueryExecutionContext.SQL_RUNNER,
+                pivotConfiguration: body.pivotConfiguration,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Hidden()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/query/dashboard-sql-chart')
+    @OperationId('executeAsyncDashboardSqlChartQuery')
+    async executeAsyncDashboardSqlChartQuery(
+        @Body()
+        body: ExecuteAsyncDashboardSqlChartRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiExecuteAsyncQueryResponse> {
+        this.setStatus(200);
+        const context = body.context ?? getContextFromHeader(req);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncDashboardSqlChartQuery({
+                user: req.user!,
+                projectUuid,
+                invalidateCache: body.invalidateCache ?? false,
+                dashboardUuid: body.dashboardUuid,
+                dashboardFilters: body.dashboardFilters,
+                dashboardSorts: body.dashboardSorts,
+                context: context ?? QueryExecutionContext.SQL_RUNNER,
+                ...(isExecuteAsyncDashboardSqlChartByUuidParams(body)
+                    ? { savedSqlUuid: body.savedSqlUuid }
+                    : { slug: body.slug }),
             });
 
         return {

@@ -14925,6 +14925,78 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExecuteAsyncDashboardSqlChartCommonParams: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'CommonPaginatedQueryRequestParams' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dashboardSorts: {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'SortField' },
+                            required: true,
+                        },
+                        dashboardFilters: {
+                            ref: 'DashboardFilters',
+                            required: true,
+                        },
+                        dashboardUuid: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExecuteAsyncDashboardSqlChartByUuidRequestParams: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ExecuteAsyncDashboardSqlChartCommonParams' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        savedSqlUuid: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExecuteAsyncDashboardSqlChartBySlugRequestParams: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ExecuteAsyncDashboardSqlChartCommonParams' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        slug: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExecuteAsyncDashboardSqlChartRequestParams: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'ExecuteAsyncDashboardSqlChartByUuidRequestParams' },
+                { ref: 'ExecuteAsyncDashboardSqlChartBySlugRequestParams' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FeatureFlag: {
         dataType: 'refAlias',
         type: {
@@ -30761,6 +30833,73 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'executeAsyncUnderlyingDataQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsV2ProjectController_executeAsyncDashboardSqlChartQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ExecuteAsyncDashboardSqlChartRequestParams',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v2/projects/:projectUuid/query/dashboard-sql-chart',
+        ...fetchMiddlewares<RequestHandler>(V2ProjectController),
+        ...fetchMiddlewares<RequestHandler>(
+            V2ProjectController.prototype.executeAsyncDashboardSqlChartQuery,
+        ),
+
+        async function V2ProjectController_executeAsyncDashboardSqlChartQuery(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsV2ProjectController_executeAsyncDashboardSqlChartQuery,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<V2ProjectController>(
+                        V2ProjectController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'executeAsyncDashboardSqlChartQuery',
                     controller,
                     response,
                     next,

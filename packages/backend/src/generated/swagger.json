@@ -15754,6 +15754,77 @@
                     }
                 ]
             },
+            "ExecuteAsyncDashboardSqlChartCommonParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonPaginatedQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "dashboardSorts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SortField"
+                                },
+                                "type": "array"
+                            },
+                            "dashboardFilters": {
+                                "$ref": "#/components/schemas/DashboardFilters"
+                            },
+                            "dashboardUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "dashboardSorts",
+                            "dashboardFilters",
+                            "dashboardUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ExecuteAsyncDashboardSqlChartByUuidRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams"
+                    },
+                    {
+                        "properties": {
+                            "savedSqlUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["savedSqlUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ExecuteAsyncDashboardSqlChartBySlugRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams"
+                    },
+                    {
+                        "properties": {
+                            "slug": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["slug"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ExecuteAsyncDashboardSqlChartRequestParams": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartByUuidRequestParams"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartBySlugRequestParams"
+                    }
+                ]
+            },
             "FeatureFlag": {
                 "properties": {
                     "enabled": {
@@ -16324,7 +16395,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1610.0",
+        "version": "0.1611.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

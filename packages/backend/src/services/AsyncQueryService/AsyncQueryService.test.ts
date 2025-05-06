@@ -3,9 +3,11 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     WarehouseQueryError,
+    type CreateWarehouseCredentials,
     type ExecuteAsyncQueryRequestParams,
     type QueryHistory,
 } from '@lightdash/common';
+import type { SshTunnel } from '@lightdash/warehouses';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { S3Client } from '../../clients/Aws/S3Client';
@@ -25,6 +27,7 @@ import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import type { SavedChartModel } from '../../models/SavedChartModel';
+import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import type { SpaceModel } from '../../models/SpaceModel';
 import type { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import type { TagsModel } from '../../models/TagsModel';
@@ -58,11 +61,13 @@ import {
 import { AsyncQueryService } from './AsyncQueryService';
 import type { ExecuteAsyncQueryReturn } from './types';
 
+const mockSshTunnel = {
+    connect: jest.fn(() => warehouseClientMock.credentials),
+    disconnect: jest.fn(),
+} as unknown as SshTunnel<CreateWarehouseCredentials>;
+
 jest.mock('@lightdash/warehouses', () => ({
-    SshTunnel: jest.fn(() => ({
-        connect: jest.fn(() => warehouseClientMock.credentials),
-        disconnect: jest.fn(),
-    })),
+    SshTunnel: jest.fn(() => mockSshTunnel),
 }));
 
 const projectModel = {
@@ -142,6 +147,7 @@ const getMockedAsyncQueryService = (lightdashConfig: LightdashConfig) =>
             update: jest.fn(),
         } as unknown as QueryHistoryModel,
         userModel: {} as UserModel,
+        savedSqlModel: {} as SavedSqlModel,
     });
 
 describe('AsyncQueryService', () => {
@@ -227,6 +233,10 @@ describe('AsyncQueryService', () => {
                         invalidateCache: false,
                     },
                     { query: metricQueryMock },
+                    {
+                        warehouseClient: warehouseClientMock,
+                        sshTunnel: mockSshTunnel,
+                    },
                 );
 
                 expect(result).toEqual({
@@ -309,6 +319,10 @@ describe('AsyncQueryService', () => {
                         invalidateCache: false,
                     },
                     { query: metricQueryMock },
+                    {
+                        warehouseClient: warehouseClientMock,
+                        sshTunnel: mockSshTunnel,
+                    },
                 );
 
                 expect(result).toEqual({
@@ -389,6 +403,10 @@ describe('AsyncQueryService', () => {
                         invalidateCache: true,
                     },
                     { query: metricQueryMock },
+                    {
+                        warehouseClient: warehouseClientMock,
+                        sshTunnel: mockSshTunnel,
+                    },
                 );
 
                 // Verify that createOrGetExistingCache was called with invalidateCache: true
@@ -463,6 +481,10 @@ describe('AsyncQueryService', () => {
                         invalidateCache: false,
                     },
                     { query: metricQueryMock },
+                    {
+                        warehouseClient: warehouseClientMock,
+                        sshTunnel: mockSshTunnel,
+                    },
                 );
 
                 expect(result).toEqual({

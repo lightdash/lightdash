@@ -52,9 +52,36 @@ export type ExecuteAsyncUnderlyingDataRequestParams =
         filters: Filters;
     };
 
+type ExecuteAsyncDashboardSqlChartCommonParams =
+    CommonPaginatedQueryRequestParams & {
+        dashboardUuid: string;
+        dashboardFilters: DashboardFilters;
+        dashboardSorts: SortField[];
+    };
+
+export type ExecuteAsyncDashboardSqlChartByUuidRequestParams =
+    ExecuteAsyncDashboardSqlChartCommonParams & {
+        savedSqlUuid: string;
+    };
+
+export type ExecuteAsyncDashboardSqlChartBySlugRequestParams =
+    ExecuteAsyncDashboardSqlChartCommonParams & {
+        slug: string;
+    };
+
+export type ExecuteAsyncDashboardSqlChartRequestParams =
+    | ExecuteAsyncDashboardSqlChartByUuidRequestParams
+    | ExecuteAsyncDashboardSqlChartBySlugRequestParams;
+
+export const isExecuteAsyncDashboardSqlChartByUuidParams = (
+    params: ExecuteAsyncDashboardSqlChartRequestParams,
+): params is ExecuteAsyncDashboardSqlChartByUuidRequestParams =>
+    'savedSqlUuid' in params;
+
 export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncMetricQueryRequestParams
     | ExecuteAsyncSqlQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
-    | ExecuteAsyncUnderlyingDataRequestParams;
+    | ExecuteAsyncUnderlyingDataRequestParams
+    | ExecuteAsyncDashboardSqlChartRequestParams;
