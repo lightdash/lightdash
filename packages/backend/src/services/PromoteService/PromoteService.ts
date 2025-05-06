@@ -7,6 +7,7 @@ import {
     getDeepestPaths,
     getErrorMessage,
     isDashboardChartTileType,
+    isSubPath,
     NotFoundError,
     ParameterError,
     PromotedChart as PromotedChangeChart,
@@ -905,7 +906,11 @@ export class PromoteService extends BaseService {
         for await (const deepestPath of deepestPaths) {
             const filteredSortedSpaceChanges = spaceChanges
                 .filter((change) => change.action === PromotionAction.CREATE)
-                .filter((change) => deepestPath.startsWith(change.data.path))
+                .filter(
+                    (change) =>
+                        change.data.path === deepestPath ||
+                        isSubPath(change.data.path, deepestPath),
+                )
                 // Sort by path length to create the parent spaces first
                 .sort(
                     (a, b) =>
@@ -942,6 +947,10 @@ export class PromoteService extends BaseService {
 
             for await (const spaceChange of filteredSortedSpaceChanges) {
                 if (newSpaces.has(spaceChange.data.path)) {
+                    parentSpaceUuid = newSpaces.get(
+                        spaceChange.data.path,
+                    )!.uuid;
+
                     // eslint-disable-next-line no-continue
                     continue;
                 }

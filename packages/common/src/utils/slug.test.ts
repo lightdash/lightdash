@@ -4,6 +4,7 @@ import {
     getDeepestPaths,
     getLtreePathFromContentAsCodePath,
     getLtreePathFromSlug,
+    isSubPath,
 } from './slugs';
 
 describe('Slug', () => {
@@ -216,5 +217,15 @@ describe('getDeepestPaths', () => {
         expect(getDeepestPaths(['a'])).toEqual(['a']);
 
         expect(getDeepestPaths(['a', 'b'])).toEqual(['a', 'b']);
+    });
+});
+
+describe('isSubpath', () => {
+    test('should return true if the path is a subpath of the other path', () => {
+        expect(isSubPath('a.b.c', 'a.b')).toEqual(false);
+        expect(isSubPath('a.b.c', 'a.b.c')).toEqual(false);
+        expect(isSubPath('a.b.c', 'a.b.c.d')).toEqual(true);
+        expect(isSubPath('a', 'a')).toEqual(false);
+        expect(isSubPath('a', 'a.b')).toEqual(true);
     });
 });

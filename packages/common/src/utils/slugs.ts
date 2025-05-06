@@ -67,3 +67,6 @@ export const getDeepestPaths = (paths: string[]): string[] => {
 
     return result;
 };
+
+export const isSubPath = (path: string, subPath: string) =>
+    subPath.startsWith(path) && subPath[path.length] === '.';
