@@ -1,3 +1,10 @@
+# [0.1612.0](https://github.com/lightdash/lightdash/compare/0.1611.0...0.1612.0) (2025-05-06)
+
+
+### Features
+
+* **frontend:** Move space to another space ([#14648](https://github.com/lightdash/lightdash/issues/14648)) ([11137aa](https://github.com/lightdash/lightdash/commit/11137aaae47c22edf0a661e243bb516bbbc16d43))
+
 # [0.1611.0](https://github.com/lightdash/lightdash/compare/0.1610.2...0.1611.0) (2025-05-06)
 
 
