@@ -1,3 +1,10 @@
+## [0.1612.1](https://github.com/lightdash/lightdash/compare/0.1612.0...0.1612.1) (2025-05-06)
+
+
+### Bug Fixes
+
+* nested spaces in preview envs ([#14684](https://github.com/lightdash/lightdash/issues/14684)) ([3af2475](https://github.com/lightdash/lightdash/commit/3af2475cddbd3650dd6a7a85afa46c8f49af385b))
+
 # [0.1612.0](https://github.com/lightdash/lightdash/compare/0.1611.0...0.1612.0) (2025-05-06)
 
 
