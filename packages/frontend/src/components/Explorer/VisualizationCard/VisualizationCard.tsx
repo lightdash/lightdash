@@ -3,6 +3,7 @@ import {
     getHiddenTableFields,
     getPivotConfig,
     NotFoundError,
+    QueryHistoryStatus,
 } from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
 import { type FC, memo, useCallback, useMemo, useState } from 'react';
@@ -17,6 +18,7 @@ import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
+import ErrorState from '../../common/ErrorState';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { type EchartSeriesClickEvent } from '../../SimpleChart';
@@ -44,6 +46,13 @@ const VisualizationCard: FC<{
         (context) =>
             context.query.isFetching || context.queryResults.isFetchingRows,
     );
+
+    const queryError = useExplorerContext((context) =>
+        context.queryResults.queryStatus === QueryHistoryStatus.ERROR
+            ? context.queryResults.queryError
+            : undefined,
+    );
+
     const resultsData = useExplorerContext((context) => context.queryResults);
 
     const setPivotFields = useExplorerContext(
@@ -105,6 +114,19 @@ const VisualizationCard: FC<{
 
     if (!unsavedChartVersion.tableName) {
         return <CollapsableCard title="Charts" disabled />;
+    }
+
+    if (queryError) {
+        return (
+            <CollapsableCard
+                title="Charts"
+                isOpen={isOpen}
+                isVisualizationCard
+                onToggle={toggleSection}
+            >
+                <ErrorState error={queryError} />
+            </CollapsableCard>
+        );
     }
 
     const getCsvLink = async (

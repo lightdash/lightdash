@@ -1346,7 +1346,7 @@ type DashboardChartTileProps = Omit<
 export const GenericDashboardChartTile: FC<
     DashboardChartTileProps & {
         isLoading: boolean;
-        error: ApiError | null;
+        error: ApiError['error'] | null;
     }
 > = ({
     minimal = false,
@@ -1422,7 +1422,7 @@ export const GenericDashboardChartTile: FC<
             >
                 <SuboptimalState
                     icon={IconAlertCircle}
-                    title={error?.error?.message || 'No data available'}
+                    title={error?.message || 'No data available'}
                 ></SuboptimalState>
             </TileBase>
         );
@@ -1476,12 +1476,16 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         const isFetchingFirstPage = resultsData.isFetchingFirstPage;
         const isFetchingAllRows =
             resultsData.fetchAll && !resultsData.hasFetchedAllRows;
-        return isCreatingQuery || isFetchingFirstPage || isFetchingAllRows;
+        return (
+            (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
+            !resultsData.queryError
+        );
     }, [
         readyQuery.isFetching,
         resultsData.fetchAll,
         resultsData.hasFetchedAllRows,
         resultsData.isFetchingFirstPage,
+        resultsData.queryError,
     ]);
 
     return (
@@ -1490,7 +1494,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
             isLoading={isLoading}
             resultsData={resultsData}
             dashboardChartReadyQuery={readyQuery.data}
-            error={readyQuery.error}
+            error={readyQuery.error?.error ?? resultsData.queryError ?? null}
         />
     );
 };

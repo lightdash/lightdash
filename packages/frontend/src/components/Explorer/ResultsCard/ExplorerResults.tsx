@@ -50,7 +50,13 @@ export const ExplorerResults = memo(() => {
         const isCreatingQuery = context.query.isFetching;
         const isFetchingFirstPage = context.queryResults.isFetchingFirstPage;
         // Don't return context.queryResults.status because we changed from mutation to query so 'loading' as a different meaning
-        if (isCreatingQuery || isFetchingFirstPage) {
+        if (context.queryResults.queryError) {
+            console.log(
+                'context.queryResults.queryError',
+                context.queryResults.queryError,
+            );
+            return 'error';
+        } else if (isCreatingQuery || isFetchingFirstPage) {
             return 'loading';
         } else if (context.query.status === 'loading') {
             return 'idle';

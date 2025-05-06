@@ -2,6 +2,7 @@ import { useMantineTheme } from '@mantine/core';
 import { type ComponentProps, type FC } from 'react';
 import {
     ExploreEmptyQueryState,
+    ExploreErrorState,
     ExploreIdleState,
     ExploreLoadingState,
 } from '../../Explorer/ResultsCard/ExplorerResultsNonIdealStates';
@@ -45,6 +46,8 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
         return <LoadingState />;
     }
 
+    console.log('status===', status);
+
     return (
         <TableProvider {...rest}>
             <TableContainer
@@ -60,6 +63,8 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
                     minimal={minimal}
                     showSubtotals={showSubtotals}
                 />
+
+                {status === 'error' && <ExploreErrorState />}
 
                 {status === 'idle' && <IdleState />}
                 {status === 'success' && rest.data.length === 0 && (

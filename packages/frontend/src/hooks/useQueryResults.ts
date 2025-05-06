@@ -170,6 +170,7 @@ export type InfiniteQueryResults = Partial<
 > & {
     projectUuid?: string;
     queryStatus?: QueryHistoryStatus;
+    queryError?: ApiError['error'];
     rows: ResultRow[];
     isInitialLoading: boolean;
     isFetchingFirstPage: boolean;
@@ -206,6 +207,9 @@ export const useInfiniteQueryResults = (
         (ReadyQueryResultsPage & { clientFetchTimeMs: number })[]
     >([]);
     const [fetchAll, setFetchAll] = useState(false);
+    const [queryError, setQueryError] = useState<ApiError['error'] | undefined>(
+        undefined,
+    );
 
     const fetchMoreRows = useCallback(() => {
         const nextPageToFetch = fetchedPages[fetchedPages.length - 1]?.nextPage;
@@ -237,7 +241,8 @@ export const useInfiniteQueryResults = (
         return (
             !!projectUuid &&
             !!queryUuid &&
-            (isFetchingPage || (fetchAll && !hasFetchedAllRows))
+            (isFetchingPage || (fetchAll && !hasFetchedAllRows)) &&
+            !queryError
         );
     }, [
         fetchedPages,
@@ -246,6 +251,7 @@ export const useInfiniteQueryResults = (
         queryUuid,
         fetchAll,
         hasFetchedAllRows,
+        queryError,
     ]);
 
     const nextPage = useQuery<
@@ -288,15 +294,19 @@ export const useInfiniteQueryResults = (
         switch (status) {
             case QueryHistoryStatus.ERROR: {
                 backoffRef.current = 250;
+
+                const error = {
+                    name: 'Error',
+                    statusCode: 500,
+                    message: nextPageData.error ?? 'Query failed',
+                    data: {},
+                };
+
                 setErrorResponse({
                     status: 'error',
-                    error: {
-                        name: 'Error',
-                        statusCode: 500,
-                        message: nextPageData.error ?? 'Query failed',
-                        data: {},
-                    },
+                    error,
                 });
+                setQueryError(error);
                 break;
             }
             case QueryHistoryStatus.CANCELLED: {
@@ -381,6 +391,7 @@ export const useInfiniteQueryResults = (
             projectUuid,
             queryUuid,
             queryStatus: nextPageData?.status, // show latest status
+            queryError,
             metricQuery: fetchedPages[0]?.metricQuery,
             fields: fetchedPages[0]?.fields,
             totalResults: fetchedPages[0]?.totalResults,
@@ -403,6 +414,7 @@ export const useInfiniteQueryResults = (
         [
             projectUuid,
             queryUuid,
+            queryError,
             fetchedPages,
             hasFetchedAllRows,
             fetchedRows,

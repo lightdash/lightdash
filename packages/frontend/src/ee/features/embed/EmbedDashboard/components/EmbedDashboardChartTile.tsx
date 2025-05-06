@@ -129,7 +129,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
             canDateZoom={canDateZoom}
             resultsData={resultData}
             dashboardChartReadyQuery={query}
-            error={error}
+            error={error?.error ?? null}
         />
     );
 };
