@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { assertUnreachable, type SpaceSummary } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ResourceViewItemType,
+    type SpaceSummary,
+} from '@lightdash/common';
 import { Paper, ScrollArea, Stack, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useMemo, useState } from 'react';
@@ -17,6 +21,7 @@ type SpaceSelectorProps = {
         | Array<Pick<SpaceSummary, 'isPrivate' | 'access'> & NestableItem>
         | undefined;
     isLoading?: boolean;
+    itemType: ResourceViewItemType | undefined;
     onSelectSpace: (spaceUuid: string | null) => void;
 };
 
@@ -25,6 +30,7 @@ const SpaceSelector = ({
     selectedSpaceUuid,
     spaces = [],
     isLoading: _isLoading, // TODO: implement loading state for the tree.
+    itemType,
     onSelectSpace,
     children,
 }: React.PropsWithChildren<SpaceSelectorProps>) => {
@@ -96,6 +102,8 @@ const SpaceSelector = ({
                 withBorder
             >
                 <Tree
+                    // top level item can only be selected for a single space
+                    withRootSelectable={itemType === ResourceViewItemType.SPACE}
                     data={fuzzyFilteredSpaces ?? filteredSpaces}
                     value={selectedSpaceUuid}
                     onChange={onSelectSpace}

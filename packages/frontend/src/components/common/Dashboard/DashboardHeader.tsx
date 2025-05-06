@@ -317,6 +317,11 @@ const DashboardHeader = ({
                         spaces={spaces}
                         isLoading={isMovingDashboardToSpace}
                         onConfirm={async (spaceUuid) => {
+                            if (!spaceUuid) {
+                                throw new Error(
+                                    'Space UUID is required to move a dashboard',
+                                );
+                            }
                             await onMoveToSpace(spaceUuid);
                             transferToSpaceModalHandlers.close();
                         }}

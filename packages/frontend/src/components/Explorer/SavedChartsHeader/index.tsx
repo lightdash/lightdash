@@ -807,6 +807,10 @@ const SavedChartsHeader: FC = () => {
                     isLoading={isMovingChart || isMovingChartToSpace}
                     onClose={transferToSpaceModalHandlers.close}
                     onConfirm={async (newSpaceUuid) => {
+                        if (!newSpaceUuid) {
+                            throw new Error('No space uuid provided');
+                        }
+
                         if (savedChart) {
                             await moveChartToSpace({
                                 uuid: savedChart.uuid,

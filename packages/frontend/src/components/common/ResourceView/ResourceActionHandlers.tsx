@@ -1,10 +1,11 @@
 import {
-    ChartSourceType,
-    ResourceViewItemType,
     assertUnreachable,
+    ChartSourceType,
     convertChartSourceTypeToDashboardTileType,
+    ResourceViewItemType,
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
+    type ResourceViewSpaceItem,
     type Space,
 } from '@lightdash/common';
 import {
@@ -21,7 +22,10 @@ import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningM
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
 import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation';
 import { useMoveChartMutation } from '../../../hooks/useSavedQuery';
-import { useSpaceSummaries } from '../../../hooks/useSpaces';
+import {
+    useMoveSpaceMutation,
+    useSpaceSummaries,
+} from '../../../hooks/useSpaces';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
@@ -58,6 +62,9 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
             '', // TODO: get slug or savedSqlUuid to invalidate the query if necessary
         );
 
+    const { mutateAsync: moveSpace, isLoading: isMovingSpace } =
+        useMoveSpaceMutation(projectUuid);
+
     const { mutateAsync: moveDashboard, isLoading: isMovingDashboard } =
         useMoveDashboardMutation();
     const { mutate: pinChart } = useChartPinningMutation();
@@ -70,11 +77,20 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
 
     const moveToSpace = useCallback(
         (
-            item: ResourceViewChartItem | ResourceViewDashboardItem,
-            spaceUuid: string,
+            item:
+                | ResourceViewChartItem
+                | ResourceViewDashboardItem
+                | ResourceViewSpaceItem,
+            spaceUuid: string | null,
         ) => {
             switch (item.type) {
                 case ResourceViewItemType.CHART:
+                    if (!spaceUuid) {
+                        throw new Error(
+                            'Space UUID is required to move a chart',
+                        );
+                    }
+
                     if (item.data.source === ChartSourceType.SQL) {
                         return updateSqlChart({
                             savedSqlUuid: item.data.uuid,
@@ -90,10 +106,21 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         spaceUuid,
                     });
                 case ResourceViewItemType.DASHBOARD:
+                    if (!spaceUuid) {
+                        throw new Error(
+                            'Space UUID is required to move a dashboard',
+                        );
+                    }
+
                     return moveDashboard({
                         uuid: item.data.uuid,
                         name: item.data.name,
                         spaceUuid,
+                    });
+                case ResourceViewItemType.SPACE:
+                    return moveSpace({
+                        spaceUuid: item.data.uuid,
+                        parentSpaceUuid: spaceUuid ?? null,
                     });
                 default:
                     return assertUnreachable(
@@ -102,7 +129,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     );
             }
         },
-        [moveChart, moveDashboard, updateSqlChart],
+        [moveChart, moveDashboard, moveSpace, updateSqlChart],
     );
 
     const handleCreateSpace = useCallback(
@@ -302,7 +329,10 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     items={[action.item]}
                     spaces={spaces ?? []}
                     isLoading={
-                        isMovingChart || isMovingDashboard || isUpdatingSqlChart
+                        isMovingChart ||
+                        isMovingDashboard ||
+                        isUpdatingSqlChart ||
+                        isMovingSpace
                     }
                     onConfirm={async (spaceUuid) => {
                         await moveToSpace(action.item, spaceUuid);
