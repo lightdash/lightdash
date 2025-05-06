@@ -64,7 +64,7 @@ export class V2ProjectController extends BaseController {
         this.setStatus(200);
 
         const results = await this.services
-            .getProjectService()
+            .getAsyncQueryService()
             .getAsyncQueryResults({
                 user: req.user!,
                 projectUuid,
@@ -91,7 +91,7 @@ export class V2ProjectController extends BaseController {
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
 
-        await this.services.getProjectService().cancelAsyncQuery({
+        await this.services.getAsyncQueryService().cancelAsyncQuery({
             user: req.user!,
             projectUuid,
             queryUuid,
@@ -132,7 +132,7 @@ export class V2ProjectController extends BaseController {
         };
 
         const results = await this.services
-            .getProjectService()
+            .getAsyncQueryService()
             .executeAsyncMetricQuery({
                 user: req.user!,
                 projectUuid,
@@ -163,7 +163,7 @@ export class V2ProjectController extends BaseController {
         const context = body.context ?? getContextFromHeader(req);
 
         const results = await this.services
-            .getProjectService()
+            .getAsyncQueryService()
             .executeAsyncSqlQuery({
                 user: req.user!,
                 projectUuid,
@@ -195,7 +195,7 @@ export class V2ProjectController extends BaseController {
         const context = body.context ?? getContextFromHeader(req);
 
         const results = await this.services
-            .getProjectService()
+            .getAsyncQueryService()
             .executeAsyncSavedChartQuery({
                 user: req.user!,
                 projectUuid,
@@ -227,7 +227,7 @@ export class V2ProjectController extends BaseController {
         const context = body.context ?? getContextFromHeader(req);
 
         const results = await this.services
-            .getProjectService()
+            .getAsyncQueryService()
             .executeAsyncDashboardChartQuery({
                 user: req.user!,
                 projectUuid,
@@ -262,7 +262,7 @@ export class V2ProjectController extends BaseController {
         const context = body.context ?? getContextFromHeader(req);
 
         const results = await this.services
-            .getProjectService()
+            .getAsyncQueryService()
             .executeAsyncUnderlyingDataQuery({
                 user: req.user!,
                 projectUuid,

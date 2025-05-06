@@ -15,7 +15,6 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -27,7 +26,6 @@ import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredent
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import type { ICacheService } from '../CacheService/ICacheService';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
@@ -66,9 +64,7 @@ describe('Csv service', () => {
             catalogModel: {} as CatalogModel,
             contentModel: {} as ContentModel,
             encryptionUtil: {} as EncryptionUtil,
-            queryHistoryModel: {} as QueryHistoryModel,
             userModel: {} as UserModel,
-            cacheService: {} as ICacheService<unknown>,
         }),
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,
