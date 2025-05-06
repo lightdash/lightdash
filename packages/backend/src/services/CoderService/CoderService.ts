@@ -898,19 +898,6 @@ export class CoderService extends BaseService {
                 parentPath = `${parentPath}.${currentPath}`;
             }
 
-            console.log(
-                {
-                    isPrivate: closestAncestorSpace?.isPrivate ?? true,
-                    name: friendlyName(currentPath),
-                    parentSpaceUuid,
-                },
-                {
-                    projectUuid,
-                    userId: user.userId,
-                    path: parentPath,
-                },
-            );
-
             const newSpace = await this.spaceModel.createSpace(
                 {
                     isPrivate: closestAncestorSpace?.isPrivate ?? true,

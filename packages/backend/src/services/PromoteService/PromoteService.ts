@@ -4,6 +4,7 @@ import {
     ChartSummary,
     DashboardDAO,
     ForbiddenError,
+    getDeepestPaths,
     getErrorMessage,
     isDashboardChartTileType,
     NotFoundError,
@@ -894,93 +895,108 @@ export class PromoteService extends BaseService {
         );
         await Promise.all(updatedSpacePromises);
 
-        const filteredSortedSpaceChanges = spaceChanges
+        const paths = spaceChanges
             .filter((change) => change.action === PromotionAction.CREATE)
-            // Sort by path length to create the parent spaces first
-            .sort(
-                (a, b) =>
-                    a.data.path.split('.').length -
-                    b.data.path.split('.').length,
-            );
+            .map((change) => change.data.path);
+        const deepestPaths = getDeepestPaths(paths);
 
-        let parentSpaceUuid: string | null = null;
-        if (filteredSortedSpaceChanges.length > 0) {
-            // parentSpaceUuid of promoted space in downstream project
-            const promotedParentSpaceChanngesData =
-                filteredSortedSpaceChanges[0].data;
+        const newSpaces = new Map<string, Space>();
 
-            if (promotedParentSpaceChanngesData.parentSpaceUuid) {
-                const promotedParentSpace =
-                    await this.spaceModel.getSpaceSummary(
-                        promotedParentSpaceChanngesData.parentSpaceUuid,
-                    );
+        for await (const deepestPath of deepestPaths) {
+            const filteredSortedSpaceChanges = spaceChanges
+                .filter((change) => change.action === PromotionAction.CREATE)
+                .filter((change) => deepestPath.startsWith(change.data.path))
+                // Sort by path length to create the parent spaces first
+                .sort(
+                    (a, b) =>
+                        a.data.path.split('.').length -
+                        b.data.path.split('.').length,
+                );
 
-                const parentSpace = await this.spaceModel.find({
-                    path: promotedParentSpace.path,
-                    projectUuid: promotedParentSpaceChanngesData.projectUuid, // this is correctly set in `getSpaceChange`
-                });
+            let parentSpaceUuid: string | null = null;
+            if (filteredSortedSpaceChanges.length > 0) {
+                // parentSpaceUuid of promoted space in downstream project
+                const promotedParentSpaceChangesData =
+                    filteredSortedSpaceChanges[0].data;
 
-                if (parentSpace.length !== 1) {
-                    throw new UnexpectedServerError(
-                        `Expected 1 parent space for ${promotedParentSpace.path}, got ${parentSpace.length}`,
-                    );
+                if (promotedParentSpaceChangesData.parentSpaceUuid) {
+                    const promotedParentSpace =
+                        await this.spaceModel.getSpaceSummary(
+                            promotedParentSpaceChangesData.parentSpaceUuid,
+                        );
+
+                    const parentSpace = await this.spaceModel.find({
+                        path: promotedParentSpace.path,
+                        projectUuid: promotedParentSpaceChangesData.projectUuid, // this is correctly set in `getSpaceChange`
+                    });
+
+                    if (parentSpace.length !== 1) {
+                        throw new UnexpectedServerError(
+                            `Expected 1 parent space for ${promotedParentSpace.path}, got ${parentSpace.length}`,
+                        );
+                    }
+
+                    parentSpaceUuid = parentSpace[0].uuid;
+                }
+            }
+
+            for await (const spaceChange of filteredSortedSpaceChanges) {
+                if (newSpaces.has(spaceChange.data.path)) {
+                    // eslint-disable-next-line no-continue
+                    continue;
                 }
 
-                parentSpaceUuid = parentSpace[0].uuid;
+                const { data } = spaceChange;
+
+                const space = await this.spaceModel.createSpace(
+                    {
+                        isPrivate: data.isPrivate,
+                        name: data.name,
+                        parentSpaceUuid,
+                    },
+                    {
+                        projectUuid: data.projectUuid,
+                        userId: user.userId,
+                        path: data.path,
+                    },
+                );
+                parentSpaceUuid = space.uuid;
+
+                if (data.isPrivate) {
+                    const promotedSpaceWithAccess =
+                        await this.spaceModel.getFullSpace(data.uuid);
+
+                    const userAccessPromises = promotedSpaceWithAccess.access
+                        .filter((access) => access.hasDirectAccess)
+                        .map((userAccess) =>
+                            this.spaceModel.addSpaceAccess(
+                                space.uuid,
+                                userAccess.userUuid,
+                                userAccess.role,
+                            ),
+                        );
+
+                    const groupAccessPromises =
+                        promotedSpaceWithAccess.groupsAccess.map(
+                            (groupAccess) =>
+                                this.spaceModel.addSpaceGroupAccess(
+                                    space.uuid,
+                                    groupAccess.groupUuid,
+                                    groupAccess.spaceRole,
+                                ),
+                        );
+
+                    await Promise.all([
+                        ...userAccessPromises,
+                        ...groupAccessPromises,
+                    ]);
+                }
+
+                newSpaces.set(space.path, space);
             }
         }
 
-        const newSpaces: Space[] = [];
-        for await (const spaceChange of filteredSortedSpaceChanges) {
-            const { data } = spaceChange;
-
-            const space = await this.spaceModel.createSpace(
-                {
-                    isPrivate: data.isPrivate,
-                    name: data.name,
-                    parentSpaceUuid,
-                },
-                {
-                    projectUuid: data.projectUuid,
-                    userId: user.userId,
-                    path: data.path,
-                },
-            );
-            parentSpaceUuid = space.uuid;
-
-            if (data.isPrivate) {
-                const promotedSpaceWithAccess =
-                    await this.spaceModel.getFullSpace(data.uuid);
-
-                const userAccessPromises = promotedSpaceWithAccess.access
-                    .filter((access) => access.hasDirectAccess)
-                    .map((userAccess) =>
-                        this.spaceModel.addSpaceAccess(
-                            space.uuid,
-                            userAccess.userUuid,
-                            userAccess.role,
-                        ),
-                    );
-
-                const groupAccessPromises =
-                    promotedSpaceWithAccess.groupsAccess.map((groupAccess) =>
-                        this.spaceModel.addSpaceGroupAccess(
-                            space.uuid,
-                            groupAccess.groupUuid,
-                            groupAccess.spaceRole,
-                        ),
-                    );
-
-                await Promise.all([
-                    ...userAccessPromises,
-                    ...groupAccessPromises,
-                ]);
-            }
-
-            newSpaces.push(space);
-        }
-
-        const newSpaceChanges = newSpaces.map((space) => {
+        const newSpaceChanges = Array.from(newSpaces.values()).map((space) => {
             const promotedSpace: PromotedSpace = {
                 ...space,
                 access: [],
