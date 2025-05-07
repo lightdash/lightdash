@@ -10,6 +10,7 @@ import { type EChartsOption, type PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 export type PieSeriesDataPoint = NonNullable<
     PieSeriesOption['data']
 >[number] & {
@@ -19,7 +20,10 @@ export type PieSeriesDataPoint = NonNullable<
     };
 };
 
-const useEchartsPieConfig = (isInDashboard: boolean) => {
+const useEchartsPieConfig = (
+    selectedLegends?: Record<string, boolean>,
+    isInDashboard?: boolean,
+) => {
     const { visualizationConfig, itemsMap, getGroupColor, minimal } =
         useVisualizationContext();
 
@@ -155,6 +159,8 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
         };
     }, [chartConfig, seriesData]);
 
+    const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
+
     const eChartsOption: EChartsOption | undefined = useMemo(() => {
         if (!chartConfig || !pieSeriesOption) return;
 
@@ -181,10 +187,8 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                           )}...`
                         : name;
                 },
-                tooltip: {
-                    show: true, // show tooltip for truncated legend items
-                    trigger: 'item',
-                },
+                tooltip: legendDoubleClickTooltip,
+                selected: selectedLegends,
                 ...(legendPosition === 'vertical'
                     ? {
                           left: 'left',
@@ -204,11 +208,13 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
             animation: !(isInDashboard || minimal),
         };
     }, [
+        legendDoubleClickTooltip,
+        selectedLegends,
         chartConfig,
         isInDashboard,
         minimal,
         pieSeriesOption,
-        theme?.other?.chartFont,
+        theme,
     ]);
 
     if (!itemsMap) return;

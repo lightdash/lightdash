@@ -26,7 +26,6 @@ import { PinnedListModel } from './PinnedListModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { QueryHistoryModel } from './QueryHistoryModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
-import { ResultsCacheModel } from './ResultsCacheModel/ResultsCacheModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SavedSemanticViewerChartModel } from './SavedSemanticViewerChartModel';
 import { SavedSqlModel } from './SavedSqlModel';
@@ -92,12 +91,12 @@ export type ModelManifest = {
     featureFlagModel: FeatureFlagModel;
     spotlightTableConfigModel: SpotlightTableConfigModel;
     queryHistoryModel: QueryHistoryModel;
-    resultsCacheModel: ResultsCacheModel;
     /** An implementation signature for these models are not available at this stage */
     aiModel: unknown;
     embedModel: unknown;
     dashboardSummaryModel: unknown;
     scimOrganizationAccessTokenModel: unknown;
+    resultsCacheModel: unknown;
 };
 
 /**
@@ -558,15 +557,8 @@ export class ModelRepository
         );
     }
 
-    public getResultsCacheModel(): ResultsCacheModel {
-        return this.getModel(
-            'resultsCacheModel',
-            () =>
-                new ResultsCacheModel({
-                    database: this.database,
-                    lightdashConfig: this.lightdashConfig,
-                }),
-        );
+    public getResultsCacheModel<ModelImplT>(): ModelImplT {
+        return this.getModel('resultsCacheModel');
     }
 
     /**

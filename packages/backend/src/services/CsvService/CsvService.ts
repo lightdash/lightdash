@@ -4,7 +4,6 @@ import {
     AnyType,
     ApiSqlQueryResults,
     applyDimensionOverrides,
-    ChartType,
     DashboardFilters,
     DateGranularity,
     DimensionType,
@@ -112,7 +111,7 @@ export const convertSqlToCsv = (
             const rowValue = Object.values(row)[fieldIndex];
 
             if (isRowValueTimestamp(rowValue, field)) {
-                return moment(rowValue).format('YYYY-MM-DD HH:mm:ss');
+                return moment(rowValue).format('YYYY-MM-DD HH:mm:ss.SSS');
             }
             if (isRowValueDate(rowValue, field)) {
                 return moment(rowValue).format('YYYY-MM-DD');
@@ -218,7 +217,7 @@ export class CsvService extends BaseService {
 
             const itemIsField = isField(item);
             if (itemIsField && item.type === DimensionType.TIMESTAMP) {
-                return moment(data).format('YYYY-MM-DD HH:mm:ss');
+                return moment(data).format('YYYY-MM-DD HH:mm:ss.SSS');
             }
             if (itemIsField && item.type === DimensionType.DATE) {
                 return moment(data).format('YYYY-MM-DD');
@@ -594,7 +593,9 @@ This method can be memory intensive
             exploreName: exploreId,
             csvLimit: getSchedulerCsvLimit(options),
             context: QueryExecutionContext.CSV,
-            granularity: dateZoomGranularity,
+            dateZoom: {
+                granularity: dateZoomGranularity,
+            },
             chartUuid,
             queryTags,
         });

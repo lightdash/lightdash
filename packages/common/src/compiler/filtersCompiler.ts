@@ -176,31 +176,31 @@ export const renderDateFilterSql = (
     };
 
     switch (filter.operator) {
-        case 'equals':
+        case FilterOperator.EQUALS:
             return `(${dimensionSql}) = ${castValue(
                 dateFormatter(filter.values?.[0]),
             )}`;
-        case 'notEquals':
+        case FilterOperator.NOT_EQUALS:
             return `((${dimensionSql}) != ${castValue(
                 dateFormatter(filter.values?.[0]),
             )} OR (${dimensionSql}) IS NULL)`;
-        case 'isNull':
+        case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
-        case 'notNull':
+        case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
-        case 'greaterThan':
+        case FilterOperator.GREATER_THAN:
             return `(${dimensionSql}) > ${castValue(
                 dateFormatter(filter.values?.[0]),
             )}`;
-        case 'greaterThanOrEqual':
+        case FilterOperator.GREATER_THAN_OR_EQUAL:
             return `(${dimensionSql}) >= ${castValue(
                 dateFormatter(filter.values?.[0]),
             )}`;
-        case 'lessThan':
+        case FilterOperator.LESS_THAN:
             return `(${dimensionSql}) < ${castValue(
                 dateFormatter(filter.values?.[0]),
             )}`;
-        case 'lessThanOrEqual':
+        case FilterOperator.LESS_THAN_OR_EQUAL:
             return `(${dimensionSql}) <= ${castValue(
                 dateFormatter(filter.values?.[0]),
             )}`;

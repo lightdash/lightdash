@@ -9,6 +9,7 @@ import {
     ApiPromotionChangesResponse,
     ApiSuccessEmpty,
     DateGranularity,
+    DateZoom,
     QueryExecutionContext,
     SortField,
 } from '@lightdash/common';
@@ -112,7 +113,7 @@ export class SavedChartController extends BaseController {
             invalidateCache?: boolean;
             dashboardSorts: SortField[];
             dashboardUuid: string;
-            granularity?: DateGranularity;
+            dateZoom?: DateZoom;
             autoRefresh?: boolean;
         },
         @Path() chartUuid: string,
@@ -129,7 +130,7 @@ export class SavedChartController extends BaseController {
                     dashboardFilters: body.dashboardFilters,
                     invalidateCache: body.invalidateCache,
                     dashboardSorts: body.dashboardSorts,
-                    granularity: body.granularity,
+                    dateZoom: body.dateZoom,
                     dashboardUuid: body.dashboardUuid,
                     autoRefresh: body.autoRefresh,
                     context: getContextFromQueryOrHeader(req),

@@ -16,12 +16,17 @@ import {
     DashboardTileTypes,
     ForbiddenError,
     friendlyName,
+    getContentAsCodePathFromLtreePath,
+    getLtreePathFromContentAsCodePath,
+    getLtreePathFromSlug,
     NotFoundError,
     Project,
     PromotionAction,
     PromotionChanges,
     SavedChartDAO,
     SessionUser,
+    Space,
+    SpaceMemberRole,
     SpaceSummary,
     UpdatedByUser,
 } from '@lightdash/common';
@@ -97,15 +102,17 @@ export class CoderService extends BaseService {
 
     private static transformChart(
         chart: SavedChartDAO,
-        spaceSummary: Pick<SpaceSummary, 'uuid' | 'slug'>[],
+        spaceSummary: Pick<SpaceSummary, 'uuid' | 'path'>[],
         dashboardSlugs: Record<string, string>,
     ): ChartAsCode {
-        const spaceSlug = spaceSummary.find(
+        const contentSpace = spaceSummary.find(
             (space) => space.uuid === chart.spaceUuid,
-        )?.slug;
-        if (!spaceSlug) {
+        );
+        if (!contentSpace) {
             throw new NotFoundError(`Space ${chart.spaceUuid} not found`);
         }
+
+        const spaceSlug = getContentAsCodePathFromLtreePath(contentSpace.path);
 
         return {
             name: chart.name,
@@ -242,14 +249,16 @@ export class CoderService extends BaseService {
 
     private static transformDashboard(
         dashboard: DashboardDAO,
-        spaceSummary: Pick<SpaceSummary, 'uuid' | 'slug'>[],
+        spaceSummary: Pick<SpaceSummary, 'uuid' | 'path'>[],
     ): DashboardAsCode {
-        const spaceSlug = spaceSummary.find(
+        const contentSpace = spaceSummary.find(
             (space) => space.uuid === dashboard.spaceUuid,
-        )?.slug;
-        if (!spaceSlug) {
+        );
+        if (!contentSpace) {
             throw new NotFoundError(`Space ${dashboard.spaceUuid} not found`);
         }
+
+        const spaceSlug = getContentAsCodePathFromLtreePath(contentSpace.path);
 
         const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.map(
             (tile): DashboardTileAsCode => {
@@ -690,7 +699,7 @@ export class CoderService extends BaseService {
         });
 
         // If chart does not exist, we can't use promoteService,
-        // since it relies on information it is not available in ChartAsCode, and other uuids
+        // since it relies on information that's not available in ChartAsCode, and other uuids
         if (chart === undefined) {
             const { space, created: spaceCreated } =
                 await this.getOrCreateSpace(
@@ -772,6 +781,9 @@ export class CoderService extends BaseService {
                         data: {
                             ...newChart,
                             spaceSlug: chartAsCode.spaceSlug,
+                            spacePath: getContentAsCodePathFromLtreePath(
+                                chartAsCode.spaceSlug,
+                            ),
                             oldUuid: newChart.uuid,
                         },
                     },
@@ -813,10 +825,11 @@ export class CoderService extends BaseService {
 
         //  we force the new space on the upstreamChart
         if (upstreamChart.chart) upstreamChart.chart.spaceUuid = space.uuid;
-        let promotionChanges: PromotionChanges = PromoteService.getChartChanges(
-            updatedChart,
-            upstreamChart,
-        );
+        let promotionChanges: PromotionChanges =
+            await this.promoteService.getChartChanges(
+                updatedChart,
+                upstreamChart,
+            );
         promotionChanges = await this.promoteService.upsertCharts(
             user,
             promotionChanges,
@@ -834,47 +847,115 @@ export class CoderService extends BaseService {
         spaceSlug: string,
         user: SessionUser,
     ): Promise<{ space: Omit<SpaceSummary, 'userAccess'>; created: boolean }> {
-        const [space] = await this.spaceModel.find({
-            slug: spaceSlug,
+        const [existingSpace] = await this.spaceModel.find({
+            path: getLtreePathFromContentAsCodePath(spaceSlug),
             projectUuid,
         });
 
-        if (space !== undefined) {
+        if (existingSpace !== undefined) {
             const spacesAccess = await this.spaceModel.getUserSpacesAccess(
                 user.userUuid,
-                [space.uuid],
+                [existingSpace.uuid],
             );
             if (
                 hasViewAccessToSpace(
                     user,
-                    space,
-                    spacesAccess[space.uuid] ?? [],
+                    existingSpace,
+                    spacesAccess[existingSpace.uuid] ?? [],
                 )
             ) {
-                return { space, created: false };
+                return { space: existingSpace, created: false };
             }
             throw new ForbiddenError(
                 "You don't have access to a private space",
             );
         }
 
-        console.info(`Creating new public space with slug ${spaceSlug}`);
+        const path = getLtreePathFromContentAsCodePath(spaceSlug);
 
-        const isNestedSpace = spaceSlug.includes('/');
-        const newSpace = await this.spaceModel.createSpaceWithAncestors({
-            isNestedSpace,
-            projectUuid,
-            name: friendlyName(spaceSlug),
-            userId: user.userId,
-            isPrivate: false,
-            slug: spaceSlug,
-            forceSameSlug: true,
-        });
+        const closestAncestorSpaceUuid =
+            await this.spaceModel.findClosestAncestorByPath({
+                path,
+                projectUuid,
+            });
+
+        const closestAncestorSpace = closestAncestorSpaceUuid
+            ? await this.spaceModel.getSpaceSummary(closestAncestorSpaceUuid)
+            : null;
+
+        const remainingPath = path
+            .replace(closestAncestorSpace?.path ?? '', '') // remove the closest ancestor path
+            .replace(/^\./, '') // remove the leading dot
+            .split('.');
+
+        let parentSpaceUuid = closestAncestorSpaceUuid;
+        let parentPath = closestAncestorSpace?.path ?? '';
+        const newSpaces: Space[] = [];
+        for await (const currentPath of remainingPath) {
+            if (!parentPath) {
+                parentPath = currentPath;
+            } else {
+                parentPath = `${parentPath}.${currentPath}`;
+            }
+
+            const newSpace = await this.spaceModel.createSpace(
+                {
+                    isPrivate: closestAncestorSpace?.isPrivate ?? true,
+                    name: friendlyName(currentPath),
+                    parentSpaceUuid,
+                },
+                {
+                    projectUuid,
+                    userId: user.userId,
+                    path: parentPath,
+                },
+            );
+
+            if (newSpace.isPrivate) {
+                if (parentSpaceUuid) {
+                    const newSpaceWithAccess =
+                        await this.spaceModel.getFullSpace(parentSpaceUuid);
+
+                    const userAccessPromises = newSpaceWithAccess.access
+                        .filter((access) => access.hasDirectAccess)
+                        .map((userAccess) =>
+                            this.spaceModel.addSpaceAccess(
+                                newSpace.uuid,
+                                userAccess.userUuid,
+                                userAccess.role,
+                            ),
+                        );
+
+                    const groupAccessPromises =
+                        newSpaceWithAccess.groupsAccess.map((groupAccess) =>
+                            this.spaceModel.addSpaceGroupAccess(
+                                newSpace.uuid,
+                                groupAccess.groupUuid,
+                                groupAccess.spaceRole,
+                            ),
+                        );
+
+                    await Promise.all([
+                        ...userAccessPromises,
+                        ...groupAccessPromises,
+                    ]);
+                } else {
+                    await this.spaceModel.addSpaceAccess(
+                        newSpace.uuid,
+                        user.userUuid,
+                        SpaceMemberRole.ADMIN,
+                    );
+                }
+            }
+
+            parentSpaceUuid = newSpace.uuid;
+
+            newSpaces.push(newSpace);
+        }
 
         return {
             space: {
-                ...newSpace,
-                parentSpaceUuid: null,
+                ...newSpaces[newSpaces.length - 1],
                 chartCount: 0,
                 dashboardCount: 0,
                 access: [],
@@ -916,7 +997,7 @@ export class CoderService extends BaseService {
             tilesWithUuids,
         );
         // If chart does not exist, we can't use promoteService,
-        // since it relies on information it is not available in ChartAsCode, and other uuids
+        // since it relies on information that's not available in ChartAsCode, and other uuids
         if (dashboardSummary === undefined) {
             const { space, created: spaceCreated } =
                 await this.getOrCreateSpace(
@@ -944,6 +1025,9 @@ export class CoderService extends BaseService {
                         data: {
                             ...newDashboard,
                             spaceSlug: dashboardAsCode.spaceSlug,
+                            spacePath: getContentAsCodePathFromLtreePath(
+                                dashboardAsCode.spaceSlug,
+                            ),
                         },
                     },
                 ],
@@ -998,7 +1082,7 @@ export class CoderService extends BaseService {
         if (upstreamDashboard.dashboard)
             upstreamDashboard.dashboard.spaceUuid = space.uuid;
 
-        // TODO Check permissions for all chart tiles
+        // TODO: Check permissions for all chart tiles
         // eslint-disable-next-line prefer-const
         let [promotionChanges, promotedCharts] =
             await this.promoteService.getPromotionDashboardChanges(
@@ -1008,7 +1092,7 @@ export class CoderService extends BaseService {
                 true, // includeOrphanChartsWithinDashboard
             );
 
-        // TODO Right now dashboards on promote service always update dashboards
+        // TODO: Right now dashboards on promote service always update dashboards
         // See isDashboardUpdated for more details
 
         promotionChanges = await this.promoteService.getOrCreateDashboard(

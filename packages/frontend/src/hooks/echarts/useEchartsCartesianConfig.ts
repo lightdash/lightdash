@@ -61,6 +61,7 @@ import {
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import getPlottedData from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
+import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
 type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
@@ -2023,6 +2024,26 @@ const useEchartsCartesianConfig = (
         };
     }, [validCartesianConfig?.eChartsConfig.grid]);
 
+    const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
+
+    const legendConfigWithInstructionsTooltip = useMemo(() => {
+        const mergedLegendConfig = mergeLegendSettings(
+            validCartesianConfig?.eChartsConfig.legend,
+            validCartesianConfigLegend,
+            series,
+        );
+
+        return {
+            ...mergedLegendConfig,
+            tooltip: legendDoubleClickTooltip,
+        };
+    }, [
+        legendDoubleClickTooltip,
+        validCartesianConfig?.eChartsConfig.legend,
+        validCartesianConfigLegend,
+        series,
+    ]);
+
     const eChartsOptions = useMemo(
         () => ({
             xAxis: axes.xAxis,
@@ -2030,11 +2051,7 @@ const useEchartsCartesianConfig = (
             useUTC: true,
             series: stackedSeriesWithColorAssignments,
             animation: !(isInDashboard || minimal),
-            legend: mergeLegendSettings(
-                validCartesianConfig?.eChartsConfig.legend,
-                validCartesianConfigLegend,
-                series,
-            ),
+            legend: legendConfigWithInstructionsTooltip,
             dataset: {
                 id: 'lightdashResults',
                 source: sortedResultsByTotals,
@@ -2053,9 +2070,7 @@ const useEchartsCartesianConfig = (
             stackedSeriesWithColorAssignments,
             isInDashboard,
             minimal,
-            validCartesianConfig?.eChartsConfig.legend,
-            validCartesianConfigLegend,
-            series,
+            legendConfigWithInstructionsTooltip,
             sortedResultsByTotals,
             tooltip,
             theme?.other.chartFont,

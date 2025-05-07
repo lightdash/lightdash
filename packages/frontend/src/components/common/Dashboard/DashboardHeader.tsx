@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ResourceViewItemType,
     type Dashboard,
     type FeatureFlags,
     type SpaceSummary,
@@ -307,10 +308,20 @@ const DashboardHeader = ({
                         projectUuid={projectUuid}
                         opened={isTransferToSpaceModalOpen}
                         onClose={transferToSpaceModalHandlers.close}
-                        items={[dashboard]}
+                        items={[
+                            {
+                                data: dashboard,
+                                type: ResourceViewItemType.DASHBOARD,
+                            },
+                        ]}
                         spaces={spaces}
                         isLoading={isMovingDashboardToSpace}
                         onConfirm={async (spaceUuid) => {
+                            if (!spaceUuid) {
+                                throw new Error(
+                                    'Space UUID is required to move a dashboard',
+                                );
+                            }
                             await onMoveToSpace(spaceUuid);
                             transferToSpaceModalHandlers.close();
                         }}

@@ -7,6 +7,7 @@ import { memo, useCallback, useEffect, useState, type FC } from 'react';
 import useEchartsPieConfig, {
     type PieSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsPieConfig';
+import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
 import useApp from '../../providers/App/useApp';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -45,8 +46,12 @@ const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
     const { chartRef, isLoading, resultsData } = useVisualizationContext();
+    const { selectedLegends, onLegendChange } = useLegendDoubleClickSelection();
 
-    const pieChartOptions = useEchartsPieConfig(props.isInDashboard);
+    const pieChartOptions = useEchartsPieConfig(
+        selectedLegends,
+        props.isInDashboard,
+    );
     const { user } = useApp();
 
     const [isOpen, { open, close }] = useDisclosure();
@@ -120,6 +125,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
                 onEvents={{
                     click: handleOpenContextMenu,
                     oncontextmenu: handleOpenContextMenu,
+                    legendselectchanged: onLegendChange,
                 }}
             />
 

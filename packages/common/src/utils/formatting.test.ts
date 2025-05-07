@@ -1425,7 +1425,7 @@ describe('Formatting', () => {
         });
     });
 
-    describe.only('applyDefaultFormatting', () => {
+    describe('applyDefaultFormatting', () => {
         it('should handle boolean values', () => {
             expect(applyDefaultFormat(true)).toBe('true');
             expect(applyDefaultFormat(false)).toBe('false');

@@ -1,3 +1,262 @@
+# [0.1614.0](https://github.com/lightdash/lightdash/compare/0.1613.1...0.1614.0) (2025-05-07)
+
+
+### Features
+
+* add dashboard-sql-chart endpoint that just uses pivoted results ([#14688](https://github.com/lightdash/lightdash/issues/14688)) ([df4ed7f](https://github.com/lightdash/lightdash/commit/df4ed7f577a202d073867587a7e7fbacc383e34e)), closes [#14626](https://github.com/lightdash/lightdash/issues/14626)
+
+## [0.1613.1](https://github.com/lightdash/lightdash/compare/0.1613.0...0.1613.1) (2025-05-07)
+
+
+### Bug Fixes
+
+* show error for visualizations on paginated query error ([#14691](https://github.com/lightdash/lightdash/issues/14691)) ([192a8f2](https://github.com/lightdash/lightdash/commit/192a8f27eaf671c7df1cab61a2fff9b3a0ae9e5e))
+
+# [0.1613.0](https://github.com/lightdash/lightdash/compare/0.1612.6...0.1613.0) (2025-05-07)
+
+
+### Features
+
+* handle quarter filter with new picker ([#14667](https://github.com/lightdash/lightdash/issues/14667)) ([22e2e1b](https://github.com/lightdash/lightdash/commit/22e2e1ba8e36377583052a7249c119da0b21632c))
+
+## [0.1612.6](https://github.com/lightdash/lightdash/compare/0.1612.5...0.1612.6) (2025-05-07)
+
+
+### Bug Fixes
+
+* admins should be able to see private spaces on every level ([#14703](https://github.com/lightdash/lightdash/issues/14703)) ([8641111](https://github.com/lightdash/lightdash/commit/864111110798990d82cef2e56aada9993939ed5c)), closes [#14699](https://github.com/lightdash/lightdash/issues/14699)
+
+## [0.1612.5](https://github.com/lightdash/lightdash/compare/0.1612.4...0.1612.5) (2025-05-07)
+
+
+### Bug Fixes
+
+* filter date zoom when viewing underlying data ([#14652](https://github.com/lightdash/lightdash/issues/14652)) ([59f0621](https://github.com/lightdash/lightdash/commit/59f06216270df89949fc93208463db2bf1aadbca))
+
+## [0.1612.4](https://github.com/lightdash/lightdash/compare/0.1612.3...0.1612.4) (2025-05-07)
+
+
+### Bug Fixes
+
+* skip default space creation for preview projects ([#14692](https://github.com/lightdash/lightdash/issues/14692)) ([8592268](https://github.com/lightdash/lightdash/commit/859226885f107d7863a9c8e22ee2f4e70689b039))
+
+## [0.1612.3](https://github.com/lightdash/lightdash/compare/0.1612.2...0.1612.3) (2025-05-06)
+
+
+### Bug Fixes
+
+* preserve ms when downloadin timestamp csv ([#14687](https://github.com/lightdash/lightdash/issues/14687)) ([39a59f5](https://github.com/lightdash/lightdash/commit/39a59f5947501b256f27151cb5c3d86eca389486))
+
+## [0.1612.2](https://github.com/lightdash/lightdash/compare/0.1612.1...0.1612.2) (2025-05-06)
+
+
+### Bug Fixes
+
+* create space modal input shouldn't be pre-filled with parent space name ([#14686](https://github.com/lightdash/lightdash/issues/14686)) ([9c784b5](https://github.com/lightdash/lightdash/commit/9c784b53311b4b53262959964d14b46a9b62547e))
+
+## [0.1612.1](https://github.com/lightdash/lightdash/compare/0.1612.0...0.1612.1) (2025-05-06)
+
+
+### Bug Fixes
+
+* nested spaces in preview envs ([#14684](https://github.com/lightdash/lightdash/issues/14684)) ([3af2475](https://github.com/lightdash/lightdash/commit/3af2475cddbd3650dd6a7a85afa46c8f49af385b))
+
+# [0.1612.0](https://github.com/lightdash/lightdash/compare/0.1611.0...0.1612.0) (2025-05-06)
+
+
+### Features
+
+* **frontend:** Move space to another space ([#14648](https://github.com/lightdash/lightdash/issues/14648)) ([11137aa](https://github.com/lightdash/lightdash/commit/11137aaae47c22edf0a661e243bb516bbbc16d43))
+
+# [0.1611.0](https://github.com/lightdash/lightdash/compare/0.1610.2...0.1611.0) (2025-05-06)
+
+
+### Features
+
+* **backend:** move space to another space ([#14592](https://github.com/lightdash/lightdash/issues/14592)) ([f1d2aae](https://github.com/lightdash/lightdash/commit/f1d2aae1092c2926a9e0dba61c40e59d464b88d2))
+
+## [0.1610.2](https://github.com/lightdash/lightdash/compare/0.1610.1...0.1610.2) (2025-05-06)
+
+
+### Bug Fixes
+
+* QuickCalculations for `trino` ([#14647](https://github.com/lightdash/lightdash/issues/14647)) ([89b302b](https://github.com/lightdash/lightdash/commit/89b302bed07f5e739fc567826e7837d0dff5024a))
+
+## [0.1610.1](https://github.com/lightdash/lightdash/compare/0.1610.0...0.1610.1) (2025-05-06)
+
+
+### Bug Fixes
+
+* generate unique space slugs and use ltree paths ([#14621](https://github.com/lightdash/lightdash/issues/14621)) ([b981225](https://github.com/lightdash/lightdash/commit/b981225a1bea868ddbcf78d29bf7a2ea2b732bcc)), closes [#14642](https://github.com/lightdash/lightdash/issues/14642)
+
+# [0.1610.0](https://github.com/lightdash/lightdash/compare/0.1609.5...0.1610.0) (2025-05-05)
+
+
+### Features
+
+* add table page loading skelleton when not infinite scroll ([#14601](https://github.com/lightdash/lightdash/issues/14601)) ([1020f7d](https://github.com/lightdash/lightdash/commit/1020f7df78fc9633e208a682e3d88f6832601c13))
+
+## [0.1609.5](https://github.com/lightdash/lightdash/compare/0.1609.4...0.1609.5) (2025-05-05)
+
+
+### Bug Fixes
+
+* don't reload page on early submit from chart save ([#14664](https://github.com/lightdash/lightdash/issues/14664)) ([870201d](https://github.com/lightdash/lightdash/commit/870201df947c2ef2fab0d782a007e09dc79d2393))
+
+## [0.1609.4](https://github.com/lightdash/lightdash/compare/0.1609.3...0.1609.4) (2025-05-05)
+
+
+### Bug Fixes
+
+* dashboard double fetch on first refresh ([#14661](https://github.com/lightdash/lightdash/issues/14661)) ([efe2406](https://github.com/lightdash/lightdash/commit/efe240615b6c4159333668c72cac556b01720cee))
+
+## [0.1609.3](https://github.com/lightdash/lightdash/compare/0.1609.2...0.1609.3) (2025-05-05)
+
+
+### Bug Fixes
+
+* add query execution time to total time ([#14662](https://github.com/lightdash/lightdash/issues/14662)) ([9f898b9](https://github.com/lightdash/lightdash/commit/9f898b9e476ed15950519d7f2f2381936071b56f))
+
+## [0.1609.2](https://github.com/lightdash/lightdash/compare/0.1609.1...0.1609.2) (2025-05-05)
+
+
+### Bug Fixes
+
+* set cache status to pending when invalidating ([#14658](https://github.com/lightdash/lightdash/issues/14658)) ([f0d1e7f](https://github.com/lightdash/lightdash/commit/f0d1e7f267315289c70d9ebe4e0986a520fbbfd8))
+
+## [0.1609.1](https://github.com/lightdash/lightdash/compare/0.1609.0...0.1609.1) (2025-05-05)
+
+
+### Bug Fixes
+
+* add defer to cli compile ([#14654](https://github.com/lightdash/lightdash/issues/14654)) ([4acb613](https://github.com/lightdash/lightdash/commit/4acb61368343f950160f78055511130e5da98bde))
+
+# [0.1609.0](https://github.com/lightdash/lightdash/compare/0.1608.0...0.1609.0) (2025-05-02)
+
+
+### Features
+
+* fuzzy tree search with fuzzy highlighting ([#14619](https://github.com/lightdash/lightdash/issues/14619)) ([c3b48d2](https://github.com/lightdash/lightdash/commit/c3b48d25f120686a677faff4258cfce2670a76db))
+
+# [0.1608.0](https://github.com/lightdash/lightdash/compare/0.1607.0...0.1608.0) (2025-05-02)
+
+
+### Features
+
+* add fuzzy search and fuzzy tree search hooks ([#14591](https://github.com/lightdash/lightdash/issues/14591)) ([30d2e05](https://github.com/lightdash/lightdash/commit/30d2e05738bfeec4ea003b9762afab665b9efe5a)), closes [#14550](https://github.com/lightdash/lightdash/issues/14550)
+
+# [0.1607.0](https://github.com/lightdash/lightdash/compare/0.1606.7...0.1607.0) (2025-05-02)
+
+
+### Features
+
+* move caching logic ([#14612](https://github.com/lightdash/lightdash/issues/14612)) ([240e1b9](https://github.com/lightdash/lightdash/commit/240e1b9b7219c20cb987e44f140224efb8108c4e))
+
+## [0.1606.7](https://github.com/lightdash/lightdash/compare/0.1606.6...0.1606.7) (2025-05-02)
+
+
+### Bug Fixes
+
+* transfer items modal props ([#14645](https://github.com/lightdash/lightdash/issues/14645)) ([2b82451](https://github.com/lightdash/lightdash/commit/2b824518e3d51141aba3c71d0e65be4e864b96af))
+
+## [0.1606.6](https://github.com/lightdash/lightdash/compare/0.1606.5...0.1606.6) (2025-05-01)
+
+
+### Bug Fixes
+
+* race condition cache being written while another execute query was called ([#14624](https://github.com/lightdash/lightdash/issues/14624)) ([c180e9c](https://github.com/lightdash/lightdash/commit/c180e9c3f4d7ca84566c07138c7873609702c19d))
+
+## [0.1606.5](https://github.com/lightdash/lightdash/compare/0.1606.4...0.1606.5) (2025-05-01)
+
+
+### Bug Fixes
+
+* default selected space when transferring items ([#14618](https://github.com/lightdash/lightdash/issues/14618)) ([e5e8e4c](https://github.com/lightdash/lightdash/commit/e5e8e4cbe4eac63363812b1964aabb1ada006fc6)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+## [0.1606.4](https://github.com/lightdash/lightdash/compare/0.1606.3...0.1606.4) (2025-05-01)
+
+
+### Bug Fixes
+
+* remove invalidate cache from query key ([#14613](https://github.com/lightdash/lightdash/issues/14613)) ([b47e010](https://github.com/lightdash/lightdash/commit/b47e010156eba34ab443d688ba3f0d3f75dc8f19))
+
+## [0.1606.3](https://github.com/lightdash/lightdash/compare/0.1606.2...0.1606.3) (2025-05-01)
+
+
+### Bug Fixes
+
+* query key invalidation in paginated queries ([#14610](https://github.com/lightdash/lightdash/issues/14610)) ([be1f581](https://github.com/lightdash/lightdash/commit/be1f581db71f1863ca83d2af398c0fbf12c3fdc9))
+
+## [0.1606.2](https://github.com/lightdash/lightdash/compare/0.1606.1...0.1606.2) (2025-04-30)
+
+
+### Bug Fixes
+
+* slack upload pdf on dm channel ([#14602](https://github.com/lightdash/lightdash/issues/14602)) ([0e331d4](https://github.com/lightdash/lightdash/commit/0e331d4d5d0ff65ca73e6d57675cf3c8c0db9182))
+
+## [0.1606.1](https://github.com/lightdash/lightdash/compare/0.1606.0...0.1606.1) (2025-04-30)
+
+
+### Bug Fixes
+
+* query refetch after cancelation ([#14603](https://github.com/lightdash/lightdash/issues/14603)) ([90a3ac8](https://github.com/lightdash/lightdash/commit/90a3ac8807e382cb18cfbab81575fdb276000906))
+
+# [0.1606.0](https://github.com/lightdash/lightdash/compare/0.1605.0...0.1606.0) (2025-04-30)
+
+
+### Features
+
+* support --defer dbt on CLi preview ([#14594](https://github.com/lightdash/lightdash/issues/14594)) ([74f4ecb](https://github.com/lightdash/lightdash/commit/74f4ecb0e36bd3280d3fcd92975ac6f9c49af2e0))
+
+# [0.1605.0](https://github.com/lightdash/lightdash/compare/0.1604.2...0.1605.0) (2025-04-29)
+
+
+### Bug Fixes
+
+* remove active field custom dim instead of deleting ([#14579](https://github.com/lightdash/lightdash/issues/14579)) ([1f6b56a](https://github.com/lightdash/lightdash/commit/1f6b56a1e02502fe95f4ac7ddd1cdb5d18cc3afd))
+* Revert "chore: add mantine v8 as an alias" ([#14593](https://github.com/lightdash/lightdash/issues/14593)) ([a48996d](https://github.com/lightdash/lightdash/commit/a48996da490d80fb24d62975796981a787b1e7a2)), closes [#14572](https://github.com/lightdash/lightdash/issues/14572)
+
+
+### Features
+
+* add double legend click handlers ([#14529](https://github.com/lightdash/lightdash/issues/14529)) ([44d0baa](https://github.com/lightdash/lightdash/commit/44d0baa59ecdc2873e0453346488bd74718e72d1))
+* Custom chart UI improvement ([#14537](https://github.com/lightdash/lightdash/issues/14537)) ([4fde108](https://github.com/lightdash/lightdash/commit/4fde1086978480a0fef55720f3ef92afc4e496a9))
+
+## [0.1604.2](https://github.com/lightdash/lightdash/compare/0.1604.1...0.1604.2) (2025-04-29)
+
+
+### Bug Fixes
+
+* duplicate use query client ([#14587](https://github.com/lightdash/lightdash/issues/14587)) ([8b527a5](https://github.com/lightdash/lightdash/commit/8b527a5749ca134a706e8a031af2556fcc6b490b))
+
+## [0.1604.1](https://github.com/lightdash/lightdash/compare/0.1604.0...0.1604.1) (2025-04-29)
+
+
+### Bug Fixes
+
+* use networkMode always for tanstack queries and mutations ([#14585](https://github.com/lightdash/lightdash/issues/14585)) ([2a84227](https://github.com/lightdash/lightdash/commit/2a84227f6fdbe40c3d1e1b22b6928e0b9b9507e1))
+
+# [0.1604.0](https://github.com/lightdash/lightdash/compare/0.1603.0...0.1604.0) (2025-04-29)
+
+
+### Features
+
+* cancel query endpoint ([#14562](https://github.com/lightdash/lightdash/issues/14562)) ([699378b](https://github.com/lightdash/lightdash/commit/699378bf72b42a56341fa10ceb53c8113d1fe69c))
+
+# [0.1603.0](https://github.com/lightdash/lightdash/compare/0.1602.3...0.1603.0) (2025-04-29)
+
+
+### Features
+
+* cancel explore query ([#14551](https://github.com/lightdash/lightdash/issues/14551)) ([ec7f2ae](https://github.com/lightdash/lightdash/commit/ec7f2aed4ef328034d1ceda6ac1804dba08b2b5a))
+
+## [0.1602.3](https://github.com/lightdash/lightdash/compare/0.1602.2...0.1602.3) (2025-04-29)
+
+
+### Bug Fixes
+
+* correctly select and display default space in space tree view ([#14577](https://github.com/lightdash/lightdash/issues/14577)) ([460a426](https://github.com/lightdash/lightdash/commit/460a426157cace1bd98be05e0576dee63e66f51f))
+
 ## [0.1602.2](https://github.com/lightdash/lightdash/compare/0.1602.1...0.1602.2) (2025-04-28)
 
 

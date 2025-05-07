@@ -1,4 +1,4 @@
-import { type SpaceSummary } from '@lightdash/common';
+import { ResourceViewItemType, type SpaceSummary } from '@lightdash/common';
 import { type UseFormReturnType } from '@mantine/form';
 import { type useSpaceManagement } from '../../../../hooks/useSpaceManagement';
 import SpaceCreationForm from '../../SpaceSelector/SpaceCreationForm';
@@ -54,6 +54,7 @@ const SaveToSpaceForm = <T extends SaveToSpaceFormType>({
     return (
         <SpaceSelector
             projectUuid={projectUuid}
+            itemType={ResourceViewItemType.CHART}
             spaces={spaces}
             selectedSpaceUuid={selectedSpaceUuid}
             onSelectSpace={(spaceUuid: string | null) => {

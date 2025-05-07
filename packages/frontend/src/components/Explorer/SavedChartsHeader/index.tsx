@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { DashboardTileTypes, FeatureFlags } from '@lightdash/common';
+import {
+    DashboardTileTypes,
+    FeatureFlags,
+    ResourceViewItemType,
+    type ResourceViewChartItem,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
@@ -783,11 +788,29 @@ const SavedChartsHeader: FC = () => {
                 <TransferItemsModal
                     projectUuid={projectUuid}
                     opened={isTransferToSpaceModalOpen}
-                    items={[savedChart]}
+                    items={[
+                        ...(savedChart && chartViewStats.data
+                            ? [
+                                  {
+                                      data: {
+                                          ...savedChart,
+                                          firstViewedAt:
+                                              chartViewStats.data.firstViewedAt,
+                                          views: chartViewStats.data.views,
+                                      },
+                                      type: ResourceViewItemType.CHART,
+                                  } satisfies ResourceViewChartItem,
+                              ]
+                            : []),
+                    ]}
                     spaces={spaces}
                     isLoading={isMovingChart || isMovingChartToSpace}
                     onClose={transferToSpaceModalHandlers.close}
                     onConfirm={async (newSpaceUuid) => {
+                        if (!newSpaceUuid) {
+                            throw new Error('No space uuid provided');
+                        }
+
                         if (savedChart) {
                             await moveChartToSpace({
                                 uuid: savedChart.uuid,

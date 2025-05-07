@@ -25,6 +25,7 @@ import {
     type TableCalculation,
     type TimeZone,
 } from '@lightdash/common';
+import { useQueryClient } from '@tanstack/react-query';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
 import {
@@ -40,6 +41,7 @@ import { useNavigate, useParams } from 'react-router';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
+    useCancelQuery,
     useGetReadyQueryResults,
     useInfiniteQueryResults,
     type QueryResultsProps,
@@ -1497,9 +1499,17 @@ const ExplorerProvider: FC<
     const [validQueryArgs, setValidQueryArgs] =
         useState<QueryResultsProps | null>(null);
     const query = useGetReadyQueryResults(validQueryArgs);
+    const [queryUuidHistory, setQueryUuidHistory] = useState<string[]>([]);
+    useEffect(() => {
+        if (query.data) {
+            setQueryUuidHistory((prev) => [...prev, query.data.queryUuid]);
+        }
+    }, [query.data]);
+
     const queryResults = useInfiniteQueryResults(
         validQueryArgs?.projectUuid,
-        query.data?.queryUuid,
+        // get last value from queryUuidHistory
+        queryUuidHistory[queryUuidHistory.length - 1],
     );
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { remove: clearQueryResults } = query;
@@ -1553,15 +1563,22 @@ const ExplorerProvider: FC<
         dispatch({ type: ActionType.SET_FETCH_RESULTS_FALSE });
     }, [runQuery, state.shouldFetchResults]);
 
+    const queryClient = useQueryClient();
     const clearExplore = useCallback(async () => {
         resetCachedChartConfig();
-
+        // cancel query creation
+        void queryClient.cancelQueries({
+            queryKey: ['create-query'],
+            exact: false,
+        });
+        // reset query history
+        setQueryUuidHistory([]);
         dispatch({
             type: ActionType.RESET,
             payload: defaultStateWithConfig,
         });
         resetQueryResults();
-    }, [resetQueryResults, defaultStateWithConfig]);
+    }, [queryClient, resetQueryResults, defaultStateWithConfig]);
 
     const navigate = useNavigate();
     const clearQuery = useCallback(async () => {
@@ -1608,6 +1625,29 @@ const ExplorerProvider: FC<
         runQuery,
     ]);
 
+    const { mutate: cancelQueryMutation } = useCancelQuery(
+        projectUuid,
+        query.data?.queryUuid,
+    );
+
+    const cancelQuery = useCallback(() => {
+        // cancel query creation
+        void queryClient.cancelQueries({
+            queryKey: ['create-query', validQueryArgs],
+        });
+
+        if (query.data?.queryUuid) {
+            // remove current queryUuid from setQueryUuidHistory
+            setQueryUuidHistory((prev) => {
+                return prev.filter(
+                    (queryUuid) => queryUuid !== query.data.queryUuid,
+                );
+            });
+            // mark query as cancelled
+            cancelQueryMutation();
+        }
+    }, [queryClient, validQueryArgs, query.data, cancelQueryMutation]);
+
     const actions = useMemo(
         () => ({
             clearExplore,
@@ -1637,6 +1677,7 @@ const ExplorerProvider: FC<
             setChartType,
             setChartConfig,
             fetchResults,
+            cancelQuery,
             toggleExpandedSection,
             addCustomDimension,
             editCustomDimension,
@@ -1673,6 +1714,7 @@ const ExplorerProvider: FC<
             setChartType,
             setChartConfig,
             fetchResults,
+            cancelQuery,
             toggleExpandedSection,
             addCustomDimension,
             editCustomDimension,

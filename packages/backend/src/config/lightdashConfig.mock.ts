@@ -77,7 +77,6 @@ export const lightdashConfigMock: LightdashConfig = {
         path: '/metrics',
     },
     chart: { versionHistory: { daysLimit: 0 } },
-    customVisualizations: { enabled: false },
     database: {
         connectionUri: undefined,
         maxConnections: undefined,

@@ -2,12 +2,12 @@ import {
     type ApiError,
     type ApiExecuteAsyncQueryResults,
     type ApiGetAsyncQueryResults,
-    type ApiQueryResults,
+    type ApiSuccessEmpty,
     assertUnreachable,
-    type DashboardFilters,
     type DateGranularity,
     DEFAULT_RESULTS_PAGE_SIZE,
-    type ExecuteAsyncQueryRequestParams,
+    type ExecuteAsyncMetricQueryRequestParams,
+    type ExecuteAsyncSavedChartRequestParams,
     type MetricQuery,
     ParameterError,
     QueryExecutionContext,
@@ -16,9 +16,8 @@ import {
     type ResultRow,
     sleep,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
@@ -35,149 +34,6 @@ export type QueryResultsProps = {
 };
 
 /**
- * Aggregates pagination results for a query
- */
-const getQueryPaginatedResults = async (
-    projectUuid: string,
-    data: ExecuteAsyncQueryRequestParams,
-    pageSize?: number, // pageSize is used when getting the results but not when creating the query
-): Promise<
-    ApiQueryResults & {
-        queryUuid: string;
-        appliedDashboardFilters: DashboardFilters | null;
-        warehouseExecutionTimeMs?: number;
-        totalClientFetchTimeMs?: number;
-    }
-> => {
-    const startTime = new Date();
-
-    const executeQueryResponse =
-        await lightdashApi<ApiExecuteAsyncQueryResults>({
-            url: `/projects/${projectUuid}/query`,
-            version: 'v2',
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
-
-    // Get all page rows in sequence
-    let allRows: ResultRow[] = [];
-    let currentPage: ApiGetAsyncQueryResults | undefined;
-    let backoffMs = 250; // Start with 250ms
-
-    while (
-        !currentPage ||
-        currentPage.status === QueryHistoryStatus.PENDING ||
-        (currentPage.status === QueryHistoryStatus.READY &&
-            currentPage.nextPage)
-    ) {
-        const page =
-            currentPage?.status === QueryHistoryStatus.READY
-                ? currentPage?.nextPage
-                : 1;
-
-        const searchParams = new URLSearchParams();
-        if (page) {
-            searchParams.set('page', page.toString());
-        }
-        if (pageSize) {
-            searchParams.set('pageSize', pageSize.toString());
-        }
-
-        const urlQueryParams = searchParams.toString();
-        currentPage = await lightdashApi<ApiGetAsyncQueryResults>({
-            url: `/projects/${projectUuid}/query/${
-                executeQueryResponse.queryUuid
-            }${urlQueryParams ? `?${urlQueryParams}` : ''}`,
-            version: 'v2',
-            method: 'GET',
-            body: undefined,
-        });
-
-        const { status } = currentPage;
-
-        switch (status) {
-            case QueryHistoryStatus.CANCELLED:
-                throw <ApiError>{
-                    status: 'error',
-                    error: {
-                        name: 'Error',
-                        statusCode: 500,
-                        message: 'Query cancelled',
-                        data: {},
-                    },
-                };
-            case QueryHistoryStatus.ERROR:
-                throw <ApiError>{
-                    status: 'error',
-                    error: {
-                        name: 'Error',
-                        statusCode: 500,
-                        message: currentPage.error ?? 'Query failed',
-                        data: {},
-                    },
-                };
-            case QueryHistoryStatus.READY:
-                allRows = allRows.concat(currentPage.rows);
-                break;
-            case QueryHistoryStatus.PENDING:
-                await sleep(backoffMs);
-                // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
-                if (backoffMs < 1000) {
-                    backoffMs = Math.min(backoffMs * 2, 1000);
-                }
-                break;
-            default:
-                return assertUnreachable(status, 'Unknown query status');
-        }
-    }
-
-    const endTime = new Date();
-    const totalTime = endTime.getTime() - startTime.getTime();
-
-    return {
-        queryUuid: currentPage.queryUuid,
-        metricQuery: currentPage.metricQuery,
-        cacheMetadata: executeQueryResponse.cacheMetadata,
-        rows: allRows,
-        fields: currentPage.fields,
-        warehouseExecutionTimeMs:
-            currentPage.status === QueryHistoryStatus.READY
-                ? currentPage.initialQueryExecutionMs
-                : undefined,
-        totalClientFetchTimeMs: totalTime,
-        appliedDashboardFilters: executeQueryResponse.appliedDashboardFilters,
-    };
-};
-
-export const useUnderlyingDataResults = (
-    filters: MetricQuery['filters'],
-    underlyingDataSourceQueryUuid?: string,
-    underlyingDataItemId?: string,
-) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-
-    return useQuery<ApiQueryResults, ApiError>({
-        queryKey: [
-            'underlyingDataResults',
-            projectUuid,
-            underlyingDataSourceQueryUuid,
-            underlyingDataItemId,
-            filters,
-        ],
-        enabled: Boolean(projectUuid) && Boolean(underlyingDataSourceQueryUuid),
-        queryFn: () => {
-            return getQueryPaginatedResults(projectUuid!, {
-                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
-                underlyingDataSourceQueryUuid: underlyingDataSourceQueryUuid!,
-                underlyingDataItemId,
-                filters: convertDateFilters(filters),
-            });
-        },
-        retry: false,
-    });
-};
-
-/**
  * Run query & get first results page
  */
 
@@ -186,15 +42,30 @@ export type ReadyQueryResultsPageWithClientFetchTimeMs =
         clientFetchTimeMs: number;
     };
 
-export const executeQuery = async (
+const executeAsyncMetricQuery = async (
     projectUuid: string,
-    data: ExecuteAsyncQueryRequestParams,
+    data: ExecuteAsyncMetricQueryRequestParams,
+    options: { signal?: AbortSignal } = {},
 ): Promise<ApiExecuteAsyncQueryResults> =>
     lightdashApi<ApiExecuteAsyncQueryResults>({
-        url: `/projects/${projectUuid}/query`,
+        url: `/projects/${projectUuid}/query/metric-query`,
         version: 'v2',
         method: 'POST',
         body: JSON.stringify(data),
+        signal: options.signal,
+    });
+
+const executeAsyncSavedChartQuery = async (
+    projectUuid: string,
+    data: ExecuteAsyncSavedChartRequestParams,
+    options: { signal?: AbortSignal } = {},
+): Promise<ApiExecuteAsyncQueryResults> =>
+    lightdashApi<ApiExecuteAsyncQueryResults>({
+        url: `/projects/${projectUuid}/query/chart`,
+        version: 'v2',
+        method: 'POST',
+        body: JSON.stringify(data),
+        signal: options.signal,
     });
 
 export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
@@ -206,30 +77,46 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
     const result = useQuery<ApiExecuteAsyncQueryResults, ApiError>({
         enabled: !!data,
         queryKey: ['create-query', data],
-        queryFn: () => {
+        queryFn: ({ signal }) => {
             if (data?.chartUuid && data?.chartVersionUuid) {
-                return executeQuery(data.projectUuid, {
-                    context: QueryExecutionContext.CHART_HISTORY,
-                    chartUuid: data.chartUuid,
-                    versionUuid: data.chartVersionUuid,
-                });
-            } else if (data?.chartUuid) {
-                return executeQuery(data.projectUuid, {
-                    context: QueryExecutionContext.CHART,
-                    chartUuid: data.chartUuid,
-                });
-            } else if (data?.query) {
-                return executeQuery(data.projectUuid, {
-                    context: QueryExecutionContext.EXPLORE,
-                    query: {
-                        ...data.query,
-                        filters: convertDateFilters(data.query.filters),
-                        timezone: data.query.timezone ?? undefined,
-                        exploreName: data.tableId,
-                        granularity: data.dateZoomGranularity,
+                return executeAsyncSavedChartQuery(
+                    data.projectUuid,
+                    {
+                        context: QueryExecutionContext.CHART_HISTORY,
+                        chartUuid: data.chartUuid,
+                        versionUuid: data.chartVersionUuid,
                     },
-                    invalidateCache: true, // Note: do not cache explore queries
-                });
+                    { signal },
+                );
+            } else if (data?.chartUuid) {
+                return executeAsyncSavedChartQuery(
+                    data.projectUuid,
+                    {
+                        context: QueryExecutionContext.CHART,
+                        chartUuid: data.chartUuid,
+                    },
+                    { signal },
+                );
+            } else if (data?.query) {
+                return executeAsyncMetricQuery(
+                    data.projectUuid,
+                    {
+                        context: QueryExecutionContext.EXPLORE,
+                        query: {
+                            ...data.query,
+                            filters: convertDateFilters(data.query.filters),
+                            timezone: data.query.timezone ?? undefined,
+                            exploreName: data.tableId,
+                            dateZoom: data.dateZoomGranularity
+                                ? {
+                                      granularity: data.dateZoomGranularity,
+                                  }
+                                : undefined,
+                        },
+                        invalidateCache: true, // Note: do not cache explore queries
+                    },
+                    { signal },
+                );
             }
             return Promise.reject(
                 new ParameterError('Missing QueryResultsProps'),
@@ -286,15 +173,18 @@ export type InfiniteQueryResults = Partial<
     >
 > & {
     projectUuid?: string;
+    queryStatus?: QueryHistoryStatus;
     rows: ResultRow[];
     isInitialLoading: boolean;
     isFetchingFirstPage: boolean;
     isFetchingRows: boolean;
+    isFetchingAllPages: boolean;
     fetchMoreRows: () => void;
     setFetchAll: (value: boolean) => void;
     fetchAll: boolean;
     hasFetchedAllRows: boolean;
     totalClientFetchTimeMs: number | undefined;
+    error: ApiError | null;
 };
 
 // This hook lazy load results has they are needed in the UI
@@ -363,18 +253,17 @@ export const useInfiniteQueryResults = (
         hasFetchedAllRows,
     ]);
 
+    const queryClient = useQueryClient();
+
+    // Initial backoff time in ms
+    const backoffRef = useRef(250);
+
     const nextPage = useQuery<
         ApiGetAsyncQueryResults & { clientFetchTimeMs: number },
         ApiError
     >({
         enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
-        queryKey: [
-            'query-page',
-            fetchArgs.projectUuid,
-            fetchArgs.queryUuid,
-            fetchArgs.page,
-            fetchArgs.pageSize,
-        ],
+        queryKey: ['query-page', fetchArgs],
         queryFn: async () => {
             const startTime = performance.now();
             const results = await getResultsPage(
@@ -383,14 +272,77 @@ export const useInfiniteQueryResults = (
                 fetchArgs.page,
                 fetchArgs.pageSize,
             );
-            return {
-                ...results,
-                clientFetchTimeMs: performance.now() - startTime,
-            };
+
+            const { status } = results;
+
+            const clientFetchTimeMs = performance.now() - startTime;
+
+            switch (status) {
+                case QueryHistoryStatus.ERROR: {
+                    backoffRef.current = 250;
+                    throw <ApiError>{
+                        status: 'error',
+                        error: {
+                            name: 'Error',
+                            statusCode: 500,
+                            message: results.error ?? 'Query failed',
+                            data: {},
+                        },
+                    };
+                }
+                case QueryHistoryStatus.CANCELLED: {
+                    backoffRef.current = 250;
+                    throw <ApiError>{
+                        status: 'error',
+                        error: {
+                            name: 'Error',
+                            statusCode: 500,
+                            message: 'Query cancelled',
+                            data: {},
+                        },
+                    };
+                }
+                case QueryHistoryStatus.PENDING: {
+                    // Invalidate page. Note we can't use refetch as it bypasses the "enabled" check: https://github.com/TanStack/query/issues/1965
+                    void sleep(backoffRef.current).then(() =>
+                        queryClient.invalidateQueries([
+                            'query-page',
+                            fetchArgs,
+                        ]),
+                    );
+                    // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
+                    if (backoffRef.current < 1000) {
+                        backoffRef.current = Math.min(
+                            backoffRef.current * 2,
+                            1000,
+                        );
+                    }
+                    return {
+                        ...results,
+                        clientFetchTimeMs,
+                    };
+                }
+                case QueryHistoryStatus.READY: {
+                    backoffRef.current = 250;
+                    setFetchedPages((prevState) => [
+                        ...prevState,
+                        {
+                            ...results,
+                            clientFetchTimeMs,
+                        },
+                    ]);
+                    return {
+                        ...results,
+                        clientFetchTimeMs,
+                    };
+                }
+                default:
+                    return assertUnreachable(status, 'Unknown query status');
+            }
         },
         staleTime: Infinity, // the data will never be considered stale
     });
-    const { data: nextPageData, refetch: refetchNextPage } = nextPage;
+    const { data: nextPageData } = nextPage;
 
     // On error
     useEffect(() => {
@@ -398,58 +350,6 @@ export const useInfiniteQueryResults = (
             setErrorResponse(nextPage.error);
         }
     }, [nextPage.error, setErrorResponse]);
-
-    // Initial backoff time in ms
-    const backoffRef = useRef(250);
-    // On success
-    useEffect(() => {
-        if (!nextPageData) return;
-        const { status } = nextPageData;
-        switch (status) {
-            case QueryHistoryStatus.ERROR: {
-                backoffRef.current = 250;
-                setErrorResponse({
-                    status: 'error',
-                    error: {
-                        name: 'Error',
-                        statusCode: 500,
-                        message: nextPageData.error ?? 'Query failed',
-                        data: {},
-                    },
-                });
-                break;
-            }
-            case QueryHistoryStatus.CANCELLED: {
-                backoffRef.current = 250;
-                setErrorResponse({
-                    status: 'error',
-                    error: {
-                        name: 'Error',
-                        statusCode: 500,
-                        message: 'Query cancelled',
-                        data: {},
-                    },
-                });
-                break;
-            }
-            case QueryHistoryStatus.PENDING: {
-                // Re-fetch page
-                void sleep(backoffRef.current).then(() => refetchNextPage());
-                // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
-                if (backoffRef.current < 1000) {
-                    backoffRef.current = Math.min(backoffRef.current * 2, 1000);
-                }
-                break;
-            }
-            case QueryHistoryStatus.READY: {
-                backoffRef.current = 250;
-                setFetchedPages((prevState) => [...prevState, nextPageData]);
-                break;
-            }
-            default:
-                return assertUnreachable(status, 'Unknown query status');
-        }
-    }, [nextPageData, refetchNextPage, setErrorResponse]);
 
     useEffect(() => {
         // Reset fetched pages before updating the fetch args
@@ -476,13 +376,18 @@ export const useInfiniteQueryResults = (
             return undefined;
         }
 
-        return fetchAll
+        const totalPagesFetchTime = fetchAll
             ? Math.round(
                   fetchedPages.reduce((acc, page) => {
                       return acc + page.clientFetchTimeMs;
                   }, 0),
               )
             : Math.round(fetchedPages[0]?.clientFetchTimeMs ?? 0); // If we're not fetching all pages, only return the time for the first page (enough to render the viz)
+
+        return (
+            totalPagesFetchTime +
+            (fetchedPages[0]?.initialQueryExecutionMs ?? 0) // Add the time it took to execute the initial query
+        );
     }, [fetchAll, fetchedPages]);
 
     const isInitialLoading = useMemo(() => {
@@ -493,6 +398,7 @@ export const useInfiniteQueryResults = (
         () => ({
             projectUuid,
             queryUuid,
+            queryStatus: nextPageData?.status, // show latest status
             metricQuery: fetchedPages[0]?.metricQuery,
             fields: fetchedPages[0]?.fields,
             totalResults: fetchedPages[0]?.totalResults,
@@ -509,7 +415,9 @@ export const useInfiniteQueryResults = (
                 (fetchedPages[0]?.totalResults === undefined ||
                     (fetchedPages[0]?.totalResults > 0 &&
                         fetchedRows.length === 0)),
+            isFetchingAllPages: !!queryUuid && fetchAll && !hasFetchedAllRows,
             fetchAll,
+            error: nextPage.error,
         }),
         [
             projectUuid,
@@ -522,6 +430,25 @@ export const useInfiniteQueryResults = (
             totalClientFetchTimeMs,
             isInitialLoading,
             fetchAll,
+            nextPageData,
+            nextPage.error,
         ],
     );
+};
+
+export const useCancelQuery = (projectUuid?: string, queryUuid?: string) => {
+    return useMutation({
+        mutationKey: ['cancel-query', projectUuid, queryUuid],
+        mutationFn: () => {
+            if (!projectUuid || !queryUuid) {
+                throw new Error('Project UUID or Query UUID is undefined');
+            }
+            return lightdashApi<ApiSuccessEmpty>({
+                method: 'POST',
+                url: `/projects/${projectUuid}/query/${queryUuid}/cancel`,
+                version: 'v2',
+                body: JSON.stringify({}),
+            });
+        },
+    });
 };

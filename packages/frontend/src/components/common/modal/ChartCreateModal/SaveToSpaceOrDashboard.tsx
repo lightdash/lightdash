@@ -178,7 +178,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
             const initialSpaceUuid = isValidDefaultSpaceUuid
                 ? defaultSpaceUuid
-                : spaces?.[0]?.uuid;
+                : spaces?.find((space) => !space.parentSpaceUuid)?.uuid;
 
             if (initialSpaceUuid) {
                 spaceManagement.setSelectedSpaceUuid(initialSpaceUuid);
@@ -334,6 +334,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         <form
             onSubmit={(e) => {
                 if (currentStep === ModalStep.InitialInfo) {
+                    e.preventDefault();
                     return;
                 }
                 form.onSubmit((values) => handleOnSubmit(values))(e);

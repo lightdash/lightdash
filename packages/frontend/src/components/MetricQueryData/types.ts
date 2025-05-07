@@ -1,4 +1,5 @@
 import {
+    type DateZoom,
     type ItemsMap,
     type PivotReference,
     type ResultValue,
@@ -10,6 +11,7 @@ export type UnderlyingDataConfig = {
     fieldValues: Record<string, ResultValue>;
     dimensions?: string[];
     pivotReference?: PivotReference;
+    dateZoom?: DateZoom;
 };
 
 export type DrillDownConfig = {

@@ -22,47 +22,51 @@ export const generateSlug = (name: string) => {
     return sanitizedSlug;
 };
 
-/**
- * Get all slugs with hierarchy for a given slug
- * For example, "parent-space/child-space" will return ["parent-space", "parent-space/child-space"]
- * @param slug - The slug to get the hierarchy for
- * @returns An array of slugs with hierarchy
- */
-export const getSlugsWithHierarchy = (slug: string) =>
-    slug.split('/').reduce<string[]>((acc, s) => {
-        if (acc.length === 0) {
-            return [s];
-        }
-        return [...acc, `${acc[acc.length - 1]}/${s}`];
-    }, []);
-
-/**
- * Get the parent slug from a slug with hierarchy
- * For example, "parent-space/child-space" will return "parent-space"
- * @param slug - The slug to get the parent slug from
- * @returns The parent slug
- */
-export const getParentSlug = (slug: string) =>
-    slug.split('/').slice(0, -1).join('/');
-
-/**
- * Get the label from a slug with hierarchy
- * For example, "parent-space/child-space" will return "child-space"
- * @param slug - The slug to get the label from
- * @returns The label
- */
-export const getLabelFromSlug = (slug: string) => slug.split('/').pop() ?? slug;
-
-/**
- * Get the ltree path from a slug with hierarchy
- * For example, "parent-space/child-space" will return "parent_space.child_space"
- * Verifies that each slug is a valid PostgreSQL ltree label (A-Za-z0-9_)
- * @param slug - The slug to get the ltree path from
- * @returns The ltree path
- */
 export const getLtreePathFromSlug = (slug: string) => {
-    const slugs = slug.split('/');
-    const sanitizedSlugs = slugs.map((s) => sanitizeSlug(s, false));
+    let path = slug;
+    // This is for backwards compatibility with the old slug format that contained hierarchy
+    if (path.includes('/')) {
+        path = path.split('/').join('___');
+    }
 
-    return sanitizedSlugs.join('.').replace(/-/g, '_');
+    return path.replace(/-/g, '_');
 };
+
+export const getLtreePathFromContentAsCodePath = (path: string) =>
+    path.replace(/-/g, '_').replace(/\//g, '.');
+
+export const getContentAsCodePathFromLtreePath = (path: string) =>
+    path.replace(/_/g, '-').replace(/\./g, '/');
+
+export const getDeepestPaths = (paths: string[]): string[] => {
+    const uniquePaths = Array.from(new Set(paths));
+    const result: string[] = [];
+
+    for (const path of uniquePaths) {
+        const pathSegments = path.split('.');
+
+        const isPrefix = uniquePaths.some((otherPath) => {
+            if (path === otherPath) return false;
+
+            const otherSegments = otherPath.split('.');
+
+            if (pathSegments.length < otherSegments.length) {
+                const potentialPrefix = otherSegments
+                    .slice(0, pathSegments.length)
+                    .join('.');
+                return potentialPrefix === path;
+            }
+
+            return false;
+        });
+
+        if (!isPrefix) {
+            result.push(path);
+        }
+    }
+
+    return result;
+};
+
+export const isSubPath = (path: string, subPath: string) =>
+    subPath.startsWith(path) && subPath[path.length] === '.';

@@ -1,43 +1,65 @@
-import { ActionIcon, Group, Paper, rem, Text } from '@lightdash/mantine-v7';
+import {
+    ActionIcon,
+    Group,
+    Highlight,
+    Paper,
+    rem,
+} from '@lightdash/mantine-v7';
 import {
     IconCheck,
     IconChevronDown,
     IconChevronRight,
     IconFolder,
 } from '@tabler/icons-react';
-import React from 'react';
+import React, { useMemo } from 'react';
 
 import MantineIcon from '../MantineIcon';
 
+import { clsx } from '@mantine/core';
 import classes from './TreeItem.module.css';
 
 type Props = {
     label: React.ReactNode;
+    matchHighlights?: string[];
     expanded?: boolean;
     selected?: boolean;
     hasChildren?: boolean;
-    withPadding?: boolean;
     isRoot?: boolean;
-    onToggleSelect?: () => void;
-    onToggleExpand?: () => void;
+    className?: string;
+    withPadding?: boolean;
+    withRootSelectable?: boolean;
+    onClick?: () => void;
+    onClickExpand?: () => void;
 };
 
 const TreeItem: React.FC<Props> = ({
     label,
+    matchHighlights = [],
     expanded = false,
     selected = false,
     hasChildren = false,
     withPadding = true,
+    withRootSelectable = true,
     isRoot = false,
-    onToggleSelect,
-    onToggleExpand,
+    className,
+    onClick,
+    onClickExpand,
 }) => {
+    const stringLabel = useMemo(() => {
+        if (typeof label === 'string') {
+            return label;
+        }
+        throw new Error(
+            'TreeItem label must always be a string in order to use Highlight',
+        );
+    }, [label]);
+
     return (
         <Paper
             component={Group}
             data-selected={selected}
-            data-is-root={isRoot}
-            className={classes.paper}
+            data-is-selectable={!isRoot || withRootSelectable}
+            className={clsx(classes.paper, className)}
             miw={rem(200)}
             w="100%"
             gap={rem(4)}
@@ -50,7 +72,7 @@ const TreeItem: React.FC<Props> = ({
             pr={withPadding ? 'xs' : undefined}
             radius="sm"
             wrap="nowrap"
-            onClick={onToggleSelect}
+            onClick={onClick}
         >
             {isRoot ? null : (
                 <ActionIcon
@@ -58,7 +80,7 @@ const TreeItem: React.FC<Props> = ({
                     className={classes.actionIcon}
                     onClick={(e) => {
                         e.stopPropagation();
-                        onToggleExpand?.();
+                        onClickExpand?.();
                     }}
                     size="xs"
                     variant="transparent"
@@ -79,15 +101,19 @@ const TreeItem: React.FC<Props> = ({
                 style={{ flexShrink: 0 }}
             />
 
-            <Text
-                inline
+            <Highlight
                 truncate="end"
                 fz={rem(13)}
                 fw={500}
                 style={{ flexGrow: 1 }}
+                highlight={matchHighlights}
+                highlightStyles={{
+                    backgroundColor: 'transparent',
+                    color: 'var(--mantine-color-blue-8)',
+                }}
             >
-                {label}
-            </Text>
+                {stringLabel}
+            </Highlight>
 
             {!isRoot && selected && (
                 <MantineIcon

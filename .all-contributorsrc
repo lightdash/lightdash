@@ -1614,6 +1614,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "hhhonzik",
+      "name": "Honza Stepanovsky",
+      "avatar_url": "https://avatars.githubusercontent.com/u/854103?v=4",
+      "profile": "http://janstepanovsky.cz",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

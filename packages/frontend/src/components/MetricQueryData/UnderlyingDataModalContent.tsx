@@ -25,7 +25,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { downloadCsv } from '../../api/csv';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import { useUnderlyingDataResults } from '../../hooks/useQueryResults';
+import { useUnderlyingDataResults } from '../../hooks/useUnderlyingDataResults';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
@@ -223,7 +223,12 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         error,
         data: resultsData,
         isInitialLoading,
-    } = useUnderlyingDataResults(filters, queryUuid, underlyingDataItemId);
+    } = useUnderlyingDataResults(
+        filters,
+        queryUuid,
+        underlyingDataItemId,
+        underlyingDataConfig?.dateZoom,
+    );
 
     const exploreFromHereUrl = useMemo(() => {
         if (!resultsData) {

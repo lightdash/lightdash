@@ -39,20 +39,21 @@ export const ExplorerResults = memo(() => {
     const totalRows = useExplorerContext(
         (context) => context.queryResults.totalResults,
     );
-    const isInitialLoading = useExplorerContext((context) => {
-        const isCreatingQuery = context.query.isFetching;
-        const isFetchingFirstPage = context.queryResults.isFetchingFirstPage;
-        return isCreatingQuery || isFetchingFirstPage;
-    });
+
     const isFetchingRows = useExplorerContext(
-        (context) => context.queryResults.isFetchingRows,
+        (context) =>
+            context.queryResults.isFetchingRows && !context.queryResults.error,
     );
     const fetchMoreRows = useExplorerContext(
         (context) => context.queryResults.fetchMoreRows,
     );
     const status = useExplorerContext((context) => {
+        const isCreatingQuery = context.query.isFetching;
+        const isFetchingFirstPage = context.queryResults.isFetchingFirstPage;
         // Don't return context.queryResults.status because we changed from mutation to query so 'loading' as a different meaning
-        if (context.query.isFetching) {
+        if (context.queryResults.error) {
+            return 'error';
+        } else if (isCreatingQuery || isFetchingFirstPage) {
             return 'loading';
         } else if (context.query.status === 'loading') {
             return 'idle';
@@ -63,9 +64,10 @@ export const ExplorerResults = memo(() => {
     const setColumnOrder = useExplorerContext(
         (context) => context.actions.setColumnOrder,
     );
-    const { data: exploreData } = useExplore(activeTableName, {
-        refetchOnMount: false,
-    });
+    const { data: exploreData, isInitialLoading: isExploreLoading } =
+        useExplore(activeTableName, {
+            refetchOnMount: false,
+        });
     const tableCalculations = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
@@ -160,7 +162,7 @@ export const ExplorerResults = memo(() => {
 
     if (columns.length === 0) return <EmptyStateNoColumns />;
 
-    if (isInitialLoading) return <EmptyStateExploreLoading />;
+    if (isExploreLoading) return <EmptyStateExploreLoading />;
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
             <Box px="xs" py="lg">

@@ -5,7 +5,7 @@ databases:
     ipAllowList: []
     postgresMajorVersion: 13
     plan: standard
-    previewPlan: basic-256mb
+    previewPlan: basic-1gb
 
 services:
   - type: pserv
@@ -24,6 +24,8 @@ services:
     initialDeployHook: /usr/bin/renderDeployHook.sh
     envVars:
       - fromGroup: pr-settings
+      - key: PGMAXCONNECTIONS
+        value: 30
       - key: PGHOST
         fromDatabase:
           name: jaffle_db_pg_13

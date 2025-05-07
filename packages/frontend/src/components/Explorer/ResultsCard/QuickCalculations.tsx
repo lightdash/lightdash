@@ -89,6 +89,17 @@ const isCalculationAvailable = (
     return '';
 };
 
+const getFloatingType = (warehouseType: WarehouseTypes | undefined) => {
+    switch (warehouseType) {
+        case WarehouseTypes.BIGQUERY:
+            return 'FLOAT64';
+        case WarehouseTypes.TRINO:
+            return 'DOUBLE';
+        default:
+            return 'FLOAT';
+    }
+};
+
 const getSqlForQuickCalculation = (
     quickCalculation: QuickCalculation,
     fieldReference: string,
@@ -96,8 +107,7 @@ const getSqlForQuickCalculation = (
     warehouseType: WarehouseTypes | undefined,
 ) => {
     const fieldQuoteChar = getFieldQuoteChar(warehouseType);
-    const floatType =
-        warehouseType === WarehouseTypes.BIGQUERY ? 'FLOAT64' : 'FLOAT';
+    const floatType = getFloatingType(warehouseType);
     const orderSql = (reverseSorting: boolean = false) =>
         sorts.length > 0
             ? `ORDER BY ${sorts

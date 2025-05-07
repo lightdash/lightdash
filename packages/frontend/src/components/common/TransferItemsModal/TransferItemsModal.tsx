@@ -1,4 +1,9 @@
-import { type SpaceSummary } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ResourceViewItemType,
+    type ResourceViewItem,
+    type SpaceSummary,
+} from '@lightdash/common';
 import { Alert, Box, Button, Group, LoadingOverlay, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
@@ -14,11 +19,12 @@ type Props<T, U> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     items: T;
     spaces: U;
     isLoading: boolean;
-    onConfirm: (spaceUuid: string) => void;
+    onConfirm: (spaceUuid: string | null) => void;
 };
 
 const TransferItemsModal = <
-    T extends Array<unknown>,
+    R extends ResourceViewItem,
+    T extends Array<R>,
     U extends Array<NestableItem & Pick<SpaceSummary, 'isPrivate' | 'access'>>,
 >({
     projectUuid,
@@ -29,6 +35,30 @@ const TransferItemsModal = <
     onConfirm,
     isLoading,
 }: Props<T, U>) => {
+    const isMovingSingleItem = items.length === 1;
+
+    const defaultSpaceUuid = useMemo(() => {
+        // return space uuid only if there's a single item (i.e. not a bulk transfer)
+        if (!isMovingSingleItem) return undefined;
+
+        const item = items[0];
+
+        switch (item.type) {
+            case ResourceViewItemType.SPACE:
+                return item.data.parentSpaceUuid ?? undefined;
+            case ResourceViewItemType.CHART:
+            case ResourceViewItemType.DASHBOARD:
+                return item.data.spaceUuid;
+            default:
+                return assertUnreachable(item, 'Invalid item type');
+        }
+    }, [isMovingSingleItem, items]);
+
+    const singleItemType = useMemo(() => {
+        if (!isMovingSingleItem) return undefined;
+        return items[0].type;
+    }, [isMovingSingleItem, items]);
+
     const {
         selectedSpaceUuid,
         setSelectedSpaceUuid,
@@ -39,7 +69,10 @@ const TransferItemsModal = <
         handleCreateNewSpace,
         openCreateSpaceForm,
         closeCreateSpaceForm,
-    } = useSpaceManagement({ projectUuid });
+    } = useSpaceManagement({
+        projectUuid,
+        defaultSpaceUuid,
+    });
 
     const selectedSpaceLabel = useMemo(() => {
         if (!selectedSpaceUuid) return '';
@@ -49,9 +82,7 @@ const TransferItemsModal = <
     }, [selectedSpaceUuid, spaces]);
 
     const handleConfirm = useCallback(() => {
-        if (selectedSpaceUuid) {
-            onConfirm(selectedSpaceUuid);
-        }
+        onConfirm(selectedSpaceUuid);
     }, [selectedSpaceUuid, onConfirm]);
 
     const createSpace = useCallback(async () => {
@@ -64,6 +95,8 @@ const TransferItemsModal = <
             console.error('Failed to create space:', error);
         }
     }, [handleCreateNewSpace, onConfirm]);
+
+    if (items.length === 0) return null;
 
     return (
         <MantineModal
@@ -104,7 +137,11 @@ const TransferItemsModal = <
                             </Button>
                         ) : (
                             <Button
-                                disabled={!selectedSpaceUuid}
+                                disabled={
+                                    !selectedSpaceUuid &&
+                                    singleItemType !==
+                                        ResourceViewItemType.SPACE
+                                }
                                 onClick={handleConfirm}
                             >
                                 Confirm
@@ -117,6 +154,7 @@ const TransferItemsModal = <
             <LoadingOverlay
                 visible={createSpaceMutation.isLoading || isLoading}
             />
+
             {isCreatingNewSpace ? (
                 <SpaceCreationForm
                     spaceName={newSpaceName}
@@ -133,29 +171,28 @@ const TransferItemsModal = <
                     </Text>
 
                     <SpaceSelector
+                        itemType={singleItemType}
                         projectUuid={projectUuid}
                         spaces={spaces}
                         selectedSpaceUuid={selectedSpaceUuid}
                         onSelectSpace={setSelectedSpaceUuid}
                         isLoading={createSpaceMutation.isLoading}
-                        scrollingContainerProps={{
-                            // this is a hack that prevents the modal from jumping when the Alert is shown or hidden.
-                            // PX value is based on the height of the Alert component below + spacing after the SpaceSelector.
-                            h: selectedSpaceLabel ? '350px' : '412px',
-                        }}
-                    />
+                    >
+                        {!isCreatingNewSpace && selectedSpaceLabel ? (
+                            <Alert color="gray" sx={{ flexShrink: 0 }}>
+                                <Text fw={500}>
+                                    Transfer {items.length}{' '}
+                                    {items.length > 1 ? 'items' : 'item'}{' '}
+                                    {!isCreatingNewSpace
+                                        ? `"${selectedSpaceLabel}"`
+                                        : ''}
+                                    .
+                                </Text>
+                            </Alert>
+                        ) : null}
+                    </SpaceSelector>
                 </>
             )}
-
-            {!isCreatingNewSpace && selectedSpaceLabel ? (
-                <Alert color="gray">
-                    <Text fw={500}>
-                        Transfer {items.length}{' '}
-                        {items.length > 1 ? 'items' : 'item'}{' '}
-                        {!isCreatingNewSpace ? `"${selectedSpaceLabel}"` : ''} .
-                    </Text>
-                </Alert>
-            ) : null}
         </MantineModal>
     );
 };

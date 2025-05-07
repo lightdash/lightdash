@@ -2,6 +2,7 @@ import {
     Center,
     Divider,
     SegmentedControl,
+    type SegmentedControlProps,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -10,15 +11,20 @@ import React from 'react';
 import MantineIcon from '../MantineIcon';
 
 type AdminContentViewFilterProps = {
+    withDivider?: boolean;
+    segmentedControlProps?: Omit<
+        SegmentedControlProps,
+        'data' | 'value' | 'onChange'
+    >;
     value: 'all' | 'shared';
     onChange: (value: 'all' | 'shared') => void;
-    withDivider?: boolean;
 };
 
 const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
+    withDivider = true,
+    segmentedControlProps,
     value,
     onChange,
-    withDivider = true,
 }) => {
     return (
         <>
@@ -36,10 +42,7 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
             <SegmentedControl
                 size="xs"
                 radius="md"
-                value={value}
-                onChange={(newValue) => {
-                    onChange(newValue as 'all' | 'shared');
-                }}
+                {...segmentedControlProps}
                 data={[
                     {
                         value: 'shared',
@@ -75,6 +78,10 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                         ),
                     },
                 ]}
+                value={value}
+                onChange={(newValue) => {
+                    onChange(newValue as 'all' | 'shared');
+                }}
             />
         </>
     );

@@ -1,9 +1,14 @@
 import {
+    GroupByColumn,
     MetricQuery,
+    SortBy,
+    ValuesColumn,
     type CacheMetadata,
     type DashboardFilters,
     type DateGranularity,
+    type DateZoom,
     type Filters,
+    type PivotIndexColum,
     type QueryExecutionContext,
     type ResultsPaginationArgs,
     type SessionUser,
@@ -27,7 +32,7 @@ export type GetAsyncQueryResultsArgs = Omit<
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
-    granularity?: DateGranularity;
+    dateZoom?: DateZoom;
 };
 
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
@@ -40,16 +45,51 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     dashboardUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
-    granularity?: DateGranularity;
+    dateZoom?: DateZoom;
 };
 
 export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {
     underlyingDataSourceQueryUuid: string;
     filters: Filters;
     underlyingDataItemId?: string;
+    dateZoom?: DateZoom;
 };
 
 export type ExecuteAsyncQueryReturn = {
     queryUuid: string;
     cacheMetadata: CacheMetadata;
 };
+
+export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
+    sql: string;
+    pivotConfiguration?: {
+        indexColumn: PivotIndexColum;
+        valuesColumns: ValuesColumn[];
+        groupByColumns: GroupByColumn[] | undefined;
+        sortBy: SortBy | undefined;
+    };
+};
+
+export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {
+    dashboardUuid: string;
+    dashboardFilters: DashboardFilters;
+    dashboardSorts: SortField[];
+};
+
+export type ExecuteAsyncDashboardSqlChartByUuidArgs =
+    ExecuteAsyncDashboardSqlChartCommonArgs & {
+        savedSqlUuid: string;
+    };
+
+export type ExecuteAsyncDashboardSqlChartBySlugArgs =
+    ExecuteAsyncDashboardSqlChartCommonArgs & {
+        slug: string;
+    };
+
+export type ExecuteAsyncDashboardSqlChartArgs =
+    | ExecuteAsyncDashboardSqlChartByUuidArgs
+    | ExecuteAsyncDashboardSqlChartBySlugArgs;
+
+export const isExecuteAsyncDashboardSqlChartByUuid = (
+    args: ExecuteAsyncDashboardSqlChartArgs,
+): args is ExecuteAsyncDashboardSqlChartByUuidArgs => 'savedSqlUuid' in args;

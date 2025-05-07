@@ -1,10 +1,10 @@
+import { DimensionType, Field } from '@lightdash/common';
 import * as fs from 'fs/promises';
 import moment from 'moment';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
-import type { S3ResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/S3ResultsCacheStorageClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -16,8 +16,6 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
-import type { ResultsCacheModel } from '../../models/ResultsCacheModel/ResultsCacheModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -67,10 +65,7 @@ describe('Csv service', () => {
             catalogModel: {} as CatalogModel,
             contentModel: {} as ContentModel,
             encryptionUtil: {} as EncryptionUtil,
-            queryHistoryModel: {} as QueryHistoryModel,
             userModel: {} as UserModel,
-            resultsCacheModel: {} as ResultsCacheModel,
-            resultsCacheStorageClient: {} as S3ResultsCacheStorageClient,
         }),
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,
@@ -208,6 +203,22 @@ $4.00,value_4,2020-03-16
         ]);
 
         expect(csv).toEqual([undefined, 'value_1', '2020-03-16']);
+    });
+
+    it('Should preserve milliseconds when converting timestamp rows to csv', async () => {
+        const row = {
+            column_number: 1,
+            column_string: `value_1`,
+            column_timestamp: '2020-03-16T11:32:55.123Z',
+        };
+
+        const csv = CsvService.convertRowToCsv(row, itemMap, false, [
+            'column_number',
+            'column_string',
+            'column_timestamp',
+        ]);
+
+        expect(csv).toEqual(['$1.00', 'value_1', '2020-03-16 11:32:55.123']);
     });
 
     it('Should generate csv file ids', async () => {

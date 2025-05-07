@@ -1,4 +1,5 @@
 import { Knex } from 'knex';
+import type { ResultsCacheStatus } from '../../../services/CacheService/types';
 
 export type DbResultsCache = {
     cache_key: string;
@@ -7,6 +8,7 @@ export type DbResultsCache = {
     updated_at: Date;
     expires_at: Date;
     total_row_count: number | null;
+    status: ResultsCacheStatus;
 };
 
 export type DbResultsCacheIn = Omit<
@@ -14,9 +16,12 @@ export type DbResultsCacheIn = Omit<
     'created_at' | 'updated_at'
 >;
 
-export type DbResultsCacheUpdate =
-    | Pick<DbResultsCache, 'total_row_count'>
-    | Pick<DbResultsCache, 'expires_at' | 'updated_at'>;
+export type DbResultsCacheUpdate = Partial<
+    Pick<
+        DbResultsCache,
+        'total_row_count' | 'status' | 'expires_at' | 'updated_at'
+    >
+>;
 
 export type ResultsCacheTable = Knex.CompositeTableType<
     DbResultsCache,

@@ -1,6 +1,12 @@
 import { subject } from '@casl/ability';
-import { ContentType, LightdashMode } from '@lightdash/common';
+import {
+    ContentType,
+    LightdashMode,
+    ResourceViewItemType,
+    type ResourceViewSpaceItem,
+} from '@lightdash/common';
 import { ActionIcon, Box, Button, Group, Menu, Stack } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconDots,
     IconFolderCog,
@@ -26,9 +32,14 @@ import ShareSpaceModal from '../components/common/ShareSpaceModal';
 import SpaceActionModal from '../components/common/SpaceActionModal';
 import { ActionType } from '../components/common/SpaceActionModal/types';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import TransferItemsModal from '../components/common/TransferItemsModal/TransferItemsModal';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
-import { useSpace } from '../hooks/useSpaces';
+import {
+    useMoveSpaceMutation,
+    useSpace,
+    useSpaceSummaries,
+} from '../hooks/useSpaces';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
@@ -70,12 +81,20 @@ const Space: FC = () => {
 
     const [updateSpace, setUpdateSpace] = useState<boolean>(false);
     const [deleteSpace, setDeleteSpace] = useState<boolean>(false);
+    const [
+        isTransferToSpaceOpen,
+        { open: openTransferToSpace, close: closeTransferToSpace },
+    ] = useDisclosure(false);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
         useState<boolean>(false);
     const [isCreateNestedSpaceOpen, setIsCreateNestedSpaceOpen] =
         useState<boolean>(false);
     const [addToSpace, setAddToSpace] = useState<AddToSpaceResources>();
     const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
+
+    const { data: spaces } = useSpaceSummaries(projectUuid, true, {});
+    const { mutateAsync: moveSpace, isLoading: isMovingSpace } =
+        useMoveSpaceMutation(projectUuid);
 
     const handlePinToggleSpace = useCallback(
         (spaceId: string) => pinSpace(spaceId),
@@ -114,6 +133,17 @@ const Space: FC = () => {
         'create',
         subject('SavedChart', { ...space }),
     );
+
+    const userCanManageSpaceAndHasNoDirectAccessToSpace =
+        user.data?.ability?.can(
+            'manage',
+            subject('Project', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid: projectUuid,
+            }),
+        ) &&
+        !space.access.find((a) => a.userUuid === user.data?.userUuid)
+            ?.hasDirectAccess;
 
     return (
         <Page
@@ -256,6 +286,9 @@ const Space: FC = () => {
                                 onTogglePin={() =>
                                     handlePinToggleSpace(space?.uuid)
                                 }
+                                onTransferToSpace={() => {
+                                    openTransferToSpace();
+                                }}
                                 isPinned={!!space?.pinnedListUuid}
                             >
                                 <ActionIcon variant="default" size={36}>
@@ -320,6 +353,11 @@ const Space: FC = () => {
                         [ColumnVisibility.SPACE]: false,
                     }}
                     enableBottomToolbar={false}
+                    initialAdminContentViewValue={
+                        userCanManageSpaceAndHasNoDirectAccessToSpace
+                            ? 'all'
+                            : 'shared'
+                    }
                 />
 
                 {addToSpace && (
@@ -360,6 +398,36 @@ const Space: FC = () => {
                             setIsCreateNestedSpaceOpen(false);
                         }}
                         shouldRedirect={false}
+                    />
+                )}
+
+                {isTransferToSpaceOpen && (
+                    <TransferItemsModal
+                        projectUuid={projectUuid}
+                        opened
+                        items={[
+                            {
+                                data: {
+                                    ...space,
+                                    access: [],
+                                    accessListLength: 0,
+                                    dashboardCount: 0,
+                                    chartCount: 0,
+                                },
+                                type: ResourceViewItemType.SPACE,
+                            } satisfies ResourceViewSpaceItem,
+                        ]}
+                        spaces={spaces ?? []}
+                        isLoading={isMovingSpace}
+                        onClose={closeTransferToSpace}
+                        onConfirm={async (newSpaceUuid) => {
+                            await moveSpace({
+                                spaceUuid: space.uuid,
+                                parentSpaceUuid: newSpaceUuid,
+                            });
+
+                            closeTransferToSpace();
+                        }}
                     />
                 )}
             </Stack>

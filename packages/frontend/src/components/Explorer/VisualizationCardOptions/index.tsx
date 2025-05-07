@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     CartesianSeriesType,
     ChartType,
-    FeatureFlags,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
 import { Button, Menu } from '@mantine/core';
@@ -20,8 +19,6 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { memo, useMemo, type FC, type ReactNode } from 'react';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
-import useApp from '../../../providers/App/useApp';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
@@ -38,11 +35,6 @@ import {
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 
 const VisualizationCardOptions: FC = memo(() => {
-    const { health } = useApp();
-    const customVizEnabled = useFeatureFlagEnabled(
-        FeatureFlags.CustomVisualizationsEnabled,
-    );
-
     const {
         visualizationConfig,
         setChartType,
@@ -399,26 +391,23 @@ const VisualizationCardOptions: FC = memo(() => {
                     Big value
                 </Menu.Item>
 
-                {(health.data?.customVisualizationsEnabled ||
-                    customVizEnabled) && (
-                    <Menu.Item
-                        disabled={disabled}
-                        color={
-                            isCustomVisualizationConfig(visualizationConfig)
-                                ? 'blue'
-                                : undefined
-                        }
-                        icon={<MantineIcon icon={IconCode} />}
-                        onClick={() => {
-                            setPivotDimensions(undefined);
-                            setStacking(undefined);
-                            setCartesianType(undefined);
-                            setChartType(ChartType.CUSTOM);
-                        }}
-                    >
-                        Custom
-                    </Menu.Item>
-                )}
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        isCustomVisualizationConfig(visualizationConfig)
+                            ? 'blue'
+                            : undefined
+                    }
+                    icon={<MantineIcon icon={IconCode} />}
+                    onClick={() => {
+                        setPivotDimensions(undefined);
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.CUSTOM);
+                    }}
+                >
+                    Custom
+                </Menu.Item>
             </Menu.Dropdown>
         </Menu>
     );

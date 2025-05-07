@@ -175,7 +175,7 @@ export class RunViewChartQueryController extends BaseController {
                 projectUuid,
                 exploreId,
                 body.csvLimit,
-                body.granularity,
+                body.dateZoom,
                 context,
             );
         this.setStatus(200);

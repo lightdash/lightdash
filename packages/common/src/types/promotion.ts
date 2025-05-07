@@ -9,15 +9,15 @@ export enum PromotionAction {
     DELETE = 'delete',
 }
 
-export type PromotedSpace = Omit<
-    SpaceSummary,
-    'userAccess' | 'parentSpaceUuid' | 'path'
->;
+export type PromotedSpace = Omit<SpaceSummary, 'userAccess'>;
+
 export type PromotedDashboard = DashboardDAO & {
     spaceSlug: string;
+    spacePath: string;
 };
 export type PromotedChart = SavedChartDAO & {
     spaceSlug: string;
+    spacePath: string;
     oldUuid: string;
 };
 

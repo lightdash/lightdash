@@ -1,3 +1,9 @@
+import {
+    type GroupByColumn,
+    type PivotIndexColum,
+    type SortBy,
+    type ValuesColumn,
+} from '../..';
 import type { QueryExecutionContext } from '../analytics';
 import type { DashboardFilters, Filters } from '../filter';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
@@ -8,9 +14,15 @@ type CommonPaginatedQueryRequestParams = {
     invalidateCache?: boolean;
 };
 
+export type DateZoom = {
+    granularity?: DateGranularity;
+    xAxisFieldId?: string;
+};
+
 export type ExecuteAsyncMetricQueryRequestParams =
     CommonPaginatedQueryRequestParams & {
         query: Omit<MetricQueryRequest, 'csvLimit'>;
+        dateZoom?: DateZoom;
     };
 
 export type ExecuteAsyncSavedChartRequestParams =
@@ -25,7 +37,18 @@ export type ExecuteAsyncDashboardChartRequestParams =
         dashboardUuid: string;
         dashboardFilters: DashboardFilters;
         dashboardSorts: SortField[];
-        granularity?: DateGranularity;
+        dateZoom?: DateZoom;
+    };
+
+export type ExecuteAsyncSqlQueryRequestParams =
+    CommonPaginatedQueryRequestParams & {
+        sql: string;
+        pivotConfiguration?: {
+            indexColumn: PivotIndexColum;
+            valuesColumns: ValuesColumn[];
+            groupByColumns: GroupByColumn[] | undefined;
+            sortBy: SortBy | undefined;
+        };
     };
 
 export type ExecuteAsyncUnderlyingDataRequestParams =
@@ -33,39 +56,39 @@ export type ExecuteAsyncUnderlyingDataRequestParams =
         underlyingDataSourceQueryUuid: string;
         underlyingDataItemId?: string;
         filters: Filters;
+        dateZoom?: DateZoom;
     };
+
+type ExecuteAsyncDashboardSqlChartCommonParams =
+    CommonPaginatedQueryRequestParams & {
+        dashboardUuid: string;
+        dashboardFilters: DashboardFilters;
+        dashboardSorts: SortField[];
+    };
+
+export type ExecuteAsyncDashboardSqlChartByUuidRequestParams =
+    ExecuteAsyncDashboardSqlChartCommonParams & {
+        savedSqlUuid: string;
+    };
+
+export type ExecuteAsyncDashboardSqlChartBySlugRequestParams =
+    ExecuteAsyncDashboardSqlChartCommonParams & {
+        slug: string;
+    };
+
+export type ExecuteAsyncDashboardSqlChartRequestParams =
+    | ExecuteAsyncDashboardSqlChartByUuidRequestParams
+    | ExecuteAsyncDashboardSqlChartBySlugRequestParams;
+
+export const isExecuteAsyncDashboardSqlChartByUuidParams = (
+    params: ExecuteAsyncDashboardSqlChartRequestParams,
+): params is ExecuteAsyncDashboardSqlChartByUuidRequestParams =>
+    'savedSqlUuid' in params;
 
 export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncMetricQueryRequestParams
+    | ExecuteAsyncSqlQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
-    | ExecuteAsyncUnderlyingDataRequestParams;
-
-export function isExecuteAsyncMetricQueryRequest(
-    query: ExecuteAsyncQueryRequestParams,
-): query is ExecuteAsyncMetricQueryRequestParams {
-    return 'query' in query;
-}
-
-export function isExecuteAsyncDashboardChartRequest(
-    query: ExecuteAsyncQueryRequestParams,
-): query is ExecuteAsyncDashboardChartRequestParams {
-    return (
-        'chartUuid' in query &&
-        'dashboardUuid' in query &&
-        'dashboardFilters' in query &&
-        'dashboardSorts' in query
-    );
-}
-
-export function isExecuteAsyncSavedChartRequest(
-    query: ExecuteAsyncQueryRequestParams,
-): query is ExecuteAsyncSavedChartRequestParams {
-    return 'chartUuid' in query && !isExecuteAsyncDashboardChartRequest(query);
-}
-
-export function isExecuteAsyncUnderlyingDataRequest(
-    query: ExecuteAsyncQueryRequestParams,
-): query is ExecuteAsyncUnderlyingDataRequestParams {
-    return 'underlyingDataSourceQueryUuid' in query && 'filters' in query;
-}
+    | ExecuteAsyncUnderlyingDataRequestParams
+    | ExecuteAsyncDashboardSqlChartRequestParams;

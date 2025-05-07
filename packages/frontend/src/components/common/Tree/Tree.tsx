@@ -4,48 +4,38 @@ import {
     Tree as MantineTree,
     rem,
     useTree,
-    type RenderTreeNodePayload,
 } from '@lightdash/mantine-v7';
 // FIXME: this won't scale. figure out how to include required mantine 7 styles.
 import '@lightdash/mantine-v7/style.css';
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 
+import { type FuzzyMatches } from '../../../hooks/useFuzzySearch';
 import TreeItem from './TreeItem';
 import { type NestableItem } from './types';
+import { type FuzzyFilteredItem } from './useFuzzyTreeSearch';
 import { convertNestableListToTree, getAllParentPaths } from './utils';
 
 import classes from './Tree.module.css';
 
-const renderTreeNode = ({
-    node,
-    selected,
-    expanded,
-    hasChildren,
-    elementProps,
-    tree,
-}: RenderTreeNodePayload) => {
-    return (
-        <div {...elementProps}>
-            <TreeItem
-                expanded={expanded}
-                selected={selected}
-                label={node.label}
-                hasChildren={hasChildren}
-                onToggleSelect={() => tree.toggleSelected(node.value)}
-                onToggleExpand={() => tree.toggleExpanded(node.value)}
-            />
-        </div>
-    );
-};
+type Data<T> = T | FuzzyFilteredItem<T> | FuzzyFilteredItem<FuzzyMatches<T>>;
 
 type Props = {
+    withRootSelectable?: boolean;
     topLevelLabel: string;
-    data: NestableItem[];
+    isExpanded: boolean;
+    data: Data<NestableItem>[];
     value: string | null;
     onChange: (selectedUuid: string | null) => void;
 };
 
-const Tree: React.FC<Props> = ({ topLevelLabel, value, data, onChange }) => {
+const Tree: React.FC<Props> = ({
+    withRootSelectable = true,
+    topLevelLabel,
+    isExpanded,
+    value,
+    data,
+    onChange,
+}) => {
     const treeData = useMemo(() => convertNestableListToTree(data), [data]);
 
     const item = useMemo(() => {
@@ -56,26 +46,41 @@ const Tree: React.FC<Props> = ({ topLevelLabel, value, data, onChange }) => {
 
     const initialSelectedState = useMemo(() => {
         if (!item) return [];
-
         return [item.path];
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    const initialExpandedState = useMemo(() => {
-        if (!item) return {};
-
-        const allParentPaths = getAllParentPaths(treeData, item.path);
-
-        return allParentPaths.reduce<Record<string, boolean>>((acc, path) => {
-            return { ...acc, [path]: true };
-        }, {});
+        // WARNING: this is to get an initial state, so we don't need to re-run this
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const tree = useTree({
         initialSelectedState,
-        initialExpandedState,
     });
+
+    const expandAllParentPaths = useCallback(
+        (node: NestableItem) => {
+            const allParentPaths = getAllParentPaths(treeData, node.path);
+
+            allParentPaths.forEach((path) => {
+                tree.expand(path);
+            });
+        },
+        // WARNING: does not need to be re-created every time tree ref changes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [treeData],
+    );
+
+    useEffect(() => {
+        if (item) {
+            expandAllParentPaths(item);
+        }
+    }, [item, expandAllParentPaths]);
+
+    useEffect(() => {
+        if (isExpanded) {
+            tree.expandAllNodes();
+        }
+        // WARNING: does not need to be re-run every time tree ref changes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isExpanded]);
 
     useEffect(() => {
         let uuid: string | null = null;
@@ -92,13 +97,21 @@ const Tree: React.FC<Props> = ({ topLevelLabel, value, data, onChange }) => {
         }
     }, [tree.selectedState, onChange, data, value]);
 
+    const handleSelectTopLevel = useCallback(() => {
+        if (withRootSelectable) {
+            tree.clearSelected();
+        }
+    }, [withRootSelectable, tree]);
+
     return (
         <MantineProvider>
             <Box px="sm" py="xs">
                 <TreeItem
+                    withRootSelectable={withRootSelectable}
                     selected={!value}
                     label={topLevelLabel}
                     isRoot={true}
+                    onClick={handleSelectTopLevel}
                 />
 
                 <Box ml={rem(6)} pl={rem(13.5)}>
@@ -106,7 +119,47 @@ const Tree: React.FC<Props> = ({ topLevelLabel, value, data, onChange }) => {
                         data={treeData}
                         tree={tree}
                         levelOffset={rem(23)}
-                        renderNode={renderTreeNode}
+                        renderNode={({
+                            node,
+                            selected,
+                            expanded,
+                            hasChildren,
+                            elementProps,
+                            tree: nTree,
+                        }) => {
+                            const nodeItem = data.find(
+                                (i) => i.path === node.value,
+                            );
+
+                            if (!nodeItem) {
+                                throw new Error(
+                                    `Item with uuid ${node.value} not found`,
+                                );
+                            }
+
+                            const highlights =
+                                '_fuzzyMatches' in nodeItem
+                                    ? nodeItem._fuzzyMatches
+                                    : [];
+
+                            return (
+                                <div {...elementProps}>
+                                    <TreeItem
+                                        expanded={expanded}
+                                        selected={selected}
+                                        label={node.label}
+                                        matchHighlights={highlights}
+                                        hasChildren={hasChildren}
+                                        onClick={() =>
+                                            nTree.toggleSelected(node.value)
+                                        }
+                                        onClickExpand={() =>
+                                            nTree.toggleExpanded(node.value)
+                                        }
+                                    />
+                                </div>
+                            );
+                        }}
                         allowRangeSelection={false}
                         checkOnSpace={false}
                         clearSelectionOnOutsideClick={false}
@@ -124,6 +177,4 @@ const Tree: React.FC<Props> = ({ topLevelLabel, value, data, onChange }) => {
     );
 };
 
-// FIXME: remove this once it's used somewhere else
-// ts-unused-exports:disable-next-line
 export default Tree;

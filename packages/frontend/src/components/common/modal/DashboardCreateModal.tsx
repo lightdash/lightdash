@@ -66,7 +66,8 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         defaultSpaceUuid,
     });
 
-    const { isCreatingNewSpace, openCreateSpaceForm } = spaceManagement;
+    const { isCreatingNewSpace, openCreateSpaceForm, setSelectedSpaceUuid } =
+        spaceManagement;
 
     const {
         data: spaces,
@@ -86,16 +87,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                 ),
             );
         },
-        onSuccess: (data) => {
-            if (data.length > 0) {
-                const currentSpace = defaultSpaceUuid
-                    ? data.find((space) => space.uuid === defaultSpaceUuid)
-                    : data[0];
-                return currentSpace?.uuid
-                    ? form.setFieldValue('spaceUuid', currentSpace?.uuid)
-                    : null;
-            }
-        },
     });
 
     const handleClose = () => {
@@ -106,15 +97,29 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     const { setFieldValue } = form;
 
     useEffect(() => {
-        if (isSuccess && modalProps.opened) {
-            setFieldValue(
-                'spaceUuid',
-                spaces?.find((space) => space.uuid === defaultSpaceUuid)
-                    ?.uuid ??
-                    ((spaces && spaces[0]?.uuid) || ''),
-            );
+        if (!isSuccess || !modalProps.opened) {
+            return;
         }
-    }, [defaultSpaceUuid, isSuccess, modalProps.opened, setFieldValue, spaces]);
+        let defaultSpace = spaces?.find(
+            (space) => space.uuid === defaultSpaceUuid,
+        );
+
+        if (!defaultSpace) {
+            defaultSpace = spaces?.find((space) => !space.parentSpaceUuid);
+        }
+
+        const uuid = defaultSpace?.uuid ?? '';
+
+        setFieldValue('spaceUuid', uuid);
+        setSelectedSpaceUuid(uuid);
+    }, [
+        defaultSpaceUuid,
+        isSuccess,
+        modalProps.opened,
+        setFieldValue,
+        spaces,
+        setSelectedSpaceUuid,
+    ]);
 
     const handleConfirm = useCallback(
         async (data: typeof form.values) => {

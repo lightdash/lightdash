@@ -519,6 +519,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         }),
     );
 
+    const dateZoomGranularity = useDashboardContext(
+        (c) => c.dateZoomGranularity,
+    );
+    const chartsWithDateZoomApplied = useDashboardContext(
+        (c) => c.chartsWithDateZoomApplied,
+    );
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
 
     const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
@@ -533,9 +539,22 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const handleViewUnderlyingData = useCallback(() => {
         if (!viewUnderlyingDataOptions) return;
 
+        const applyDateZoom =
+            metricQuery?.metadata?.hasADateDimension &&
+            savedChartUuid &&
+            dateZoomGranularity &&
+            chartsWithDateZoomApplied?.has(savedChartUuid);
+
         openUnderlyingDataModal({
             ...viewUnderlyingDataOptions,
+            ...(applyDateZoom && {
+                dateZoom: {
+                    granularity: dateZoomGranularity,
+                    xAxisFieldId: `${metricQuery?.metadata?.hasADateDimension.table}_${metricQuery?.metadata?.hasADateDimension.name}`,
+                },
+            }),
         });
+
         track({
             name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
             properties: {
@@ -545,11 +564,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             },
         });
     }, [
-        track,
-        user,
-        projectUuid,
-        openUnderlyingDataModal,
         viewUnderlyingDataOptions,
+        dateZoomGranularity,
+        openUnderlyingDataModal,
+        track,
+        user?.data?.organizationUuid,
+        user?.data?.userUuid,
+        projectUuid,
+        metricQuery?.metadata?.hasADateDimension,
+        savedChartUuid,
+        chartsWithDateZoomApplied,
     ]);
 
     const handleCopyToClipboard = useCallback(() => {
@@ -779,13 +803,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 />
             ),
         [showComments, isCommentsMenuOpen, tileUuid],
-    );
-
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
-    const chartsWithDateZoomApplied = useDashboardContext(
-        (c) => c.chartsWithDateZoomApplied,
     );
 
     const editButtonTooltipLabel = useMemo(() => {
@@ -1373,30 +1390,6 @@ export const GenericDashboardChartTile: FC<
             subject('SavedChart', dashboardChartReadyQuery.chart),
         );
 
-    if (isLoading || !dashboardChartReadyQuery || !resultsData) {
-        return (
-            <TileBase
-                isEditMode={isEditMode}
-                chartName={tile.properties.chartName ?? ''}
-                titleHref={`/projects/${projectUuid}/saved/${tile.properties.savedChartUuid}/`}
-                description={''}
-                belongsToDashboard={tile.properties.belongsToDashboard}
-                tile={tile}
-                isLoading
-                title={tile.properties.title || tile.properties.chartName || ''}
-                extraMenuItems={
-                    !minimal &&
-                    userCanManageChart &&
-                    tile.properties.savedChartUuid && (
-                        <EditChartMenuItem tile={tile} />
-                    )
-                }
-                minimal={minimal}
-                {...rest}
-            />
-        );
-    }
-
     if (error !== null) {
         return (
             <TileBase
@@ -1425,6 +1418,30 @@ export const GenericDashboardChartTile: FC<
                     title={error?.error?.message || 'No data available'}
                 ></SuboptimalState>
             </TileBase>
+        );
+    }
+
+    if (isLoading || !dashboardChartReadyQuery || !resultsData) {
+        return (
+            <TileBase
+                isEditMode={isEditMode}
+                chartName={tile.properties.chartName ?? ''}
+                titleHref={`/projects/${projectUuid}/saved/${tile.properties.savedChartUuid}/`}
+                description={''}
+                belongsToDashboard={tile.properties.belongsToDashboard}
+                tile={tile}
+                isLoading
+                title={tile.properties.title || tile.properties.chartName || ''}
+                extraMenuItems={
+                    !minimal &&
+                    userCanManageChart &&
+                    tile.properties.savedChartUuid && (
+                        <EditChartMenuItem tile={tile} />
+                    )
+                }
+                minimal={minimal}
+                {...rest}
+            />
         );
     }
 
@@ -1476,12 +1493,16 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         const isFetchingFirstPage = resultsData.isFetchingFirstPage;
         const isFetchingAllRows =
             resultsData.fetchAll && !resultsData.hasFetchedAllRows;
-        return isCreatingQuery || isFetchingFirstPage || isFetchingAllRows;
+        return (
+            (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
+            !resultsData.error
+        );
     }, [
         readyQuery.isFetching,
         resultsData.fetchAll,
         resultsData.hasFetchedAllRows,
         resultsData.isFetchingFirstPage,
+        resultsData.error,
     ]);
 
     return (
@@ -1490,7 +1511,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
             isLoading={isLoading}
             resultsData={resultsData}
             dashboardChartReadyQuery={readyQuery.data}
-            error={readyQuery.error}
+            error={readyQuery.error ?? resultsData.error}
         />
     );
 };

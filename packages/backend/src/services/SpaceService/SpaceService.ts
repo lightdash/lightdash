@@ -169,13 +169,15 @@ export class SpaceService extends BaseService {
         }
 
         const newSpace = await this.spaceModel.createSpace(
-            projectUuid,
-            space.name,
-            user.userId,
-            space.isPrivate !== false,
-            generateSlug(space.name),
-            false,
-            space.parentSpaceUuid,
+            {
+                name: space.name,
+                isPrivate: space.isPrivate !== false,
+                parentSpaceUuid: space.parentSpaceUuid ?? null,
+            },
+            {
+                projectUuid,
+                userId: user.userId,
+            },
         );
 
         // Nested spaces MVP: Nested spaces inherit access from their root space, but don't need to have that access added to them explicitly
@@ -253,6 +255,64 @@ export class SpaceService extends BaseService {
             },
         });
         return updatedSpace;
+    }
+
+    async moveSpace(
+        user: SessionUser,
+        spaceUuid: string,
+        parentSpaceUuid: string | null,
+    ) {
+        const checkSpace = async (uuid: string) => {
+            const space = await this.spaceModel.getSpaceSummary(uuid);
+            const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                uuid,
+            );
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('Space', {
+                        ...space,
+                        access: spaceAccess,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+            return space;
+        };
+
+        const space = await checkSpace(spaceUuid);
+
+        // Space is already in the correct parent space
+        if (space.parentSpaceUuid === parentSpaceUuid) {
+            this.logger.info(
+                `Space ${spaceUuid} is already in the correct parent space ${parentSpaceUuid}`,
+            );
+            return;
+        }
+
+        let parentSpace: Omit<SpaceSummary, 'userAccess'> | null = null;
+        if (parentSpaceUuid) {
+            parentSpace = await checkSpace(parentSpaceUuid);
+
+            if (parentSpace?.projectUuid !== space.projectUuid) {
+                throw new ForbiddenError();
+            }
+        }
+
+        await this.spaceModel.move(spaceUuid, parentSpaceUuid);
+
+        this.analytics.track({
+            event: 'space.moved',
+            userId: user.userUuid,
+            properties: {
+                name: space.name,
+                spaceId: spaceUuid,
+                oldParentSpaceId: space.parentSpaceUuid,
+                projectId: space.projectUuid,
+            },
+        });
     }
 
     async deleteSpace(user: SessionUser, spaceUuid: string): Promise<void> {

@@ -254,8 +254,16 @@ ${styles.bold('Examples:')}
     .option('--no-version-check')
     .option('-s, --select, <select> [selects...]')
     .option('--state <state>')
-    .option('--defer')
-    .option('--no-defer')
+    .option(
+        '--defer',
+        'dbt property. Resolve unselected nodes by deferring to the manifest within the --state directory.',
+        undefined,
+    )
+    .option(
+        '--no-defer',
+        'dbt property. Do not resolve unselected nodes by deferring to the manifest within the --state directory.',
+        undefined,
+    )
     .option('--full-refresh')
     .option(
         '--exclude-meta',
@@ -312,6 +320,16 @@ program
         'Skip `dbt compile` and deploy from the existing ./target/manifest.json',
         false,
     )
+    .option(
+        '--defer',
+        'dbt property. Resolve unselected nodes by deferring to the manifest within the --state directory.',
+        undefined,
+    )
+    .option(
+        '--no-defer',
+        'dbt property. Do not resolve unselected nodes by deferring to the manifest within the --state directory.',
+        undefined,
+    )
     .action(compileHandler);
 
 program
@@ -338,6 +356,16 @@ program
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
     .option('--vars <vars>')
+    .option(
+        '--defer',
+        'dbt property. Resolve unselected nodes by deferring to the manifest within the --state directory.',
+        undefined,
+    )
+    .option(
+        '--no-defer',
+        'dbt property. Do not resolve unselected nodes by deferring to the manifest within the --state directory.',
+        undefined,
+    )
     .option('--threads <number>')
     .option('--no-version-check')
     .option(
@@ -401,6 +429,16 @@ program
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
     .option('--vars <vars>')
+    .option(
+        '--defer',
+        'dbt property. Resolve unselected nodes by deferring to the manifest within the --state directory.',
+        undefined,
+    )
+    .option(
+        '--no-defer',
+        'dbt property. Do not resolve unselected nodes by deferring to the manifest within the --state directory.',
+        undefined,
+    )
     .option('--threads <number>')
     .option('--no-version-check')
     .option(

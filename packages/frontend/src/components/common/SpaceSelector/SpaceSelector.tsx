@@ -1,38 +1,39 @@
 import { subject } from '@casl/ability';
-import { assertUnreachable, type SpaceSummary } from '@lightdash/common';
 import {
-    Paper,
-    ScrollArea,
-    Stack,
-    type PaperProps,
-    type ScrollAreaProps,
-} from '@mantine/core';
+    assertUnreachable,
+    ResourceViewItemType,
+    type SpaceSummary,
+} from '@lightdash/common';
+import { Paper, ScrollArea, Stack, TextInput } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { useMemo, useState } from 'react';
 import { hasDirectAccessToSpace } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import AdminContentViewFilter from '../ResourceView/AdminContentViewFilter';
 import Tree from '../Tree/Tree';
 import { type NestableItem } from '../Tree/types';
+import useFuzzyTreeSearch from '../Tree/useFuzzyTreeSearch';
 
 type SpaceSelectorProps = {
+    projectUuid: string | undefined;
+    selectedSpaceUuid: string | null;
     spaces:
         | Array<Pick<SpaceSummary, 'isPrivate' | 'access'> & NestableItem>
         | undefined;
-    selectedSpaceUuid: string | null;
-    scrollingContainerProps?: PaperProps & ScrollAreaProps;
     isLoading?: boolean;
+    itemType: ResourceViewItemType | undefined;
     onSelectSpace: (spaceUuid: string | null) => void;
-    projectUuid: string | undefined;
 };
 
 const SpaceSelector = ({
-    spaces = [],
-    selectedSpaceUuid,
-    scrollingContainerProps,
-    isLoading: _isLoading, // TODO: implement loading state for the tree.
-    onSelectSpace,
     projectUuid,
-}: SpaceSelectorProps) => {
+    selectedSpaceUuid,
+    spaces = [],
+    isLoading: _isLoading, // TODO: implement loading state for the tree.
+    itemType,
+    onSelectSpace,
+    children,
+}: React.PropsWithChildren<SpaceSelectorProps>) => {
     const { user } = useApp();
 
     const userCanManageProject = user.data?.ability?.can(
@@ -65,30 +66,53 @@ const SpaceSelector = ({
         }
     }, [user.data, selectedAdminContentType, spaces]);
 
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 200);
+
+    const fuzzyFilteredSpaces = useFuzzyTreeSearch(
+        filteredSpaces,
+        debouncedSearchQuery,
+    );
+
     return (
-        <Stack>
+        <Stack h="400px">
             {userCanManageProject ? (
                 <AdminContentViewFilter
                     value={selectedAdminContentType}
                     onChange={setSelectedAdminContentType}
                     withDivider={false}
+                    segmentedControlProps={{
+                        sx: {
+                            flexShrink: 0,
+                        },
+                    }}
                 />
             ) : null}
+
+            <TextInput
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search spaces"
+            />
 
             <Paper
                 component={ScrollArea}
                 w="100%"
-                h="350px"
+                sx={{ flexGrow: 1 }}
                 withBorder
-                {...scrollingContainerProps}
             >
                 <Tree
-                    data={filteredSpaces}
+                    // top level item can only be selected for a single space
+                    withRootSelectable={itemType === ResourceViewItemType.SPACE}
+                    data={fuzzyFilteredSpaces ?? filteredSpaces}
                     value={selectedSpaceUuid}
                     onChange={onSelectSpace}
                     topLevelLabel="Spaces"
+                    isExpanded={fuzzyFilteredSpaces !== undefined}
                 />
             </Paper>
+
+            {children}
         </Stack>
     );
 };

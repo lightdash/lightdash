@@ -23,16 +23,14 @@ describe('fixDuplicateSlugs', () => {
         jest.clearAllMocks();
     });
 
-    describe('fixDuplicateChartSlugsForProject', () => {
+    describe('fixDuplicateChartSlugs', () => {
         const projectUuid = 'test-project-uuid';
 
         test('should not update anything when no duplicate slugs exist', async () => {
             // Mock the query that finds duplicate slugs
-            tracker.on
-                .select(queryMatcher(SavedChartsTableName, [projectUuid]))
-                .response([]);
+            tracker.on.select(queryMatcher(SavedChartsTableName)).response([]);
 
-            await scripts.fixDuplicateChartSlugsForProject(projectUuid, {
+            await scripts.fixDuplicateChartSlugs({
                 dryRun: false,
             });
 
@@ -46,15 +44,15 @@ describe('fixDuplicateSlugs', () => {
 
             // Mock finding duplicate slugs
             tracker.on
-                .select(queryMatcher(SavedChartsTableName, [projectUuid]))
-                .responseOnce([{ slug: duplicateSlug }]);
+                .select(queryMatcher(SavedChartsTableName))
+                .responseOnce([{ slug: duplicateSlug, projectUuid }]);
 
             // Mock finding charts with the duplicate slug
             tracker.on
                 .select(
                     queryMatcher(SavedChartsTableName, [
-                        projectUuid,
                         duplicateSlug,
+                        projectUuid,
                     ]),
                 )
                 .responseOnce([
@@ -87,7 +85,7 @@ describe('fixDuplicateSlugs', () => {
                 )
                 .response([1]);
 
-            await scripts.fixDuplicateChartSlugsForProject(projectUuid, {
+            await scripts.fixDuplicateChartSlugs({
                 dryRun: false,
             });
 
@@ -110,15 +108,15 @@ describe('fixDuplicateSlugs', () => {
 
             // Mock finding duplicate slugs
             tracker.on
-                .select(queryMatcher(SavedChartsTableName, [projectUuid]))
-                .responseOnce([{ slug: duplicateSlug }]);
+                .select(queryMatcher(SavedChartsTableName))
+                .responseOnce([{ slug: duplicateSlug, projectUuid }]);
 
             // Mock finding charts with the duplicate slug
             tracker.on
                 .select(
                     queryMatcher(SavedChartsTableName, [
-                        projectUuid,
                         duplicateSlug,
+                        projectUuid,
                     ]),
                 )
                 .responseOnce([
@@ -151,7 +149,7 @@ describe('fixDuplicateSlugs', () => {
                 )
                 .response([1]);
 
-            await scripts.fixDuplicateChartSlugsForProject(projectUuid, {
+            await scripts.fixDuplicateChartSlugs({
                 dryRun: true,
             });
 
@@ -165,15 +163,15 @@ describe('fixDuplicateSlugs', () => {
 
             // Mock finding duplicate slugs
             tracker.on
-                .select(queryMatcher(SavedChartsTableName, [projectUuid]))
-                .responseOnce([{ slug: duplicateSlug }]);
+                .select(queryMatcher(SavedChartsTableName))
+                .responseOnce([{ slug: duplicateSlug, projectUuid }]);
 
             // Mock finding charts with the duplicate slug
             tracker.on
                 .select(
                     queryMatcher(SavedChartsTableName, [
-                        projectUuid,
                         duplicateSlug,
+                        projectUuid,
                     ]),
                 )
                 .responseOnce([
@@ -221,7 +219,7 @@ describe('fixDuplicateSlugs', () => {
                 )
                 .response([1]);
 
-            await scripts.fixDuplicateChartSlugsForProject(projectUuid, {
+            await scripts.fixDuplicateChartSlugs({
                 dryRun: false,
             });
 
@@ -247,7 +245,7 @@ describe('fixDuplicateSlugs', () => {
         test('should throw an error when dryRun is not provided', async () => {
             await expect(
                 // @ts-expect-error - we are testing the error case because the repl runs in JS not TS
-                scripts.fixDuplicateChartSlugsForProject(projectUuid),
+                scripts.fixDuplicateChartSlugs(),
             ).rejects.toThrow('Missing dryRun option!!');
         });
     });
