@@ -303,7 +303,7 @@ export class SpaceService extends BaseService {
 
         await this.spaceModel.moveToSpace({
             projectUuid: space.projectUuid,
-            spaceUuid,
+            itemUuid: spaceUuid,
             newParentSpaceUuid: parentSpaceUuid,
         });
 

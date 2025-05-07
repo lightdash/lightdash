@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     ApiContentBulkActionBody,
     assertUnreachable,
-    ChartContent,
     ChartSourceType,
     ContentBulkActionMove,
     ContentType,
@@ -281,34 +280,28 @@ export class ContentService extends BaseService {
 
         await database.transaction(async (trx) => {
             const updates = content.map((c) => {
+                const updateData = {
+                    projectUuid,
+                    itemUuid: c.uuid,
+                    newParentSpaceUuid,
+                };
+
                 switch (c.contentType) {
                     case ContentType.CHART:
                         switch (c.source) {
                             case ChartSourceType.DBT_EXPLORE:
                                 return this.savedChartModel.moveToSpace(
-                                    {
-                                        projectUuid,
-                                        savedChartUuid: c.uuid,
-                                        newParentSpaceUuid,
-                                    },
+                                    updateData,
                                     { trx },
                                 );
                             case ChartSourceType.SQL:
                                 return this.savedSqlModel.moveToSpace(
-                                    {
-                                        projectUuid,
-                                        savedSqlUuid: c.uuid,
-                                        newParentSpaceUuid,
-                                    },
+                                    updateData,
                                     { trx },
                                 );
                             case ChartSourceType.SEMANTIC_LAYER:
                                 return this.savedSemanticViewerChartModel.moveToSpace(
-                                    {
-                                        projectUuid,
-                                        savedSemanticViewerChartUuid: c.uuid,
-                                        newParentSpaceUuid,
-                                    },
+                                    updateData,
                                     { trx },
                                 );
                             default:
@@ -319,23 +312,11 @@ export class ContentService extends BaseService {
                         }
 
                     case ContentType.DASHBOARD:
-                        return this.dashboardModel.moveToSpace(
-                            {
-                                projectUuid,
-                                dashboardUuid: c.uuid,
-                                newParentSpaceUuid,
-                            },
-                            { trx },
-                        );
+                        return this.dashboardModel.moveToSpace(updateData, {
+                            trx,
+                        });
                     case ContentType.SPACE:
-                        return this.spaceModel.moveToSpace(
-                            {
-                                projectUuid,
-                                spaceUuid: c.uuid,
-                                newParentSpaceUuid,
-                            },
-                            { trx },
-                        );
+                        return this.spaceModel.moveToSpace(updateData, { trx });
                     default:
                         return assertUnreachable(c, 'Unknown content type');
                 }

@@ -1,11 +1,11 @@
 import {
+    BulkActionableContent,
     CreateDashboard,
     CreateDashboardChartTile,
     CreateDashboardLoomTile,
     CreateDashboardMarkdownTile,
     CreateDashboardSemanticViewerChartTile,
     CreateDashboardSqlChartTile,
-    DashboardBasicDetails,
     DashboardChartTile,
     DashboardDAO,
     DashboardLoomTile,
@@ -122,7 +122,7 @@ type DashboardModelArguments = {
     database: Knex;
 };
 
-export class DashboardModel {
+export class DashboardModel implements BulkActionableContent<{ trx?: Knex }> {
     private readonly database: Knex;
 
     constructor(args: DashboardModelArguments) {
@@ -1295,15 +1295,19 @@ export class DashboardModel {
     async moveToSpace(
         {
             projectUuid,
-            dashboardUuid,
+            itemUuid: dashboardUuid,
             newParentSpaceUuid,
         }: {
             projectUuid: string;
-            dashboardUuid: string;
-            newParentSpaceUuid: string;
+            itemUuid: string;
+            newParentSpaceUuid: string | null;
         },
         { trx = this.database }: { trx?: Knex } = { trx: this.database },
     ): Promise<void> {
+        if (newParentSpaceUuid === null) {
+            throw new Error('Cannot move dashboard out of a space');
+        }
+
         const space = await trx(SpaceTableName)
             .select('space_id')
             .innerJoin(

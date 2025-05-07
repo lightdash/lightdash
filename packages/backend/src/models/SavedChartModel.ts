@@ -2,6 +2,7 @@ import {
     AdditionalMetric,
     AnyType,
     BinType,
+    BulkActionableContent,
     ChartConfig,
     ChartKind,
     ChartSummary,
@@ -428,7 +429,7 @@ type VersionSummaryRow = {
     last_name: string | null;
 };
 
-export class SavedChartModel {
+export class SavedChartModel implements BulkActionableContent<{ trx?: Knex }> {
     private database: Knex;
 
     private lightdashConfig: LightdashConfig;
@@ -1673,15 +1674,19 @@ export class SavedChartModel {
     async moveToSpace(
         {
             projectUuid,
-            savedChartUuid,
+            itemUuid: savedChartUuid,
             newParentSpaceUuid,
         }: {
             projectUuid: string;
-            savedChartUuid: string;
-            newParentSpaceUuid: string;
+            itemUuid: string;
+            newParentSpaceUuid: string | null;
         },
         { trx = this.database }: { trx?: Knex } = { trx: this.database },
     ): Promise<void> {
+        if (newParentSpaceUuid === null) {
+            throw new Error('Cannot move saved chart out of a space');
+        }
+
         const space = await trx(SpaceTableName)
             .select('space_id')
             .innerJoin(

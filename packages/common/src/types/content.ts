@@ -133,3 +133,14 @@ export type ApiContentBulkActionBody<T extends ContentBulkAction> = {
     )[];
     action: T;
 };
+
+export interface BulkActionableContent<T extends {}> {
+    moveToSpace: (
+        args: {
+            projectUuid: string;
+            itemUuid: string;
+            newParentSpaceUuid: string | null;
+        },
+        options?: T,
+    ) => Promise<void>;
+}

@@ -1,8 +1,8 @@
 import {
+    BulkActionableContent,
     NotFoundError,
     SavedSemanticViewerChart,
     SpaceSummary,
-    generateSlug,
     type SemanticViewerChartCreate,
     type SemanticViewerChartUpdate,
 } from '@lightdash/common';
@@ -55,7 +55,9 @@ type SelectSavedSemanticViewerChart = Pick<
         last_version_updated_by_user_last_name: string | null;
     };
 
-export class SavedSemanticViewerChartModel {
+export class SavedSemanticViewerChartModel
+    implements BulkActionableContent<{ trx?: Knex }>
+{
     private database: Knex;
 
     constructor(args: { database: Knex }) {
@@ -405,15 +407,21 @@ export class SavedSemanticViewerChartModel {
     async moveToSpace(
         {
             projectUuid,
-            savedSemanticViewerChartUuid,
+            itemUuid: savedSemanticViewerChartUuid,
             newParentSpaceUuid,
         }: {
             projectUuid: string;
-            savedSemanticViewerChartUuid: string;
-            newParentSpaceUuid: string;
+            itemUuid: string;
+            newParentSpaceUuid: string | null;
         },
         { trx = this.database }: { trx?: Knex } = { trx: this.database },
     ): Promise<void> {
+        if (newParentSpaceUuid === null) {
+            throw new Error(
+                'Cannot move saved semantic viewer chart out of a space',
+            );
+        }
+
         const updateCount = await trx(SavedSemanticViewerChartsTableName)
             .update({ space_uuid: newParentSpaceUuid })
             .where(

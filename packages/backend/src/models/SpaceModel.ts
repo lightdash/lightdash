@@ -1,4 +1,5 @@
 import {
+    BulkActionableContent,
     ChartKind,
     ChartSourceType,
     ChartType,
@@ -76,7 +77,7 @@ type SpaceModelArguments = {
     database: Knex;
 };
 
-export class SpaceModel {
+export class SpaceModel implements BulkActionableContent<{ trx?: Knex }> {
     private database: Knex;
 
     public MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT: number;
@@ -1815,15 +1816,17 @@ export class SpaceModel {
     async moveToSpace(
         {
             projectUuid: _projectUuid, // TODO: use projectUuid to narrow down the scope
-            spaceUuid,
+            itemUuid: spaceUuid,
             newParentSpaceUuid,
         }: {
             projectUuid: string;
-            spaceUuid: string;
+            itemUuid: string;
             newParentSpaceUuid: string | null;
         },
-        { trx = this.database }: { trx?: Knex } = { trx: this.database },
+        options: { trx?: Knex } = { trx: this.database },
     ): Promise<void> {
+        const { trx = this.database } = options ?? {};
+
         // check if parent space is not subtree of space
         const isCycle = await trx
             .with('space', (query) => {
