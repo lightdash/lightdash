@@ -103,3 +103,33 @@ export type ApiChartContentResponse = {
     status: 'ok';
     results: KnexPaginatedData<ChartContent[]>;
 };
+
+export type ContentBulkActionMove = {
+    type: 'move';
+    newSpaceUuid: string;
+};
+
+export type ContentBulkActionDelete = {
+    type: 'delete';
+};
+
+type ContentBulkAction = ContentBulkActionMove | ContentBulkActionDelete;
+
+export type ApiContentBulkActionBody<T extends ContentBulkAction> = {
+    content: (
+        | {
+              uuid: string;
+              contentType: ContentType.CHART;
+              source: ChartSourceType;
+          }
+        | {
+              uuid: string;
+              contentType: ContentType.DASHBOARD;
+          }
+        | {
+              uuid: string;
+              contentType: ContentType.SPACE;
+          }
+    )[];
+    action: T;
+};

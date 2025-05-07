@@ -16397,6 +16397,79 @@
             "ContentSortByColumns": {
                 "enum": ["name", "space_name", "last_updated_at"],
                 "type": "string"
+            },
+            "ContentBulkActionMove": {
+                "properties": {
+                    "newSpaceUuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["move"],
+                        "nullable": false
+                    }
+                },
+                "required": ["newSpaceUuid", "type"],
+                "type": "object"
+            },
+            "ApiContentBulkActionBody_ContentBulkActionMove_": {
+                "properties": {
+                    "action": {
+                        "$ref": "#/components/schemas/ContentBulkActionMove"
+                    },
+                    "content": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "properties": {
+                                        "source": {
+                                            "$ref": "#/components/schemas/ChartSourceType"
+                                        },
+                                        "contentType": {
+                                            "$ref": "#/components/schemas/ContentType.CHART"
+                                        },
+                                        "uuid": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "source",
+                                        "contentType",
+                                        "uuid"
+                                    ],
+                                    "type": "object"
+                                },
+                                {
+                                    "properties": {
+                                        "contentType": {
+                                            "$ref": "#/components/schemas/ContentType.DASHBOARD"
+                                        },
+                                        "uuid": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["contentType", "uuid"],
+                                    "type": "object"
+                                },
+                                {
+                                    "properties": {
+                                        "contentType": {
+                                            "$ref": "#/components/schemas/ContentType.SPACE"
+                                        },
+                                        "uuid": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["contentType", "uuid"],
+                                    "type": "object"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["action", "content"],
+                "type": "object"
             }
         },
         "securitySchemes": {

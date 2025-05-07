@@ -301,7 +301,11 @@ export class SpaceService extends BaseService {
             }
         }
 
-        await this.spaceModel.move(spaceUuid, parentSpaceUuid);
+        await this.spaceModel.moveToSpace({
+            projectUuid: space.projectUuid,
+            spaceUuid,
+            newParentSpaceUuid: parentSpaceUuid,
+        });
 
         this.analytics.track({
             event: 'space.moved',
@@ -310,6 +314,7 @@ export class SpaceService extends BaseService {
                 name: space.name,
                 spaceId: spaceUuid,
                 oldParentSpaceId: space.parentSpaceUuid,
+                newParentSpaceId: parentSpaceUuid,
                 projectId: space.projectUuid,
             },
         });

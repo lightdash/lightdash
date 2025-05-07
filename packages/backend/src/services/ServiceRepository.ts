@@ -770,8 +770,13 @@ export class ServiceRepository
                 new ContentService({
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
-                    spaceModel: this.models.getSpaceModel(),
                     contentModel: this.models.getContentModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    dashboardModel: this.models.getDashboardModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    savedSqlModel: this.models.getSavedSqlModel(),
+                    savedSemanticViewerChartModel:
+                        this.models.getSavedSemanticViewerChartModel(),
                 }),
         );
     }

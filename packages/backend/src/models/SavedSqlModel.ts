@@ -359,4 +359,26 @@ export class SavedSqlModel {
             .where('saved_sql_uuid', uuid)
             .delete();
     }
+
+    async moveToSpace(
+        {
+            projectUuid,
+            savedSqlUuid,
+            newParentSpaceUuid,
+        }: {
+            projectUuid: string;
+            savedSqlUuid: string;
+            newParentSpaceUuid: string;
+        },
+        { trx = this.database }: { trx?: Knex } = { trx: this.database },
+    ): Promise<void> {
+        const updateCount = await trx(SavedSqlTableName)
+            .update({ space_uuid: newParentSpaceUuid })
+            .where('saved_sql_uuid', savedSqlUuid)
+            .where('project_uuid', projectUuid);
+
+        if (updateCount !== 1) {
+            throw new Error('Failed to move saved sql to space');
+        }
+    }
 }

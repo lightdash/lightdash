@@ -401,4 +401,31 @@ export class SavedSemanticViewerChartModel {
             .where('saved_semantic_viewer_chart_uuid', uuid)
             .delete();
     }
+
+    async moveToSpace(
+        {
+            projectUuid,
+            savedSemanticViewerChartUuid,
+            newParentSpaceUuid,
+        }: {
+            projectUuid: string;
+            savedSemanticViewerChartUuid: string;
+            newParentSpaceUuid: string;
+        },
+        { trx = this.database }: { trx?: Knex } = { trx: this.database },
+    ): Promise<void> {
+        const updateCount = await trx(SavedSemanticViewerChartsTableName)
+            .update({ space_uuid: newParentSpaceUuid })
+            .where(
+                'saved_semantic_viewer_chart_uuid',
+                savedSemanticViewerChartUuid,
+            )
+            .where('project_uuid', projectUuid);
+
+        if (updateCount !== 1) {
+            throw new Error(
+                'Failed to move saved semantic viewer chart to space',
+            );
+        }
+    }
 }

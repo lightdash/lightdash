@@ -355,11 +355,7 @@ const Space: FC = () => {
                         [ColumnVisibility.SPACE]: false,
                     }}
                     enableBottomToolbar={false}
-                    initialAdminContentViewValue={
-                        userCanManageSpaceAndHasNoDirectAccessToSpace
-                            ? 'all'
-                            : 'shared'
-                    }
+                    enableRowSelection
                 />
 
                 {addToSpace && (

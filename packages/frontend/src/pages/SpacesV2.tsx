@@ -105,6 +105,7 @@ const SpacesV2: FC = () => {
                     }}
                     adminContentView={userCanManageProject}
                     enableBottomToolbar={false}
+                    enableRowSelection
                 />
 
                 {isCreateModalOpen && (

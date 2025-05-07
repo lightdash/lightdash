@@ -1,10 +1,12 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     capitalize,
+    ChartSourceType,
     ContentSortByColumns,
     contentToResourceViewItem,
+    ContentType,
     isResourceViewSpaceItem,
-    type ContentType,
     type ResourceViewItem,
     type SpaceSummary,
 } from '@lightdash/common';
@@ -12,6 +14,7 @@ import {
     ActionIcon,
     Anchor,
     Box,
+    Button,
     Divider,
     Group,
     Text,
@@ -19,11 +22,13 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconArrowDown,
     IconArrowsSort,
     IconArrowUp,
     IconChartBar,
+    IconFolderSymlink,
     IconLayoutDashboard,
     IconSearch,
     IconX,
@@ -47,6 +52,7 @@ import {
 } from 'react';
 import { Link, useNavigate } from 'react-router';
 import {
+    useContentBulkAction,
     useInfiniteContent,
     type ContentArgs,
 } from '../../../hooks/useContent';
@@ -54,6 +60,7 @@ import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
+import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import AdminContentViewFilter from './AdminContentViewFilter';
 import ContentTypeFilter from './ContentTypeFilter';
 import InfiniteResourceTableColumnName from './InfiniteResourceTableColumnName';
@@ -293,6 +300,54 @@ const InfiniteResourceTable = ({
             { keepPreviousData: true },
         );
 
+    const [
+        isTransferItemsModalOpen,
+        { open: openTransferItemsModal, close: closeTransferItemsModal },
+    ] = useDisclosure(false);
+
+    const { mutateAsync: bulkMoveContent, isLoading: isBulkMovingContent } =
+        useContentBulkAction(filters.projectUuid);
+
+    const handleBulkMoveContent = useCallback(
+        async (selectedItems: ResourceViewItem[], spaceUuid: string) => {
+            await bulkMoveContent({
+                content: selectedItems.map((item) => {
+                    switch (item.type) {
+                        case ContentType.CHART:
+                            return {
+                                uuid: item.data.uuid,
+                                contentType: ContentType.CHART,
+                                source:
+                                    item.data.source ??
+                                    ChartSourceType.DBT_EXPLORE,
+                            };
+                        case ContentType.DASHBOARD:
+                            return {
+                                uuid: item.data.uuid,
+                                contentType: ContentType.DASHBOARD,
+                            };
+                        case ContentType.SPACE:
+                            return {
+                                uuid: item.data.uuid,
+                                contentType: ContentType.SPACE,
+                            };
+                        default:
+                            return assertUnreachable(
+                                item,
+                                'Invalid item type in bulk move handler',
+                            );
+                    }
+                }),
+                action: {
+                    type: 'move',
+                    newSpaceUuid: spaceUuid,
+                },
+            });
+
+            closeTransferItemsModal();
+        },
+        [bulkMoveContent, closeTransferItemsModal],
+    );
     const flatData = useMemo(() => {
         if (!data || !spaces) return [];
         return data.pages
@@ -413,8 +468,8 @@ const InfiniteResourceTable = ({
             },
         },
         mantineTableHeadProps: {
-            sx: {
-                flexShrink: 1,
+            styles: {
+                background: 'red',
             },
         },
         mantineTableHeadRowProps: {
@@ -423,7 +478,6 @@ const InfiniteResourceTable = ({
 
                 // Each head row has a divider when resizing columns is enabled
                 'th > div > div:last-child': {
-                    height: 40,
                     top: -10,
                     right: -5,
                 },
@@ -530,96 +584,119 @@ const InfiniteResourceTable = ({
                 },
             };
         },
-        renderTopToolbar: () => (
-            <Box>
-                <Group p={`${theme.spacing.lg} ${theme.spacing.xl}`}>
-                    <Group spacing="xs">
-                        <Tooltip
-                            withinPortal
-                            variant="xs"
-                            label="Search by name"
-                        >
-                            {/* Search input */}
-                            <TextInput
-                                size="xs"
-                                radius="md"
-                                styles={(inputTheme) => ({
-                                    input: {
-                                        height: 32,
-                                        width: 309,
-                                        padding: `${inputTheme.spacing.xs} ${inputTheme.spacing.sm}`,
-                                        textOverflow: 'ellipsis',
-                                        fontSize: inputTheme.fontSizes.sm,
-                                        fontWeight: 400,
-                                        color: search
-                                            ? inputTheme.colors.gray[8]
-                                            : inputTheme.colors.gray[5],
-                                        boxShadow: inputTheme.shadows.subtle,
-                                        border: `1px solid ${inputTheme.colors.gray[3]}`,
-                                        '&:hover': {
-                                            border: `1px solid ${inputTheme.colors.gray[4]}`,
+        renderTopToolbar: () => {
+            const selectedRows = table.getFilteredSelectedRowModel().flatRows;
+            const selectedItems = selectedRows.map((row) => row.original);
+
+            return (
+                <Box>
+                    <Group p={`${theme.spacing.lg} ${theme.spacing.xl}`}>
+                        <Group spacing="xs">
+                            <Tooltip
+                                withinPortal
+                                variant="xs"
+                                label="Search by name"
+                            >
+                                {/* Search input */}
+                                <TextInput
+                                    size="xs"
+                                    radius="md"
+                                    styles={(inputTheme) => ({
+                                        input: {
+                                            height: 32,
+                                            width: 309,
+                                            padding: `${inputTheme.spacing.xs} ${inputTheme.spacing.sm}`,
+                                            textOverflow: 'ellipsis',
+                                            fontSize: inputTheme.fontSizes.sm,
+                                            fontWeight: 400,
+                                            color: search
+                                                ? inputTheme.colors.gray[8]
+                                                : inputTheme.colors.gray[5],
+                                            boxShadow:
+                                                inputTheme.shadows.subtle,
+                                            border: `1px solid ${inputTheme.colors.gray[3]}`,
+                                            '&:hover': {
+                                                border: `1px solid ${inputTheme.colors.gray[4]}`,
+                                            },
+                                            '&:focus': {
+                                                border: `1px solid ${inputTheme.colors.blue[5]}`,
+                                            },
                                         },
-                                        '&:focus': {
-                                            border: `1px solid ${inputTheme.colors.blue[5]}`,
-                                        },
-                                    },
-                                })}
-                                type="search"
-                                variant="default"
-                                placeholder="Search by name"
-                                value={search ?? ''}
-                                icon={
-                                    <MantineIcon
-                                        size="md"
-                                        color="gray.6"
-                                        icon={IconSearch}
+                                    })}
+                                    type="search"
+                                    variant="default"
+                                    placeholder="Search by name"
+                                    value={search ?? ''}
+                                    icon={
+                                        <MantineIcon
+                                            size="md"
+                                            color="gray.6"
+                                            icon={IconSearch}
+                                        />
+                                    }
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    rightSection={
+                                        search && (
+                                            <ActionIcon
+                                                onClick={clearSearch}
+                                                variant="transparent"
+                                                size="xs"
+                                                color="gray.5"
+                                            >
+                                                <MantineIcon icon={IconX} />
+                                            </ActionIcon>
+                                        )
+                                    }
+                                />
+                            </Tooltip>
+
+                            {contentTypeFilter &&
+                            contentTypeFilter.options.length > 1 ? (
+                                <>
+                                    <Divider
+                                        orientation="vertical"
+                                        w={1}
+                                        h={20}
+                                        sx={{
+                                            alignSelf: 'center',
+                                            borderColor: '#DEE2E6',
+                                        }}
                                     />
-                                }
-                                onChange={(e) => setSearch(e.target.value)}
-                                rightSection={
-                                    search && (
-                                        <ActionIcon
-                                            onClick={clearSearch}
-                                            variant="transparent"
-                                            size="xs"
-                                            color="gray.5"
-                                        >
-                                            <MantineIcon icon={IconX} />
-                                        </ActionIcon>
-                                    )
-                                }
-                            />
-                        </Tooltip>
-                        {contentTypeFilter &&
-                        contentTypeFilter.options.length > 1 ? (
-                            <>
-                                <Divider
-                                    orientation="vertical"
-                                    w={1}
-                                    h={20}
-                                    sx={{
-                                        alignSelf: 'center',
-                                        borderColor: '#DEE2E6',
-                                    }}
+                                    <ContentTypeFilter
+                                        value={selectedContentType}
+                                        onChange={setSelectedContentType}
+                                        options={contentTypeFilter.options}
+                                    />
+                                </>
+                            ) : null}
+
+                            {adminContentView ? (
+                                <AdminContentViewFilter
+                                    value={selectedAdminContentType}
+                                    onChange={setSelectedAdminContentType}
                                 />
-                                <ContentTypeFilter
-                                    value={selectedContentType}
-                                    onChange={setSelectedContentType}
-                                    options={contentTypeFilter.options}
-                                />
-                            </>
-                        ) : null}
-                        {adminContentView ? (
-                            <AdminContentViewFilter
-                                value={selectedAdminContentType}
-                                onChange={setSelectedAdminContentType}
-                            />
+                            ) : null}
+                        </Group>
+
+                        {selectedItems.length > 0 ? (
+                            <Button
+                                ml="auto"
+                                variant="filled"
+                                size="xs"
+                                color="blue"
+                                leftIcon={
+                                    <MantineIcon icon={IconFolderSymlink} />
+                                }
+                                onClick={openTransferItemsModal}
+                            >
+                                Transfer to space
+                            </Button>
                         ) : null}
                     </Group>
-                </Group>
-                <Divider color="gray.2" />
-            </Box>
-        ),
+                    <Divider color="gray.2" />
+                </Box>
+            );
+        },
         renderBottomToolbar: () => (
             <Box
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
@@ -701,12 +778,52 @@ const InfiniteResourceTable = ({
         enableEditing: true,
         editDisplayMode: 'cell',
         ...mrtProps,
+        mantineSelectCheckboxProps: {
+            size: 'sm',
+        },
+        mantineSelectAllCheckboxProps: {
+            size: 'sm',
+        },
+        mantineToolbarAlertBannerProps: {
+            h: '3xl',
+            py: 0,
+            styles: {
+                root: {
+                    borderLeftWidth: '0',
+                },
+                wrapper: {},
+            },
+        },
     });
+
+    const selectedItems = table
+        .getFilteredSelectedRowModel()
+        .flatRows.map((row) => row.original);
 
     return (
         <>
             <MantineReactTable table={table} />
             <ResourceActionHandlers action={action} onAction={handleAction} />
+
+            {isTransferItemsModalOpen && (
+                <TransferItemsModal
+                    opened
+                    onClose={closeTransferItemsModal}
+                    projectUuid={filters.projectUuid}
+                    items={selectedItems}
+                    spaces={spaces}
+                    isLoading={isFetching || isBulkMovingContent}
+                    onConfirm={async (spaceUuid) => {
+                        if (!spaceUuid) {
+                            throw new Error(
+                                'Space UUID is required to move items',
+                            );
+                        }
+
+                        await handleBulkMoveContent(selectedItems, spaceUuid);
+                    }}
+                />
+            )}
         </>
     );
 };

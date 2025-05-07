@@ -1,13 +1,19 @@
 import {
+    ApiContentBulkActionBody,
     ApiContentResponse,
     ApiErrorPayload,
+    ApiSuccessEmpty,
+    ContentBulkActionMove,
     ContentType,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
     Hidden,
     Middlewares,
     OperationId,
+    Path,
+    Post,
     Query,
     Request,
     Response,
@@ -26,7 +32,7 @@ import { BaseController } from '../baseController';
 @Hidden() // Hide this endpoint from the documentation for now
 export class ContentController extends BaseController {
     /**
-     * Get content (charts, dashboards, etc.)
+     * Get content (charts, dashboards, spaces)
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -65,5 +71,32 @@ export class ContentController extends BaseController {
                 },
             ),
         };
+    }
+
+    /**
+     * Transfer multiple items (Charts, Dashboards, Spaces) to another space
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/bulk-action/:projectUuid/move')
+    @OperationId('Bulk move content')
+    @Tags('Content', 'Bulk action', 'Move content')
+    async bulkMoveContent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiContentBulkActionBody<ContentBulkActionMove>,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.services
+            .getContentService()
+            .bulkMove(
+                req.user!,
+                projectUuid,
+                body.content,
+                body.action.newSpaceUuid,
+            );
+
+        return { status: 'ok', results: undefined };
     }
 }
