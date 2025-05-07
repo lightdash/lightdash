@@ -1,3 +1,10 @@
+# [0.1614.0](https://github.com/lightdash/lightdash/compare/0.1613.1...0.1614.0) (2025-05-07)
+
+
+### Features
+
+* add dashboard-sql-chart endpoint that just uses pivoted results ([#14688](https://github.com/lightdash/lightdash/issues/14688)) ([df4ed7f](https://github.com/lightdash/lightdash/commit/df4ed7f577a202d073867587a7e7fbacc383e34e)), closes [#14626](https://github.com/lightdash/lightdash/issues/14626)
+
 ## [0.1613.1](https://github.com/lightdash/lightdash/compare/0.1613.0...0.1613.1) (2025-05-07)
 
 
