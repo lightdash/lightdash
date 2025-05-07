@@ -166,12 +166,12 @@ export const getSqlChartAllResults = async (
     }
     return {
         columns: Object.entries(currentPage.fields).map(([key, _field]) => ({
-            reference: key,
+            reference: key.replace('virtual_view_', ''), // todo: remove
         })),
         results: allRows.map((row) =>
             Object.fromEntries(
                 Object.entries(row).map(([key, value]) => [
-                    key,
+                    key.replace('virtual_view_', ''), // todo: remove
                     value.value.raw,
                 ]),
             ),

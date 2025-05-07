@@ -6,6 +6,7 @@ import {
     type QueryExecutionContext,
     type RawResultRow,
     type SqlChart,
+    type VizColumn,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
@@ -70,7 +71,7 @@ export const useSavedSqlChartResults = ({
             const chart = chartQuery.data!;
 
             // TODO: This shouldn't be needed - it gets the raw unpivoted results
-            let chartResults;
+            let chartResults: { columns: VizColumn[]; results: RawResultRow[] };
             if (dashboardUuid) {
                 const query = await executeAsyncDashboardSqlChartQuery(
                     projectUuid!,
