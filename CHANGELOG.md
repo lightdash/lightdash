@@ -1,3 +1,10 @@
+# [0.1613.0](https://github.com/lightdash/lightdash/compare/0.1612.6...0.1613.0) (2025-05-07)
+
+
+### Features
+
+* handle quarter filter with new picker ([#14667](https://github.com/lightdash/lightdash/issues/14667)) ([22e2e1b](https://github.com/lightdash/lightdash/commit/22e2e1ba8e36377583052a7249c119da0b21632c))
+
 ## [0.1612.6](https://github.com/lightdash/lightdash/compare/0.1612.5...0.1612.6) (2025-05-07)
 
 
