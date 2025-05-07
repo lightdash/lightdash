@@ -43,14 +43,14 @@ export type ApiExecuteAsyncQueryResponse = {
     results: ApiExecuteAsyncQueryResults;
 };
 
-@Route('/api/v2/projects')
+@Route('/api/v2/projects/{projectUuid}/query')
 @Response<ApiErrorPayload>('default', 'Error')
-@Tags('v2', 'Projects')
-export class V2ProjectController extends BaseController {
+@Tags('v2', 'Query')
+export class QueryController extends BaseController {
     @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('{projectUuid}/query/{queryUuid}')
+    @Get('/{queryUuid}')
     @OperationId('getAsyncQueryResults')
     async getAsyncQueryResults(
         @Path()
@@ -84,7 +84,7 @@ export class V2ProjectController extends BaseController {
     @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('{projectUuid}/query/{queryUuid}/cancel')
+    @Post('/{queryUuid}/cancel')
     @OperationId('cancelAsyncQuery')
     async cancelAsyncQuery(
         @Path() projectUuid: string,
@@ -108,7 +108,7 @@ export class V2ProjectController extends BaseController {
     @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('{projectUuid}/query/metric-query')
+    @Post('/metric-query')
     @OperationId('executeAsyncMetricQuery')
     async executeAsyncMetricQuery(
         @Body()
@@ -153,7 +153,7 @@ export class V2ProjectController extends BaseController {
     @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('{projectUuid}/query/chart')
+    @Post('/chart')
     @OperationId('executeAsyncSavedChartQuery')
     async executeAsyncSavedChartQuery(
         @Body()
@@ -185,7 +185,7 @@ export class V2ProjectController extends BaseController {
     @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('{projectUuid}/query/dashboard-chart')
+    @Post('/dashboard-chart')
     @OperationId('executeAsyncDashboardChartQuery')
     async executeAsyncDashboardChartQuery(
         @Body()
@@ -220,7 +220,7 @@ export class V2ProjectController extends BaseController {
     @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('{projectUuid}/query/underlying-data')
+    @Post('/underlying-data')
     @OperationId('executeAsyncUnderlyingDataQuery')
     async executeAsyncUnderlyingDataQuery(
         @Body()
@@ -255,7 +255,7 @@ export class V2ProjectController extends BaseController {
     @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('{projectUuid}/query/sql')
+    @Post('/sql')
     @OperationId('executeAsyncSqlQuery')
     async executeAsyncSqlQuery(
         @Body()
@@ -286,7 +286,7 @@ export class V2ProjectController extends BaseController {
     @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('{projectUuid}/query/dashboard-sql-chart')
+    @Post('/dashboard-sql-chart')
     @OperationId('executeAsyncDashboardSqlChartQuery')
     async executeAsyncDashboardSqlChartQuery(
         @Body()
