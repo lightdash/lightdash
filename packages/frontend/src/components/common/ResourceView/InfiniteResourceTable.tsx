@@ -784,16 +784,6 @@ const InfiniteResourceTable = ({
         mantineSelectAllCheckboxProps: {
             size: 'sm',
         },
-        mantineToolbarAlertBannerProps: {
-            h: '3xl',
-            py: 0,
-            styles: {
-                root: {
-                    borderLeftWidth: '0',
-                },
-                wrapper: {},
-            },
-        },
     });
 
     const selectedItems = table

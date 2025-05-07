@@ -63,16 +63,14 @@ const Space: FC = () => {
     const { user, health } = useApp();
     const { track } = useTracking();
 
-    const canCreateNestedSpaces = useMemo(() => {
-        const userCanManageSpace = user.data?.ability?.can(
+    const userCanManageSpace = useMemo(() => {
+        return user.data?.ability?.can(
             'create',
             subject('Space', {
                 organizationUuid: user.data?.organizationUuid,
                 projectUuid,
             }),
         );
-
-        return userCanManageSpace;
     }, [user.data?.ability, user.data?.organizationUuid, projectUuid]);
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
@@ -191,7 +189,7 @@ const Space: FC = () => {
                         {!isDemo &&
                             (userCanCreateDashboards ||
                                 userCanCreateCharts ||
-                                canCreateNestedSpaces) && (
+                                userCanManageSpace) && (
                                 <Menu
                                     position="bottom-end"
                                     shadow="md"
@@ -215,7 +213,7 @@ const Space: FC = () => {
                                     </Menu.Target>
 
                                     <Menu.Dropdown>
-                                        {canCreateNestedSpaces && (
+                                        {userCanManageSpace && (
                                             <>
                                                 <Menu.Item
                                                     icon={
@@ -355,7 +353,7 @@ const Space: FC = () => {
                         [ColumnVisibility.SPACE]: false,
                     }}
                     enableBottomToolbar={false}
-                    enableRowSelection
+                    enableRowSelection={userCanManageSpace}
                 />
 
                 {addToSpace && (

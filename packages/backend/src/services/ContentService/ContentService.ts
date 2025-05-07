@@ -135,7 +135,7 @@ export class ContentService extends BaseService {
         content: ApiContentBulkActionBody<ContentBulkActionMove>['content'],
         newParentSpaceUuid: string,
     ) {
-        const permissionChecks = content.map(async (item) => {
+        const allItemPromises = content.map(async (item) => {
             switch (item.contentType) {
                 case ContentType.SPACE:
                     const space = await this.spaceModel.getSpaceSummary(
@@ -272,7 +272,10 @@ export class ContentService extends BaseService {
             }
         });
 
-        await Promise.all(permissionChecks);
+        await Promise.all(allItemPromises);
+
+        // TODO: check if all items belong to the same project and space before moving
+        // throw error if not
 
         const database = this.contentModel.getDatabase();
 
