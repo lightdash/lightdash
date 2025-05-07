@@ -81,6 +81,7 @@ type ResourceView2Props = Partial<MRT_TableOptions<ResourceViewItem>> & {
     };
     columnVisibility?: ColumnVisibilityConfig;
     adminContentView?: boolean;
+    initialAdminContentViewValue?: 'all' | 'shared';
 };
 
 const InfiniteResourceTable = ({
@@ -88,11 +89,12 @@ const InfiniteResourceTable = ({
     contentTypeFilter,
     columnVisibility,
     adminContentView = false,
+    initialAdminContentViewValue = 'shared',
     ...mrtProps
 }: ResourceView2Props) => {
     const [selectedAdminContentType, setSelectedAdminContentType] = useState<
         'all' | 'shared'
-    >('shared');
+    >(initialAdminContentViewValue);
     const theme = useMantineTheme();
     const navigate = useNavigate();
     const { data: spaces = [] } = useSpaceSummaries(filters.projectUuid, true);
