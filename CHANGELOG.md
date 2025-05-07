@@ -1,3 +1,10 @@
+## [0.1612.6](https://github.com/lightdash/lightdash/compare/0.1612.5...0.1612.6) (2025-05-07)
+
+
+### Bug Fixes
+
+* admins should be able to see private spaces on every level ([#14703](https://github.com/lightdash/lightdash/issues/14703)) ([8641111](https://github.com/lightdash/lightdash/commit/864111110798990d82cef2e56aada9993939ed5c)), closes [#14699](https://github.com/lightdash/lightdash/issues/14699)
+
 ## [0.1612.5](https://github.com/lightdash/lightdash/compare/0.1612.4...0.1612.5) (2025-05-07)
 
 
