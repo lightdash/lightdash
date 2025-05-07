@@ -313,7 +313,10 @@ export const useInfiniteQueryResults = (
                             1000,
                         );
                     }
-                    break;
+                    return {
+                        ...results,
+                        clientFetchTimeMs,
+                    };
                 }
                 case QueryHistoryStatus.READY: {
                     backoffRef.current = 250;
@@ -332,11 +335,6 @@ export const useInfiniteQueryResults = (
                 default:
                     return assertUnreachable(status, 'Unknown query status');
             }
-
-            return {
-                ...results,
-                clientFetchTimeMs,
-            };
         },
         staleTime: Infinity, // the data will never be considered stale
     });
