@@ -1,3 +1,10 @@
+## [0.1613.1](https://github.com/lightdash/lightdash/compare/0.1613.0...0.1613.1) (2025-05-07)
+
+
+### Bug Fixes
+
+* show error for visualizations on paginated query error ([#14691](https://github.com/lightdash/lightdash/issues/14691)) ([192a8f2](https://github.com/lightdash/lightdash/commit/192a8f27eaf671c7df1cab61a2fff9b3a0ae9e5e))
+
 # [0.1613.0](https://github.com/lightdash/lightdash/compare/0.1612.6...0.1613.0) (2025-05-07)
 
 
