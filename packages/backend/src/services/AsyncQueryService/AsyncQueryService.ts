@@ -26,6 +26,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     GroupByColumn,
+    isCartesianChartConfig,
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
@@ -637,7 +638,7 @@ export class AsyncQueryService<
                     user,
                     projectUuid,
                     context,
-                    granularity,
+                    dateZoom,
                     queryTags,
                     explore,
                 } = args;
@@ -707,7 +708,7 @@ export class AsyncQueryService<
                         intrinsicUserAttributes,
                         userAttributes,
                         this.lightdashConfig.query.timezone || 'UTC',
-                        granularity,
+                        dateZoom,
                     );
 
                     const {
@@ -825,7 +826,7 @@ export class AsyncQueryService<
                                     metricQuery,
                                     hasExampleMetric,
                                     queryTags,
-                                    granularity,
+                                    dateZoom,
                                     chartUuid:
                                         'chartUuid' in requestParameters
                                             ? requestParameters.chartUuid
@@ -910,7 +911,7 @@ export class AsyncQueryService<
     async executeAsyncMetricQuery({
         user,
         projectUuid,
-        granularity,
+        dateZoom,
         context,
         metricQuery,
         invalidateCache,
@@ -970,7 +971,7 @@ export class AsyncQueryService<
                 explore,
                 context,
                 queryTags,
-                granularity,
+                dateZoom,
                 invalidateCache,
             },
             requestParameters,
@@ -1210,7 +1211,7 @@ export class AsyncQueryService<
         dashboardUuid,
         dashboardFilters,
         dashboardSorts,
-        granularity,
+        dateZoom,
         context,
         invalidateCache,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
@@ -1301,16 +1302,27 @@ export class AsyncQueryService<
             ...metricQueryWithDashboardOverrides.dimensions,
             ...(metricQueryWithDashboardOverrides.customDimensions ?? []),
         ];
-        const hasADateDimension = exploreDimensions.find(
-            (c) =>
-                metricQueryDimensions.includes(getItemId(c)) && isDateItem(c),
-        );
+
+        const xAxisField = isCartesianChartConfig(savedChart.chartConfig.config)
+            ? savedChart.chartConfig.config.layout.xField
+            : undefined;
+
+        const hasADateDimension = xAxisField
+            ? exploreDimensions.find(
+                  (c) => getItemId(c) === xAxisField && isDateItem(c),
+              )
+            : exploreDimensions.find(
+                  (c) =>
+                      metricQueryDimensions.includes(getItemId(c)) &&
+                      isDateItem(c),
+              );
 
         if (hasADateDimension) {
             metricQueryWithDashboardOverrides.metadata = {
                 hasADateDimension: {
                     name: hasADateDimension.name,
                     label: hasADateDimension.label,
+                    table: hasADateDimension.table,
                 },
             };
         }
@@ -1321,7 +1333,7 @@ export class AsyncQueryService<
             dashboardUuid,
             dashboardFilters,
             dashboardSorts,
-            granularity,
+            dateZoom,
         };
 
         const queryTags: RunQueryTags = {
@@ -1343,7 +1355,7 @@ export class AsyncQueryService<
                 context,
                 queryTags,
                 invalidateCache,
-                granularity,
+                dateZoom,
             },
             requestParameters,
         );
@@ -1363,6 +1375,7 @@ export class AsyncQueryService<
         underlyingDataItemId,
         context,
         invalidateCache,
+        dateZoom,
     }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1487,6 +1500,7 @@ export class AsyncQueryService<
                     context,
                     queryTags,
                     invalidateCache,
+                    dateZoom,
                 },
                 requestParameters,
             );

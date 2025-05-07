@@ -107,7 +107,11 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
                             filters: convertDateFilters(data.query.filters),
                             timezone: data.query.timezone ?? undefined,
                             exploreName: data.tableId,
-                            granularity: data.dateZoomGranularity,
+                            dateZoom: data.dateZoomGranularity
+                                ? {
+                                      granularity: data.dateZoomGranularity,
+                                  }
+                                : undefined,
                         },
                         invalidateCache: true, // Note: do not cache explore queries
                     },

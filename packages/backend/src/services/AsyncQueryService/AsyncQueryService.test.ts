@@ -219,7 +219,7 @@ describe('AsyncQueryService', () => {
                         projectUuid,
                         metricQuery: metricQueryMock,
                         context: QueryExecutionContext.EXPLORE,
-                        granularity: undefined,
+                        dateZoom: undefined,
                         queryTags: {
                             query_context: QueryExecutionContext.EXPLORE,
                         },
@@ -301,7 +301,7 @@ describe('AsyncQueryService', () => {
                         projectUuid,
                         metricQuery: metricQueryMock,
                         context: QueryExecutionContext.EXPLORE,
-                        granularity: undefined,
+                        dateZoom: undefined,
                         queryTags: {
                             query_context: QueryExecutionContext.EXPLORE,
                         },
@@ -381,7 +381,7 @@ describe('AsyncQueryService', () => {
                         projectUuid,
                         metricQuery: metricQueryMock,
                         context: QueryExecutionContext.EXPLORE,
-                        granularity: undefined,
+                        dateZoom: undefined,
                         queryTags: {
                             query_context: QueryExecutionContext.EXPLORE,
                         },
@@ -455,7 +455,7 @@ describe('AsyncQueryService', () => {
                         projectUuid,
                         metricQuery: metricQueryMock,
                         context: QueryExecutionContext.EXPLORE,
-                        granularity: undefined,
+                        dateZoom: undefined,
                         queryTags: {
                             query_context: QueryExecutionContext.EXPLORE,
                         },

@@ -14,9 +14,15 @@ type CommonPaginatedQueryRequestParams = {
     invalidateCache?: boolean;
 };
 
+export type DateZoom = {
+    granularity?: DateGranularity;
+    xAxisFieldId?: string;
+};
+
 export type ExecuteAsyncMetricQueryRequestParams =
     CommonPaginatedQueryRequestParams & {
         query: Omit<MetricQueryRequest, 'csvLimit'>;
+        dateZoom?: DateZoom;
     };
 
 export type ExecuteAsyncSavedChartRequestParams =
@@ -31,7 +37,7 @@ export type ExecuteAsyncDashboardChartRequestParams =
         dashboardUuid: string;
         dashboardFilters: DashboardFilters;
         dashboardSorts: SortField[];
-        granularity?: DateGranularity;
+        dateZoom?: DateZoom;
     };
 
 export type ExecuteAsyncSqlQueryRequestParams =
@@ -50,6 +56,7 @@ export type ExecuteAsyncUnderlyingDataRequestParams =
         underlyingDataSourceQueryUuid: string;
         underlyingDataItemId?: string;
         filters: Filters;
+        dateZoom?: DateZoom;
     };
 
 export type ExecuteAsyncQueryRequestParams =

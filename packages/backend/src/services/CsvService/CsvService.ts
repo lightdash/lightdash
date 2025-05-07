@@ -593,7 +593,9 @@ This method can be memory intensive
             exploreName: exploreId,
             csvLimit: getSchedulerCsvLimit(options),
             context: QueryExecutionContext.CSV,
-            granularity: dateZoomGranularity,
+            dateZoom: {
+                granularity: dateZoomGranularity,
+            },
             chartUuid,
             queryTags,
         });

@@ -6,6 +6,7 @@ import {
     type CacheMetadata,
     type DashboardFilters,
     type DateGranularity,
+    type DateZoom,
     type Filters,
     type PivotIndexColum,
     type QueryExecutionContext,
@@ -31,7 +32,7 @@ export type GetAsyncQueryResultsArgs = Omit<
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
-    granularity?: DateGranularity;
+    dateZoom?: DateZoom;
 };
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
@@ -54,13 +55,14 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     dashboardUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
-    granularity?: DateGranularity;
+    dateZoom?: DateZoom;
 };
 
 export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {
     underlyingDataSourceQueryUuid: string;
     filters: Filters;
     underlyingDataItemId?: string;
+    dateZoom?: DateZoom;
 };
 
 export type ExecuteAsyncQueryReturn = {

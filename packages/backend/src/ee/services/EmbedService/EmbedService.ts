@@ -701,7 +701,11 @@ export class EmbedService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
-            dateZoomGranularity,
+            dateZoomGranularity
+                ? {
+                      granularity: dateZoomGranularity,
+                  }
+                : undefined,
         );
 
         const results =
