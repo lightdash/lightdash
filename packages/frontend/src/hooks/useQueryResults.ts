@@ -180,6 +180,7 @@ export type InfiniteQueryResults = Partial<
     fetchAll: boolean;
     hasFetchedAllRows: boolean;
     totalClientFetchTimeMs: number | undefined;
+    error: ApiError | null;
 };
 
 // This hook lazy load results has they are needed in the UI
@@ -248,6 +249,11 @@ export const useInfiniteQueryResults = (
         hasFetchedAllRows,
     ]);
 
+    const queryClient = useQueryClient();
+
+    // Initial backoff time in ms
+    const backoffRef = useRef(250);
+
     const nextPage = useQuery<
         ApiGetAsyncQueryResults & { clientFetchTimeMs: number },
         ApiError
@@ -262,6 +268,66 @@ export const useInfiniteQueryResults = (
                 fetchArgs.page,
                 fetchArgs.pageSize,
             );
+
+            const { status } = results;
+
+            switch (status) {
+                case QueryHistoryStatus.ERROR: {
+                    backoffRef.current = 250;
+                    throw <ApiError>{
+                        status: 'error',
+                        error: {
+                            name: 'Error',
+                            statusCode: 500,
+                            message: results.error ?? 'Query failed',
+                            data: {},
+                        },
+                    };
+                }
+                case QueryHistoryStatus.CANCELLED: {
+                    backoffRef.current = 250;
+                    throw <ApiError>{
+                        status: 'error',
+                        error: {
+                            name: 'Error',
+                            statusCode: 500,
+                            message: 'Query cancelled',
+                            data: {},
+                        },
+                    };
+                }
+                case QueryHistoryStatus.PENDING: {
+                    // Invalidate page. Note we can't use refetch as it bypasses the "enabled" check: https://github.com/TanStack/query/issues/1965
+                    void sleep(backoffRef.current).then(() =>
+                        queryClient.invalidateQueries([
+                            'query-page',
+                            fetchArgs,
+                        ]),
+                    );
+                    // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
+                    if (backoffRef.current < 1000) {
+                        backoffRef.current = Math.min(
+                            backoffRef.current * 2,
+                            1000,
+                        );
+                    }
+                    break;
+                }
+                case QueryHistoryStatus.READY: {
+                    backoffRef.current = 250;
+                    setFetchedPages((prevState) => [
+                        ...prevState,
+                        {
+                            ...results,
+                            clientFetchTimeMs: performance.now() - startTime,
+                        },
+                    ]);
+                    break;
+                }
+                default:
+                    return assertUnreachable(status, 'Unknown query status');
+            }
+
             return {
                 ...results,
                 clientFetchTimeMs: performance.now() - startTime,
@@ -277,61 +343,6 @@ export const useInfiniteQueryResults = (
             setErrorResponse(nextPage.error);
         }
     }, [nextPage.error, setErrorResponse]);
-
-    const queryClient = useQueryClient();
-    // Initial backoff time in ms
-    const backoffRef = useRef(250);
-    // On success
-    useEffect(() => {
-        if (!nextPageData) return;
-        const { status } = nextPageData;
-        switch (status) {
-            case QueryHistoryStatus.ERROR: {
-                backoffRef.current = 250;
-                setErrorResponse({
-                    status: 'error',
-                    error: {
-                        name: 'Error',
-                        statusCode: 500,
-                        message: nextPageData.error ?? 'Query failed',
-                        data: {},
-                    },
-                });
-                break;
-            }
-            case QueryHistoryStatus.CANCELLED: {
-                backoffRef.current = 250;
-                setErrorResponse({
-                    status: 'error',
-                    error: {
-                        name: 'Error',
-                        statusCode: 500,
-                        message: 'Query cancelled',
-                        data: {},
-                    },
-                });
-                break;
-            }
-            case QueryHistoryStatus.PENDING: {
-                // Invalidate page. Note we can't use refetch as it bypasses the "enabled" check: https://github.com/TanStack/query/issues/1965
-                void sleep(backoffRef.current).then(() =>
-                    queryClient.invalidateQueries(['query-page', fetchArgs]),
-                );
-                // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
-                if (backoffRef.current < 1000) {
-                    backoffRef.current = Math.min(backoffRef.current * 2, 1000);
-                }
-                break;
-            }
-            case QueryHistoryStatus.READY: {
-                backoffRef.current = 250;
-                setFetchedPages((prevState) => [...prevState, nextPageData]);
-                break;
-            }
-            default:
-                return assertUnreachable(status, 'Unknown query status');
-        }
-    }, [fetchArgs, nextPageData, queryClient, setErrorResponse]);
 
     useEffect(() => {
         // Reset fetched pages before updating the fetch args
@@ -399,6 +410,7 @@ export const useInfiniteQueryResults = (
                         fetchedRows.length === 0)),
             isFetchingAllPages: !!queryUuid && fetchAll && !hasFetchedAllRows,
             fetchAll,
+            error: nextPage.error,
         }),
         [
             projectUuid,
@@ -412,6 +424,7 @@ export const useInfiniteQueryResults = (
             isInitialLoading,
             fetchAll,
             nextPageData,
+            nextPage.error,
         ],
     );
 };

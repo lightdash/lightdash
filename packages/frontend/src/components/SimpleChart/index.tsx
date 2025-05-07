@@ -8,8 +8,8 @@ import useEchartsCartesianConfig, {
     isLineSeriesOption,
 } from '../../hooks/echarts/useEchartsCartesianConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 
 type EchartBaseClickEvent = {
     // The component name clicked,
@@ -231,6 +231,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
         }
     }, [chartRef, eChartsOptions?.tooltip]);
 
+    if (resultsData?.error) return <EmptyChart />;
     if (isLoading) return <LoadingChart />;
     if (!eChartsOptions) return <EmptyChart />;
 

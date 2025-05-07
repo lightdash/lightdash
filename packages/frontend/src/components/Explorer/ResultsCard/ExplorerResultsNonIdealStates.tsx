@@ -214,3 +214,10 @@ export const ExploreLoadingState = () => (
         <Loader color="gray" />
     </EmptyState>
 );
+
+export const ExploreErrorState = () => (
+    <EmptyState
+        title="Error loading results"
+        description="There was an error loading the results"
+    ></EmptyState>
+);

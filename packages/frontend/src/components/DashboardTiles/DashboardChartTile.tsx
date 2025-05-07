@@ -1373,30 +1373,6 @@ export const GenericDashboardChartTile: FC<
             subject('SavedChart', dashboardChartReadyQuery.chart),
         );
 
-    if (isLoading || !dashboardChartReadyQuery || !resultsData) {
-        return (
-            <TileBase
-                isEditMode={isEditMode}
-                chartName={tile.properties.chartName ?? ''}
-                titleHref={`/projects/${projectUuid}/saved/${tile.properties.savedChartUuid}/`}
-                description={''}
-                belongsToDashboard={tile.properties.belongsToDashboard}
-                tile={tile}
-                isLoading
-                title={tile.properties.title || tile.properties.chartName || ''}
-                extraMenuItems={
-                    !minimal &&
-                    userCanManageChart &&
-                    tile.properties.savedChartUuid && (
-                        <EditChartMenuItem tile={tile} />
-                    )
-                }
-                minimal={minimal}
-                {...rest}
-            />
-        );
-    }
-
     if (error !== null) {
         return (
             <TileBase
@@ -1425,6 +1401,30 @@ export const GenericDashboardChartTile: FC<
                     title={error?.error?.message || 'No data available'}
                 ></SuboptimalState>
             </TileBase>
+        );
+    }
+
+    if (isLoading || !dashboardChartReadyQuery || !resultsData) {
+        return (
+            <TileBase
+                isEditMode={isEditMode}
+                chartName={tile.properties.chartName ?? ''}
+                titleHref={`/projects/${projectUuid}/saved/${tile.properties.savedChartUuid}/`}
+                description={''}
+                belongsToDashboard={tile.properties.belongsToDashboard}
+                tile={tile}
+                isLoading
+                title={tile.properties.title || tile.properties.chartName || ''}
+                extraMenuItems={
+                    !minimal &&
+                    userCanManageChart &&
+                    tile.properties.savedChartUuid && (
+                        <EditChartMenuItem tile={tile} />
+                    )
+                }
+                minimal={minimal}
+                {...rest}
+            />
         );
     }
 
@@ -1476,12 +1476,16 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         const isFetchingFirstPage = resultsData.isFetchingFirstPage;
         const isFetchingAllRows =
             resultsData.fetchAll && !resultsData.hasFetchedAllRows;
-        return isCreatingQuery || isFetchingFirstPage || isFetchingAllRows;
+        return (
+            (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
+            !resultsData.error
+        );
     }, [
         readyQuery.isFetching,
         resultsData.fetchAll,
         resultsData.hasFetchedAllRows,
         resultsData.isFetchingFirstPage,
+        resultsData.error,
     ]);
 
     return (
@@ -1490,7 +1494,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
             isLoading={isLoading}
             resultsData={resultsData}
             dashboardChartReadyQuery={readyQuery.data}
-            error={readyQuery.error}
+            error={readyQuery.error ?? resultsData.error}
         />
     );
 };

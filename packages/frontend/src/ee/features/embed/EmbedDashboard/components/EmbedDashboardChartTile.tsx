@@ -101,8 +101,9 @@ const EmbedDashboardChartTile: FC<Props> = ({
                 isInitialLoading: false,
                 isFetchingFirstPage: false,
                 projectUuid: translatedChartData?.chart.projectUuid,
+                error: error,
             } satisfies InfiniteQueryResults),
-        [translatedChartData],
+        [translatedChartData, error],
     );
 
     if (locked) {
