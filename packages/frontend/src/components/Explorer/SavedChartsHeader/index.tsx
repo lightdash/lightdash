@@ -120,7 +120,7 @@ const SavedChartsHeader: FC = () => {
     const reset = useExplorerContext((context) => context.actions.reset);
 
     const itemsMap = useExplorerContext(
-        (context) => context.queryResults.fields,
+        (context) => context.query.data?.fields,
     );
     const isValidQuery = useExplorerContext(
         (context) => context.state.isValidQuery,

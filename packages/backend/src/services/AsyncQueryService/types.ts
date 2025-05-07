@@ -1,5 +1,6 @@
 import {
     GroupByColumn,
+    ItemsMap,
     MetricQuery,
     SortBy,
     ValuesColumn,
@@ -58,6 +59,8 @@ export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncQueryReturn = {
     queryUuid: string;
     cacheMetadata: CacheMetadata;
+    metricQuery: MetricQuery;
+    fields: ItemsMap;
 };
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {

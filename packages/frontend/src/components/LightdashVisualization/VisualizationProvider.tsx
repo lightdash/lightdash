@@ -5,6 +5,8 @@ import {
     isDimension,
     type ChartConfig,
     type DashboardFilters,
+    type ItemsMap,
+    type MetricQuery,
     type PivotValue,
     type Series,
     type TableCalculationMetadata,
@@ -45,7 +47,10 @@ type Props = {
     minimal?: boolean;
     chartConfig: ChartConfig;
     initialPivotDimensions: string[] | undefined;
-    resultsData: InfiniteQueryResults;
+    resultsData: InfiniteQueryResults & {
+        metricQuery?: MetricQuery;
+        fields?: ItemsMap;
+    };
     isLoading: boolean;
     columnOrder: string[];
     onSeriesContextMenu?: (
@@ -95,8 +100,9 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         if (setEchartsRef)
             setEchartsRef(chartRef as RefObject<EChartsReact | null>);
     }, [chartRef, setEchartsRef]);
-    const [lastValidResultsData, setLastValidResultsData] =
-        useState<InfiniteQueryResults>();
+    const [lastValidResultsData, setLastValidResultsData] = useState<
+        InfiniteQueryResults & { metricQuery?: MetricQuery; fields?: ItemsMap }
+    >();
 
     const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
         initialPivotDimensions,
