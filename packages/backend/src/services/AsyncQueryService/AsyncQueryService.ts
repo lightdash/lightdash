@@ -81,10 +81,12 @@ import {
     type ExecuteAsyncMetricQueryArgs,
     type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
+    type ExecuteAsyncSqlChartArgs,
     ExecuteAsyncSqlQueryArgs,
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
+    isExecuteAsyncSqlChartByUuid,
 } from './types';
 
 type AsyncQueryServiceArguments<ResultsCacheStorageClient = unknown> =
@@ -1655,6 +1657,18 @@ export class AsyncQueryService<
             queryUuid,
             cacheMetadata,
         };
+    }
+
+    async executeAsyncSqlChartQuery(
+        args: ExecuteAsyncSqlChartArgs,
+    ): Promise<ApiExecuteAsyncQueryResults> {
+        const savedChart = isExecuteAsyncSqlChartByUuid(args)
+            ? await this.savedSqlModel.getByUuid(args.savedSqlUuid, {
+                  projectUuid: args.projectUuid,
+              })
+            : await this.savedSqlModel.getBySlug(args.projectUuid, args.slug);
+
+        // todo: reuse executeAsyncDashboardSqlChartQuery?
     }
 
     async executeAsyncDashboardSqlChartQuery(
