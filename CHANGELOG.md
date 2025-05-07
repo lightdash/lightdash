@@ -1,3 +1,10 @@
+## [0.1612.5](https://github.com/lightdash/lightdash/compare/0.1612.4...0.1612.5) (2025-05-07)
+
+
+### Bug Fixes
+
+* filter date zoom when viewing underlying data ([#14652](https://github.com/lightdash/lightdash/issues/14652)) ([59f0621](https://github.com/lightdash/lightdash/commit/59f06216270df89949fc93208463db2bf1aadbca))
+
 ## [0.1612.4](https://github.com/lightdash/lightdash/compare/0.1612.3...0.1612.4) (2025-05-07)
 
 
