@@ -428,24 +428,26 @@ export class ProjectModel {
                 data.warehouseConnection,
             );
 
-            const slug = await generateUniqueSpaceSlug(
-                'Shared',
-                project.project_id,
-                {
-                    trx,
-                },
-            );
+            if (data.type !== ProjectType.PREVIEW) {
+                const slug = await generateUniqueSpaceSlug(
+                    'Shared',
+                    project.project_id,
+                    {
+                        trx,
+                    },
+                );
 
-            const path = getLtreePathFromSlug(slug);
+                const path = getLtreePathFromSlug(slug);
 
-            await trx(SpaceTableName).insert({
-                project_id: project.project_id,
-                name: 'Shared',
-                is_private: false,
-                slug,
-                parent_space_uuid: null,
-                path,
-            });
+                await trx(SpaceTableName).insert({
+                    project_id: project.project_id,
+                    name: 'Shared',
+                    is_private: false,
+                    slug,
+                    parent_space_uuid: null,
+                    path,
+                });
+            }
 
             return project.project_uuid;
         });
