@@ -3,6 +3,7 @@ import {
     isVizTableConfig,
     type ApiError,
     type IResultsRunner,
+    type QueryExecutionContext,
     type RawResultRow,
     type SqlChart,
 } from '@lightdash/common';
@@ -12,14 +13,20 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 import { fetchSavedSqlChart } from './useSavedSqlCharts';
-import { getSqlChartResultsByUuid } from './useSqlChartResults';
+import {
+    executeAsyncDashboardSqlChartQuery,
+    getSqlChartAllResults,
+    getSqlChartResultsByUuid,
+} from './useSqlChartResults';
 
 export const useSavedSqlChartResults = ({
+    dashboardUuid,
     savedSqlUuid,
     slug,
     projectUuid,
     context,
 }: {
+    dashboardUuid?: string;
     savedSqlUuid?: string;
     slug?: string;
     projectUuid?: string;
@@ -63,12 +70,34 @@ export const useSavedSqlChartResults = ({
             const chart = chartQuery.data!;
 
             // TODO: This shouldn't be needed - it gets the raw unpivoted results
-            const chartResults = await getSqlChartResultsByUuid({
-                projectUuid: projectUuid!,
-                chartUuid: chart.savedSqlUuid,
-                getResultsFromStream,
-                context,
-            });
+            let chartResults;
+            if (dashboardUuid) {
+                const query = await executeAsyncDashboardSqlChartQuery(
+                    projectUuid!,
+                    {
+                        savedSqlUuid: chart.savedSqlUuid,
+                        context: context as QueryExecutionContext,
+                        dashboardUuid: dashboardUuid!,
+                        dashboardFilters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        dashboardSorts: [],
+                    },
+                );
+                chartResults = await getSqlChartAllResults(
+                    projectUuid!,
+                    query.queryUuid,
+                );
+            } else {
+                chartResults = await getSqlChartResultsByUuid({
+                    projectUuid: projectUuid!,
+                    chartUuid: chart.savedSqlUuid,
+                    getResultsFromStream,
+                    context,
+                });
+            }
 
             const resultsRunner = new SqlRunnerResultsRunnerFrontend({
                 rows: chartResults.results,

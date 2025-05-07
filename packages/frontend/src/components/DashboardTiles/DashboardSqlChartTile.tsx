@@ -10,7 +10,7 @@ import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
-import { useDashboardSqlChartResults } from '../../features/sqlRunner/hooks/useDashboardSqlChartResults';
+import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -84,7 +84,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             error: chartResultsError,
             isFetching: isChartResultsFetching,
         },
-    } = useDashboardSqlChartResults({
+    } = useSavedSqlChartResults({
         dashboardUuid,
         projectUuid,
         savedSqlUuid,

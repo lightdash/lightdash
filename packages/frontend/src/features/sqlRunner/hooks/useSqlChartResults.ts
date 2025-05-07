@@ -81,17 +81,21 @@ export const getSqlChartResultsByUuid = async ({
     });
 };
 
-export const getDashboardSqlChartResults = async (
+export const executeAsyncDashboardSqlChartQuery = async (
     projectUuid: string,
     data: ExecuteAsyncDashboardSqlChartRequestParams,
-): Promise<{ columns: VizColumn[]; results: RawResultRow[] }> => {
-    const query = await lightdashApi<ApiExecuteAsyncQueryResults>({
+): Promise<ApiExecuteAsyncQueryResults> =>
+    lightdashApi<ApiExecuteAsyncQueryResults>({
         url: `/projects/${projectUuid}/query/dashboard-sql-chart`,
         version: 'v2',
         method: 'POST',
         body: JSON.stringify(data),
     });
 
+export const getSqlChartAllResults = async (
+    projectUuid: string,
+    queryUuid: string,
+): Promise<{ columns: VizColumn[]; results: RawResultRow[] }> => {
     // Get all page rows in sequence
     let allRows: ResultRow[] = [];
     let currentPage: ApiGetAsyncQueryResults | undefined;
@@ -115,7 +119,7 @@ export const getDashboardSqlChartResults = async (
 
         const urlQueryParams = searchParams.toString();
         currentPage = await lightdashApi<ApiGetAsyncQueryResults>({
-            url: `/projects/${projectUuid}/query/${query.queryUuid}${
+            url: `/projects/${projectUuid}/query/${queryUuid}${
                 urlQueryParams ? `?${urlQueryParams}` : ''
             }`,
             version: 'v2',
