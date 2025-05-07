@@ -72,7 +72,7 @@ import { CatalogController } from './../controllers/catalogController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SemanticLayerController } from './../controllers/v2/SemanticLayerController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-import { V2ProjectController } from './../controllers/v2/ProjectController';
+import { QueryController } from './../controllers/v2/QueryController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { FeatureFlagController } from './../controllers/v2/FeatureFlagController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -10677,7 +10677,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -10687,7 +10687,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -10697,7 +10697,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -10710,7 +10710,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -14806,71 +14806,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SortBy: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'array',
-            array: { dataType: 'refAlias', ref: 'VizSortBy' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ExecuteAsyncSqlQueryRequestParams: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'CommonPaginatedQueryRequestParams' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        pivotConfiguration: {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                sortBy: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { ref: 'SortBy' },
-                                        { dataType: 'undefined' },
-                                    ],
-                                    required: true,
-                                },
-                                groupByColumns: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        {
-                                            dataType: 'array',
-                                            array: {
-                                                dataType: 'refAlias',
-                                                ref: 'GroupByColumn',
-                                            },
-                                        },
-                                        { dataType: 'undefined' },
-                                    ],
-                                    required: true,
-                                },
-                                valuesColumns: {
-                                    dataType: 'array',
-                                    array: {
-                                        dataType: 'refAlias',
-                                        ref: 'ValuesColumn',
-                                    },
-                                    required: true,
-                                },
-                                indexColumn: {
-                                    ref: 'PivotIndexColum',
-                                    required: true,
-                                },
-                            },
-                        },
-                        sql: { dataType: 'string', required: true },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExecuteAsyncSavedChartRequestParams: {
         dataType: 'refAlias',
         type: {
@@ -14933,6 +14868,71 @@ const models: TsoaRoute.Models = {
                             dataType: 'string',
                             required: true,
                         },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SortBy: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'array',
+            array: { dataType: 'refAlias', ref: 'VizSortBy' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExecuteAsyncSqlQueryRequestParams: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'CommonPaginatedQueryRequestParams' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        pivotConfiguration: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                sortBy: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { ref: 'SortBy' },
+                                        { dataType: 'undefined' },
+                                    ],
+                                    required: true,
+                                },
+                                groupByColumns: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        {
+                                            dataType: 'array',
+                                            array: {
+                                                dataType: 'refAlias',
+                                                ref: 'GroupByColumn',
+                                            },
+                                        },
+                                        { dataType: 'undefined' },
+                                    ],
+                                    required: true,
+                                },
+                                valuesColumns: {
+                                    dataType: 'array',
+                                    array: {
+                                        dataType: 'refAlias',
+                                        ref: 'ValuesColumn',
+                                    },
+                                    required: true,
+                                },
+                                indexColumn: {
+                                    ref: 'PivotIndexColum',
+                                    required: true,
+                                },
+                            },
+                        },
+                        sql: { dataType: 'string', required: true },
                     },
                 },
             ],
@@ -30389,7 +30389,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsV2ProjectController_getAsyncQueryResults: Record<
+    const argsQueryController_getAsyncQueryResults: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -30411,12 +30411,12 @@ export function RegisterRoutes(app: Router) {
     };
     app.get(
         '/api/v2/projects/:projectUuid/query/:queryUuid',
-        ...fetchMiddlewares<RequestHandler>(V2ProjectController),
+        ...fetchMiddlewares<RequestHandler>(QueryController),
         ...fetchMiddlewares<RequestHandler>(
-            V2ProjectController.prototype.getAsyncQueryResults,
+            QueryController.prototype.getAsyncQueryResults,
         ),
 
-        async function V2ProjectController_getAsyncQueryResults(
+        async function QueryController_getAsyncQueryResults(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -30426,7 +30426,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsV2ProjectController_getAsyncQueryResults,
+                    args: argsQueryController_getAsyncQueryResults,
                     request,
                     response,
                 });
@@ -30436,10 +30436,9 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any =
-                    await container.get<V2ProjectController>(
-                        V2ProjectController,
-                    );
+                const controller: any = await container.get<QueryController>(
+                    QueryController,
+                );
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -30458,7 +30457,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsV2ProjectController_cancelAsyncQuery: Record<
+    const argsQueryController_cancelAsyncQuery: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -30478,12 +30477,12 @@ export function RegisterRoutes(app: Router) {
     };
     app.post(
         '/api/v2/projects/:projectUuid/query/:queryUuid/cancel',
-        ...fetchMiddlewares<RequestHandler>(V2ProjectController),
+        ...fetchMiddlewares<RequestHandler>(QueryController),
         ...fetchMiddlewares<RequestHandler>(
-            V2ProjectController.prototype.cancelAsyncQuery,
+            QueryController.prototype.cancelAsyncQuery,
         ),
 
-        async function V2ProjectController_cancelAsyncQuery(
+        async function QueryController_cancelAsyncQuery(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -30493,7 +30492,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsV2ProjectController_cancelAsyncQuery,
+                    args: argsQueryController_cancelAsyncQuery,
                     request,
                     response,
                 });
@@ -30503,10 +30502,9 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any =
-                    await container.get<V2ProjectController>(
-                        V2ProjectController,
-                    );
+                const controller: any = await container.get<QueryController>(
+                    QueryController,
+                );
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -30525,7 +30523,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsV2ProjectController_executeAsyncMetricQuery: Record<
+    const argsQueryController_executeAsyncMetricQuery: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -30545,12 +30543,12 @@ export function RegisterRoutes(app: Router) {
     };
     app.post(
         '/api/v2/projects/:projectUuid/query/metric-query',
-        ...fetchMiddlewares<RequestHandler>(V2ProjectController),
+        ...fetchMiddlewares<RequestHandler>(QueryController),
         ...fetchMiddlewares<RequestHandler>(
-            V2ProjectController.prototype.executeAsyncMetricQuery,
+            QueryController.prototype.executeAsyncMetricQuery,
         ),
 
-        async function V2ProjectController_executeAsyncMetricQuery(
+        async function QueryController_executeAsyncMetricQuery(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -30560,7 +30558,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsV2ProjectController_executeAsyncMetricQuery,
+                    args: argsQueryController_executeAsyncMetricQuery,
                     request,
                     response,
                 });
@@ -30570,10 +30568,9 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any =
-                    await container.get<V2ProjectController>(
-                        V2ProjectController,
-                    );
+                const controller: any = await container.get<QueryController>(
+                    QueryController,
+                );
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -30592,74 +30589,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsV2ProjectController_executeAsyncSqlQuery: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            ref: 'ExecuteAsyncSqlQueryRequestParams',
-        },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            dataType: 'string',
-        },
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-    };
-    app.post(
-        '/api/v2/projects/:projectUuid/query/sql',
-        ...fetchMiddlewares<RequestHandler>(V2ProjectController),
-        ...fetchMiddlewares<RequestHandler>(
-            V2ProjectController.prototype.executeAsyncSqlQuery,
-        ),
-
-        async function V2ProjectController_executeAsyncSqlQuery(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsV2ProjectController_executeAsyncSqlQuery,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<V2ProjectController>(
-                        V2ProjectController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'executeAsyncSqlQuery',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsV2ProjectController_executeAsyncSavedChartQuery: Record<
+    const argsQueryController_executeAsyncSavedChartQuery: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -30679,12 +30609,12 @@ export function RegisterRoutes(app: Router) {
     };
     app.post(
         '/api/v2/projects/:projectUuid/query/chart',
-        ...fetchMiddlewares<RequestHandler>(V2ProjectController),
+        ...fetchMiddlewares<RequestHandler>(QueryController),
         ...fetchMiddlewares<RequestHandler>(
-            V2ProjectController.prototype.executeAsyncSavedChartQuery,
+            QueryController.prototype.executeAsyncSavedChartQuery,
         ),
 
-        async function V2ProjectController_executeAsyncSavedChartQuery(
+        async function QueryController_executeAsyncSavedChartQuery(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -30694,7 +30624,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsV2ProjectController_executeAsyncSavedChartQuery,
+                    args: argsQueryController_executeAsyncSavedChartQuery,
                     request,
                     response,
                 });
@@ -30704,10 +30634,9 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any =
-                    await container.get<V2ProjectController>(
-                        V2ProjectController,
-                    );
+                const controller: any = await container.get<QueryController>(
+                    QueryController,
+                );
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -30726,7 +30655,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsV2ProjectController_executeAsyncDashboardChartQuery: Record<
+    const argsQueryController_executeAsyncDashboardChartQuery: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -30746,12 +30675,12 @@ export function RegisterRoutes(app: Router) {
     };
     app.post(
         '/api/v2/projects/:projectUuid/query/dashboard-chart',
-        ...fetchMiddlewares<RequestHandler>(V2ProjectController),
+        ...fetchMiddlewares<RequestHandler>(QueryController),
         ...fetchMiddlewares<RequestHandler>(
-            V2ProjectController.prototype.executeAsyncDashboardChartQuery,
+            QueryController.prototype.executeAsyncDashboardChartQuery,
         ),
 
-        async function V2ProjectController_executeAsyncDashboardChartQuery(
+        async function QueryController_executeAsyncDashboardChartQuery(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -30761,7 +30690,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsV2ProjectController_executeAsyncDashboardChartQuery,
+                    args: argsQueryController_executeAsyncDashboardChartQuery,
                     request,
                     response,
                 });
@@ -30771,10 +30700,9 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any =
-                    await container.get<V2ProjectController>(
-                        V2ProjectController,
-                    );
+                const controller: any = await container.get<QueryController>(
+                    QueryController,
+                );
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -30793,7 +30721,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsV2ProjectController_executeAsyncUnderlyingDataQuery: Record<
+    const argsQueryController_executeAsyncUnderlyingDataQuery: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -30813,12 +30741,12 @@ export function RegisterRoutes(app: Router) {
     };
     app.post(
         '/api/v2/projects/:projectUuid/query/underlying-data',
-        ...fetchMiddlewares<RequestHandler>(V2ProjectController),
+        ...fetchMiddlewares<RequestHandler>(QueryController),
         ...fetchMiddlewares<RequestHandler>(
-            V2ProjectController.prototype.executeAsyncUnderlyingDataQuery,
+            QueryController.prototype.executeAsyncUnderlyingDataQuery,
         ),
 
-        async function V2ProjectController_executeAsyncUnderlyingDataQuery(
+        async function QueryController_executeAsyncUnderlyingDataQuery(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -30828,7 +30756,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsV2ProjectController_executeAsyncUnderlyingDataQuery,
+                    args: argsQueryController_executeAsyncUnderlyingDataQuery,
                     request,
                     response,
                 });
@@ -30838,10 +30766,9 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any =
-                    await container.get<V2ProjectController>(
-                        V2ProjectController,
-                    );
+                const controller: any = await container.get<QueryController>(
+                    QueryController,
+                );
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -30860,7 +30787,73 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsV2ProjectController_executeAsyncDashboardSqlChartQuery: Record<
+    const argsQueryController_executeAsyncSqlQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ExecuteAsyncSqlQueryRequestParams',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v2/projects/:projectUuid/query/sql',
+        ...fetchMiddlewares<RequestHandler>(QueryController),
+        ...fetchMiddlewares<RequestHandler>(
+            QueryController.prototype.executeAsyncSqlQuery,
+        ),
+
+        async function QueryController_executeAsyncSqlQuery(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsQueryController_executeAsyncSqlQuery,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<QueryController>(
+                    QueryController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'executeAsyncSqlQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsQueryController_executeAsyncDashboardSqlChartQuery: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -30880,12 +30873,12 @@ export function RegisterRoutes(app: Router) {
     };
     app.post(
         '/api/v2/projects/:projectUuid/query/dashboard-sql-chart',
-        ...fetchMiddlewares<RequestHandler>(V2ProjectController),
+        ...fetchMiddlewares<RequestHandler>(QueryController),
         ...fetchMiddlewares<RequestHandler>(
-            V2ProjectController.prototype.executeAsyncDashboardSqlChartQuery,
+            QueryController.prototype.executeAsyncDashboardSqlChartQuery,
         ),
 
-        async function V2ProjectController_executeAsyncDashboardSqlChartQuery(
+        async function QueryController_executeAsyncDashboardSqlChartQuery(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -30895,7 +30888,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsV2ProjectController_executeAsyncDashboardSqlChartQuery,
+                    args: argsQueryController_executeAsyncDashboardSqlChartQuery,
                     request,
                     response,
                 });
@@ -30905,10 +30898,9 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any =
-                    await container.get<V2ProjectController>(
-                        V2ProjectController,
-                    );
+                const controller: any = await container.get<QueryController>(
+                    QueryController,
+                );
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
