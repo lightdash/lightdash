@@ -134,6 +134,17 @@ const Space: FC = () => {
         subject('SavedChart', { ...space }),
     );
 
+    const userCanManageSpaceAndHasNoDirectAccessToSpace =
+        user.data?.ability?.can(
+            'manage',
+            subject('Project', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid: projectUuid,
+            }),
+        ) &&
+        !space.access.find((a) => a.userUuid === user.data?.userUuid)
+            ?.hasDirectAccess;
+
     return (
         <Page
             title={space?.name}
@@ -342,6 +353,11 @@ const Space: FC = () => {
                         [ColumnVisibility.SPACE]: false,
                     }}
                     enableBottomToolbar={false}
+                    initialAdminContentViewValue={
+                        userCanManageSpaceAndHasNoDirectAccessToSpace
+                            ? 'all'
+                            : 'shared'
+                    }
                 />
 
                 {addToSpace && (
