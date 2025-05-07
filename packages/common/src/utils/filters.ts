@@ -257,6 +257,9 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         [TimeFrames.WEEK]: moment(
                             valueIsDate ? value : undefined,
                         ).startOf('week'),
+                        [TimeFrames.QUARTER]: moment(
+                            valueIsDate ? value : undefined,
+                        ).startOf('quarter'),
                         [TimeFrames.MONTH]: moment(
                             valueIsDate ? value : undefined,
                         ).startOf('month'),
@@ -280,7 +283,10 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         ? formatDate(
                               // Treat the date as UTC, then remove its timezone information before formatting
                               moment.utc(value).format('YYYY-MM-DD'),
-                              fieldTimeInterval, // Use the field's time interval if it has one
+                              // For QUARTER, we don't want to use the field's time interval(YYYY-[Q]Q) because the date is already in the correct format when generating the SQL
+                              fieldTimeInterval === TimeFrames.QUARTER
+                                  ? undefined
+                                  : fieldTimeInterval, // Use the field's time interval if it has one
                               false,
                           )
                         : formatDate(defaultDate, undefined, false);
