@@ -271,6 +271,8 @@ export const useInfiniteQueryResults = (
 
             const { status } = results;
 
+            const clientFetchTimeMs = performance.now() - startTime;
+
             switch (status) {
                 case QueryHistoryStatus.ERROR: {
                     backoffRef.current = 250;
@@ -319,10 +321,13 @@ export const useInfiniteQueryResults = (
                         ...prevState,
                         {
                             ...results,
-                            clientFetchTimeMs: performance.now() - startTime,
+                            clientFetchTimeMs,
                         },
                     ]);
-                    break;
+                    return {
+                        ...results,
+                        clientFetchTimeMs,
+                    };
                 }
                 default:
                     return assertUnreachable(status, 'Unknown query status');
@@ -330,7 +335,7 @@ export const useInfiniteQueryResults = (
 
             return {
                 ...results,
-                clientFetchTimeMs: performance.now() - startTime,
+                clientFetchTimeMs,
             };
         },
         staleTime: Infinity, // the data will never be considered stale
