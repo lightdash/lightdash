@@ -1,3 +1,10 @@
+## [0.1612.4](https://github.com/lightdash/lightdash/compare/0.1612.3...0.1612.4) (2025-05-07)
+
+
+### Bug Fixes
+
+* skip default space creation for preview projects ([#14692](https://github.com/lightdash/lightdash/issues/14692)) ([8592268](https://github.com/lightdash/lightdash/commit/859226885f107d7863a9c8e22ee2f4e70689b039))
+
 ## [0.1612.3](https://github.com/lightdash/lightdash/compare/0.1612.2...0.1612.3) (2025-05-06)
 
 
