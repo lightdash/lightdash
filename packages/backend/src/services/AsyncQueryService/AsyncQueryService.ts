@@ -393,11 +393,18 @@ export class AsyncQueryService<
                 status,
             };
         } else {
-            const explore = await this.getExplore(
-                user,
-                projectUuid,
-                metricQuery.exploreName,
-            );
+            let explore: Explore | undefined;
+
+            try {
+                explore = await this.getExplore(
+                    user,
+                    projectUuid,
+                    metricQuery.exploreName,
+                );
+            } catch (e) {
+                // No-op, if we don't find an explore that's fine as we're only using it to get warehouse overrides for the client
+                // SQL Runner queries don't have an explore, they use a virtual view which is not saved in the database
+            }
 
             const { warehouseClient, sshTunnel } =
                 await this._getWarehouseClient(
@@ -407,8 +414,8 @@ export class AsyncQueryService<
                         user.userUuid,
                     ),
                     {
-                        snowflakeVirtualWarehouse: explore.warehouse,
-                        databricksCompute: explore.databricksCompute,
+                        snowflakeVirtualWarehouse: explore?.warehouse,
+                        databricksCompute: explore?.databricksCompute,
                     },
                 );
 
