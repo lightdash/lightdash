@@ -332,7 +332,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             });
                         }}
                     >
-                        Transfer to space
+                        Move
                     </Menu.Item>
 
                     {allowDelete && (

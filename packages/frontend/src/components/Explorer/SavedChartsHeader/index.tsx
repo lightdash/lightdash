@@ -558,7 +558,7 @@ const SavedChartsHeader: FC = () => {
                                                 transferToSpaceModalHandlers.open
                                             }
                                         >
-                                            Transfer to space
+                                            Move chart
                                         </Menu.Item>
                                     )}
 

@@ -1835,7 +1835,9 @@ export class SpaceModel {
                 .first();
 
             if (isCycle) {
-                throw new ParameterError("Cannot move space to it's child");
+                throw new ParameterError(
+                    'You cannot move a space into one of its own nested-spaces. Please choose a different location.',
+                );
             }
 
             await trx.raw(

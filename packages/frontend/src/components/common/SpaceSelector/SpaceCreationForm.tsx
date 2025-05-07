@@ -37,9 +37,9 @@ const SpaceCreationForm = ({
                 {parentSpaceName ? (
                     <>
                         {' '}
-                        in
+                        in{' '}
                         <Text span fw={600}>
-                            '{parentSpaceName}'
+                            "{parentSpaceName}"
                         </Text>
                     </>
                 ) : null}
@@ -60,7 +60,7 @@ const SpaceCreationForm = ({
                     <Text fw={500} color="blue">
                         Permissions will be inherited from{' '}
                         <Text span fw={600}>
-                            '{parentSpaceName}'
+                            "{parentSpaceName}"
                         </Text>
                     </Text>
                 </Alert>

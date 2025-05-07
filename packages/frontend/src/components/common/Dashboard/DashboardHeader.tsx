@@ -486,7 +486,7 @@ const DashboardHeader = ({
                                                 transferToSpaceModalHandlers.open
                                             }
                                         >
-                                            Transfer to space
+                                            Move dashboard
                                         </Menu.Item>
                                     </>
                                 )}
