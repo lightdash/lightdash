@@ -1,3 +1,10 @@
+## [0.1614.5](https://github.com/lightdash/lightdash/compare/0.1614.4...0.1614.5) (2025-05-08)
+
+
+### Bug Fixes
+
+* pages being set inside the useQuery ([#14724](https://github.com/lightdash/lightdash/issues/14724)) ([eaba16a](https://github.com/lightdash/lightdash/commit/eaba16aa8a3996d7ffc25eeb6b207f50da40c22f))
+
 ## [0.1614.4](https://github.com/lightdash/lightdash/compare/0.1614.3...0.1614.4) (2025-05-08)
 
 
