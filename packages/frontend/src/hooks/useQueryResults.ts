@@ -213,11 +213,12 @@ export const useInfiniteQueryResults = (
     const [fetchAll, setFetchAll] = useState(false);
 
     const fetchMoreRows = useCallback(() => {
-        const nextPageToFetch = fetchedPages[fetchedPages.length - 1]?.nextPage;
-        if (nextPageToFetch) {
+        const lastPage = fetchedPages[fetchedPages.length - 1];
+        const nextPageToFetch = lastPage?.nextPage;
+        if (nextPageToFetch && queryUuid === lastPage.queryUuid) {
             setFetchArgs((prev) => ({ ...prev, page: nextPageToFetch }));
         }
-    }, [fetchedPages]);
+    }, [fetchedPages, queryUuid]);
 
     // Aggregate rows from all fetched pages
     const fetchedRows = useMemo(() => {
