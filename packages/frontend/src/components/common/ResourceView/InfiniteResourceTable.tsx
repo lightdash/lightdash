@@ -775,6 +775,8 @@ const InfiniteResourceTable = ({
             },
             'mrt-row-select': {
                 size: 20,
+                minSize: 20,
+                maxSize: 20,
                 enableResizing: false,
             },
         },
