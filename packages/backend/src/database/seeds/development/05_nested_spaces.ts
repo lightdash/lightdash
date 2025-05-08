@@ -5,13 +5,16 @@ import {
     OrganizationMemberRole,
     SEED_ORG_1_ADMIN,
     SEED_ORG_1_EDITOR,
+    SEED_ORG_1_VIEWER,
     SEED_PROJECT,
     SpaceMemberRole,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { SpaceModel } from '../../../models/SpaceModel';
 
-type TreeCreateSpace = CreateSpace & { children?: TreeCreateSpace[] };
+type TreeCreateSpace = CreateSpace & {
+    children?: TreeCreateSpace[];
+};
 
 const tree: TreeCreateSpace[] = [
     {
@@ -86,6 +89,19 @@ const tree: TreeCreateSpace[] = [
         children: [
             {
                 name: 'Child Space 3.1',
+            },
+        ],
+    },
+] as const;
+
+const tree2: TreeCreateSpace[] = [
+    {
+        name: 'Parent Space 4',
+        isPrivate: true,
+        access: [],
+        children: [
+            {
+                name: 'Child Space 4.1',
             },
         ],
     },
@@ -166,5 +182,20 @@ export async function seed(knex: Knex): Promise<void> {
         projectUuid: SEED_PROJECT.project_uuid,
         userId: user.user_id,
         userUuid: user.user_uuid,
+    });
+
+    const [editorUser] = await knex('users').where(
+        'user_uuid',
+        SEED_ORG_1_EDITOR.user_uuid,
+    );
+
+    if (!editorUser) {
+        throw new Error(`User ${SEED_ORG_1_EDITOR.user_uuid} not found`);
+    }
+
+    await createSpaceTree(spaceModel, tree2, null, {
+        projectUuid: SEED_PROJECT.project_uuid,
+        userId: editorUser.user_id,
+        userUuid: editorUser.user_uuid,
     });
 }
