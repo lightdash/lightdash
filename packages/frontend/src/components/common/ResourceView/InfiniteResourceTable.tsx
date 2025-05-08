@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     capitalize,
     ContentSortByColumns,
@@ -5,6 +6,7 @@ import {
     isResourceViewSpaceItem,
     type ContentType,
     type ResourceViewItem,
+    type SpaceSummary,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -48,10 +50,7 @@ import {
     useInfiniteContent,
     type ContentArgs,
 } from '../../../hooks/useContent';
-import {
-    hasDirectAccessToSpace,
-    useSpaceSummaries,
-} from '../../../hooks/useSpaces';
+import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
@@ -72,7 +71,7 @@ import {
 } from './types';
 
 type ResourceView2Props = Partial<MRT_TableOptions<ResourceViewItem>> & {
-    filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes' | 'space'> & {
+    filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes'> & {
         projectUuid: string;
     };
     contentTypeFilter?: {
@@ -83,6 +82,8 @@ type ResourceView2Props = Partial<MRT_TableOptions<ResourceViewItem>> & {
     adminContentView?: boolean;
     initialAdminContentViewValue?: 'all' | 'shared';
 };
+
+const defaultSpaces: SpaceSummary[] = [];
 
 const InfiniteResourceTable = ({
     filters,
@@ -97,7 +98,10 @@ const InfiniteResourceTable = ({
     >(initialAdminContentViewValue);
     const theme = useMantineTheme();
     const navigate = useNavigate();
-    const { data: spaces = [] } = useSpaceSummaries(filters.projectUuid, true);
+    const { data: spaces = defaultSpaces } = useSpaceSummaries(
+        filters.projectUuid,
+        true,
+    );
     const { user } = useApp();
     const canUserManageValidation = useValidationUserAbility(
         filters.projectUuid,
@@ -110,6 +114,14 @@ const InfiniteResourceTable = ({
             setAction(newAction);
         },
         [],
+    );
+
+    const userCanManageProject = user.data?.ability?.can(
+        'manage',
+        subject('Project', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid: filters.projectUuid,
+        }),
     );
 
     const ResourceColumns: MRT_ColumnDef<ResourceViewItem>[] = [
@@ -277,26 +289,24 @@ const InfiniteResourceTable = ({
                 search: deferredSearch,
                 sortBy: sortBy?.sortBy,
                 sortDirection: sortBy?.sortDirection,
-                ...(filters.space?.parentSpaceUuid && {
-                    parentSpaceUuid: filters.space.parentSpaceUuid,
-                }),
             },
             { keepPreviousData: true },
         );
 
     const flatData = useMemo(() => {
-        if (!data) return [];
+        if (!data || !spaces) return [];
         return data.pages
             .flatMap((page) => page.data.map(contentToResourceViewItem))
-            .filter((content) => {
-                if (!isResourceViewSpaceItem(content)) return true;
+            .filter((item) => {
+                if (!isResourceViewSpaceItem(item)) return true;
+                if (!userCanManageProject) return true;
                 if (selectedAdminContentType === 'all') return true;
-                return (
-                    !!user.data &&
-                    hasDirectAccessToSpace(content.data, user.data.userUuid)
-                );
+
+                const space = spaces.find((s) => s.uuid === item.data.uuid);
+                if (!space) return false;
+                return space.userAccess?.hasDirectAccess;
             });
-    }, [data, selectedAdminContentType, user.data]);
+    }, [data, userCanManageProject, spaces, selectedAdminContentType]);
 
     // Temporary workaround to resolve a memoization issue with react-mantine-table.
     // In certain scenarios, the content fails to render properly even when the data is updated.

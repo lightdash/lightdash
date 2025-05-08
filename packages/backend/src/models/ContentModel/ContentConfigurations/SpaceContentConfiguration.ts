@@ -34,9 +34,6 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
             if (filters.contentTypes?.includes(ContentType.SPACE)) {
                 return true;
             }
-            if (!filters.contentTypes && !!filters.space?.parentSpaceUuid) {
-                return true;
-            }
             return false;
         },
         getSummaryQuery: (
@@ -135,14 +132,17 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                         );
                     }
 
-                    if (filters.space?.parentSpaceUuid) {
-                        void builder.where(
-                            `${SpaceTableName}.parent_space_uuid`,
-                            filters.space.parentSpaceUuid,
-                        );
+                    if (filters.space?.rootSpaces) {
+                        void builder
+                            .whereIn(
+                                `${SpaceTableName}.space_uuid`,
+                                filters.spaceUuids ?? [],
+                            )
+                            .andWhereRaw('nlevel(path) = 1');
                     } else {
-                        void builder.whereNull(
+                        void builder.whereIn(
                             `${SpaceTableName}.parent_space_uuid`,
+                            filters.spaceUuids ?? [],
                         );
                     }
 

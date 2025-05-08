@@ -94,6 +94,10 @@ export class ContentService extends BaseService {
                 ...filters,
                 projectUuids: allowedProjectUuids,
                 spaceUuids: allowedSpaceUuids,
+                space: {
+                    rootSpaces:
+                        !filters.spaceUuids || filters.spaceUuids.length === 0,
+                },
             },
             queryArgs,
             paginateArgs,
