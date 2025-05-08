@@ -1,3 +1,10 @@
+## [0.1614.3](https://github.com/lightdash/lightdash/compare/0.1614.2...0.1614.3) (2025-05-08)
+
+
+### Bug Fixes
+
+* improve space filtering and navigation in content views ([#14716](https://github.com/lightdash/lightdash/issues/14716)) ([98c6f32](https://github.com/lightdash/lightdash/commit/98c6f321892f8454e7937badadf0e1e57cc81abd)), closes [#14720](https://github.com/lightdash/lightdash/issues/14720)
+
 ## [0.1614.2](https://github.com/lightdash/lightdash/compare/0.1614.1...0.1614.2) (2025-05-08)
 
 
