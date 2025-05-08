@@ -1,3 +1,17 @@
+## [0.1614.2](https://github.com/lightdash/lightdash/compare/0.1614.1...0.1614.2) (2025-05-08)
+
+
+### Bug Fixes
+
+* SpaceModel getUserSpacesAccess method for non-root spaces ([#14715](https://github.com/lightdash/lightdash/issues/14715)) ([69d1313](https://github.com/lightdash/lightdash/commit/69d1313f2873adc740ad38fcd1b0f3fe7c69f833))
+
+## [0.1614.1](https://github.com/lightdash/lightdash/compare/0.1614.0...0.1614.1) (2025-05-08)
+
+
+### Bug Fixes
+
+* improve UI text for moving resources between spaces ([#14694](https://github.com/lightdash/lightdash/issues/14694)) ([c5cb6bf](https://github.com/lightdash/lightdash/commit/c5cb6bf5da4ab571dc4f32101484f611ccc41418)), closes [#14719](https://github.com/lightdash/lightdash/issues/14719)
+
 # [0.1614.0](https://github.com/lightdash/lightdash/compare/0.1613.1...0.1614.0) (2025-05-07)
 
 

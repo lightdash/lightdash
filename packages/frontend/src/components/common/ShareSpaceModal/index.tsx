@@ -122,7 +122,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             >
                                 <Text color="blue.9">
                                     <Text span weight={600}>
-                                        {space.name}
+                                        "{space.name}"
                                     </Text>{' '}
                                     inherits permissions from its parent space{' '}
                                     <Text span weight={600}>

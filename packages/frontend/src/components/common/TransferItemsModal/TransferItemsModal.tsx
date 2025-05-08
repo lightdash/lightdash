@@ -22,6 +22,28 @@ type Props<T, U> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     onConfirm: (spaceUuid: string | null) => void;
 };
 
+const ItemName = ({ name }: { name: string }) => {
+    return (
+        <Text fw={600} component="span">
+            "{name}"
+        </Text>
+    );
+};
+
+const getItemsText = <T extends ResourceViewItem>(items: T[]) => {
+    if (items.length === 1) {
+        return {
+            name: <ItemName name={items[0].data.name} />,
+            type: items[0].type,
+        };
+    }
+
+    return {
+        name: `${items.length} items`,
+        type: 'items',
+    };
+};
+
 const TransferItemsModal = <
     R extends ResourceViewItem,
     T extends Array<R>,
@@ -100,7 +122,7 @@ const TransferItemsModal = <
 
     return (
         <MantineModal
-            title={`Transfer ${items.length > 1 ? 'items' : 'item'}`}
+            title={`Move ${getItemsText(items).type}`}
             opened={opened}
             onClose={onClose}
             actions={
@@ -133,7 +155,7 @@ const TransferItemsModal = <
                                 disabled={newSpaceName.length === 0}
                                 onClick={createSpace}
                             >
-                                Create space & transfer
+                                Create space & move
                             </Button>
                         ) : (
                             <Button
@@ -166,8 +188,7 @@ const TransferItemsModal = <
             ) : (
                 <>
                     <Text fz="sm" fw={500}>
-                        Select a space to transfer{' '}
-                        {items.length > 1 ? 'items' : 'item'} to:
+                        Select a space to move {getItemsText(items).name} to:
                     </Text>
 
                     <SpaceSelector
@@ -181,12 +202,13 @@ const TransferItemsModal = <
                         {!isCreatingNewSpace && selectedSpaceLabel ? (
                             <Alert color="gray" sx={{ flexShrink: 0 }}>
                                 <Text fw={500}>
-                                    Transfer {items.length}{' '}
-                                    {items.length > 1 ? 'items' : 'item'}{' '}
-                                    {!isCreatingNewSpace
-                                        ? `"${selectedSpaceLabel}"`
-                                        : ''}
-                                    .
+                                    Move {getItemsText(items).name}
+                                    {' to '}
+                                    {!isCreatingNewSpace ? (
+                                        <ItemName name={selectedSpaceLabel} />
+                                    ) : (
+                                        ''
+                                    )}
                                 </Text>
                             </Alert>
                         ) : null}
