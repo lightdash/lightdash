@@ -1,5 +1,4 @@
 import {
-    BulkActionableContent,
     CreateDashboard,
     CreateDashboardChartTile,
     CreateDashboardLoomTile,
@@ -122,7 +121,7 @@ type DashboardModelArguments = {
     database: Knex;
 };
 
-export class DashboardModel implements BulkActionableContent<{ trx?: Knex }> {
+export class DashboardModel {
     private readonly database: Knex;
 
     constructor(args: DashboardModelArguments) {
@@ -1300,15 +1299,17 @@ export class DashboardModel implements BulkActionableContent<{ trx?: Knex }> {
         }: {
             projectUuid: string;
             itemUuid: string;
-            newParentSpaceUuid: string | null;
+            newParentSpaceUuid: string;
         },
-        { trx = this.database }: { trx?: Knex } = { trx: this.database },
+        {
+            transaction = this.database,
+        }: {
+            transaction?: Knex;
+        } = {
+            transaction: this.database,
+        },
     ): Promise<void> {
-        if (newParentSpaceUuid === null) {
-            throw new Error('Cannot move dashboard out of a space');
-        }
-
-        const space = await trx(SpaceTableName)
+        const space = await transaction(SpaceTableName)
             .select('space_id')
             .innerJoin(
                 ProjectTableName,
@@ -1323,7 +1324,7 @@ export class DashboardModel implements BulkActionableContent<{ trx?: Knex }> {
             throw new NotFoundError('Space not found');
         }
 
-        const updateCount = await trx(DashboardsTableName)
+        const updateCount = await transaction(DashboardsTableName)
             .update({ space_id: space.space_id })
             .where('dashboard_uuid', dashboardUuid);
 

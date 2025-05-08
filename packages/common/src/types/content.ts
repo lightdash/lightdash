@@ -1,5 +1,6 @@
 import type { KnexPaginatedData } from './knex-paginate';
 import { type ChartKind } from './savedCharts';
+import { type SessionUser } from './user';
 
 export enum ContentType {
     CHART = 'chart',
@@ -134,13 +135,18 @@ export type ApiContentBulkActionBody<T extends ContentBulkAction> = {
     action: T;
 };
 
-export interface BulkActionableContent<T extends {}> {
+export interface BulkActionable<T extends unknown> {
     moveToSpace: (
+        user: SessionUser,
         args: {
             projectUuid: string;
             itemUuid: string;
             newParentSpaceUuid: string | null;
         },
-        options?: T,
+        options?: {
+            checkForAccess?: boolean;
+            transaction?: T;
+            trackEvent?: boolean;
+        },
     ) => Promise<void>;
 }

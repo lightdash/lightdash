@@ -26,17 +26,27 @@ import { SavedSemanticViewerChartModel } from '../../models/SavedSemanticViewerC
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
+import { DashboardService } from '../DashboardService/DashboardService';
+import { SavedChartService } from '../SavedChartsService/SavedChartService';
+import { SavedSemanticViewerChartService } from '../SavedSemanticViewerChartService/SavedSemanticViewerChartService';
+import { SavedSqlService } from '../SavedSqlService/SavedSqlService';
+import {
+    hasViewAccessToSpace,
+    SpaceService,
+} from '../SpaceService/SpaceService';
 
 type ContentServiceArguments = {
     analytics: LightdashAnalytics;
+    // models
     projectModel: ProjectModel;
     contentModel: ContentModel;
     spaceModel: SpaceModel;
-    dashboardModel: DashboardModel;
-    savedChartModel: SavedChartModel;
-    savedSqlModel: SavedSqlModel;
-    savedSemanticViewerChartModel: SavedSemanticViewerChartModel;
+    // services
+    spaceService: SpaceService;
+    dashboardService: DashboardService;
+    savedChartService: SavedChartService;
+    savedSqlService: SavedSqlService;
+    savedSemanticViewerChartService: SavedSemanticViewerChartService;
 };
 
 export class ContentService extends BaseService {
@@ -48,24 +58,30 @@ export class ContentService extends BaseService {
 
     spaceModel: SpaceModel;
 
-    savedChartModel: SavedChartModel;
+    spaceService: SpaceService;
 
-    dashboardModel: DashboardModel;
+    dashboardService: DashboardService;
 
-    savedSqlModel: SavedSqlModel;
+    savedChartService: SavedChartService;
 
-    savedSemanticViewerChartModel: SavedSemanticViewerChartModel;
+    savedSqlService: SavedSqlService;
+
+    savedSemanticViewerChartService: SavedSemanticViewerChartService;
 
     constructor(args: ContentServiceArguments) {
         super();
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
         this.contentModel = args.contentModel;
+
         this.spaceModel = args.spaceModel;
-        this.dashboardModel = args.dashboardModel;
-        this.savedChartModel = args.savedChartModel;
-        this.savedSqlModel = args.savedSqlModel;
-        this.savedSemanticViewerChartModel = args.savedSemanticViewerChartModel;
+
+        this.spaceService = args.spaceService;
+        this.dashboardService = args.dashboardService;
+        this.savedChartService = args.savedChartService;
+        this.savedSqlService = args.savedSqlService;
+        this.savedSemanticViewerChartService =
+            args.savedSemanticViewerChartService;
     }
 
     async find(
@@ -134,153 +150,15 @@ export class ContentService extends BaseService {
         content: ApiContentBulkActionBody<ContentBulkActionMove>['content'],
         newParentSpaceUuid: string,
     ) {
-        const allItemPromises = content.map(async (item) => {
-            switch (item.contentType) {
-                case ContentType.SPACE:
-                    const space = await this.spaceModel.getSpaceSummary(
-                        item.uuid,
-                    );
-
-                    const spaceAccess =
-                        await this.spaceModel.getUserSpaceAccess(
-                            user.userUuid,
-                            item.uuid,
-                        );
-                    if (
-                        user.ability.cannot(
-                            'manage',
-                            subject('Space', {
-                                ...space,
-                                access: spaceAccess,
-                            }),
-                        )
-                    ) {
-                        throw new ForbiddenError();
-                    }
-
-                    return space;
-                case ContentType.DASHBOARD:
-                    const dashboard = await this.dashboardModel.getById(
-                        item.uuid,
-                    );
-
-                    if (
-                        user.ability.cannot(
-                            'update',
-                            subject('Dashboard', {
-                                ...(await this.spaceModel.getSpaceSummary(
-                                    dashboard.spaceUuid,
-                                )),
-                                access: await this.spaceModel.getUserSpaceAccess(
-                                    user.userUuid,
-                                    dashboard.spaceUuid,
-                                ),
-                            }),
-                        )
-                    ) {
-                        throw new ForbiddenError();
-                    }
-
-                    return dashboard;
-                case ContentType.CHART:
-                    switch (item.source) {
-                        case ChartSourceType.DBT_EXPLORE:
-                            const chart = await this.savedChartModel.getSummary(
-                                item.uuid,
-                            );
-
-                            const chartSpace =
-                                await this.spaceModel.getSpaceSummary(
-                                    chart.spaceUuid,
-                                );
-                            const access =
-                                await this.spaceModel.getUserSpaceAccess(
-                                    user.userUuid,
-                                    chart.spaceUuid,
-                                );
-
-                            if (
-                                user.ability.cannot(
-                                    'update',
-                                    subject('SavedChart', {
-                                        organizationUuid:
-                                            chart.organizationUuid,
-                                        projectUuid,
-                                        isPrivate: chartSpace.isPrivate,
-                                        access,
-                                    }),
-                                )
-                            ) {
-                                throw new ForbiddenError();
-                            }
-
-                            return chart;
-
-                        case ChartSourceType.SQL:
-                            const sqlChart = await this.savedSqlModel.getByUuid(
-                                item.uuid,
-                                {
-                                    projectUuid,
-                                },
-                            );
-
-                            if (
-                                user.ability.cannot(
-                                    'update',
-                                    subject('SavedSql', {
-                                        projectUuid,
-                                        organizationUuid:
-                                            sqlChart.organization
-                                                .organizationUuid,
-                                    }),
-                                )
-                            ) {
-                                throw new ForbiddenError();
-                            }
-
-                            return sqlChart;
-                        case ChartSourceType.SEMANTIC_LAYER:
-                            const semanticViewerChart =
-                                await this.savedSemanticViewerChartModel.find({
-                                    uuid: item.uuid,
-                                    projectUuid,
-                                });
-                            if (
-                                user.ability.cannot(
-                                    'update',
-                                    subject('SemanticViewer', {
-                                        projectUuid,
-                                    }),
-                                )
-                            ) {
-                                throw new ForbiddenError();
-                            }
-
-                            return semanticViewerChart;
-                        default:
-                            return assertUnreachable(
-                                item.source,
-                                `Unknown chart source in bulk move: ${item.source}`,
-                            );
-                    }
-                default:
-                    return assertUnreachable(
-                        item,
-                        `Unknown content type in bulk move`,
-                    );
-            }
-        });
-
-        await Promise.all(allItemPromises);
-
-        // TODO: check if all items belong to the same project and space before moving
-        // throw error if not
+        if (user.organizationUuid === undefined) {
+            throw new NotExistsError('Organization not found');
+        }
 
         const database = this.contentModel.getDatabase();
 
         await database.transaction(async (trx) => {
             const updates = content.map((c) => {
-                const updateData = {
+                const moveToSpaceArgs = {
                     projectUuid,
                     itemUuid: c.uuid,
                     newParentSpaceUuid,
@@ -290,18 +168,18 @@ export class ContentService extends BaseService {
                     case ContentType.CHART:
                         switch (c.source) {
                             case ChartSourceType.DBT_EXPLORE:
-                                return this.savedChartModel.moveToSpace(
-                                    updateData,
+                                return this.savedChartService.moveToSpace(
+                                    moveToSpaceArgs,
                                     { trx },
                                 );
                             case ChartSourceType.SQL:
-                                return this.savedSqlModel.moveToSpace(
-                                    updateData,
+                                return this.savedSqlService.moveToSpace(
+                                    moveToSpaceArgs,
                                     { trx },
                                 );
                             case ChartSourceType.SEMANTIC_LAYER:
-                                return this.savedSemanticViewerChartModel.moveToSpace(
-                                    updateData,
+                                return this.savedSemanticViewerChartService.moveToSpace(
+                                    moveToSpaceArgs,
                                     { trx },
                                 );
                             default:
@@ -312,11 +190,19 @@ export class ContentService extends BaseService {
                         }
 
                     case ContentType.DASHBOARD:
-                        return this.dashboardModel.moveToSpace(updateData, {
+                        return this.dashboardService.moveToSpace(
+                            user,
+                            moveToSpaceArgs,
+                            {
+                                transaction: trx,
+                                checkForAccess: true,
+                                trackEvent: false,
+                            },
+                        );
+                    case ContentType.SPACE:
+                        return this.spaceService.moveToSpace(moveToSpaceArgs, {
                             trx,
                         });
-                    case ContentType.SPACE:
-                        return this.spaceModel.moveToSpace(updateData, { trx });
                     default:
                         return assertUnreachable(c, 'Unknown content type');
                 }

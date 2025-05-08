@@ -3,7 +3,6 @@ import {
     AbilityAction,
     CreateSpace,
     ForbiddenError,
-    generateSlug,
     NotFoundError,
     SessionUser,
     Space,
@@ -64,6 +63,7 @@ export const hasViewAccessToSpace = (
             access,
         }),
     );
+
 export class SpaceService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 

@@ -1,5 +1,7 @@
 import { subject } from '@casl/ability';
 import {
+    AbilityAction,
+    BulkActionable,
     CreateDashboard,
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
@@ -9,6 +11,7 @@ import {
     ExploreType,
     ForbiddenError,
     ParameterError,
+    PossibleAbilities,
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
@@ -32,6 +35,7 @@ import {
     type ExploreError,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
+import { type Knex } from 'knex';
 import { uniq } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -71,7 +75,10 @@ type DashboardServiceArguments = {
     catalogModel: CatalogModel;
 };
 
-export class DashboardService extends BaseService {
+export class DashboardService
+    extends BaseService
+    implements BulkActionable<Knex>
+{
     analytics: LightdashAnalytics;
 
     dashboardModel: DashboardModel;
@@ -1083,5 +1090,123 @@ export class DashboardService extends BaseService {
             isPrivate: space.isPrivate,
             access: spaceAccess,
         };
+    }
+
+    private async checkForAccess(
+        ability: AbilityAction,
+        actor: {
+            user: SessionUser;
+            projectUuid: string;
+        },
+        resource: {
+            dashboardUuid: string;
+            spaceUuid?: string;
+        },
+    ) {
+        const dashboard = await this.dashboardModel.getById(
+            resource.dashboardUuid,
+        );
+        const space = await this.spaceModel.getSpaceSummary(
+            dashboard.spaceUuid,
+        );
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            actor.user.userUuid,
+            dashboard.spaceUuid,
+        );
+
+        const isActorAllowedToPerformAction = actor.user.ability.can(
+            ability,
+            subject('Dashboard', {
+                organizationUuid: actor.user.organizationUuid,
+                projectUuid: actor.projectUuid,
+                isPrivate: space.isPrivate,
+                access: spaceAccess,
+            }),
+        );
+
+        if (!isActorAllowedToPerformAction) {
+            throw new ForbiddenError(
+                "You don't have enough access to the dashboard",
+            );
+        }
+
+        if (resource.spaceUuid && dashboard.spaceUuid !== resource.spaceUuid) {
+            const newSpace = await this.spaceModel.getSpaceSummary(
+                resource.spaceUuid,
+            );
+            const newSpaceAccess = await this.spaceModel.getUserSpaceAccess(
+                actor.user.userUuid,
+                resource.spaceUuid,
+            );
+
+            const isActorAllowedToPerformActionInNewSpace =
+                actor.user.ability.can(
+                    ability,
+                    subject('Dashboard', {
+                        organizationUuid: newSpace.organizationUuid,
+                        projectUuid: actor.projectUuid,
+                        isPrivate: newSpace.isPrivate,
+                        access: newSpaceAccess,
+                    }),
+                );
+
+            if (!isActorAllowedToPerformActionInNewSpace) {
+                throw new ForbiddenError(
+                    "You don't have enough access to the new space",
+                );
+            }
+        }
+    }
+
+    async moveToSpace(
+        user: SessionUser,
+        {
+            projectUuid,
+            itemUuid: dashboardUuid,
+            newParentSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            newParentSpaceUuid: string | null;
+        },
+        options?: {
+            transaction?: Knex;
+            checkForAccess?: boolean;
+            trackEvent?: boolean;
+        },
+    ) {
+        if (!newParentSpaceUuid) {
+            throw new ParameterError(
+                'You cannot move a dashboard outside of a space',
+            );
+        }
+
+        if (options?.checkForAccess) {
+            await this.checkForAccess(
+                'update',
+                { user, projectUuid },
+                { dashboardUuid, spaceUuid: newParentSpaceUuid },
+            );
+        }
+        await this.dashboardModel.moveToSpace(
+            {
+                projectUuid,
+                itemUuid: dashboardUuid,
+                newParentSpaceUuid,
+            },
+            { transaction: options?.transaction },
+        );
+
+        if (options?.trackEvent) {
+            this.analytics.track({
+                event: 'dashboard.moved',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                    dashboardId: dashboardUuid,
+                    newSpaceId: newParentSpaceUuid,
+                },
+            });
+        }
     }
 }

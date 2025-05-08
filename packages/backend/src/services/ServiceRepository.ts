@@ -769,14 +769,17 @@ export class ServiceRepository
             () =>
                 new ContentService({
                     analytics: this.context.lightdashAnalytics,
+                    // models
                     projectModel: this.models.getProjectModel(),
                     contentModel: this.models.getContentModel(),
                     spaceModel: this.models.getSpaceModel(),
-                    dashboardModel: this.models.getDashboardModel(),
-                    savedChartModel: this.models.getSavedChartModel(),
-                    savedSqlModel: this.models.getSavedSqlModel(),
-                    savedSemanticViewerChartModel:
-                        this.models.getSavedSemanticViewerChartModel(),
+                    // services
+                    spaceService: this.getSpaceService(),
+                    dashboardService: this.getDashboardService(),
+                    savedChartService: this.getSavedChartService(),
+                    savedSqlService: this.getSavedSqlService(),
+                    savedSemanticViewerChartService:
+                        this.getSavedSemanticViewerChartService(),
                 }),
         );
     }

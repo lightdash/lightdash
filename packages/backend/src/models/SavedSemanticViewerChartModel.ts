@@ -1,5 +1,4 @@
 import {
-    BulkActionableContent,
     NotFoundError,
     SavedSemanticViewerChart,
     SpaceSummary,
@@ -55,9 +54,7 @@ type SelectSavedSemanticViewerChart = Pick<
         last_version_updated_by_user_last_name: string | null;
     };
 
-export class SavedSemanticViewerChartModel
-    implements BulkActionableContent<{ trx?: Knex }>
-{
+export class SavedSemanticViewerChartModel {
     private database: Knex;
 
     constructor(args: { database: Knex }) {
@@ -414,7 +411,13 @@ export class SavedSemanticViewerChartModel
             itemUuid: string;
             newParentSpaceUuid: string | null;
         },
-        { trx = this.database }: { trx?: Knex } = { trx: this.database },
+        {
+            transaction = this.database,
+        }: {
+            transaction?: Knex;
+        } = {
+            transaction: this.database,
+        },
     ): Promise<void> {
         if (newParentSpaceUuid === null) {
             throw new Error(
@@ -422,7 +425,9 @@ export class SavedSemanticViewerChartModel
             );
         }
 
-        const updateCount = await trx(SavedSemanticViewerChartsTableName)
+        const updateCount = await transaction(
+            SavedSemanticViewerChartsTableName,
+        )
             .update({ space_uuid: newParentSpaceUuid })
             .where(
                 'saved_semantic_viewer_chart_uuid',

@@ -1,6 +1,5 @@
 import {
     AllVizChartConfig,
-    BulkActionableContent,
     CreateSqlChart,
     NotFoundError,
     SpaceSummary,
@@ -53,7 +52,7 @@ type SelectSavedSql = Pick<
         last_version_updated_by_user_last_name: string | null;
     };
 
-export class SavedSqlModel implements BulkActionableContent<{ trx?: Knex }> {
+export class SavedSqlModel {
     private database: Knex;
 
     constructor(args: { database: Knex }) {
@@ -369,13 +368,19 @@ export class SavedSqlModel implements BulkActionableContent<{ trx?: Knex }> {
             itemUuid: string;
             newParentSpaceUuid: string | null;
         },
-        { trx = this.database }: { trx?: Knex } = { trx: this.database },
+        {
+            transaction = this.database,
+        }: {
+            transaction?: Knex;
+        } = {
+            transaction: this.database,
+        },
     ): Promise<void> {
         if (newParentSpaceUuid === null) {
             throw new Error('Cannot move saved sql chart out of a space');
         }
 
-        const updateCount = await trx(SavedSqlTableName)
+        const updateCount = await transaction(SavedSqlTableName)
             .update({ space_uuid: newParentSpaceUuid })
             .where('saved_sql_uuid', savedSqlUuid)
             .where('project_uuid', projectUuid);

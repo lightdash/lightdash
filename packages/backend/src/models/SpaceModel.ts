@@ -1,5 +1,4 @@
 import {
-    BulkActionableContent,
     ChartKind,
     ChartSourceType,
     ChartType,
@@ -77,7 +76,7 @@ type SpaceModelArguments = {
     database: Knex;
 };
 
-export class SpaceModel implements BulkActionableContent<{ trx?: Knex }> {
+export class SpaceModel {
     private database: Knex;
 
     public MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT: number;
@@ -1823,12 +1822,16 @@ export class SpaceModel implements BulkActionableContent<{ trx?: Knex }> {
             itemUuid: string;
             newParentSpaceUuid: string | null;
         },
-        options: { trx?: Knex } = { trx: this.database },
+        {
+            transaction = this.database,
+        }: {
+            transaction?: Knex;
+        } = {
+            transaction: this.database,
+        },
     ): Promise<void> {
-        const { trx = this.database } = options ?? {};
-
         // check if parent space is not subtree of space
-        const isCycle = await trx
+        const isCycle = await transaction
             .with('space', (query) => {
                 void query
                     .select('path')
@@ -1852,7 +1855,7 @@ export class SpaceModel implements BulkActionableContent<{ trx?: Knex }> {
             );
         }
 
-        await trx.raw(
+        await transaction.raw(
             `
                 UPDATE ${SpaceTableName} AS s
                 SET

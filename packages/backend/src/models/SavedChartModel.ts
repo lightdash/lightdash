@@ -2,7 +2,6 @@ import {
     AdditionalMetric,
     AnyType,
     BinType,
-    BulkActionableContent,
     ChartConfig,
     ChartKind,
     ChartSummary,
@@ -429,7 +428,7 @@ type VersionSummaryRow = {
     last_name: string | null;
 };
 
-export class SavedChartModel implements BulkActionableContent<{ trx?: Knex }> {
+export class SavedChartModel {
     private database: Knex;
 
     private lightdashConfig: LightdashConfig;
@@ -1681,13 +1680,19 @@ export class SavedChartModel implements BulkActionableContent<{ trx?: Knex }> {
             itemUuid: string;
             newParentSpaceUuid: string | null;
         },
-        { trx = this.database }: { trx?: Knex } = { trx: this.database },
+        {
+            transaction = this.database,
+        }: {
+            transaction?: Knex;
+        } = {
+            transaction: this.database,
+        },
     ): Promise<void> {
         if (newParentSpaceUuid === null) {
             throw new Error('Cannot move saved chart out of a space');
         }
 
-        const space = await trx(SpaceTableName)
+        const space = await transaction(SpaceTableName)
             .select('space_id')
             .innerJoin(
                 ProjectTableName,
@@ -1702,7 +1707,7 @@ export class SavedChartModel implements BulkActionableContent<{ trx?: Knex }> {
             throw new NotFoundError('Space not found');
         }
 
-        const updateCount = await trx(SavedChartsTableName)
+        const updateCount = await transaction(SavedChartsTableName)
             .update({ space_id: space.space_id })
             .where('saved_query_uuid', savedChartUuid)
             .where('dashboard_uuid', null); // charts belong to dashboards can't be moved to a space
