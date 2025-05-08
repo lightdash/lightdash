@@ -206,6 +206,7 @@ export class ContentService extends BaseService {
                         );
                     case ContentType.SPACE:
                         return this.spaceService.moveToSpace(
+                            user,
                             moveToSpaceArgs,
                             moveToSpaceOptions,
                         );

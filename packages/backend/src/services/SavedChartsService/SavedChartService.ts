@@ -1,5 +1,7 @@
 import { subject } from '@casl/ability';
 import {
+    AbilityAction,
+    BulkActionable,
     ChartHistory,
     ChartSummary,
     ChartType,
@@ -9,6 +11,7 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     ExploreType,
     ForbiddenError,
+    NotFoundError,
     ParameterError,
     SavedChart,
     SavedChartDAO,
@@ -38,6 +41,7 @@ import {
     type ExploreError,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
+import { Knex } from 'knex';
 import {
     ConditionalFormattingRuleSavedEvent,
     CreateSavedChartVersionEvent,
@@ -73,7 +77,10 @@ type SavedChartServiceArguments = {
     catalogModel: CatalogModel;
 };
 
-export class SavedChartService extends BaseService {
+export class SavedChartService
+    extends BaseService
+    implements BulkActionable<Knex>
+{
     private readonly analytics: LightdashAnalytics;
 
     private readonly projectModel: ProjectModel;
@@ -1225,6 +1232,146 @@ export class SavedChartService extends BaseService {
                 `Error updating chart field usage for chart ${newChartVersion.uuid}`,
                 error,
             );
+        }
+    }
+
+    async hasAccess(
+        action: AbilityAction,
+        actor: {
+            user: SessionUser;
+            projectUuid: string;
+        },
+        resource:
+            | {
+                  savedChartUuid: null;
+                  spaceUuid: string;
+              }
+            | {
+                  savedChartUuid: string;
+                  spaceUuid?: string;
+              },
+    ): Promise<SpaceShare[]> {
+        let { spaceUuid } = resource;
+
+        if (resource.savedChartUuid !== null) {
+            const savedChart = await this.savedChartModel.getSummary(
+                resource.savedChartUuid,
+            );
+
+            if (!savedChart) {
+                throw new NotFoundError('Chart not found');
+            }
+
+            if (savedChart.dashboardUuid) {
+                throw new ForbiddenError(
+                    'Chart is part of a dashboard and cannot be moved',
+                );
+            }
+
+            spaceUuid = savedChart.spaceUuid;
+        }
+
+        if (!spaceUuid) {
+            throw new NotFoundError('Space is required');
+        }
+
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            actor.user.userUuid,
+            spaceUuid,
+        );
+
+        const hasPermission = actor.user.ability.can(
+            action,
+            subject('SavedChart', {
+                organizationUuid: space.organizationUuid,
+                projectUuid: actor.projectUuid,
+                isPrivate: space.isPrivate,
+                access: spaceAccess,
+            }),
+        );
+
+        if (!hasPermission) {
+            throw new ForbiddenError(
+                `You don't have access to ${action} this Chart`,
+            );
+        }
+
+        if (resource.spaceUuid && spaceUuid !== resource.spaceUuid) {
+            const newSpace = await this.spaceModel.getSpaceSummary(
+                resource.spaceUuid,
+            );
+            const newSpaceAccess = await this.spaceModel.getUserSpaceAccess(
+                actor.user.userUuid,
+                resource.spaceUuid,
+            );
+
+            const hasPermissionInNewSpace = actor.user.ability.can(
+                action,
+                subject('SavedChart', {
+                    organizationUuid: newSpace.organizationUuid,
+                    projectUuid: actor.projectUuid,
+                    isPrivate: newSpace.isPrivate,
+                    access: newSpaceAccess,
+                }),
+            );
+
+            if (!hasPermissionInNewSpace) {
+                throw new ForbiddenError(
+                    `You don't have access to ${action} this Chart in the new space`,
+                );
+            }
+        }
+
+        return spaceAccess;
+    }
+
+    async moveToSpace(
+        user: SessionUser,
+        {
+            projectUuid,
+            itemUuid: savedChartUuid,
+            newParentSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            newParentSpaceUuid: string | null;
+        },
+        options?: {
+            tx?: Knex;
+            checkForAccess?: boolean;
+            trackEvent?: boolean;
+        },
+    ): Promise<void> {
+        if (!newParentSpaceUuid) {
+            throw new ParameterError(
+                'You cannot move a chart outside of a space',
+            );
+        }
+
+        if (options?.checkForAccess) {
+            await this.hasAccess(
+                'update',
+                { user, projectUuid },
+                { savedChartUuid },
+            );
+        }
+
+        await this.savedChartModel.moveToSpace(
+            { projectUuid, itemUuid: savedChartUuid, newParentSpaceUuid },
+            { tx: options?.tx },
+        );
+
+        if (options?.trackEvent) {
+            this.analytics.track({
+                event: 'saved_chart.moved',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                    savedChartId: savedChartUuid,
+                    newSpaceId: newParentSpaceUuid,
+                },
+            });
         }
     }
 }
