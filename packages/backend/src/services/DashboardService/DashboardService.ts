@@ -1093,7 +1093,7 @@ export class DashboardService
     }
 
     private async hasAccess(
-        ability: AbilityAction,
+        action: AbilityAction,
         actor: {
             user: SessionUser;
             projectUuid: string;
@@ -1115,7 +1115,7 @@ export class DashboardService
         );
 
         const isActorAllowedToPerformAction = actor.user.ability.can(
-            ability,
+            action,
             subject('Dashboard', {
                 organizationUuid: actor.user.organizationUuid,
                 projectUuid: actor.projectUuid,
@@ -1126,7 +1126,7 @@ export class DashboardService
 
         if (!isActorAllowedToPerformAction) {
             throw new ForbiddenError(
-                "You don't have enough access to the dashboard",
+                `You don't have access to ${action} this dashboard`,
             );
         }
 
@@ -1141,7 +1141,7 @@ export class DashboardService
 
             const isActorAllowedToPerformActionInNewSpace =
                 actor.user.ability.can(
-                    ability,
+                    action,
                     subject('Dashboard', {
                         organizationUuid: newSpace.organizationUuid,
                         projectUuid: actor.projectUuid,
@@ -1152,7 +1152,7 @@ export class DashboardService
 
             if (!isActorAllowedToPerformActionInNewSpace) {
                 throw new ForbiddenError(
-                    "You don't have enough access to the new space",
+                    `You don't have access to ${action} this dashboard in the new space`,
                 );
             }
         }

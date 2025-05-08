@@ -164,7 +164,7 @@ export class SavedSqlService
 
         if (!hasPermission) {
             throw new ForbiddenError(
-                `You don't have permission to ${action} this Saved SQL chart`,
+                `You don't have access to ${action} this Saved SQL chart`,
             );
         }
 
@@ -189,7 +189,7 @@ export class SavedSqlService
 
             if (!hasPermissionInNewSpace) {
                 throw new ForbiddenError(
-                    `You don't have permission to ${action} this Saved SQL chart in the new space`,
+                    `You don't have access to ${action} this Saved SQL chart in the new space`,
                 );
             }
         }

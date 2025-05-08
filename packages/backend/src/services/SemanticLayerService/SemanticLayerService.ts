@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AnyType,
+    BulkActionable,
     ForbiddenError,
     MissingConfigError,
     ParameterError,
@@ -16,6 +17,7 @@ import {
     assertUnreachable,
     type AbilityAction,
 } from '@lightdash/common';
+import { Knex } from 'knex';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/S3Client';
 import CubeClient from '../../clients/cube/CubeClient';
@@ -24,6 +26,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { SavedSemanticViewerChartModel } from '../../models/SavedSemanticViewerChartModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { SavedSemanticViewerChartService } from '../SavedSemanticViewerChartService/SavedSemanticViewerChartService';
@@ -32,23 +35,24 @@ import { pivotResults } from './Pivoting';
 type SearchServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
-    projectModel: ProjectModel;
-    downloadFileModel: DownloadFileModel;
     // Clients
     schedulerClient: SchedulerClient;
     s3Client: S3Client;
     // Services
     savedSemanticViewerChartService: SavedSemanticViewerChartService;
+    // Models
+    projectModel: ProjectModel;
+    downloadFileModel: DownloadFileModel;
+    savedSemanticViewerChartModel: SavedSemanticViewerChartModel;
 };
 
-export class SemanticLayerService extends BaseService {
+export class SemanticLayerService
+    extends BaseService
+    implements BulkActionable<Knex>
+{
     private readonly analytics: LightdashAnalytics;
 
     private readonly lightdashConfig: LightdashConfig;
-
-    private readonly projectModel: ProjectModel;
-
-    private readonly downloadFileModel: DownloadFileModel;
 
     // Clients
 
@@ -60,18 +64,28 @@ export class SemanticLayerService extends BaseService {
 
     private readonly savedSemanticViewerChartService: SavedSemanticViewerChartService;
 
+    // Models
+
+    private readonly projectModel: ProjectModel;
+
+    private readonly downloadFileModel: DownloadFileModel;
+
+    private readonly savedSemanticViewerChartModel: SavedSemanticViewerChartModel;
+
     constructor(args: SearchServiceArguments) {
         super();
         this.analytics = args.analytics;
         this.lightdashConfig = args.lightdashConfig;
-        this.projectModel = args.projectModel;
-        this.downloadFileModel = args.downloadFileModel;
-        this.schedulerClient = args.schedulerClient;
         // Clients
         this.s3Client = args.s3Client;
+        this.schedulerClient = args.schedulerClient;
         // Services
         this.savedSemanticViewerChartService =
             args.savedSemanticViewerChartService;
+        // Models
+        this.projectModel = args.projectModel;
+        this.downloadFileModel = args.downloadFileModel;
+        this.savedSemanticViewerChartModel = args.savedSemanticViewerChartModel;
     }
 
     private validateQueryLimit(query: SemanticLayerQuery) {
@@ -98,21 +112,26 @@ export class SemanticLayerService extends BaseService {
         return project;
     }
 
-    private static async checkSemanticViewerAccess(
+    private static async hasAccess(
         action: AbilityAction,
-        {
-            user,
-            projectUuid,
-            organizationUuid,
-        }: { user: SessionUser; projectUuid: string; organizationUuid: string },
+        actor: {
+            user: SessionUser;
+            projectUuid: string;
+        },
+        _resource: {} = {}, // does not have resource related permission checks
     ) {
         if (
-            user.ability.cannot(
+            actor.user.ability.cannot(
                 action,
-                subject('SemanticViewer', { organizationUuid, projectUuid }),
+                subject('SemanticViewer', {
+                    organizationUuid: actor.user.organizationUuid,
+                    projectUuid: actor.projectUuid,
+                }),
             )
         ) {
-            throw new ForbiddenError();
+            throw new ForbiddenError(
+                `You don't have access to ${action} this semantic viewer chart`,
+            );
         }
     }
 
@@ -158,10 +177,9 @@ export class SemanticLayerService extends BaseService {
             projectUuid,
         );
 
-        await SemanticLayerService.checkSemanticViewerAccess('view', {
+        await SemanticLayerService.hasAccess('view', {
             user,
             projectUuid,
-            organizationUuid,
         });
         return this.analytics.wrapEvent<AnyType[]>(
             {
@@ -197,10 +215,9 @@ export class SemanticLayerService extends BaseService {
             projectUuid,
         );
 
-        await SemanticLayerService.checkSemanticViewerAccess('view', {
+        await SemanticLayerService.hasAccess('view', {
             user,
             projectUuid,
-            organizationUuid,
         });
 
         const client = await this.getSemanticLayerClient(projectUuid);
@@ -220,10 +237,9 @@ export class SemanticLayerService extends BaseService {
             projectUuid,
         );
 
-        await SemanticLayerService.checkSemanticViewerAccess('view', {
+        await SemanticLayerService.hasAccess('view', {
             user,
             projectUuid,
-            organizationUuid,
         });
 
         await this.getSemanticLayerClient(projectUuid); // Check if client is available
@@ -358,10 +374,9 @@ export class SemanticLayerService extends BaseService {
             projectUuid,
         );
 
-        await SemanticLayerService.checkSemanticViewerAccess('view', {
+        await SemanticLayerService.hasAccess('view', {
             user,
             projectUuid,
-            organizationUuid,
         });
 
         const client = await this.getSemanticLayerClient(projectUuid);
@@ -379,10 +394,9 @@ export class SemanticLayerService extends BaseService {
             projectUuid,
         );
 
-        await SemanticLayerService.checkSemanticViewerAccess('view', {
+        await SemanticLayerService.hasAccess('view', {
             user,
             projectUuid,
-            organizationUuid,
         });
 
         const project = await this.projectModel.getWithSensitiveFields(
@@ -413,10 +427,9 @@ export class SemanticLayerService extends BaseService {
                 findBy,
             );
 
-        await SemanticLayerService.checkSemanticViewerAccess('view', {
+        await SemanticLayerService.hasAccess('view', {
             user,
             projectUuid,
-            organizationUuid: savedChart.organization.organizationUuid,
         });
 
         const { hasAccess: hasViewAccess } =
@@ -442,5 +455,57 @@ export class SemanticLayerService extends BaseService {
         return {
             jobId,
         };
+    }
+
+    async moveToSpace(
+        user: SessionUser,
+        {
+            projectUuid,
+            itemUuid: savedSemanticViewerChartUuid,
+            newParentSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            newParentSpaceUuid: string | null;
+        },
+        options?: {
+            tx?: Knex;
+            checkForAccess?: boolean;
+            trackEvent?: boolean;
+        },
+    ) {
+        if (newParentSpaceUuid === null) {
+            throw new ParameterError(
+                'You cannot move a semantic viewer chart outside of a space',
+            );
+        }
+
+        if (options?.checkForAccess) {
+            await SemanticLayerService.hasAccess('update', {
+                user,
+                projectUuid,
+            });
+        }
+
+        await this.savedSemanticViewerChartModel.moveToSpace(
+            {
+                projectUuid,
+                itemUuid: savedSemanticViewerChartUuid,
+                newParentSpaceUuid,
+            },
+            { tx: options?.tx },
+        );
+
+        if (options?.trackEvent) {
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'semantic_viewer_chart.moved',
+                properties: {
+                    projectId: projectUuid,
+                    semanticViewerChartId: savedSemanticViewerChartUuid,
+                    newParentSpaceId: newParentSpaceUuid,
+                },
+            });
+        }
     }
 }
