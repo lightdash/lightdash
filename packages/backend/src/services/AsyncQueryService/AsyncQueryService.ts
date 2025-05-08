@@ -9,6 +9,7 @@ import {
     assertUnreachable,
     CompiledDimension,
     convertFieldRefToFieldId,
+    convertItemTypeToDimensionType,
     createVirtualView as createVirtualViewObject,
     CreateWarehouseCredentials,
     type CustomDimension,
@@ -45,6 +46,7 @@ import {
     prefixPivotConfigurationReferences,
     type Project,
     QueryHistoryStatus,
+    type ResultColumns,
     type RunQueryTags,
     SessionUser,
     SortBy,
@@ -239,8 +241,27 @@ export class AsyncQueryService<
             );
         }
 
-        const { metricQuery, context, status, totalRowCount, cacheKey } =
-            queryHistory;
+        const {
+            metricQuery,
+            context,
+            status,
+            totalRowCount,
+            cacheKey,
+            fields,
+        } = queryHistory;
+
+        // Ideally, we should use the warehouse results columns metadata. For now we can rely on the fields.
+        const columns = Object.values(fields).reduce<ResultColumns>(
+            (acc, field) => {
+                const column = {
+                    name: field.name,
+                    type: convertItemTypeToDimensionType(field),
+                };
+                acc[column.name] = column;
+                return acc;
+            },
+            {},
+        );
 
         const defaultedPageSize =
             pageSize ??
@@ -376,6 +397,7 @@ export class AsyncQueryService<
 
             returnObject = {
                 rows,
+                columns,
                 totalPageCount: pageCount,
                 totalResults: cacheTotalRowCount,
                 queryUuid: queryHistory.queryUuid,
@@ -497,6 +519,7 @@ export class AsyncQueryService<
             );
 
             returnObject = {
+                columns,
                 rows: result.rows,
                 totalPageCount: result.pageCount,
                 totalResults: result.totalRows,
