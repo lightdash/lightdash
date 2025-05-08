@@ -172,9 +172,11 @@ export class SpaceController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        await this.services
-            .getSpaceService()
-            .moveSpace(req.user!, spaceUuid, body.parentSpaceUuid);
+        await this.services.getSpaceService().moveToSpace(req.user!, {
+            projectUuid,
+            itemUuid: spaceUuid,
+            newParentSpaceUuid: body.parentSpaceUuid,
+        });
         return {
             status: 'ok',
             results: undefined,
