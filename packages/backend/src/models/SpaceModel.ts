@@ -1822,16 +1822,10 @@ export class SpaceModel {
             itemUuid: string;
             newParentSpaceUuid: string | null;
         },
-        {
-            transaction = this.database,
-        }: {
-            transaction?: Knex;
-        } = {
-            transaction: this.database,
-        },
+        { tx = this.database }: { tx?: Knex } = {},
     ): Promise<void> {
         // check if parent space is not subtree of space
-        const isCycle = await transaction
+        const isCycle = await tx
             .with('space', (query) => {
                 void query
                     .select('path')
@@ -1855,7 +1849,7 @@ export class SpaceModel {
             );
         }
 
-        await transaction.raw(
+        await tx.raw(
             `
                 UPDATE ${SpaceTableName} AS s
                 SET

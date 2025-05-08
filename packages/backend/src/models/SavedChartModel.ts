@@ -1680,19 +1680,13 @@ export class SavedChartModel {
             itemUuid: string;
             newParentSpaceUuid: string | null;
         },
-        {
-            transaction = this.database,
-        }: {
-            transaction?: Knex;
-        } = {
-            transaction: this.database,
-        },
+        { tx = this.database }: { tx?: Knex } = {},
     ): Promise<void> {
         if (newParentSpaceUuid === null) {
             throw new Error('Cannot move saved chart out of a space');
         }
 
-        const space = await transaction(SpaceTableName)
+        const space = await tx(SpaceTableName)
             .select('space_id')
             .innerJoin(
                 ProjectTableName,
@@ -1707,7 +1701,7 @@ export class SavedChartModel {
             throw new NotFoundError('Space not found');
         }
 
-        const updateCount = await transaction(SavedChartsTableName)
+        const updateCount = await tx(SavedChartsTableName)
             .update({ space_id: space.space_id })
             .where('saved_query_uuid', savedChartUuid)
             .where('dashboard_uuid', null); // charts belong to dashboards can't be moved to a space

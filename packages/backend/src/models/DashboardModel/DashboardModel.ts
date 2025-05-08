@@ -1301,15 +1301,9 @@ export class DashboardModel {
             itemUuid: string;
             newParentSpaceUuid: string;
         },
-        {
-            transaction = this.database,
-        }: {
-            transaction?: Knex;
-        } = {
-            transaction: this.database,
-        },
+        { tx = this.database }: { tx?: Knex } = {},
     ): Promise<void> {
-        const space = await transaction(SpaceTableName)
+        const space = await tx(SpaceTableName)
             .select('space_id')
             .innerJoin(
                 ProjectTableName,
@@ -1324,7 +1318,7 @@ export class DashboardModel {
             throw new NotFoundError('Space not found');
         }
 
-        const updateCount = await transaction(DashboardsTableName)
+        const updateCount = await tx(DashboardsTableName)
             .update({ space_id: space.space_id })
             .where('dashboard_uuid', dashboardUuid);
 

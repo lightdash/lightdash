@@ -411,13 +411,7 @@ export class SavedSemanticViewerChartModel {
             itemUuid: string;
             newParentSpaceUuid: string | null;
         },
-        {
-            transaction = this.database,
-        }: {
-            transaction?: Knex;
-        } = {
-            transaction: this.database,
-        },
+        { tx = this.database }: { tx?: Knex } = {},
     ): Promise<void> {
         if (newParentSpaceUuid === null) {
             throw new Error(
@@ -425,9 +419,7 @@ export class SavedSemanticViewerChartModel {
             );
         }
 
-        const updateCount = await transaction(
-            SavedSemanticViewerChartsTableName,
-        )
+        const updateCount = await tx(SavedSemanticViewerChartsTableName)
             .update({ space_uuid: newParentSpaceUuid })
             .where(
                 'saved_semantic_viewer_chart_uuid',

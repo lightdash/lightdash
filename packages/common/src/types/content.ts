@@ -135,7 +135,7 @@ export type ApiContentBulkActionBody<T extends ContentBulkAction> = {
     action: T;
 };
 
-export interface BulkActionable<T extends unknown> {
+export interface BulkActionable<Tx extends unknown> {
     moveToSpace: (
         user: SessionUser,
         args: {
@@ -144,8 +144,8 @@ export interface BulkActionable<T extends unknown> {
             newParentSpaceUuid: string | null;
         },
         options?: {
+            tx?: Tx;
             checkForAccess?: boolean;
-            transaction?: T;
             trackEvent?: boolean;
         },
     ) => Promise<void>;

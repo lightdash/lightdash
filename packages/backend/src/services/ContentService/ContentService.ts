@@ -156,7 +156,7 @@ export class ContentService extends BaseService {
 
         const database = this.contentModel.getDatabase();
 
-        await database.transaction(async (trx) => {
+        await database.transaction(async (tx) => {
             const updates = content.map((c) => {
                 const moveToSpaceArgs = {
                     projectUuid,
@@ -164,23 +164,32 @@ export class ContentService extends BaseService {
                     newParentSpaceUuid,
                 };
 
+                const moveToSpaceOptions = {
+                    tx,
+                    checkForAccess: true,
+                    trackEvent: false,
+                };
+
                 switch (c.contentType) {
                     case ContentType.CHART:
                         switch (c.source) {
                             case ChartSourceType.DBT_EXPLORE:
                                 return this.savedChartService.moveToSpace(
+                                    user,
                                     moveToSpaceArgs,
-                                    { trx },
+                                    moveToSpaceOptions,
                                 );
                             case ChartSourceType.SQL:
                                 return this.savedSqlService.moveToSpace(
+                                    user,
                                     moveToSpaceArgs,
-                                    { trx },
+                                    moveToSpaceOptions,
                                 );
                             case ChartSourceType.SEMANTIC_LAYER:
                                 return this.savedSemanticViewerChartService.moveToSpace(
+                                    user,
                                     moveToSpaceArgs,
-                                    { trx },
+                                    moveToSpaceOptions,
                                 );
                             default:
                                 return assertUnreachable(
@@ -193,16 +202,13 @@ export class ContentService extends BaseService {
                         return this.dashboardService.moveToSpace(
                             user,
                             moveToSpaceArgs,
-                            {
-                                transaction: trx,
-                                checkForAccess: true,
-                                trackEvent: false,
-                            },
+                            moveToSpaceOptions,
                         );
                     case ContentType.SPACE:
-                        return this.spaceService.moveToSpace(moveToSpaceArgs, {
-                            trx,
-                        });
+                        return this.spaceService.moveToSpace(
+                            moveToSpaceArgs,
+                            moveToSpaceOptions,
+                        );
                     default:
                         return assertUnreachable(c, 'Unknown content type');
                 }

@@ -1092,7 +1092,7 @@ export class DashboardService
         };
     }
 
-    private async checkForAccess(
+    private async hasAccess(
         ability: AbilityAction,
         actor: {
             user: SessionUser;
@@ -1170,7 +1170,7 @@ export class DashboardService
             newParentSpaceUuid: string | null;
         },
         options?: {
-            transaction?: Knex;
+            tx?: Knex;
             checkForAccess?: boolean;
             trackEvent?: boolean;
         },
@@ -1182,7 +1182,7 @@ export class DashboardService
         }
 
         if (options?.checkForAccess) {
-            await this.checkForAccess(
+            await this.hasAccess(
                 'update',
                 { user, projectUuid },
                 { dashboardUuid, spaceUuid: newParentSpaceUuid },
@@ -1194,7 +1194,7 @@ export class DashboardService
                 itemUuid: dashboardUuid,
                 newParentSpaceUuid,
             },
-            { transaction: options?.transaction },
+            { tx: options?.tx },
         );
 
         if (options?.trackEvent) {
