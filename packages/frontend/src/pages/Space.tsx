@@ -341,9 +341,11 @@ const Space: FC = () => {
                     filters={{
                         projectUuid,
                         spaceUuids: [spaceUuid],
-                        space: {
-                            parentSpaceUuid: spaceUuid,
-                        },
+                        contentTypes: [
+                            ContentType.DASHBOARD,
+                            ContentType.CHART,
+                            ContentType.SPACE,
+                        ],
                     }}
                     contentTypeFilter={{
                         defaultValue: undefined,

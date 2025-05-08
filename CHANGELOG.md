@@ -1,3 +1,24 @@
+## [0.1614.5](https://github.com/lightdash/lightdash/compare/0.1614.4...0.1614.5) (2025-05-08)
+
+
+### Bug Fixes
+
+* pages being set inside the useQuery ([#14724](https://github.com/lightdash/lightdash/issues/14724)) ([eaba16a](https://github.com/lightdash/lightdash/commit/eaba16aa8a3996d7ffc25eeb6b207f50da40c22f))
+
+## [0.1614.4](https://github.com/lightdash/lightdash/compare/0.1614.3...0.1614.4) (2025-05-08)
+
+
+### Bug Fixes
+
+* 403 erros when allowing all dashboards to be embedded ([#14723](https://github.com/lightdash/lightdash/issues/14723)) ([39fdff9](https://github.com/lightdash/lightdash/commit/39fdff9ae5bca03edb1e1de922585b5121b41450))
+
+## [0.1614.3](https://github.com/lightdash/lightdash/compare/0.1614.2...0.1614.3) (2025-05-08)
+
+
+### Bug Fixes
+
+* improve space filtering and navigation in content views ([#14716](https://github.com/lightdash/lightdash/issues/14716)) ([98c6f32](https://github.com/lightdash/lightdash/commit/98c6f321892f8454e7937badadf0e1e57cc81abd)), closes [#14720](https://github.com/lightdash/lightdash/issues/14720)
+
 ## [0.1614.2](https://github.com/lightdash/lightdash/compare/0.1614.1...0.1614.2) (2025-05-08)
 
 

@@ -35,9 +35,9 @@ import {
 } from './types/field';
 import { type AdditionalMetric, type MetricQuery } from './types/metricQuery';
 import {
+    OrganizationMemberRole,
     type ApiOrganizationMemberProfiles,
     type OrganizationMemberProfile,
-    type OrganizationMemberRole,
 } from './types/organizationMemberProfile';
 import {
     type CreatePersonalAccessToken,
@@ -400,6 +400,7 @@ export const SEED_ORG_1_ADMIN_EMAIL = {
 export const SEED_ORG_1_ADMIN_PASSWORD = {
     password: 'demo_password!',
 };
+export const SEED_ORG_1_ADMIN_ROLE = OrganizationMemberRole.ADMIN;
 
 export const SEED_ORG_1_EDITOR = {
     user_uuid: '80fb8b59-d6b7-4ed6-b969-9849310f3e53',
@@ -417,6 +418,26 @@ export const SEED_ORG_1_EDITOR_EMAIL = {
 export const SEED_ORG_1_EDITOR_PASSWORD = {
     password: 'demo_password!',
 };
+export const SEED_ORG_1_EDITOR_ROLE = OrganizationMemberRole.EDITOR;
+
+export const SEED_ORG_1_VIEWER = {
+    user_uuid: 'e0dd2003-c291-4e14-b977-7a03b7edc842',
+    first_name: 'Viewer',
+    last_name: 'User',
+    is_marketing_opted_in: true,
+    is_tracking_anonymized: false,
+    is_setup_complete: true,
+    is_active: true,
+};
+export const SEED_ORG_1_VIEWER_EMAIL = {
+    email: 'demo3@lightdash.com',
+    is_primary: true,
+};
+export const SEED_ORG_1_VIEWER_PASSWORD = {
+    password: 'demo_password!',
+};
+export const SEED_ORG_1_VIEWER_ROLE = OrganizationMemberRole.VIEWER;
+
 // Another user
 export const SEED_ORG_2 = {
     organization_uuid: '42339eef-359e-4ec4-b810-54ef0b4e3446',
@@ -438,7 +459,7 @@ export const SEED_ORG_2_ADMIN_EMAIL = {
 export const SEED_ORG_2_ADMIN_PASSWORD = {
     password: 'demo_password!',
 };
-
+export const SEED_ORG_2_ADMIN_ROLE = OrganizationMemberRole.ADMIN;
 export const SEED_EMBED_SECRET = 'zU3h50saDOO20czNFNRok';
 
 export const SEED_PROJECT = {
