@@ -1,3 +1,10 @@
+## [0.1614.4](https://github.com/lightdash/lightdash/compare/0.1614.3...0.1614.4) (2025-05-08)
+
+
+### Bug Fixes
+
+* 403 erros when allowing all dashboards to be embedded ([#14723](https://github.com/lightdash/lightdash/issues/14723)) ([39fdff9](https://github.com/lightdash/lightdash/commit/39fdff9ae5bca03edb1e1de922585b5121b41450))
+
 ## [0.1614.3](https://github.com/lightdash/lightdash/compare/0.1614.2...0.1614.3) (2025-05-08)
 
 
