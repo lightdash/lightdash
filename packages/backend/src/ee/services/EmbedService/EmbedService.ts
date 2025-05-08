@@ -446,9 +446,8 @@ export class EmbedService extends BaseService {
         savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
         checkPermissions: boolean = true,
     ): Promise<DashboardAvailableFilters> {
-        const { encodedSecret, dashboardUuids } = await this.embedModel.get(
-            projectUuid,
-        );
+        const { encodedSecret, dashboardUuids, allowAllDashboards } =
+            await this.embedModel.get(projectUuid);
         const decodedToken = this.decodeJwt(embedToken, encodedSecret);
 
         if (
@@ -480,9 +479,9 @@ export class EmbedService extends BaseService {
         if (checkPermissions)
             savedQueryUuids.map(async (chartUuid) =>
                 this._permissionsGetChartAndResults(
+                    { dashboardUuids, allowAllDashboards },
                     projectUuid,
                     chartUuid,
-                    dashboardUuids,
                     dashboardUuid,
                 ),
             );
@@ -625,12 +624,13 @@ export class EmbedService extends BaseService {
     }
 
     private async _permissionsGetChartAndResults(
+        embed: Pick<Embed, 'dashboardUuids' | 'allowAllDashboards'>,
         projectUuid: string,
         chartUuid: string,
-        dashboardUuids: string[],
         dashboardUuid: string,
     ) {
-        if (!dashboardUuids.includes(dashboardUuid)) {
+        const { allowAllDashboards, dashboardUuids } = embed;
+        if (!allowAllDashboards && !dashboardUuids.includes(dashboardUuid)) {
             throw new ForbiddenError(
                 `Dashboard ${dashboardUuid} is not embedded`,
             );
@@ -786,7 +786,7 @@ export class EmbedService extends BaseService {
         dateZoomGranularity?: DateGranularity,
         checkPermissions: boolean = true,
     ) {
-        const { encodedSecret, dashboardUuids, user } =
+        const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
 
         const decodedToken = this.decodeJwt(embedToken, encodedSecret);
@@ -811,9 +811,9 @@ export class EmbedService extends BaseService {
 
         if (checkPermissions)
             await this._permissionsGetChartAndResults(
+                { allowAllDashboards, dashboardUuids },
                 projectUuid,
                 chart.uuid,
-                dashboardUuids,
                 dashboardUuid,
             );
 
