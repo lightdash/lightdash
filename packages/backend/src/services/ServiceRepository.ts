@@ -800,8 +800,6 @@ export class ServiceRepository
 
                     projectModel: this.models.getProjectModel(),
                     downloadFileModel: this.models.getDownloadFileModel(),
-                    savedSemanticViewerChartModel:
-                        this.models.getSavedSemanticViewerChartModel(),
                 }),
         );
     }
