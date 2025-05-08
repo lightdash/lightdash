@@ -14,7 +14,7 @@ import {
     IconFolderX,
     IconPlus,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import AddResourceToSpaceModal from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
 import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateResourceToSpace';
@@ -63,15 +63,13 @@ const Space: FC = () => {
     const { user, health } = useApp();
     const { track } = useTracking();
 
-    const userCanManageSpace = useMemo(() => {
-        return user.data?.ability?.can(
-            'create',
-            subject('Space', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            }),
-        );
-    }, [user.data?.ability, user.data?.organizationUuid, projectUuid]);
+    const userCanManageSpace = user.data?.ability?.can(
+        'create',
+        subject('Space', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const navigate = useNavigate();

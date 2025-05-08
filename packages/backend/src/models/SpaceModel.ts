@@ -1816,11 +1816,11 @@ export class SpaceModel {
         {
             projectUuid: _projectUuid, // TODO: use projectUuid to narrow down the scope
             itemUuid: spaceUuid,
-            newParentSpaceUuid,
+            targetSpaceUuid,
         }: {
             projectUuid: string;
             itemUuid: string;
-            newParentSpaceUuid: string | null;
+            targetSpaceUuid: string | null;
         },
         { tx = this.database }: { tx?: Knex } = {},
     ): Promise<void> {
@@ -1836,7 +1836,7 @@ export class SpaceModel {
                 void query
                     .select('path')
                     .from(SpaceTableName)
-                    .where('space_uuid', newParentSpaceUuid);
+                    .where('space_uuid', targetSpaceUuid);
             })
             .select('*')
             .from('space')
@@ -1868,10 +1868,10 @@ export class SpaceModel {
             `,
             [
                 spaceUuid,
-                newParentSpaceUuid,
-                newParentSpaceUuid,
+                targetSpaceUuid,
+                targetSpaceUuid,
                 spaceUuid,
-                newParentSpaceUuid,
+                targetSpaceUuid,
             ],
         );
     }

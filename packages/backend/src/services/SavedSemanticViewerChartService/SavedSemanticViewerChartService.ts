@@ -399,24 +399,28 @@ export class SavedSemanticViewerChartService
         {
             projectUuid,
             itemUuid: savedSemanticViewerChartUuid,
-            newParentSpaceUuid,
+            targetSpaceUuid,
         }: {
             projectUuid: string;
             itemUuid: string;
-            newParentSpaceUuid: string | null;
+            targetSpaceUuid: string | null;
         },
-        options?: {
+        {
+            tx,
+            checkForAccess = true,
+            trackEvent = true,
+        }: {
             tx?: Knex;
             checkForAccess?: boolean;
             trackEvent?: boolean;
-        },
+        } = {},
     ): Promise<void> {
-        if (!newParentSpaceUuid) {
+        if (!targetSpaceUuid) {
             throw new ParameterError(
                 'You cannot move a dashboard outside of a space',
             );
         }
-        if (options?.checkForAccess && options?.checkForAccess === true) {
+        if (checkForAccess) {
             await this.hasAccess(
                 'update',
                 { user, projectUuid },
@@ -428,19 +432,19 @@ export class SavedSemanticViewerChartService
             {
                 projectUuid,
                 itemUuid: savedSemanticViewerChartUuid,
-                newParentSpaceUuid,
+                targetSpaceUuid,
             },
-            { tx: options?.tx },
+            { tx },
         );
 
-        if (options?.trackEvent) {
+        if (trackEvent) {
             this.analytics.track({
                 event: 'semantic_viewer_chart.moved',
                 userId: user.userUuid,
                 properties: {
                     projectId: projectUuid,
                     semanticViewerChartId: savedSemanticViewerChartUuid,
-                    newSpaceId: newParentSpaceUuid,
+                    targetSpaceId: targetSpaceUuid,
                 },
             });
         }

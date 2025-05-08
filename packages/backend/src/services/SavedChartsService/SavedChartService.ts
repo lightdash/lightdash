@@ -1331,25 +1331,29 @@ export class SavedChartService
         {
             projectUuid,
             itemUuid: savedChartUuid,
-            newParentSpaceUuid,
+            targetSpaceUuid,
         }: {
             projectUuid: string;
             itemUuid: string;
-            newParentSpaceUuid: string | null;
+            targetSpaceUuid: string | null;
         },
-        options?: {
+        {
+            tx,
+            checkForAccess = true,
+            trackEvent = true,
+        }: {
             tx?: Knex;
             checkForAccess?: boolean;
             trackEvent?: boolean;
-        },
+        } = {},
     ): Promise<void> {
-        if (!newParentSpaceUuid) {
+        if (!targetSpaceUuid) {
             throw new ParameterError(
                 'You cannot move a chart outside of a space',
             );
         }
 
-        if (options?.checkForAccess) {
+        if (checkForAccess) {
             await this.hasAccess(
                 'update',
                 { user, projectUuid },
@@ -1358,18 +1362,18 @@ export class SavedChartService
         }
 
         await this.savedChartModel.moveToSpace(
-            { projectUuid, itemUuid: savedChartUuid, newParentSpaceUuid },
-            { tx: options?.tx },
+            { projectUuid, itemUuid: savedChartUuid, targetSpaceUuid },
+            { tx },
         );
 
-        if (options?.trackEvent) {
+        if (trackEvent) {
             this.analytics.track({
                 event: 'saved_chart.moved',
                 userId: user.userUuid,
                 properties: {
                     projectId: projectUuid,
                     savedChartId: savedChartUuid,
-                    newSpaceId: newParentSpaceUuid,
+                    newSpaceId: targetSpaceUuid,
                 },
             });
         }

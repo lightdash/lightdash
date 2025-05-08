@@ -19,11 +19,7 @@ import {
     ContentArgs,
     ContentFilters,
 } from '../../models/ContentModel/ContentModelTypes';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SavedChartModel } from '../../models/SavedChartModel';
-import { SavedSemanticViewerChartModel } from '../../models/SavedSemanticViewerChartModel';
-import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
@@ -148,7 +144,7 @@ export class ContentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         content: ApiContentBulkActionBody<ContentBulkActionMove>['content'],
-        newParentSpaceUuid: string,
+        targetSpaceUuid: string,
     ) {
         if (user.organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
@@ -173,7 +169,7 @@ export class ContentService extends BaseService {
                 const moveToSpaceArgs = {
                     projectUuid,
                     itemUuid: c.uuid,
-                    newParentSpaceUuid,
+                    targetSpaceUuid,
                 };
 
                 const moveToSpaceOptions = {
@@ -235,7 +231,7 @@ export class ContentService extends BaseService {
             userId: user.userUuid,
             properties: {
                 projectId: projectUuid,
-                newParentSpaceId: newParentSpaceUuid,
+                targetSpaceId: targetSpaceUuid,
                 contentCount: content.length,
             },
         });

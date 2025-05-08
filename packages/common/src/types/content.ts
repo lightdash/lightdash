@@ -107,7 +107,7 @@ export type ApiChartContentResponse = {
 
 export type ContentBulkActionMove = {
     type: 'move';
-    newSpaceUuid: string;
+    targetSpaceUuid: string;
 };
 
 export type ContentBulkActionDelete = {
@@ -141,7 +141,7 @@ export interface BulkActionable<Tx extends unknown> {
         args: {
             projectUuid: string;
             itemUuid: string;
-            newParentSpaceUuid: string | null;
+            targetSpaceUuid: string | null;
         },
         options?: {
             tx?: Tx;

@@ -268,13 +268,13 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         },
         resource: {
             spaceUuid: string;
-            newParentSpaceUuid?: string;
+            targetSpaceUuid?: string;
         },
     ) {
         const space = await this.spaceModel.getSpaceSummary(resource.spaceUuid);
         const spaceAccess = await this.spaceModel.getUserSpaceAccess(
             actor.user.userUuid,
-            space.parentSpaceUuid ?? resource.spaceUuid, // if newParentSpaceUuid is not provided, use the spaceUuid
+            space.parentSpaceUuid ?? resource.spaceUuid,
         );
 
         const isActorAllowedToPerformAction = actor.user.ability.can(
@@ -293,13 +293,13 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             );
         }
 
-        if (resource.newParentSpaceUuid) {
+        if (resource.targetSpaceUuid) {
             const newSpace = await this.spaceModel.getSpaceSummary(
-                resource.newParentSpaceUuid,
+                resource.targetSpaceUuid,
             );
             const newSpaceAccess = await this.spaceModel.getUserSpaceAccess(
                 actor.user.userUuid,
-                resource.newParentSpaceUuid,
+                resource.targetSpaceUuid,
             );
 
             const isActorAllowedToPerformActionInNewSpace =
@@ -326,17 +326,21 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         {
             projectUuid,
             itemUuid: spaceUuid,
-            newParentSpaceUuid,
+            targetSpaceUuid,
         }: {
             projectUuid: string;
             itemUuid: string;
-            newParentSpaceUuid: string | null;
+            targetSpaceUuid: string | null;
         },
-        options?: {
+        {
+            tx,
+            checkForAccess = true,
+            trackEvent = true,
+        }: {
             tx?: Knex;
             checkForAccess?: boolean;
             trackEvent?: boolean;
-        },
+        } = {},
     ) {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
 
@@ -344,30 +348,33 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             throw new NotFoundError('Space not found');
         }
 
-        if (space.parentSpaceUuid === newParentSpaceUuid) {
+        if (space.parentSpaceUuid === targetSpaceUuid) {
             throw new ParameterError(
-                `Space ${spaceUuid} is already in the correct parent space ${newParentSpaceUuid}`,
+                `Space ${spaceUuid} is already in the correct parent space ${targetSpaceUuid}`,
             );
         }
 
-        if (options?.checkForAccess) {
+        if (checkForAccess) {
             await this.hasAccess(
                 'manage',
                 { user, projectUuid },
                 {
                     spaceUuid,
-                    newParentSpaceUuid: newParentSpaceUuid ?? undefined,
+                    targetSpaceUuid: targetSpaceUuid ?? undefined,
                 },
             );
         }
 
-        await this.spaceModel.moveToSpace({
-            projectUuid: space.projectUuid,
-            itemUuid: spaceUuid,
-            newParentSpaceUuid,
-        });
+        await this.spaceModel.moveToSpace(
+            {
+                projectUuid: space.projectUuid,
+                itemUuid: spaceUuid,
+                targetSpaceUuid,
+            },
+            { tx },
+        );
 
-        if (options?.trackEvent) {
+        if (trackEvent) {
             this.analytics.track({
                 event: 'space.moved',
                 userId: user.userUuid,
@@ -375,7 +382,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
                     name: space.name,
                     spaceId: spaceUuid,
                     oldParentSpaceId: space.parentSpaceUuid,
-                    newParentSpaceId: newParentSpaceUuid,
+                    newParentSpaceId: targetSpaceUuid,
                     projectId: space.projectUuid,
                 },
             });

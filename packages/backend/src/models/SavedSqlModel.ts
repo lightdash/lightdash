@@ -362,20 +362,20 @@ export class SavedSqlModel {
         {
             projectUuid,
             itemUuid: savedSqlUuid,
-            newParentSpaceUuid,
+            targetSpaceUuid,
         }: {
             projectUuid: string;
             itemUuid: string;
-            newParentSpaceUuid: string | null;
+            targetSpaceUuid: string | null;
         },
         { tx = this.database }: { tx?: Knex } = {},
     ): Promise<void> {
-        if (newParentSpaceUuid === null) {
+        if (targetSpaceUuid === null) {
             throw new Error('Cannot move saved sql chart out of a space');
         }
 
         const updateCount = await tx(SavedSqlTableName)
-            .update({ space_uuid: newParentSpaceUuid })
+            .update({ space_uuid: targetSpaceUuid })
             .where('saved_sql_uuid', savedSqlUuid)
             .where('project_uuid', projectUuid);
 

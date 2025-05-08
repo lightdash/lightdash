@@ -545,29 +545,33 @@ export class SavedSqlService
         {
             projectUuid,
             itemUuid: savedSqlUuid,
-            newParentSpaceUuid,
+            targetSpaceUuid,
         }: {
             projectUuid: string;
             itemUuid: string;
-            newParentSpaceUuid: string | null;
+            targetSpaceUuid: string | null;
         },
-        options?: {
+        {
+            tx,
+            checkForAccess = true,
+            trackEvent = true,
+        }: {
             tx?: Knex;
             checkForAccess?: boolean;
             trackEvent?: boolean;
-        },
+        } = {},
     ) {
-        if (!newParentSpaceUuid) {
+        if (!targetSpaceUuid) {
             throw new ParameterError(
                 'You cannot move a dashboard outside of a space',
             );
         }
 
-        if (options?.checkForAccess) {
+        if (checkForAccess) {
             await this.hasAccess(
                 'update',
                 { user, projectUuid },
-                { savedSqlUuid, spaceUuid: newParentSpaceUuid },
+                { savedSqlUuid, spaceUuid: targetSpaceUuid },
             );
         }
 
@@ -575,19 +579,19 @@ export class SavedSqlService
             {
                 projectUuid,
                 itemUuid: savedSqlUuid,
-                newParentSpaceUuid,
+                targetSpaceUuid,
             },
-            { tx: options?.tx },
+            { tx },
         );
 
-        if (options?.trackEvent) {
+        if (trackEvent) {
             this.analytics.track({
                 event: 'sql_chart.moved',
                 userId: user.userUuid,
                 properties: {
                     chartId: savedSqlUuid,
                     projectId: projectUuid,
-                    organizationId: user.organizationUuid,
+                    targetSpaceId: targetSpaceUuid,
                 },
             });
         }

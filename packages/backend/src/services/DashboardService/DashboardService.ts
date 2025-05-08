@@ -1163,48 +1163,52 @@ export class DashboardService
         {
             projectUuid,
             itemUuid: dashboardUuid,
-            newParentSpaceUuid,
+            targetSpaceUuid,
         }: {
             projectUuid: string;
             itemUuid: string;
-            newParentSpaceUuid: string | null;
+            targetSpaceUuid: string | null;
         },
-        options?: {
+        {
+            tx,
+            checkForAccess = true,
+            trackEvent = true,
+        }: {
             tx?: Knex;
             checkForAccess?: boolean;
             trackEvent?: boolean;
-        },
+        } = {},
     ) {
-        if (!newParentSpaceUuid) {
+        if (!targetSpaceUuid) {
             throw new ParameterError(
                 'You cannot move a dashboard outside of a space',
             );
         }
 
-        if (options?.checkForAccess) {
+        if (checkForAccess) {
             await this.hasAccess(
                 'update',
                 { user, projectUuid },
-                { dashboardUuid, spaceUuid: newParentSpaceUuid },
+                { dashboardUuid, spaceUuid: targetSpaceUuid },
             );
         }
         await this.dashboardModel.moveToSpace(
             {
                 projectUuid,
                 itemUuid: dashboardUuid,
-                newParentSpaceUuid,
+                targetSpaceUuid,
             },
-            { tx: options?.tx },
+            { tx },
         );
 
-        if (options?.trackEvent) {
+        if (trackEvent) {
             this.analytics.track({
                 event: 'dashboard.moved',
                 userId: user.userUuid,
                 properties: {
                     projectId: projectUuid,
                     dashboardId: dashboardUuid,
-                    newSpaceId: newParentSpaceUuid,
+                    targetSpaceId: targetSpaceUuid,
                 },
             });
         }

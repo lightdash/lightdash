@@ -175,7 +175,7 @@ export class SpaceController extends BaseController {
         await this.services.getSpaceService().moveToSpace(req.user!, {
             projectUuid,
             itemUuid: spaceUuid,
-            newParentSpaceUuid: body.parentSpaceUuid,
+            targetSpaceUuid: body.parentSpaceUuid,
         });
         return {
             status: 'ok',

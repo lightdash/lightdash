@@ -107,7 +107,7 @@ export const useContentBulkAction = (projectUuid: string) => {
                 projectUuid,
                 body,
             }),
-        onSuccess: async (_data, { action: { newSpaceUuid } }) => {
+        onSuccess: async (_data, { action: { targetSpaceUuid } }) => {
             await Promise.all([
                 queryClient.invalidateQueries([
                     'projects',
@@ -126,7 +126,7 @@ export const useContentBulkAction = (projectUuid: string) => {
                     icon: IconArrowRight,
                     onClick: () =>
                         navigate(
-                            `/projects/${projectUuid}/spaces/${newSpaceUuid}`,
+                            `/projects/${projectUuid}/spaces/${targetSpaceUuid}`,
                         ),
                 },
             });

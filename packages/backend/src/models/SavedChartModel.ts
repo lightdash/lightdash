@@ -1674,15 +1674,15 @@ export class SavedChartModel {
         {
             projectUuid,
             itemUuid: savedChartUuid,
-            newParentSpaceUuid,
+            targetSpaceUuid,
         }: {
             projectUuid: string;
             itemUuid: string;
-            newParentSpaceUuid: string | null;
+            targetSpaceUuid: string | null;
         },
         { tx = this.database }: { tx?: Knex } = {},
     ): Promise<void> {
-        if (newParentSpaceUuid === null) {
+        if (targetSpaceUuid === null) {
             throw new Error('Cannot move saved chart out of a space');
         }
 
@@ -1693,7 +1693,7 @@ export class SavedChartModel {
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
-            .where('space_uuid', newParentSpaceUuid)
+            .where('space_uuid', targetSpaceUuid)
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .first();
 

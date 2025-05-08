@@ -340,7 +340,7 @@ const InfiniteResourceTable = ({
                 }),
                 action: {
                     type: 'move',
-                    newSpaceUuid: spaceUuid,
+                    targetSpaceUuid: spaceUuid,
                 },
             });
 
@@ -689,7 +689,7 @@ const InfiniteResourceTable = ({
                                 }
                                 onClick={openTransferItemsModal}
                             >
-                                Transfer to space
+                                Move to space
                             </Button>
                         ) : null}
                     </Group>

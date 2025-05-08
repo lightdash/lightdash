@@ -1295,11 +1295,11 @@ export class DashboardModel {
         {
             projectUuid,
             itemUuid: dashboardUuid,
-            newParentSpaceUuid,
+            targetSpaceUuid,
         }: {
             projectUuid: string;
             itemUuid: string;
-            newParentSpaceUuid: string;
+            targetSpaceUuid: string;
         },
         { tx = this.database }: { tx?: Knex } = {},
     ): Promise<void> {
@@ -1310,7 +1310,7 @@ export class DashboardModel {
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
-            .where('space_uuid', newParentSpaceUuid)
+            .where('space_uuid', targetSpaceUuid)
             .where('project_uuid', projectUuid)
             .first();
 

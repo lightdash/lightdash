@@ -94,7 +94,7 @@ export class ContentController extends BaseController {
                 req.user!,
                 projectUuid,
                 body.content,
-                body.action.newSpaceUuid,
+                body.action.targetSpaceUuid,
             );
 
         return { status: 'ok', results: undefined };
