@@ -467,11 +467,6 @@ const InfiniteResourceTable = ({
                 flexDirection: 'column',
             },
         },
-        mantineTableHeadProps: {
-            styles: {
-                background: 'red',
-            },
-        },
         mantineTableHeadRowProps: {
             sx: {
                 boxShadow: 'none',
@@ -496,6 +491,8 @@ const InfiniteResourceTable = ({
                 props.table.getAllColumns().indexOf(props.column) ===
                 props.table.getAllColumns().length - 1;
 
+            const canResize = props.column.getCanResize();
+
             return {
                 bg: 'gray.0',
                 h: '3xl',
@@ -516,15 +513,18 @@ const InfiniteResourceTable = ({
                 },
                 sx: {
                     justifyContent: 'center',
+
                     'tr > th:last-of-type': {
                         borderLeft: `2px solid ${theme.colors.blue[3]}`,
                     },
-                    '&:hover': {
-                        borderRight: !isAnyColumnResizing
-                            ? `2px solid ${theme.colors.blue[3]} !important` // This is needed to override the default inline styles
-                            : undefined,
-                        transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                    },
+                    '&:hover': canResize
+                        ? {
+                              borderRight: !isAnyColumnResizing
+                                  ? `2px solid ${theme.colors.blue[3]} !important` // This is needed to override the default inline styles
+                                  : undefined,
+                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                          }
+                        : {},
                 },
             };
         },
@@ -772,6 +772,10 @@ const InfiniteResourceTable = ({
         displayColumnDefOptions: {
             'mrt-row-actions': {
                 header: '',
+            },
+            'mrt-row-select': {
+                size: 20,
+                enableResizing: false,
             },
         },
         enableFilterMatchHighlighting: true,
