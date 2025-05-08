@@ -64,7 +64,7 @@ export function convertItemTypeToDimensionType(item: Item): DimensionType {
 }
 
 export type ResultColumn = {
-    name: string;
+    reference: string;
     type: DimensionType; // Lightdash simple type. In the future, we might introduce the warehouse type as well, which provides more detail.
 };
 

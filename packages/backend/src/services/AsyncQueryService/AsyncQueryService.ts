@@ -254,10 +254,10 @@ export class AsyncQueryService<
         const columns = Object.values(fields).reduce<ResultColumns>(
             (acc, field) => {
                 const column = {
-                    name: field.name,
+                    reference: field.name,
                     type: convertItemTypeToDimensionType(field),
                 };
-                acc[column.name] = column;
+                acc[column.reference] = column;
                 return acc;
             },
             {},
