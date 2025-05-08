@@ -324,13 +324,6 @@ export const useInfiniteQueryResults = (
                 }
                 case QueryHistoryStatus.READY: {
                     backoffRef.current = 250;
-                    setFetchedPages((prevState) => [
-                        ...prevState,
-                        {
-                            ...results,
-                            clientFetchTimeMs,
-                        },
-                    ]);
                     return {
                         ...results,
                         clientFetchTimeMs,
@@ -350,6 +343,13 @@ export const useInfiniteQueryResults = (
             setErrorResponse(nextPage.error);
         }
     }, [nextPage.error, setErrorResponse]);
+
+    useEffect(() => {
+        const pageData = nextPage.data;
+        if (pageData?.status === QueryHistoryStatus.READY) {
+            setFetchedPages((prevState) => [...prevState, pageData]);
+        }
+    }, [nextPage.data]);
 
     useEffect(() => {
         // Reset fetched pages before updating the fetch args
