@@ -1,3 +1,10 @@
+# [0.1615.0](https://github.com/lightdash/lightdash/compare/0.1614.6...0.1615.0) (2025-05-08)
+
+
+### Features
+
+* amend query responses ([#14714](https://github.com/lightdash/lightdash/issues/14714)) ([9348411](https://github.com/lightdash/lightdash/commit/9348411d162e9beadf40919486d98230c89ec4be))
+
 ## [0.1614.6](https://github.com/lightdash/lightdash/compare/0.1614.5...0.1614.6) (2025-05-08)
 
 
