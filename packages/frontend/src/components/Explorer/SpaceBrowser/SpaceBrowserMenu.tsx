@@ -90,7 +90,7 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
                         onTransferToSpace();
                     }}
                 >
-                    Transfer to space
+                    Move
                 </Menu.Item>
 
                 <Menu.Divider />
