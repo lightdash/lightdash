@@ -9,13 +9,20 @@ import {
     SEED_ORG_1_ADMIN,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
+    SEED_ORG_1_ADMIN_ROLE,
     SEED_ORG_1_EDITOR,
     SEED_ORG_1_EDITOR_EMAIL,
     SEED_ORG_1_EDITOR_PASSWORD,
+    SEED_ORG_1_EDITOR_ROLE,
+    SEED_ORG_1_VIEWER,
+    SEED_ORG_1_VIEWER_EMAIL,
+    SEED_ORG_1_VIEWER_PASSWORD,
+    SEED_ORG_1_VIEWER_ROLE,
     SEED_ORG_2,
     SEED_ORG_2_ADMIN,
     SEED_ORG_2_ADMIN_EMAIL,
     SEED_ORG_2_ADMIN_PASSWORD,
+    SEED_ORG_2_ADMIN_ROLE,
     SEED_PROJECT,
     SEED_SPACE,
     SupportedDbtVersions,
@@ -64,6 +71,7 @@ export async function seed(knex: Knex): Promise<void> {
         seedUser: DbUserIn,
         seedEmail: Omit<DbEmailIn, 'user_id'>,
         seedPassword: { password: string },
+        seedUserRole: OrganizationMemberRole,
     ) => {
         const [user] = await knex('users').insert(seedUser).returning('*');
         if (user.user_id === undefined) {
@@ -83,7 +91,7 @@ export async function seed(knex: Knex): Promise<void> {
         await knex('organization_memberships').insert({
             user_id: user.user_id,
             organization_id: organizationId,
-            role: OrganizationMemberRole.ADMIN,
+            role: seedUserRole,
         });
 
         await knex(OnboardingTableName).insert({
@@ -104,12 +112,21 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_ORG_1_ADMIN,
         SEED_ORG_1_ADMIN_EMAIL,
         SEED_ORG_1_ADMIN_PASSWORD,
+        SEED_ORG_1_ADMIN_ROLE,
     );
     await addUser(
         { organizationId, organizationUuid },
         SEED_ORG_1_EDITOR,
         SEED_ORG_1_EDITOR_EMAIL,
         SEED_ORG_1_EDITOR_PASSWORD,
+        SEED_ORG_1_EDITOR_ROLE,
+    );
+    await addUser(
+        { organizationId, organizationUuid },
+        SEED_ORG_1_VIEWER,
+        SEED_ORG_1_VIEWER_EMAIL,
+        SEED_ORG_1_VIEWER_PASSWORD,
+        SEED_ORG_1_VIEWER_ROLE,
     );
 
     const org2 = await addOrganization(SEED_ORG_2);
@@ -119,6 +136,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_ORG_2_ADMIN,
         SEED_ORG_2_ADMIN_EMAIL,
         SEED_ORG_2_ADMIN_PASSWORD,
+        SEED_ORG_2_ADMIN_ROLE,
     );
 
     // Try this with relative path

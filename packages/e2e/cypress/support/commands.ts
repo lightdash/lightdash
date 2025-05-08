@@ -33,6 +33,10 @@ import {
     SavedChart,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
+    SEED_ORG_1_EDITOR_EMAIL,
+    SEED_ORG_1_EDITOR_PASSWORD,
+    SEED_ORG_1_VIEWER_EMAIL,
+    SEED_ORG_1_VIEWER_PASSWORD,
     SEED_ORG_2_ADMIN_EMAIL,
     SEED_ORG_2_ADMIN_PASSWORD,
     SEED_PROJECT,
@@ -49,6 +53,8 @@ declare global {
             ): Chainable<Element>;
 
             login(): Chainable<Element>;
+            loginAsEditor(): Chainable<Element>;
+            loginAsViewer(): Chainable<Element>;
 
             anotherLogin(): Chainable<Element>;
 
@@ -136,6 +142,52 @@ Cypress.Commands.add('login', () => {
                 body: {
                     email: SEED_ORG_1_ADMIN_EMAIL.email,
                     password: SEED_ORG_1_ADMIN_PASSWORD.password,
+                },
+            })
+                .its('status')
+                .should('eq', 200);
+        },
+        {
+            validate() {
+                cy.request('api/v1/user').its('status').should('eq', 200);
+            },
+        },
+    );
+});
+
+Cypress.Commands.add('loginAsEditor', () => {
+    cy.session(
+        SEED_ORG_1_EDITOR_EMAIL.email,
+        () => {
+            cy.request({
+                url: 'api/v1/login',
+                method: 'POST',
+                body: {
+                    email: SEED_ORG_1_EDITOR_EMAIL.email,
+                    password: SEED_ORG_1_EDITOR_PASSWORD.password,
+                },
+            })
+                .its('status')
+                .should('eq', 200);
+        },
+        {
+            validate() {
+                cy.request('api/v1/user').its('status').should('eq', 200);
+            },
+        },
+    );
+});
+
+Cypress.Commands.add('loginAsViewer', () => {
+    cy.session(
+        SEED_ORG_1_VIEWER_EMAIL.email,
+        () => {
+            cy.request({
+                url: 'api/v1/login',
+                method: 'POST',
+                body: {
+                    email: SEED_ORG_1_VIEWER_EMAIL.email,
+                    password: SEED_ORG_1_VIEWER_PASSWORD.password,
                 },
             })
                 .its('status')
