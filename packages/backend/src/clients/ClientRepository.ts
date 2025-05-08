@@ -1,3 +1,5 @@
+import { Knex } from 'knex';
+import { OAuth2ServerClient } from '../ee/clients/OAuth2ServerClient';
 import { ModelRepository } from '../models/ModelRepository';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import { type OperationContext } from '../services/ServiceRepository';
@@ -23,6 +25,9 @@ export interface ClientManifest {
     slackClient: SlackClient;
     msTeamsClient: MicrosoftTeamsClient;
     resultsFileStorageClient: S3ResultsFileStorageClient;
+    OAuth2ServerClient: OAuth2ServerClient;
+    /** An implementation signature for these clients are not available at this stage */
+    resultsCacheStorageClient: unknown;
 }
 
 /**
@@ -36,6 +41,7 @@ type ClientProvider<T extends ClientManifest> = (providerArgs: {
     repository: ClientRepository;
     context: OperationContext;
     models: ModelRepository;
+    database: Knex;
 }) => T[keyof T];
 
 /**
@@ -80,18 +86,23 @@ abstract class ClientRepositoryBase {
 
     protected models: ModelRepository;
 
+    protected database: Knex;
+
     constructor({
         clientProviders,
         context,
         models,
+        database,
     }: {
         clientProviders?: ClientProviderMap<ClientManifest>;
         context: OperationContext;
         models: ModelRepository;
+        database: Knex;
     }) {
         this.providers = clientProviders ?? {};
         this.context = context;
         this.models = models;
+        this.database = database;
     }
 }
 
@@ -197,6 +208,17 @@ export class ClientRepository
         );
     }
 
+    public getOAuth2ServerClient(): OAuth2ServerClient {
+        return this.getClient(
+            'OAuth2ServerClient',
+            () =>
+                new OAuth2ServerClient(
+                    this.database,
+                    this.context.lightdashConfig,
+                ),
+        );
+    }
+
     /**
      * Handles initializing a client, and taking into account client
      * providers + memoization.
@@ -216,6 +238,7 @@ export class ClientRepository
                     repository: this,
                     context: this.context,
                     models: this.models,
+                    database: this.database,
                 }) as T;
             } else if (factory != null) {
                 clientInstance = factory();

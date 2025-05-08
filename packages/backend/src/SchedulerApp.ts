@@ -133,6 +133,7 @@ export default class SchedulerApp {
                 lightdashConfig: this.lightdashConfig,
             }),
             models: this.models,
+            database: this.database,
         });
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,

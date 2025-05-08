@@ -220,6 +220,7 @@ export default class App {
                 lightdashConfig: this.lightdashConfig,
             }),
             models: this.models,
+            database: this.database,
         });
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
@@ -462,6 +463,19 @@ export default class App {
             res.setHeader(LightdashVersionHeader, VERSION);
             next();
         });
+
+        // OAuth2 Server
+        if (this.clients.getOAuth2ServerClient()) {
+            await this.clients.getOAuth2ServerClient().addClient();
+            const c = await this.clients
+                .getOAuth2ServerClient()
+                .Client.find('test-client');
+            console.log(c);
+            expressApp.use(
+                '/ee/oauth2',
+                this.clients.getOAuth2ServerClient().callback(),
+            );
+        }
 
         expressApp.use(express.json());
         expressApp.use(express.urlencoded({ extended: false }));
