@@ -2,6 +2,7 @@
 import {
     getErrorMessage,
     LightdashError,
+    RenameType,
     ValidationTarget,
 } from '@lightdash/common';
 import { InvalidArgumentError, Option, program } from 'commander';
@@ -20,6 +21,7 @@ import {
     startPreviewHandler,
     stopPreviewHandler,
 } from './handlers/preview';
+import { renameHandler } from './handlers/renameHandler';
 import { setProjectHandler } from './handlers/setProject';
 import { validateHandler } from './handlers/validate';
 import * as styles from './styles';
@@ -766,6 +768,30 @@ ${styles.bold('Examples:')}
     .option('--verbose', undefined, false)
 
     .action(generateHandler);
+
+program
+    .command('rename')
+    .description('Rename models and fields on Lightdash content')
+    .option('--verbose', undefined, false)
+    .option(
+        '-p, --project <project uuid>',
+        'specify a project UUID to rename',
+        parseProjectArgument,
+        undefined,
+    )
+    .option(
+        '-m, --model <model>',
+        'When renaming a field, specify which model the field belongs to',
+        undefined,
+    )
+    .option('-y, --assume-yes', 'assume yes to prompts', false)
+    .requiredOption('-t, --type <type>', 'models or fields', RenameType.models)
+    .requiredOption('--from <from>', 'Name to replace from', undefined)
+    .requiredOption('--to <to>', 'Name to replace to', undefined)
+    .option('--test', 'Test the rename, no changes will be made', false)
+    .option('--list', 'List all charts and dashboards that are renamed', false)
+
+    .action(renameHandler);
 
 program
     .command('generate-exposures')
