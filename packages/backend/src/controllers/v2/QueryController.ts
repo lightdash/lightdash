@@ -294,7 +294,7 @@ export class QueryController extends BaseController {
         body: ExecuteAsyncSqlChartRequestParams,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiExecuteAsyncQueryResponse> {
+    ): Promise<ApiSuccess<ApiExecuteAsyncSqlQueryResults>> {
         this.setStatus(200);
         const context = body.context ?? getContextFromHeader(req);
 
