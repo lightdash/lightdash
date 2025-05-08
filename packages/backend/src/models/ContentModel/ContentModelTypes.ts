@@ -24,7 +24,7 @@ export type ContentFilters = {
     };
     search?: string;
     space?: {
-        parentSpaceUuid?: string;
+        rootSpaces: boolean;
     };
 };
 

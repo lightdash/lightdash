@@ -54,9 +54,6 @@ export class ContentController extends BaseController {
                     spaceUuids,
                     contentTypes,
                     search,
-                    space: {
-                        parentSpaceUuid,
-                    },
                 },
                 {
                     sortBy,

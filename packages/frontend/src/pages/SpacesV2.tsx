@@ -91,6 +91,7 @@ const SpacesV2: FC = () => {
                     filters={{
                         projectUuid,
                         spaceUuids: [],
+                        contentTypes: [ContentType.SPACE],
                     }}
                     contentTypeFilter={{
                         defaultValue: ContentType.SPACE,
