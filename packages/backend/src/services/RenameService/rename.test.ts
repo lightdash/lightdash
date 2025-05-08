@@ -22,6 +22,7 @@ import {
 import { cloneDeep } from 'lodash';
 import {
     createRenameFactory,
+    getNameChanges,
     renameAlert,
     renameChartConfigType,
     renameDashboard,
@@ -30,6 +31,12 @@ import {
     renameSavedChart,
     validateRename,
 } from './rename';
+import {
+    chartMocked,
+    expectedRenamedChartMocked,
+    fieldRename,
+    tableRename,
+} from './rename.mock';
 
 describe('removeFieldFromFilterGroup', () => {
     const fieldToBeRemoved = 'metric_field_id_1';
@@ -157,40 +164,32 @@ describe('isFilterRuleDefinedForFieldId', () => {
     });
 });
 
-describe('createRenameFactory', () => {
+describe('createRenametableRename', () => {
     describe('with isPrefix=true', () => {
-        const factory = createRenameFactory(
-            'payment',
-            'invoice',
-            'payment',
-            'invoice',
-            true,
-        );
-
         test('replaceId should replace prefix', () => {
-            expect(factory.replaceId('payment_customer_id')).toBe(
+            expect(tableRename.replaceId('payment_customer_id')).toBe(
                 'invoice_customer_id',
             );
 
             // This will replace only the model "part" of the id
             // This is the reason why we can't easily do a find and replace on the entire JSON
             // And we need to replace the references separately, using different methods
-            expect(factory.replaceId('payment_payment_id')).toBe(
+            expect(tableRename.replaceId('payment_payment_id')).toBe(
                 'invoice_payment_id',
             );
         });
         test('replaceId should not replace invalid prefix', () => {
-            expect(factory.replaceId('payments_payment_id')).toBe(
+            expect(tableRename.replaceId('payments_payment_id')).toBe(
                 'payments_payment_id',
             );
-            expect(factory.replaceId('other_payment_id')).toBe(
+            expect(tableRename.replaceId('other_payment_id')).toBe(
                 'other_payment_id',
             );
         });
 
         test('replaceReference should replace references', () => {
             expect(
-                factory.replaceReference(
+                tableRename.replaceReference(
                     'sql sample: ${payment.customer_id} + 1',
                 ),
             ).toBe('sql sample: ${invoice.customer_id} + 1');
@@ -198,140 +197,148 @@ describe('createRenameFactory', () => {
 
         test('replaceReference should not replace invalid references', () => {
             expect(
-                factory.replaceReference(
+                tableRename.replaceReference(
                     'tooltip sample: ${payment_customer_id} !',
                 ),
             ).toBe('tooltip sample: ${payment_customer_id} !');
             expect(
-                factory.replaceReference('Do not replace payment.customer_id'),
+                tableRename.replaceReference(
+                    'Do not replace payment.customer_id',
+                ),
             ).toBe('Do not replace payment.customer_id');
             expect(
-                factory.replaceReference(
+                tableRename.replaceReference(
                     'Also not replace ${payments.customer_id}',
                 ),
             ).toBe('Also not replace ${payments.customer_id}');
         });
 
         test('replaceString should replace all occurrences', () => {
-            expect(factory.replaceString('payment_id and payment_name')).toBe(
-                'invoice_id and invoice_name',
-            );
+            expect(
+                tableRename.replaceString('payment_id and payment_name'),
+            ).toBe('invoice_id and invoice_name');
         });
         test('replaceString should not replace entire string', () => {
-            expect(factory.replaceString('payment')).toBe('payment');
+            expect(tableRename.replaceString('payment')).toBe('payment');
         });
 
         test('replaceOptionalId should handle undefined', () => {
-            expect(factory.replaceOptionalId('payment_id')).toBe('invoice_id');
-            expect(factory.replaceOptionalId(undefined)).toBeUndefined();
+            expect(tableRename.replaceOptionalId('payment_id')).toBe(
+                'invoice_id',
+            );
+            expect(tableRename.replaceOptionalId(undefined)).toBeUndefined();
         });
 
         test('replaceKeys should replace object keys', () => {
             const obj = { payment_id: 1, payment_name: 'payment_value' };
             // Do not replace values
-            expect(factory.replaceKeys(obj)).toEqual({
+            expect(tableRename.replaceKeys(obj)).toEqual({
                 invoice_id: 1,
                 invoice_name: 'payment_value',
             });
         });
 
         test('replaceFull should replace all occurrences of the string', () => {
-            expect(factory.replaceFull('payment')).toBe('invoice');
+            expect(tableRename.replaceFull('payment')).toBe('invoice');
         });
 
         test('replaceList should replace all items in a list', () => {
-            expect(factory.replaceList(['payment_id', 'payment_name'])).toEqual(
-                ['invoice_id', 'invoice_name'],
-            );
+            expect(
+                tableRename.replaceList(['payment_id', 'payment_name']),
+            ).toEqual(['invoice_id', 'invoice_name']);
         });
 
         test('replaceOptionalList should handle undefined', () => {
-            expect(factory.replaceOptionalList(['payment_id'])).toEqual([
+            expect(tableRename.replaceOptionalList(['payment_id'])).toEqual([
                 'invoice_id',
             ]);
-            expect(factory.replaceOptionalList(undefined)).toBeUndefined();
+            expect(tableRename.replaceOptionalList(undefined)).toBeUndefined();
         });
     });
 
     describe('with isPrefix=false', () => {
-        const factory = createRenameFactory(
-            'customer_id',
-            'client_id',
-            'customer.id',
-            'client.id',
-            false,
-        );
-
         test('replaceId should replace entire id', () => {
-            expect(factory.replaceId('customer_id')).toBe('client_id');
+            expect(fieldRename.replaceId('customer_id')).toBe(
+                'customer_user_id',
+            );
         });
         test('replaceId should not replace invalid prefix', () => {
-            expect(factory.replaceId('customer_id_extra')).toBe(
+            expect(fieldRename.replaceId('customer_id_extra')).toBe(
                 'customer_id_extra',
             ); // This is not a full ID
-            expect(factory.replaceId('customer.id')).toBe('customer.id'); // This is a reference, not an ID
-            expect(factory.replaceId('other_customer_id')).toBe(
+            expect(fieldRename.replaceId('customer.id')).toBe('customer.id'); // This is a reference, not an ID
+            expect(fieldRename.replaceId('other_customer_id')).toBe(
                 'other_customer_id',
             ); // shouldn't replace non-prefix
         });
 
         test('replaceReference should replace references', () => {
             expect(
-                factory.replaceReference('sql sample: ${customer.id} + 1'),
-            ).toBe('sql sample: ${client.id} + 1');
+                fieldRename.replaceReference('sql sample: ${customer.id} + 1'),
+            ).toBe('sql sample: ${customer.user_id} + 1');
         });
 
         test('replaceReference should replace references (events)', () => {
-            const otherFactory = createRenameFactory(
-                'events_in_gbp',
-                'events_in_currency',
-                'events.in_gbp',
-                'events.in_currency',
-                false,
-            );
+            const otherFieldRename = createRenameFactory({
+                from: 'events_in_gbp',
+                to: 'events_in_currency',
+                fromReference: 'events.in_gbp',
+                toReference: 'events.in_currency',
+                isPrefix: false,
+                fromFieldName: 'in_gbp',
+                toFieldName: 'in_currency',
+            });
+
             expect(
-                otherFactory.replaceReference('1 + ${events.in_gbp} + 1'),
+                otherFieldRename.replaceReference('1 + ${events.in_gbp} + 1'),
             ).toBe('1 + ${events.in_currency} + 1');
         });
 
         test('replaceReference should not replace invalid references', () => {
             // This contains some "extra" text in the reference
             expect(
-                factory.replaceReference(
+                fieldRename.replaceReference(
                     'sql sample: ${customer.id.extra} + 1',
                 ),
             ).toBe('sql sample: ${customer.id.extra} + 1');
 
-            expect(factory.replaceReference('Do not replace customer.id')).toBe(
-                'Do not replace customer.id',
-            );
             expect(
-                factory.replaceReference('Also not replace ${customers.id}'),
+                fieldRename.replaceReference('Do not replace customer.id'),
+            ).toBe('Do not replace customer.id');
+            expect(
+                fieldRename.replaceReference(
+                    'Also not replace ${customers.id}',
+                ),
             ).toBe('Also not replace ${customers.id}');
         });
 
         test('replaceString should replace all occurrences', () => {
             expect(
-                factory.replaceString('customer_id in the customer_id field'),
-            ).toBe('client_id in the client_id field');
+                fieldRename.replaceString(
+                    'customer_id in the customer_id field',
+                ),
+            ).toBe('customer_user_id in the customer_user_id field');
         });
     });
     describe('with more complex model names', () => {
-        const factory = createRenameFactory(
-            'my_payment',
-            'my_invoice',
-            'my_payment',
-            'my_invoice',
-            true,
-        );
+        const otherTableRename = createRenameFactory({
+            from: 'my_payment',
+            to: 'my_invoice',
+            fromReference: 'my_payment',
+            toReference: 'my_invoice',
+            isPrefix: true,
+            fromFieldName: undefined,
+            toFieldName: undefined,
+        });
+
         test('replaceId should replace prefix', () => {
-            expect(factory.replaceId('my_payment_customer_id')).toBe(
+            expect(otherTableRename.replaceId('my_payment_customer_id')).toBe(
                 'my_invoice_customer_id',
             );
         });
         test('replaceReference should replace references', () => {
             expect(
-                factory.replaceReference(
+                otherTableRename.replaceReference(
                     'sql sample: ${my_payment.customer_id} + 1',
                 ),
             ).toBe('sql sample: ${my_invoice.customer_id} + 1');
@@ -373,8 +380,8 @@ describe('renameMetricQuery', () => {
                 {
                     name: 'custom_metric',
                     table: 'payment',
-                    sql: '${payment.amount} / 100',
-                    type: MetricType.NUMBER,
+                    sql: '${TABLE}.amount',
+                    type: MetricType.SUM,
                 },
             ],
             sorts: [
@@ -386,14 +393,7 @@ describe('renameMetricQuery', () => {
             limit: 100,
         };
 
-        const factory = createRenameFactory(
-            'payment',
-            'invoice',
-            'payment',
-            'invoice',
-            true,
-        );
-        const result = renameMetricQuery(metricQuery, factory);
+        const result = renameMetricQuery(metricQuery, tableRename);
 
         expect(result.exploreName).toBe('invoice');
         expect(result.dimensions).toEqual(['invoice_id', 'invoice_date']);
@@ -403,9 +403,7 @@ describe('renameMetricQuery', () => {
         ).toBe('invoice_id');
         expect(result.tableCalculations[0].sql).toBe('${invoice.amount} * 2');
         expect(result.additionalMetrics?.[0].table).toBe('invoice');
-        expect(result.additionalMetrics?.[0].sql).toBe(
-            '${invoice.amount} / 100',
-        );
+        expect(result.additionalMetrics?.[0].sql).toBe('${TABLE}.amount'); // Same
         expect(result.sorts[0].fieldId).toBe('invoice_id');
     });
 
@@ -455,14 +453,16 @@ describe('renameMetricQuery', () => {
             limit: 100,
         };
 
-        const factory = createRenameFactory(
-            'payment_amount',
-            'payment_cost',
-            'payment.amount',
-            'payment.cost',
-            false,
-        );
-        const result = renameMetricQuery(metricQuery, factory);
+        const otherTableRename = createRenameFactory({
+            from: 'payment_amount',
+            to: 'payment_cost',
+            fromReference: 'payment.amount',
+            toReference: 'payment.cost',
+            isPrefix: false,
+            fromFieldName: 'amount',
+            toFieldName: 'cost',
+        });
+        const result = renameMetricQuery(metricQuery, otherTableRename);
 
         expect(result.exploreName).toBe('payment'); // same
         expect(result.dimensions).toEqual(['payment_id', 'payment_date']); // same
@@ -516,14 +516,7 @@ describe('renameChartConfigType', () => {
             },
         } as CartesianChartConfig;
 
-        const factory = createRenameFactory(
-            'payment',
-            'invoice',
-            'payment',
-            'invoice',
-            true,
-        );
-        const result = renameChartConfigType(chartConfig, factory);
+        const result = renameChartConfigType(chartConfig, tableRename);
 
         const config = (result as CartesianChartConfig).config!;
         expect(config.layout.xField).toBe('invoice_date');
@@ -578,14 +571,16 @@ describe('renameChartConfigType', () => {
             },
         } as CartesianChartConfig;
 
-        const factory = createRenameFactory(
-            'payment_id',
-            'invoice_id',
-            'payment.id',
-            'invoice.id',
-            false,
-        );
-        const result = renameChartConfigType(chartConfig, factory);
+        const otherTableRename = createRenameFactory({
+            from: 'payment_id',
+            to: 'invoice_id',
+            fromReference: 'payment.id',
+            toReference: 'invoice.id',
+            isPrefix: false,
+            fromFieldName: 'id',
+            toFieldName: 'id',
+        });
+        const result = renameChartConfigType(chartConfig, otherTableRename);
 
         const config = (result as CartesianChartConfig).config!;
         expect(config.layout.xField).toBe('invoice_id');
@@ -628,14 +623,7 @@ describe('renameChartConfigType', () => {
             },
         } as TableChartConfig;
 
-        const factory = createRenameFactory(
-            'payment',
-            'invoice',
-            'payment',
-            'invoice',
-            true,
-        );
-        const result = renameChartConfigType(chartConfig, factory);
+        const result = renameChartConfigType(chartConfig, tableRename);
 
         const config = (result as TableChartConfig).config!;
         expect(Object.keys(config.columns!)).toEqual([
@@ -661,14 +649,7 @@ describe('renameChartConfigType', () => {
             },
         } as CustomVisConfig;
 
-        const factory = createRenameFactory(
-            'payment',
-            'invoice',
-            'payment',
-            'invoice',
-            true,
-        );
-        const result = renameChartConfigType(chartConfig, factory);
+        const result = renameChartConfigType(chartConfig, tableRename);
 
         const config = (result as CustomVisConfig).config!;
         expect((config.spec as AnyType).data.name).toBe('invoice_data');
@@ -677,6 +658,24 @@ describe('renameChartConfigType', () => {
 });
 
 describe('renameSavedChart', () => {
+    test('should rename mocked saved chart', () => {
+        const { updatedChart, hasChanges } = renameSavedChart(
+            RenameType.FIELD,
+            chartMocked,
+            {
+                from: 'orders_status',
+                to: 'orders_order_type',
+                fromReference: 'orders.status',
+                toReference: 'orders.order_type',
+                fromFieldName: 'status',
+                toFieldName: 'order_type',
+            },
+        );
+
+        expect(hasChanges).toBe(true);
+        expect(updatedChart).toEqual(expectedRenamedChartMocked); // toEqual doesn't check extra `undefined` fields
+    });
+
     test('should rename table prefix in saved chart', () => {
         const chart = {
             name: 'Payment Analysis',
@@ -729,13 +728,15 @@ describe('renameSavedChart', () => {
         } as SavedChartDAO;
 
         const { updatedChart, hasChanges } = renameSavedChart(
-            RenameType.models,
+            RenameType.MODEL,
             chart,
             {
                 from: 'payment',
                 fromReference: 'payment',
                 to: 'invoice',
                 toReference: 'invoice',
+                fromFieldName: undefined,
+                toFieldName: undefined,
             },
         );
 
@@ -788,13 +789,15 @@ describe('renameSavedChart', () => {
         } as SavedChartDAO;
 
         const { updatedChart, hasChanges } = renameSavedChart(
-            RenameType.models,
+            RenameType.MODEL,
             chart,
             {
                 from: 'customer',
                 fromReference: 'customer',
                 to: 'user',
                 toReference: 'user',
+                fromFieldName: undefined,
+                toFieldName: undefined,
             },
         );
 
@@ -830,13 +833,15 @@ describe('renameDashboard', () => {
         } as unknown as DashboardDAO; // TODO fix
 
         const { updatedDashboard, hasChanges } = renameDashboard(
-            RenameType.models,
+            RenameType.MODEL,
             dashboard,
             {
                 from: 'payment',
                 fromReference: 'payment',
                 to: 'invoice',
                 toReference: 'invoice',
+                fromFieldName: undefined,
+                toFieldName: undefined,
             },
         );
 
@@ -873,13 +878,15 @@ describe('renameDashboard', () => {
         } as unknown as DashboardDAO; // TODO fix
 
         const { updatedDashboard, hasChanges } = renameDashboard(
-            RenameType.models,
+            RenameType.MODEL,
             dashboard,
             {
                 from: 'payment',
                 fromReference: 'payment',
                 to: 'invoice',
                 toReference: 'invoice',
+                fromFieldName: undefined,
+                toFieldName: undefined,
             },
         );
 
@@ -897,6 +904,8 @@ describe('validateRename', () => {
         fromReference: 'payment',
         to: 'invoice',
         toReference: 'invoice',
+        fromFieldName: undefined,
+        toFieldName: undefined,
     };
     beforeEach(() => {
         console.warn = jest.fn();
@@ -924,5 +933,75 @@ describe('validateRename', () => {
         validateRename(original, updated, 'Test Object', nameChanges);
 
         expect(console.warn).toHaveBeenCalled();
+    });
+});
+
+describe('getNameChanges', () => {
+    it('should handle field rename within the same table', () => {
+        const result = getNameChanges({
+            from: 'payments_amount',
+            to: 'payments_total',
+            table: 'payments',
+            type: RenameType.FIELD,
+        });
+
+        expect(result).toEqual({
+            from: 'payments_amount',
+            to: 'payments_total',
+            fromReference: 'payments.amount',
+            toReference: 'payments.total',
+            fromFieldName: 'amount',
+            toFieldName: 'total',
+        });
+    });
+
+    it('should handle model rename', () => {
+        const result = getNameChanges({
+            from: 'payments_amount',
+            to: 'orders',
+            table: 'payments',
+            type: RenameType.MODEL,
+        });
+
+        expect(result).toEqual({
+            from: 'payments',
+            to: 'orders',
+            fromReference: 'payments',
+            toReference: 'orders',
+        });
+    });
+
+    it('should handle edge case with underscore in field name', () => {
+        const result = getNameChanges({
+            from: 'payments_user_id',
+            to: 'payments_customer_id',
+            table: 'payments',
+            type: RenameType.FIELD,
+        });
+
+        expect(result).toEqual({
+            from: 'payments_user_id',
+            to: 'payments_customer_id',
+            fromReference: 'payments.user_id',
+            toReference: 'payments.customer_id',
+            fromFieldName: 'user_id',
+            toFieldName: 'customer_id',
+        });
+    });
+
+    it('should handle model rename with underscore in field name', () => {
+        const result = getNameChanges({
+            from: 'payments',
+            to: 'orders',
+            table: 'payments',
+            type: RenameType.MODEL,
+        });
+
+        expect(result).toEqual({
+            from: 'payments',
+            to: 'orders',
+            fromReference: 'payments',
+            toReference: 'orders',
+        });
     });
 });

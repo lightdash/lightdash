@@ -56,7 +56,7 @@ export const useValidation = (
 
     return useQuery<ValidationResponse[], ApiError>({
         enabled: canManageValidation,
-        queryKey: ['validation', fromSettings],
+        queryKey: ['validation'],
         queryFn: () => getValidation(projectUuid, fromSettings),
         retry: (_, error) => error.error.statusCode !== 403,
         staleTime: 0,
