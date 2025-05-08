@@ -354,6 +354,11 @@ const Space: FC = () => {
                     }}
                     enableBottomToolbar={false}
                     enableRowSelection={userCanManageSpace}
+                    initialAdminContentViewValue={
+                        userCanManageSpaceAndHasNoDirectAccessToSpace
+                            ? 'all'
+                            : 'shared'
+                    }
                 />
 
                 {addToSpace && (
