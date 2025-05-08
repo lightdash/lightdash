@@ -154,6 +154,18 @@ export class ContentService extends BaseService {
             throw new NotExistsError('Organization not found');
         }
 
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const database = this.contentModel.getDatabase();
 
         await database.transaction(async (tx) => {
