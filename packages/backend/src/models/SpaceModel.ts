@@ -1029,11 +1029,13 @@ export class SpaceModel {
             }),
         );
 
-        const rootSpaceUuids = spacesWithRootSpaceUuid
-            .filter(
-                ({ rootSpaceUuid, spaceUuid }) => rootSpaceUuid === spaceUuid,
-            )
-            .map(({ rootSpaceUuid }) => rootSpaceUuid);
+        const rootSpaceUuids = Array.from(
+            new Set(
+                spacesWithRootSpaceUuid.map(
+                    ({ rootSpaceUuid }) => rootSpaceUuid,
+                ),
+            ),
+        );
 
         // Fetch access for all root spaces - we can get the access for all descendants from this
         const rootSpacesAccess = await this._getSpaceAccess(rootSpaceUuids, {
@@ -1937,36 +1939,32 @@ export class SpaceModel {
      * @returns Root space UUID (or itself if it's already a root space)
      */
     async getSpaceRoot(spaceUuid: string): Promise<string> {
-        // First get the path of the target space
-        const space = await this.database(SpaceTableName)
-            .select(['path', 'space_uuid', 'project_id'])
-            .where('space_uuid', spaceUuid)
-            .first();
+        return this.database.transaction(async (trx) => {
+            const space = await trx(SpaceTableName)
+                .select(['path', 'project_id'])
+                .where('space_uuid', spaceUuid)
+                .first();
 
-        if (!space || !space.path) {
-            throw new NotFoundError(
-                `Space with uuid ${spaceUuid} does not exist`,
-            );
-        }
+            if (!space || !space.path) {
+                throw new NotFoundError(
+                    `Space with uuid ${spaceUuid} does not exist`,
+                );
+            }
 
-        // Check if this is already a root space (path has only one level)
-        const pathLevelResult = await this.database.raw(
-            'SELECT nlevel(?) = 1 AS is_root',
-            [space.path],
-        );
-        const isRoot = pathLevelResult.rows[0]?.is_root;
+            const root = await trx(SpaceTableName)
+                .select('space_uuid')
+                .whereRaw('nlevel(path) = 1')
+                .andWhereRaw('path @> ?', [space.path])
+                .andWhere('project_id', space.project_id)
+                .first();
 
-        if (isRoot) {
-            return space.space_uuid;
-        }
+            if (!root) {
+                throw new NotFoundError(
+                    `Root space for space for ${spaceUuid} not found`,
+                );
+            }
 
-        // Find the root space using a direct query
-        const rootResult = await this.database
-            .from(SpaceTableName)
-            .select(['space_uuid', 'project_id'])
-            .where('project_id', '=', space.project_id)
-            .whereRaw(`path = subpath(?, 0, 1)`, [space.path]);
-
-        return rootResult[0]?.space_uuid;
+            return root.space_uuid;
+        });
     }
 }
