@@ -14,6 +14,7 @@ import {
     type ConditionalFormattingMinMaxMap,
     type DashboardFilters,
     type ItemsMap,
+    type MetricQuery,
     type PivotData,
     type TableChart,
 } from '@lightdash/common';
@@ -32,7 +33,12 @@ const createWorker = createWorkerFactory(
 
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,
-    resultsData: InfiniteQueryResults | undefined,
+    resultsData:
+        | (InfiniteQueryResults & {
+              metricQuery?: MetricQuery;
+              fields?: ItemsMap;
+          })
+        | undefined,
     itemsMap: ItemsMap | undefined,
     columnOrder: string[],
     pivotDimensions: string[] | undefined,
