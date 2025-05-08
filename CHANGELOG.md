@@ -1,3 +1,17 @@
+# [0.1615.0](https://github.com/lightdash/lightdash/compare/0.1614.6...0.1615.0) (2025-05-08)
+
+
+### Features
+
+* amend query responses ([#14714](https://github.com/lightdash/lightdash/issues/14714)) ([9348411](https://github.com/lightdash/lightdash/commit/9348411d162e9beadf40919486d98230c89ec4be))
+
+## [0.1614.6](https://github.com/lightdash/lightdash/compare/0.1614.5...0.1614.6) (2025-05-08)
+
+
+### Bug Fixes
+
+* chart stuck in loading when cancelling edit without all pages ([#14725](https://github.com/lightdash/lightdash/issues/14725)) ([1326dd6](https://github.com/lightdash/lightdash/commit/1326dd61a9c1b431f03ef694c3a055820d9eb592))
+
 ## [0.1614.5](https://github.com/lightdash/lightdash/compare/0.1614.4...0.1614.5) (2025-05-08)
 
 
