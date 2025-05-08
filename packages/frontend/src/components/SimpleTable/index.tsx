@@ -129,6 +129,20 @@ const SimpleTable: FC<SimpleTableProps> = ({
         showSubtotals,
     } = visualizationConfig.chartConfig;
 
+    if (
+        loadResultsStatus === 'loading' ||
+        pivotTableData.loading ||
+        !resultsData?.hasFetchedAllRows
+    ) {
+        console.log('WAIT', {
+            pivotLoading: pivotTableData.loading,
+            pivotData: !!pivotTableData.data,
+            resultsStatus: resultsData?.queryStatus,
+            loadResultsStatus,
+        });
+        return <h1>WAIT</h1>;
+    }
+
     if (pivotTableData.error) {
         return (
             <SuboptimalState
@@ -138,6 +152,13 @@ const SimpleTable: FC<SimpleTableProps> = ({
             />
         );
     } else if (pivotTableData.loading || pivotTableData.data) {
+        console.log('PIVOT', {
+            pivotLoading: pivotTableData.loading,
+            pivotData: !!pivotTableData.data,
+            resultsStatus: resultsData?.queryStatus,
+            loadResultsStatus,
+        });
+
         return (
             <Box
                 p="xs"
@@ -167,7 +188,10 @@ const SimpleTable: FC<SimpleTableProps> = ({
                         )}
                     </>
                 ) : (
-                    <LoadingChart />
+                    <>
+                        <h1>boo</h1>
+                        <LoadingChart />
+                    </>
                 )}
             </Box>
         );

@@ -43,7 +43,12 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
     const EmptyState = emptyState || ExploreEmptyQueryState;
 
     if (status === 'loading') {
-        return <LoadingState />;
+        return (
+            <>
+                {' '}
+                <h1>MOO</h1> <LoadingState />{' '}
+            </>
+        );
     }
 
     return (
