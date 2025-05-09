@@ -1,3 +1,10 @@
+## [0.1618.2](https://github.com/lightdash/lightdash/compare/0.1618.1...0.1618.2) (2025-05-09)
+
+
+### Bug Fixes
+
+* save table calcs with no currency by default ([#14732](https://github.com/lightdash/lightdash/issues/14732)) ([13d1b56](https://github.com/lightdash/lightdash/commit/13d1b5652fd2b2f34e561aa7e929a44bcd64da11))
+
 ## [0.1618.1](https://github.com/lightdash/lightdash/compare/0.1618.0...0.1618.1) (2025-05-09)
 
 
