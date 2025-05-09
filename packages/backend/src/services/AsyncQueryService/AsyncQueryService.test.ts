@@ -158,9 +158,9 @@ describe('AsyncQueryService', () => {
             const close = jest.fn();
             const serviceWithCache = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
-                resultsCache: {
-                    ...lightdashConfigMock.resultsCache,
-                    resultsEnabled: true,
+                results: {
+                    ...lightdashConfigMock.results,
+                    cacheEnabled: true,
                 },
             });
 
@@ -451,9 +451,9 @@ describe('AsyncQueryService', () => {
         describe('when cache is disabled', () => {
             const serviceWithoutCache = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
-                resultsCache: {
-                    ...lightdashConfigMock.resultsCache,
-                    resultsEnabled: false,
+                results: {
+                    ...lightdashConfigMock.results,
+                    cacheEnabled: false,
                 },
             });
 
@@ -524,9 +524,9 @@ describe('AsyncQueryService', () => {
         describe('when cache is enabled', () => {
             const serviceWithCache = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
-                resultsCache: {
-                    ...lightdashConfigMock.resultsCache,
-                    resultsEnabled: true,
+                results: {
+                    ...lightdashConfigMock.results,
+                    cacheEnabled: true,
                 },
             });
 
@@ -815,9 +815,9 @@ describe('AsyncQueryService', () => {
         describe('when cache is disabled', () => {
             const serviceWithoutCache = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
-                resultsCache: {
-                    ...lightdashConfigMock.resultsCache,
-                    resultsEnabled: false,
+                results: {
+                    ...lightdashConfigMock.results,
+                    cacheEnabled: false,
                 },
             });
 

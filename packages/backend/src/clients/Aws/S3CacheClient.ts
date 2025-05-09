@@ -23,48 +23,39 @@ type S3CacheClientArguments = {
 };
 
 export class S3CacheClient {
-    configuration: LightdashConfig['resultsCache']['s3'];
+    configuration: LightdashConfig['results']['s3'];
 
-    protected readonly s3?: S3;
+    protected readonly s3: S3;
 
     constructor({ lightdashConfig }: S3CacheClientArguments) {
-        const endpoint = lightdashConfig.s3?.endpoint;
-        const forcePathStyle = lightdashConfig.s3?.forcePathStyle;
-        this.configuration = lightdashConfig.resultsCache.s3;
-        const { region, accessKey, secretKey } = this.configuration;
+        this.configuration = lightdashConfig.results.s3;
+        const { endpoint, region, accessKey, secretKey, forcePathStyle } =
+            this.configuration;
 
-        if (endpoint && region) {
-            const s3Config: S3ClientConfig = {
-                endpoint,
-                region,
-                apiVersion: '2006-03-01',
-                forcePathStyle,
-            };
+        const s3Config: S3ClientConfig = {
+            endpoint,
+            region,
+            apiVersion: '2006-03-01',
+            forcePathStyle,
+        };
 
-            if (accessKey && secretKey) {
-                Object.assign(s3Config, {
-                    credentials: {
-                        accessKeyId: accessKey,
-                        secretAccessKey: secretKey,
-                    },
-                });
-                Logger.debug(
-                    'Using results cache S3 storage with access key credentials',
-                );
-            } else {
-                Logger.debug(
-                    'Using results cache S3 storage with IAM role credentials',
-                );
-            }
-
-            this.s3 = new S3(s3Config);
+        if (accessKey && secretKey) {
+            Object.assign(s3Config, {
+                credentials: {
+                    accessKeyId: accessKey,
+                    secretAccessKey: secretKey,
+                },
+            });
+            Logger.debug(
+                'Using results cache S3 storage with access key credentials',
+            );
         } else {
-            Logger.debug('Missing results cache S3 bucket configuration');
+            Logger.debug(
+                'Using results cache S3 storage with IAM role credentials',
+            );
         }
-    }
 
-    isEnabled(): boolean {
-        return this.s3 !== undefined;
+        this.s3 = new S3(s3Config);
     }
 
     async uploadResults(
@@ -73,12 +64,6 @@ export class S3CacheClient {
         metadata: PutObjectCommandInput['Metadata'],
     ) {
         return wrapSentryTransaction('s3.uploadResults', { key }, async () => {
-            if (!this.configuration.bucket || this.s3 === undefined) {
-                throw new Error(
-                    "Results caching is not enabled or is missing S3 configuration, can't upload results cache",
-                );
-            }
-
             try {
                 const sanitizedMetadata = metadata
                     ? Object.fromEntries(
@@ -135,14 +120,6 @@ export class S3CacheClient {
             's3.getResultsMetadata',
             { key },
             async () => {
-                if (
-                    this.configuration.bucket === undefined ||
-                    this.s3 === undefined
-                ) {
-                    throw new MissingConfigError(
-                        "Results caching is not enabled or is missing S3 configuration, can't get results cache metadata",
-                    );
-                }
                 try {
                     const command = new HeadObjectCommand({
                         Bucket: this.configuration.bucket,
@@ -185,14 +162,6 @@ export class S3CacheClient {
 
     async getResults(key: string, extension: string = 'json') {
         return wrapSentryTransaction('s3.getResults', { key }, async (span) => {
-            if (
-                this.configuration.bucket === undefined ||
-                this.s3 === undefined
-            ) {
-                throw new MissingConfigError(
-                    "Results caching is not enabled or is missing S3 configuration, can't get results cache",
-                );
-            }
             try {
                 const command = new GetObjectCommand({
                     Bucket: this.configuration.bucket,

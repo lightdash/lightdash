@@ -238,6 +238,66 @@ export const parseOrganizationMemberRoleArray = (
     });
 };
 
+export const parseBaseS3Config = (): LightdashConfig['s3'] => {
+    const endpoint = process.env.S3_ENDPOINT;
+    const bucket = process.env.S3_BUCKET;
+    const region = process.env.S3_REGION;
+    const accessKey = process.env.S3_ACCESS_KEY;
+    const secretKey = process.env.S3_SECRET_KEY;
+    const forcePathStyle = process.env.S3_FORCE_PATH_STYLE === 'true';
+    const expirationTime = parseInt(
+        process.env.S3_EXPIRATION_TIME || '259200', // 3 days in seconds
+        10,
+    );
+
+    if (!endpoint || !bucket || !region) {
+        console.error(
+            'ERROR: S3 is not configured. Missing S3_ENDPOINT, S3_BUCKET, S3_REGION, read docs for more info: https://docs.lightdash.com/self-host/customize-deployment/environment-variables',
+        );
+        throw new ParseError('Missing S3 configuration');
+    }
+
+    return {
+        endpoint,
+        bucket,
+        region,
+        accessKey,
+        secretKey,
+        expirationTime,
+        forcePathStyle,
+    };
+};
+
+export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
+    const baseS3Config = parseBaseS3Config();
+    const {
+        endpoint: baseEndpoint,
+        bucket: baseBucket,
+        region: baseRegion,
+        accessKey: baseAccessKey,
+        secretKey: baseSecretKey,
+        forcePathStyle: baseForcePathStyle,
+    } = baseS3Config;
+
+    // TODO: rename to RESULTS_S3_BUCKET
+    const bucket = process.env.RESULTS_CACHE_S3_BUCKET || baseBucket;
+    // TODO: rename to RESULTS_S3_REGION
+    const region = process.env.RESULTS_CACHE_S3_REGION || baseRegion;
+    // TODO: rename to RESULTS_S3_ACCESS_KEY
+    const accessKey = process.env.RESULTS_CACHE_S3_ACCESS_KEY || baseAccessKey;
+    // TODO: rename to RESULTS_S3_SECRET_KEY
+    const secretKey = process.env.RESULTS_CACHE_S3_SECRET_KEY || baseSecretKey;
+
+    return {
+        endpoint: baseEndpoint, // ! For now we keep reusing the S3_ENDPOINT like we have been so far, we are just going to enforce it
+        forcePathStyle: baseForcePathStyle, // ! For now we keep reusing the S3_FORCE_PATH_STYLE like we have been so far, we are just going to enforce it
+        bucket,
+        region,
+        accessKey,
+        secretKey,
+    };
+};
+
 export type LoggingConfig = {
     level: LoggingLevel;
     format: LoggingFormat;
@@ -323,18 +383,13 @@ export type LightdashConfig = {
         overrideColorPalette?: string[];
         overrideColorPaletteName?: string;
     };
-    s3?: S3Config;
+    s3: S3Config;
     headlessBrowser: HeadlessBrowserConfig;
-    resultsCache: {
-        resultsEnabled: boolean;
+    results: {
+        cacheEnabled: boolean;
         autocompleteEnabled: boolean;
         cacheStateTimeSeconds: number;
-        s3: {
-            bucket?: string;
-            region?: string;
-            accessKey?: string;
-            secretKey?: string;
-        };
+        s3: Omit<S3Config, 'expirationTime'>;
     };
     slack?: SlackConfig;
     scheduler: {
@@ -395,12 +450,12 @@ export type HeadlessBrowserConfig = {
     internalLightdashHost: string;
 };
 export type S3Config = {
-    region?: string;
+    region: string;
+    endpoint: string;
+    bucket: string;
+    expirationTime?: number;
     accessKey?: string;
     secretKey?: string;
-    endpoint?: string;
-    bucket?: string;
-    expirationTime?: number;
     forcePathStyle?: boolean;
 };
 export type IntercomConfig = {
@@ -847,38 +902,22 @@ export const parseConfig = (): LightdashConfig => {
                     'LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT',
                 ) || 60,
         },
-        s3: {
-            region: process.env.S3_REGION,
-            accessKey: process.env.S3_ACCESS_KEY,
-            secretKey: process.env.S3_SECRET_KEY,
-            bucket: process.env.S3_BUCKET,
-            endpoint: process.env.S3_ENDPOINT,
-            forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
-            expirationTime: parseInt(
-                process.env.S3_EXPIRATION_TIME || '259200', // 3 days in seconds
-                10,
-            ),
-        },
         headlessBrowser: {
             port: process.env.HEADLESS_BROWSER_PORT,
             host: process.env.HEADLESS_BROWSER_HOST,
             internalLightdashHost:
                 process.env.INTERNAL_LIGHTDASH_HOST || siteUrl,
         },
-        resultsCache: {
-            resultsEnabled: process.env.RESULTS_CACHE_ENABLED === 'true',
+        s3: parseBaseS3Config(),
+        results: {
+            cacheEnabled: process.env.RESULTS_CACHE_ENABLED === 'true',
             autocompleteEnabled:
                 process.env.AUTOCOMPLETE_CACHE_ENABLED === 'true',
             cacheStateTimeSeconds: parseInt(
                 process.env.CACHE_STALE_TIME_SECONDS || '86400', // A day in seconds
                 10,
             ),
-            s3: {
-                bucket: process.env.RESULTS_CACHE_S3_BUCKET,
-                region: process.env.RESULTS_CACHE_S3_REGION,
-                accessKey: process.env.RESULTS_CACHE_S3_ACCESS_KEY,
-                secretKey: process.env.RESULTS_CACHE_S3_SECRET_KEY,
-            },
+            s3: parseResultsS3Config(),
         },
         slack: {
             signingSecret: process.env.SLACK_SIGNING_SECRET,
