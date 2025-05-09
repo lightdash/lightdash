@@ -28,9 +28,7 @@ import PasswordRecovery from './pages/PasswordRecovery';
 import PasswordReset from './pages/PasswordReset';
 import Projects from './pages/Projects';
 import Register from './pages/Register';
-import SavedDashboards from './pages/SavedDashboards';
 import SavedExplorer from './pages/SavedExplorer';
-import SavedQueries from './pages/SavedQueries';
 import SemanticViewerEditPage from './pages/SemanticViewerEdit';
 import SemanticViewerViewPage from './pages/SemanticViewerView';
 import Settings from './pages/Settings';
@@ -147,17 +145,6 @@ const MINIMAL_ROUTES: RouteObject[] = [
 
 const CHART_ROUTES: RouteObject[] = [
     {
-        path: '/projects/:projectUuid/saved',
-        element: (
-            <>
-                <NavBar />
-                <TrackPage name={PageName.SAVED_QUERIES}>
-                    <SavedQueries />
-                </TrackPage>
-            </>
-        ),
-    },
-    {
         path: '/projects/:projectUuid/saved/:savedQueryUuid',
         element: (
             <>
@@ -187,17 +174,6 @@ const CHART_ROUTES: RouteObject[] = [
 ];
 
 const DASHBOARD_ROUTES: RouteObject[] = [
-    {
-        path: '/projects/:projectUuid/dashboards',
-        element: (
-            <>
-                <NavBar />
-                <TrackPage name={PageName.SAVED_DASHBOARDS}>
-                    <SavedDashboards />
-                </TrackPage>
-            </>
-        ),
-    },
     {
         path: '/projects/:projectUuid/dashboards/:dashboardUuid',
         children: [
