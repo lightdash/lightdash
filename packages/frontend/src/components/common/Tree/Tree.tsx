@@ -4,9 +4,7 @@ import {
     Tree as MantineTree,
     rem,
     useTree,
-} from '@lightdash/mantine-v7';
-// FIXME: this won't scale. figure out how to include required mantine 7 styles.
-import '@lightdash/mantine-v7/style.css';
+} from '@mantine-8/core';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
 import { type FuzzyMatches } from '../../../hooks/useFuzzySearch';
@@ -167,8 +165,8 @@ const Tree: React.FC<Props> = ({
                         expandOnSpace={false}
                         selectOnClick={false}
                         classNames={{
-                            label: classes.label,
                             node: classes.node,
+                            label: classes.label,
                         }}
                     />
                 </Box>

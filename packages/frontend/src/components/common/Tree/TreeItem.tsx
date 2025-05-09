@@ -1,10 +1,4 @@
-import {
-    ActionIcon,
-    Group,
-    Highlight,
-    Paper,
-    rem,
-} from '@lightdash/mantine-v7';
+import { ActionIcon, Group, Highlight, Paper, rem } from '@mantine-8/core';
 import {
     IconCheck,
     IconChevronDown,
