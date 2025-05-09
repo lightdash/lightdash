@@ -125,6 +125,7 @@ const TransferItemsModal = <
             title={`Move ${getItemsText(items).type}`}
             opened={opened}
             onClose={onClose}
+            size="xl"
             actions={
                 <>
                     {!isCreatingNewSpace ? (
