@@ -262,6 +262,28 @@ const replaceUserAttributesRaw = (
         '',
     );
 
+export const replaceVariables = (
+    sql: string,
+    variables: Record<string, string>,
+    quoteChar: string,
+    wrapChar: string,
+): string => {
+    if (!sql) return sql;
+    const [leftWrap, rightWrap] = getWrapChars(wrapChar);
+
+    return sql.replace(/\$\{([\w._-]+)\}/g, (match, variableName) => {
+        // Check if it's a variable we should handle (not a reference to dimension/measure)
+        if (variables && variables[variableName] !== undefined) {
+            const value = variables[variableName];
+            // If it's a string value, add quotes
+            return `${leftWrap}${quoteChar}${value}${quoteChar}${rightWrap}`;
+        }
+
+        // If it's not a variable we handle, leave it as is for other replacements
+        return match;
+    });
+};
+
 export const assertValidDimensionRequiredAttribute = (
     dimension: CompiledDimension,
     userAttributes: UserAttributeValueMap,
@@ -493,18 +515,31 @@ export const applyLimitToSqlQuery = ({
 export const getCustomSqlDimensionSql = ({
     warehouseClient,
     customDimensions,
+    variables,
 }: {
     warehouseClient: WarehouseClient;
     customDimensions: CompiledCustomSqlDimension[] | undefined;
+    variables?: Record<string, string>;
 }): { selects: string[]; tables: string[] } | undefined => {
     if (customDimensions === undefined || customDimensions.length === 0) {
         return undefined;
     }
     const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
-    const selects = customDimensions.map<string>(
-        (customDimension) =>
-            `  (${customDimension.compiledSql}) AS ${fieldQuoteChar}${customDimension.id}${fieldQuoteChar}`,
-    );
+    const stringQuoteChar = warehouseClient.getStringQuoteChar();
+
+    const selects = customDimensions.map<string>((customDimension) => {
+        // Replace variables in custom dimension SQL
+        const dimensionSql = variables
+            ? replaceVariables(
+                  customDimension.compiledSql,
+                  variables,
+                  stringQuoteChar,
+                  '(',
+              )
+            : customDimension.compiledSql;
+
+        return `  (${dimensionSql}) AS ${fieldQuoteChar}${customDimension.id}${fieldQuoteChar}`;
+    });
 
     return {
         selects,
@@ -519,6 +554,7 @@ export const getCustomBinDimensionSql = ({
     intrinsicUserAttributes,
     userAttributes = {},
     sorts = [],
+    variables,
 }: {
     warehouseClient: WarehouseClient;
     explore: Explore;
@@ -526,12 +562,15 @@ export const getCustomBinDimensionSql = ({
     intrinsicUserAttributes: IntrinsicUserAttributes;
     userAttributes: UserAttributeValueMap | undefined;
     sorts: SortField[] | undefined;
+    variables?: Record<string, string>;
 }):
     | { ctes: string[]; joins: string[]; tables: string[]; selects: string[] }
     | undefined => {
     const startOfWeek = warehouseClient.getStartOfWeek();
 
     const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
+    const stringQuoteChar = warehouseClient.getStringQuoteChar();
+
     if (customDimensions === undefined || customDimensions.length === 0)
         return undefined;
 
@@ -557,13 +596,24 @@ export const getCustomBinDimensionSql = ({
                     intrinsicUserAttributes,
                     userAttributes,
                 );
+
+                // Replace variables in dimension SQL
+                const dimensionSql = variables
+                    ? replaceVariables(
+                          dimension.compiledSql,
+                          variables,
+                          stringQuoteChar,
+                          '(',
+                      )
+                    : dimension.compiledSql;
+
                 const cte = ` ${getCteReference(customDimension)} AS (
                     SELECT
-                        FLOOR(MIN(${dimension.compiledSql})) AS min_id,
-                        CEIL(MAX(${dimension.compiledSql})) AS max_id,
-                        FLOOR((MAX(${dimension.compiledSql}) - MIN(${
-                    dimension.compiledSql
-                })) / ${customDimension.binNumber}) AS bin_width
+                        FLOOR(MIN(${dimensionSql})) AS min_id,
+                        CEIL(MAX(${dimensionSql})) AS max_id,
+                        FLOOR((MAX(${dimensionSql}) - MIN(${dimensionSql})) / ${
+                    customDimension.binNumber
+                }) AS bin_width
                     FROM ${baseTable} AS ${fieldQuoteChar}${
                     customDimension.table
                 }${fieldQuoteChar}
@@ -643,9 +693,20 @@ export const getCustomBinDimensionSql = ({
                     }
 
                     const width = customDimension.binWidth;
+
+                    // Replace variables in dimension SQL
+                    const dimensionSql = variables
+                        ? replaceVariables(
+                              dimension.compiledSql,
+                              variables,
+                              stringQuoteChar,
+                              '(',
+                          )
+                        : dimension.compiledSql;
+
                     const widthSql = `${getFixedWidthBinSelectSql({
                         binWidth: customDimension.binWidth || 1,
-                        baseDimensionSql: dimension.compiledSql,
+                        baseDimensionSql: dimensionSql,
                         warehouseClient,
                     })} AS ${customDimensionName}`;
 
@@ -757,9 +818,19 @@ export const getCustomBinDimensionSql = ({
                         );
                     }
 
+                    // Replace variables in dimension SQL
+                    const rangeDimensionSql = variables
+                        ? replaceVariables(
+                              dimension.compiledSql,
+                              variables,
+                              stringQuoteChar,
+                              '(',
+                          )
+                        : dimension.compiledSql;
+
                     const customRangeSql = `${getCustomRangeSelectSql({
                         binRanges: customDimension.customRange || [],
-                        baseDimensionSql: dimension.compiledSql,
+                        baseDimensionSql: rangeDimensionSql,
                         warehouseClient,
                     })} AS ${customDimensionName}`;
 
@@ -846,6 +917,7 @@ export type BuildQueryProps = {
     userAttributes?: UserAttributeValueMap;
     intrinsicUserAttributes: IntrinsicUserAttributes;
     timezone: string;
+    variables?: Record<string, string>; // Add variables for query building
 };
 
 export const buildQuery = ({
@@ -855,8 +927,12 @@ export const buildQuery = ({
     intrinsicUserAttributes,
     userAttributes = {},
     timezone,
+    variables = {},
 }: BuildQueryProps): CompiledQuery =>
     wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () => {
+        // Get fields from query
+        const { baseTable } = explore;
+
         let hasExampleMetric: boolean = false;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
         const adapterType: SupportedDbtAdapter =
@@ -867,11 +943,13 @@ export const buildQuery = ({
             filters,
             sorts,
             limit,
-            additionalMetrics,
+            tableCalculations,
+            compiledTableCalculations,
             compiledCustomDimensions,
+            additionalMetrics,
         } = compiledMetricQuery;
-        const baseTable = replaceUserAttributesRaw(
-            explore.tables[explore.baseTable].sqlTable,
+        const baseTableSql = replaceUserAttributesRaw(
+            explore.tables[baseTable].sqlTable,
             intrinsicUserAttributes,
             userAttributes,
         );
@@ -898,12 +976,20 @@ export const buildQuery = ({
                     startOfWeek,
                 );
 
+                // Replace variables in dimension SQL
+                const dimensionSql = replaceVariables(
+                    dimension.compiledSql,
+                    variables,
+                    stringQuoteChar,
+                    '(',
+                );
+
                 assertValidDimensionRequiredAttribute(
                     dimension,
                     userAttributes,
                     `dimension: "${field}"`,
                 );
-                return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
+                return `  ${dimensionSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
             });
 
         const selectedCustomDimensions = compiledCustomDimensions.filter((cd) =>
@@ -917,23 +1003,33 @@ export const buildQuery = ({
             intrinsicUserAttributes,
             userAttributes,
             sorts,
+            variables,
         });
         const customSqlDimensionSql = getCustomSqlDimensionSql({
             warehouseClient,
             customDimensions: selectedCustomDimensions?.filter(
                 isCompiledCustomSqlDimension,
             ),
+            variables,
         });
 
-        const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
+        const sqlFrom = `FROM ${baseTableSql} AS ${fieldQuoteChar}${baseTable}${fieldQuoteChar}`;
 
         const metricSelects = metrics.map((field) => {
-            const alias = field;
             const metric = getMetricFromId(field, explore, compiledMetricQuery);
             if (metric.isAutoGenerated) {
                 hasExampleMetric = true;
             }
-            return `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
+
+            // Replace variables in metric SQL
+            const metricSql = replaceVariables(
+                metric.compiledSql,
+                variables,
+                stringQuoteChar,
+                '(',
+            );
+
+            return `  ${metricSql} AS ${fieldQuoteChar}${field}${fieldQuoteChar}`;
         });
 
         if (additionalMetrics)
@@ -1012,13 +1108,11 @@ export const buildQuery = ({
             ),
         ]);
 
-        const tableCompiledSqlWhere =
-            explore.tables[explore.baseTable].sqlWhere;
-        const tableSqlWhere =
-            explore.tables[explore.baseTable].uncompiledSqlWhere;
+        const tableCompiledSqlWhere = explore.tables[baseTable].sqlWhere;
+        const tableSqlWhere = explore.tables[baseTable].uncompiledSqlWhere;
 
         const tableSqlWhereTableReferences = tableSqlWhere
-            ? parseAllReferences(tableSqlWhere, explore.baseTable)
+            ? parseAllReferences(tableSqlWhere, baseTable)
             : undefined;
 
         const tablesFromTableSqlWhereFilter = tableSqlWhereTableReferences
@@ -1042,11 +1136,16 @@ export const buildQuery = ({
                 const joinType = getJoinType(join.type);
 
                 const alias = join.table;
-                const parsedSqlOn = replaceUserAttributesAsStrings(
-                    join.compiledSqlOn,
-                    intrinsicUserAttributes,
-                    userAttributes,
-                    warehouseClient,
+                const parsedSqlOn = replaceVariables(
+                    replaceUserAttributesAsStrings(
+                        join.compiledSqlOn,
+                        intrinsicUserAttributes,
+                        userAttributes,
+                        warehouseClient,
+                    ),
+                    variables,
+                    stringQuoteChar,
+                    '(',
                 );
                 return `${joinType} ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
             })
@@ -1108,6 +1207,7 @@ export const buildQuery = ({
                     sort.fieldId
                 }_order${fieldQuoteChar}${sort.descending ? ' DESC' : ''}`;
             }
+
             const sortedDimension = compiledDimensions.find(
                 (d) => getItemId(d) === sort.fieldId,
             );
@@ -1265,17 +1365,22 @@ export const buildQuery = ({
 
         const requiredDimensionFilterSql =
             getNestedDimensionFilterSQLFromModelFilters(
-                explore.tables[explore.baseTable],
+                explore.tables[baseTable],
                 filters.dimensions,
             );
 
         const tableSqlWhereWithReplacedAttributes = tableCompiledSqlWhere
             ? [
-                  replaceUserAttributesAsStrings(
-                      tableCompiledSqlWhere,
-                      intrinsicUserAttributes,
-                      userAttributes,
-                      warehouseClient,
+                  replaceVariables(
+                      replaceUserAttributesAsStrings(
+                          tableCompiledSqlWhere,
+                          intrinsicUserAttributes,
+                          userAttributes,
+                          warehouseClient,
+                      ),
+                      variables,
+                      stringQuoteChar,
+                      '(',
                   ),
               ]
             : [];
