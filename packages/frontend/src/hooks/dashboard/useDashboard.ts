@@ -329,53 +329,6 @@ export const useUpdateDashboard = (
     );
 };
 
-export const useMoveDashboardMutation = () => {
-    const navigate = useNavigate();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const queryClient = useQueryClient();
-    const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<
-        Dashboard,
-        ApiError,
-        Pick<Dashboard, 'uuid' | 'name' | 'spaceUuid'>
-    >(
-        ({ uuid, name, spaceUuid }) =>
-            updateDashboard(uuid, { name, spaceUuid }),
-        {
-            mutationKey: ['dashboard_move'],
-            onSuccess: async (data) => {
-                await queryClient.invalidateQueries(['space']);
-                await queryClient.invalidateQueries(['dashboards']);
-                await queryClient.invalidateQueries([
-                    'most-popular-and-recently-updated',
-                ]);
-                await queryClient.invalidateQueries(['content']);
-                queryClient.setQueryData(
-                    ['saved_dashboard_query', data.uuid],
-                    data,
-                );
-                showToastSuccess({
-                    title: `Dashboard has been moved to ${data.spaceName}`,
-                    action: {
-                        children: 'Go to space',
-                        icon: IconArrowRight,
-                        onClick: () =>
-                            navigate(
-                                `/projects/${projectUuid}/spaces/${data.spaceUuid}`,
-                            ),
-                    },
-                });
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: `Failed to move dashboard`,
-                    apiError: error,
-                });
-            },
-        },
-    );
-};
-
 export const useCreateMutation = (
     projectUuid: string | undefined,
     showRedirectButton: boolean = false,

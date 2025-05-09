@@ -330,56 +330,6 @@ export const useUpdateMutation = (
     );
 };
 
-export const useMoveChartMutation = (
-    options?: UseMutationOptions<
-        SavedChart,
-        ApiError,
-        Pick<SavedChart, 'uuid' | 'spaceUuid'>
-    >,
-) => {
-    const navigate = useNavigate();
-    const queryClient = useQueryClient();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { showToastSuccess, showToastApiError } = useToaster();
-
-    return useMutation<
-        SavedChart,
-        ApiError,
-        Pick<SavedChart, 'uuid' | 'spaceUuid'>
-    >(({ uuid, spaceUuid }) => updateSavedQuery(uuid, { spaceUuid }), {
-        mutationKey: ['saved_query_move'],
-        ...options,
-        onSuccess: async (data, _, __) => {
-            await queryClient.invalidateQueries(['spaces']);
-            await queryClient.invalidateQueries(['space', projectUuid]);
-            await queryClient.invalidateQueries([
-                'most-popular-and-recently-updated',
-            ]);
-            await queryClient.invalidateQueries(['content']);
-
-            queryClient.setQueryData(['saved_query', data.uuid], data);
-            showToastSuccess({
-                title: `Chart has been moved to ${data.spaceName}`,
-                action: {
-                    children: 'Go to space',
-                    icon: IconArrowRight,
-                    onClick: () =>
-                        navigate(
-                            `/projects/${projectUuid}/spaces/${data.spaceUuid}`,
-                        ),
-                },
-            });
-            options?.onSuccess?.(data, _, __);
-        },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to move chart`,
-                apiError: error,
-            });
-        },
-    });
-};
-
 export const useCreateMutation = () => {
     const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();

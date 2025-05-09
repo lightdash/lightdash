@@ -1,5 +1,7 @@
 import { subject } from '@casl/ability';
 import {
+    ChartSourceType,
+    ContentType,
     DashboardTileTypes,
     FeatureFlags,
     ResourceViewItemType,
@@ -54,12 +56,10 @@ import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/compo
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
+import { useContentAction } from '../../../hooks/useContent';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
-import {
-    useMoveChartMutation,
-    useUpdateMutation,
-} from '../../../hooks/useSavedQuery';
+import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
@@ -155,8 +155,8 @@ const SavedChartsHeader: FC = () => {
 
     const { user, health } = useApp();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
-    const { mutateAsync: moveChartToSpace, isLoading: isMovingChartToSpace } =
-        useMoveChartMutation();
+    const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
+        useContentAction(projectUuid);
     const updateSavedChart = useUpdateMutation(
         dashboardUuid ? dashboardUuid : undefined,
         savedChart?.uuid,
@@ -746,6 +746,7 @@ const SavedChartsHeader: FC = () => {
             {savedChart && (
                 <MoveChartThatBelongsToDashboardModal
                     className={'non-draggable'}
+                    projectUuid={projectUuid}
                     uuid={savedChart.uuid}
                     name={savedChart.name}
                     spaceUuid={savedChart.spaceUuid}
@@ -804,7 +805,7 @@ const SavedChartsHeader: FC = () => {
                             : []),
                     ]}
                     spaces={spaces}
-                    isLoading={isMovingChart || isMovingChartToSpace}
+                    isLoading={isMovingChart || isContentActionLoading}
                     onClose={transferToSpaceModalHandlers.close}
                     onConfirm={async (newSpaceUuid) => {
                         if (!newSpaceUuid) {
@@ -812,9 +813,16 @@ const SavedChartsHeader: FC = () => {
                         }
 
                         if (savedChart) {
-                            await moveChartToSpace({
-                                uuid: savedChart.uuid,
-                                spaceUuid: newSpaceUuid,
+                            await contentAction({
+                                action: {
+                                    type: 'move',
+                                    targetSpaceUuid: newSpaceUuid,
+                                },
+                                item: {
+                                    uuid: savedChart.uuid,
+                                    contentType: ContentType.CHART,
+                                    source: ChartSourceType.DBT_EXPLORE,
+                                },
                             });
                         }
                         transferToSpaceModalHandlers.close();

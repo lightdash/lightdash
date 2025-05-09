@@ -1,19 +1,16 @@
 import {
     type ApiError,
-    type ApiSuccessEmpty,
     type CreateSpace,
     type Space,
     type SpaceSummary,
     type UpdateSpace,
 } from '@lightdash/common';
-import { IconArrowRight } from '@tabler/icons-react';
 import {
     useMutation,
     useQuery,
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useNavigate } from 'react-router';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useUser from './user/useUser';
@@ -395,80 +392,6 @@ export const useDeleteSpaceGroupAccessMutation = (
                 showToastError({
                     title: `Failed to update space group access`,
                     subtitle: error.error.message,
-                });
-            },
-        },
-    );
-};
-
-const postMoveSpace = async (
-    projectUuid: string,
-    spaceUuid: string,
-    parentSpaceUuid: string | null,
-) => {
-    return lightdashApi<ApiSuccessEmpty['results']>({
-        url: `/projects/${projectUuid}/spaces/${spaceUuid}/move`,
-        method: 'POST',
-        body: JSON.stringify({ parentSpaceUuid }),
-    });
-};
-
-export const useMoveSpaceMutation = (projectUuid: string | undefined) => {
-    const navigate = useNavigate();
-
-    const queryClient = useQueryClient();
-
-    const { showToastSuccess, showToastApiError } = useToaster();
-
-    return useMutation<
-        ApiSuccessEmpty['results'],
-        ApiError,
-        {
-            spaceUuid: string;
-            parentSpaceUuid: string | null;
-        }
-    >(
-        ({ spaceUuid, parentSpaceUuid }) => {
-            if (!projectUuid) {
-                throw new Error(
-                    'Project UUID is required to use useMoveSpaceMutation',
-                );
-            }
-
-            return postMoveSpace(projectUuid, spaceUuid, parentSpaceUuid);
-        },
-        {
-            mutationKey: ['space_move'],
-            onSuccess: async (_data, { parentSpaceUuid }) => {
-                await Promise.all([
-                    queryClient.invalidateQueries([
-                        'projects',
-                        projectUuid,
-                        'spaces',
-                    ]),
-                    queryClient.invalidateQueries(['pinned_items']),
-                    queryClient.invalidateQueries(['content']),
-                    queryClient.invalidateQueries(['space', projectUuid]),
-                ]);
-
-                showToastSuccess({
-                    title: `Space has been moved`,
-                    action: {
-                        children: 'Go to space',
-                        icon: IconArrowRight,
-                        onClick: () =>
-                            navigate(
-                                parentSpaceUuid
-                                    ? `/projects/${projectUuid}/spaces/${parentSpaceUuid}`
-                                    : `/projects/${projectUuid}/spaces`,
-                            ),
-                    },
-                });
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: `Failed to move Space`,
-                    apiError: error,
                 });
             },
         },
