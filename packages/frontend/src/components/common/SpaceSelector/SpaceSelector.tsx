@@ -46,7 +46,7 @@ const SpaceSelector = ({
 
     const [selectedAdminContentType, setSelectedAdminContentType] = useState<
         'all' | 'shared'
-    >('shared');
+    >(userCanManageProject ? 'shared' : 'all');
 
     const filteredSpaces = useMemo(() => {
         if (!user.data) return [];
