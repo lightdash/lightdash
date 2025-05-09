@@ -165,7 +165,7 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
             },
             pagination: paginationState,
         },
-        enablePinning: true,
+        enableColumnPinning: true,
         onColumnVisibilityChange: setColumnVisibility,
         onColumnOrderChange: setTempColumnOrder,
         getCoreRowModel: getCoreRowModel(),
