@@ -55,7 +55,10 @@ export class QueryHistoryModel {
             | 'warehouseQueryMetadata'
             | 'warehouseExecutionTimeMs'
             | 'error'
-        >,
+        > & {
+            // require cacheKey at the Model level until we migrate the database
+            cacheKey: string;
+        },
     ) {
         const [result] = await this.database(QueryHistoryTableName)
             .insert({
