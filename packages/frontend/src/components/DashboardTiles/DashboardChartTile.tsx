@@ -1273,6 +1273,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             {chart.spaceUuid && (
                 <MoveChartThatBelongsToDashboardModal
                     className={'non-draggable'}
+                    projectUuid={projectUuid}
                     uuid={chart.uuid}
                     name={chart.name}
                     spaceUuid={chart.spaceUuid}

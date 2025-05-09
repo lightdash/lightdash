@@ -120,7 +120,7 @@ const Dashboard: FC = () => {
     } = useUpdateDashboard(dashboardUuid);
 
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
-        useContentAction(projectUuid!);
+        useContentAction(projectUuid);
 
     const [isDeleteModalOpen, deleteModalHandlers] = useDisclosure();
     const [isDuplicateModalOpen, duplicateModalHandlers] = useDisclosure();

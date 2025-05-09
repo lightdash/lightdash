@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     type ApiContentActionBody,
     type ApiContentBulkActionBody,
     type ApiContentResponse,
@@ -12,7 +13,9 @@ import {
     useInfiniteQuery,
     useMutation,
     useQueryClient,
+    type QueryClient,
     type UseInfiniteQueryOptions,
+    type UseMutationOptions,
 } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../api';
@@ -108,33 +111,61 @@ const postContentBulkAction = async ({
     });
 };
 
-export const useContentAction = (projectUuid: string) => {
+const invalidateContent = async (
+    queryClient: QueryClient,
+    projectUuid: string,
+) => {
+    await Promise.all([
+        queryClient.invalidateQueries(['content']),
+        queryClient.invalidateQueries(['dashboards']),
+        queryClient.invalidateQueries(['most-popular-and-recently-updated']),
+        queryClient.invalidateQueries(['pinned_items']),
+        queryClient.invalidateQueries(['projects', projectUuid, 'spaces']),
+        queryClient.invalidateQueries(['space', projectUuid]),
+        queryClient.invalidateQueries(['space']),
+        queryClient.invalidateQueries(['spaces']),
+    ]);
+};
+
+export const useContentAction = (
+    projectUuid: string | undefined,
+    options?: UseMutationOptions<
+        ApiSuccessEmpty,
+        ApiError,
+        ApiContentActionBody
+    >,
+) => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
 
     return useMutation<ApiSuccessEmpty, ApiError, ApiContentActionBody>({
-        mutationFn: (body) =>
-            postContentAction({
+        mutationFn: (body) => {
+            if (!projectUuid) {
+                throw new Error('Project UUID is required');
+            }
+
+            return postContentAction({
                 projectUuid,
                 body,
-            }),
-        onSuccess: async (_data, { item, action }) => {
-            await Promise.all([
-                queryClient.invalidateQueries([
-                    'projects',
-                    projectUuid,
-                    'spaces',
-                ]),
-                queryClient.invalidateQueries(['pinned_items']),
-                queryClient.invalidateQueries(['content']),
-                queryClient.invalidateQueries(['space', projectUuid]),
-            ]);
+            });
+        },
+        ...options,
+        onSuccess: async (data, variables, context) => {
+            if (!projectUuid) {
+                throw new Error('Project UUID is required');
+            }
+
+            await invalidateContent(queryClient, projectUuid);
+
+            options?.onSuccess?.(data, variables, context);
+
+            const { item, action } = variables;
 
             switch (action.type) {
                 case 'move':
                     return showToastSuccess({
-                        title: `Successfully moved ${item.contentType} to a space`,
+                        title: `Successfully moved ${variables.item.contentType} to a space`,
                         action: {
                             children: 'Go to space',
                             icon: IconArrowRight,
@@ -151,39 +182,57 @@ export const useContentAction = (projectUuid: string) => {
                     return showToastSuccess({
                         title: `Successfully deleted ${item.contentType}.`,
                     });
+
+                default:
+                    return assertUnreachable(
+                        action,
+                        'Invalid action type in useContentAction',
+                    );
             }
         },
-        onError: ({ error }) => {
+        onError: (error, variables, context) => {
             showToastApiError({
                 title: `Failed to move content`,
-                apiError: error,
+                apiError: error.error,
             });
+
+            options?.onError?.(error, variables, context);
         },
     });
 };
 
-export const useContentBulkAction = (projectUuid: string) => {
+export const useContentBulkAction = (
+    projectUuid: string | undefined,
+    options?: UseMutationOptions<
+        ApiSuccessEmpty,
+        ApiError,
+        ApiContentBulkActionBody
+    >,
+) => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
 
     return useMutation<ApiSuccessEmpty, ApiError, ApiContentBulkActionBody>({
-        mutationFn: (body) =>
-            postContentBulkAction({
+        mutationFn: (body) => {
+            if (!projectUuid) {
+                throw new Error('Project UUID is required');
+            }
+            return postContentBulkAction({
                 projectUuid,
                 body,
-            }),
-        onSuccess: async (_data, { content, action }) => {
-            await Promise.all([
-                queryClient.invalidateQueries([
-                    'projects',
-                    projectUuid,
-                    'spaces',
-                ]),
-                queryClient.invalidateQueries(['pinned_items']),
-                queryClient.invalidateQueries(['content']),
-                queryClient.invalidateQueries(['space', projectUuid]),
-            ]);
+            });
+        },
+        onSuccess: async (data, variables, context) => {
+            if (!projectUuid) {
+                throw new Error('Project UUID is required');
+            }
+
+            await invalidateContent(queryClient, projectUuid);
+
+            options?.onSuccess?.(data, variables, context);
+
+            const { content, action } = variables;
 
             switch (action.type) {
                 case 'move':
@@ -209,13 +258,21 @@ export const useContentBulkAction = (projectUuid: string) => {
                             content.length === 1 ? 'item' : 'items'
                         }.`,
                     });
+
+                default:
+                    return assertUnreachable(
+                        action,
+                        'Invalid action type in useContentBulkAction',
+                    );
             }
         },
-        onError: ({ error }) => {
+        onError: (error, variables, context) => {
             showToastApiError({
                 title: `Failed to move content`,
-                apiError: error,
+                apiError: error.error,
             });
+
+            options?.onError?.(error, variables, context);
         },
     });
 };

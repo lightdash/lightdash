@@ -48,7 +48,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     const { data: spaces } = useSpaceSummaries(projectUuid, true, {});
 
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
-        useContentAction(projectUuid!);
+        useContentAction(projectUuid);
 
     const { mutate: pinChart } = useChartPinningMutation();
     const { mutate: pinDashboard } = useDashboardPinningMutation();

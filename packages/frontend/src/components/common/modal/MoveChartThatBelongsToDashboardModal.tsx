@@ -1,3 +1,4 @@
+import { ChartSourceType, ContentType } from '@lightdash/common';
 import {
     Button,
     Flex,
@@ -9,8 +10,8 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { IconFolders } from '@tabler/icons-react';
-import React, { type FC } from 'react';
-import { useMoveChartMutation } from '../../../hooks/useSavedQuery';
+import { type FC } from 'react';
+import { useContentAction } from '../../../hooks/useContent';
 import MantineIcon from '../MantineIcon';
 
 interface Props extends ModalProps {
@@ -18,6 +19,7 @@ interface Props extends ModalProps {
     name: string;
     spaceUuid: string;
     spaceName: string;
+    projectUuid: string | undefined;
     onConfirm: () => void;
 }
 
@@ -27,9 +29,10 @@ const MoveChartThatBelongsToDashboardModal: FC<Props> = ({
     spaceUuid,
     spaceName,
     onConfirm,
+    projectUuid,
     ...modalProps
 }) => {
-    const { mutate: moveChartToSpace } = useMoveChartMutation({
+    const { mutate: contentAction } = useContentAction(projectUuid, {
         onSuccess: async () => {
             onConfirm();
             modalProps.onClose();
@@ -78,9 +81,16 @@ const MoveChartThatBelongsToDashboardModal: FC<Props> = ({
 
                     <Button
                         onClick={() => {
-                            moveChartToSpace({
-                                uuid,
-                                spaceUuid,
+                            contentAction({
+                                action: {
+                                    type: 'move',
+                                    targetSpaceUuid: spaceUuid,
+                                },
+                                item: {
+                                    uuid,
+                                    contentType: ContentType.CHART,
+                                    source: ChartSourceType.DBT_EXPLORE,
+                                },
                             });
                         }}
                         type="submit"
