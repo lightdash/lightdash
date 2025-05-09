@@ -40,6 +40,8 @@ export class ResultsFileModel {
     async create(data: DbResultsCacheIn) {
         const [createdCache] = await this.database(ResultsCacheTableName)
             .insert(data)
+            .onConflict('cache_key') // upsert
+            .merge()
             .returning([
                 'cache_key',
                 'created_at',
