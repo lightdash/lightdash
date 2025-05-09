@@ -1,111 +1,15 @@
 /* eslint-disable no-await-in-loop */
 import {
-    CreateSpace,
-    generateSlug,
-    OrganizationMemberRole,
     SEED_ORG_1_ADMIN,
     SEED_ORG_1_EDITOR,
-    SEED_ORG_1_VIEWER,
     SEED_PROJECT,
+    SPACE_TREE_1,
+    SPACE_TREE_2,
     SpaceMemberRole,
+    TreeCreateSpace,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { SpaceModel } from '../../../models/SpaceModel';
-
-type TreeCreateSpace = CreateSpace & {
-    children?: TreeCreateSpace[];
-};
-
-const tree: TreeCreateSpace[] = [
-    {
-        name: 'Parent Space 1',
-        children: [
-            {
-                name: 'Child Space 1.1',
-                children: [
-                    {
-                        name: 'Grandchild Space 1.1.1',
-                    },
-                    {
-                        name: 'Grandchild Space 1.1.2',
-                    },
-                ],
-            },
-            {
-                name: 'Child Space 1.2',
-                children: [
-                    {
-                        name: 'Grandchild Space 1.2.1',
-                    },
-                    {
-                        name: 'Grandchild Space 1.2.2',
-                        children: [
-                            {
-                                name: 'Great Grandchild Space 1.2.2.1',
-                            },
-                        ],
-                    },
-                ],
-            },
-            {
-                name: 'Child Space 1.3',
-                children: [
-                    {
-                        name: 'Grandchild Space 1.3.1',
-                        children: [
-                            {
-                                name: 'Great Grandchild Space 1.3.1.1',
-                            },
-                        ],
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        name: 'Parent Space 2',
-        isPrivate: true,
-        children: [
-            {
-                name: 'Child Space 2.1',
-                children: [
-                    {
-                        name: 'Grandchild Space 2.1.1',
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        name: 'Parent Space 3',
-        isPrivate: true,
-        access: [
-            // Admin will automatically be added, we only seed editor
-            {
-                userUuid: SEED_ORG_1_EDITOR.user_uuid,
-                role: SpaceMemberRole.EDITOR,
-            },
-        ],
-        children: [
-            {
-                name: 'Child Space 3.1',
-            },
-        ],
-    },
-] as const;
-
-const tree2: TreeCreateSpace[] = [
-    {
-        name: 'Parent Space 4',
-        isPrivate: true,
-        access: [],
-        children: [
-            {
-                name: 'Child Space 4.1',
-            },
-        ],
-    },
-] as const;
 
 async function createSpaceTree(
     spaceModel: SpaceModel,
@@ -138,6 +42,17 @@ async function createSpaceTree(
                         createdSpace.uuid,
                         access.userUuid,
                         access.role,
+                    ),
+                ),
+            );
+
+        if (space.groupAccess)
+            await Promise.all(
+                space.groupAccess.map((groupAccess) =>
+                    spaceModel.addSpaceGroupAccess(
+                        createdSpace.uuid,
+                        groupAccess.groupUuid,
+                        groupAccess.role,
                     ),
                 ),
             );
@@ -178,7 +93,7 @@ export async function seed(knex: Knex): Promise<void> {
         throw new Error(`User ${SEED_ORG_1_ADMIN.user_uuid} not found`);
     }
 
-    await createSpaceTree(spaceModel, tree, null, {
+    await createSpaceTree(spaceModel, SPACE_TREE_1, null, {
         projectUuid: SEED_PROJECT.project_uuid,
         userId: user.user_id,
         userUuid: user.user_uuid,
@@ -193,7 +108,7 @@ export async function seed(knex: Knex): Promise<void> {
         throw new Error(`User ${SEED_ORG_1_EDITOR.user_uuid} not found`);
     }
 
-    await createSpaceTree(spaceModel, tree2, null, {
+    await createSpaceTree(spaceModel, SPACE_TREE_2, null, {
         projectUuid: SEED_PROJECT.project_uuid,
         userId: editorUser.user_id,
         userUuid: editorUser.user_uuid,
