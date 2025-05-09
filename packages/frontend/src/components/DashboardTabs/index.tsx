@@ -186,6 +186,24 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             return; // keep all tiles if its the last tab
         }
 
+        // If we're about to have only one tab left after deletion, remove that last tab too
+        if (dashboardTabs.length === 2) {
+            // Find the remaining tab
+            const remainingTab = dashboardTabs.find(
+                (tab) => tab.uuid !== tabUuid,
+            );
+            if (remainingTab) {
+                // Set all tile tab references to undefined
+                dashboardTiles?.forEach((tile) => {
+                    tile.tabUuid = undefined;
+                });
+                // Remove the last tab from the tabs list
+                setDashboardTabs([]);
+                setActiveTab(undefined);
+                return;
+            }
+        }
+
         const tilesToDelete = dashboardTiles?.filter(
             (tile) => tile.tabUuid === tabUuid,
         );
