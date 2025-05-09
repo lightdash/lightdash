@@ -187,7 +187,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         }
 
         const tilesToDelete = dashboardTiles?.filter(
-            (tile) => tile.tabUuid == tabUuid,
+            (tile) => tile.tabUuid === tabUuid,
         );
         if (tilesToDelete) {
             handleBatchDeleteTiles(tilesToDelete);
