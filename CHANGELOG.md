@@ -1,3 +1,10 @@
+# [0.1618.0](https://github.com/lightdash/lightdash/compare/0.1617.0...0.1618.0) (2025-05-09)
+
+
+### Features
+
+* results columns metadata ([#14726](https://github.com/lightdash/lightdash/issues/14726)) ([5c78fa3](https://github.com/lightdash/lightdash/commit/5c78fa34b7e373f0e49f64f1c5a0b4a59f127e6f))
+
 # [0.1617.0](https://github.com/lightdash/lightdash/compare/0.1616.0...0.1617.0) (2025-05-09)
 
 
