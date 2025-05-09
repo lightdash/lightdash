@@ -1,3 +1,10 @@
+## [0.1619.1](https://github.com/lightdash/lightdash/compare/0.1619.0...0.1619.1) (2025-05-09)
+
+
+### Bug Fixes
+
+* missing color on pivoted dashboard charts ([#14753](https://github.com/lightdash/lightdash/issues/14753)) ([cd6efd1](https://github.com/lightdash/lightdash/commit/cd6efd1db35ca865688a94861f01a6417b934d80))
+
 # [0.1619.0](https://github.com/lightdash/lightdash/compare/0.1618.2...0.1619.0) (2025-05-09)
 
 
