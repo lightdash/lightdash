@@ -39,7 +39,7 @@ export default defineConfig({
         transformer: 'lightningcss',
     },
     optimizeDeps: {
-        exclude: ['@lightdash/common', '@lightdash/mantine-v7'],
+        exclude: ['@lightdash/common'],
     },
     build: {
         outDir: 'build',
