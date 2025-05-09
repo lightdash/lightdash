@@ -59,6 +59,25 @@ export type ExecuteAsyncUnderlyingDataRequestParams =
         dateZoom?: DateZoom;
     };
 
+export type ExecuteAsyncSqlChartByUuidRequestParams =
+    CommonPaginatedQueryRequestParams & {
+        savedSqlUuid: string;
+    };
+
+export type ExecuteAsyncSqlChartBySlugRequestParams =
+    CommonPaginatedQueryRequestParams & {
+        slug: string;
+    };
+
+export type ExecuteAsyncSqlChartRequestParams =
+    | ExecuteAsyncSqlChartByUuidRequestParams
+    | ExecuteAsyncSqlChartBySlugRequestParams;
+
+export const isExecuteAsyncSqlChartByUuidParams = (
+    params: ExecuteAsyncSqlChartRequestParams,
+): params is ExecuteAsyncSqlChartByUuidRequestParams =>
+    'savedSqlUuid' in params;
+
 type ExecuteAsyncDashboardSqlChartCommonParams =
     CommonPaginatedQueryRequestParams & {
         dashboardUuid: string;

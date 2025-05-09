@@ -45,6 +45,7 @@ import {
     PivotIndexColum,
     prefixPivotConfigurationReferences,
     type Project,
+    QueryExecutionContext,
     QueryHistoryStatus,
     type ResultColumns,
     type RunQueryTags,
@@ -52,6 +53,7 @@ import {
     SortBy,
     type SpaceShare,
     type SpaceSummary,
+    SqlChart,
     ValuesColumn,
     WarehouseClient,
 } from '@lightdash/common';
@@ -81,10 +83,12 @@ import {
     type ExecuteAsyncMetricQueryArgs,
     type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
+    type ExecuteAsyncSqlChartArgs,
     ExecuteAsyncSqlQueryArgs,
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
+    isExecuteAsyncSqlChartByUuid,
 } from './types';
 
 type AsyncQueryServiceArguments<ResultsCacheStorageClient = unknown> =
@@ -1657,6 +1661,157 @@ export class AsyncQueryService<
         };
     }
 
+    private async prepareSqlChartAsyncQueryArgs({
+        user,
+        sqlChart,
+        context,
+    }: {
+        user: SessionUser;
+        sqlChart: Pick<SqlChart, 'project' | 'organization' | 'sql' | 'config'>;
+        context: QueryExecutionContext;
+    }) {
+        const warehouseConnection = await this._getWarehouseClient(
+            sqlChart.project.projectUuid,
+            await this.getWarehouseCredentials(
+                sqlChart.project.projectUuid,
+                user.userUuid,
+            ),
+        );
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: sqlChart.organization.organizationUuid,
+            user_uuid: user.userUuid,
+            query_context: context,
+        };
+
+        // Get one row to get the column definitions
+        const columns: { name: string; type: DimensionType }[] = [];
+        await warehouseConnection.warehouseClient.streamQuery(
+            applyLimitToSqlQuery({ sqlQuery: sqlChart.sql, limit: 1 }),
+            (row) => {
+                if (row.fields) {
+                    Object.keys(row.fields).forEach((key) => {
+                        columns.push({
+                            name: key,
+                            type: row.fields[key].type,
+                        });
+                    });
+                }
+            },
+            {
+                tags: queryTags,
+            },
+        );
+
+        const vizColumns = columns.map((col) => ({
+            reference: col.name,
+            type: col.type,
+        }));
+
+        const virtualView = createVirtualViewObject(
+            'virtual_view',
+            sqlChart.sql,
+            vizColumns,
+            warehouseConnection.warehouseClient,
+        );
+
+        const dimensions = Object.values(
+            virtualView.tables[virtualView.baseTable].dimensions,
+        ).map((d) => convertFieldRefToFieldId(d.name, virtualView.name));
+
+        const prefixedPivotConfiguration =
+            !isVizTableConfig(sqlChart.config) && sqlChart.config.fieldConfig
+                ? prefixPivotConfigurationReferences(
+                      {
+                          indexColumn: sqlChart.config.fieldConfig.x,
+                          valuesColumns: sqlChart.config.fieldConfig.y,
+                          groupByColumns: sqlChart.config.fieldConfig.groupBy,
+                          sortBy: sqlChart.config.fieldConfig.sortBy,
+                      },
+                      `${virtualView.name}`,
+                  )
+                : undefined;
+
+        const query: MetricQuery = {
+            exploreName: virtualView.name,
+            dimensions,
+            metrics: [],
+            filters: {},
+            tableCalculations: [],
+            sorts: [],
+            customDimensions: [],
+            additionalMetrics: [],
+            limit: 500,
+        };
+        return {
+            query,
+            prefixedPivotConfiguration,
+            virtualView,
+            queryTags,
+            warehouseConnection,
+        };
+    }
+
+    async executeAsyncSqlChartQuery(
+        args: ExecuteAsyncSqlChartArgs,
+    ): Promise<ApiExecuteAsyncSqlQueryResults> {
+        const sqlChart = isExecuteAsyncSqlChartByUuid(args)
+            ? await this.savedSqlModel.getByUuid(args.savedSqlUuid, {
+                  projectUuid: args.projectUuid,
+              })
+            : await this.savedSqlModel.getBySlug(args.projectUuid, args.slug);
+
+        if (!sqlChart) {
+            throw new Error('Either chartUuid or slug must be provided');
+        }
+
+        const { user, projectUuid, context, invalidateCache } = args;
+
+        const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
+            user,
+            'view',
+            sqlChart,
+        );
+
+        if (!hasViewAccess) {
+            throw new ForbiddenError("You don't have access to this chart");
+        }
+
+        const {
+            warehouseConnection,
+            queryTags,
+            query,
+            virtualView,
+            prefixedPivotConfiguration,
+        } = await this.prepareSqlChartAsyncQueryArgs({
+            user,
+            context,
+            sqlChart,
+        });
+
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
+            {
+                user,
+                projectUuid,
+                explore: virtualView,
+                queryTags,
+                metricQuery: query,
+                context,
+            },
+            {
+                query,
+                invalidateCache,
+            },
+            warehouseConnection,
+            prefixedPivotConfiguration,
+        );
+
+        return {
+            queryUuid,
+            cacheMetadata,
+        };
+    }
+
     async executeAsyncDashboardSqlChartQuery(
         args: ExecuteAsyncDashboardSqlChartArgs,
     ): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
@@ -1689,65 +1844,17 @@ export class AsyncQueryService<
             throw new ForbiddenError("You don't have access to this chart");
         }
 
-        const warehouseConnection = await this._getWarehouseClient(
-            projectUuid,
-            await this.getWarehouseCredentials(projectUuid, user.userUuid),
-        );
-
-        const queryTags: RunQueryTags = {
-            organization_uuid: savedChart.organization.organizationUuid,
-            user_uuid: user.userUuid,
-            query_context: context,
-        };
-
-        // Get one row to get the column definitions
-        const columns: { name: string; type: DimensionType }[] = [];
-        await warehouseConnection.warehouseClient.streamQuery(
-            applyLimitToSqlQuery({ sqlQuery: savedChart.sql, limit: 1 }),
-            (row) => {
-                if (row.fields) {
-                    Object.keys(row.fields).forEach((key) => {
-                        columns.push({
-                            name: key,
-                            type: row.fields[key].type,
-                        });
-                    });
-                }
-            },
-            {
-                tags: queryTags,
-            },
-        );
-
-        const vizColumns = columns.map((col) => ({
-            reference: col.name,
-            type: col.type,
-        }));
-
-        const virtualView = createVirtualViewObject(
-            'virtual_view',
-            savedChart.sql,
-            vizColumns,
-            warehouseConnection.warehouseClient,
-        );
-
-        const dimensions = Object.values(
-            virtualView.tables[virtualView.baseTable].dimensions,
-        ).map((d) => convertFieldRefToFieldId(d.name, virtualView.name));
-
-        const prefixedPivotConfiguration =
-            !isVizTableConfig(savedChart.config) &&
-            savedChart.config.fieldConfig
-                ? prefixPivotConfigurationReferences(
-                      {
-                          indexColumn: savedChart.config.fieldConfig.x,
-                          valuesColumns: savedChart.config.fieldConfig.y,
-                          groupByColumns: savedChart.config.fieldConfig.groupBy,
-                          sortBy: savedChart.config.fieldConfig.sortBy,
-                      },
-                      `${virtualView.name}`,
-                  )
-                : undefined;
+        const {
+            warehouseConnection,
+            queryTags,
+            query,
+            virtualView,
+            prefixedPivotConfiguration,
+        } = await this.prepareSqlChartAsyncQueryArgs({
+            user,
+            context,
+            sqlChart: savedChart,
+        });
 
         const tables = Object.keys(virtualView.tables);
         const appliedDashboardFilters: DashboardFilters = {
@@ -1763,18 +1870,6 @@ export class AsyncQueryService<
                 tables,
                 dashboardFilters.tableCalculations,
             ),
-        };
-
-        const query: MetricQuery = {
-            exploreName: virtualView.name,
-            dimensions,
-            metrics: [],
-            filters: {},
-            tableCalculations: [],
-            sorts: [],
-            customDimensions: [],
-            additionalMetrics: [],
-            limit: 500,
         };
 
         // This override isn't used for anything at the moment since sql charts don't support filters, but it's here for future use

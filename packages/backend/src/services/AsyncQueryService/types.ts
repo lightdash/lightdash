@@ -96,3 +96,19 @@ export type ExecuteAsyncDashboardSqlChartArgs =
 export const isExecuteAsyncDashboardSqlChartByUuid = (
     args: ExecuteAsyncDashboardSqlChartArgs,
 ): args is ExecuteAsyncDashboardSqlChartByUuidArgs => 'savedSqlUuid' in args;
+
+export type ExecuteAsyncSqlChartByUuidArgs = CommonAsyncQueryArgs & {
+    savedSqlUuid: string;
+};
+
+export type ExecuteAsyncSqlChartBySlugArgs = CommonAsyncQueryArgs & {
+    slug: string;
+};
+
+export type ExecuteAsyncSqlChartArgs =
+    | ExecuteAsyncSqlChartByUuidArgs
+    | ExecuteAsyncSqlChartBySlugArgs;
+
+export const isExecuteAsyncSqlChartByUuid = (
+    args: ExecuteAsyncSqlChartArgs,
+): args is ExecuteAsyncSqlChartByUuidArgs => 'savedSqlUuid' in args;

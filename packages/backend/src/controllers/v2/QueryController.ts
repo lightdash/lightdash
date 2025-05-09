@@ -8,12 +8,14 @@ import {
     ApiSuccessEmpty,
     ExecuteAsyncSqlQueryRequestParams,
     isExecuteAsyncDashboardSqlChartByUuidParams,
+    isExecuteAsyncSqlChartByUuidParams,
     QueryExecutionContext,
     type ApiExecuteAsyncMetricQueryResults,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
+    type ExecuteAsyncSqlChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
     type MetricQuery,
 } from '@lightdash/common';
@@ -274,6 +276,38 @@ export class QueryController extends BaseController {
                 sql: body.sql,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
                 pivotConfiguration: body.pivotConfiguration,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Hidden()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/sql-chart')
+    @OperationId('executeAsyncSqlChartQuery')
+    async executeAsyncSqlChartQuery(
+        @Body()
+        body: ExecuteAsyncSqlChartRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncSqlQueryResults>> {
+        this.setStatus(200);
+        const context = body.context ?? getContextFromHeader(req);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncSqlChartQuery({
+                user: req.user!,
+                projectUuid,
+                invalidateCache: body.invalidateCache ?? false,
+                context: context ?? QueryExecutionContext.SQL_RUNNER,
+                ...(isExecuteAsyncSqlChartByUuidParams(body)
+                    ? { savedSqlUuid: body.savedSqlUuid }
+                    : { slug: body.slug }),
             });
 
         return {
