@@ -34,6 +34,11 @@ export class CommercialCacheService implements ICacheService {
             timezone?: string;
         },
     ): Promise<CacheHitCacheResult | null> {
+        // If caching is disabled, return null
+        if (!this.lightdashConfig.results.cacheEnabled) {
+            return null;
+        }
+
         // Generate cache key from project and query identifiers
         const cacheKey = ResultsFileModel.getCacheKey(
             projectUuid,
