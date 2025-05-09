@@ -44,17 +44,7 @@ const VisualizationCard: FC<{
         (context) =>
             context.query.isFetching || context.queryResults.isFetchingRows,
     );
-    const query = useExplorerContext((context) => context.query);
-    const queryResults = useExplorerContext((context) => context.queryResults);
-
-    const resultsData = useMemo(
-        () => ({
-            ...queryResults,
-            metricQuery: query.data?.metricQuery,
-            fields: query.data?.fields,
-        }),
-        [query.data, queryResults],
-    );
+    const resultsData = useExplorerContext((context) => context.queryResults);
 
     const setPivotFields = useExplorerContext(
         (context) => context.actions.setPivotFields,

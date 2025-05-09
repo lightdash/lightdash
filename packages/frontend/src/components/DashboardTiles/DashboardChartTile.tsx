@@ -205,7 +205,7 @@ const computeDashboardChartSeries = (
     validPivotDimensions: string[] | undefined,
     resultData: InfiniteQueryResults | undefined,
 ) => {
-    if (!chart.chartConfig || !resultData || resultData.rows.length === 0) {
+    if (!resultData?.fields || !chart.chartConfig || !resultData) {
         return [];
     }
 
@@ -288,20 +288,6 @@ const ValidDashboardChartTile: FC<{
         );
     }, [resultsData, chart, validPivotDimensions]);
 
-    const resultsDataWithQueryData = useMemo(
-        () => ({
-            ...resultsData,
-            metricQuery:
-                dashboardChartReadyQuery.executeQueryResponse.metricQuery,
-            fields: dashboardChartReadyQuery.executeQueryResponse.fields,
-        }),
-        [
-            resultsData,
-            dashboardChartReadyQuery.executeQueryResponse.metricQuery,
-            dashboardChartReadyQuery.executeQueryResponse.fields,
-        ],
-    );
-
     if (health.isInitialLoading || !health.data) {
         return null;
     }
@@ -310,7 +296,7 @@ const ValidDashboardChartTile: FC<{
         <VisualizationProvider
             chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
-            resultsData={resultsDataWithQueryData}
+            resultsData={resultsData}
             isLoading={resultsData.isFetchingRows}
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={chart.tableConfig.columnOrder}
@@ -336,13 +322,11 @@ const ValidDashboardChartTileMinimal: FC<{
     isTitleHidden?: boolean;
     title: string;
     chart: SavedChart;
-    dashboardChartReadyQuery: DashboardChartReadyQuery;
     resultsData: InfiniteQueryResults;
     setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
 }> = ({
     tileUuid,
     chart,
-    dashboardChartReadyQuery,
     resultsData,
     isTitleHidden = false,
     setEchartsRef,
@@ -364,20 +348,6 @@ const ValidDashboardChartTileMinimal: FC<{
         );
     }, [resultsData, chart, validPivotDimensions]);
 
-    const resultsDataWithQueryData = useMemo(
-        () => ({
-            ...resultsData,
-            metricQuery:
-                dashboardChartReadyQuery.executeQueryResponse.metricQuery,
-            fields: dashboardChartReadyQuery.executeQueryResponse.fields,
-        }),
-        [
-            resultsData,
-            dashboardChartReadyQuery.executeQueryResponse.metricQuery,
-            dashboardChartReadyQuery.executeQueryResponse.fields,
-        ],
-    );
-
     if (health.isInitialLoading || !health.data) {
         return null;
     }
@@ -387,7 +357,7 @@ const ValidDashboardChartTileMinimal: FC<{
             minimal
             chartConfig={chart.chartConfig}
             initialPivotDimensions={chart.pivotConfig?.columns}
-            resultsData={resultsDataWithQueryData}
+            resultsData={resultsData}
             isLoading={resultsData.isFetchingRows}
             columnOrder={chart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
@@ -447,12 +417,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     } = props;
 
     const {
-        executeQueryResponse: { appliedDashboardFilters, metricQuery },
+        executeQueryResponse: { appliedDashboardFilters },
         chart,
         explore,
     } = dashboardChartReadyQuery;
 
-    const { rows, initialQueryExecutionMs } = resultsData;
+    const { metricQuery, rows, initialQueryExecutionMs } = resultsData;
 
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
@@ -1326,20 +1296,11 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         canExportImages,
     } = props;
 
-    const {
-        chart,
-        explore,
-        executeQueryResponse: { fields },
-    } = dashboardChartReadyQuery;
+    const { chart, explore } = dashboardChartReadyQuery;
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [echartRef, setEchartRef] = useState<
         RefObject<EChartsReact | null> | undefined
     >();
-
-    const resultsDataWithFields = useMemo(
-        () => ({ ...resultsData, fields }),
-        [resultsData, fields],
-    );
 
     return (
         <TileBase
@@ -1356,7 +1317,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                         {canExportCsv && (
                             <DashboardMinimalDownloadCsv
                                 explore={explore}
-                                resultsData={resultsDataWithFields}
+                                resultsData={resultsData}
                                 chart={chart}
                             />
                         )}
@@ -1378,7 +1339,6 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                 tileUuid={tileUuid}
                 isTitleHidden={hideTitle}
                 chart={chart}
-                dashboardChartReadyQuery={dashboardChartReadyQuery}
                 resultsData={resultsData}
                 title={title || chart.name}
                 setEchartsRef={setEchartRef}
@@ -1487,9 +1447,7 @@ export const GenericDashboardChartTile: FC<
 
     return (
         <MetricQueryDataProvider
-            metricQuery={
-                dashboardChartReadyQuery.executeQueryResponse.metricQuery
-            }
+            metricQuery={resultsData.metricQuery}
             tableName={dashboardChartReadyQuery.chart.tableName || ''}
             explore={dashboardChartReadyQuery.explore}
             queryUuid={dashboardChartReadyQuery.executeQueryResponse.queryUuid}

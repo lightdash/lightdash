@@ -74,14 +74,8 @@ const EmbedDashboardChartTile: FC<Props> = ({
             executeQueryResponse: {
                 queryUuid: '', // Does not use paginated query therefore there's no queryUuid
                 appliedDashboardFilters:
-                    translatedChartData.appliedDashboardFilters ?? {
-                        dimensions: [],
-                        metrics: [],
-                        tableCalculations: [],
-                    },
+                    translatedChartData.appliedDashboardFilters ?? null,
                 cacheMetadata: translatedChartData.cacheMetadata,
-                metricQuery: translatedChartData?.metricQuery,
-                fields: translatedChartData?.fields,
             },
             chart: translatedChartData.chart,
             explore: translatedChartData.explore,
@@ -92,6 +86,8 @@ const EmbedDashboardChartTile: FC<Props> = ({
         () =>
             ({
                 queryUuid: '', // Does not use paginated query therefore there's no queryUuid
+                metricQuery: translatedChartData?.metricQuery,
+                fields: translatedChartData?.fields,
                 rows: translatedChartData?.rows ?? [],
                 totalResults: translatedChartData?.rows.length,
                 initialQueryExecutionMs: 0,

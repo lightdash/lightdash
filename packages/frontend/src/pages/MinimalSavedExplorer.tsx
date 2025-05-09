@@ -1,5 +1,5 @@
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
-import { type FC, useMemo } from 'react';
+import { type FC } from 'react';
 import { useParams } from 'react-router';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
@@ -20,17 +20,7 @@ const themeOverride: MantineThemeOverride = {
 };
 const MinimalExplorer: FC = () => {
     const { health } = useApp();
-    const queryResults = useExplorerContext((context) => context.queryResults);
-    const query = useExplorerContext((context) => context.query);
-
-    const resultsData = useMemo(
-        () => ({
-            ...queryResults,
-            metricQuery: query.data?.metricQuery,
-            fields: query.data?.fields,
-        }),
-        [queryResults, query.data],
-    );
+    const resultsData = useExplorerContext((context) => context.queryResults);
 
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,

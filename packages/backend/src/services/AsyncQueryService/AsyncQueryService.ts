@@ -1,10 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
-    ApiExecuteAsyncDashboardChartQueryResults,
-    ApiExecuteAsyncDashboardSqlChartQueryResults,
-    type ApiExecuteAsyncMetricQueryResults,
-    ApiExecuteAsyncSqlQueryResults,
+    type ApiExecuteAsyncQueryResults,
     type ApiGetAsyncQueryResults,
     assertUnreachable,
     CompiledDimension,
@@ -283,6 +280,8 @@ export class AsyncQueryService<
                 return {
                     status,
                     queryUuid,
+                    metricQuery,
+                    fields: queryHistory.fields,
                 };
             case QueryHistoryStatus.PENDING:
                 if (resultsCacheEnabled && cacheKey && this.cacheService) {
@@ -312,11 +311,15 @@ export class AsyncQueryService<
                 return {
                     status,
                     queryUuid,
+                    metricQuery,
+                    fields: queryHistory.fields,
                 };
             case QueryHistoryStatus.ERROR:
                 return {
                     status,
                     queryUuid,
+                    metricQuery,
+                    fields: queryHistory.fields,
                     error: queryHistory.error,
                 };
             case QueryHistoryStatus.READY:
@@ -401,6 +404,8 @@ export class AsyncQueryService<
                 totalPageCount: pageCount,
                 totalResults: cacheTotalRowCount,
                 queryUuid: queryHistory.queryUuid,
+                fields: queryHistory.fields,
+                metricQuery,
                 pageSize: rows.length,
                 page,
                 nextPage,
@@ -490,6 +495,8 @@ export class AsyncQueryService<
                     status: QueryHistoryStatus.ERROR,
                     error: result.errorMessage,
                     queryUuid: queryHistory.queryUuid,
+                    metricQuery,
+                    fields: queryHistory.fields,
                 };
             }
 
@@ -524,6 +531,8 @@ export class AsyncQueryService<
                 totalPageCount: result.pageCount,
                 totalResults: result.totalRows,
                 queryUuid: queryHistory.queryUuid,
+                fields: queryHistory.fields,
+                metricQuery,
                 pageSize: result.rows.length,
                 page,
                 nextPage,
@@ -945,8 +954,6 @@ export class AsyncQueryService<
                                 cacheUpdatedTime: resultsCache.updatedAt,
                                 cacheExpiresAt: resultsCache.expiresAt,
                             },
-                            metricQuery,
-                            fields: fieldsMap,
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
@@ -972,8 +979,6 @@ export class AsyncQueryService<
                             cacheUpdatedTime: resultsCache?.updatedAt,
                             cacheExpiresAt: resultsCache?.expiresAt,
                         },
-                        metricQuery,
-                        fields: fieldsMap,
                     } satisfies ExecuteAsyncQueryReturn;
                 } catch (e) {
                     span.setStatus({
@@ -996,7 +1001,7 @@ export class AsyncQueryService<
         context,
         metricQuery,
         invalidateCache,
-    }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+    }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -1053,12 +1058,7 @@ export class AsyncQueryService<
             },
         );
 
-        const {
-            queryUuid,
-            cacheMetadata,
-            metricQuery: metricQueryWithOverrides,
-            fields,
-        } = await this.executeAsyncQuery(
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
                 metricQuery,
@@ -1076,8 +1076,7 @@ export class AsyncQueryService<
         return {
             queryUuid,
             cacheMetadata,
-            metricQuery: metricQueryWithOverrides,
-            fields,
+            appliedDashboardFilters: null,
         };
     }
 
@@ -1088,7 +1087,7 @@ export class AsyncQueryService<
         versionUuid,
         context,
         invalidateCache,
-    }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+    }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         // Check user is in organization
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User does not belong to an organization');
@@ -1174,12 +1173,7 @@ export class AsyncQueryService<
             },
         );
 
-        const {
-            queryUuid,
-            cacheMetadata,
-            metricQuery: metricQueryWithOverrides,
-            fields,
-        } = await this.executeAsyncQuery(
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
@@ -1196,8 +1190,7 @@ export class AsyncQueryService<
         return {
             queryUuid,
             cacheMetadata,
-            metricQuery: metricQueryWithOverrides,
-            fields,
+            appliedDashboardFilters: null,
         };
     }
 
@@ -1211,7 +1204,7 @@ export class AsyncQueryService<
         dateZoom,
         context,
         invalidateCache,
-    }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
+    }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -1352,12 +1345,7 @@ export class AsyncQueryService<
             },
         );
 
-        const {
-            queryUuid,
-            cacheMetadata,
-            metricQuery: metricQueryWithOverrides,
-            fields,
-        } = await this.executeAsyncQuery(
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
@@ -1376,8 +1364,6 @@ export class AsyncQueryService<
             queryUuid,
             cacheMetadata,
             appliedDashboardFilters,
-            metricQuery: metricQueryWithOverrides,
-            fields,
         };
     }
 
@@ -1390,7 +1376,7 @@ export class AsyncQueryService<
         context,
         invalidateCache,
         dateZoom,
-    }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+    }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -1513,31 +1499,26 @@ export class AsyncQueryService<
             },
         );
 
-        const {
-            queryUuid: underlyingDataQueryUuid,
-            cacheMetadata,
-            metricQuery: metricQueryWithOverrides,
-            fields,
-        } = await this.executeAsyncQuery(
-            {
-                user,
-                metricQuery: underlyingDataMetricQuery,
-                projectUuid,
-                explore,
-                context,
-                queryTags,
-                invalidateCache,
-                dateZoom,
-            },
-            requestParameters,
-            warehouseConnection,
-        );
+        const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
+            await this.executeAsyncQuery(
+                {
+                    user,
+                    metricQuery: underlyingDataMetricQuery,
+                    projectUuid,
+                    explore,
+                    context,
+                    queryTags,
+                    invalidateCache,
+                    dateZoom,
+                },
+                requestParameters,
+                warehouseConnection,
+            );
 
         return {
             queryUuid: underlyingDataQueryUuid,
+            appliedDashboardFilters: null,
             cacheMetadata,
-            metricQuery: metricQueryWithOverrides,
-            fields,
         };
     }
 
@@ -1548,7 +1529,7 @@ export class AsyncQueryService<
         context,
         invalidateCache,
         pivotConfiguration,
-    }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
+    }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User does not belong to an organization');
         }
@@ -1654,12 +1635,13 @@ export class AsyncQueryService<
         return {
             queryUuid,
             cacheMetadata,
+            appliedDashboardFilters: null,
         };
     }
 
     async executeAsyncDashboardSqlChartQuery(
         args: ExecuteAsyncDashboardSqlChartArgs,
-    ): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
+    ): Promise<ApiExecuteAsyncQueryResults> {
         const savedChart = isExecuteAsyncDashboardSqlChartByUuid(args)
             ? await this.savedSqlModel.getByUuid(args.savedSqlUuid, {
                   projectUuid: args.projectUuid,

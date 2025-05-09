@@ -4,7 +4,7 @@ import {
     isDateItem,
     QueryExecutionContext,
     type ApiError,
-    type ApiExecuteAsyncDashboardChartQueryResults,
+    type ApiExecuteAsyncQueryResults,
     type ApiExploreResults,
     type ExecuteAsyncDashboardChartRequestParams,
     type SavedChart,
@@ -22,8 +22,8 @@ import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 const executeAsyncDashboardChartQuery = async (
     projectUuid: string,
     data: ExecuteAsyncDashboardChartRequestParams,
-): Promise<ApiExecuteAsyncDashboardChartQueryResults> =>
-    lightdashApi<ApiExecuteAsyncDashboardChartQueryResults>({
+): Promise<ApiExecuteAsyncQueryResults> =>
+    lightdashApi<ApiExecuteAsyncQueryResults>({
         url: `/projects/${projectUuid}/query/dashboard-chart`,
         version: 'v2',
         method: 'POST',
@@ -31,7 +31,7 @@ const executeAsyncDashboardChartQuery = async (
     });
 
 export type DashboardChartReadyQuery = {
-    executeQueryResponse: ApiExecuteAsyncDashboardChartQueryResults;
+    executeQueryResponse: ApiExecuteAsyncQueryResults;
     chart: SavedChart;
     explore: ApiExploreResults;
 };

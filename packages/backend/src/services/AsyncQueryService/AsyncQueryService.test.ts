@@ -46,7 +46,6 @@ import {
 } from '../CacheService/types';
 import {
     allExplores,
-    expectedApiQueryResultsWith1Row,
     expectedFormattedRow,
     job,
     lightdashConfigWithNoSMTP,
@@ -247,8 +246,6 @@ describe('AsyncQueryService', () => {
                         cacheUpdatedTime: updatedAt,
                         cacheExpiresAt: expiresAt,
                     },
-                    metricQuery: expectedApiQueryResultsWith1Row.metricQuery,
-                    fields: expectedApiQueryResultsWith1Row.fields,
                 } satisfies ExecuteAsyncQueryReturn);
 
                 // Verify that the query history was updated with READY status
@@ -335,8 +332,6 @@ describe('AsyncQueryService', () => {
                         cacheUpdatedTime: updatedAt,
                         cacheExpiresAt: expiresAt,
                     },
-                    metricQuery: expectedApiQueryResultsWith1Row.metricQuery,
-                    fields: expectedApiQueryResultsWith1Row.fields,
                 } satisfies ExecuteAsyncQueryReturn);
 
                 // Verify that the query history was not updated with READY status
@@ -499,8 +494,6 @@ describe('AsyncQueryService', () => {
                         cacheUpdatedTime: undefined,
                         cacheExpiresAt: undefined,
                     },
-                    metricQuery: expectedApiQueryResultsWith1Row.metricQuery,
-                    fields: expectedApiQueryResultsWith1Row.fields,
                 } satisfies ExecuteAsyncQueryReturn);
 
                 // Verify that the query history was not updated with READY status
@@ -580,6 +573,8 @@ describe('AsyncQueryService', () => {
                     error: 'Test error message',
                     status: QueryHistoryStatus.ERROR,
                     queryUuid: 'test-query-uuid',
+                    fields: validExplore.tables.a.dimensions,
+                    metricQuery: metricQueryMock,
                 });
             });
 
@@ -624,6 +619,8 @@ describe('AsyncQueryService', () => {
                 expect(result).toEqual({
                     status: QueryHistoryStatus.PENDING,
                     queryUuid: 'test-query-uuid',
+                    fields: validExplore.tables.a.dimensions,
+                    metricQuery: metricQueryMock,
                 });
             });
 
@@ -668,6 +665,8 @@ describe('AsyncQueryService', () => {
                 expect(result).toEqual({
                     status: QueryHistoryStatus.CANCELLED,
                     queryUuid: 'test-query-uuid',
+                    fields: validExplore.tables.a.dimensions,
+                    metricQuery: metricQueryMock,
                 });
             });
 
@@ -731,6 +730,8 @@ describe('AsyncQueryService', () => {
                     totalPageCount: 1,
                     totalResults: 10,
                     queryUuid: 'test-query-uuid',
+                    fields: validExplore.tables.a.dimensions,
+                    metricQuery: metricQueryMock,
                     pageSize: 1,
                     page: 1,
                     nextPage: undefined,
@@ -871,6 +872,8 @@ describe('AsyncQueryService', () => {
                     error: 'Test error message',
                     status: QueryHistoryStatus.ERROR,
                     queryUuid: 'test-query-uuid',
+                    fields: validExplore.tables.a.dimensions,
+                    metricQuery: metricQueryMock,
                 });
             });
 
@@ -915,6 +918,8 @@ describe('AsyncQueryService', () => {
                 expect(result).toEqual({
                     status: QueryHistoryStatus.PENDING,
                     queryUuid: 'test-query-uuid',
+                    fields: validExplore.tables.a.dimensions,
+                    metricQuery: metricQueryMock,
                 });
             });
 
@@ -959,6 +964,8 @@ describe('AsyncQueryService', () => {
                 expect(result).toEqual({
                     status: QueryHistoryStatus.CANCELLED,
                     queryUuid: 'test-query-uuid',
+                    fields: validExplore.tables.a.dimensions,
+                    metricQuery: metricQueryMock,
                 });
             });
 
@@ -1024,6 +1031,8 @@ describe('AsyncQueryService', () => {
                     totalPageCount: 1,
                     totalResults: 1,
                     queryUuid: 'test-query-uuid',
+                    fields: validExplore.tables.a.dimensions,
+                    metricQuery: metricQueryMock,
                     pageSize: 1,
                     page: 1,
                     nextPage: undefined,
@@ -1113,6 +1122,8 @@ describe('AsyncQueryService', () => {
                     error: 'Warehouse error',
                     status: QueryHistoryStatus.ERROR,
                     queryUuid: 'test-query-uuid',
+                    fields: validExplore.tables.a.dimensions,
+                    metricQuery: metricQueryMock,
                 });
             });
         });

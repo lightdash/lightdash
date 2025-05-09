@@ -1,12 +1,9 @@
-import { type MetricQuery } from '@lightdash/common';
 import { useMemo, useState } from 'react';
 import { type InfiniteQueryResults } from './useQueryResults';
 
 const usePivotDimensions = (
     initialPivotDimensions: string[] | undefined,
-    resultsData:
-        | (InfiniteQueryResults & { metricQuery?: MetricQuery })
-        | undefined,
+    resultsData: InfiniteQueryResults | undefined,
 ) => {
     const [dirtyPivotDimensions, setPivotDimensions] = useState(
         initialPivotDimensions,

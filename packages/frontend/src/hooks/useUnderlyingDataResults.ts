@@ -1,9 +1,10 @@
 import {
     type ApiError,
-    type ApiExecuteAsyncMetricQueryResults,
+    type ApiExecuteAsyncQueryResults,
     type ApiGetAsyncQueryResults,
     type ApiQueryResults,
     assertUnreachable,
+    type DashboardFilters,
     type DateGranularity,
     type DateZoom,
     type ExecuteAsyncUnderlyingDataRequestParams,
@@ -39,6 +40,7 @@ const getUnderlyingDataResults = async (
 ): Promise<
     ApiQueryResults & {
         queryUuid: string;
+        appliedDashboardFilters: DashboardFilters | null;
         warehouseExecutionTimeMs?: number;
         totalClientFetchTimeMs?: number;
     }
@@ -46,7 +48,7 @@ const getUnderlyingDataResults = async (
     const startTime = new Date();
 
     const executeQueryResponse =
-        await lightdashApi<ApiExecuteAsyncMetricQueryResults>({
+        await lightdashApi<ApiExecuteAsyncQueryResults>({
             url: `/projects/${projectUuid}/query/underlying-data`,
             version: 'v2',
             method: 'POST',
@@ -130,15 +132,16 @@ const getUnderlyingDataResults = async (
 
     return {
         queryUuid: currentPage.queryUuid,
-        metricQuery: executeQueryResponse.metricQuery,
+        metricQuery: currentPage.metricQuery,
         cacheMetadata: executeQueryResponse.cacheMetadata,
         rows: allRows,
-        fields: executeQueryResponse.fields,
+        fields: currentPage.fields,
         warehouseExecutionTimeMs:
             currentPage.status === QueryHistoryStatus.READY
                 ? currentPage.initialQueryExecutionMs
                 : undefined,
         totalClientFetchTimeMs: totalTime,
+        appliedDashboardFilters: executeQueryResponse.appliedDashboardFilters,
     };
 };
 

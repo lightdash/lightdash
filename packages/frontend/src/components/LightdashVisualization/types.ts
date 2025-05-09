@@ -5,7 +5,6 @@ import {
     type Dimension,
     type ItemsMap,
     type Metric,
-    type MetricQuery,
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
@@ -20,12 +19,7 @@ import type usePieChartConfig from '../../hooks/usePieChartConfig';
 import type { InfiniteQueryResults } from '../../hooks/useQueryResults';
 
 export type VisualizationConfigCommon<T extends VisualizationConfig> = {
-    resultsData:
-        | (InfiniteQueryResults & {
-              metricQuery?: MetricQuery;
-              fields?: ItemsMap;
-          })
-        | undefined;
+    resultsData: InfiniteQueryResults | undefined;
     initialChartConfig: T['chartConfig']['validConfig'] | undefined;
     onChartConfigChange?: (chartConfig: {
         type: T['chartType'];

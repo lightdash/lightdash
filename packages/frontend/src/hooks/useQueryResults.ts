@@ -1,6 +1,6 @@
 import {
     type ApiError,
-    type ApiExecuteAsyncMetricQueryResults,
+    type ApiExecuteAsyncQueryResults,
     type ApiGetAsyncQueryResults,
     type ApiSuccessEmpty,
     assertUnreachable,
@@ -46,8 +46,8 @@ const executeAsyncMetricQuery = async (
     projectUuid: string,
     data: ExecuteAsyncMetricQueryRequestParams,
     options: { signal?: AbortSignal } = {},
-): Promise<ApiExecuteAsyncMetricQueryResults> =>
-    lightdashApi<ApiExecuteAsyncMetricQueryResults>({
+): Promise<ApiExecuteAsyncQueryResults> =>
+    lightdashApi<ApiExecuteAsyncQueryResults>({
         url: `/projects/${projectUuid}/query/metric-query`,
         version: 'v2',
         method: 'POST',
@@ -59,8 +59,8 @@ const executeAsyncSavedChartQuery = async (
     projectUuid: string,
     data: ExecuteAsyncSavedChartRequestParams,
     options: { signal?: AbortSignal } = {},
-): Promise<ApiExecuteAsyncMetricQueryResults> =>
-    lightdashApi<ApiExecuteAsyncMetricQueryResults>({
+): Promise<ApiExecuteAsyncQueryResults> =>
+    lightdashApi<ApiExecuteAsyncQueryResults>({
         url: `/projects/${projectUuid}/query/chart`,
         version: 'v2',
         method: 'POST',
@@ -74,7 +74,7 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
         forbiddenToastTitle: 'Error running query',
     });
 
-    const result = useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
+    const result = useQuery<ApiExecuteAsyncQueryResults, ApiError>({
         enabled: !!data,
         queryKey: ['create-query', data],
         queryFn: ({ signal }) => {
@@ -165,7 +165,11 @@ const getResultsPage = async (
 export type InfiniteQueryResults = Partial<
     Pick<
         ReadyQueryResultsPage,
-        'queryUuid' | 'totalResults' | 'initialQueryExecutionMs'
+        | 'metricQuery'
+        | 'queryUuid'
+        | 'totalResults'
+        | 'fields'
+        | 'initialQueryExecutionMs'
     >
 > & {
     projectUuid?: string;
@@ -396,6 +400,8 @@ export const useInfiniteQueryResults = (
             projectUuid,
             queryUuid,
             queryStatus: nextPageData?.status, // show latest status
+            metricQuery: fetchedPages[0]?.metricQuery,
+            fields: fetchedPages[0]?.fields,
             totalResults: fetchedPages[0]?.totalResults,
             initialQueryExecutionMs: fetchedPages[0]?.initialQueryExecutionMs,
             hasFetchedAllRows,

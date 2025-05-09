@@ -84,10 +84,10 @@ export const useColumns = (): TableColumn[] => {
         (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
     const resultsMetricQuery = useExplorerContext(
-        (context) => context.query.data?.metricQuery,
+        (context) => context.queryResults.metricQuery,
     );
     const resultsFields = useExplorerContext(
-        (context) => context.query.data?.fields,
+        (context) => context.queryResults.fields,
     );
 
     const { data: exploreData } = useExplore(tableName, {

@@ -1,15 +1,11 @@
 import {
     ApiErrorPayload,
-    ApiExecuteAsyncDashboardChartQueryResults,
-    ApiExecuteAsyncDashboardSqlChartQueryResults,
-    ApiExecuteAsyncSqlQueryResults,
     ApiGetAsyncQueryResults,
-    ApiSuccess,
     ApiSuccessEmpty,
     ExecuteAsyncSqlQueryRequestParams,
     isExecuteAsyncDashboardSqlChartByUuidParams,
     QueryExecutionContext,
-    type ApiExecuteAsyncMetricQueryResults,
+    type ApiExecuteAsyncQueryResults,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
@@ -40,6 +36,11 @@ import { BaseController } from '../baseController';
 export type ApiGetAsyncQueryResultsResponse = {
     status: 'ok';
     results: ApiGetAsyncQueryResults;
+};
+
+export type ApiExecuteAsyncQueryResponse = {
+    status: 'ok';
+    results: ApiExecuteAsyncQueryResults;
 };
 
 @Route('/api/v2/projects/{projectUuid}/query')
@@ -114,7 +115,7 @@ export class QueryController extends BaseController {
         body: ExecuteAsyncMetricQueryRequestParams,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiExecuteAsyncMetricQueryResults>> {
+    ): Promise<ApiExecuteAsyncQueryResponse> {
         this.setStatus(200);
         const context = body.context ?? getContextFromHeader(req);
 
@@ -159,7 +160,7 @@ export class QueryController extends BaseController {
         body: ExecuteAsyncSavedChartRequestParams,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiExecuteAsyncMetricQueryResults>> {
+    ): Promise<ApiExecuteAsyncQueryResponse> {
         this.setStatus(200);
 
         const context = body.context ?? getContextFromHeader(req);
@@ -191,7 +192,7 @@ export class QueryController extends BaseController {
         body: ExecuteAsyncDashboardChartRequestParams,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiExecuteAsyncDashboardChartQueryResults>> {
+    ): Promise<ApiExecuteAsyncQueryResponse> {
         this.setStatus(200);
 
         const context = body.context ?? getContextFromHeader(req);
@@ -226,7 +227,7 @@ export class QueryController extends BaseController {
         body: ExecuteAsyncUnderlyingDataRequestParams,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiExecuteAsyncMetricQueryResults>> {
+    ): Promise<ApiExecuteAsyncQueryResponse> {
         this.setStatus(200);
 
         const context = body.context ?? getContextFromHeader(req);
@@ -261,7 +262,7 @@ export class QueryController extends BaseController {
         body: ExecuteAsyncSqlQueryRequestParams,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiExecuteAsyncSqlQueryResults>> {
+    ): Promise<ApiExecuteAsyncQueryResponse> {
         this.setStatus(200);
         const context = body.context ?? getContextFromHeader(req);
 
@@ -292,7 +293,7 @@ export class QueryController extends BaseController {
         body: ExecuteAsyncDashboardSqlChartRequestParams,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiExecuteAsyncDashboardSqlChartQueryResults>> {
+    ): Promise<ApiExecuteAsyncQueryResponse> {
         this.setStatus(200);
         const context = body.context ?? getContextFromHeader(req);
 

@@ -517,40 +517,20 @@ export type ApiQueryResults = {
     fields: ItemsMap;
 };
 
-type ApiExecuteAsyncQueryResultsCommon = {
+export type ApiExecuteAsyncQueryResults = {
     queryUuid: string;
+    appliedDashboardFilters: DashboardFilters | null;
     cacheMetadata: CacheMetadata;
 };
-
-export type ApiExecuteAsyncMetricQueryResults =
-    ApiExecuteAsyncQueryResultsCommon & {
-        metricQuery: MetricQuery;
-        fields: ItemsMap;
-    };
-
-export type ApiExecuteAsyncDashboardChartQueryResults =
-    ApiExecuteAsyncQueryResultsCommon & {
-        metricQuery: MetricQuery;
-        fields: ItemsMap;
-        appliedDashboardFilters: DashboardFilters;
-    };
-
-export type ApiExecuteAsyncSqlQueryResults =
-    ApiExecuteAsyncQueryResultsCommon & {
-        // leaving empty for now
-    };
-
-export type ApiExecuteAsyncDashboardSqlChartQueryResults =
-    ApiExecuteAsyncQueryResultsCommon & {
-        appliedDashboardFilters: DashboardFilters;
-    };
 
 export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     queryUuid: string;
     columns: ResultColumns;
     rows: ResultRow[];
+    fields: ItemsMap;
     initialQueryExecutionMs: number;
     resultsPageExecutionMs: number;
+    metricQuery: MetricQuery;
     status: QueryHistoryStatus.READY;
 };
 
@@ -559,11 +539,15 @@ export type ApiGetAsyncQueryResults =
     | {
           status: QueryHistoryStatus.PENDING | QueryHistoryStatus.CANCELLED;
           queryUuid: string;
+          metricQuery: MetricQuery;
+          fields: ItemsMap;
       }
     | {
           status: QueryHistoryStatus.ERROR;
           queryUuid: string;
           error: string | null;
+          metricQuery: MetricQuery;
+          fields: ItemsMap;
       };
 
 export type ApiChartAndResults = {
@@ -863,10 +847,7 @@ type ApiResults =
     | ApiMetricsExplorerTotalResults['results']
     | ApiGetSpotlightTableConfig['results']
     | ApiCalculateSubtotalsResponse['results']
-    | ApiExecuteAsyncSqlQueryResults
-    | ApiExecuteAsyncDashboardSqlChartQueryResults
-    | ApiExecuteAsyncMetricQueryResults
-    | ApiExecuteAsyncDashboardChartQueryResults
+    | ApiExecuteAsyncQueryResults
     | ApiGetAsyncQueryResults
     | ApiUserActivityDownloadCsv['results'];
 

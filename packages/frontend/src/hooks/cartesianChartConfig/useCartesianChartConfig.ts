@@ -13,7 +13,6 @@ import {
     type EchartsLegend,
     type ItemsMap,
     type MarkLineData,
-    type MetricQuery,
     type Series,
     type SeriesMetadata,
     type TableCalculationMetadata,
@@ -43,12 +42,7 @@ export type CartesianTypeOptions = {
 type Args = {
     initialChartConfig: CartesianChart | undefined;
     pivotKeys: string[] | undefined;
-    resultsData:
-        | (InfiniteQueryResults & {
-              metricQuery?: MetricQuery;
-              fields?: ItemsMap;
-          })
-        | undefined;
+    resultsData: InfiniteQueryResults | undefined;
     setPivotDimensions: React.Dispatch<
         React.SetStateAction<string[] | undefined>
     >;

@@ -7,7 +7,6 @@ import {
     pivotQueryResults,
     type ApiChartAndResults,
     type ApiExploreResults,
-    type ItemsMap,
     type SavedChart,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
@@ -101,7 +100,7 @@ const pivotResultsAsCsv = (
 };
 export const DashboardMinimalDownloadCsv: FC<{
     explore: ApiExploreResults;
-    resultsData: InfiniteQueryResults & { fields?: ItemsMap };
+    resultsData: InfiniteQueryResults;
     chart: SavedChart;
 }> = ({ explore, resultsData, chart }) => {
     const { track } = useTracking();

@@ -1,8 +1,4 @@
-import {
-    type ChartType,
-    type ItemsMap,
-    type MetricQuery,
-} from '@lightdash/common';
+import { type ChartType, type ItemsMap } from '@lightdash/common';
 import type EChartsReact from 'echarts-for-react';
 import { createContext, type RefObject } from 'react';
 import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -16,12 +12,7 @@ type VisualizationContext = {
     minimal: boolean;
     chartRef: RefObject<EChartsReact | null>;
     pivotDimensions: string[] | undefined;
-    resultsData:
-        | (InfiniteQueryResults & {
-              metricQuery?: MetricQuery;
-              fields?: ItemsMap;
-          })
-        | undefined;
+    resultsData: InfiniteQueryResults | undefined;
     isLoading: boolean;
     columnOrder: string[];
     itemsMap: ItemsMap | undefined;
