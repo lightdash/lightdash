@@ -1,12 +1,10 @@
 import {
     AllVizChartConfig,
     CreateSqlChart,
-    generateSlug,
     NotFoundError,
     SpaceSummary,
     SqlChart,
     UpdateSqlChart,
-    VizBaseConfig,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../database/entities/dashboards';
@@ -358,5 +356,31 @@ export class SavedSqlModel {
         await this.database(SavedSqlTableName)
             .where('saved_sql_uuid', uuid)
             .delete();
+    }
+
+    async moveToSpace(
+        {
+            projectUuid,
+            itemUuid: savedSqlUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            targetSpaceUuid: string | null;
+        },
+        { tx = this.database }: { tx?: Knex } = {},
+    ): Promise<void> {
+        if (targetSpaceUuid === null) {
+            throw new Error('Cannot move saved sql chart out of a space');
+        }
+
+        const updateCount = await tx(SavedSqlTableName)
+            .update({ space_uuid: targetSpaceUuid })
+            .where('saved_sql_uuid', savedSqlUuid)
+            .where('project_uuid', projectUuid);
+
+        if (updateCount !== 1) {
+            throw new Error('Failed to move saved sql to space');
+        }
     }
 }

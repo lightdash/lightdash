@@ -1,12 +1,16 @@
 import { subject } from '@casl/ability';
 import {
+    AbilityAction,
     ApiCreateSqlChart,
+    BulkActionable,
     CreateSqlChart,
     ForbiddenError,
     isVizBarChartConfig,
     isVizLineChartConfig,
     isVizPieChartConfig,
+    NotFoundError,
     Organization,
+    ParameterError,
     Project,
     QueryExecutionContext,
     SessionUser,
@@ -17,6 +21,7 @@ import {
     UpdateSqlChart,
     VIZ_DEFAULT_AGGREGATION,
 } from '@lightdash/common';
+import { Knex } from 'knex';
 import { uniq } from 'lodash';
 import {
     CreateSqlChartVersionEvent,
@@ -40,7 +45,10 @@ type SavedSqlServiceArguments = {
 
 // TODO: Rename to SqlRunnerService
 
-export class SavedSqlService extends BaseService {
+export class SavedSqlService
+    extends BaseService
+    implements BulkActionable<Knex>
+{
     private readonly analytics: LightdashAnalytics;
 
     private readonly projectModel: ProjectModel;
@@ -102,50 +110,91 @@ export class SavedSqlService extends BaseService {
     }
 
     private async hasAccess(
-        user: SessionUser,
-        action: 'view' | 'create' | 'update' | 'delete' | 'manage',
-        {
-            spaceUuid,
-            projectUuid,
-            organizationUuid,
-        }: { spaceUuid: string; projectUuid: string; organizationUuid: string },
-    ): Promise<{ hasAccess: boolean; userAccess: SpaceShare | undefined }> {
+        action: AbilityAction,
+        actor: {
+            user: SessionUser;
+            projectUuid: string;
+        },
+        resource:
+            | {
+                  savedSqlUuid: null;
+                  spaceUuid: string;
+              }
+            | {
+                  savedSqlUuid: string;
+                  spaceUuid?: string;
+              },
+    ): Promise<SpaceShare[]> {
+        let { spaceUuid } = resource;
+
+        if (resource.savedSqlUuid !== null) {
+            const savedSql = await this.savedSqlModel.getByUuid(
+                resource.savedSqlUuid,
+                {
+                    projectUuid: actor.projectUuid,
+                },
+            );
+
+            if (!savedSql) {
+                throw new NotFoundError('Saved SQL Chart not found');
+            }
+
+            spaceUuid = savedSql.space.uuid;
+        }
+
+        if (!spaceUuid) {
+            throw new NotFoundError('Space is required');
+        }
+
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            actor.user.userUuid,
             spaceUuid,
         );
 
-        const hasPermission = user.ability.can(
+        const hasPermission = actor.user.ability.can(
             action,
             subject('SavedChart', {
-                organizationUuid,
-                projectUuid,
+                organizationUuid: space.organizationUuid,
+                projectUuid: actor.projectUuid,
                 isPrivate: space.isPrivate,
-                access,
+                access: spaceAccess,
             }),
         );
 
-        return {
-            hasAccess: hasPermission,
-            userAccess: access[0],
-        };
-    }
+        if (!hasPermission) {
+            throw new ForbiddenError(
+                `You don't have access to ${action} this Saved SQL chart`,
+            );
+        }
 
-    private async hasSavedChartAccess(
-        user: SessionUser,
-        action: 'view' | 'create' | 'update' | 'delete' | 'manage',
-        savedChart: {
-            project: Pick<Project, 'projectUuid'>;
-            organization: Pick<Organization, 'organizationUuid'>;
-            space: Pick<SpaceSummary, 'uuid'>;
-        },
-    ) {
-        return this.hasAccess(user, action, {
-            spaceUuid: savedChart.space.uuid,
-            projectUuid: savedChart.project.projectUuid,
-            organizationUuid: savedChart.organization.organizationUuid,
-        });
+        if (resource.spaceUuid && spaceUuid !== resource.spaceUuid) {
+            const newSpace = await this.spaceModel.getSpaceSummary(
+                resource.spaceUuid,
+            );
+            const newSpaceAccess = await this.spaceModel.getUserSpaceAccess(
+                actor.user.userUuid,
+                resource.spaceUuid,
+            );
+
+            const hasPermissionInNewSpace = actor.user.ability.can(
+                action,
+                subject('SavedChart', {
+                    organizationUuid: newSpace.organizationUuid,
+                    projectUuid: actor.projectUuid,
+                    isPrivate: newSpace.isPrivate,
+                    access: newSpaceAccess,
+                }),
+            );
+
+            if (!hasPermissionInNewSpace) {
+                throw new ForbiddenError(
+                    `You don't have access to ${action} this Saved SQL chart in the new space`,
+                );
+            }
+        }
+
+        return spaceAccess;
     }
 
     async getSqlChart(
@@ -164,12 +213,18 @@ export class SavedSqlService extends BaseService {
         } else {
             throw new Error('Either savedSqlUuid or slug must be provided');
         }
-        const { hasAccess: hasViewAccess, userAccess } =
-            await this.hasSavedChartAccess(user, 'view', savedChart);
 
-        if (!hasViewAccess) {
-            throw new ForbiddenError("You don't have access to this chart");
-        }
+        const spaceAccess = await this.hasAccess(
+            'view',
+            {
+                user,
+                projectUuid,
+            },
+            {
+                savedSqlUuid: savedChart.savedSqlUuid,
+            },
+        );
+
         this.analytics.track({
             event: 'sql_chart.view',
             userId: user.userUuid,
@@ -183,7 +238,7 @@ export class SavedSqlService extends BaseService {
             ...savedChart,
             space: {
                 ...savedChart.space,
-                userAccess,
+                userAccess: spaceAccess[0],
             },
         };
     }
@@ -204,21 +259,16 @@ export class SavedSqlService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const { hasAccess: hasCreateAccess } = await this.hasAccess(
-            user,
+
+        await this.hasAccess(
             'create',
+            { user, projectUuid },
             {
+                savedSqlUuid: null,
                 spaceUuid: sqlChart.spaceUuid,
-                projectUuid,
-                organizationUuid,
             },
         );
 
-        if (!hasCreateAccess) {
-            throw new ForbiddenError(
-                "You don't have permission to create this chart",
-            );
-        }
         const createdChart = await this.savedSqlModel.create(
             user.userUuid,
             projectUuid,
@@ -274,34 +324,18 @@ export class SavedSqlService extends BaseService {
             projectUuid,
         });
 
-        const { hasAccess: hasUpdateAccess } = await this.hasSavedChartAccess(
-            user,
+        await this.hasAccess(
             'update',
-            savedChart,
+            { user, projectUuid },
+            {
+                savedSqlUuid: savedChart.savedSqlUuid,
+                spaceUuid:
+                    sqlChart.unversionedData &&
+                    savedChart.space.uuid !== sqlChart.unversionedData.spaceUuid
+                        ? sqlChart.unversionedData.spaceUuid
+                        : undefined,
+            },
         );
-        if (!hasUpdateAccess) {
-            throw new ForbiddenError(
-                "You don't have permission to update this chart",
-            );
-        }
-
-        // check permission if the chart is being moved to a different space
-        if (
-            sqlChart.unversionedData &&
-            savedChart.space.uuid !== sqlChart.unversionedData.spaceUuid
-        ) {
-            const { hasAccess: hasUpdateAccessToNewSpace } =
-                await this.hasAccess(user, 'update', {
-                    spaceUuid: sqlChart.unversionedData.spaceUuid,
-                    organizationUuid: savedChart.organization.organizationUuid,
-                    projectUuid: savedChart.project.projectUuid,
-                });
-            if (!hasUpdateAccessToNewSpace) {
-                throw new ForbiddenError(
-                    "You don't have permission to move this chart to the new space",
-                );
-            }
-        }
 
         const updatedChart = await this.savedSqlModel.update({
             userUuid: user.userUuid,
@@ -346,16 +380,12 @@ export class SavedSqlService extends BaseService {
         const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
             projectUuid,
         });
-        const { hasAccess: hasDeleteAccess } = await this.hasSavedChartAccess(
-            user,
+        await this.hasAccess(
             'delete',
-            savedChart,
+            { user, projectUuid },
+            { savedSqlUuid: savedChart.savedSqlUuid },
         );
-        if (!hasDeleteAccess) {
-            throw new ForbiddenError(
-                "You don't have permission to delete this chart",
-            );
-        }
+
         await this.savedSqlModel.delete(savedSqlUuid);
 
         this.analytics.track({
@@ -427,14 +457,11 @@ export class SavedSqlService extends BaseService {
             if (!savedChart) {
                 throw new Error('Saved chart not found');
             }
-            const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
-                user,
+            await this.hasAccess(
                 'view',
-                savedChart,
+                { user, projectUuid },
+                { savedSqlUuid: savedChart.savedSqlUuid },
             );
-            if (!hasViewAccess) {
-                throw new ForbiddenError("You don't have access to this chart");
-            }
         } else if (
             // If it's not a saved chart, check if the user has access to run a pivot query
             user.ability.cannot(
@@ -488,14 +515,11 @@ export class SavedSqlService extends BaseService {
             throw new Error('Either chartUuid or slug must be provided');
         }
 
-        const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
-            user,
+        await this.hasAccess(
             'view',
-            savedChart,
+            { user, projectUuid },
+            { savedSqlUuid: savedChart.savedSqlUuid },
         );
-        if (!hasViewAccess) {
-            throw new ForbiddenError("You don't have access to this chart");
-        }
 
         const jobId = await this.schedulerClient.runSql({
             userUuid: user.userUuid,
@@ -514,5 +538,62 @@ export class SavedSqlService extends BaseService {
         return {
             jobId,
         };
+    }
+
+    async moveToSpace(
+        user: SessionUser,
+        {
+            projectUuid,
+            itemUuid: savedSqlUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            targetSpaceUuid: string | null;
+        },
+        {
+            tx,
+            checkForAccess = true,
+            trackEvent = true,
+        }: {
+            tx?: Knex;
+            checkForAccess?: boolean;
+            trackEvent?: boolean;
+        } = {},
+    ) {
+        if (!targetSpaceUuid) {
+            throw new ParameterError(
+                'You cannot move a dashboard outside of a space',
+            );
+        }
+
+        if (checkForAccess) {
+            await this.hasAccess(
+                'update',
+                { user, projectUuid },
+                { savedSqlUuid, spaceUuid: targetSpaceUuid },
+            );
+        }
+
+        await this.savedSqlModel.moveToSpace(
+            {
+                projectUuid,
+                itemUuid: savedSqlUuid,
+                targetSpaceUuid,
+            },
+            { tx },
+        );
+
+        if (trackEvent) {
+            this.analytics.track({
+                event: 'sql_chart.moved',
+                userId: user.userUuid,
+                properties: {
+                    chartId: savedSqlUuid,
+                    projectId: projectUuid,
+                    targetSpaceId: targetSpaceUuid,
+                },
+            });
+        }
     }
 }

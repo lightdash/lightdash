@@ -1,10 +1,11 @@
 import { subject } from '@casl/ability';
 import {
     AbilityAction,
+    BulkActionable,
     CreateSpace,
     ForbiddenError,
-    generateSlug,
     NotFoundError,
+    ParameterError,
     SessionUser,
     Space,
     SpaceMemberRole,
@@ -12,6 +13,7 @@ import {
     SpaceSummary,
     UpdateSpace,
 } from '@lightdash/common';
+import { Knex } from 'knex';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -64,7 +66,8 @@ export const hasViewAccessToSpace = (
             access,
         }),
     );
-export class SpaceService extends BaseService {
+
+export class SpaceService extends BaseService implements BulkActionable<Knex> {
     private readonly analytics: LightdashAnalytics;
 
     private readonly projectModel: ProjectModel;
@@ -257,62 +260,133 @@ export class SpaceService extends BaseService {
         return updatedSpace;
     }
 
-    async moveSpace(
-        user: SessionUser,
-        spaceUuid: string,
-        parentSpaceUuid: string | null,
+    private async hasAccess(
+        action: AbilityAction,
+        actor: {
+            user: SessionUser;
+            projectUuid: string;
+        },
+        resource: {
+            spaceUuid: string;
+            targetSpaceUuid?: string;
+        },
     ) {
-        const checkSpace = async (uuid: string) => {
-            const space = await this.spaceModel.getSpaceSummary(uuid);
-            const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                uuid,
+        const space = await this.spaceModel.getSpaceSummary(resource.spaceUuid);
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            actor.user.userUuid,
+            space.parentSpaceUuid ?? resource.spaceUuid,
+        );
+
+        const isActorAllowedToPerformAction = actor.user.ability.can(
+            action,
+            subject('Space', {
+                organizationUuid: actor.user.organizationUuid,
+                projectUuid: actor.projectUuid,
+                isPrivate: space.isPrivate,
+                access: spaceAccess,
+            }),
+        );
+
+        if (!isActorAllowedToPerformAction) {
+            throw new ForbiddenError(
+                `You don't have access to ${action} this space`,
             );
-            if (
-                user.ability.cannot(
-                    'manage',
+        }
+
+        if (resource.targetSpaceUuid) {
+            const newSpace = await this.spaceModel.getSpaceSummary(
+                resource.targetSpaceUuid,
+            );
+            const newSpaceAccess = await this.spaceModel.getUserSpaceAccess(
+                actor.user.userUuid,
+                resource.targetSpaceUuid,
+            );
+
+            const isActorAllowedToPerformActionInNewSpace =
+                actor.user.ability.can(
+                    action,
                     subject('Space', {
-                        ...space,
-                        access: spaceAccess,
+                        organizationUuid: newSpace.organizationUuid,
+                        projectUuid: actor.projectUuid,
+                        isPrivate: newSpace.isPrivate,
+                        access: newSpaceAccess,
                     }),
-                )
-            ) {
-                throw new ForbiddenError();
+                );
+
+            if (!isActorAllowedToPerformActionInNewSpace) {
+                throw new ForbiddenError(
+                    `You don't have access to ${action} this space in the new parent space`,
+                );
             }
-            return space;
-        };
+        }
+    }
 
-        const space = await checkSpace(spaceUuid);
+    async moveToSpace(
+        user: SessionUser,
+        {
+            projectUuid,
+            itemUuid: spaceUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            targetSpaceUuid: string | null;
+        },
+        {
+            tx,
+            checkForAccess = true,
+            trackEvent = true,
+        }: {
+            tx?: Knex;
+            checkForAccess?: boolean;
+            trackEvent?: boolean;
+        } = {},
+    ) {
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
 
-        // Space is already in the correct parent space
-        if (space.parentSpaceUuid === parentSpaceUuid) {
-            this.logger.info(
-                `Space ${spaceUuid} is already in the correct parent space ${parentSpaceUuid}`,
+        if (!space) {
+            throw new NotFoundError('Space not found');
+        }
+
+        if (space.parentSpaceUuid === targetSpaceUuid) {
+            throw new ParameterError(
+                `Space ${spaceUuid} is already in the correct parent space ${targetSpaceUuid}`,
             );
-            return;
         }
 
-        let parentSpace: Omit<SpaceSummary, 'userAccess'> | null = null;
-        if (parentSpaceUuid) {
-            parentSpace = await checkSpace(parentSpaceUuid);
-
-            if (parentSpace?.projectUuid !== space.projectUuid) {
-                throw new ForbiddenError();
-            }
+        if (checkForAccess) {
+            await this.hasAccess(
+                'manage',
+                { user, projectUuid },
+                {
+                    spaceUuid,
+                    targetSpaceUuid: targetSpaceUuid ?? undefined,
+                },
+            );
         }
 
-        await this.spaceModel.move(spaceUuid, parentSpaceUuid);
-
-        this.analytics.track({
-            event: 'space.moved',
-            userId: user.userUuid,
-            properties: {
-                name: space.name,
-                spaceId: spaceUuid,
-                oldParentSpaceId: space.parentSpaceUuid,
-                projectId: space.projectUuid,
+        await this.spaceModel.moveToSpace(
+            {
+                projectUuid: space.projectUuid,
+                itemUuid: spaceUuid,
+                targetSpaceUuid,
             },
-        });
+            { tx },
+        );
+
+        if (trackEvent) {
+            this.analytics.track({
+                event: 'space.moved',
+                userId: user.userUuid,
+                properties: {
+                    name: space.name,
+                    spaceId: spaceUuid,
+                    oldParentSpaceId: space.parentSpaceUuid,
+                    newParentSpaceId: targetSpaceUuid,
+                    projectId: space.projectUuid,
+                },
+            });
+        }
     }
 
     async deleteSpace(user: SessionUser, spaceUuid: string): Promise<void> {

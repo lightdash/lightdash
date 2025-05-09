@@ -39,6 +39,10 @@ export class ContentModel {
         this.database = args.database;
     }
 
+    getDatabase() {
+        return this.database;
+    }
+
     async findSummaryContents(
         filters: ContentFilters,
         queryArgs: ContentArgs,

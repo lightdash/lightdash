@@ -75,7 +75,7 @@ const SpaceSelector = ({
     );
 
     return (
-        <Stack h="400px">
+        <Stack h="600px">
             {userCanManageProject ? (
                 <AdminContentViewFilter
                     value={selectedAdminContentType}

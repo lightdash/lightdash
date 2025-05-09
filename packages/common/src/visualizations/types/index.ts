@@ -28,6 +28,9 @@ export const vizAggregationOptions = [
 
 export const VIZ_DEFAULT_AGGREGATION = VizAggregationOptions.COUNT;
 
+/**
+ * @deprecated Use type ResultColumn
+ */
 export type VizColumn = {
     reference: string;
     type?: DimensionType;

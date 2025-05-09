@@ -11154,22 +11154,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name-string_-Array-or-undefined--yAxis_63__58__name-string_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name-string_-Array-or-undefined--xAxis_63__58__name-string_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name-string_-Array-or-undefined--yAxis_63__58__name-string_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name-string_-Array-or-undefined--xAxis_63__58__name-string_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name-string_-Array-or-undefined--yAxis_63__58__name-string_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name-string_-Array-or-undefined--xAxis_63__58__name-string_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name-string_-Array-or-undefined--yAxis_63__58__name-string_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name-string_-Array-or-undefined--xAxis_63__58__name-string_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiChartAsCodeListResponse": {
@@ -15285,6 +15285,29 @@
                     }
                 ]
             },
+            "ResultColumn": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "name"],
+                "type": "object"
+            },
+            "Record_string.ResultColumn_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ResultColumn"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ResultColumns": {
+                "$ref": "#/components/schemas/Record_string.ResultColumn_"
+            },
             "ResultValue": {
                 "properties": {
                     "formatted": {
@@ -15326,9 +15349,6 @@
                             "status": {
                                 "$ref": "#/components/schemas/QueryHistoryStatus.READY"
                             },
-                            "metricQuery": {
-                                "$ref": "#/components/schemas/MetricQuery"
-                            },
                             "resultsPageExecutionMs": {
                                 "type": "number",
                                 "format": "double"
@@ -15337,14 +15357,14 @@
                                 "type": "number",
                                 "format": "double"
                             },
-                            "fields": {
-                                "$ref": "#/components/schemas/ItemsMap"
-                            },
                             "rows": {
                                 "items": {
                                     "$ref": "#/components/schemas/ResultRow"
                                 },
                                 "type": "array"
+                            },
+                            "columns": {
+                                "$ref": "#/components/schemas/ResultColumns"
                             },
                             "queryUuid": {
                                 "type": "string"
@@ -15352,11 +15372,10 @@
                         },
                         "required": [
                             "status",
-                            "metricQuery",
                             "resultsPageExecutionMs",
                             "initialQueryExecutionMs",
-                            "fields",
                             "rows",
+                            "columns",
                             "queryUuid"
                         ],
                         "type": "object"
@@ -15382,12 +15401,6 @@
                     },
                     {
                         "properties": {
-                            "fields": {
-                                "$ref": "#/components/schemas/ItemsMap"
-                            },
-                            "metricQuery": {
-                                "$ref": "#/components/schemas/MetricQuery"
-                            },
                             "queryUuid": {
                                 "type": "string"
                             },
@@ -15402,22 +15415,11 @@
                                 ]
                             }
                         },
-                        "required": [
-                            "fields",
-                            "metricQuery",
-                            "queryUuid",
-                            "status"
-                        ],
+                        "required": ["queryUuid", "status"],
                         "type": "object"
                     },
                     {
                         "properties": {
-                            "fields": {
-                                "$ref": "#/components/schemas/ItemsMap"
-                            },
-                            "metricQuery": {
-                                "$ref": "#/components/schemas/MetricQuery"
-                            },
                             "error": {
                                 "type": "string",
                                 "nullable": true
@@ -15429,13 +15431,7 @@
                                 "$ref": "#/components/schemas/QueryHistoryStatus.ERROR"
                             }
                         },
-                        "required": [
-                            "fields",
-                            "metricQuery",
-                            "error",
-                            "queryUuid",
-                            "status"
-                        ],
+                        "required": ["error", "queryUuid", "status"],
                         "type": "object"
                     }
                 ]
@@ -15454,34 +15450,41 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiExecuteAsyncQueryResults": {
+            "ApiExecuteAsyncQueryResultsCommon": {
                 "properties": {
                     "cacheMetadata": {
                         "$ref": "#/components/schemas/CacheMetadata"
-                    },
-                    "appliedDashboardFilters": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DashboardFilters"
-                            }
-                        ],
-                        "nullable": true
                     },
                     "queryUuid": {
                         "type": "string"
                     }
                 },
-                "required": [
-                    "cacheMetadata",
-                    "appliedDashboardFilters",
-                    "queryUuid"
-                ],
+                "required": ["cacheMetadata", "queryUuid"],
                 "type": "object"
             },
-            "ApiExecuteAsyncQueryResponse": {
+            "ApiExecuteAsyncMetricQueryResults": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncQueryResultsCommon"
+                    },
+                    {
+                        "properties": {
+                            "fields": {
+                                "$ref": "#/components/schemas/ItemsMap"
+                            },
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/MetricQuery"
+                            }
+                        },
+                        "required": ["fields", "metricQuery"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_ApiExecuteAsyncMetricQueryResults_": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/ApiExecuteAsyncQueryResults"
+                        "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
                     },
                     "status": {
                         "type": "string",
@@ -15664,6 +15667,46 @@
                     }
                 ]
             },
+            "ApiExecuteAsyncDashboardChartQueryResults": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncQueryResultsCommon"
+                    },
+                    {
+                        "properties": {
+                            "appliedDashboardFilters": {
+                                "$ref": "#/components/schemas/DashboardFilters"
+                            },
+                            "fields": {
+                                "$ref": "#/components/schemas/ItemsMap"
+                            },
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/MetricQuery"
+                            }
+                        },
+                        "required": [
+                            "appliedDashboardFilters",
+                            "fields",
+                            "metricQuery"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_ApiExecuteAsyncDashboardChartQueryResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncDashboardChartQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ExecuteAsyncDashboardChartRequestParams": {
                 "allOf": [
                     {
@@ -15728,6 +15771,31 @@
                     }
                 ]
             },
+            "ApiExecuteAsyncSqlQueryResults": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncQueryResultsCommon"
+                    },
+                    {
+                        "properties": {},
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_ApiExecuteAsyncSqlQueryResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncSqlQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "SortBy": {
                 "items": {
                     "$ref": "#/components/schemas/VizSortBy"
@@ -15773,6 +15841,36 @@
                         "type": "object"
                     }
                 ]
+            },
+            "ApiExecuteAsyncDashboardSqlChartQueryResults": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncQueryResultsCommon"
+                    },
+                    {
+                        "properties": {
+                            "appliedDashboardFilters": {
+                                "$ref": "#/components/schemas/DashboardFilters"
+                            }
+                        },
+                        "required": ["appliedDashboardFilters"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_ApiExecuteAsyncDashboardSqlChartQueryResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncDashboardSqlChartQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "ExecuteAsyncDashboardSqlChartCommonParams": {
                 "allOf": [
@@ -16397,6 +16495,79 @@
             "ContentSortByColumns": {
                 "enum": ["name", "space_name", "last_updated_at"],
                 "type": "string"
+            },
+            "ContentBulkActionMove": {
+                "properties": {
+                    "targetSpaceUuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["move"],
+                        "nullable": false
+                    }
+                },
+                "required": ["targetSpaceUuid", "type"],
+                "type": "object"
+            },
+            "ApiContentBulkActionBody_ContentBulkActionMove_": {
+                "properties": {
+                    "action": {
+                        "$ref": "#/components/schemas/ContentBulkActionMove"
+                    },
+                    "content": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "properties": {
+                                        "source": {
+                                            "$ref": "#/components/schemas/ChartSourceType"
+                                        },
+                                        "contentType": {
+                                            "$ref": "#/components/schemas/ContentType.CHART"
+                                        },
+                                        "uuid": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "source",
+                                        "contentType",
+                                        "uuid"
+                                    ],
+                                    "type": "object"
+                                },
+                                {
+                                    "properties": {
+                                        "contentType": {
+                                            "$ref": "#/components/schemas/ContentType.DASHBOARD"
+                                        },
+                                        "uuid": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["contentType", "uuid"],
+                                    "type": "object"
+                                },
+                                {
+                                    "properties": {
+                                        "contentType": {
+                                            "$ref": "#/components/schemas/ContentType.SPACE"
+                                        },
+                                        "uuid": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["contentType", "uuid"],
+                                    "type": "object"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["action", "content"],
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -16415,7 +16586,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1614.0",
+        "version": "0.1616.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

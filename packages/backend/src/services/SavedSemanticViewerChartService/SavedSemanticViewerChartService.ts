@@ -1,7 +1,10 @@
 import { subject } from '@casl/ability';
 import {
+    BulkActionable,
     ForbiddenError,
+    NotFoundError,
     Organization,
+    ParameterError,
     Project,
     SavedSemanticViewerChart,
     SessionUser,
@@ -17,6 +20,7 @@ import {
     type SemanticViewerChartUpdate,
     type SemanticViewerChartUpdateResult,
 } from '@lightdash/common';
+import { Knex } from 'knex';
 import { uniq } from 'lodash';
 import {
     CreateSemanticViewerChartVersionEvent,
@@ -34,7 +38,10 @@ type SavedSemanticViewerChartServiceArguments = {
     savedSemanticViewerChartModel: SavedSemanticViewerChartModel;
 };
 
-export class SavedSemanticViewerChartService extends BaseService {
+export class SavedSemanticViewerChartService
+    extends BaseService
+    implements BulkActionable<Knex>
+{
     private readonly analytics: LightdashAnalytics;
 
     private readonly projectModel: ProjectModel;
@@ -97,53 +104,93 @@ export class SavedSemanticViewerChartService extends BaseService {
         };
     }
 
-    private async hasAccess(
-        user: SessionUser,
+    async hasAccess(
         action: AbilityAction,
-        {
-            spaceUuid,
-            projectUuid,
-            organizationUuid,
-        }: { spaceUuid: string; projectUuid: string; organizationUuid: string },
-    ): Promise<{ hasAccess: boolean; userAccess: SpaceShare | undefined }> {
+        actor: {
+            user: SessionUser;
+            projectUuid: string;
+        },
+        resource:
+            | {
+                  savedSemanticViewerChartUuid: null;
+                  spaceUuid: string;
+              }
+            | {
+                  savedSemanticViewerChartUuid: string;
+                  spaceUuid?: string;
+              },
+    ): Promise<SpaceShare[]> {
+        let { spaceUuid } = resource;
+
+        if (resource.savedSemanticViewerChartUuid !== null) {
+            const savedSemanticViewerChart =
+                await this.savedSemanticViewerChartModel.getByUuid(
+                    actor.projectUuid,
+                    resource.savedSemanticViewerChartUuid,
+                );
+
+            if (!savedSemanticViewerChart) {
+                throw new NotFoundError(
+                    'Saved Semantic Viewer Chart not found',
+                );
+            }
+
+            spaceUuid = savedSemanticViewerChart.space.uuid;
+        }
+
+        if (!spaceUuid) {
+            throw new NotFoundError('Space is required');
+        }
+
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            actor.user.userUuid,
             spaceUuid,
         );
 
-        const hasPermission = user.ability.can(
+        const hasPermission = actor.user.ability.can(
             action,
             subject('SavedChart', {
-                organizationUuid,
-                projectUuid,
+                organizationUuid: space.organizationUuid,
+                projectUuid: actor.projectUuid,
                 isPrivate: space.isPrivate,
-                access,
+                access: spaceAccess,
             }),
         );
 
-        return {
-            hasAccess: hasPermission,
-            userAccess: access[0],
-        };
-    }
+        if (!hasPermission) {
+            throw new ForbiddenError(
+                `You don't have access to ${action} this Saved Semantic Viewer Chart`,
+            );
+        }
 
-    // TODO: this should be public but I use this service inside SemanticLayerService.... which is wrong.
-    // I think it should be combined now
-    async hasSavedChartAccess(
-        user: SessionUser,
-        action: AbilityAction,
-        savedChart: {
-            project: Pick<Project, 'projectUuid'>;
-            organization: Pick<Organization, 'organizationUuid'>;
-            space: Pick<SpaceSummary, 'uuid'>;
-        },
-    ) {
-        return this.hasAccess(user, action, {
-            spaceUuid: savedChart.space.uuid,
-            projectUuid: savedChart.project.projectUuid,
-            organizationUuid: savedChart.organization.organizationUuid,
-        });
+        if (resource.spaceUuid && spaceUuid !== resource.spaceUuid) {
+            const newSpace = await this.spaceModel.getSpaceSummary(
+                resource.spaceUuid,
+            );
+            const newSpaceAccess = await this.spaceModel.getUserSpaceAccess(
+                actor.user.userUuid,
+                resource.spaceUuid,
+            );
+
+            const hasPermissionInNewSpace = actor.user.ability.can(
+                action,
+                subject('SavedChart', {
+                    organizationUuid: newSpace.organizationUuid,
+                    projectUuid: actor.projectUuid,
+                    isPrivate: newSpace.isPrivate,
+                    access: newSpaceAccess,
+                }),
+            );
+
+            if (!hasPermissionInNewSpace) {
+                throw new ForbiddenError(
+                    `You don't have access to ${action} this Saved Semantic Viewer Chart in the new space`,
+                );
+            }
+        }
+
+        return spaceAccess;
     }
 
     async getSemanticViewerChart(
@@ -177,12 +224,18 @@ export class SavedSemanticViewerChartService extends BaseService {
             );
         }
 
-        const { hasAccess: hasViewAccess, userAccess } =
-            await this.hasSavedChartAccess(user, 'view', savedChart);
+        const userAccess = await this.hasAccess(
+            'view',
+            {
+                user,
+                projectUuid,
+            },
+            {
+                savedSemanticViewerChartUuid:
+                    savedChart.savedSemanticViewerChartUuid,
+            },
+        );
 
-        if (!hasViewAccess) {
-            throw new ForbiddenError("You don't have access to this chart");
-        }
         this.analytics.track({
             event: 'semantic_viewer_chart.view',
             userId: user.userUuid,
@@ -196,7 +249,7 @@ export class SavedSemanticViewerChartService extends BaseService {
             ...savedChart,
             space: {
                 ...savedChart.space,
-                userAccess,
+                userAccess: userAccess[0],
             },
         };
     }
@@ -210,21 +263,14 @@ export class SavedSemanticViewerChartService extends BaseService {
             projectUuid,
         );
 
-        const { hasAccess: hasCreateAccess } = await this.hasAccess(
-            user,
+        await this.hasAccess(
             'create',
+            { user, projectUuid },
             {
+                savedSemanticViewerChartUuid: null,
                 spaceUuid: semanticViewerChart.spaceUuid,
-                projectUuid,
-                organizationUuid,
             },
         );
-
-        if (!hasCreateAccess) {
-            throw new ForbiddenError(
-                "You don't have permission to create this chart",
-            );
-        }
 
         const createdChart = await this.savedSemanticViewerChartModel.create(
             user.userUuid,
@@ -275,35 +321,11 @@ export class SavedSemanticViewerChartService extends BaseService {
             savedSemanticViewerChartUuid,
         );
 
-        const { hasAccess: hasUpdateAccess } = await this.hasSavedChartAccess(
-            user,
+        await this.hasAccess(
             'update',
-            savedChart,
+            { user, projectUuid },
+            { savedSemanticViewerChartUuid },
         );
-
-        if (!hasUpdateAccess) {
-            throw new ForbiddenError(
-                "You don't have permission to update this chart",
-            );
-        }
-
-        // check permission if the chart is being moved to a different space
-        if (
-            update.unversionedData &&
-            savedChart.space.uuid !== update.unversionedData.spaceUuid
-        ) {
-            const { hasAccess: hasUpdateAccessToNewSpace } =
-                await this.hasAccess(user, 'update', {
-                    spaceUuid: update.unversionedData.spaceUuid,
-                    organizationUuid: savedChart.organization.organizationUuid,
-                    projectUuid: savedChart.project.projectUuid,
-                });
-            if (!hasUpdateAccessToNewSpace) {
-                throw new ForbiddenError(
-                    "You don't have permission to move this chart to the new space",
-                );
-            }
-        }
 
         const updatedChart = await this.savedSemanticViewerChartModel.update({
             userUuid: user.userUuid,
@@ -351,17 +373,12 @@ export class SavedSemanticViewerChartService extends BaseService {
             savedSemanticViewerChartUuid,
         );
 
-        const { hasAccess: hasDeleteAccess } = await this.hasSavedChartAccess(
-            user,
+        await this.hasAccess(
             'delete',
-            savedChart,
+            { user, projectUuid },
+            { savedSemanticViewerChartUuid },
         );
 
-        if (!hasDeleteAccess) {
-            throw new ForbiddenError(
-                "You don't have permission to delete this chart",
-            );
-        }
         await this.savedSemanticViewerChartModel.delete(
             savedSemanticViewerChartUuid,
         );
@@ -375,5 +392,61 @@ export class SavedSemanticViewerChartService extends BaseService {
                 organizationId: savedChart.organization.organizationUuid,
             },
         });
+    }
+
+    async moveToSpace(
+        user: SessionUser,
+        {
+            projectUuid,
+            itemUuid: savedSemanticViewerChartUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            targetSpaceUuid: string | null;
+        },
+        {
+            tx,
+            checkForAccess = true,
+            trackEvent = true,
+        }: {
+            tx?: Knex;
+            checkForAccess?: boolean;
+            trackEvent?: boolean;
+        } = {},
+    ): Promise<void> {
+        if (!targetSpaceUuid) {
+            throw new ParameterError(
+                'You cannot move a dashboard outside of a space',
+            );
+        }
+        if (checkForAccess) {
+            await this.hasAccess(
+                'update',
+                { user, projectUuid },
+                { savedSemanticViewerChartUuid },
+            );
+        }
+
+        await this.savedSemanticViewerChartModel.moveToSpace(
+            {
+                projectUuid,
+                itemUuid: savedSemanticViewerChartUuid,
+                targetSpaceUuid,
+            },
+            { tx },
+        );
+
+        if (trackEvent) {
+            this.analytics.track({
+                event: 'semantic_viewer_chart.moved',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                    semanticViewerChartId: savedSemanticViewerChartUuid,
+                    targetSpaceId: targetSpaceUuid,
+                },
+            });
+        }
     }
 }

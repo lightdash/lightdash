@@ -769,9 +769,17 @@ export class ServiceRepository
             () =>
                 new ContentService({
                     analytics: this.context.lightdashAnalytics,
+                    // models
                     projectModel: this.models.getProjectModel(),
-                    spaceModel: this.models.getSpaceModel(),
                     contentModel: this.models.getContentModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    // services
+                    spaceService: this.getSpaceService(),
+                    dashboardService: this.getDashboardService(),
+                    savedChartService: this.getSavedChartService(),
+                    savedSqlService: this.getSavedSqlService(),
+                    savedSemanticViewerChartService:
+                        this.getSavedSemanticViewerChartService(),
                 }),
         );
     }
@@ -783,14 +791,15 @@ export class ServiceRepository
                 new SemanticLayerService({
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
-                    projectModel: this.models.getProjectModel(),
-                    downloadFileModel: this.models.getDownloadFileModel(),
 
                     schedulerClient: this.clients.getSchedulerClient(),
                     s3Client: this.clients.getS3Client(),
 
                     savedSemanticViewerChartService:
                         this.getSavedSemanticViewerChartService(),
+
+                    projectModel: this.models.getProjectModel(),
+                    downloadFileModel: this.models.getDownloadFileModel(),
                 }),
         );
     }

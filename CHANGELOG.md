@@ -1,3 +1,32 @@
+# [0.1618.0](https://github.com/lightdash/lightdash/compare/0.1617.0...0.1618.0) (2025-05-09)
+
+
+### Features
+
+* results columns metadata ([#14726](https://github.com/lightdash/lightdash/issues/14726)) ([5c78fa3](https://github.com/lightdash/lightdash/commit/5c78fa34b7e373f0e49f64f1c5a0b4a59f127e6f))
+
+# [0.1617.0](https://github.com/lightdash/lightdash/compare/0.1616.0...0.1617.0) (2025-05-09)
+
+
+### Features
+
+* adjust transfer items modal size ([#14738](https://github.com/lightdash/lightdash/issues/14738)) ([23cc31e](https://github.com/lightdash/lightdash/commit/23cc31eb172f7083f1bbbf1fcdb05de37fdd4299)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* ui/ux improvements for bulk selection actions ([#14737](https://github.com/lightdash/lightdash/issues/14737)) ([780a7c5](https://github.com/lightdash/lightdash/commit/780a7c5e8f2d0cdb2c2f8243eaffdb128b8f50e5)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+# [0.1616.0](https://github.com/lightdash/lightdash/compare/0.1615.0...0.1616.0) (2025-05-09)
+
+
+### Features
+
+* resource bulk actions - move to another space ([#14704](https://github.com/lightdash/lightdash/issues/14704)) ([05e09a7](https://github.com/lightdash/lightdash/commit/05e09a723cfe0bb130c99bd9663e5b9dc94c8148))
+
+# [0.1615.0](https://github.com/lightdash/lightdash/compare/0.1614.6...0.1615.0) (2025-05-08)
+
+
+### Features
+
+* amend query responses ([#14714](https://github.com/lightdash/lightdash/issues/14714)) ([9348411](https://github.com/lightdash/lightdash/commit/9348411d162e9beadf40919486d98230c89ec4be))
+
 ## [0.1614.6](https://github.com/lightdash/lightdash/compare/0.1614.5...0.1614.6) (2025-05-08)
 
 
