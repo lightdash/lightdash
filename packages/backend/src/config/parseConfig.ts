@@ -401,6 +401,7 @@ export type S3Config = {
     endpoint?: string;
     bucket?: string;
     expirationTime?: number;
+    forcePathStyle?: boolean;
 };
 export type IntercomConfig = {
     appId: string;
@@ -852,6 +853,7 @@ export const parseConfig = (): LightdashConfig => {
             secretKey: process.env.S3_SECRET_KEY,
             bucket: process.env.S3_BUCKET,
             endpoint: process.env.S3_ENDPOINT,
+            forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
             expirationTime: parseInt(
                 process.env.S3_EXPIRATION_TIME || '259200', // 3 days in seconds
                 10,
