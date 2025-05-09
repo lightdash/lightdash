@@ -1,3 +1,10 @@
+# [0.1616.0](https://github.com/lightdash/lightdash/compare/0.1615.0...0.1616.0) (2025-05-09)
+
+
+### Features
+
+* resource bulk actions - move to another space ([#14704](https://github.com/lightdash/lightdash/issues/14704)) ([05e09a7](https://github.com/lightdash/lightdash/commit/05e09a723cfe0bb130c99bd9663e5b9dc94c8148))
+
 # [0.1615.0](https://github.com/lightdash/lightdash/compare/0.1614.6...0.1615.0) (2025-05-08)
 
 
