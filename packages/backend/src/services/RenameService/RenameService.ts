@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AlreadyExistsError,
     ApiRenameBody,
+    ApiRenameChartBody,
     ApiRenameResponse,
     ChartSummary,
     DashboardDAO,
@@ -14,6 +15,7 @@ import {
     isDashboardChartTileType,
     isExploreError,
     isSubPath,
+    NameChanges,
     NotFoundError,
     ParameterError,
     PromotedChart as PromotedChangeChart,
@@ -45,6 +47,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import {
+    getNameChanges,
     renameAlert,
     renameDashboard,
     renameDashboardScheduler,
@@ -85,6 +88,174 @@ export class RenameService extends BaseService {
         this.dashboardModel = args.dashboardModel;
         this.schedulerClient = args.schedulerClient;
         this.schedulerModel = args.schedulerModel;
+    }
+
+    public async getFieldsForChart({
+        user,
+        projectUuid,
+        chartUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        chartUuid: string;
+    }) {
+        const chart = await this.savedChartModel.get(chartUuid);
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            chart.tableName,
+        );
+        if (isExploreError(explore)) {
+            throw new NotFoundError(
+                `Valid explore ${chart.tableName} not found`,
+            );
+        }
+        // TODO also add table calculations, custom metrics and dimensions
+        // TODO also add joins
+        const fields = Object.keys(
+            explore.tables[explore.baseTable].dimensions,
+        ).concat(Object.keys(explore.tables[explore.baseTable].metrics));
+        return {
+            [explore.baseTable]: fields.map((f) =>
+                getItemId({ name: f, table: explore.baseTable }),
+            ), // add explore prefix
+            tableCalculations: chart.metricQuery.tableCalculations?.map(
+                (tc) => tc.name,
+            ),
+            customMetrics: chart.metricQuery.additionalMetrics?.map(
+                (tc) => tc.name,
+            ),
+            customDimensions: chart.metricQuery.customDimensions?.map(
+                (tc) => tc.name,
+            ),
+        };
+    }
+
+    /**
+     * Triggered from the UI on validation settings
+     */
+    async renameChart({
+        user,
+        projectUuid,
+        chartUuid,
+        from,
+        to,
+        type,
+        fixAll,
+        context,
+    }: ApiRenameChartBody & {
+        user: SessionUser;
+        projectUuid: string;
+        context: RequestMethod;
+    }) {
+        if (from === to) {
+            throw new ParameterError(
+                'Old and new names are the same, nothing to rename',
+            );
+        }
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const chart = await this.savedChartModel.get(chartUuid);
+
+        const nameChanges = getNameChanges({
+            from,
+            to,
+            table: chart.tableName,
+            type,
+        });
+
+        if (type === RenameType.MODEL) {
+            // Verify the model we want to assign to really exists
+            // This will throw an error if the model does not exist
+            await this.projectModel.getExploreFromCache(projectUuid, to);
+        } else {
+            // When updating  from a chart (UI) we want to make sure the field exists in the current explore  or custom fields in chart
+            // From the UI, these should be already selected from a field, using getFieldsForChart
+            const fieldsInChart = [
+                ...chart.metricQuery.tableCalculations.map((tc) => tc.name),
+                ...(chart.metricQuery.additionalMetrics?.map((am) => am.name) ??
+                    []),
+                ...(chart.metricQuery.customDimensions?.map((cd) => cd.name) ??
+                    []),
+            ];
+
+            if (fieldsInChart.includes(to)) {
+                // It could be a table calculation / dimension / custom metric
+                this.logger.info(
+                    `Replacing field "${to}" with "${from}" from the chart "${chart.name}"`,
+                );
+            } else {
+                // Otherwise, it will keep failing
+                // This method will throw an error if the field does not exist on explore
+                const explore = await this.findExploreForField({
+                    projectUuid,
+                    fieldName: to,
+                    model: chart.tableName,
+                    isFullId: true,
+                });
+                this.logger.info(
+                    `Replacing field "${to}" with "${from}" from the explore "${explore.name}"`,
+                );
+            }
+        }
+
+        const { updatedChart, hasChanges } = renameSavedChart(
+            type,
+            chart,
+            nameChanges,
+            true, // validate
+        );
+
+        if (hasChanges) {
+            await this.savedChartModel.createVersion(
+                chart.uuid,
+                updatedChart,
+                undefined,
+            );
+        }
+
+        this.analytics.track({
+            event: 'rename_chart.executed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                context,
+                test: false,
+                type,
+                ...nameChanges,
+                chartId: chart.uuid,
+            },
+        });
+
+        if (fixAll) {
+            this.logger.debug(
+                `Scheduling a rename of all charts for ${JSON.stringify(
+                    nameChanges,
+                )}`,
+            );
+            await this.scheduleRenameResources({
+                context,
+                test: false,
+                user,
+                projectUuid,
+                type,
+                model: chart.tableName,
+                ...nameChanges,
+            });
+        }
     }
 
     async scheduleRenameResources({
@@ -128,14 +299,29 @@ export class RenameService extends BaseService {
         );
     }
 
-    private async findExploreForField(
-        projectUuid: string,
-        fieldName: string,
-    ): Promise<Explore> {
+    private async findExploreForField({
+        projectUuid,
+        fieldName,
+        model,
+        isFullId,
+    }: {
+        projectUuid: string;
+        fieldName: string;
+        model?: string;
+        isFullId: boolean; // If true, we will be looking at a full field id, with table prefix (eg: payment_customer_id)
+    }): Promise<Explore> {
         // Find the field we want to replace in the explore, and filter charts by that explore
-        const explores = await this.projectModel.getAllExploresFromCache(
-            projectUuid,
-        );
+        // If model is provided, we only want to rename the field on that model
+        // If model is not provided, we try finding the field in all the explores. If there are more than 1, we throw an error
+        const explores = model
+            ? {
+                  [model]: await this.projectModel.getExploreFromCache(
+                      projectUuid,
+                      model,
+                  ),
+              }
+            : await this.projectModel.getAllExploresFromCache(projectUuid);
+
         const exploreWithFields = Object.values(explores).reduce<Explore[]>(
             (acc, ex) => {
                 if (isExploreError(ex)) return acc;
@@ -145,7 +331,11 @@ export class RenameService extends BaseService {
                 const allFields = Object.keys(table.dimensions).concat(
                     Object.keys(table.metrics),
                 );
-                const hasField = allFields.includes(fieldName);
+                const fieldIds = isFullId
+                    ? allFields.map((f) => `${ex.baseTable}_${f}`)
+                    : allFields;
+
+                const hasField = fieldIds.includes(fieldName);
 
                 if (hasField) {
                     acc.push(ex);
@@ -154,6 +344,7 @@ export class RenameService extends BaseService {
             },
             [],
         );
+
         this.logger.debug(
             `Rename resources: Explores with field ${fieldName}: ${exploreWithFields
                 .map((e) => e.name)
@@ -162,7 +353,9 @@ export class RenameService extends BaseService {
 
         if (exploreWithFields.length === 0) {
             throw new NotFoundError(
-                `Field "${fieldName}" was not found on any existing models`,
+                `Field "${fieldName}" was not found ${
+                    model ? `on model "${model}"` : `on any existing models`
+                }`,
             );
         }
         if (exploreWithFields.length > 1) {
@@ -184,16 +377,31 @@ export class RenameService extends BaseService {
         context,
         from,
         to,
+        fromReference,
+        toReference,
         test,
         model,
+        fromFieldName,
+        toFieldName,
     }: RenameResourcesPayload): Promise<ApiRenameResponse['results']> {
         try {
             let exploreName: string;
-            let replaceFrom: string;
-            let replaceTo: string;
-            let replaceFromReference: string;
-            let replaceToReference: string;
-            if (type === RenameType.MODEL) {
+            let nameChanges: NameChanges;
+
+            if (fromReference && toReference && model) {
+                exploreName = model;
+                this.logger.debug(
+                    `Rename resources: Got references for field id "${fromReference}" to "${toReference}"`,
+                );
+                nameChanges = {
+                    from,
+                    to,
+                    fromReference,
+                    toReference,
+                    fromFieldName,
+                    toFieldName,
+                };
+            } else if (type === RenameType.MODEL) {
                 // This will throw error if explore does not exist
                 // When filtering explores, we need to check if the explore exists on from, or to
                 // since people might be running this rename method before or after dbt is updated
@@ -216,40 +424,45 @@ export class RenameService extends BaseService {
                     }
                 }
                 exploreName = from;
-                replaceFrom = from; // this is just the  table prefix
-                replaceFromReference = from; // this is just the table prefix
-                replaceTo = to;
-                replaceToReference = to;
+
+                nameChanges = {
+                    from, // this is just the  table prefix
+                    to,
+                    fromReference: from,
+                    toReference: to,
+                    fromFieldName: undefined,
+                    toFieldName: undefined,
+                };
             } else {
                 // Fields
-
                 let explore: Explore;
-                // If model is provided, we only want to rename the field on that model
-                // If model is not provided, we try finding the field in all the explores. If there are more than 1, we throw an error
-                if (model) {
-                    const exploreOrError =
-                        await this.projectModel.getExploreFromCache(
+                let fieldInExplore = from;
+
+                // Find the field we want to replace in the explore, and filter charts by that explore
+                // When filtering explores, we need to check if the explore exists on from, or to
+                // since people might be running this rename method before or after dbt is updated
+                try {
+                    explore = await this.findExploreForField({
+                        projectUuid,
+                        fieldName: from,
+                        model,
+                        isFullId: false,
+                    });
+                } catch (e) {
+                    if (e instanceof ParameterError) {
+                        // found on multiple models
+                        throw e;
+                    } else {
+                        this.logger.debug(
+                            `Explore not found for field "${from}", trying "${to}"`,
+                        );
+                        explore = await this.findExploreForField({
                             projectUuid,
+                            fieldName: to,
                             model,
-                        );
-                    if (isExploreError(exploreOrError)) {
-                        throw new NotFoundError(`Invalid explore "${from}"`);
-                    }
-                    explore = exploreOrError;
-                } else {
-                    // Find the field we want to replace in the explore, and filter charts by that explore
-                    // When filtering explores, we need to check if the explore exists on from, or to
-                    // since people might be running this rename method before or after dbt is updated
-                    try {
-                        explore = await this.findExploreForField(
-                            projectUuid,
-                            from,
-                        );
-                    } catch (e) {
-                        explore = await this.findExploreForField(
-                            projectUuid,
-                            to,
-                        );
+                            isFullId: false,
+                        });
+                        fieldInExplore = to;
                     }
                 }
 
@@ -258,29 +471,43 @@ export class RenameService extends BaseService {
                     ...Object.values(table.dimensions),
                     ...Object.values(table.metrics),
                 ];
-                const field = dimensionsAndMetrics.find((d) => d.name === from);
+                const field = dimensionsAndMetrics.find(
+                    (d) => d.name === fieldInExplore || d.name === to,
+                );
 
                 if (!field) {
                     // This should not happen, since we have already filtered the explores
                     throw new UnexpectedServerError(
-                        `Field "${from}" was not found on any existing models`,
+                        `Field "${fieldInExplore}" was not found ${
+                            model
+                                ? `on model "${model}"`
+                                : `on any existing models`
+                        }`,
                     );
                 }
 
                 exploreName = explore.name;
-                replaceFrom = getItemId(field);
-                replaceFromReference = getFieldRef(field);
-                replaceTo = getItemId({
-                    ...field,
-                    name: to,
-                });
-                replaceToReference = getFieldRef({
-                    ...field,
-                    name: to,
-                });
+
+                nameChanges = {
+                    from: getItemId({
+                        ...field,
+                        name: from,
+                    }),
+                    to: getItemId({
+                        ...field,
+                        name: to,
+                    }),
+                    fromReference: getFieldRef(field),
+                    toReference: getFieldRef({
+                        ...field,
+                        name: to,
+                    }),
+                    fromFieldName: from,
+                    toFieldName: to,
+                };
 
                 this.logger.debug(
-                    `Rename resources: Renaming field id "${replaceFrom}" to "${replaceTo}"`,
+                    `Rename resources: Renaming field id "${nameChanges.from}" to "${nameChanges.to}"`,
                 );
             }
             this.logger.debug(
@@ -303,12 +530,11 @@ export class RenameService extends BaseService {
 
             const charts = await Promise.all(chartPromises);
             const chartChanges = charts.reduce<SavedChartDAO[]>((acc, c) => {
-                const { updatedChart, hasChanges } = renameSavedChart(type, c, {
-                    from: replaceFrom,
-                    fromReference: replaceFromReference,
-                    to: replaceTo,
-                    toReference: replaceToReference,
-                });
+                const { updatedChart, hasChanges } = renameSavedChart(
+                    type,
+                    c,
+                    nameChanges,
+                );
 
                 if (hasChanges) {
                     acc.push(updatedChart);
@@ -335,12 +561,7 @@ export class RenameService extends BaseService {
                     const { updatedDashboard, hasChanges } = renameDashboard(
                         type,
                         d,
-                        {
-                            from: replaceFrom,
-                            fromReference: replaceFromReference,
-                            to: replaceTo,
-                            toReference: replaceToReference,
-                        },
+                        nameChanges,
                     );
 
                     if (hasChanges) {
@@ -365,12 +586,11 @@ export class RenameService extends BaseService {
 
             const alertChanges = alerts.reduce<SchedulerAndTargets[]>(
                 (acc, d) => {
-                    const { updatedAlert, hasChanges } = renameAlert(type, d, {
-                        from: replaceFrom,
-                        fromReference: replaceFromReference,
-                        to: replaceTo,
-                        toReference: replaceToReference,
-                    });
+                    const { updatedAlert, hasChanges } = renameAlert(
+                        type,
+                        d,
+                        nameChanges,
+                    );
 
                     if (hasChanges) {
                         acc.push(updatedAlert);
@@ -391,12 +611,7 @@ export class RenameService extends BaseService {
                 .flat()
                 .reduce<SchedulerAndTargets[]>((acc, d) => {
                     const { updatedDashboardScheduler, hasChanges } =
-                        renameDashboardScheduler(type, d, {
-                            from: replaceFrom,
-                            fromReference: replaceFromReference,
-                            to: replaceTo,
-                            toReference: replaceToReference,
-                        });
+                        renameDashboardScheduler(type, d, nameChanges);
                     if (hasChanges) {
                         acc.push(updatedDashboardScheduler);
                     }
@@ -420,9 +635,7 @@ export class RenameService extends BaseService {
                     renamedAlerts: alertChanges.length,
                     renamedDashboardSchedulers:
                         dashboardSchedulerChanges.length,
-                    from,
-                    to,
-                    type,
+                    ...nameChanges,
                 },
             });
 
@@ -470,10 +683,6 @@ export class RenameService extends BaseService {
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                     context,
-                    renamedCharts: 0,
-                    renamedDashboards: 0,
-                    renamedAlerts: 0,
-                    renamedDashboardSchedulers: 0,
                     from,
                     to,
                     type,

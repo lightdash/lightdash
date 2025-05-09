@@ -746,7 +746,6 @@ export class ServiceRepository
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
                     dashboardModel: this.models.getDashboardModel(),
-                    schedulerClient: this.clients.getSchedulerClient(),
                 }),
         );
     }

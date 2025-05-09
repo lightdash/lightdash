@@ -10,6 +10,7 @@ import * as styles from '../styles';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
+import { getProject } from './dbt/refresh';
 import {
     delay,
     getJobState,
@@ -77,12 +78,17 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
         );
     }
 
-    const projectUuid = options.project || config.context.project;
+    const projectUuid =
+        options.project ||
+        config.context.previewProject ||
+        config.context.project;
     if (!projectUuid) {
         throw new Error(
             'No project selected. Run lightdash config set-project',
         );
     }
+
+    const project = await getProject(projectUuid);
 
     if (!options.assumeYes && !options.test) {
         const answers = await inquirer.prompt([
@@ -96,8 +102,8 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
                 )} to ${styles.title(
                     options.to,
                 )} in all charts and dashboards in project ${styles.title(
-                    projectUuid,
-                )}.\nAre you sure you want to continue? `,
+                    project.name,
+                )} (${projectUuid}).\nAre you sure you want to continue? `,
             },
         ]);
 

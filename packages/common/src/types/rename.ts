@@ -4,7 +4,6 @@ import { type TraceTaskBase } from './scheduler';
 export enum RenameType {
     MODEL = 'model', // eg: payment
     FIELD = 'field', // eg: id
-    FIELD_ID = 'field_id', // eg: payment_id (used in the UI)
 }
 /**
  *  from: string, // Field id or table prefix to be replaced (eg: payment_customer_id) 
@@ -17,14 +16,22 @@ export type NameChanges = {
     to: string;
     fromReference: string;
     toReference: string;
+    fromFieldName: string | undefined;
+    toFieldName: string | undefined;
 };
 
-export type ApiRenameBody = {
+export type ApiRenameBody = NameChanges & {
     type: RenameType;
-    from: string;
-    to: string;
     test?: boolean;
     model?: string;
+};
+
+export type ApiRenameChartBody = {
+    from: string;
+    to: string;
+    type: RenameType;
+    chartUuid: string;
+    fixAll?: boolean;
 };
 export type ApiRenameResponse = {
     status: 'ok';
