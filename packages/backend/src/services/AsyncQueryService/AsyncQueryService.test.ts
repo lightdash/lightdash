@@ -167,7 +167,7 @@ describe('AsyncQueryService', () => {
             beforeEach(() => {
                 // clear in memory cache so new mock is applied
                 serviceWithCache.warehouseClients = {};
-                serviceWithCache.cacheService = {} as ICacheService<unknown>;
+                serviceWithCache.cacheService = {} as ICacheService;
 
                 jest.clearAllMocks();
                 // Mock the resultsCacheModel.createOrGetExistingCache method
@@ -533,7 +533,7 @@ describe('AsyncQueryService', () => {
             beforeEach(() => {
                 // clear in memory cache so new mock is applied
                 serviceWithCache.warehouseClients = {};
-                serviceWithCache.cacheService = {} as ICacheService<unknown>;
+                serviceWithCache.cacheService = {} as ICacheService;
 
                 jest.clearAllMocks();
             });
