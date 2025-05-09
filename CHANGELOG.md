@@ -1,3 +1,11 @@
+## [0.1618.1](https://github.com/lightdash/lightdash/compare/0.1618.0...0.1618.1) (2025-05-09)
+
+
+### Bug Fixes
+
+* <admins should see all content in tree selector ([#14743](https://github.com/lightdash/lightdash/issues/14743)) ([44c6a73](https://github.com/lightdash/lightdash/commit/44c6a73c7c82dbdffa8e6554edbdd355982e46d5)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* admins should see spaces that are public in resource table ([#14741](https://github.com/lightdash/lightdash/issues/14741)) ([93ec316](https://github.com/lightdash/lightdash/commit/93ec316462124b7cfe70780d7bed99be35c75c13)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.1618.0](https://github.com/lightdash/lightdash/compare/0.1617.0...0.1618.0) (2025-05-09)
 
 
