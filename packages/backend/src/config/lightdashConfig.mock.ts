@@ -103,11 +103,20 @@ export const lightdashConfigMock: LightdashConfig = {
     maxPayloadSize: '',
     pivotTable: { maxColumnLimit: 0 },
     posthog: undefined,
-    resultsCache: {
+    s3: {
+        endpoint: 'mock_endpoint',
+        bucket: 'mock_bucket',
+        region: 'mock_region',
+    },
+    results: {
         cacheStateTimeSeconds: 0,
-        resultsEnabled: false,
+        cacheEnabled: false,
         autocompleteEnabled: false,
-        s3: {},
+        s3: {
+            endpoint: 'mock_endpoint',
+            bucket: 'mock_bucket',
+            region: 'mock_region',
+        },
     },
     rudder: {
         writeKey: '',
