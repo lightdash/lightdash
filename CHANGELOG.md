@@ -1,3 +1,10 @@
+# [0.1619.0](https://github.com/lightdash/lightdash/compare/0.1618.2...0.1619.0) (2025-05-09)
+
+
+### Features
+
+* unify all content item actions (only move so far) bulk or single ([#14745](https://github.com/lightdash/lightdash/issues/14745)) ([b2f7145](https://github.com/lightdash/lightdash/commit/b2f714549c51e3bd96a412b9e491443818cc3117)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.1618.2](https://github.com/lightdash/lightdash/compare/0.1618.1...0.1618.2) (2025-05-09)
 
 
