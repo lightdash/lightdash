@@ -234,7 +234,6 @@ const computeDashboardChartSeries = (
         });
         return newSeries;
     }
-
     return [];
 };
 
@@ -267,7 +266,7 @@ const ValidDashboardChartTile: FC<{
     const { health } = useApp();
 
     const {
-        executeQueryResponse: { cacheMetadata },
+        executeQueryResponse: { cacheMetadata, metricQuery },
         chart,
     } = dashboardChartReadyQuery;
 
@@ -277,7 +276,7 @@ const ValidDashboardChartTile: FC<{
 
     const { validPivotDimensions } = usePivotDimensions(
         chart.pivotConfig?.columns,
-        resultsData,
+        metricQuery,
     );
 
     const computedSeries: Series[] = useMemo(() => {
@@ -353,7 +352,7 @@ const ValidDashboardChartTileMinimal: FC<{
 
     const { validPivotDimensions } = usePivotDimensions(
         chart.pivotConfig?.columns,
-        resultsData,
+        dashboardChartReadyQuery.executeQueryResponse.metricQuery,
     );
 
     const computedSeries: Series[] = useMemo(() => {
