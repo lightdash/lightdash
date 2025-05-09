@@ -186,6 +186,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         <ActionIcon
                             disabled={disabled}
                             aria-label="Menu"
+                            data-testid={`ResourceViewActionMenu/${item.data.name}`}
                             sx={(theme) => ({
                                 ':hover': {
                                     backgroundColor: theme.colors.gray[1],

@@ -396,6 +396,7 @@ export const useCreateMutation = (
                 await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
                 ]);
+                await queryClient.invalidateQueries(['content']);
                 showToastSuccess({
                     title: `Success! Dashboard was created.`,
                     action: showRedirectButton
