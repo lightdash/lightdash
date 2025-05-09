@@ -74,7 +74,12 @@ export type DashboardTable = Knex.CompositeTableType<
     Partial<
         Pick<
             DbDashboard,
-            'name' | 'description' | 'views_count' | 'first_viewed_at' | 'slug'
+            | 'name'
+            | 'description'
+            | 'views_count'
+            | 'first_viewed_at'
+            | 'space_id'
+            | 'slug'
         >
     >
 >;

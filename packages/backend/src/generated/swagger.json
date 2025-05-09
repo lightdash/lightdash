@@ -16468,6 +16468,79 @@
             "ContentSortByColumns": {
                 "enum": ["name", "space_name", "last_updated_at"],
                 "type": "string"
+            },
+            "ContentBulkActionMove": {
+                "properties": {
+                    "targetSpaceUuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["move"],
+                        "nullable": false
+                    }
+                },
+                "required": ["targetSpaceUuid", "type"],
+                "type": "object"
+            },
+            "ApiContentBulkActionBody_ContentBulkActionMove_": {
+                "properties": {
+                    "action": {
+                        "$ref": "#/components/schemas/ContentBulkActionMove"
+                    },
+                    "content": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "properties": {
+                                        "source": {
+                                            "$ref": "#/components/schemas/ChartSourceType"
+                                        },
+                                        "contentType": {
+                                            "$ref": "#/components/schemas/ContentType.CHART"
+                                        },
+                                        "uuid": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "source",
+                                        "contentType",
+                                        "uuid"
+                                    ],
+                                    "type": "object"
+                                },
+                                {
+                                    "properties": {
+                                        "contentType": {
+                                            "$ref": "#/components/schemas/ContentType.DASHBOARD"
+                                        },
+                                        "uuid": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["contentType", "uuid"],
+                                    "type": "object"
+                                },
+                                {
+                                    "properties": {
+                                        "contentType": {
+                                            "$ref": "#/components/schemas/ContentType.SPACE"
+                                        },
+                                        "uuid": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["contentType", "uuid"],
+                                    "type": "object"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["action", "content"],
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -16486,7 +16559,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1614.0",
+        "version": "0.1614.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

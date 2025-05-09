@@ -16,7 +16,7 @@ import { ActionType } from '../components/common/SpaceActionModal/types';
 
 import useApp from '../providers/App/useApp';
 
-const SpacesV2: FC = () => {
+const Spaces: FC = () => {
     const { projectUuid } = useParams() as {
         projectUuid: string;
     };
@@ -105,6 +105,7 @@ const SpacesV2: FC = () => {
                     }}
                     adminContentView={userCanManageProject}
                     enableBottomToolbar={false}
+                    enableRowSelection={userCanManageSpace}
                 />
 
                 {isCreateModalOpen && (
@@ -123,4 +124,4 @@ const SpacesV2: FC = () => {
     );
 };
 
-export default SpacesV2;
+export default Spaces;

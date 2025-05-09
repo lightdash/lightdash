@@ -1,6 +1,6 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import {
-    ContentType,
+    ContentType as ResourceViewItemType,
     type ChartSourceType,
     type SummaryContent,
 } from './content';
@@ -8,11 +8,7 @@ import { type DashboardBasicDetails } from './dashboard';
 import { type SpaceQuery } from './savedCharts';
 import { type Space, type SpaceSummary } from './space';
 
-export enum ResourceViewItemType {
-    CHART = 'chart',
-    DASHBOARD = 'dashboard',
-    SPACE = 'space',
-}
+export { ResourceViewItemType };
 
 export enum ResourceItemCategory {
     MOST_POPULAR = 'mostPopular',
@@ -155,7 +151,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
         content.lastUpdatedBy || content.createdBy || undefined;
 
     switch (content.contentType) {
-        case ContentType.CHART:
+        case ResourceViewItemType.CHART:
             const chartViewItem: ResourceViewChartItem['data'] & {
                 projectUuid: string;
                 organizationUuid: string;
@@ -174,7 +170,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                 organizationUuid: content.organization.uuid,
             };
             return wrapResource(chartViewItem, ResourceViewItemType.CHART);
-        case ContentType.DASHBOARD:
+        case ResourceViewItemType.DASHBOARD:
             const dashboardViewItem: ResourceViewDashboardItem['data'] & {
                 projectUuid: string;
                 organizationUuid: string;
@@ -196,7 +192,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                 dashboardViewItem,
                 ResourceViewItemType.DASHBOARD,
             );
-        case ContentType.SPACE:
+        case ResourceViewItemType.SPACE:
             return wrapResource(
                 spaceToResourceViewItem({
                     ...content,
@@ -212,5 +208,18 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
             );
         default:
             return assertUnreachable(content, `Unsupported content type`);
+    }
+};
+
+export const resourceToContent = (resource: ResourceViewItem) => {
+    switch (resource.type) {
+        case ResourceViewItemType.CHART:
+            return resource.data;
+        case ResourceViewItemType.DASHBOARD:
+            return resource.data;
+        case ResourceViewItemType.SPACE:
+            return resource.data;
+        default:
+            return assertUnreachable(resource, `Unsupported resource type`);
     }
 };

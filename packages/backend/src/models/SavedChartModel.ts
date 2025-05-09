@@ -1669,4 +1669,45 @@ export class SavedChartModel {
                 ),
             }));
     }
+
+    async moveToSpace(
+        {
+            projectUuid,
+            itemUuid: savedChartUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            targetSpaceUuid: string | null;
+        },
+        { tx = this.database }: { tx?: Knex } = {},
+    ): Promise<void> {
+        if (targetSpaceUuid === null) {
+            throw new Error('Cannot move saved chart out of a space');
+        }
+
+        const space = await tx(SpaceTableName)
+            .select('space_id')
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where('space_uuid', targetSpaceUuid)
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .first();
+
+        if (!space) {
+            throw new NotFoundError('Space not found');
+        }
+
+        const updateCount = await tx(SavedChartsTableName)
+            .update({ space_id: space.space_id })
+            .where('saved_query_uuid', savedChartUuid)
+            .where('dashboard_uuid', null); // charts belong to dashboards can't be moved to a space
+
+        if (updateCount !== 1) {
+            throw new Error('Failed to move saved chart to space');
+        }
+    }
 }

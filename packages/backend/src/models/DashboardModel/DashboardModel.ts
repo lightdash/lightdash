@@ -5,7 +5,6 @@ import {
     CreateDashboardMarkdownTile,
     CreateDashboardSemanticViewerChartTile,
     CreateDashboardSqlChartTile,
-    DashboardBasicDetails,
     DashboardChartTile,
     DashboardDAO,
     DashboardLoomTile,
@@ -1188,9 +1187,9 @@ export class DashboardModel {
         return this.getById(dashboardUuid);
     }
 
-    /* 
+    /*
     backend will only delete orphans if, and only if, they do not belong to any tile.
-    This means that version reverting will now work for charts created within the dashboard, 
+    This means that version reverting will now work for charts created within the dashboard,
     even if they get removed from the tile in the next dashboard version save.
     */
     async getOrphanedCharts(
@@ -1290,5 +1289,41 @@ export class DashboardModel {
             )
             .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
+    }
+
+    async moveToSpace(
+        {
+            projectUuid,
+            itemUuid: dashboardUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            targetSpaceUuid: string;
+        },
+        { tx = this.database }: { tx?: Knex } = {},
+    ): Promise<void> {
+        const space = await tx(SpaceTableName)
+            .select('space_id')
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where('space_uuid', targetSpaceUuid)
+            .where('project_uuid', projectUuid)
+            .first();
+
+        if (!space) {
+            throw new NotFoundError('Space not found');
+        }
+
+        const updateCount = await tx(DashboardsTableName)
+            .update({ space_id: space.space_id })
+            .where('dashboard_uuid', dashboardUuid);
+
+        if (updateCount !== 1) {
+            throw new Error('Failed to move dashboard to space');
+        }
     }
 }
