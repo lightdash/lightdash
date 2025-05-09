@@ -292,6 +292,7 @@ To setup Development Environment without Docker you need following pre-requisite
 -   pnpm
 -   postgres >= 12
 -   dbt 1.4.x or 1.5.x
+-   MinIO
 
 eg. on MacOS you can follow this instructions:
 
@@ -319,6 +320,16 @@ brew services start postgresql@14
 # You might need to point pgvector to a correct postgres instance if you have multiple versions installed
 # export PG_CONFIG=/opt/homebrew/opt/postgresql@14/bin/pg_config
 git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git && cd pgvector && make && sudo make install && cd ..
+
+# 5 Install MinIO
+brew install minio/stable/minio
+mkdir ./data # create data directory - clean this regularly
+minio server ./data # start server
+
+# Install MinIO client
+brew install minio/stable/mc
+mc alias set local http://127.0.0.1:9000 minioadmin minioadmin # setup alias to data directory called local
+mc mb local/lightdash # create a bucket in local
 
 # 5 Install dbt using pip
 # Detailed installation guide available here: https://docs.getdbt.com/docs/core/pip-install
@@ -368,6 +379,19 @@ Password: demo_password!
 ```
 
 > ⚠️ you can add env variables to your system and ignore running `pnpm load:env` before each command
+
+#### Clearing disk space
+
+Lightdash writes results + exports to your machine if you're using MinIO. Make sure to clear the ./data
+directory frequently.
+
+You can do this my just deleting everything in the bucket:
+
+```shell
+rm ./data/lightdash/*
+```
+
+
 
 #### How to run unit tests
 
