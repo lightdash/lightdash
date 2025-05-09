@@ -12,6 +12,7 @@ import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
+import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
@@ -26,6 +27,7 @@ import type { OnboardingModel } from '../../models/OnboardingModel/OnboardingMod
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
+import { type ResultsFileModel } from '../../models/ResultsFileModel/ResultsFileModel';
 import type { SavedChartModel } from '../../models/SavedChartModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import type { SpaceModel } from '../../models/SpaceModel';
@@ -149,6 +151,8 @@ const getMockedAsyncQueryService = (lightdashConfig: LightdashConfig) =>
         } as unknown as QueryHistoryModel,
         userModel: {} as UserModel,
         savedSqlModel: {} as SavedSqlModel,
+        resultsFileModel: {} as ResultsFileModel,
+        storageClient: {} as S3ResultsFileStorageClient,
     });
 
 describe('AsyncQueryService', () => {
@@ -171,7 +175,7 @@ describe('AsyncQueryService', () => {
 
                 jest.clearAllMocks();
                 // Mock the resultsCacheModel.createOrGetExistingCache method
-                serviceWithCache.cacheService!.createOrGetExistingCache = jest
+                serviceWithCache.createOrGetExistingCache = jest
                     .fn()
                     .mockImplementation(async () => ({
                         cacheHit: false,
@@ -180,7 +184,7 @@ describe('AsyncQueryService', () => {
                         close,
                     }));
 
-                serviceWithCache.cacheService!.deleteCache = jest.fn();
+                serviceWithCache.deleteCache = jest.fn();
             });
 
             test('should return queryUuid when cache is hit', async () => {
@@ -203,8 +207,7 @@ describe('AsyncQueryService', () => {
                 };
 
                 (
-                    serviceWithCache.cacheService!
-                        .createOrGetExistingCache as jest.Mock
+                    serviceWithCache.createOrGetExistingCache as jest.Mock
                 ).mockResolvedValueOnce(mockCacheResult);
 
                 // Mock the queryHistoryModel.create to return a queryUuid
@@ -291,8 +294,7 @@ describe('AsyncQueryService', () => {
                 };
 
                 (
-                    serviceWithCache.cacheService!
-                        .createOrGetExistingCache as jest.Mock
+                    serviceWithCache.createOrGetExistingCache as jest.Mock
                 ).mockResolvedValueOnce(mockCacheResult);
 
                 // Mock the queryHistoryModel.create to return a queryUuid
@@ -377,8 +379,7 @@ describe('AsyncQueryService', () => {
                 };
 
                 (
-                    serviceWithCache.cacheService!
-                        .createOrGetExistingCache as jest.Mock
+                    serviceWithCache.createOrGetExistingCache as jest.Mock
                 ).mockResolvedValueOnce(mockCacheResult);
 
                 // Mock the queryHistoryModel.create to return a queryUuid
@@ -416,7 +417,7 @@ describe('AsyncQueryService', () => {
 
                 // Verify that createOrGetExistingCache was called with invalidateCache: true
                 expect(
-                    serviceWithCache.cacheService!.createOrGetExistingCache,
+                    serviceWithCache.createOrGetExistingCache,
                 ).toHaveBeenCalledWith(projectUuid, expect.any(Object), true);
 
                 // Verify that the query history was not updated with READY status
@@ -702,7 +703,7 @@ describe('AsyncQueryService', () => {
                     .mockResolvedValue(validExplore);
 
                 // Mock the resultsCacheModel.getCachedResultsPage to return cached results
-                serviceWithCache.cacheService!.getCachedResultsPage = jest
+                serviceWithCache.getCachedResultsPage = jest
                     .fn()
                     .mockResolvedValue({
                         rows: [expectedFormattedRow],
@@ -735,7 +736,7 @@ describe('AsyncQueryService', () => {
                     page: 1,
                     nextPage: undefined,
                     previousPage: undefined,
-                    initialQueryExecutionMs: 0,
+                    initialQueryExecutionMs: expect.any(Number),
                     resultsPageExecutionMs: expect.any(Number),
                     status: QueryHistoryStatus.READY,
                     columns: {
@@ -747,7 +748,7 @@ describe('AsyncQueryService', () => {
                 });
 
                 expect(
-                    serviceWithCache.cacheService!.getCachedResultsPage,
+                    serviceWithCache.getCachedResultsPage,
                 ).toHaveBeenCalledWith(
                     'test-cache-key',
                     projectUuid,
@@ -788,7 +789,7 @@ describe('AsyncQueryService', () => {
                     .fn()
                     .mockResolvedValue(validExplore);
 
-                serviceWithCache.cacheService!.getCachedResultsPage = jest
+                serviceWithCache.getCachedResultsPage = jest
                     .fn()
                     .mockRejectedValue(
                         new NotFoundError(
@@ -1028,7 +1029,7 @@ describe('AsyncQueryService', () => {
                     page: 1,
                     nextPage: undefined,
                     previousPage: undefined,
-                    initialQueryExecutionMs: 0,
+                    initialQueryExecutionMs: expect.any(Number),
                     resultsPageExecutionMs: expect.any(Number),
                     status: QueryHistoryStatus.READY,
                     columns: {
