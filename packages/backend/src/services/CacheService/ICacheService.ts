@@ -1,12 +1,13 @@
 import type { ResultRow } from '@lightdash/common';
+import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type {
     CacheHitCacheResult,
     CreateCacheResult,
     ResultsCacheStatus,
 } from './types';
 
-export interface ICacheService<StorageClientImplT> {
-    storageClient: StorageClientImplT;
+export interface ICacheService {
+    storageClient: S3ResultsFileStorageClient;
 
     createOrGetExistingCache: (
         projectUuid: string,

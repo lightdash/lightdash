@@ -8,8 +8,6 @@ import { ProjectService } from '../services/ProjectService/ProjectService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import LicenseClient from './clients/License/LicenseClient';
 import OpenAi from './clients/OpenAi';
-import type { IResultsCacheStorageClient } from './clients/ResultsCacheStorageClients/IResultsCacheStorageClient';
-import { S3ResultsCacheStorageClient } from './clients/ResultsCacheStorageClients/S3ResultsCacheStorageClient';
 import { CommercialSlackBot } from './clients/Slack/SlackBot';
 import { AiModel } from './models/AiModel';
 import { CommercialCatalogModel } from './models/CommercialCatalogModel';
@@ -17,7 +15,6 @@ import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel'
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
 import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
-import { ResultsCacheModel } from './models/ResultsCacheModel/ResultsCacheModel';
 import { ScimOrganizationAccessTokenModel } from './models/ScimOrganizationAccessTokenModel';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
@@ -176,7 +173,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 utils,
                 repository,
             }) =>
-                new AsyncQueryService<IResultsCacheStorageClient>({
+                new AsyncQueryService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectModel: models.getProjectModel(),
@@ -210,9 +207,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({
-                    resultsCacheModel: models.getResultsCacheModel(),
+                    resultsFileModel: models.getResultsFileModel(),
                     lightdashConfig: context.lightdashConfig,
-                    storageClient: clients.getResultsCacheStorageClient(),
+                    storageClient: clients.getResultsFileStorageClient(),
                 }),
         },
         modelProviders: {
@@ -232,8 +229,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new ScimOrganizationAccessTokenModel({ database }),
             featureFlagModel: ({ database }) =>
                 new CommercialFeatureFlagModel({ database, lightdashConfig }),
-            resultsCacheModel: ({ database }) =>
-                new ResultsCacheModel({ database, lightdashConfig }),
         },
         customExpressMiddlewares: [
             (expressApp: Express) => {
@@ -290,10 +285,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     schedulerModel: models.getSchedulerModel(),
-                }),
-            resultsCacheStorageClient: ({ context }) =>
-                new S3ResultsCacheStorageClient({
-                    lightdashConfig: context.lightdashConfig,
                 }),
         },
     };
