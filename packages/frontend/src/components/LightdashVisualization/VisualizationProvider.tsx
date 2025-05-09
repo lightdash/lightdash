@@ -106,7 +106,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
 
     const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
         initialPivotDimensions,
-        lastValidResultsData,
+        lastValidResultsData?.metricQuery,
     );
 
     const setChartType = useCallback(
