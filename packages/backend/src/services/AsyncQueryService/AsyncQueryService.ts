@@ -279,8 +279,7 @@ export class AsyncQueryService<
             totalRowCount,
         });
 
-        const resultsCacheEnabled =
-            this.lightdashConfig.resultsCache?.resultsEnabled;
+        const resultsCacheEnabled = this.lightdashConfig.results.cacheEnabled;
 
         switch (status) {
             case QueryHistoryStatus.CANCELLED:
@@ -850,7 +849,7 @@ export class AsyncQueryService<
                     }
 
                     const resultsCacheEnabled =
-                        this.lightdashConfig.resultsCache?.resultsEnabled;
+                        this.lightdashConfig.results.cacheEnabled;
 
                     let resultsCache: CreateCacheResult | undefined;
 
