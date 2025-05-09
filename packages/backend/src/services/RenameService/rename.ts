@@ -11,13 +11,17 @@ import {
     FilterGroup,
     FilterGroupItem,
     Filters,
+    getFieldRef,
     isAndFilterGroup,
     isCustomBinDimension,
+    isDashboardFilterRule,
     isDashboardScheduler,
     isFilterRule,
     isOrFilterGroup,
+    MetricFilterRule,
     MetricQuery,
     NameChanges,
+    ParameterError,
     RenameType,
     SavedChartDAO,
     SchedulerAndTargets,
@@ -29,16 +33,21 @@ import {
  replaceString: Do a full string replacement with the new model name, used only if others don't apply, used in custom viz (vega-lite)
  and some other functions to deal with undefined, lists and objects
 */
-export const createRenameFactory = (
-    from: string,
-    to: string,
-    fromReference: string,
-    toReference: string,
-    isPrefix: boolean,
-) => {
+export const createRenameFactory = ({
+    from,
+    to,
+    fromReference,
+    toReference,
+    isPrefix,
+    fromFieldName,
+    toFieldName,
+}: NameChanges & { isPrefix: boolean }) => {
     let replaceId: (str: string) => string;
     let replaceReference: (str: string) => string;
     let replaceString: (str: string) => string;
+    let replaceFieldReference: (str: string) => string;
+    let replaceFieldName: (str: string) => string;
+    let replaceDotFieldId: (str: string) => string;
     if (isPrefix) {
         replaceId = (str: string) =>
             str.replace(new RegExp(`^${from}_`, 'g'), `${to}_`); // table prefix (eg: payment_)
@@ -49,7 +58,17 @@ export const createRenameFactory = (
             ); // SQL normally uses "." on references
         replaceString = (str: string) =>
             str.replace(new RegExp(`${from}_`, 'g'), `${to}_`);
+        replaceDotFieldId = (str: string) =>
+            str.replace(new RegExp(`^${from}\\.`, 'g'), `${to}.`);
+        replaceFieldReference = (str: string) => str; // table prefix (eg: payment_)
+
+        replaceFieldName = (str: string) => str; // no changes
     } else {
+        replaceFieldName = (str: string) =>
+            str.replace(
+                new RegExp(`^${fromFieldName}$`, 'g'),
+                `${toFieldName}`,
+            ); // field name (eg: customer_id)
         replaceId = (str: string) =>
             str.replace(new RegExp(`^${from}$`, 'g'), `${to}`); // entire id (eg: payment_customer_id)
         replaceReference = (str: string) =>
@@ -57,8 +76,25 @@ export const createRenameFactory = (
                 new RegExp(`\\$\\{${fromReference}\\}`, 'g'),
                 `\${${toReference}}`,
             ); // Full reference
+        replaceDotFieldId = (str: string) =>
+            str.replace(
+                new RegExp(`^${fromReference}$`, 'g'),
+                `${toReference}`,
+            ); // used in custom metric filters (eg: orders.status)
         replaceString = (str: string) =>
             str.replace(new RegExp(`${from}`, 'g'), `${to}`);
+        replaceFieldReference = (str: string) => {
+            /// These are for ${TABLE}.field references like in additionalMetrics
+            if (str.startsWith('${TABLE}')) {
+                const fromReferenceWithoutTable = fromReference.split('.')[1];
+                const toReferenceWithoutTable = toReference.split('.')[1];
+                return str.replace(
+                    fromReferenceWithoutTable,
+                    toReferenceWithoutTable,
+                );
+            }
+            return replaceReference(str);
+        };
     }
 
     return {
@@ -78,6 +114,9 @@ export const createRenameFactory = (
         replaceList: (list: string[]) => list.map((item) => replaceId(item)),
         replaceOptionalList: (list: string[] | undefined) =>
             list ? list.map((item) => replaceId(item)) : undefined,
+        replaceFieldReference,
+        replaceFieldName,
+        replaceDotFieldId,
     };
 };
 
@@ -475,6 +514,9 @@ export const renameMetricQuery = (
         replaceList,
         replaceFull,
         replaceReference,
+        replaceFieldReference,
+        replaceFieldName,
+        replaceDotFieldId,
     }: ReturnType<typeof createRenameFactory>,
 ): MetricQuery => {
     const updatedMetricQuery = {
@@ -489,9 +531,23 @@ export const renameMetricQuery = (
         })),
         additionalMetrics: metricQuery.additionalMetrics?.map((am) => ({
             ...am,
+            filters: am.filters?.map((cmf) => {
+                const renamedFilter: MetricFilterRule = {
+                    ...cmf,
+                    target: cmf.target?.fieldRef
+                        ? {
+                              fieldRef: replaceDotFieldId(cmf.target.fieldRef),
+                          }
+                        : cmf.target,
+                };
+                return renamedFilter;
+            }),
             table: replaceFull(am.table),
-            sql: replaceReference(am.sql),
-        })), // TODO replace also filters
+            baseDimensionName: am.baseDimensionName
+                ? replaceFieldName(am.baseDimensionName)
+                : undefined,
+            sql: replaceFieldReference(am.sql), // This reference can contain a ${TABLE} too
+        })),
         customDimensions: metricQuery.customDimensions?.map((cd) =>
             isCustomBinDimension(cd)
                 ? {
@@ -510,37 +566,96 @@ export const renameMetricQuery = (
     return updatedMetricQuery;
 };
 
-export const renameSavedChart = (
-    type: RenameType,
-    chart: SavedChartDAO,
-    { from, fromReference, to, toReference }: NameChanges,
-): { updatedChart: SavedChartDAO; hasChanges: boolean } => {
+export const getNameChanges = ({
+    from,
+    to,
+    table,
+    type,
+}: {
+    from: string;
+    to: string;
+    table: string;
+    type: RenameType;
+    fromFieldName?: string;
+    toFieldName?: string;
+}): NameChanges => {
+    if (from === to) {
+        throw new ParameterError(
+            'Old and new names are the same, nothing to rename',
+        );
+    }
+
+    if (type === RenameType.FIELD) {
+        // Both must start with the same table prefix, this means the fieldId is only a field rename
+
+        if (!from.startsWith(`${table}_`) && to.startsWith(`${table}_`)) {
+            throw new ParameterError(
+                'New name does not start with the same table prefix as the old name',
+            );
+        }
+        const fromWithoutTable = from.replace(`${table}_`, '');
+        const toWithoutTable = to.replace(`${table}_`, '');
+        return {
+            from,
+            to,
+            fromReference: getFieldRef({
+                table,
+                name: fromWithoutTable,
+            }),
+            toReference: getFieldRef({
+                table,
+                name: toWithoutTable,
+            }),
+            fromFieldName: fromWithoutTable,
+            toFieldName: toWithoutTable,
+        };
+    }
+    // MODEL rename
+    return {
+        from,
+        to,
+        fromReference: from,
+        toReference: to,
+        fromFieldName: undefined,
+        toFieldName: undefined,
+    };
+};
+
+export const renameSavedChart = ({
+    type,
+    chart,
+    nameChanges,
+    validate = false,
+}: {
+    type: RenameType;
+    chart: SavedChartDAO;
+    nameChanges: NameChanges;
+    validate: boolean;
+}): { updatedChart: SavedChartDAO; hasChanges: boolean } => {
     let hasChanges = false;
 
     const isPrefix = type === RenameType.MODEL;
     const containsModelName = (object: Object) =>
-        JSON.stringify(object).includes(`${from}${isPrefix ? '_' : ''}`);
+        JSON.stringify(object).includes(
+            `${nameChanges.from}${isPrefix ? '_' : ''}`,
+        );
 
     if (!containsModelName(chart)) {
-        console.debug(`No references to "${from}" in chart "${chart.name}"`);
         // These should be filtered already by model anyway
         return { updatedChart: chart, hasChanges: false };
     }
 
-    const renameMethods = createRenameFactory(
-        from,
-        to,
-        fromReference,
-        toReference,
+    const renameMethods = createRenameFactory({
+        ...nameChanges,
         isPrefix,
-    );
+    });
     const { replaceList } = renameMethods;
 
     // Create a shallow copy instead of deep clone
     const updatedChart = { ...chart };
-    if (type === RenameType.MODEL && chart.tableName === from) {
+    if (type === RenameType.MODEL && chart.tableName === nameChanges.from) {
         hasChanges = true;
-        updatedChart.tableName = to;
+        updatedChart.tableName = nameChanges.to;
     }
 
     if (containsModelName(chart.metricQuery)) {
@@ -571,12 +686,7 @@ export const renameSavedChart = (
         };
     }
 
-    validateRename(chart, updatedChart, chart.name, {
-        from,
-        fromReference,
-        to,
-        toReference,
-    });
+    if (validate) validateRename(chart, updatedChart, chart.name, nameChanges);
 
     return { updatedChart, hasChanges };
 };
@@ -584,26 +694,25 @@ export const renameSavedChart = (
 export const renameDashboard = (
     type: RenameType,
     dashboard: DashboardDAO,
-    { from, fromReference, to, toReference }: NameChanges,
+    nameChanges: NameChanges,
 ): { updatedDashboard: DashboardDAO; hasChanges: boolean } => {
     const isPrefix = type === RenameType.MODEL;
 
     let hasChanges = false;
 
     const containsModelName = (object: Object) =>
-        JSON.stringify(object).includes(`${from}${isPrefix ? '_' : ''}`);
+        JSON.stringify(object).includes(
+            `${nameChanges.from}${isPrefix ? '_' : ''}`,
+        );
 
     if (!containsModelName(dashboard)) {
         return { updatedDashboard: dashboard, hasChanges: false };
     }
 
-    const renameMethods = createRenameFactory(
-        from,
-        to,
-        fromReference,
-        toReference,
+    const renameMethods = createRenameFactory({
+        ...nameChanges,
         isPrefix,
-    );
+    });
 
     // Create a shallow copy instead of deep clone
     const updatedDashboard = { ...dashboard };
@@ -616,12 +725,12 @@ export const renameDashboard = (
         );
     }
 
-    validateRename(dashboard, updatedDashboard, updatedDashboard.name, {
-        from,
-        fromReference,
-        to,
-        toReference,
-    });
+    validateRename(
+        dashboard,
+        updatedDashboard,
+        updatedDashboard.name,
+        nameChanges,
+    );
 
     return { updatedDashboard, hasChanges };
 };
@@ -629,24 +738,23 @@ export const renameDashboard = (
 export const renameAlert = (
     type: RenameType,
     alert: SchedulerAndTargets,
-    { from, fromReference, to, toReference }: NameChanges,
+    nameChanges: NameChanges,
 ): { updatedAlert: SchedulerAndTargets; hasChanges: boolean } => {
     const isPrefix = type === RenameType.MODEL;
 
     const containsModelName = (object: Object) =>
-        JSON.stringify(object).includes(`${from}${isPrefix ? '_' : ''}`);
+        JSON.stringify(object).includes(
+            `${nameChanges.from}${isPrefix ? '_' : ''}`,
+        );
 
     if (!alert.thresholds) {
         return { updatedAlert: alert, hasChanges: false };
     }
 
-    const { replaceId } = createRenameFactory(
-        from,
-        to,
-        fromReference,
-        toReference,
+    const { replaceId } = createRenameFactory({
+        ...nameChanges,
         isPrefix,
-    );
+    });
     let hasChanges = false;
     const updatedAlert = { ...alert };
     if (containsModelName(alert)) {
@@ -657,12 +765,7 @@ export const renameAlert = (
         }));
     }
 
-    validateRename(alert, updatedAlert, `Alert: ${alert.name}`, {
-        from,
-        fromReference,
-        to,
-        toReference,
-    });
+    validateRename(alert, updatedAlert, `Alert: ${alert.name}`, nameChanges);
 
     return { updatedAlert, hasChanges };
 };
@@ -670,12 +773,14 @@ export const renameAlert = (
 export const renameDashboardScheduler = (
     type: RenameType,
     dashboardScheduler: SchedulerAndTargets,
-    { from, fromReference, to, toReference }: NameChanges,
+    nameChanges: NameChanges,
 ): { updatedDashboardScheduler: SchedulerAndTargets; hasChanges: boolean } => {
     const isPrefix = type === RenameType.MODEL;
 
     const containsModelName = (object: Object) =>
-        JSON.stringify(object).includes(`${from}${isPrefix ? '_' : ''}`);
+        JSON.stringify(object).includes(
+            `${nameChanges.from}${isPrefix ? '_' : ''}`,
+        );
 
     if (!isDashboardScheduler(dashboardScheduler)) {
         return {
@@ -684,13 +789,10 @@ export const renameDashboardScheduler = (
         };
     }
 
-    const { replaceId, replaceFull } = createRenameFactory(
-        from,
-        to,
-        fromReference,
-        toReference,
+    const { replaceId, replaceFull, replaceFieldName } = createRenameFactory({
+        ...nameChanges,
         isPrefix,
-    );
+    });
     let hasChanges = false;
     const updatedDashboardScheduler = { ...dashboardScheduler };
     if (containsModelName(dashboardScheduler)) {
@@ -712,11 +814,15 @@ export const renameDashboardScheduler = (
                 };
             }
 
-            return {
-                ...target,
-                fieldId: replaceId(target.fieldId),
-                fieldName: toReference.replace(`${target.tableName}_`, ''), // Removes table prefix
-            };
+            if ('fieldName' in target && typeof target.fieldName === 'string') {
+                // FilterDashboardToRule
+                return {
+                    ...target,
+                    fieldId: replaceId(target.fieldId),
+                    fieldName: replaceFieldName(target.fieldName), // nameChanges.toReference.replace(`${target.tableName}_`, ''), // Removes table prefix
+                };
+            }
+            return target;
         };
 
         updatedDashboardScheduler.filters = dashboardScheduler.filters?.map(
@@ -731,12 +837,7 @@ export const renameDashboardScheduler = (
         dashboardScheduler,
         updatedDashboardScheduler,
         `Alert: ${dashboardScheduler.name}`,
-        {
-            from,
-            fromReference,
-            to,
-            toReference,
-        },
+        nameChanges,
     );
 
     return { updatedDashboardScheduler, hasChanges };

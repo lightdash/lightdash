@@ -1338,6 +1338,7 @@ export class SavedChartModel {
         slug?: string;
         slugs?: string[];
         exploreName?: string;
+        exploreNames?: string[];
         excludeChartsSavedInDashboard?: boolean;
         includeOrphanChartsWithinDashboard?: boolean;
     }): Promise<(ChartSummary & { updatedAt: Date })[]> {
@@ -1435,6 +1436,19 @@ export class SavedChartModel {
                         .where(
                             'saved_queries_versions.explore_name',
                             filters.exploreName,
+                        )
+                        .distinctOn('saved_queries.saved_query_uuid');
+                }
+                if (filters.exploreNames) {
+                    void query
+                        .leftJoin(
+                            SavedChartVersionsTableName,
+                            `${SavedChartVersionsTableName}.saved_query_id`,
+                            `${SavedChartsTableName}.saved_query_id`,
+                        )
+                        .whereIn(
+                            'saved_queries_versions.explore_name',
+                            filters.exploreNames,
                         )
                         .distinctOn('saved_queries.saved_query_uuid');
                 }

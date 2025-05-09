@@ -785,10 +785,10 @@ program
         undefined,
     )
     .option('-y, --assume-yes', 'assume yes to prompts', false)
-    .requiredOption('-t, --type <type>', 'models or fields', RenameType.models)
+    .requiredOption('-t, --type <type>', 'model or field', RenameType.MODEL)
     .requiredOption('--from <from>', 'Name to replace from', undefined)
     .requiredOption('--to <to>', 'Name to replace to', undefined)
-    .option('--test', 'Test the rename, no changes will be made', false)
+    .option('--dry-run', 'Test the rename, no changes will be made', false)
     .option('--list', 'List all charts and dashboards that are renamed', false)
 
     .action(renameHandler);

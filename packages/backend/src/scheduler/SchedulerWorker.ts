@@ -639,13 +639,12 @@ export class SchedulerWorker extends SchedulerTask {
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
-                        async () => {
-                            await this.renameResources(
+                        () =>
+                            this.renameResources(
                                 helpers.job.id,
                                 helpers.job.run_at,
                                 payload,
-                            );
-                        },
+                            ),
                     ),
                     helpers.job,
                     this.lightdashConfig.scheduler.jobTimeout,

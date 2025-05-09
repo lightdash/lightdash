@@ -4,7 +4,6 @@ import { type TraceTaskBase } from './scheduler';
 export enum RenameType {
     MODEL = 'model', // eg: payment
     FIELD = 'field', // eg: id
-    FIELD_ID = 'field_id', // eg: payment_id (used in the UI)
 }
 /**
  *  from: string, // Field id or table prefix to be replaced (eg: payment_customer_id) 
@@ -17,26 +16,44 @@ export type NameChanges = {
     to: string;
     fromReference: string;
     toReference: string;
+    fromFieldName: string | undefined;
+    toFieldName: string | undefined;
 };
 
 export type ApiRenameBody = {
+    to: string;
+    from: string;
     type: RenameType;
+    dryRun?: boolean;
+    model?: string;
+};
+
+export type ApiRenameChartBody = {
     from: string;
     to: string;
-    test?: boolean;
-    model?: string;
+    type: RenameType;
+    fixAll?: boolean;
+};
+
+export type RenameChange = {
+    uuid: string;
+    name: string;
 };
 export type ApiRenameResponse = {
     status: 'ok';
     results: {
-        charts: string[];
-        dashboards: string[];
-        alerts: string[];
-        dashboardSchedulers: string[];
+        charts: RenameChange[];
+        dashboards: RenameChange[];
+        alerts: RenameChange[];
+        dashboardSchedulers: RenameChange[];
     };
 };
 
 export type RenameResourcesPayload = TraceTaskBase &
     ApiRenameBody & {
+        fromReference?: string; // When scheduler is called from UI, these are set
+        toReference?: string;
+        fromFieldName?: string;
+        toFieldName?: string;
         context: RequestMethod;
     };

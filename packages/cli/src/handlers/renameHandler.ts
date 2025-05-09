@@ -1,15 +1,19 @@
 import {
     ApiJobScheduledResponse,
     AuthorizationError,
+    RenameChange,
     RenameType,
     SchedulerJobStatus,
 } from '@lightdash/common';
+import fs from 'fs';
 import inquirer from 'inquirer';
+import path from 'path';
 import * as styles from '../styles';
 
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
+import { getProject } from './dbt/refresh';
 import {
     delay,
     getJobState,
@@ -24,10 +28,10 @@ type RenameHandlerOptions = {
     model?: string; // Model name for the field to be renamed
     from: string;
     to: string;
-    test: boolean;
+    dryRun: boolean;
     assumeYes: boolean;
     list: boolean;
-    validate: boolean; // TODO
+    validate: boolean;
 };
 
 const REFETCH_JOB_INTERVAL = 2000;
@@ -46,7 +50,7 @@ const waitUntilFinished = async (jobUuid: string): Promise<string> => {
 };
 
 const listResources = (
-    resources: string[],
+    resources: RenameChange[],
     type: 'charts' | 'dashboards' | 'chart alerts' | 'dashboard schedulers',
     list: boolean,
 ) => {
@@ -55,7 +59,7 @@ const listResources = (
     const maxList = 5;
     const resourcesToShow = list ? resources : resources.slice(0, maxList);
 
-    console.info(`- ${resourcesToShow.join('\n- ')}`);
+    console.info(`- ${resourcesToShow.map((r) => r.name).join('\n- ')}`);
 
     if (!list && resources.length > maxList) {
         console.info(
@@ -77,14 +81,26 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
         );
     }
 
-    const projectUuid = options.project || config.context.project;
+    const projectUuid =
+        options.project ||
+        config.context.previewProject ||
+        config.context.project;
     if (!projectUuid) {
         throw new Error(
             'No project selected. Run lightdash config set-project',
         );
     }
 
-    if (!options.assumeYes && !options.test) {
+    const isValidInput = (input: string): boolean => /^[a-z_]+$/.test(input);
+
+    if (!isValidInput(options.from) || !isValidInput(options.to)) {
+        throw new Error(
+            'Invalid input: Only lowercase letters (a-z) and underscores (_) are allowed.',
+        );
+    }
+    const project = await getProject(projectUuid);
+
+    if (!options.assumeYes && !options.dryRun) {
         const answers = await inquirer.prompt([
             {
                 type: 'confirm',
@@ -96,8 +112,8 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
                 )} to ${styles.title(
                     options.to,
                 )} in all charts and dashboards in project ${styles.title(
-                    projectUuid,
-                )}.\nAre you sure you want to continue? `,
+                    project.name,
+                )} (${projectUuid}).\nAre you sure you want to continue? `,
             },
         ]);
 
@@ -157,18 +173,37 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
                 options.list,
             );
         }
+        const hasResults =
+            results.charts.length > 0 ||
+            results.dashboards.length > 0 ||
+            results.alerts.length > 0 ||
+            results.dashboardSchedulers.length > 0;
 
-        if (options.test) {
+        if (options.dryRun) {
             console.info(
                 `\n${styles.warning(
                     `This is a test run, no changes were committed to the database, remove ${styles.bold(
-                        '--test',
+                        '--dry-run',
                     )} flag to make changes`,
                 )}\n`,
             );
+        } else if (hasResults) {
+            const currentDate = new Date().toISOString().split('T')[0];
+            const filePath = path.join(
+                __dirname,
+                `rename ${options.from} to ${options.to} ${currentDate}.json`,
+            );
+            fs.writeFileSync(
+                filePath,
+                JSON.stringify(results, null, 2),
+                'utf-8',
+            );
+            console.info(
+                `Rename changes saved to: ${styles.success(` ${filePath}`)}`,
+            );
         }
 
-        if (options.validate && !options.test) {
+        if (options.validate && !options.dryRun) {
             // Can't validate if tests is true, changes need to be committed first
 
             const validationJob = await requestValidation(projectUuid, [], []);

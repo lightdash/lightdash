@@ -1,12 +1,16 @@
 import {
+    AnyType,
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiRenameBody,
+    ApiRenameChartBody,
+    ApiSuccessEmpty,
     getRequestMethod,
     LightdashRequestMethodHeader,
 } from '@lightdash/common';
 import {
     Body,
+    Get,
     Middlewares,
     OperationId,
     Path,
@@ -37,7 +41,7 @@ export class RenameController extends BaseController {
     @SuccessResponse('200', 'Success')
     @Post('/')
     @OperationId('rename')
-    async post(
+    async rename(
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Body() body: ApiRenameBody,
@@ -59,6 +63,70 @@ export class RenameController extends BaseController {
         return {
             status: 'ok',
             results: scheduledJob,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/chart/{chartUuid}')
+    @OperationId('renameChart')
+    async renameChart(
+        @Path() projectUuid: string,
+        @Path() chartUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ApiRenameChartBody,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        const context = getRequestMethod(
+            req.header(LightdashRequestMethodHeader),
+        );
+
+        await this.services.getRenameService().renameChart({
+            user: req.user!,
+            projectUuid,
+            context,
+            chartUuid,
+            ...body,
+        });
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Get a list of fields for this chart's explore to be used when renaming a chart in the UI
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/chart/{chartUuid}/fields')
+    @OperationId('renameChartFields')
+    async renameChartFields(
+        @Path() projectUuid: string,
+        @Path() chartUuid: string,
+        @Request() req: express.Request,
+    ): Promise<AnyType> {
+        this.setStatus(200);
+        const fields = await this.services
+            .getRenameService()
+            .getFieldsForChart({
+                user: req.user!,
+                projectUuid,
+                chartUuid,
+            });
+
+        return {
+            status: 'ok',
+            results: fields,
         };
     }
 }
