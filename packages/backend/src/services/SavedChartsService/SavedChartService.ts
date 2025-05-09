@@ -1263,12 +1263,13 @@ export class SavedChartService
             }
 
             if (savedChart.dashboardUuid) {
-                throw new ForbiddenError(
-                    'Chart is part of a dashboard and cannot be moved',
+                const dashboard = await this.dashboardModel.getById(
+                    savedChart.dashboardUuid,
                 );
+                spaceUuid = dashboard.spaceUuid;
+            } else {
+                spaceUuid = savedChart.spaceUuid;
             }
-
-            spaceUuid = savedChart.spaceUuid;
         }
 
         if (!spaceUuid) {

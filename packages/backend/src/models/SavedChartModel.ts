@@ -1702,9 +1702,9 @@ export class SavedChartModel {
         }
 
         const updateCount = await tx(SavedChartsTableName)
-            .update({ space_id: space.space_id })
-            .where('saved_query_uuid', savedChartUuid)
-            .where('dashboard_uuid', null); // charts belong to dashboards can't be moved to a space
+            // if we move a chart from a dashboard to a space, we need to set the dashboard_uuid to null
+            .update({ space_id: space.space_id, dashboard_uuid: null })
+            .where('saved_query_uuid', savedChartUuid);
 
         if (updateCount !== 1) {
             throw new Error('Failed to move saved chart to space');
