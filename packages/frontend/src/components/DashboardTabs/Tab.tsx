@@ -94,9 +94,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                 color="red"
                                                 icon={<IconTrash size={14} />}
                                             >
-                                                {sortedTabs.length === 1
-                                                    ? 'Remove Tabs Component'
-                                                    : 'Remove Tab'}
+                                                Remove Tab
                                             </Menu.Item>
                                         ) : (
                                             <Menu.Item
