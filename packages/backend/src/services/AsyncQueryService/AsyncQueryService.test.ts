@@ -738,6 +738,12 @@ describe('AsyncQueryService', () => {
                     initialQueryExecutionMs: 0,
                     resultsPageExecutionMs: expect.any(Number),
                     status: QueryHistoryStatus.READY,
+                    columns: {
+                        dim1: {
+                            reference: 'dim1',
+                            type: 'string',
+                        },
+                    },
                 });
 
                 expect(
@@ -1025,6 +1031,12 @@ describe('AsyncQueryService', () => {
                     initialQueryExecutionMs: 0,
                     resultsPageExecutionMs: expect.any(Number),
                     status: QueryHistoryStatus.READY,
+                    columns: {
+                        dim1: {
+                            reference: 'dim1',
+                            type: 'string',
+                        },
+                    },
                 });
 
                 expect(

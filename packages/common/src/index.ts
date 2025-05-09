@@ -96,7 +96,7 @@ import {
     type WarehouseCredentials,
 } from './types/projects';
 import { type MostPopularAndRecentlyUpdated } from './types/resourceViewItem';
-import { type ResultRow } from './types/results';
+import { type ResultColumns, type ResultRow } from './types/results';
 import {
     type ApiJobScheduledResponse,
     type ApiJobStatusResponse,
@@ -547,6 +547,7 @@ export type ApiExecuteAsyncDashboardSqlChartQueryResults =
 
 export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     queryUuid: string;
+    columns: ResultColumns;
     rows: ResultRow[];
     initialQueryExecutionMs: number;
     resultsPageExecutionMs: number;
