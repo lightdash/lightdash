@@ -1,3 +1,11 @@
+# [0.1617.0](https://github.com/lightdash/lightdash/compare/0.1616.0...0.1617.0) (2025-05-09)
+
+
+### Features
+
+* adjust transfer items modal size ([#14738](https://github.com/lightdash/lightdash/issues/14738)) ([23cc31e](https://github.com/lightdash/lightdash/commit/23cc31eb172f7083f1bbbf1fcdb05de37fdd4299)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* ui/ux improvements for bulk selection actions ([#14737](https://github.com/lightdash/lightdash/issues/14737)) ([780a7c5](https://github.com/lightdash/lightdash/commit/780a7c5e8f2d0cdb2c2f8243eaffdb128b8f50e5)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.1616.0](https://github.com/lightdash/lightdash/compare/0.1615.0...0.1616.0) (2025-05-09)
 
 
