@@ -6,6 +6,7 @@ import {
     PutObjectCommandInput,
     S3,
     S3ServiceException,
+    type S3ClientConfig,
 } from '@aws-sdk/client-s3';
 import {
     getErrorMessage,
@@ -28,14 +29,16 @@ export class S3CacheClient {
 
     constructor({ lightdashConfig }: S3CacheClientArguments) {
         const endpoint = lightdashConfig.s3?.endpoint;
+        const forcePathStyle = lightdashConfig.s3?.forcePathStyle;
         this.configuration = lightdashConfig.resultsCache.s3;
         const { region, accessKey, secretKey } = this.configuration;
 
         if (endpoint && region) {
-            const s3Config = {
+            const s3Config: S3ClientConfig = {
                 endpoint,
                 region,
                 apiVersion: '2006-03-01',
+                forcePathStyle,
             };
 
             if (accessKey && secretKey) {

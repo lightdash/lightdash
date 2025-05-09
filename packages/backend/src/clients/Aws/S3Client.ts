@@ -3,6 +3,7 @@ import {
     PutObjectCommandInput,
     S3,
     S3ServiceException,
+    type S3ClientConfig,
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -30,10 +31,11 @@ export class S3Client {
         this.lightdashConfig = lightdashConfig;
 
         if (lightdashConfig.s3?.endpoint && lightdashConfig.s3.region) {
-            const s3Config = {
+            const s3Config: S3ClientConfig = {
                 region: lightdashConfig.s3.region,
                 apiVersion: '2006-03-01',
                 endpoint: lightdashConfig.s3.endpoint,
+                forcePathStyle: lightdashConfig.s3.forcePathStyle,
             };
 
             if (lightdashConfig.s3?.accessKey && lightdashConfig.s3.secretKey) {
