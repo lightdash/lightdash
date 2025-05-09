@@ -7,7 +7,7 @@ const JAFFLE_SHOP_SPACE_NAME = SEED_PROJECT.name;
 const TREE_1_ROOT_SPACE_NAMES = SPACE_TREE_1.map((space) => space.name);
 const TREE_2_ROOT_SPACE_NAMES = SPACE_TREE_2.map((space) => space.name);
 
-describe.skip('Space', () => {
+describe('Space', () => {
     beforeEach(() => {
         cy.login();
     });
@@ -147,7 +147,7 @@ describe.skip('Space', () => {
     });
 });
 
-describe.skip('Admin access to spaces', () => {
+describe('Admin access to spaces', () => {
     beforeEach(() => {
         cy.login();
     });
@@ -213,7 +213,7 @@ describe.skip('Admin access to spaces', () => {
     });
 });
 
-describe.skip('Editor access to spaces', () => {
+describe('Editor access to spaces', () => {
     const EDITOR_ROOT_SPACE_NAMES = TREE_2_ROOT_SPACE_NAMES.concat([
         JAFFLE_SHOP_SPACE_NAME,
         'Parent Space 1',
@@ -260,7 +260,7 @@ describe.skip('Editor access to spaces', () => {
     });
 });
 
-describe.skip('Viewer access to spaces', () => {
+describe('Viewer access to spaces', () => {
     const VIEWER_ROOT_SPACE_NAMES = [JAFFLE_SHOP_SPACE_NAME, 'Parent Space 1'];
 
     beforeEach(() => {
@@ -339,8 +339,5 @@ describe('Editor can create content', () => {
         ).click();
         cy.contains('Delete dashboard').click();
         cy.get('button').contains('Delete').click();
-
-        // was flaky on render
-        // cy.contains(dashboardName).should('not.exist');
     });
 });
