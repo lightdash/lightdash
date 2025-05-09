@@ -1,9 +1,10 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { Select } from '@mantine/core';
-import React, { useEffect, type FC } from 'react';
-import { Controller, useWatch } from 'react-hook-form';
+import { type FC } from 'react';
+import { useFormContext } from './formContext';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
+import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
 import PostgresForm from './WarehouseForms/PostgresForm';
 import RedshiftForm from './WarehouseForms/RedshiftForm';
 import SnowflakeForm from './WarehouseForms/SnowflakeForm';
@@ -29,58 +30,47 @@ const WarehouseTypeForms = {
 
 interface WarehouseSettingsFormProps {
     disabled: boolean;
-    setSelectedWarehouse?: (warehouse: WarehouseTypes) => void;
-    selectedWarehouse?: WarehouseTypes;
     isProjectUpdate?: boolean | undefined;
 }
 
 const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
     disabled,
-    selectedWarehouse,
-    setSelectedWarehouse,
     isProjectUpdate,
 }) => {
-    const warehouseType: WarehouseTypes = useWatch({
-        name: 'warehouse.type',
-        defaultValue: WarehouseTypes.BIGQUERY,
-    });
+    const form = useFormContext();
 
-    const WarehouseForm =
-        (selectedWarehouse && WarehouseTypeForms[selectedWarehouse]) ||
-        WarehouseTypeForms[warehouseType] ||
-        BigQueryForm;
+    const warehouseType: WarehouseTypes =
+        form.values?.warehouse?.type ?? WarehouseTypes.BIGQUERY;
 
-    useEffect(() => {
-        if (isProjectUpdate && warehouseType && setSelectedWarehouse) {
-            setSelectedWarehouse(warehouseType || WarehouseTypes.BIGQUERY);
-        }
-    }, [warehouseType, setSelectedWarehouse, isProjectUpdate]);
+    const WarehouseForm = WarehouseTypeForms[warehouseType];
 
     return (
         <div
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
         >
             {isProjectUpdate && (
-                <Controller
-                    name="warehouse.type"
+                <Select
                     defaultValue={WarehouseTypes.BIGQUERY}
-                    render={({ field }) => (
-                        <Select
-                            label="Type"
-                            data={Object.entries(WarehouseTypeLabels).map(
-                                ([value, label]) => ({
-                                    value,
-                                    label,
-                                }),
-                            )}
-                            required
-                            value={field.value}
-                            onChange={field.onChange}
-                            disabled={disabled}
-                        />
+                    label="Type"
+                    data={Object.entries(WarehouseTypeLabels).map(
+                        ([value, label]) => ({
+                            value,
+                            label,
+                        }),
                     )}
+                    required
+                    {...form.getInputProps('warehouse.type')}
+                    onChange={(value: WarehouseTypes) => {
+                        if (!value) return;
+
+                        form.setValues({
+                            warehouse: warehouseDefaultValues[value],
+                        });
+                    }}
+                    disabled={disabled}
                 />
             )}
+
             <WarehouseForm disabled={disabled} />
         </div>
     );
