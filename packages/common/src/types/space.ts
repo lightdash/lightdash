@@ -60,10 +60,6 @@ export type UpdateSpace = {
     isPrivate?: boolean;
 };
 
-export type MoveSpace = {
-    parentSpaceUuid: string | null;
-};
-
 export type SpaceShare = {
     userUuid: string;
     firstName: string;

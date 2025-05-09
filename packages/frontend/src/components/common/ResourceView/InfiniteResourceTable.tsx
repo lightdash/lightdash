@@ -762,12 +762,18 @@ const InfiniteResourceTable = ({
         },
     });
 
-    const { mutateAsync: bulkMoveContent, isLoading: isBulkMovingContent } =
-        useContentBulkAction(filters.projectUuid);
+    const {
+        mutateAsync: contentBulkAction,
+        isLoading: isContentBulkActionLoading,
+    } = useContentBulkAction(filters.projectUuid);
 
     const handleBulkMoveContent = useCallback(
         async (selectedItems: ResourceViewItem[], spaceUuid: string) => {
-            await bulkMoveContent({
+            await contentBulkAction({
+                action: {
+                    type: 'move',
+                    targetSpaceUuid: spaceUuid,
+                },
                 content: selectedItems.map((item) => {
                     switch (item.type) {
                         case ContentType.CHART:
@@ -795,17 +801,12 @@ const InfiniteResourceTable = ({
                             );
                     }
                 }),
-                action: {
-                    type: 'move',
-                    targetSpaceUuid: spaceUuid,
-                },
             });
 
-            // unselect all rows
             table.resetRowSelection();
             closeTransferItemsModal();
         },
-        [bulkMoveContent, closeTransferItemsModal, table],
+        [closeTransferItemsModal, contentBulkAction, table],
     );
 
     const selectedItems = table
@@ -824,7 +825,7 @@ const InfiniteResourceTable = ({
                     projectUuid={filters.projectUuid}
                     items={selectedItems}
                     spaces={spaces}
-                    isLoading={isFetching || isBulkMovingContent}
+                    isLoading={isFetching || isContentBulkActionLoading}
                     onConfirm={async (spaceUuid) => {
                         if (!spaceUuid) {
                             throw new Error(

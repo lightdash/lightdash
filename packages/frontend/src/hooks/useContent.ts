@@ -1,9 +1,9 @@
 import {
+    type ApiContentActionBody,
     type ApiContentBulkActionBody,
     type ApiContentResponse,
     type ApiError,
     type ApiSuccessEmpty,
-    type ContentBulkActionMove,
     type ContentSortByColumns,
     type ContentType,
 } from '@lightdash/common';
@@ -78,36 +78,48 @@ export const useInfiniteContent = (
     });
 };
 
-const postContentBulkActionMove = async ({
+const postContentAction = async ({
     projectUuid,
     body,
 }: {
     projectUuid: string;
-    body: ApiContentBulkActionBody<ContentBulkActionMove>;
+    body: ApiContentActionBody;
 }) => {
     return lightdashApi<ApiSuccessEmpty>({
         version: 'v2',
-        url: `/content/bulk-action/${projectUuid}/move`,
+        url: `/content/${projectUuid}/${body.action.type}`,
         method: 'POST',
         body: JSON.stringify(body),
     });
 };
-export const useContentBulkAction = (projectUuid: string) => {
+
+const postContentBulkAction = async ({
+    projectUuid,
+    body,
+}: {
+    projectUuid: string;
+    body: ApiContentBulkActionBody;
+}) => {
+    return lightdashApi<ApiSuccessEmpty>({
+        version: 'v2',
+        url: `/content/bulk-action/${projectUuid}/${body.action.type}`,
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+};
+
+export const useContentAction = (projectUuid: string) => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
 
-    return useMutation<
-        ApiSuccessEmpty,
-        ApiError,
-        ApiContentBulkActionBody<ContentBulkActionMove>
-    >({
+    return useMutation<ApiSuccessEmpty, ApiError, ApiContentActionBody>({
         mutationFn: (body) =>
-            postContentBulkActionMove({
+            postContentAction({
                 projectUuid,
                 body,
             }),
-        onSuccess: async (_data, { action: { targetSpaceUuid } }) => {
+        onSuccess: async (_data, { item, action }) => {
             await Promise.all([
                 queryClient.invalidateQueries([
                     'projects',
@@ -119,17 +131,85 @@ export const useContentBulkAction = (projectUuid: string) => {
                 queryClient.invalidateQueries(['space', projectUuid]),
             ]);
 
-            showToastSuccess({
-                title: `Successfully moved content`,
-                action: {
-                    children: 'Go to space',
-                    icon: IconArrowRight,
-                    onClick: () =>
-                        navigate(
-                            `/projects/${projectUuid}/spaces/${targetSpaceUuid}`,
-                        ),
-                },
+            switch (action.type) {
+                case 'move':
+                    return showToastSuccess({
+                        title: `Successfully moved ${item.contentType} to a space`,
+                        action: {
+                            children: 'Go to space',
+                            icon: IconArrowRight,
+                            onClick: () =>
+                                navigate(
+                                    action.targetSpaceUuid
+                                        ? `/projects/${projectUuid}/spaces/${action.targetSpaceUuid}`
+                                        : `/projects/${projectUuid}/spaces`,
+                                ),
+                        },
+                    });
+
+                case 'delete':
+                    return showToastSuccess({
+                        title: `Successfully deleted ${item.contentType}.`,
+                    });
+            }
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: `Failed to move content`,
+                apiError: error,
             });
+        },
+    });
+};
+
+export const useContentBulkAction = (projectUuid: string) => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+    const navigate = useNavigate();
+
+    return useMutation<ApiSuccessEmpty, ApiError, ApiContentBulkActionBody>({
+        mutationFn: (body) =>
+            postContentBulkAction({
+                projectUuid,
+                body,
+            }),
+        onSuccess: async (_data, { content, action }) => {
+            await Promise.all([
+                queryClient.invalidateQueries([
+                    'projects',
+                    projectUuid,
+                    'spaces',
+                ]),
+                queryClient.invalidateQueries(['pinned_items']),
+                queryClient.invalidateQueries(['content']),
+                queryClient.invalidateQueries(['space', projectUuid]),
+            ]);
+
+            switch (action.type) {
+                case 'move':
+                    return showToastSuccess({
+                        title: `Successfully moved ${content.length} ${
+                            content.length === 1 ? 'item' : 'items'
+                        } to a space`,
+                        action: {
+                            children: 'Go to space',
+                            icon: IconArrowRight,
+                            onClick: () =>
+                                navigate(
+                                    action.targetSpaceUuid
+                                        ? `/projects/${projectUuid}/spaces/${action.targetSpaceUuid}`
+                                        : `/projects/${projectUuid}/spaces`,
+                                ),
+                        },
+                    });
+
+                case 'delete':
+                    return showToastSuccess({
+                        title: `Successfully deleted ${content.length} ${
+                            content.length === 1 ? 'item' : 'items'
+                        }.`,
+                    });
+            }
         },
         onError: ({ error }) => {
             showToastApiError({

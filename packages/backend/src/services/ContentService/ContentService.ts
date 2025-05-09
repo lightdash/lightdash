@@ -1,9 +1,10 @@
 import { subject } from '@casl/ability';
 import {
+    ApiContentActionBody,
     ApiContentBulkActionBody,
     assertUnreachable,
     ChartSourceType,
-    ContentBulkActionMove,
+    ContentActionMove,
     ContentType,
     ForbiddenError,
     KnexPaginateArgs,
@@ -143,8 +144,8 @@ export class ContentService extends BaseService {
     async bulkMove(
         user: SessionUser,
         projectUuid: string,
-        content: ApiContentBulkActionBody<ContentBulkActionMove>['content'],
-        targetSpaceUuid: string,
+        content: ApiContentBulkActionBody<ContentActionMove>['content'],
+        targetSpaceUuid: string | null,
     ) {
         if (user.organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
@@ -235,5 +236,83 @@ export class ContentService extends BaseService {
                 contentCount: content.length,
             },
         });
+    }
+
+    async move(
+        user: SessionUser,
+        projectUuid: string,
+        item: ApiContentActionBody<ContentActionMove>['item'],
+        targetSpaceUuid: string | null,
+    ) {
+        if (user.organizationUuid === undefined) {
+            throw new NotExistsError('Organization not found');
+        }
+
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const moveToSpaceArgs = {
+            projectUuid,
+            itemUuid: item.uuid,
+            targetSpaceUuid,
+        };
+
+        const moveToSpaceOptions = {
+            checkForAccess: true,
+            trackEvent: true,
+        };
+
+        switch (item.contentType) {
+            case ContentType.CHART:
+                switch (item.source) {
+                    case ChartSourceType.DBT_EXPLORE:
+                        return this.savedChartService.moveToSpace(
+                            user,
+                            moveToSpaceArgs,
+                            moveToSpaceOptions,
+                        );
+                    case ChartSourceType.SQL:
+                        return this.savedSqlService.moveToSpace(
+                            user,
+                            moveToSpaceArgs,
+                            moveToSpaceOptions,
+                        );
+                    case ChartSourceType.SEMANTIC_LAYER:
+                        return this.savedSemanticViewerChartService.moveToSpace(
+                            user,
+                            moveToSpaceArgs,
+                            moveToSpaceOptions,
+                        );
+                    default:
+                        return assertUnreachable(
+                            item.source,
+                            `Unknown chart source in bulk move: ${item.source}`,
+                        );
+                }
+
+            case ContentType.DASHBOARD:
+                return this.dashboardService.moveToSpace(
+                    user,
+                    moveToSpaceArgs,
+                    moveToSpaceOptions,
+                );
+            case ContentType.SPACE:
+                return this.spaceService.moveToSpace(
+                    user,
+                    moveToSpaceArgs,
+                    moveToSpaceOptions,
+                );
+            default:
+                return assertUnreachable(item, 'Unknown content type');
+        }
     }
 }

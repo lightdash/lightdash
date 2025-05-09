@@ -105,35 +105,42 @@ export type ApiChartContentResponse = {
     results: KnexPaginatedData<ChartContent[]>;
 };
 
-export type ContentBulkActionMove = {
+export type ContentActionMove = {
     type: 'move';
-    targetSpaceUuid: string;
+    targetSpaceUuid: string | null;
 };
 
-export type ContentBulkActionDelete = {
+export type ContentActionDelete = {
     type: 'delete';
 };
 
-type ContentBulkAction = ContentBulkActionMove | ContentBulkActionDelete;
+type ItemPayload =
+    | {
+          uuid: string;
+          contentType: ContentType.CHART;
+          source: ChartSourceType;
+      }
+    | {
+          uuid: string;
+          contentType: ContentType.DASHBOARD;
+      }
+    | {
+          uuid: string;
+          contentType: ContentType.SPACE;
+      };
 
-export type ApiContentBulkActionBody<T extends ContentBulkAction> = {
-    content: (
-        | {
-              uuid: string;
-              contentType: ContentType.CHART;
-              source: ChartSourceType;
-          }
-        | {
-              uuid: string;
-              contentType: ContentType.DASHBOARD;
-          }
-        | {
-              uuid: string;
-              contentType: ContentType.SPACE;
-          }
-    )[];
+export type ContentAction = ContentActionMove | ContentActionDelete;
+
+export type ApiContentActionBody<T extends ContentAction = ContentAction> = {
+    item: ItemPayload;
     action: T;
 };
+
+export type ApiContentBulkActionBody<T extends ContentAction = ContentAction> =
+    {
+        content: ItemPayload[];
+        action: T;
+    };
 
 export interface BulkActionable<Tx extends unknown> {
     moveToSpace: (

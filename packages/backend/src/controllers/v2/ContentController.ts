@@ -1,10 +1,12 @@
 import {
+    ApiContentActionBody,
     ApiContentBulkActionBody,
     ApiContentResponse,
     ApiErrorPayload,
     ApiSuccessEmpty,
-    ContentBulkActionMove,
+    ContentActionMove,
     ContentType,
+    ParameterError,
 } from '@lightdash/common';
 import {
     Body,
@@ -74,7 +76,38 @@ export class ContentController extends BaseController {
     }
 
     /**
-     * Transfer multiple items (Charts, Dashboards, Spaces) to another space
+     * Move a single item (Chart, Dashboard, Space) to another space
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/:projectUuid/move')
+    @OperationId('Move content')
+    @Tags('Content', 'Move content')
+    async moveContent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiContentActionBody<ContentActionMove>,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        if (body.action.type !== 'move') {
+            throw new ParameterError('Invalid action type');
+        }
+
+        await this.services
+            .getContentService()
+            .move(
+                req.user!,
+                projectUuid,
+                body.item,
+                body.action.targetSpaceUuid,
+            );
+
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Move multiple items (Charts, Dashboards, Spaces) to another space
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -84,9 +117,13 @@ export class ContentController extends BaseController {
     async bulkMoveContent(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Body() body: ApiContentBulkActionBody<ContentBulkActionMove>,
+        @Body() body: ApiContentBulkActionBody<ContentActionMove>,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
+
+        if (body.action.type !== 'move') {
+            throw new ParameterError('Invalid action type');
+        }
 
         await this.services
             .getContentService()

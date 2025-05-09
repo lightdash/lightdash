@@ -7897,16 +7897,6 @@
                 "required": ["name"],
                 "type": "object"
             },
-            "MoveSpace": {
-                "properties": {
-                    "parentSpaceUuid": {
-                        "type": "string",
-                        "nullable": true
-                    }
-                },
-                "required": ["parentSpaceUuid"],
-                "type": "object"
-            },
             "AddSpaceUserAccess": {
                 "properties": {
                     "spaceRole": {
@@ -11504,22 +11494,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -16496,10 +16486,54 @@
                 "enum": ["name", "space_name", "last_updated_at"],
                 "type": "string"
             },
-            "ContentBulkActionMove": {
+            "ItemPayload": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "source": {
+                                "$ref": "#/components/schemas/ChartSourceType"
+                            },
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentType.CHART"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["source", "contentType", "uuid"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentType.DASHBOARD"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["contentType", "uuid"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentType.SPACE"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["contentType", "uuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ContentActionMove": {
                 "properties": {
                     "targetSpaceUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "type": {
                         "type": "string",
@@ -16510,58 +16544,26 @@
                 "required": ["targetSpaceUuid", "type"],
                 "type": "object"
             },
-            "ApiContentBulkActionBody_ContentBulkActionMove_": {
+            "ApiContentActionBody_ContentActionMove_": {
                 "properties": {
                     "action": {
-                        "$ref": "#/components/schemas/ContentBulkActionMove"
+                        "$ref": "#/components/schemas/ContentActionMove"
+                    },
+                    "item": {
+                        "$ref": "#/components/schemas/ItemPayload"
+                    }
+                },
+                "required": ["action", "item"],
+                "type": "object"
+            },
+            "ApiContentBulkActionBody_ContentActionMove_": {
+                "properties": {
+                    "action": {
+                        "$ref": "#/components/schemas/ContentActionMove"
                     },
                     "content": {
                         "items": {
-                            "anyOf": [
-                                {
-                                    "properties": {
-                                        "source": {
-                                            "$ref": "#/components/schemas/ChartSourceType"
-                                        },
-                                        "contentType": {
-                                            "$ref": "#/components/schemas/ContentType.CHART"
-                                        },
-                                        "uuid": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": [
-                                        "source",
-                                        "contentType",
-                                        "uuid"
-                                    ],
-                                    "type": "object"
-                                },
-                                {
-                                    "properties": {
-                                        "contentType": {
-                                            "$ref": "#/components/schemas/ContentType.DASHBOARD"
-                                        },
-                                        "uuid": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": ["contentType", "uuid"],
-                                    "type": "object"
-                                },
-                                {
-                                    "properties": {
-                                        "contentType": {
-                                            "$ref": "#/components/schemas/ContentType.SPACE"
-                                        },
-                                        "uuid": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": ["contentType", "uuid"],
-                                    "type": "object"
-                                }
-                            ]
+                            "$ref": "#/components/schemas/ItemPayload"
                         },
                         "type": "array"
                     }
@@ -16586,7 +16588,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1618.0",
+        "version": "0.1618.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -18093,66 +18095,6 @@
                         }
                     }
                 ]
-            }
-        },
-        "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/move": {
-            "post": {
-                "operationId": "MoveSpace",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Move a space to a new parent space",
-                "tags": ["Roles & Permissions", "Spaces"],
-                "security": [],
-                "parameters": [
-                    {
-                        "description": "The uuid of the space's parent project",
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "description": "The uuid of the space to move",
-                        "in": "path",
-                        "name": "spaceUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/MoveSpace"
-                            }
-                        }
-                    }
-                }
             }
         },
         "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/share": {
