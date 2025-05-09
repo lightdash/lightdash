@@ -1,3 +1,10 @@
+# [0.1620.0](https://github.com/lightdash/lightdash/compare/0.1619.1...0.1620.0) (2025-05-09)
+
+
+### Features
+
+* add endpoint to create paginated query from SQL chart ([#14733](https://github.com/lightdash/lightdash/issues/14733)) ([82fccc3](https://github.com/lightdash/lightdash/commit/82fccc3fb3e424606a4b181839a42aee8ba365f5))
+
 ## [0.1619.1](https://github.com/lightdash/lightdash/compare/0.1619.0...0.1619.1) (2025-05-09)
 
 
