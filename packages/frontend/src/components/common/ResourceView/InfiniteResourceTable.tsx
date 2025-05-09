@@ -110,6 +110,12 @@ const InfiniteResourceTable = ({
         true,
     );
     const { user } = useApp();
+
+    const [
+        isTransferItemsModalOpen,
+        { open: openTransferItemsModal, close: closeTransferItemsModal },
+    ] = useDisclosure(false);
+
     const canUserManageValidation = useValidationUserAbility(
         filters.projectUuid,
     );
@@ -300,54 +306,6 @@ const InfiniteResourceTable = ({
             { keepPreviousData: true },
         );
 
-    const [
-        isTransferItemsModalOpen,
-        { open: openTransferItemsModal, close: closeTransferItemsModal },
-    ] = useDisclosure(false);
-
-    const { mutateAsync: bulkMoveContent, isLoading: isBulkMovingContent } =
-        useContentBulkAction(filters.projectUuid);
-
-    const handleBulkMoveContent = useCallback(
-        async (selectedItems: ResourceViewItem[], spaceUuid: string) => {
-            await bulkMoveContent({
-                content: selectedItems.map((item) => {
-                    switch (item.type) {
-                        case ContentType.CHART:
-                            return {
-                                uuid: item.data.uuid,
-                                contentType: ContentType.CHART,
-                                source:
-                                    item.data.source ??
-                                    ChartSourceType.DBT_EXPLORE,
-                            };
-                        case ContentType.DASHBOARD:
-                            return {
-                                uuid: item.data.uuid,
-                                contentType: ContentType.DASHBOARD,
-                            };
-                        case ContentType.SPACE:
-                            return {
-                                uuid: item.data.uuid,
-                                contentType: ContentType.SPACE,
-                            };
-                        default:
-                            return assertUnreachable(
-                                item,
-                                'Invalid item type in bulk move handler',
-                            );
-                    }
-                }),
-                action: {
-                    type: 'move',
-                    targetSpaceUuid: spaceUuid,
-                },
-            });
-
-            closeTransferItemsModal();
-        },
-        [bulkMoveContent, closeTransferItemsModal],
-    );
     const flatData = useMemo(() => {
         if (!data || !spaces) return [];
         return data.pages
@@ -540,32 +498,39 @@ const InfiniteResourceTable = ({
                 },
             },
         },
-        mantineTableBodyRowProps: ({ row }) => ({
-            sx: {
-                cursor: 'pointer',
-                'td:first-of-type > div > .explore-button-container': {
-                    visibility: 'hidden',
-                    opacity: 0,
-                },
-                '&:hover': {
-                    td: {
-                        backgroundColor: theme.colors.gray[0],
-                        transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                    },
+        mantineTableBodyRowProps: ({ row }) => {
+            const isSelected = row.getIsSelected();
 
+            return {
+                sx: {
+                    cursor: 'pointer',
                     'td:first-of-type > div > .explore-button-container': {
-                        visibility: 'visible',
-                        opacity: 1,
-                        transition: `visibility 0ms, opacity ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                        visibility: 'hidden',
+                        opacity: 0,
+                    },
+                    '&:hover': {
+                        td: {
+                            backgroundColor: isSelected
+                                ? theme.colors.blue[1]
+                                : theme.colors.gray[0],
+                            transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                        },
+
+                        'td:first-of-type > div > .explore-button-container': {
+                            visibility: 'visible',
+                            opacity: 1,
+                            transition: `visibility 0ms, opacity ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                        },
                     },
                 },
-            },
-            onClick: () => {
-                void navigate(
-                    getResourceUrl(filters.projectUuid, row.original),
-                );
-            },
-        }),
+
+                onClick: () => {
+                    void navigate(
+                        getResourceUrl(filters.projectUuid, row.original),
+                    );
+                },
+            };
+        },
         mantineTableBodyCellProps: () => {
             return {
                 h: 72,
@@ -726,20 +691,25 @@ const InfiniteResourceTable = ({
             </Box>
         ),
         enableRowActions: true,
-        renderRowActions: ({ row }) => (
-            <Box
-                component="div"
-                onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                }}
-            >
-                <ResourceActionMenu
-                    item={row.original}
-                    onAction={handleAction}
-                />
-            </Box>
-        ),
+        renderRowActions: ({ row, table: tableInstance }) => {
+            const isSelected = tableInstance.getIsSomeRowsSelected();
+
+            return (
+                <Box
+                    component="div"
+                    onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }}
+                >
+                    <ResourceActionMenu
+                        disabled={isSelected}
+                        item={row.original}
+                        onAction={handleAction}
+                    />
+                </Box>
+            );
+        },
         icons: {
             IconArrowsSort: () => (
                 <MantineIcon icon={IconArrowsSort} size="md" color="gray.5" />
@@ -791,6 +761,52 @@ const InfiniteResourceTable = ({
             size: 'sm',
         },
     });
+
+    const { mutateAsync: bulkMoveContent, isLoading: isBulkMovingContent } =
+        useContentBulkAction(filters.projectUuid);
+
+    const handleBulkMoveContent = useCallback(
+        async (selectedItems: ResourceViewItem[], spaceUuid: string) => {
+            await bulkMoveContent({
+                content: selectedItems.map((item) => {
+                    switch (item.type) {
+                        case ContentType.CHART:
+                            return {
+                                uuid: item.data.uuid,
+                                contentType: ContentType.CHART,
+                                source:
+                                    item.data.source ??
+                                    ChartSourceType.DBT_EXPLORE,
+                            };
+                        case ContentType.DASHBOARD:
+                            return {
+                                uuid: item.data.uuid,
+                                contentType: ContentType.DASHBOARD,
+                            };
+                        case ContentType.SPACE:
+                            return {
+                                uuid: item.data.uuid,
+                                contentType: ContentType.SPACE,
+                            };
+                        default:
+                            return assertUnreachable(
+                                item,
+                                'Invalid item type in bulk move handler',
+                            );
+                    }
+                }),
+                action: {
+                    type: 'move',
+                    targetSpaceUuid: spaceUuid,
+                },
+            });
+
+            // unselect all rows
+            table.resetRowSelection();
+            closeTransferItemsModal();
+        },
+        [bulkMoveContent, closeTransferItemsModal, table],
+    );
 
     const selectedItems = table
         .getFilteredSelectedRowModel()
