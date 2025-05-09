@@ -1,29 +1,19 @@
 import knex, { Knex } from 'knex';
 import { MockClient, Tracker, getTracker } from 'knex-mock-client';
-import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
-import { ResultsCacheStatus } from '../../../services/CacheService/types';
-import type { IResultsCacheStorageClient } from '../../clients/ResultsCacheStorageClients/IResultsCacheStorageClient';
-import { ResultsCacheTableName } from '../../database/entities/resultsCache';
-import { ResultsCacheModel } from './ResultsCacheModel';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { ResultsCacheTableName } from '../../database/entities/resultsFile';
+import { ResultsCacheStatus } from '../../services/CacheService/types';
+import { ResultsFileModel } from './ResultsFileModel';
 
-// Mock storage client
-const mockStorageClient = {
-    createUploadStream: jest.fn().mockReturnValue({
-        write: jest.fn(),
-        close: jest.fn(),
-    }),
-    getDowloadStream: jest.fn(),
-} as jest.Mocked<IResultsCacheStorageClient>;
-
-describe('ResultsCacheModel', () => {
-    let model: ResultsCacheModel;
+describe('ResultsFileModel', () => {
+    let model: ResultsFileModel;
     let tracker: Tracker;
     let db: Knex;
 
     beforeEach(() => {
         db = knex({ client: MockClient, dialect: 'pg' });
         tracker = getTracker();
-        model = new ResultsCacheModel({
+        model = new ResultsFileModel({
             database: db,
             lightdashConfig: lightdashConfigMock,
         });
@@ -40,14 +30,14 @@ describe('ResultsCacheModel', () => {
         const timezone = 'UTC';
 
         test('should generate correct hash with SQL only', () => {
-            const result = ResultsCacheModel.getCacheKey(projectUuid, { sql });
+            const result = ResultsFileModel.getCacheKey(projectUuid, { sql });
             expect(result).toBeDefined();
             expect(typeof result).toBe('string');
             expect(result.length).toBe(64); // SHA-256 produces 64 character hex string
         });
 
         test('should generate correct hash with SQL and timezone', () => {
-            const result = ResultsCacheModel.getCacheKey(projectUuid, {
+            const result = ResultsFileModel.getCacheKey(projectUuid, {
                 sql,
                 timezone,
             });
@@ -58,15 +48,15 @@ describe('ResultsCacheModel', () => {
 
         test('should generate different hashes for different projects with same SQL', () => {
             const projectUuid2 = 'different-project-uuid';
-            const hash1 = ResultsCacheModel.getCacheKey(projectUuid, { sql });
-            const hash2 = ResultsCacheModel.getCacheKey(projectUuid2, { sql });
+            const hash1 = ResultsFileModel.getCacheKey(projectUuid, { sql });
+            const hash2 = ResultsFileModel.getCacheKey(projectUuid2, { sql });
             expect(hash1).not.toBe(hash2);
         });
 
         test('should generate different hashes for same project with different SQL', () => {
             const sql2 = 'SELECT * FROM different_table';
-            const hash1 = ResultsCacheModel.getCacheKey(projectUuid, { sql });
-            const hash2 = ResultsCacheModel.getCacheKey(projectUuid, {
+            const hash1 = ResultsFileModel.getCacheKey(projectUuid, { sql });
+            const hash2 = ResultsFileModel.getCacheKey(projectUuid, {
                 sql: sql2,
             });
             expect(hash1).not.toBe(hash2);
@@ -74,11 +64,11 @@ describe('ResultsCacheModel', () => {
 
         test('should generate different hashes for same project and SQL but different timezone', () => {
             const timezone2 = 'America/New_York';
-            const hash1 = ResultsCacheModel.getCacheKey(projectUuid, {
+            const hash1 = ResultsFileModel.getCacheKey(projectUuid, {
                 sql,
                 timezone,
             });
-            const hash2 = ResultsCacheModel.getCacheKey(projectUuid, {
+            const hash2 = ResultsFileModel.getCacheKey(projectUuid, {
                 sql,
                 timezone: timezone2,
             });

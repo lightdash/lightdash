@@ -1,13 +1,13 @@
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
-import type { LightdashConfig } from '../../../config/parseConfig';
+import type { LightdashConfig } from '../../config/parseConfig';
 import {
     ResultsCacheTableName,
     type DbResultsCacheIn,
     type DbResultsCacheUpdate,
-} from '../../database/entities/resultsCache';
+} from '../../database/entities/resultsFile';
 
-export class ResultsCacheModel {
+export class ResultsFileModel {
     readonly database: Knex;
 
     protected lightdashConfig: LightdashConfig;
