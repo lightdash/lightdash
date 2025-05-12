@@ -54,6 +54,7 @@ import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
+import useApp from '../../../providers/App/useApp';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
@@ -100,6 +101,7 @@ export const ContentPanel: FC = () => {
 
     // Get organization colors to generate chart specs with a color palette defined by the organization
     const { data: organization } = useOrganization();
+    const { health } = useApp();
 
     const { showToastError } = useToaster();
 
@@ -132,17 +134,17 @@ export const ContentPanel: FC = () => {
 
     const handleRunQuery = useCallback(
         async (sqlToUse: string) => {
-            if (!sqlToUse) return;
+            if (!sqlToUse || !limit) return;
 
             await dispatch(
                 runSqlQuery({
                     sql: sqlToUse,
-                    limit: DEFAULT_SQL_LIMIT,
+                    limit,
                     projectUuid,
                 }),
             );
         },
-        [dispatch, projectUuid],
+        [dispatch, projectUuid, limit],
     );
 
     useEffect(() => {
@@ -257,6 +259,20 @@ export const ContentPanel: FC = () => {
             setPanelSizes([50, 50]);
         }
     }, [queryResults, panelSizes]);
+
+    useEffect(() => {
+        if (!limit) {
+            dispatch(
+                setSqlLimit(
+                    health.data?.query.defaultLimit ?? DEFAULT_SQL_LIMIT,
+                ),
+            );
+        }
+    }, [health.data?.query.defaultLimit, dispatch, limit]);
+
+    const defaultQueryLimit = useMemo(() => {
+        return health.data?.query.defaultLimit ?? DEFAULT_SQL_LIMIT;
+    }, [health]);
 
     const [activeEchartsInstance, setActiveEchartsInstance] =
         useState<EChartsInstance>();
@@ -453,6 +469,7 @@ export const ContentPanel: FC = () => {
                                             ) ?? []
                                         }
                                         chartName={savedSqlChart?.name}
+                                        defaultQueryLimit={defaultQueryLimit}
                                     />
                                 )
                             )}
@@ -674,7 +691,7 @@ export const ContentPanel: FC = () => {
                         {showLimitText && (
                             <>
                                 <Text fz="xs" fw={400} c="gray.7">
-                                    Showing first {DEFAULT_SQL_LIMIT} rows
+                                    Showing first {defaultQueryLimit} rows
                                 </Text>
                                 <MantineIcon
                                     color="gray"
