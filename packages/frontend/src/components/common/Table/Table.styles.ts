@@ -137,7 +137,7 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
 
     .sticky-column {
         position: sticky;
-        left: 1px;
+        left: 0;
         z-index: 1;
         word-break: break-word;
         :hover {

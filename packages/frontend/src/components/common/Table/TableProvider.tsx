@@ -92,7 +92,7 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
                 style: {
                     maxWidth: frozenColumnWidth,
                     minWidth: frozenColumnWidth,
-                    left: rowColumnWidth + 1 + i * frozenColumnWidth,
+                    left: rowColumnWidth + i * frozenColumnWidth,
                 },
             },
         }));
