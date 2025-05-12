@@ -16,7 +16,7 @@ import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 import { checkLightdashVersion, lightdashApi } from './apiClient';
 
-const getProject = async (projectUuid: string) =>
+export const getProject = async (projectUuid: string) =>
     lightdashApi<Project>({
         method: 'GET',
         url: `/api/v1/projects/${projectUuid}`,

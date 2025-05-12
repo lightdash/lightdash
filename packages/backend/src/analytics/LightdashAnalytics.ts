@@ -1291,6 +1291,30 @@ export type DeprecatedRouteCalled = BaseTrack & {
     };
 };
 
+export type RenameResourceEvent = BaseTrack & {
+    event:
+        | 'rename_chart.executed'
+        | 'rename_resource.executed'
+        | 'rename_resource.error';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | undefined;
+        context: string;
+        renamedCharts?: number;
+        renamedDashboards?: number;
+        renamedAlerts?: number;
+        renamedDashboardSchedulers?: number;
+        from: string;
+        to: string;
+        type: string;
+        error?: string;
+        dryRun?: boolean;
+        chartId?: string; // for rename_chart
+        withValidationWarning?: boolean; // for rename_resource.error
+    };
+};
+
 export type SupportShareEvent = BaseTrack & {
     event: 'support.share';
     userId: string;

@@ -236,6 +236,7 @@ export * from './types/projectMemberRole';
 export * from './types/projects';
 export * from './types/promotion';
 export * from './types/queryHistory';
+export * from './types/rename';
 export * from './types/resourceViewItem';
 export * from './types/results';
 export * from './types/savedCharts';

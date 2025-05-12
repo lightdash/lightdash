@@ -8461,7 +8461,8 @@
                     "replaceCustomFields",
                     "indexCatalog",
                     "generateDailyJobs",
-                    "exportCsvDashboard"
+                    "exportCsvDashboard",
+                    "renameResources"
                 ]
             },
             "SchedulerJobStatus": {
@@ -9302,6 +9303,49 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "RenameType": {
+                "enum": ["model", "field"],
+                "type": "string"
+            },
+            "ApiRenameBody": {
+                "properties": {
+                    "model": {
+                        "type": "string"
+                    },
+                    "dryRun": {
+                        "type": "boolean"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/RenameType"
+                    },
+                    "from": {
+                        "type": "string"
+                    },
+                    "to": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "from", "to"],
+                "type": "object"
+            },
+            "ApiRenameChartBody": {
+                "properties": {
+                    "fixAll": {
+                        "type": "boolean"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/RenameType"
+                    },
+                    "to": {
+                        "type": "string"
+                    },
+                    "from": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "to", "from"],
                 "type": "object"
             },
             "ProjectType": {
@@ -16630,7 +16674,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1618.1",
+        "version": "0.1620.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -19597,6 +19641,160 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/rename": {
+            "post": {
+                "operationId": "rename",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiJobScheduledResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiRenameBody"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/rename/chart/{chartUuid}": {
+            "post": {
+                "operationId": "renameChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiRenameChartBody"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/rename/chart/{chartUuid}/fields": {
+            "get": {
+                "operationId": "renameChartFields",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnyType"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a list of fields for this chart's explore to be used when renaming a chart in the UI",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}": {
