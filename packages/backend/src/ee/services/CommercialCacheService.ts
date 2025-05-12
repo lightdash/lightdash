@@ -5,38 +5,36 @@ import {
     ResultRow,
 } from '@lightdash/common';
 import { createInterface } from 'readline';
+import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { LightdashConfig } from '../../config/parseConfig';
+import { type DbResultsCacheUpdate } from '../../database/entities/resultsFile';
+import { ResultsFileModel } from '../../models/ResultsFileModel/ResultsFileModel';
 import type { ICacheService } from '../../services/CacheService/ICacheService';
 import {
     ResultsCacheStatus,
     type CacheHitCacheResult,
     type CreateCacheResult,
 } from '../../services/CacheService/types';
-import type { IResultsCacheStorageClient } from '../clients/ResultsCacheStorageClients/IResultsCacheStorageClient';
-import type { DbResultsCacheUpdate } from '../database/entities/resultsCache';
-import { ResultsCacheModel } from '../models/ResultsCacheModel/ResultsCacheModel';
 
 type CacheServiceDependencies = {
-    resultsCacheModel: ResultsCacheModel;
+    resultsFileModel: ResultsFileModel;
     lightdashConfig: LightdashConfig;
-    storageClient: IResultsCacheStorageClient;
+    storageClient: S3ResultsFileStorageClient;
 };
 
-export class CommercialCacheService
-    implements ICacheService<IResultsCacheStorageClient>
-{
-    private readonly resultsCacheModel: ResultsCacheModel;
+export class CommercialCacheService implements ICacheService {
+    private readonly resultsFileModel: ResultsFileModel;
 
     private readonly lightdashConfig: LightdashConfig;
 
-    storageClient: IResultsCacheStorageClient;
+    storageClient: S3ResultsFileStorageClient;
 
     constructor({
-        resultsCacheModel,
+        resultsFileModel,
         lightdashConfig,
         storageClient,
     }: CacheServiceDependencies) {
-        this.resultsCacheModel = resultsCacheModel;
+        this.resultsFileModel = resultsFileModel;
         this.lightdashConfig = lightdashConfig;
         this.storageClient = storageClient;
     }
@@ -57,13 +55,13 @@ export class CommercialCacheService
         invalidateCache: boolean = false,
     ): Promise<CreateCacheResult> {
         // Generate cache key from project and query identifiers
-        const cacheKey = ResultsCacheModel.getCacheKey(
+        const cacheKey = ResultsFileModel.getCacheKey(
             projectUuid,
             cacheIdentifiers,
         );
 
         // Check if cache already exists
-        const existingCache = await this.resultsCacheModel.find(
+        const existingCache = await this.resultsFileModel.find(
             cacheKey,
             projectUuid,
         );
@@ -99,7 +97,7 @@ export class CommercialCacheService
         // Case 2: Cache exists but is invalid or being invalidated
         if (existingCache) {
             // Update expiration time
-            await this.resultsCacheModel.update(
+            await this.resultsFileModel.update(
                 existingCache.cache_key,
                 projectUuid,
                 {
@@ -123,7 +121,7 @@ export class CommercialCacheService
         }
 
         // Case 3: No cache exists - create new cache entry
-        const createdCache = await this.resultsCacheModel.create({
+        const createdCache = await this.resultsFileModel.create({
             cache_key: cacheKey,
             project_uuid: projectUuid,
             expires_at: newExpiresAt,
@@ -155,7 +153,7 @@ export class CommercialCacheService
         pageSize: number,
         formatter: (row: ResultRow) => ResultRow,
     ) {
-        const cache = await this.resultsCacheModel.find(cacheKey, projectUuid);
+        const cache = await this.resultsFileModel.find(cacheKey, projectUuid);
 
         if (!cache) {
             // TODO: throw a specific error the FE will respond to
@@ -165,7 +163,7 @@ export class CommercialCacheService
         }
 
         if (cache.expires_at < new Date()) {
-            await this.resultsCacheModel.delete(cacheKey, projectUuid);
+            await this.resultsFileModel.delete(cacheKey, projectUuid);
 
             // TODO: throw a specific error the FE will respond to
             throw new ExpiredError(
@@ -209,18 +207,18 @@ export class CommercialCacheService
         projectUuid: string,
         update: DbResultsCacheUpdate,
     ) {
-        await this.resultsCacheModel.update(cacheKey, projectUuid, update);
+        await this.resultsFileModel.update(cacheKey, projectUuid, update);
     }
 
     async deleteCache(cacheKey: string, projectUuid: string) {
-        await this.resultsCacheModel.delete(cacheKey, projectUuid);
+        await this.resultsFileModel.delete(cacheKey, projectUuid);
     }
 
     async findCache(
         cacheKey: string,
         projectUuid: string,
     ): Promise<CacheHitCacheResult | undefined> {
-        const cache = await this.resultsCacheModel.find(cacheKey, projectUuid);
+        const cache = await this.resultsFileModel.find(cacheKey, projectUuid);
 
         if (cache) {
             return {

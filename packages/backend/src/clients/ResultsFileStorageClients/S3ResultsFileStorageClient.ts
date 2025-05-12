@@ -2,14 +2,10 @@ import { NotFound } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getErrorMessage, WarehouseResults } from '@lightdash/common';
 import { once, PassThrough, Readable, Writable } from 'stream';
-import { S3CacheClient } from '../../../clients/Aws/S3CacheClient';
-import Logger from '../../../logging/logger';
-import { IResultsCacheStorageClient } from './IResultsCacheStorageClient';
+import Logger from '../../logging/logger';
+import { S3CacheClient } from '../Aws/S3CacheClient';
 
-export class S3ResultsCacheStorageClient
-    extends S3CacheClient
-    implements IResultsCacheStorageClient
-{
+export class S3ResultsFileStorageClient extends S3CacheClient {
     createUploadStream(cacheKey: string, pageSize: number) {
         const passThrough = new PassThrough();
 

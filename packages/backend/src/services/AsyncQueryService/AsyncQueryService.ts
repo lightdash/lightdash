@@ -91,19 +91,16 @@ import {
     isExecuteAsyncSqlChartByUuid,
 } from './types';
 
-type AsyncQueryServiceArguments<ResultsCacheStorageClient = unknown> =
-    ProjectServiceArguments & {
-        queryHistoryModel: QueryHistoryModel;
-        cacheService?: ICacheService<ResultsCacheStorageClient>;
-        savedSqlModel: SavedSqlModel;
-    };
+type AsyncQueryServiceArguments = ProjectServiceArguments & {
+    queryHistoryModel: QueryHistoryModel;
+    cacheService?: ICacheService;
+    savedSqlModel: SavedSqlModel;
+};
 
-export class AsyncQueryService<
-    ResultsCacheStorageClient = unknown,
-> extends ProjectService {
+export class AsyncQueryService extends ProjectService {
     queryHistoryModel: QueryHistoryModel;
 
-    cacheService?: ICacheService<ResultsCacheStorageClient>;
+    cacheService?: ICacheService;
 
     savedSqlModel: SavedSqlModel;
 
@@ -112,7 +109,7 @@ export class AsyncQueryService<
         cacheService,
         savedSqlModel,
         ...projectServiceArgs
-    }: AsyncQueryServiceArguments<ResultsCacheStorageClient>) {
+    }: AsyncQueryServiceArguments) {
         super(projectServiceArgs);
         this.queryHistoryModel = queryHistoryModel;
         this.cacheService = cacheService;
