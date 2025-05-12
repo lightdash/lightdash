@@ -1,3 +1,10 @@
+## [0.1621.1](https://github.com/lightdash/lightdash/compare/0.1621.0...0.1621.1) (2025-05-12)
+
+
+### Bug Fixes
+
+* update copy on dashboard tab delete ([#14761](https://github.com/lightdash/lightdash/issues/14761)) ([d0d7f98](https://github.com/lightdash/lightdash/commit/d0d7f987397e9663a32c5b690ff63976a75d5890))
+
 # [0.1621.0](https://github.com/lightdash/lightdash/compare/0.1620.0...0.1621.0) (2025-05-12)
 
 
