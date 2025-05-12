@@ -44,7 +44,7 @@ export class CommercialCacheService
     private getCacheExpiresAt(baseDate: Date) {
         return new Date(
             baseDate.getTime() +
-                this.lightdashConfig.resultsCache.cacheStateTimeSeconds * 1000,
+                this.lightdashConfig.results.cacheStateTimeSeconds * 1000,
         );
     }
 

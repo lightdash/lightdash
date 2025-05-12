@@ -24,7 +24,57 @@ jest.mock('fs/promises', () => ({
 beforeEach(() => {
     process.env = {
         LIGHTDASH_SECRET: 'not very secret',
+        S3_ENDPOINT: 'mock_endpoint',
+        S3_BUCKET: 'mock_bucket',
+        S3_REGION: 'mock_region',
     };
+});
+
+describe('When S3 environment variables are not set', () => {
+    test('Should error when S3_ENDPOINT is not set', () => {
+        delete process.env.S3_ENDPOINT;
+        expect(() => parseConfig()).toThrowError(ParseError);
+    });
+
+    test('Should error when S3_BUCKET is not set', () => {
+        delete process.env.S3_BUCKET;
+        expect(() => parseConfig()).toThrowError(ParseError);
+    });
+
+    test('Should error when S3_REGION is not set', () => {
+        delete process.env.S3_REGION;
+        expect(() => parseConfig()).toThrowError(ParseError);
+    });
+});
+
+test('Should default results S3 config to S3 config', () => {
+    process.env.S3_ACCESS_KEY = 'mock_access_key';
+    process.env.S3_SECRET_KEY = 'mock_secret_key';
+    const config = parseConfig();
+    expect(config.results.s3).toEqual({
+        endpoint: 'mock_endpoint',
+        bucket: 'mock_bucket',
+        region: 'mock_region',
+        accessKey: 'mock_access_key',
+        secretKey: 'mock_secret_key',
+        forcePathStyle: false,
+    });
+});
+
+test('Should use explicit results S3 config when set', () => {
+    process.env.RESULTS_CACHE_S3_BUCKET = 'explicit_bucket';
+    process.env.RESULTS_CACHE_S3_REGION = 'explicit_region';
+    process.env.RESULTS_CACHE_S3_ACCESS_KEY = 'explicit_access_key';
+    process.env.RESULTS_CACHE_S3_SECRET_KEY = 'explicit_secret_key';
+    const config = parseConfig();
+    expect(config.results.s3).toEqual({
+        endpoint: 'mock_endpoint', // ! Endpoint is not overriden
+        bucket: 'explicit_bucket',
+        region: 'explicit_region',
+        accessKey: 'explicit_access_key',
+        secretKey: 'explicit_secret_key',
+        forcePathStyle: false,
+    });
 });
 
 test('Should parse rudder config from env', () => {

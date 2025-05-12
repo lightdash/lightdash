@@ -2154,7 +2154,7 @@ export class ProjectService extends BaseService {
                 span.setAttribute('cacheHit', false);
 
                 if (
-                    this.lightdashConfig.resultsCache?.resultsEnabled &&
+                    this.lightdashConfig.results.cacheEnabled &&
                     !invalidateCache
                 ) {
                     const cacheEntryMetadata = await this.s3CacheClient
@@ -2165,8 +2165,7 @@ export class ProjectService extends BaseService {
                         cacheEntryMetadata?.LastModified &&
                         new Date().getTime() -
                             cacheEntryMetadata.LastModified.getTime() <
-                            this.lightdashConfig.resultsCache
-                                .cacheStateTimeSeconds *
+                            this.lightdashConfig.results.cacheStateTimeSeconds *
                                 1000
                     ) {
                         this.logger.debug(
@@ -2242,7 +2241,7 @@ export class ProjectService extends BaseService {
                     },
                 );
 
-                if (this.lightdashConfig.resultsCache?.resultsEnabled) {
+                if (this.lightdashConfig.results.cacheEnabled) {
                     this.logger.debug(
                         `Writing data to cache with key ${queryHash}`,
                     );
@@ -3054,9 +3053,7 @@ export class ProjectService extends BaseService {
             .update(queryHashKey)
             .digest('hex');
 
-        const isCacheEnabled =
-            this.lightdashConfig.resultsCache.autocompleteEnabled &&
-            this.s3CacheClient.isEnabled();
+        const isCacheEnabled = this.lightdashConfig.results.autocompleteEnabled;
 
         if (!forceRefresh && isCacheEnabled) {
             const isCached = await this.s3CacheClient.getResultsMetadata(

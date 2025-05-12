@@ -76,6 +76,11 @@ services:
             - S3_ACCESS_KEY=${S3_ACCESS_KEY}
             - S3_SECRET_KEY=${S3_SECRET_KEY}
             - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE}
+            - S3_EXPIRATION_TIME=${S3_EXPIRATION_TIME}
+            - RESULTS_CACHE_S3_REGION=${RESULTS_CACHE_S3_REGION}
+            - RESULTS_CACHE_S3_BUCKET=${RESULTS_CACHE_S3_BUCKET}
+            - RESULTS_CACHE_S3_SECRET_KEY=${RESULTS_CACHE_S3_SECRET_KEY}
+            - RESULTS_CACHE_S3_ACCESS_KEY=${RESULTS_CACHE_S3_ACCESS_KEY}
         volumes:
             - '../:/usr/app'
             - '../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt'

@@ -140,7 +140,7 @@ export class HealthService extends BaseService {
             hasExtendedUsageAnalytics:
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
             hasCacheAutocompleResults:
-                this.lightdashConfig.resultsCache.autocompleteEnabled || false,
+                this.lightdashConfig.results.autocompleteEnabled,
             appearance: {
                 overrideColorPalette:
                     this.lightdashConfig.appearance.overrideColorPalette,
