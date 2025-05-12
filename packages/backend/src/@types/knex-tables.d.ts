@@ -174,6 +174,10 @@ import {
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
 import {
+    ResultsCacheTable,
+    ResultsCacheTableName,
+} from '../database/entities/resultsFile';
+import {
     SavedSemanticViewerChartsTable,
     SavedSemanticViewerChartsTableName,
     SavedSemanticViewerChartVersionsTable,
@@ -242,10 +246,6 @@ import {
     DashboardSummariesTable,
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
-import {
-    ResultsCacheTable,
-    ResultsCacheTableName,
-} from '../ee/database/entities/resultsCache';
 import {
     ScimOrganizationAccessTokenTable,
     ScimOrganizationAccessTokenTableName,
