@@ -1,3 +1,10 @@
+# [0.1621.0](https://github.com/lightdash/lightdash/compare/0.1620.0...0.1621.0) (2025-05-12)
+
+
+### Features
+
+* add minio for local development ([#14757](https://github.com/lightdash/lightdash/issues/14757)) ([0dadc28](https://github.com/lightdash/lightdash/commit/0dadc285de0eab6c5ad311efa4678be42f3770a6))
+
 # [0.1620.0](https://github.com/lightdash/lightdash/compare/0.1619.1...0.1620.0) (2025-05-09)
 
 
