@@ -1,3 +1,10 @@
+## [0.1623.1](https://github.com/lightdash/lightdash/compare/0.1623.0...0.1623.1) (2025-05-12)
+
+
+### Bug Fixes
+
+* uncomment dbt-trino 1.9.0 installation ([#14778](https://github.com/lightdash/lightdash/issues/14778)) ([3eb88f5](https://github.com/lightdash/lightdash/commit/3eb88f5f6cb26095ae88a06d11a5ea2312986ec7))
+
 # [0.1623.0](https://github.com/lightdash/lightdash/compare/0.1622.0...0.1623.0) (2025-05-12)
 
 
