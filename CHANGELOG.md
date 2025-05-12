@@ -1,3 +1,10 @@
+# [0.1623.0](https://github.com/lightdash/lightdash/compare/0.1622.0...0.1623.0) (2025-05-12)
+
+
+### Features
+
+* require results s3 storage configuration ([#14746](https://github.com/lightdash/lightdash/issues/14746)) ([b73bfa3](https://github.com/lightdash/lightdash/commit/b73bfa30d8101cf876ed2c7e6f98842db2f53356))
+
 # [0.1622.0](https://github.com/lightdash/lightdash/compare/0.1621.2...0.1622.0) (2025-05-12)
 
 
