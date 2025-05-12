@@ -1,3 +1,10 @@
+## [0.1621.2](https://github.com/lightdash/lightdash/compare/0.1621.1...0.1621.2) (2025-05-12)
+
+
+### Bug Fixes
+
+* delete tiles on deleted tabs in frontend ([#14762](https://github.com/lightdash/lightdash/issues/14762)) ([2248563](https://github.com/lightdash/lightdash/commit/22485632bfdf791e2e3046de5b2a89af549496bb))
+
 ## [0.1621.1](https://github.com/lightdash/lightdash/compare/0.1621.0...0.1621.1) (2025-05-12)
 
 
