@@ -1623,6 +1623,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "pimmey",
+      "name": "Yegor Borisenco",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5588929?v=4",
+      "profile": "https://pimmey.com",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
