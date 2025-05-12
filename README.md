@@ -403,6 +403,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://dub.sh/snxvqzq"><img src="https://avatars.githubusercontent.com/u/76897266?v=4?s=100" width="100px;" alt="Ali Amer"/><br /><sub><b>Ali Amer</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=aliamerj" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/virendrapatil24"><img src="https://avatars.githubusercontent.com/u/70162563?v=4?s=100" width="100px;" alt="Virendra Patil"/><br /><sub><b>Virendra Patil</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=virendrapatil24" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://janstepanovsky.cz"><img src="https://avatars.githubusercontent.com/u/854103?v=4?s=100" width="100px;" alt="Honza Stepanovsky"/><br /><sub><b>Honza Stepanovsky</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=hhhonzik" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://pimmey.com"><img src="https://avatars.githubusercontent.com/u/5588929?v=4?s=100" width="100px;" alt="Yegor Borisenco"/><br /><sub><b>Yegor Borisenco</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=pimmey" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
