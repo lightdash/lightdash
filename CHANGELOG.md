@@ -1,3 +1,10 @@
+# [0.1622.0](https://github.com/lightdash/lightdash/compare/0.1621.2...0.1622.0) (2025-05-12)
+
+
+### Features
+
+* rename models and fields in CLI and UI  ([#14657](https://github.com/lightdash/lightdash/issues/14657)) ([bea8ada](https://github.com/lightdash/lightdash/commit/bea8ada81734d916ff940f40325eef4e56749e90)), closes [#14664](https://github.com/lightdash/lightdash/issues/14664) [#14722](https://github.com/lightdash/lightdash/issues/14722)
+
 ## [0.1621.2](https://github.com/lightdash/lightdash/compare/0.1621.1...0.1621.2) (2025-05-12)
 
 
