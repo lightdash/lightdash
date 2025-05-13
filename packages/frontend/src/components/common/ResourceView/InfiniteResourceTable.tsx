@@ -692,7 +692,17 @@ const InfiniteResourceTable = ({
         ),
         enableRowActions: true,
         renderRowActions: ({ row, table: tableInstance }) => {
-            const isSelected = tableInstance.getIsSomeRowsSelected();
+            /**
+             * NOTE: TanStack selection API has some nuanced behavior:
+             * - getIsSomeRowsSelected() - Not used here. It should return true if any row is selected,
+             *   though it also returns false if all rows are selected.
+             * - getIsSomePageRowsSelected() - Returns true when some rows on the current page are selected,
+             *   but according to our testing, returns false if ALL rows are selected.
+             * To work around this issue, we use it in combination with `getIsAllPageRowsSelected()`.
+             */
+            const isSelected =
+                tableInstance.getIsSomePageRowsSelected() ||
+                tableInstance.getIsAllPageRowsSelected();
 
             return (
                 <Box
