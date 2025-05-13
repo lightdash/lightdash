@@ -578,30 +578,14 @@ export class AsyncQueryService extends ProjectService {
         /**
          * Update the query history with non null values
          * defaultPageSize is null when user never fetched the results - we don't send pagination params to the query execution endpoint
-         * warehouseExecutionTimeMs is null when warehouse doesn't support async queries - query is only executed when user fetches results
-         * totalRowCount is null when warehouse doesn't support async queries - query is only executed when user fetches results
          */
-        if (
-            queryHistory.defaultPageSize === null ||
-            queryHistory.warehouseExecutionTimeMs === null ||
-            queryHistory.totalRowCount === null
-        ) {
+        if (queryHistory.defaultPageSize === null) {
             await this.queryHistoryModel.update(
                 queryHistory.queryUuid,
                 projectUuid,
                 user.userUuid,
                 {
-                    ...(queryHistory.defaultPageSize === null
-                        ? { default_page_size: defaultedPageSize }
-                        : {}),
-                    ...(queryHistory.warehouseExecutionTimeMs === null
-                        ? {
-                              warehouse_execution_time_ms: roundedDurationMs,
-                          }
-                        : {}),
-                    ...(queryHistory.totalRowCount === null
-                        ? { total_row_count: returnObject.totalResults }
-                        : {}),
+                    default_page_size: defaultedPageSize,
                 },
             );
         }
@@ -682,8 +666,7 @@ export class AsyncQueryService extends ProjectService {
                     warehouse_query_metadata: queryMetadata,
                     status: QueryHistoryStatus.READY,
                     error: null,
-                    warehouse_execution_time_ms:
-                        durationMs !== null ? Math.round(durationMs) : null,
+                    warehouse_execution_time_ms: Math.round(durationMs),
                     total_row_count: totalRows,
                 },
             );

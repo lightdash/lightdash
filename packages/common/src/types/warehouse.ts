@@ -63,8 +63,8 @@ export type WarehouseExecuteAsyncQueryArgs = {
 export type WarehouseExecuteAsyncQuery = {
     queryId: string | null;
     queryMetadata: WarehouseQueryMetadata | null;
-    totalRows: number | null;
-    durationMs: number | null;
+    totalRows: number;
+    durationMs: number;
 };
 
 export type WarehouseGetAsyncQueryResultsArgs = WarehousePaginationArgs &
