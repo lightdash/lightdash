@@ -633,11 +633,6 @@ describe('AsyncQueryService', () => {
                     totalRowCount: 10,
                 });
 
-            const warehouseClientGetAsyncQueryResultsSpy = jest.spyOn(
-                warehouseClientMock,
-                'getAsyncQueryResults',
-            );
-
             const result = await serviceWithCache.getAsyncQueryResults({
                 user,
                 projectUuid,
@@ -645,10 +640,6 @@ describe('AsyncQueryService', () => {
                 page: 1,
                 pageSize: 10,
             });
-
-            expect(
-                warehouseClientGetAsyncQueryResultsSpy,
-            ).not.toHaveBeenCalled();
 
             expect(result).toEqual({
                 rows: [expectedFormattedRow],

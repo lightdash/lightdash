@@ -47,13 +47,6 @@ export const warehouseClientMock: WarehouseClient = {
         totalRows: null,
         durationMs: null,
     }),
-    getAsyncQueryResults: async () => ({
-        fields: {},
-        rows: [],
-        queryId: null,
-        pageCount: 0,
-        totalRows: 0,
-    }),
     runQuery: () =>
         Promise.resolve({
             fields: {},
@@ -123,13 +116,6 @@ export const bigqueryClientMock: WarehouseClient = {
         queryMetadata: null,
         totalRows: null,
         durationMs: null,
-    }),
-    getAsyncQueryResults: async () => ({
-        fields: {},
-        rows: [],
-        queryId: null,
-        pageCount: 0,
-        totalRows: 0,
     }),
     runQuery: () =>
         Promise.resolve({
