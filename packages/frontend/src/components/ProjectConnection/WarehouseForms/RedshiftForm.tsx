@@ -4,43 +4,38 @@ import {
     Anchor,
     Button,
     CopyButton,
-    Group,
     NumberInput,
     PasswordInput,
     Select,
     Stack,
-    Switch,
     TextInput,
     Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
-import React, { type FC } from 'react';
-import { Controller, useFormContext, useWatch } from 'react-hook-form';
+import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
-import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
-import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
-import FormSection from '../../ReactHookForm/FormSection';
 import MantineIcon from '../../common/MantineIcon';
 import FormCollapseButton from '../FormCollapseButton';
+import BooleanSwitch from '../Inputs/BooleanSwitch';
+import FormSection from '../Inputs/FormSection';
+import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
+import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
-import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
+import { RedshiftDefaultValues } from './defaultValues';
 import { useCreateSshKeyPair } from './sshHooks';
 
 export const RedshiftSchemaInput: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
-    const { register } = useFormContext();
+    const form = useFormContext();
     return (
         <TextInput
+            name="warehouse.schema"
             label="Schema"
             description="This is the schema name."
             required
-            {...register('warehouse.schema', {
-                validate: {
-                    hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
-                },
-            })}
+            {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
         />
     );
@@ -51,56 +46,57 @@ const RedshiftForm: FC<{
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
+    const form = useFormContext();
+
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.REDSHIFT;
-    const { setValue, register } = useFormContext();
-    const showSshTunnelConfiguration: boolean = useWatch({
-        name: 'warehouse.useSshTunnel',
-        defaultValue:
-            (savedProject?.warehouseConnection?.type ===
-                WarehouseTypes.REDSHIFT &&
-                savedProject.warehouseConnection.useSshTunnel) ||
-            false,
-    });
-    const sshTunnelPublicKey: string = useWatch({
-        name: 'warehouse.sshTunnelPublicKey',
-        defaultValue:
-            savedProject?.warehouseConnection?.type ===
-                WarehouseTypes.REDSHIFT &&
-            savedProject.warehouseConnection.sshTunnelPublicKey,
-    });
+
+    if (form.values.warehouse?.type !== WarehouseTypes.REDSHIFT) {
+        throw new Error(
+            'Redshift form is not available for this warehouse type',
+        );
+    }
+
+    const showSshTunnelConfiguration: boolean =
+        form.values.warehouse.useSshTunnel ??
+        (savedProject?.warehouseConnection?.type === WarehouseTypes.REDSHIFT &&
+            savedProject.warehouseConnection.useSshTunnel) ??
+        false;
+
+    const sshTunnelPublicKey: string | undefined =
+        form.values.warehouse.sshTunnelPublicKey ??
+        (savedProject?.warehouseConnection?.type === WarehouseTypes.REDSHIFT
+            ? savedProject?.warehouseConnection?.sshTunnelPublicKey
+            : undefined);
+
     const { mutate, isLoading } = useCreateSshKeyPair({
         onSuccess: (data) => {
-            setValue('warehouse.sshTunnelPublicKey', data.publicKey);
+            form.setFieldValue('warehouse.sshTunnelPublicKey', data.publicKey);
         },
     });
+
     const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.PassthroughLogin,
     );
+
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
                 <TextInput
+                    name="warehouse.host"
                     label="Host"
                     description="This is the host where the database is running."
                     required
-                    {...register('warehouse.host', {
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('Host'),
-                        },
-                    })}
+                    {...form.getInputProps('warehouse.host')}
                     disabled={disabled}
                     labelProps={{ style: { marginTop: '8px' } }}
                 />
                 <TextInput
+                    name="warehouse.user"
                     label="User"
                     description="This is the database user name."
                     required={requireSecrets}
-                    {...register('warehouse.user', {
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('User'),
-                        },
-                    })}
+                    {...form.getInputProps('warehouse.user')}
                     placeholder={
                         disabled || !requireSecrets
                             ? '**************'
@@ -109,6 +105,7 @@ const RedshiftForm: FC<{
                     disabled={disabled}
                 />
                 <PasswordInput
+                    name="warehouse.password"
                     label="Password"
                     description="This is the database user password."
                     required={requireSecrets}
@@ -117,18 +114,15 @@ const RedshiftForm: FC<{
                             ? '**************'
                             : undefined
                     }
-                    {...register('warehouse.password')}
+                    {...form.getInputProps('warehouse.password')}
                     disabled={disabled}
                 />
                 <TextInput
+                    name="warehouse.dbname"
                     label="DB name"
                     description="This is the database name."
                     required
-                    {...register('warehouse.dbname', {
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('DB name'),
-                        },
-                    })}
+                    {...form.getInputProps('warehouse.dbname')}
                     disabled={disabled}
                 />
                 <FormSection isOpen={isOpen} name="advanced">
@@ -137,186 +131,161 @@ const RedshiftForm: FC<{
                             <BooleanSwitch
                                 name="warehouse.requireUserCredentials"
                                 label="Require users to provide their own credentials"
-                                defaultValue={false}
+                                {...form.getInputProps(
+                                    'warehouse.requireUserCredentials',
+                                    { type: 'checkbox' },
+                                )}
+                                defaultChecked={
+                                    RedshiftDefaultValues.requireUserCredentials
+                                }
                                 disabled={disabled}
                             />
                         )}
-                        <Controller
+
+                        <NumberInput
                             name="warehouse.port"
-                            defaultValue={5439}
-                            render={({ field }) => (
-                                <NumberInput
-                                    {...field}
-                                    label="Port"
-                                    description="This is the port where the database is running."
-                                    required
-                                    disabled={disabled}
-                                />
-                            )}
+                            defaultValue={RedshiftDefaultValues.port}
+                            {...form.getInputProps('warehouse.port')}
+                            label="Port"
+                            description="This is the port where the database is running."
+                            required
+                            disabled={disabled}
                         />
-                        <Controller
+
+                        <NumberInput
                             name="warehouse.keepalivesIdle"
-                            defaultValue={0}
-                            render={({ field }) => (
-                                <NumberInput
-                                    {...field}
-                                    label="Keep alive idle (seconds)"
-                                    description={
-                                        <p>
-                                            This specifies the amount of seconds
-                                            with no network activity after which
-                                            the operating system should send a
-                                            TCP keepalive message to the client.
-                                            You can see more details in{' '}
-                                            <Anchor
-                                                target="_blank"
-                                                href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
-                                                rel="noreferrer"
-                                            >
-                                                postgresqlco documentation
-                                            </Anchor>
-                                            .
-                                        </p>
-                                    }
-                                    required
-                                    disabled={disabled}
-                                />
-                            )}
+                            {...form.getInputProps('warehouse.keepalivesIdle')}
+                            defaultValue={RedshiftDefaultValues.keepalivesIdle}
+                            label="Keep alive idle (seconds)"
+                            description={
+                                <p>
+                                    This specifies the amount of seconds with no
+                                    network activity after which the operating
+                                    system should send a TCP keepalive message
+                                    to the client. You can see more details in{' '}
+                                    <Anchor
+                                        target="_blank"
+                                        href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
+                                        rel="noreferrer"
+                                    >
+                                        postgresqlco documentation
+                                    </Anchor>
+                                    .
+                                </p>
+                            }
+                            required
+                            disabled={disabled}
                         />
-                        <Controller
+
+                        <Select
                             name="warehouse.sslmode"
-                            defaultValue="prefer"
-                            render={({ field }) => (
-                                <Select
-                                    name={field.name}
-                                    label="SSL mode"
-                                    description={
-                                        <p>
-                                            This controls how dbt connects to
-                                            Redshift databases using SSL. You
-                                            can see more details in{' '}
-                                            <Anchor
-                                                target="_blank"
-                                                href="https://docs.getdbt.com/docs/core/connect-data-platform/redshift-setup#sslmode-change"
-                                                rel="noreferrer"
-                                            >
-                                                dbt documentation
-                                            </Anchor>
-                                            .
-                                        </p>
-                                    }
-                                    data={[
-                                        'disable',
-                                        'no-verify',
-                                        'allow',
-                                        'prefer',
-                                        'require',
-                                        'verify-ca',
-                                        'verify-full',
-                                    ].map((x) => ({ value: x, label: x }))}
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                    disabled={disabled}
-                                />
-                            )}
+                            {...form.getInputProps('warehouse.sslmode')}
+                            defaultValue={RedshiftDefaultValues.sslmode}
+                            label="SSL mode"
+                            description={
+                                <p>
+                                    This controls how dbt connects to Redshift
+                                    databases using SSL. You can see more
+                                    details in{' '}
+                                    <Anchor
+                                        target="_blank"
+                                        href="https://docs.getdbt.com/docs/core/connect-data-platform/redshift-setup#sslmode-change"
+                                        rel="noreferrer"
+                                    >
+                                        dbt documentation
+                                    </Anchor>
+                                    .
+                                </p>
+                            }
+                            data={[
+                                'disable',
+                                'no-verify',
+                                'allow',
+                                'prefer',
+                                'require',
+                                'verify-ca',
+                                'verify-full',
+                            ].map((x) => ({ value: x, label: x }))}
+                            disabled={disabled}
                         />
-                        <Controller
+
+                        <BooleanSwitch
                             name="warehouse.ra3Node"
-                            render={({ field }) => (
-                                <Switch.Group
-                                    label="Use RA3 node"
-                                    description="Allow dbt to use cross-database-resources."
-                                    value={field.value ? ['true'] : []}
-                                    onChange={(values) =>
-                                        field.onChange(values.length > 0)
-                                    }
-                                    size="md"
-                                >
-                                    <Group mt="xs">
-                                        <Switch
-                                            onLabel="Yes"
-                                            offLabel="No"
-                                            value="true"
-                                            disabled={disabled}
-                                        />
-                                    </Group>
-                                </Switch.Group>
-                            )}
+                            label="Use RA3 node"
+                            description="Allow dbt to use cross-database-resources."
+                            {...form.getInputProps('warehouse.ra3Node', {
+                                type: 'checkbox',
+                            })}
+                            onLabel="Yes"
+                            offLabel="No"
                         />
 
                         <StartOfWeekSelect disabled={disabled} />
 
-                        <Controller
+                        <NumberInput
                             name="warehouse.timeoutSeconds"
-                            defaultValue={300}
-                            render={({ field }) => (
-                                <NumberInput
-                                    {...field}
-                                    label="Timeout in seconds"
-                                    description={
-                                        <p>
-                                            If a query takes longer than this
-                                            timeout to complete, then the query
-                                            will be cancelled.
-                                        </p>
-                                    }
-                                    required
-                                    disabled={disabled}
-                                />
-                            )}
+                            {...form.getInputProps('warehouse.timeoutSeconds')}
+                            defaultValue={RedshiftDefaultValues.timeoutSeconds}
+                            label="Timeout in seconds"
+                            description={
+                                <p>
+                                    If a query takes longer than this timeout to
+                                    complete, then the query will be cancelled.
+                                </p>
+                            }
+                            required
+                            disabled={disabled}
                         />
 
-                        <Controller
+                        <BooleanSwitch
                             name="warehouse.useSshTunnel"
-                            render={({ field }) => (
-                                <Switch.Group
-                                    label="Use SSH tunnel"
-                                    value={field.value ? ['true'] : []}
-                                    onChange={(values) =>
-                                        field.onChange(values.length > 0)
-                                    }
-                                    size="md"
-                                >
-                                    <Group mt="xs">
-                                        <Switch
-                                            onLabel="Yes"
-                                            offLabel="No"
-                                            value="true"
-                                            disabled={disabled}
-                                        />
-                                    </Group>
-                                </Switch.Group>
-                            )}
+                            label="Use SSH tunnel"
+                            description="Use SSH tunnel to connect to the database."
+                            {...form.getInputProps('warehouse.useSshTunnel', {
+                                type: 'checkbox',
+                            })}
+                            onLabel="Yes"
+                            offLabel="No"
+                            defaultChecked={RedshiftDefaultValues.useSshTunnel}
                         />
+
                         <FormSection
                             isOpen={showSshTunnelConfiguration}
                             name="ssh-config"
                         >
                             <Stack style={{ marginBottom: '8px' }}>
                                 <TextInput
+                                    name="warehouse.sshTunnelHost"
                                     label="SSH Remote Host"
                                     disabled={disabled}
-                                    {...register('warehouse.sshTunnelHost')}
-                                />
-                                <Controller
-                                    name="warehouse.sshTunnelPort"
-                                    defaultValue={22}
-                                    render={({ field }) => (
-                                        <NumberInput
-                                            {...field}
-                                            label="SSH Remote Port"
-                                            disabled={disabled}
-                                        />
+                                    {...form.getInputProps(
+                                        'warehouse.sshTunnelHost',
                                     )}
                                 />
+
+                                <NumberInput
+                                    name="warehouse.sshTunnelPort"
+                                    defaultValue={22}
+                                    {...form.getInputProps(
+                                        'warehouse.sshTunnelPort',
+                                    )}
+                                    label="SSH Remote Port"
+                                    disabled={disabled}
+                                />
+
                                 <TextInput
+                                    name="warehouse.sshTunnelUser"
                                     label="SSH Username"
                                     disabled={disabled}
-                                    {...register('warehouse.sshTunnelUser')}
+                                    {...form.getInputProps(
+                                        'warehouse.sshTunnelUser',
+                                    )}
                                 />
+
                                 {sshTunnelPublicKey && (
                                     <TextInput
-                                        {...register(
+                                        name="warehouse.sshTunnelPublicKey"
+                                        {...form.getInputProps(
                                             'warehouse.sshTunnelPublicKey',
                                         )}
                                         label="Generated SSH Public Key"
