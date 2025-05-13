@@ -234,6 +234,8 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
                 },
                 { query: metricQueryMock },
                 {
@@ -249,8 +251,6 @@ describe('AsyncQueryService', () => {
                     cacheUpdatedTime: updatedAt,
                     cacheExpiresAt: expiresAt,
                 },
-                metricQuery: expectedApiQueryResultsWith1Row.metricQuery,
-                fields: expectedApiQueryResultsWith1Row.fields,
             } satisfies ExecuteAsyncQueryReturn);
 
             // Verify that the query history was updated with READY status
@@ -319,6 +319,8 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
                 },
                 { query: metricQueryMock },
                 {
@@ -334,8 +336,6 @@ describe('AsyncQueryService', () => {
                     cacheUpdatedTime: updatedAt,
                     cacheExpiresAt: expiresAt,
                 },
-                metricQuery: expectedApiQueryResultsWith1Row.metricQuery,
-                fields: expectedApiQueryResultsWith1Row.fields,
             } satisfies ExecuteAsyncQueryReturn);
 
             // Verify that the query history was not updated with READY status
@@ -402,6 +402,8 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: true,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
                 },
                 { query: metricQueryMock },
                 {
