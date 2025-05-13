@@ -46,6 +46,7 @@ import {
     NotFoundError,
     type Organization,
     PivotIndexColum,
+    type PivotValuesColumn,
     type Project,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -59,8 +60,11 @@ import {
     SqlChart,
     ValuesColumn,
     WarehouseClient,
+    type WarehouseExecuteAsyncQuery,
+    type WarehouseResults,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
+import { uniq } from 'lodash';
 import { createInterface } from 'readline';
 import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { DbResultsCacheUpdate } from '../../database/entities/resultsFile';
@@ -85,6 +89,7 @@ import {
     getNextAndPreviousPage,
     validatePagination,
 } from '../ProjectService/resultsPagination';
+import { getResultsColumns } from './getResultsColumns';
 import {
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
@@ -471,19 +476,6 @@ export class AsyncQueryService extends ProjectService {
                 return assertUnreachable(status, 'Unknown query status');
         }
 
-        // Ideally, we should use the warehouse results columns metadata. For now we can rely on the fields.
-        const columns = Object.values(fields).reduce<ResultColumns>(
-            (acc, field) => {
-                const column = {
-                    reference: field.name,
-                    type: convertItemTypeToDimensionType(field),
-                };
-                acc[column.reference] = column;
-                return acc;
-            },
-            {},
-        );
-
         const defaultedPageSize =
             pageSize ??
             queryHistory.defaultPageSize ??
@@ -561,22 +553,6 @@ export class AsyncQueryService extends ProjectService {
             },
         });
 
-        const returnObject = {
-            rows,
-            columns,
-            totalPageCount: pageCount,
-            totalResults: cacheTotalRowCount,
-            queryUuid: queryHistory.queryUuid,
-            pageSize: rows.length,
-            page,
-            nextPage,
-            previousPage,
-            initialQueryExecutionMs:
-                queryHistory.warehouseExecutionTimeMs ?? roundedDurationMs,
-            resultsPageExecutionMs: roundedDurationMs,
-            status,
-        };
-
         /**
          * Update the query history with non null values
          * defaultPageSize is null when user never fetched the results - we don't send pagination params to the query execution endpoint
@@ -592,7 +568,185 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        return returnObject;
+        // Ideally, we should use the warehouse results columns metadata. For now we can rely on the fields.
+        const unpivotedColumns = Object.values(fields).reduce<ResultColumns>(
+            (acc, field) => {
+                const column = {
+                    reference: field.name,
+                    type: convertItemTypeToDimensionType(field),
+                };
+                acc[column.reference] = column;
+                return acc;
+            },
+            {},
+        );
+
+        const {
+            pivotConfiguration,
+            pivotValuesColumns,
+            pivotTotalColumnCount,
+        } = queryHistory;
+
+        const returnObject = {
+            rows,
+            columns: getResultsColumns(
+                unpivotedColumns,
+                pivotConfiguration,
+                pivotValuesColumns,
+                rows,
+            ),
+            totalPageCount: pageCount,
+            totalResults: cacheTotalRowCount,
+            queryUuid: queryHistory.queryUuid,
+            pageSize: rows.length,
+            page,
+            nextPage,
+            previousPage,
+            initialQueryExecutionMs:
+                queryHistory.warehouseExecutionTimeMs ?? roundedDurationMs,
+            resultsPageExecutionMs: roundedDurationMs,
+            status,
+            pivotDetails: null,
+        };
+
+        const isPivoted = pivotConfiguration && pivotValuesColumns;
+
+        if (!isPivoted) {
+            return returnObject;
+        }
+
+        return {
+            ...returnObject,
+            pivotDetails: {
+                totalColumnCount: pivotTotalColumnCount,
+                valuesColumns: pivotValuesColumns,
+                unpivotedColumns,
+            },
+        };
+    }
+
+    /**
+     * Runs the query and transforms the rows if pivoting is enabled
+     * Code pivot transformation taken from ProjectService.pivotQueryWorkerTask
+     */
+    private static async runQueryAndTransformRows({
+        warehouseClient,
+        query,
+        queryTags,
+        resultsCache,
+        pivotConfiguration,
+    }: {
+        warehouseClient: WarehouseClient;
+        query: string;
+        queryTags: RunQueryTags;
+        resultsCache: MissCacheResult;
+        pivotConfiguration?: {
+            indexColumn: PivotIndexColum;
+            valuesColumns: ValuesColumn[];
+            groupByColumns: GroupByColumn[] | undefined;
+            sortBy: SortBy | undefined;
+        };
+    }): Promise<{
+        warehouseResults: WarehouseExecuteAsyncQuery;
+        pivotDetails: {
+            valuesColumns: Map<string, PivotValuesColumn>;
+            totalColumnCount: number | undefined;
+            totalRows: number;
+        } | null;
+    }> {
+        let currentRowIndex = 0;
+        let currentTransformedRow: WarehouseResults['rows'][number] | undefined;
+        const valuesColumnData = new Map<string, PivotValuesColumn>();
+
+        // Total column count includes the unlimited number of columns that can be pivoted, so we can show a warning in the frontend
+        let pivotTotalColumnCount: undefined | number;
+        let pivotTotalRows = 0;
+
+        const writeAndTransformRowsIfPivot = pivotConfiguration
+            ? (rows: WarehouseResults['rows']) => {
+                  if ('total_columns' in rows[0]) {
+                      const numberTotalColumns = Number(rows[0].total_columns);
+                      pivotTotalColumnCount = Number.isNaN(numberTotalColumns)
+                          ? undefined
+                          : numberTotalColumns;
+                  }
+
+                  const { indexColumn, valuesColumns, groupByColumns } =
+                      pivotConfiguration;
+
+                  if (!groupByColumns || groupByColumns.length === 0) {
+                      resultsCache.write(rows);
+                      return;
+                  }
+
+                  rows.forEach((row) => {
+                      // Write rows to file in order of row_index. This is so that we can pivot the data later
+                      if (currentRowIndex !== row.row_index) {
+                          if (currentTransformedRow) {
+                              pivotTotalRows += 1;
+                              resultsCache.write([currentTransformedRow]);
+                          }
+
+                          if (indexColumn) {
+                              currentTransformedRow = {
+                                  [indexColumn.reference]:
+                                      row[indexColumn.reference],
+                              };
+                              currentRowIndex = row.row_index;
+                          }
+                      }
+                      // Suffix the value column with the group by columns to avoid collisions.
+                      // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
+                      // then the value column will be 'value_1_a_b'
+                      const valueSuffix = groupByColumns
+                          ?.map((col) => row[col.reference])
+                          .join('_');
+
+                      valuesColumns.forEach((col) => {
+                          const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
+
+                          valuesColumnData.set(valueColumnReference, {
+                              referenceField: col.reference, // The original y field name
+                              pivotColumnName: valueColumnReference, // The pivoted y field name and agg eg amount_avg_false
+                              aggregation: col.aggregation,
+                              pivotValues: groupByColumns?.map((c) => ({
+                                  referenceField: c.reference,
+                                  value: row[c.reference],
+                              })),
+                          });
+
+                          currentTransformedRow = currentTransformedRow ?? {};
+                          currentTransformedRow[valueColumnReference] =
+                              row[`${col.reference}_${col.aggregation}`];
+                      });
+                  });
+              }
+            : resultsCache.write;
+
+        const warehouseResults = await warehouseClient.executeAsyncQuery(
+            {
+                sql: query,
+                tags: queryTags,
+            },
+            writeAndTransformRowsIfPivot,
+        );
+
+        // Write the last row
+        if (currentTransformedRow) {
+            pivotTotalRows += 1;
+            resultsCache.write([currentTransformedRow]);
+        }
+
+        return {
+            warehouseResults,
+            pivotDetails: pivotConfiguration
+                ? {
+                      valuesColumns: valuesColumnData,
+                      totalColumnCount: pivotTotalColumnCount,
+                      totalRows: pivotTotalRows,
+                  }
+                : null,
+        };
     }
 
     /**
@@ -608,6 +762,7 @@ export class AsyncQueryService extends ProjectService {
         sshTunnel,
         queryHistoryUuid,
         resultsCache,
+        pivotConfiguration,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -618,16 +773,29 @@ export class AsyncQueryService extends ProjectService {
         resultsCache: MissCacheResult;
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
+        pivotConfiguration?: {
+            indexColumn: PivotIndexColum;
+            valuesColumns: ValuesColumn[];
+            groupByColumns: GroupByColumn[] | undefined;
+            sortBy: SortBy | undefined;
+        };
     }) {
         try {
-            const { queryId, queryMetadata, totalRows, durationMs } =
-                await warehouseClient.executeAsyncQuery(
-                    {
-                        sql: query,
-                        tags: queryTags,
-                    },
-                    resultsCache.write,
-                );
+            const {
+                warehouseResults: {
+                    durationMs,
+                    totalRows,
+                    queryMetadata,
+                    queryId,
+                },
+                pivotDetails,
+            } = await AsyncQueryService.runQueryAndTransformRows({
+                warehouseClient,
+                query,
+                queryTags,
+                resultsCache,
+                pivotConfiguration,
+            });
 
             this.analytics.track({
                 userId: user.userUuid,
@@ -637,8 +805,11 @@ export class AsyncQueryService extends ProjectService {
                     projectId: projectUuid,
                     warehouseType: warehouseClient.credentials.type,
                     warehouseExecutionTimeMs: durationMs,
-                    columnsCount: Object.keys(fieldsMap).length,
-                    totalRowCount: totalRows,
+                    columnsCount:
+                        pivotDetails?.totalColumnCount ??
+                        Object.keys(fieldsMap).length,
+                    totalRowCount: pivotDetails?.totalRows ?? totalRows,
+                    isPivoted: pivotDetails !== null,
                 },
             });
 
@@ -646,8 +817,9 @@ export class AsyncQueryService extends ProjectService {
             await resultsCache.close();
             await this.updateCache(resultsCache.cacheKey, projectUuid, {
                 status: ResultsCacheStatus.READY,
-                total_row_count: totalRows,
+                total_row_count: pivotDetails?.totalRows ?? totalRows,
             });
+
             this.analytics.track({
                 userId: user.userUuid,
                 event: 'results_cache.write',
@@ -655,7 +827,9 @@ export class AsyncQueryService extends ProjectService {
                     queryId: queryHistoryUuid,
                     projectId: projectUuid,
                     cacheKey: resultsCache.cacheKey,
-                    totalRowCount: totalRows,
+                    totalRowCount: pivotDetails?.totalRows ?? totalRows,
+                    pivotTotalColumnCount: pivotDetails?.totalColumnCount,
+                    isPivoted: pivotDetails !== null,
                 },
             });
 
@@ -669,7 +843,13 @@ export class AsyncQueryService extends ProjectService {
                     status: QueryHistoryStatus.READY,
                     error: null,
                     warehouse_execution_time_ms: Math.round(durationMs),
-                    total_row_count: totalRows,
+                    total_row_count: pivotDetails?.totalRows ?? totalRows,
+                    pivot_total_column_count: pivotDetails?.totalColumnCount,
+                    pivot_values_columns: pivotDetails
+                        ? Object.fromEntries(
+                              pivotDetails.valuesColumns.entries(),
+                          )
+                        : null,
                 },
             );
         } catch (e) {
@@ -907,6 +1087,7 @@ export class AsyncQueryService extends ProjectService {
                             requestParameters,
                             metricQuery,
                             cacheKey: resultsCache.cacheKey,
+                            pivotConfiguration: pivotConfiguration ?? null,
                         });
 
                     this.analytics.track({
@@ -977,6 +1158,7 @@ export class AsyncQueryService extends ProjectService {
                         warehouseClient,
                         sshTunnel,
                         queryHistoryUuid,
+                        pivotConfiguration,
                         // resultsCache is MissCacheResult at this point,
                         // meaning that the cache was not hit
                         resultsCache,

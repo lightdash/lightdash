@@ -482,6 +482,9 @@ describe('AsyncQueryService', () => {
                 warehouseExecutionTimeMs: null,
                 defaultPageSize: 10,
                 cacheKey: 'test-query-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
             };
 
             serviceWithCache.queryHistoryModel.get = jest
@@ -527,6 +530,9 @@ describe('AsyncQueryService', () => {
                 warehouseExecutionTimeMs: null,
                 defaultPageSize: 10,
                 cacheKey: 'test-query-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
             };
 
             serviceWithCache.queryHistoryModel.get = jest
@@ -574,6 +580,9 @@ describe('AsyncQueryService', () => {
                 warehouseExecutionTimeMs: null,
                 defaultPageSize: 10,
                 cacheKey: 'test-query-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
             };
 
             serviceWithCache.queryHistoryModel.get = jest
@@ -618,6 +627,9 @@ describe('AsyncQueryService', () => {
                 warehouseExecutionTimeMs: null,
                 defaultPageSize: 10,
                 cacheKey: 'test-cache-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
             };
 
             serviceWithCache.queryHistoryModel.get = jest
@@ -655,6 +667,7 @@ describe('AsyncQueryService', () => {
                 initialQueryExecutionMs: expect.any(Number),
                 resultsPageExecutionMs: expect.any(Number),
                 status: QueryHistoryStatus.READY,
+                pivotDetails: null,
                 columns: {
                     dim1: {
                         reference: 'dim1',
@@ -693,6 +706,9 @@ describe('AsyncQueryService', () => {
                 warehouseExecutionTimeMs: null,
                 defaultPageSize: 10,
                 cacheKey: 'test-cache-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
             };
 
             serviceWithCache.queryHistoryModel.get = jest
