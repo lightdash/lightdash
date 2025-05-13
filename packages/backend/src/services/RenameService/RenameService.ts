@@ -559,7 +559,7 @@ export class RenameService extends BaseService {
             const explores = await this.projectModel.getAllExploresFromCache(
                 projectUuid,
             );
-            // Do not filter explore errors, since the explore might be failing already, becuase of some renames
+            // Do not filter explore errors, since the explore might be failing already, because of some renames
             const exploreJoins: string[] = Object.values(explores)
                 .filter((e) =>
                     e.joinedTables?.some((j) => j.table === exploreName),
