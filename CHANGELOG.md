@@ -1,3 +1,10 @@
+## [0.1626.1](https://github.com/lightdash/lightdash/compare/0.1626.0...0.1626.1) (2025-05-13)
+
+
+### Bug Fixes
+
+* SQL Runner always sends limit 500 ([#14773](https://github.com/lightdash/lightdash/issues/14773)) ([85995e7](https://github.com/lightdash/lightdash/commit/85995e78b938105fa3764b721cfa6a04e031abce))
+
 # [0.1626.0](https://github.com/lightdash/lightdash/compare/0.1625.0...0.1626.0) (2025-05-13)
 
 
