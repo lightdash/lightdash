@@ -2,9 +2,9 @@ import {
     AnyType,
     CreateTrinoCredentials,
     DimensionType,
-    getErrorMessage,
     Metric,
     MetricType,
+    getErrorMessage as originalGetErrorMessage,
     SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
@@ -14,6 +14,7 @@ import {
     BasicAuth,
     ConnectionOptions,
     Iterator,
+    QueryError,
     QueryResult,
     Trino,
 } from 'trino-client';
@@ -53,6 +54,14 @@ interface TableInfo {
     table: string;
 }
 
+const getErrorMessage = (e: QueryError) => {
+    // Trino returns Object of type QueryError
+    if (e.message) {
+        // Convert Object to Error
+        return originalGetErrorMessage(new Error(e.message, { cause: e }));
+    }
+    return originalGetErrorMessage(e);
+};
 const queryTableSchema = ({
     database,
     schema,
