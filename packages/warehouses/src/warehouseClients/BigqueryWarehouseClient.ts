@@ -32,8 +32,6 @@ import {
     WarehouseCatalog,
     WarehouseExecuteAsyncQuery,
     WarehouseExecuteAsyncQueryArgs,
-    WarehouseGetAsyncQueryResults,
-    WarehouseGetAsyncQueryResultsArgs,
     WarehouseTableSchema,
 } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
@@ -600,86 +598,5 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 reject(error);
             });
         });
-    }
-
-    async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
-        queryArgs: WarehouseGetAsyncQueryResultsArgs,
-        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
-        try {
-            if (!queryArgs.queryId) {
-                throw new WarehouseQueryError('Invalid query');
-            }
-
-            if (!isBigQueryWarehouseQueryMetadata(queryArgs.queryMetadata)) {
-                throw new WarehouseQueryError(
-                    `Invalid warehouse query metadata for query ${queryArgs.queryId}. Please contact support.`,
-                );
-            }
-
-            const job = await this.getJob(
-                queryArgs.queryId,
-                queryArgs.queryMetadata?.jobLocation,
-            );
-
-            if (!job.id) {
-                throw new WarehouseQueryError(
-                    'Missing BigQuery job ID. Please contact support.',
-                );
-            }
-
-            if (!job.location) {
-                throw new WarehouseQueryError(
-                    'Missing BigQuery job location. Please contact support.',
-                );
-            }
-
-            const startIndex = (queryArgs.page - 1) * queryArgs.pageSize;
-            const resultsMetadata = await this.getJobResultsMetadata(job);
-            if (!resultsMetadata) {
-                throw new WarehouseQueryError(
-                    'Missing BigQuery response. Please contact support.',
-                );
-            }
-            const rows: TFormattedRow[] = [];
-            await this.streamResults(
-                job,
-                (row) => {
-                    if (rowFormatter) {
-                        rows.push(rowFormatter(row));
-                    } else {
-                        rows.push(row as TFormattedRow);
-                    }
-                },
-                {
-                    startIndex: startIndex.toString(),
-                    maxResults: queryArgs.pageSize,
-                },
-            );
-
-            const fields =
-                BigqueryWarehouseClient.getFieldsFromResponse(resultsMetadata);
-
-            const totalRows: number = resultsMetadata.totalRows
-                ? parseInt(resultsMetadata.totalRows, 10)
-                : 1;
-
-            return {
-                fields,
-                rows,
-                queryId: job.id,
-                pageCount: Math.ceil(totalRows / queryArgs.pageSize),
-                totalRows,
-            };
-        } catch (e: unknown) {
-            if (BigqueryWarehouseClient.isBigqueryError(e)) {
-                const responseError: bigquery.IErrorProto | undefined =
-                    e?.errors[0];
-                if (responseError) {
-                    throw this.parseError(responseError, queryArgs.sql);
-                }
-            }
-            throw e;
-        }
     }
 }

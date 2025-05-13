@@ -44,13 +44,6 @@ export const warehouseClientMock: WarehouseClient = {
         totalRows: null,
         durationMs: null,
     }),
-    getAsyncQueryResults: async () => ({
-        rows: [],
-        fields: {},
-        queryId: null,
-        pageCount: 0,
-        totalRows: 0,
-    }),
     runQuery: () =>
         Promise.resolve({
             fields: {},

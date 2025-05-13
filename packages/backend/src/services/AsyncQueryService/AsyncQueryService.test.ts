@@ -633,10 +633,10 @@ describe('AsyncQueryService', () => {
                     totalRowCount: 10,
                 });
 
-            const warehouseClientGetAsyncQueryResultsSpy = jest.spyOn(
-                warehouseClientMock,
-                'getAsyncQueryResults',
-            );
+            // const warehouseClientGetAsyncQueryResultsSpy = jest.spyOn(
+            //     warehouseClientMock,
+            //     'getAsyncQueryResults',
+            // );
 
             const result = await serviceWithCache.getAsyncQueryResults({
                 user,
@@ -646,9 +646,9 @@ describe('AsyncQueryService', () => {
                 pageSize: 10,
             });
 
-            expect(
-                warehouseClientGetAsyncQueryResultsSpy,
-            ).not.toHaveBeenCalled();
+            // expect(
+            //     warehouseClientGetAsyncQueryResultsSpy,
+            // ).not.toHaveBeenCalled();
 
             expect(result).toEqual({
                 rows: [expectedFormattedRow],

@@ -13,7 +13,6 @@ import {
     WarehouseResults,
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
-    type WarehouseGetAsyncQueryResultsArgs,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import {
@@ -28,7 +27,7 @@ import {
 } from 'snowflake-sdk';
 import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
-import { WarehouseCatalog, type WarehouseGetAsyncQueryResults } from '../types';
+import { WarehouseCatalog } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
 const assertIsSnowflakeLoggingLevel = (
@@ -317,55 +316,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             totalRows,
             durationMs,
         };
-    }
-
-    async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
-        {
-            timezone,
-            tags,
-            values,
-            ...queryArgs
-        }: WarehouseGetAsyncQueryResultsArgs,
-        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
-        if (queryArgs.queryId === null) {
-            throw new WarehouseQueryError('Query ID is required');
-        }
-
-        const connection = await this.getConnection();
-
-        try {
-            const start = (queryArgs.page - 1) * queryArgs.pageSize;
-            const end = start + queryArgs.pageSize - 1;
-
-            const results = await this.getAsyncStatementResults(
-                connection,
-                queryArgs.queryId,
-                start,
-                end,
-                rowFormatter,
-            );
-
-            return {
-                fields: results.fields,
-                rows: results.rows,
-                queryId: queryArgs.queryId,
-                pageCount: Math.ceil(results.numRows / queryArgs.pageSize),
-                totalRows: results.numRows,
-            };
-        } catch (e) {
-            const error = e as SnowflakeError;
-            throw this.parseError(error, queryArgs.sql);
-        } finally {
-            await new Promise((resolve, reject) => {
-                connection.destroy((err, conn) => {
-                    if (err) {
-                        reject(new WarehouseConnectionError(err.message));
-                    }
-                    resolve(conn);
-                });
-            });
-        }
     }
 
     private async executeAsyncStatement(

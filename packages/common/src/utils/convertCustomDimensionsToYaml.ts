@@ -100,9 +100,6 @@ const warehouseClientMock: WarehouseClient = {
     executeAsyncQuery() {
         throw new NotImplementedError('getCatalog not implemented');
     },
-    getAsyncQueryResults() {
-        throw new NotImplementedError('getCatalog not implemented');
-    },
     test() {
         throw new NotImplementedError('getCatalog not implemented');
     },
