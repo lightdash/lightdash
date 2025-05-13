@@ -1641,6 +1641,16 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "tatianainama",
+      "name": "Tatiana Inama",
+      "avatar_url": "https://avatars.githubusercontent.com/u/8246284?v=4",
+      "profile": "http://tatiana.inama.dev",
+      "contributions": [
+        "code",
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
