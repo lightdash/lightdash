@@ -30,6 +30,7 @@ import {
     getErrorMessage,
     getIntrinsicUserAttributes,
     getItemId,
+    getItemMap,
     GroupByColumn,
     isCartesianChartConfig,
     isCustomBinDimension,
@@ -727,10 +728,76 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    private async prepareMetricQueryAsyncQueryArgs({
+        user,
+        metricQuery,
+        dateZoom,
+        explore,
+        warehouseClient,
+    }: Pick<
+        ExecuteAsyncMetricQueryArgs,
+        'user' | 'metricQuery' | 'dateZoom'
+    > & {
+        warehouseClient: WarehouseClient;
+        explore: Explore;
+    }) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid: user.organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const intrinsicUserAttributes = emailStatus.isVerified
+            ? getIntrinsicUserAttributes(user)
+            : {};
+
+        const fullQuery = await ProjectService._compileQuery(
+            metricQuery,
+            explore,
+            warehouseClient,
+            intrinsicUserAttributes,
+            userAttributes,
+            this.lightdashConfig.query.timezone || 'UTC',
+            dateZoom,
+        );
+
+        const fieldsWithOverrides: ItemsMap = Object.fromEntries(
+            Object.entries(fullQuery.fields).map(([key, value]) => {
+                if (
+                    metricQuery.metricOverrides &&
+                    metricQuery.metricOverrides[key]
+                ) {
+                    return [
+                        key,
+                        {
+                            ...value,
+                            ...metricQuery.metricOverrides[key],
+                        },
+                    ];
+                }
+                return [key, value];
+            }),
+        );
+
+        return {
+            sql: fullQuery.query,
+            fields: fieldsWithOverrides,
+        };
+    }
+
     async executeAsyncQuery(
+        // TODO: remove metric query, fields, etc from args once they are no longer needed in the database
         args: ExecuteAsyncMetricQueryArgs & {
             queryTags: RunQueryTags;
             explore: Explore;
+            fields: ItemsMap;
+            sql: string; // SQL generated from metric query or provided by user
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
         {
@@ -758,6 +825,9 @@ export class AsyncQueryService extends ProjectService {
                     dateZoom,
                     queryTags,
                     explore,
+                    sql: compiledQuery,
+                    metricQuery,
+                    fields: fieldsMap,
                 } = args;
 
                 try {
@@ -788,39 +858,6 @@ export class AsyncQueryService extends ProjectService {
                         warehouseClient.credentials.type,
                     );
 
-                    const { metricQuery } = args;
-                    const userAttributes =
-                        await this.userAttributesModel.getAttributeValuesForOrgMember(
-                            {
-                                organizationUuid,
-                                userUuid: user.userUuid,
-                            },
-                        );
-
-                    const emailStatus =
-                        await this.emailModel.getPrimaryEmailStatus(
-                            user.userUuid,
-                        );
-                    const intrinsicUserAttributes = emailStatus.isVerified
-                        ? getIntrinsicUserAttributes(user)
-                        : {};
-
-                    const fullQuery = await ProjectService._compileQuery(
-                        metricQuery,
-                        explore,
-                        warehouseClient,
-                        intrinsicUserAttributes,
-                        userAttributes,
-                        this.lightdashConfig.query.timezone || 'UTC',
-                        dateZoom,
-                    );
-
-                    const {
-                        query: compiledQuery,
-                        fields: fieldsFromQuery,
-                        hasExampleMetric,
-                    } = fullQuery;
-
                     let pivotedQuery = null;
                     if (pivotConfiguration) {
                         pivotedQuery =
@@ -836,26 +873,6 @@ export class AsyncQueryService extends ProjectService {
                     }
 
                     const query = pivotedQuery || compiledQuery;
-
-                    const fieldsWithOverrides: ItemsMap = Object.fromEntries(
-                        Object.entries(fieldsFromQuery).map(([key, value]) => {
-                            if (
-                                metricQuery.metricOverrides &&
-                                metricQuery.metricOverrides[key]
-                            ) {
-                                return [
-                                    key,
-                                    {
-                                        ...value,
-                                        ...metricQuery.metricOverrides[key],
-                                    },
-                                ];
-                            }
-                            return [key, value];
-                        }),
-                    );
-
-                    const fieldsMap = fieldsWithOverrides;
                     span.setAttribute('generatedSql', query);
 
                     const onboardingRecord =
@@ -920,7 +937,7 @@ export class AsyncQueryService extends ProjectService {
                             ...ProjectService.getMetricQueryExecutionProperties(
                                 {
                                     metricQuery,
-                                    hasExampleMetric,
+                                    hasExampleMetric: false, // todo: legacy prop, should be removed from codebase
                                     queryTags,
                                     dateZoom,
                                     chartUuid:
@@ -964,8 +981,6 @@ export class AsyncQueryService extends ProjectService {
                                 cacheUpdatedTime: resultsCache.updatedAt,
                                 cacheExpiresAt: resultsCache.expiresAt,
                             },
-                            metricQuery,
-                            fields: fieldsMap,
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
@@ -991,8 +1006,6 @@ export class AsyncQueryService extends ProjectService {
                             cacheUpdatedTime: resultsCache.updatedAt,
                             cacheExpiresAt: resultsCache.expiresAt,
                         },
-                        metricQuery,
-                        fields: fieldsMap,
                     } satisfies ExecuteAsyncQueryReturn;
                 } catch (e) {
                     span.setStatus({
@@ -1072,12 +1085,15 @@ export class AsyncQueryService extends ProjectService {
             },
         );
 
-        const {
-            queryUuid,
-            cacheMetadata,
-            metricQuery: metricQueryWithOverrides,
-            fields,
-        } = await this.executeAsyncQuery(
+        const { sql, fields } = await this.prepareMetricQueryAsyncQueryArgs({
+            user,
+            metricQuery,
+            dateZoom,
+            explore,
+            warehouseClient: warehouseConnection.warehouseClient,
+        });
+
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
                 metricQuery,
@@ -1087,6 +1103,8 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 dateZoom,
                 invalidateCache,
+                fields,
+                sql,
             },
             requestParameters,
             warehouseConnection,
@@ -1095,7 +1113,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata,
-            metricQuery: metricQueryWithOverrides,
+            metricQuery,
             fields,
         };
     }
@@ -1193,12 +1211,14 @@ export class AsyncQueryService extends ProjectService {
             },
         );
 
-        const {
-            queryUuid,
-            cacheMetadata,
-            metricQuery: metricQueryWithOverrides,
-            fields,
-        } = await this.executeAsyncQuery(
+        const { sql, fields } = await this.prepareMetricQueryAsyncQueryArgs({
+            user,
+            metricQuery,
+            explore,
+            warehouseClient: warehouseConnection.warehouseClient,
+        });
+
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
@@ -1207,6 +1227,8 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 invalidateCache,
                 metricQuery,
+                fields,
+                sql,
             },
             requestParameters,
             warehouseConnection,
@@ -1215,7 +1237,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata,
-            metricQuery: metricQueryWithOverrides,
+            metricQuery,
             fields,
         };
     }
@@ -1371,12 +1393,15 @@ export class AsyncQueryService extends ProjectService {
             },
         );
 
-        const {
-            queryUuid,
-            cacheMetadata,
-            metricQuery: metricQueryWithOverrides,
-            fields,
-        } = await this.executeAsyncQuery(
+        const { sql, fields } = await this.prepareMetricQueryAsyncQueryArgs({
+            user,
+            metricQuery: metricQueryWithDashboardOverrides,
+            explore,
+            dateZoom,
+            warehouseClient: warehouseConnection.warehouseClient,
+        });
+
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 user,
                 projectUuid,
@@ -1386,6 +1411,8 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 invalidateCache,
                 dateZoom,
+                fields,
+                sql,
             },
             requestParameters,
             warehouseConnection,
@@ -1395,7 +1422,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             cacheMetadata,
             appliedDashboardFilters,
-            metricQuery: metricQueryWithOverrides,
+            metricQuery: metricQueryWithDashboardOverrides,
             fields,
         };
     }
@@ -1532,30 +1559,36 @@ export class AsyncQueryService extends ProjectService {
             },
         );
 
-        const {
-            queryUuid: underlyingDataQueryUuid,
-            cacheMetadata,
-            metricQuery: metricQueryWithOverrides,
-            fields,
-        } = await this.executeAsyncQuery(
-            {
-                user,
-                metricQuery: underlyingDataMetricQuery,
-                projectUuid,
-                explore,
-                context,
-                queryTags,
-                invalidateCache,
-                dateZoom,
-            },
-            requestParameters,
-            warehouseConnection,
-        );
+        const { sql, fields } = await this.prepareMetricQueryAsyncQueryArgs({
+            user,
+            metricQuery: underlyingDataMetricQuery,
+            explore,
+            dateZoom,
+            warehouseClient: warehouseConnection.warehouseClient,
+        });
+
+        const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
+            await this.executeAsyncQuery(
+                {
+                    user,
+                    metricQuery: underlyingDataMetricQuery,
+                    projectUuid,
+                    explore,
+                    context,
+                    queryTags,
+                    invalidateCache,
+                    dateZoom,
+                    fields,
+                    sql,
+                },
+                requestParameters,
+                warehouseConnection,
+            );
 
         return {
             queryUuid: underlyingDataQueryUuid,
             cacheMetadata,
-            metricQuery: metricQueryWithOverrides,
+            metricQuery: underlyingDataMetricQuery,
             fields,
         };
     }
@@ -1661,6 +1694,8 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 metricQuery: query,
                 context,
+                fields: getItemMap(virtualView),
+                sql,
             },
             {
                 query,
@@ -1812,6 +1847,8 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 metricQuery: query,
                 context,
+                fields: getItemMap(virtualView),
+                sql: sqlChart.sql,
             },
             {
                 query,
@@ -1908,6 +1945,8 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 metricQuery: metricQueryWithDashboardOverrides,
                 context,
+                fields: getItemMap(virtualView),
+                sql: savedChart.sql,
             },
             {
                 query,
