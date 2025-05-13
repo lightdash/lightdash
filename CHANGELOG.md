@@ -1,3 +1,15 @@
+# [0.1624.0](https://github.com/lightdash/lightdash/compare/0.1623.1...0.1624.0) (2025-05-13)
+
+
+### Bug Fixes
+
+* frozen columns not working in Table Chart ([#14742](https://github.com/lightdash/lightdash/issues/14742)) ([fbd7abf](https://github.com/lightdash/lightdash/commit/fbd7abfb730ee61ef1a032f4b9abbfc125398fae))
+
+
+### Features
+
+* Display loading state when deleting a Space ([#14774](https://github.com/lightdash/lightdash/issues/14774)) ([4508b73](https://github.com/lightdash/lightdash/commit/4508b7363fcc1e47c58b59b281847121e97119aa))
+
 ## [0.1623.1](https://github.com/lightdash/lightdash/compare/0.1623.0...0.1623.1) (2025-05-12)
 
 
