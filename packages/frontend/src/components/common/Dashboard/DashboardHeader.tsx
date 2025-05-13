@@ -197,6 +197,7 @@ const DashboardHeader = ({
         subject('Dashboard', {
             organizationUuid,
             projectUuid,
+            access: dashboard.access,
         }),
     );
 
