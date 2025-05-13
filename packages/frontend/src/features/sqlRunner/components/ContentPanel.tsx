@@ -260,19 +260,15 @@ export const ContentPanel: FC = () => {
         }
     }, [queryResults, panelSizes]);
 
-    useEffect(() => {
-        if (!limit) {
-            dispatch(
-                setSqlLimit(
-                    health.data?.query.defaultLimit ?? DEFAULT_SQL_LIMIT,
-                ),
-            );
-        }
-    }, [health.data?.query.defaultLimit, dispatch, limit]);
-
     const defaultQueryLimit = useMemo(() => {
         return health.data?.query.defaultLimit ?? DEFAULT_SQL_LIMIT;
     }, [health]);
+
+    useEffect(() => {
+        if (!limit) {
+            dispatch(setSqlLimit(defaultQueryLimit));
+        }
+    }, [defaultQueryLimit, dispatch, limit]);
 
     const [activeEchartsInstance, setActiveEchartsInstance] =
         useState<EChartsInstance>();
