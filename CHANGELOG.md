@@ -1,3 +1,10 @@
+# [0.1625.0](https://github.com/lightdash/lightdash/compare/0.1624.0...0.1625.0) (2025-05-13)
+
+
+### Features
+
+* enforce results files for all warehouses ([#14758](https://github.com/lightdash/lightdash/issues/14758)) ([f1c5380](https://github.com/lightdash/lightdash/commit/f1c53808b43d7ed934d958221fa9ccedf5a675af))
+
 # [0.1624.0](https://github.com/lightdash/lightdash/compare/0.1623.1...0.1624.0) (2025-05-13)
 
 
