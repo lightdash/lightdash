@@ -1,3 +1,10 @@
+# [0.1626.0](https://github.com/lightdash/lightdash/compare/0.1625.0...0.1626.0) (2025-05-13)
+
+
+### Features
+
+* project connection form refactor ([#14571](https://github.com/lightdash/lightdash/issues/14571)) ([bf66556](https://github.com/lightdash/lightdash/commit/bf66556202f629e0f3fd2d9df395d27425643c25)), closes [#13995](https://github.com/lightdash/lightdash/issues/13995) [#13940](https://github.com/lightdash/lightdash/issues/13940)
+
 # [0.1625.0](https://github.com/lightdash/lightdash/compare/0.1624.0...0.1625.0) (2025-05-13)
 
 
