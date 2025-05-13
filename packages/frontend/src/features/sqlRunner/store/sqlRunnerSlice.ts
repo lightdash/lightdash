@@ -90,7 +90,7 @@ export interface SqlRunnerState {
     sql: string;
     successfulSqlQueries: WithHistory<string | undefined>;
     hasUnrunChanges: boolean;
-    limit: number;
+    limit: number | undefined;
     activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
     selectedChartType: ChartKind | undefined;
@@ -143,7 +143,7 @@ export const initialState: SqlRunnerState = {
     sql: '',
     successfulSqlQueries: withHistory(undefined),
     hasUnrunChanges: false,
-    limit: 500,
+    limit: undefined,
     activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
     selectedChartType: ChartKind.VERTICAL_BAR,
