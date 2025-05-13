@@ -114,9 +114,9 @@ export class AsyncQueryService extends ProjectService {
 
     savedSqlModel: SavedSqlModel;
 
-    private readonly resultsFileModel: ResultsFileModel;
+    resultsFileModel: ResultsFileModel;
 
-    private readonly storageClient: S3ResultsFileStorageClient;
+    storageClient: S3ResultsFileStorageClient;
 
     constructor({
         queryHistoryModel,
