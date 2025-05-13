@@ -87,6 +87,7 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
     icon,
     form,
     handleSubmit,
+    isLoading,
 }) => {
     const [canDelete, setCanDelete] = useState(false);
     return (
@@ -106,7 +107,8 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
                             h={32}
                             type="submit"
                             color="red"
-                            disabled={!canDelete}
+                            disabled={!canDelete || isLoading}
+                            loading={isLoading}
                         >
                             Delete Space
                         </Button>

@@ -42,6 +42,7 @@ interface ActionModalProps {
     onClose?: () => void;
     onSubmitForm?: (data: Space | null) => void;
     isDisabled: boolean;
+    isLoading: boolean;
     shouldRedirect?: boolean;
     parentSpaceUuid: Space['parentSpaceUuid'];
     rootSpace?: Pick<Space, 'name' | 'uuid'>;
@@ -65,6 +66,7 @@ export interface CreateSpaceModalBody
 export interface DeleteSpaceModalBody
     extends Pick<CreateSpaceModalBody, 'data' | 'form'>,
         Pick<ActionModalProps, 'title' | 'icon'> {
+    isLoading: boolean;
     handleSubmit: (values: Space) => void;
     onClose: () => void;
 }
@@ -80,6 +82,7 @@ const SpaceModal: FC<ActionModalProps> = ({
     confirmButtonLabel,
     confirmButtonColor = 'blue',
     isDisabled,
+    isLoading,
     actionType,
     projectUuid,
     onClose = () => {},
@@ -133,6 +136,7 @@ const SpaceModal: FC<ActionModalProps> = ({
                 icon={icon}
                 form={form}
                 handleSubmit={handleSubmit}
+                isLoading={isLoading}
             />
         );
     }
@@ -171,7 +175,7 @@ const SpaceModal: FC<ActionModalProps> = ({
                                         type="submit"
                                         disabled={isDisabled || !form.isValid}
                                         color={confirmButtonColor}
-                                        loading={isDisabled}
+                                        loading={isLoading}
                                         form="form-space-action-modal"
                                     >
                                         {confirmButtonLabel}
@@ -203,7 +207,7 @@ const SpaceModal: FC<ActionModalProps> = ({
                                 type="submit"
                                 disabled={isDisabled || !form.isValid}
                                 color={confirmButtonColor}
-                                loading={isDisabled}
+                                loading={isLoading}
                                 form="form-space-action-modal"
                             >
                                 {confirmButtonLabel}
@@ -244,7 +248,9 @@ const SpaceModal: FC<ActionModalProps> = ({
     );
 };
 
-const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
+const SpaceActionModal: FC<
+    Omit<ActionModalProps, 'data' | 'isDisabled' | 'isLoading'>
+> = ({
     actionType,
     projectUuid,
     spaceUuid,
@@ -326,6 +332,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
             actionType={actionType}
             onSubmitForm={handleSubmitForm}
             isDisabled={isWorking}
+            isLoading={isWorking}
             parentSpaceUuid={parentSpaceUuid}
             rootSpace={data?.breadcrumbs?.[0]}
             {...props}
