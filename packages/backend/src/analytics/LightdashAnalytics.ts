@@ -216,7 +216,6 @@ export type MetricQueryExecutionProperties = {
     tableCalculationCustomFormatCount: number;
     filtersCount: number;
     sortsCount: number;
-    hasExampleMetric: boolean;
     additionalMetricsCount: number;
     additionalMetricsFilterCount: number;
     additionalMetricsPercentFormatCount: number;
