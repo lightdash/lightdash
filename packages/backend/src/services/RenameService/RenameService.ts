@@ -559,19 +559,22 @@ export class RenameService extends BaseService {
             const explores = await this.projectModel.getAllExploresFromCache(
                 projectUuid,
             );
-            const exploreAndJoins: string[] = Object.values(explores)
-                .filter((e) => {
-                    if (isExploreError(e)) return false;
-                    return (
-                        e.name === exploreName ||
-                        e.joinedTables.some((j) => j.table === exploreName)
-                    );
-                })
+            // Do not filter explore errors, since the explore might be failing already, becuase of some renames
+            const exploreJoins: string[] = Object.values(explores)
+                .filter((e) =>
+                    e.joinedTables?.some((j) => j.table === exploreName),
+                )
                 .map((e) => e.name);
+            const exploreNames = new Set([exploreName, ...exploreJoins]);
+            this.logger.info(
+                `Rename resources: Filtering chart for explore "${exploreName}" and joins: ${exploreJoins.join(
+                    ',',
+                )}`,
+            );
             // Note: filtering on explore name might return charts where the explore name is from a previous version
             const chartSummaries = await this.savedChartModel.find({
                 projectUuid,
-                exploreNames: exploreAndJoins,
+                exploreNames: Array.from(exploreNames),
             });
 
             this.logger.debug(
