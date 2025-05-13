@@ -104,7 +104,7 @@ import {
     type SchedulerJobStatus,
 } from './types/scheduler';
 import { type ApiSlackChannelsResponse } from './types/slack';
-import { type Space } from './types/space';
+import { SpaceMemberRole, type CreateSpace, type Space } from './types/space';
 import { type ApiSshKeyPairResponse } from './types/SshKeyPair';
 import { type TableBase } from './types/table';
 import {
@@ -478,6 +478,11 @@ export const SEED_SPACE = {
 export const SEED_GROUP = {
     groupUuid: '9d615ede-5758-4954-9fb9-2a07fc415ba5',
     name: 'Org 1 Group',
+};
+
+export const SEED_GROUP_2 = {
+    groupUuid: '1456c265-f375-4d64-bd33-105c84ad9b5d',
+    name: 'Org 1 Editor Group',
 };
 
 export type ArgumentsOf<F extends Function> = F extends (
@@ -1394,3 +1399,119 @@ export const getProjectDirectory = (
 export function isNotNull<T>(arg: T): arg is Exclude<T, null> {
     return arg !== null;
 }
+
+export type TreeCreateSpace = CreateSpace & {
+    children?: TreeCreateSpace[];
+    groupAccess?: {
+        groupUuid: string;
+        role: SpaceMemberRole;
+    }[];
+};
+
+export const SPACE_TREE_1: TreeCreateSpace[] = [
+    {
+        name: 'Parent Space 1',
+        children: [
+            {
+                name: 'Child Space 1.1',
+                children: [
+                    {
+                        name: 'Grandchild Space 1.1.1',
+                    },
+                    {
+                        name: 'Grandchild Space 1.1.2',
+                    },
+                ],
+            },
+            {
+                name: 'Child Space 1.2',
+                children: [
+                    {
+                        name: 'Grandchild Space 1.2.1',
+                    },
+                    {
+                        name: 'Grandchild Space 1.2.2',
+                        children: [
+                            {
+                                name: 'Great Grandchild Space 1.2.2.1',
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
+                name: 'Child Space 1.3',
+                children: [
+                    {
+                        name: 'Grandchild Space 1.3.1',
+                        children: [
+                            {
+                                name: 'Great Grandchild Space 1.3.1.1',
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        name: 'Parent Space 2',
+        isPrivate: true,
+        children: [
+            {
+                name: 'Child Space 2.1',
+                children: [
+                    {
+                        name: 'Grandchild Space 2.1.1',
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        name: 'Parent Space 3',
+        isPrivate: true,
+        access: [
+            // Admin will automatically be added, we only seed editor
+            {
+                userUuid: SEED_ORG_1_EDITOR.user_uuid,
+                role: SpaceMemberRole.EDITOR,
+            },
+        ],
+        children: [
+            {
+                name: 'Child Space 3.1',
+            },
+        ],
+    },
+    // Created by admin and added group access
+    {
+        name: 'Parent Space 5',
+        isPrivate: true,
+        access: [],
+        groupAccess: [
+            {
+                groupUuid: SEED_GROUP_2.groupUuid,
+                role: SpaceMemberRole.EDITOR,
+            },
+        ],
+        children: [
+            {
+                name: 'Child Space 5.1',
+            },
+        ],
+    },
+] as const;
+
+export const SPACE_TREE_2: TreeCreateSpace[] = [
+    {
+        name: 'Parent Space 4',
+        isPrivate: true,
+        access: [],
+        children: [
+            {
+                name: 'Child Space 4.1',
+            },
+        ],
+    },
+] as const;
