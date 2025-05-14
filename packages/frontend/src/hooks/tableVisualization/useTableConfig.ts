@@ -302,11 +302,11 @@ const useTableConfig = (
             return;
         }
 
-        setPivotTableData({
+        setPivotTableData((prevState) => ({
+            ...prevState,
             loading: true,
-            data: undefined,
             error: undefined,
-        });
+        }));
 
         const hiddenMetricFieldIds = selectedItemIds?.filter((fieldId) => {
             const field = getField(fieldId);
