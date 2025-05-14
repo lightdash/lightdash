@@ -1,3 +1,10 @@
+## [0.1626.3](https://github.com/lightdash/lightdash/compare/0.1626.2...0.1626.3) (2025-05-14)
+
+
+### Bug Fixes
+
+* inc rease scheduler log target migration ([#14799](https://github.com/lightdash/lightdash/issues/14799)) ([df80475](https://github.com/lightdash/lightdash/commit/df8047582d8288884a6cd49d023bd3588f230b0d))
+
 ## [0.1626.2](https://github.com/lightdash/lightdash/compare/0.1626.1...0.1626.2) (2025-05-14)
 
 
