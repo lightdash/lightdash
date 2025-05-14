@@ -15,6 +15,7 @@ import {
     getFilterRules,
     getItemId,
     InlineErrorType,
+    isDashboardFieldTarget,
     isExploreError,
     isValidationTargetValid,
     OrganizationMemberRole,
@@ -510,7 +511,10 @@ export class ValidationService extends BaseService {
                         CreateDashboardValidation[]
                     >(
                         (acc, tileTarget) => {
-                            if (tileTarget) {
+                            if (
+                                tileTarget &&
+                                isDashboardFieldTarget(tileTarget)
+                            ) {
                                 return containsFieldId({
                                     acc,
                                     fieldIds: existingFieldIds,

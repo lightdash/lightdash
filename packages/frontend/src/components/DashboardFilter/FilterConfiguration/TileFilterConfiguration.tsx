@@ -1,6 +1,7 @@
 import {
     getItemId,
     isDashboardChartTileType,
+    isDashboardFieldTarget,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
@@ -102,7 +103,11 @@ const TileFilterConfiguration: FC<Props> = ({
 
             let selectedField;
             let invalidField: string | undefined;
-            if (tileConfig !== false) {
+            if (
+                tileConfig !== false &&
+                tileConfig &&
+                isDashboardFieldTarget(tileConfig)
+            ) {
                 selectedField = tileConfig?.fieldId
                     ? filters?.find((f) => tileConfig?.fieldId === getItemId(f))
                     : filters?.find((f) => matchFieldExact(f)(field));

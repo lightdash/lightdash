@@ -80,7 +80,21 @@ export type DashboardFieldTarget = {
     tableName: string;
 };
 
-export type DashboardTileTarget = DashboardFieldTarget | false;
+export const isDashboardFieldTarget = (target: DashboardTileTarget) =>
+    typeof target === 'object' && 'fieldId' in target && 'tableName' in target;
+
+// Used for references in SQL chart
+export type DashboardReferenceTarget = {
+    reference: string;
+};
+
+export const isDashboardReferenceTarget = (target: DashboardTileTarget) =>
+    typeof target === 'object' && 'reference' in target;
+
+export type DashboardTileTarget =
+    | DashboardFieldTarget
+    | DashboardReferenceTarget
+    | false;
 
 export type DashboardFilterRule<
     O = ConditionalOperator,
@@ -409,6 +423,7 @@ export const compressDashboardFiltersToParam = (
                             // The filter will be automatically applied there
                             if (
                                 tileTargetValue !== false &&
+                                isDashboardFieldTarget(tileTargetValue) &&
                                 tileTargetValue.fieldId === f.target.fieldId &&
                                 tileTargetValue.tableName === f.target.tableName
                             ) {
