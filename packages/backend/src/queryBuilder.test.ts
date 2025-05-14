@@ -1,5 +1,6 @@
 import {
     BinType,
+    CompiledMetricQuery,
     CustomDimensionType,
     ForbiddenError,
     isCustomBinDimension,
@@ -12,6 +13,7 @@ import {
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
     replaceUserAttributesAsStrings,
+    replaceVariables,
     sortDayOfWeekName,
     sortMonthName,
 } from './queryBuilder';
@@ -26,6 +28,7 @@ import {
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
     EXPLORE_WITH_SQL_FILTER,
+    EXPLORE_WITH_VARIABLES,
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
     METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL,
@@ -64,6 +67,8 @@ import {
     METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
+    METRIC_QUERY_WITH_VARIABLES,
+    METRIC_QUERY_WITH_VARIABLES_SQL,
     MONTH_NAME_SORT_DESCENDING_SQL,
     MONTH_NAME_SORT_SQL,
     QUERY_BUILDER_UTC_TIMEZONE,
@@ -332,6 +337,37 @@ describe('Query builder', () => {
                 timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_SQL_FILTER);
+    });
+
+    test('Should replace variables in dimension SQL', () => {
+        const sql = 'table1.value = ${test_variable}';
+        const stringQuote = "'";
+        const wrapChar = '(';
+
+        const result = replaceVariables(
+            sql,
+            { test_variable: 'custom_value' },
+            stringQuote,
+            wrapChar,
+        );
+
+        expect(result).toEqual("table1.value = ('custom_value')");
+    });
+
+    test('Should build query with table namespaced variables', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_VARIABLES,
+                compiledMetricQuery: METRIC_QUERY_WITH_VARIABLES,
+                warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                variables: {
+                    'table1.date_filter': '2023-01-01',
+                    'table2.date_filter': '2023-12-31',
+                },
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_VARIABLES_SQL);
     });
 });
 
@@ -1322,5 +1358,61 @@ describe('applyLimitToSqlQuery', () => {
             'WITH subquery AS ( SELECT * FROM orders LIMIT 10 OFFSET 5; ) SELECT * FROM subquery LIMIT 20 OFFSET 10';
 
         expect(result).toBe(expectedQuery);
+    });
+});
+
+describe('Custom variable replacement', () => {
+    test('Should replace variables in a string', () => {
+        const sql = 'SELECT * FROM table WHERE value = ${my_variable}';
+        const variables = { my_variable: 'test_value' };
+
+        expect(replaceVariables(sql, variables, "'", '(')).toEqual(
+            "SELECT * FROM table WHERE value = ('test_value')",
+        );
+    });
+
+    test('Should not replace variables that do not exist', () => {
+        const sql = 'SELECT * FROM table WHERE value = ${my_variable}';
+        const variables = { other_variable: 'test_value' };
+
+        expect(replaceVariables(sql, variables, "'", '(')).toEqual(
+            'SELECT * FROM table WHERE value = ${my_variable}',
+        );
+    });
+
+    test('Should replace multiple variables', () => {
+        const sql =
+            'SELECT * FROM table WHERE value1 = ${var1} AND value2 = ${var2}';
+        const variables = { var1: 'test1', var2: 'test2' };
+
+        expect(replaceVariables(sql, variables, "'", '(')).toEqual(
+            "SELECT * FROM table WHERE value1 = ('test1') AND value2 = ('test2')",
+        );
+    });
+
+    test('Should handle table-namespaced variables', () => {
+        const sql =
+            'SELECT * FROM table WHERE value1 = ${table1.my_variable} AND value2 = ${table2.my_variable}';
+        const variables = {
+            'table1.my_variable': 'value1',
+            'table2.my_variable': 'value2',
+        };
+
+        expect(replaceVariables(sql, variables, "'", '(')).toEqual(
+            "SELECT * FROM table WHERE value1 = ('value1') AND value2 = ('value2')",
+        );
+    });
+
+    test('Should support the same variable name across different tables', () => {
+        // Setup a query that uses the same variable name in different tables
+        const sql = 'WHERE ${table1.date_range} AND ${table2.date_range}';
+        const variables = {
+            'table1.date_range': '2023-01-01',
+            'table2.date_range': '2023-12-31',
+        };
+
+        expect(replaceVariables(sql, variables, "'", '(')).toEqual(
+            "WHERE ('2023-01-01') AND ('2023-12-31')",
+        );
     });
 });
