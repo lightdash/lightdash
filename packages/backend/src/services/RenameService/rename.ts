@@ -14,7 +14,7 @@ import {
     getFieldRef,
     isAndFilterGroup,
     isCustomBinDimension,
-    isDashboardFilterRule,
+    isDashboardFieldTarget,
     isDashboardScheduler,
     isFilterRule,
     isOrFilterGroup,
@@ -478,7 +478,7 @@ export const renameDashboardFilterRules = (
             ? Object.fromEntries(
                   Object.entries(filterRule.tileTargets).map(([key, value]) => [
                       key,
-                      value
+                      value && isDashboardFieldTarget(value)
                           ? {
                                 ...value,
                                 fieldId: replaceId(value.fieldId),

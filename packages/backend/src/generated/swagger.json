@@ -1220,10 +1220,22 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "DashboardReferenceTarget": {
+                "properties": {
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["reference"],
+                "type": "object"
+            },
             "DashboardTileTarget": {
                 "anyOf": [
                     {
                         "$ref": "#/components/schemas/DashboardFieldTarget"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardReferenceTarget"
                     },
                     {
                         "type": "boolean",
@@ -9743,7 +9755,7 @@
                         "type": "boolean"
                     },
                     "override": {
-                        "type": "string"
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -16666,7 +16678,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1625.0",
+        "version": "0.1626.7",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

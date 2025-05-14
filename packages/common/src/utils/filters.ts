@@ -648,10 +648,7 @@ export const getDashboardFilterRulesForTile = (
 
             return {
                 ...filter,
-                target: {
-                    fieldId: tileConfig.fieldId,
-                    tableName: tileConfig.tableName,
-                },
+                target: tileConfig,
             };
         })
         .filter((f): f is DashboardFilterRule => f !== null);

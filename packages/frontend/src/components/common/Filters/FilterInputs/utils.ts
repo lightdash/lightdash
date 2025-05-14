@@ -9,6 +9,7 @@ import {
     getItemId,
     getLocalTimeDisplay,
     isCustomSqlDimension,
+    isDashboardFieldTarget,
     isDashboardFilterRule,
     isDimension,
     isField,
@@ -240,6 +241,7 @@ export const getFilterRuleTables = (
                 const targetField = filterableFields.find(
                     (f) =>
                         tileTarget !== false &&
+                        isDashboardFieldTarget(tileTarget) &&
                         f.table === tileTarget.tableName &&
                         getItemId(f) === tileTarget.fieldId,
                 );
