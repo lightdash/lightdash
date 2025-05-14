@@ -1,3 +1,10 @@
+## [0.1626.6](https://github.com/lightdash/lightdash/compare/0.1626.5...0.1626.6) (2025-05-14)
+
+
+### Bug Fixes
+
+* return query error before checking if theres a results file ([#14801](https://github.com/lightdash/lightdash/issues/14801)) ([a0b58e0](https://github.com/lightdash/lightdash/commit/a0b58e043ebe864d80448e0f1b5f8d9f201038a9))
+
 ## [0.1626.5](https://github.com/lightdash/lightdash/compare/0.1626.4...0.1626.5) (2025-05-14)
 
 
