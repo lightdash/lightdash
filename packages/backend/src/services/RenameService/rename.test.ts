@@ -704,6 +704,111 @@ describe('renameSavedChart', () => {
         expect(updatedChart).toEqual(expectedRenamedChartMocked); // toEqual doesn't check extra `undefined` fields
     });
 
+    test('should rename subscriptions saved chart model', () => {
+        const { updatedChart, hasChanges } = renameSavedChart({
+            type: RenameType.MODEL,
+            chart: {
+                ...chartMocked,
+
+                uuid: '8ecff9f3-e197-46f9-86f0-c61aa4328685',
+                projectUuid: 'a5d16d37-1360-45b5-b3f5-681fc814bc04',
+                name: 'Cloud subscription status',
+                description: 'Shows cloud subscriptions for each organization',
+                tableName: 'stripe_subscriptions',
+
+                metricQuery: {
+                    exploreName: 'stripe_subscriptions',
+                    dimensions: [
+                        'stripe_subscriptions_lightdash_organization_id',
+                        'organizations_organization_name',
+                        'stripe_subscriptions_monthly_plan_unit_amount',
+                        'stripe_subscriptions_lightdash_product_name',
+                    ],
+                    metrics: [],
+                    filters: {},
+                    sorts: [
+                        {
+                            fieldId:
+                                'stripe_subscriptions_lightdash_organization_id',
+                            descending: false,
+                        },
+                    ],
+                    limit: 500,
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                    customDimensions: [],
+                },
+                chartConfig: {
+                    type: ChartType.TABLE,
+                    config: {
+                        columns: {
+                            stripe_subscriptions_lightdash_organization_id: {
+                                visible: false,
+                            },
+                        },
+                        metricsAsRows: false,
+                        hideRowNumbers: false,
+                        showTableNames: true,
+                        showResultsTotal: false,
+                        showRowCalculation: false,
+                        showColumnCalculation: false,
+                        conditionalFormattings: [],
+                    },
+                },
+                tableConfig: {
+                    columnOrder: [
+                        'stripe_subscriptions_lightdash_organization_id',
+                        'organizations_organization_name',
+                        'stripe_subscriptions_monthly_plan_unit_amount',
+                        'stripe_subscriptions_lightdash_product_name',
+                    ],
+                },
+                organizationUuid: 'd413dcea-4c8f-46b6-baa5-23885490e08b',
+                spaceUuid: '1ac19157-777b-41b1-8c75-f070c7cfc8e8',
+                spaceName: 'Shared',
+                pinnedListUuid: null,
+                pinnedListOrder: null,
+                dashboardUuid: null,
+                dashboardName: null,
+                colorPalette: ['#FF6464'],
+                slug: 'cloud-subscription-status',
+            },
+            nameChanges: {
+                from: 'stripe_subscriptions',
+                to: 'subscriptions',
+                fromReference: 'stripe_subscriptions',
+                toReference: 'subscriptions',
+                fromFieldName: undefined,
+                toFieldName: undefined,
+            },
+            validate: false,
+        });
+
+        expect(hasChanges).toBe(true);
+        expect(updatedChart.tableName).toBe('subscriptions');
+        expect(updatedChart.metricQuery).toEqual({
+            exploreName: 'subscriptions',
+            dimensions: [
+                'subscriptions_lightdash_organization_id',
+                'organizations_organization_name',
+                'subscriptions_monthly_plan_unit_amount',
+                'subscriptions_lightdash_product_name',
+            ],
+            metrics: [],
+            filters: {},
+            sorts: [
+                {
+                    fieldId: 'subscriptions_lightdash_organization_id',
+                    descending: false,
+                },
+            ],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+            customDimensions: [],
+        }); // toEqual doesn't check extra `undefined` fields
+    });
+
     test('should rename mocked saved chart model', () => {
         const { updatedChart, hasChanges } = renameSavedChart({
             type: RenameType.MODEL,
@@ -989,7 +1094,7 @@ describe('validateRename', () => {
         const original = { id: 'payment_123', name: 'Payment' };
         const updated = { id: 'invoice_123', name: 'Payment' };
 
-        validateRename(original, updated, 'Test Object', nameChanges);
+        validateRename(original, updated, 'Test Object', 'chart', nameChanges);
 
         expect(console.warn).not.toHaveBeenCalled();
     });
@@ -1000,7 +1105,7 @@ describe('validateRename', () => {
         // We want to log a warning about it
         const updated = { id: 'invoice_123', newProperty: 'payment_123' };
 
-        validateRename(original, updated, 'Test Object', nameChanges);
+        validateRename(original, updated, 'Test Object', 'chart', nameChanges);
 
         expect(console.warn).toHaveBeenCalled();
     });

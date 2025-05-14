@@ -128,6 +128,7 @@ export const validateRename = (
     originalObject: Object,
     updatedObject: Object,
     objectName: string,
+    objectType: 'chart' | 'dashboard' | 'alert' | 'dashboard scheduler',
     { from, fromReference, to, toReference }: NameChanges,
 ) => {
     try {
@@ -176,7 +177,7 @@ export const validateRename = (
 
             // At this point, we've tried multiple approaches and the objects are still different
             console.warn(
-                `Validation check failed: Renaming chart "${objectName}" from model "${from}" to "${to}" was not successful.`,
+                `Validation check failed: Renaming "${objectType}" "${objectName}" from model "${from}" to "${to}" was not successful.`,
             );
 
             // Since the objects appear identical in the output but are still different,
@@ -230,16 +231,10 @@ export const validateRename = (
             console.warn(
                 `Full expected: ${JSON.stringify(
                     JSON.parse(normalizedExpected),
-                    null,
-                    2,
-                )}`,
+                )}`, // Do not add new lines, this will make it harder to read on GCP
             );
             console.warn(
-                `Full actual: ${JSON.stringify(
-                    JSON.parse(normalizedActual),
-                    null,
-                    2,
-                )}`,
+                `Full actual: ${JSON.stringify(JSON.parse(normalizedActual))}`,
             );
         }
     } catch (e) {
@@ -686,7 +681,8 @@ export const renameSavedChart = ({
         };
     }
 
-    if (validate) validateRename(chart, updatedChart, chart.name, nameChanges);
+    if (validate)
+        validateRename(chart, updatedChart, chart.name, 'chart', nameChanges);
 
     return { updatedChart, hasChanges };
 };
@@ -695,6 +691,7 @@ export const renameDashboard = (
     type: RenameType,
     dashboard: DashboardDAO,
     nameChanges: NameChanges,
+    validate: boolean = false,
 ): { updatedDashboard: DashboardDAO; hasChanges: boolean } => {
     const isPrefix = type === RenameType.MODEL;
 
@@ -725,12 +722,14 @@ export const renameDashboard = (
         );
     }
 
-    validateRename(
-        dashboard,
-        updatedDashboard,
-        updatedDashboard.name,
-        nameChanges,
-    );
+    if (validate)
+        validateRename(
+            dashboard,
+            updatedDashboard,
+            updatedDashboard.name,
+            'dashboard',
+            nameChanges,
+        );
 
     return { updatedDashboard, hasChanges };
 };
@@ -739,6 +738,7 @@ export const renameAlert = (
     type: RenameType,
     alert: SchedulerAndTargets,
     nameChanges: NameChanges,
+    validate: boolean = false,
 ): { updatedAlert: SchedulerAndTargets; hasChanges: boolean } => {
     const isPrefix = type === RenameType.MODEL;
 
@@ -765,7 +765,8 @@ export const renameAlert = (
         }));
     }
 
-    validateRename(alert, updatedAlert, `Alert: ${alert.name}`, nameChanges);
+    if (validate)
+        validateRename(alert, updatedAlert, alert.name, 'alert', nameChanges);
 
     return { updatedAlert, hasChanges };
 };
@@ -774,6 +775,7 @@ export const renameDashboardScheduler = (
     type: RenameType,
     dashboardScheduler: SchedulerAndTargets,
     nameChanges: NameChanges,
+    validate: boolean = false,
 ): { updatedDashboardScheduler: SchedulerAndTargets; hasChanges: boolean } => {
     const isPrefix = type === RenameType.MODEL;
 
@@ -833,12 +835,14 @@ export const renameDashboardScheduler = (
         );
     }
 
-    validateRename(
-        dashboardScheduler,
-        updatedDashboardScheduler,
-        `Alert: ${dashboardScheduler.name}`,
-        nameChanges,
-    );
+    if (validate)
+        validateRename(
+            dashboardScheduler,
+            updatedDashboardScheduler,
+            dashboardScheduler.name,
+            'dashboard scheduler',
+            nameChanges,
+        );
 
     return { updatedDashboardScheduler, hasChanges };
 };
