@@ -49,6 +49,7 @@ import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
 
+import isNil from 'lodash/isNil';
 import moment, { MomentInput } from 'moment';
 import { nanoid } from 'nanoid';
 import { pipeline, Readable, Transform, TransformCallback } from 'stream';
@@ -283,9 +284,13 @@ export class CsvService extends BaseService {
         const fileId = CsvService.generateFileId(fileName, truncated);
         const writeStream = fs.createWriteStream(`/tmp/${fileId}`);
 
-        const sortedFieldIds = Object.keys(rows[0])
-            .filter((id) => selectedFieldIds.includes(id))
-            .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
+        const sortedFieldIds = isNil(rows[0])
+            ? []
+            : Object.keys(rows[0])
+                  .filter((id) => selectedFieldIds.includes(id))
+                  .sort(
+                      (a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b),
+                  );
 
         const csvHeader = sortedFieldIds.map((id) => {
             if (customLabels[id]) {
