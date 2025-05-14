@@ -23,7 +23,7 @@ type SpaceSelectorProps = {
     isLoading?: boolean;
     itemType: ResourceViewItemType | undefined;
     onSelectSpace: (spaceUuid: string | null) => void;
-    isRootSelectionEnabled: boolean;
+    isRootSelectionEnabled?: boolean;
 };
 
 const SpaceSelector = ({
