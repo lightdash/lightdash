@@ -43,6 +43,7 @@ export type ExecuteAsyncDashboardChartRequestParams =
 export type ExecuteAsyncSqlQueryRequestParams =
     CommonPaginatedQueryRequestParams & {
         sql: string;
+        limit?: number;
         pivotConfiguration?: {
             indexColumn: PivotIndexColum;
             valuesColumns: ValuesColumn[];
@@ -62,11 +63,13 @@ export type ExecuteAsyncUnderlyingDataRequestParams =
 export type ExecuteAsyncSqlChartByUuidRequestParams =
     CommonPaginatedQueryRequestParams & {
         savedSqlUuid: string;
+        limit?: number;
     };
 
 export type ExecuteAsyncSqlChartBySlugRequestParams =
     CommonPaginatedQueryRequestParams & {
         slug: string;
+        limit?: number;
     };
 
 export type ExecuteAsyncSqlChartRequestParams =
@@ -83,6 +86,7 @@ type ExecuteAsyncDashboardSqlChartCommonParams =
         dashboardUuid: string;
         dashboardFilters: DashboardFilters;
         dashboardSorts: SortField[];
+        limit?: number;
     };
 
 export type ExecuteAsyncDashboardSqlChartByUuidRequestParams =

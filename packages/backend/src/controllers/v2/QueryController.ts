@@ -276,6 +276,7 @@ export class QueryController extends BaseController {
                 sql: body.sql,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
                 pivotConfiguration: body.pivotConfiguration,
+                limit: body.limit,
             });
 
         return {
@@ -305,6 +306,7 @@ export class QueryController extends BaseController {
                 projectUuid,
                 invalidateCache: body.invalidateCache ?? false,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
+                limit: body.limit,
                 ...(isExecuteAsyncSqlChartByUuidParams(body)
                     ? { savedSqlUuid: body.savedSqlUuid }
                     : { slug: body.slug }),
@@ -340,6 +342,7 @@ export class QueryController extends BaseController {
                 dashboardFilters: body.dashboardFilters,
                 dashboardSorts: body.dashboardSorts,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
+                limit: body.limit,
                 ...(isExecuteAsyncDashboardSqlChartByUuidParams(body)
                     ? { savedSqlUuid: body.savedSqlUuid }
                     : { slug: body.slug }),
