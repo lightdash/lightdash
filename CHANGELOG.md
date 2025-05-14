@@ -1,3 +1,11 @@
+## [0.1626.5](https://github.com/lightdash/lightdash/compare/0.1626.4...0.1626.5) (2025-05-14)
+
+
+### Bug Fixes
+
+* Fix Trino client to return a more descriptive error message ([#14787](https://github.com/lightdash/lightdash/issues/14787)) ([20598a6](https://github.com/lightdash/lightdash/commit/20598a62fb882e683495ce58a51b115cb4b874b3))
+* handle empty rows in CSV export ([#14800](https://github.com/lightdash/lightdash/issues/14800)) ([e8275a4](https://github.com/lightdash/lightdash/commit/e8275a4369d6361794045033cae248becd9b237c))
+
 ## [0.1626.4](https://github.com/lightdash/lightdash/compare/0.1626.3...0.1626.4) (2025-05-14)
 
 
