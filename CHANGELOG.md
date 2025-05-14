@@ -1,3 +1,10 @@
+## [0.1626.4](https://github.com/lightdash/lightdash/compare/0.1626.3...0.1626.4) (2025-05-14)
+
+
+### Bug Fixes
+
+* Context menu is active during item selection ([#14791](https://github.com/lightdash/lightdash/issues/14791)) ([c3b535a](https://github.com/lightdash/lightdash/commit/c3b535a55e5b230d9927258eac51841dcf6301c6))
+
 ## [0.1626.3](https://github.com/lightdash/lightdash/compare/0.1626.2...0.1626.3) (2025-05-14)
 
 
