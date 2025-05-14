@@ -345,6 +345,11 @@ export class ProjectModel {
             .merge();
     }
 
+    async hasAnyProjects(): Promise<boolean> {
+        const projects = await this.database('projects').select('project_uuid');
+        return projects.length > 0;
+    }
+
     async hasProjects(organizationUuid: string): Promise<boolean> {
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)

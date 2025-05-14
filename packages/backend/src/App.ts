@@ -273,6 +273,10 @@ export default class App {
                 this.clients.getSchedulerClient(),
             );
         }
+
+        await this.serviceRepository
+            .getOrganizationService()
+            .initializeProject();
     }
 
     private async initExpress(expressApp: Express) {

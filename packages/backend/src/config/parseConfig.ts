@@ -1,5 +1,8 @@
 import {
     cleanColorArray,
+    CreateDatabricksCredentials,
+    DbtGithubProjectConfig,
+    DbtProjectType,
     getErrorMessage,
     getInvalidHexColors,
     isLightdashMode,
@@ -9,6 +12,8 @@ import {
     ParameterError,
     ParseError,
     SentryConfig,
+    WarehouseTypes,
+    WeekDay,
 } from '@lightdash/common';
 import { type ClientAuthMethod } from 'openid-client';
 import { VERSION } from '../version';
@@ -237,6 +242,53 @@ export const parseOrganizationMemberRoleArray = (
         return role;
     });
 };
+const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
+    try {
+        if (!process.env.SETUP_ADMIN_EMAIL) return undefined;
+
+        return {
+            organization: {
+                admin: {
+                    name: process.env.SETUP_ADMIN_NAME || 'Admin User',
+                    email: process.env.SETUP_ADMIN_EMAIL!,
+                },
+                emailDomain: process.env.SETUP_ORGANIZATION_EMAIL_DOMAIN!,
+                defaultRole: process.env.SETUP_ORGANIZATION_DEFAULT_ROLE
+                    ? (process.env
+                          .SETUP_ORGANIZATION_DEFAULT_ROLE as OrganizationMemberRole)
+                    : OrganizationMemberRole.VIEWER,
+                name: process.env.SETUP_ORGANIZATION_NAME!,
+            },
+            apiKey: process.env.SETUP_ADMIN_API_KEY,
+            project: {
+                name: process.env.SETUP_PROJECT_NAME!,
+                type: WarehouseTypes.DATABRICKS,
+                catalog: process.env.SETUP_PROJECT_CATALOG,
+                database: process.env.SETUP_PROJECT_SCHEMA!,
+                serverHostName: process.env.SETUP_PROJECT_HOST!,
+                httpPath: process.env.SETUP_PROJECT_HTTP_PATH!,
+                personalAccessToken: process.env.SETUP_PROJECT_PAT!,
+                requireUserCredentials: undefined,
+                startOfWeek: undefined,
+                compute: undefined,
+            },
+            dbt: {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'personal_access_token',
+                personal_access_token: process.env.SETUP_GITHUB_PAT!,
+                repository: process.env.SETUP_GITHUB_REPOSITORY!,
+                branch: process.env.SETUP_GITHUB_BRANCH!,
+                project_sub_path: process.env.SETUP_GITHUB_PATH || '/',
+                host_domain: undefined,
+            },
+        };
+    } catch (e) {
+        // If a variable is not set, we will skip the initial setup
+        // log an error, but don't throw an error, to avoid blocking the backend
+        console.error('Error parsing initial setup config', e);
+        return undefined;
+    }
+};
 
 export const parseBaseS3Config = (): LightdashConfig['s3'] => {
     const endpoint = process.env.S3_ENDPOINT;
@@ -430,6 +482,21 @@ export type LightdashConfig = {
     };
     googleCloudPlatform: {
         projectId?: string;
+    };
+
+    initialSetup?: {
+        organization: {
+            admin: {
+                email: string;
+                name: string;
+            };
+            emailDomain?: string;
+            name: string;
+            defaultRole: OrganizationMemberRole;
+        };
+        apiKey?: string;
+        project: CreateDatabricksCredentials & { name: string };
+        dbt: DbtGithubProjectConfig;
     };
 };
 
@@ -1024,5 +1091,6 @@ export const parseConfig = (): LightdashConfig => {
         googleCloudPlatform: {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
+        initialSetup: getInitialSetupConfig(),
     };
 };

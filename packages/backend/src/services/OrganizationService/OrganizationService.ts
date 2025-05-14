@@ -1,10 +1,13 @@
 import { subject } from '@casl/ability';
 import {
     AllowedEmailDomains,
+    AllowedEmailDomainsRoles,
     convertProjectRoleToOrganizationRole,
     CreateColorPalette,
     CreateGroup,
     CreateOrganization,
+    CreateProject,
+    DbtVersionOptionLatest,
     ForbiddenError,
     getOrganizationNameSchema,
     Group,
@@ -15,6 +18,8 @@ import {
     LightdashMode,
     NotExistsError,
     OnbordingRecord,
+    OpenIdIdentityIssuerType,
+    OpenIdUser,
     Organization,
     OrganizationColorPalette,
     OrganizationColorPaletteWithIsActive,
@@ -24,7 +29,10 @@ import {
     OrganizationMemberRole,
     OrganizationProject,
     ParameterError,
+    ProjectType,
+    RequestMethod,
     SessionUser,
+    UnexpectedServerError,
     UpdateAllowedEmailDomains,
     UpdateColorPalette,
     UpdateOrganization,
@@ -34,6 +42,8 @@ import {
 import { groupBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { PersonalAccessTokenModel } from '../../models/DashboardModel/PersonalAccessTokenModel';
+import { EmailModel } from '../../models/EmailModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -43,6 +53,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
+import { ProjectService } from '../ProjectService/ProjectService';
 
 type OrganizationServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -56,6 +67,9 @@ type OrganizationServiceArguments = {
 
     groupsModel: GroupsModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+    personalAccessTokenModel: PersonalAccessTokenModel;
+    emailModel: EmailModel;
+    projectService: ProjectService; // For compiling project on new setup
 };
 
 export class OrganizationService extends BaseService {
@@ -79,6 +93,12 @@ export class OrganizationService extends BaseService {
 
     private readonly groupsModel: GroupsModel;
 
+    private readonly personalAccessTokenModel: PersonalAccessTokenModel;
+
+    private readonly emailModel: EmailModel;
+
+    private readonly projectService: ProjectService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -90,6 +110,9 @@ export class OrganizationService extends BaseService {
         userModel,
         groupsModel,
         organizationAllowedEmailDomainsModel,
+        personalAccessTokenModel,
+        emailModel,
+        projectService,
     }: OrganizationServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -103,6 +126,9 @@ export class OrganizationService extends BaseService {
         this.organizationAllowedEmailDomainsModel =
             organizationAllowedEmailDomainsModel;
         this.groupsModel = groupsModel;
+        this.personalAccessTokenModel = personalAccessTokenModel;
+        this.emailModel = emailModel;
+        this.projectService = projectService;
     }
 
     async get(user: SessionUser): Promise<Organization> {
@@ -751,5 +777,158 @@ export class OrganizationService extends BaseService {
         );
 
         return palette;
+    }
+
+    async initializeProject() {
+        // No permissions check here, there are no users yet
+        // No initial setup, we skip this step
+        if (!this.lightdashConfig.initialSetup) return;
+        try {
+            const setup = this.lightdashConfig.initialSetup;
+            // If no project is set, we can create a new one using environment variables
+            const hasOrgs = await this.organizationModel.hasOrgs();
+
+            if (hasOrgs) {
+                this.logger.debug(
+                    `Initial setup: There is already an organization, we skip this initial setup`,
+                );
+                // There is already an organization, we skip this step
+                return;
+            }
+            const hasAnyProjects = await this.projectModel.hasAnyProjects();
+
+            if (hasAnyProjects) {
+                // This should not happen, since we can't have projects without orgs
+                throw new UnexpectedServerError(
+                    `Initial setup: There is already a project, we skip this initial setup`,
+                );
+            }
+
+            // No organization and no projects, we can create a new one
+            // using the initial setup config
+            this.logger.debug(
+                `Initial setup: Creating organization "${setup.organization.name}"`,
+            );
+
+            const organization = await this.organizationModel.create({
+                name: setup.organization.name,
+            });
+            const { organizationUuid } = organization;
+
+            this.logger.info(
+                `Initial setup: Organization "${organizationUuid}" created`,
+            );
+
+            if (setup.organization.emailDomain) {
+                const emailDomains = [setup.organization.emailDomain];
+                // Validates input
+                const error = validateOrganizationEmailDomains(emailDomains);
+                if (error) {
+                    throw new ParameterError(error);
+                }
+                const allowedDomains: AllowedEmailDomains = {
+                    organizationUuid,
+                    emailDomains,
+                    role: OrganizationMemberRole.VIEWER,
+                    projects: [],
+                };
+                await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
+                    allowedDomains,
+                );
+
+                this.logger.info(
+                    `Initial setup: Whitelisted domain "${setup.organization.emailDomain}"`,
+                );
+            } else {
+                this.logger.info(
+                    `Initial setup: No whitelisted domain, skipping`,
+                );
+            }
+
+            this.logger.debug(
+                `Initial setup: Creating admin user with email "${setup.organization.admin.email}"`,
+            );
+
+            // We need `AUTH_ENABLE_OIDC_TO_EMAIL_LINKING=true`
+            // So the user can login using SSO for the pending user
+            const { email, name: adminName } = setup.organization.admin;
+            const user = await this.userModel.createPendingUser(
+                organizationUuid,
+                {
+                    firstName: adminName.split(' ')[0],
+                    lastName: adminName.split(' ').slice(1).join(' '),
+                    email,
+                    role: OrganizationMemberRole.ADMIN,
+                    password: undefined,
+                },
+            );
+            await this.emailModel.verifyUserEmailIfExists(user.userUuid, email);
+
+            this.logger.info(`Initial setup: User ${user.userUuid} created`);
+
+            this.logger.debug(
+                `Initial setup: Creating project "${setup.project.name}"`,
+            );
+            const project: CreateProject = {
+                name: setup.project.name,
+                type: ProjectType.DEFAULT,
+                warehouseConnection: setup.project,
+                copyWarehouseConnectionFromUpstreamProject: undefined,
+                dbtConnection: setup.dbt,
+                upstreamProjectUuid: undefined,
+                dbtVersion: DbtVersionOptionLatest.LATEST,
+            };
+
+            const projectUuid = await this.projectModel.create(
+                user.userUuid,
+                organizationUuid,
+                project,
+            );
+            this.logger.info(`Initial setup: Project ${projectUuid} created`);
+
+            if (setup.apiKey) {
+                this.logger.debug(`Initial setup: creating API key`);
+                // TODO validate api token input ?
+                const sessionUser =
+                    await this.userModel.findSessionUserAndOrgByUuid(
+                        user.userUuid,
+                        organizationUuid,
+                    );
+                const result = await this.personalAccessTokenModel.save(
+                    sessionUser,
+                    {
+                        expiresAt: new Date(
+                            Date.now() + 1000 * 60 * 60 * 24 * 30,
+                        ), // 30 days
+                        description: 'Initial setup API token',
+                        autoGenerated: false,
+                        token: setup.apiKey,
+                    },
+                );
+                this.logger.info(`Initial setup: API key created`);
+            } else {
+                this.logger.info(
+                    `Initial setup: No API key provided, skipping`,
+                );
+            }
+
+            this.logger.info(`Initial setup: Compiling project ${projectUuid}`);
+
+            const sessionUser =
+                await this.userModel.findSessionUserAndOrgByUuid(
+                    user.userUuid,
+                    organizationUuid,
+                );
+            await this.projectService.scheduleCompileProject(
+                sessionUser,
+                projectUuid,
+                RequestMethod.UNKNOWN,
+                true, // Skip permission check
+            );
+        } catch (error) {
+            this.logger.error(
+                `Initial setup: Error initializing project: ${error}`,
+            );
+        }
     }
 }
