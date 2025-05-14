@@ -1,3 +1,11 @@
+## [0.1626.9](https://github.com/lightdash/lightdash/compare/0.1626.8...0.1626.9) (2025-05-14)
+
+
+### Bug Fixes
+
+* dashboard tile infinite load on error ([#14808](https://github.com/lightdash/lightdash/issues/14808)) ([a43e724](https://github.com/lightdash/lightdash/commit/a43e724c22b6dc020167e98c0a45ad0b61f7d208))
+* explore rename chart ([#14785](https://github.com/lightdash/lightdash/issues/14785)) ([b9289c2](https://github.com/lightdash/lightdash/commit/b9289c2c642c07bdb75eef7cbb2f0b07b9495750))
+
 ## [0.1626.8](https://github.com/lightdash/lightdash/compare/0.1626.7...0.1626.8) (2025-05-14)
 
 
