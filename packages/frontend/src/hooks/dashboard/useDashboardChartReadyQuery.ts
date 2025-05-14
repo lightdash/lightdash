@@ -65,12 +65,7 @@ export const useDashboardChartReadyQuery = (
         id: chartUuid ?? undefined,
     });
 
-    const error = useMemo(() => {
-        if (chartQuery.error) {
-            return chartQuery.error;
-        }
-        return null;
-    }, [chartQuery.error]);
+    const error = chartQuery.error;
 
     const { data: explore } = useExplore(
         chartQuery.data?.metricQuery?.exploreName,
