@@ -525,6 +525,12 @@ const InfiniteResourceTable = ({
                 },
 
                 onClick: () => {
+                    if (
+                        table.getIsSomeRowsSelected() ||
+                        table.getIsAllRowsSelected()
+                    ) {
+                        return null;
+                    }
                     void navigate(
                         getResourceUrl(filters.projectUuid, row.original),
                     );
