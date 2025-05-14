@@ -94,8 +94,8 @@ export const createTemporaryVirtualView = (
         executeAsyncQuery: async () => ({
             queryId: null,
             queryMetadata: null,
-            totalRows: null,
-            durationMs: null,
+            totalRows: 0,
+            durationMs: 0,
         }),
         runQuery: async () => ({ fields: {}, rows: [] }),
         test: async () => {},
