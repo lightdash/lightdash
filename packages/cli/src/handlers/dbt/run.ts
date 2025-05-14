@@ -13,6 +13,7 @@ type DbtRunHandlerOptions = DbtCompileOptions & {
     verbose: boolean;
     assumeYes: boolean;
     assumeNo: boolean;
+    preserveColumnCase: boolean;
 };
 
 export const dbtRunHandler = async (
@@ -71,6 +72,7 @@ export const dbtRunHandler = async (
         await generateHandler({
             ...options,
             excludeMeta: options.excludeMeta,
+            preserveColumnCase: options.preserveColumnCase,
         });
     }
 };
