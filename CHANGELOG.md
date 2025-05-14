@@ -1,3 +1,11 @@
+## [0.1626.2](https://github.com/lightdash/lightdash/compare/0.1626.1...0.1626.2) (2025-05-14)
+
+
+### Bug Fixes
+
+* developers should be able to promote dashboards ([#14789](https://github.com/lightdash/lightdash/issues/14789)) ([07945a0](https://github.com/lightdash/lightdash/commit/07945a095eb4583bc4b76a4fb2fb4837df048abd))
+* unterminated quoted string in the release action ([#14797](https://github.com/lightdash/lightdash/issues/14797)) ([65c2b70](https://github.com/lightdash/lightdash/commit/65c2b705fed3622eebd07f1062cd7e2740824ad5)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.1626.1](https://github.com/lightdash/lightdash/compare/0.1626.0...0.1626.1) (2025-05-13)
 
 
