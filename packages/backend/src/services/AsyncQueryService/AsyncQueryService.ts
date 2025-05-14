@@ -422,36 +422,19 @@ export class AsyncQueryService extends ProjectService {
         const { context, status, totalRowCount, cacheKey, fields } =
             queryHistory;
 
+        if (status === QueryHistoryStatus.ERROR) {
+            return {
+                status,
+                queryUuid,
+                error: queryHistory.error,
+            };
+        }
+
         if (!cacheKey) {
             throw new NotFoundError(
                 `Result file not found for query ${queryUuid}`,
             );
         }
-
-        // Ideally, we should use the warehouse results columns metadata. For now we can rely on the fields.
-        const columns = Object.values(fields).reduce<ResultColumns>(
-            (acc, field) => {
-                const column = {
-                    reference: field.name,
-                    type: convertItemTypeToDimensionType(field),
-                };
-                acc[column.reference] = column;
-                return acc;
-            },
-            {},
-        );
-
-        const defaultedPageSize =
-            pageSize ??
-            queryHistory.defaultPageSize ??
-            DEFAULT_RESULTS_PAGE_SIZE;
-
-        validatePagination({
-            pageSize: defaultedPageSize,
-            page,
-            queryMaxLimit: this.lightdashConfig.query.maxPageSize,
-            totalRowCount,
-        });
 
         switch (status) {
             case QueryHistoryStatus.CANCELLED:
@@ -483,17 +466,36 @@ export class AsyncQueryService extends ProjectService {
                     status,
                     queryUuid,
                 };
-            case QueryHistoryStatus.ERROR:
-                return {
-                    status,
-                    queryUuid,
-                    error: queryHistory.error,
-                };
             case QueryHistoryStatus.READY:
                 break;
             default:
                 return assertUnreachable(status, 'Unknown query status');
         }
+
+        // Ideally, we should use the warehouse results columns metadata. For now we can rely on the fields.
+        const columns = Object.values(fields).reduce<ResultColumns>(
+            (acc, field) => {
+                const column = {
+                    reference: field.name,
+                    type: convertItemTypeToDimensionType(field),
+                };
+                acc[column.reference] = column;
+                return acc;
+            },
+            {},
+        );
+
+        const defaultedPageSize =
+            pageSize ??
+            queryHistory.defaultPageSize ??
+            DEFAULT_RESULTS_PAGE_SIZE;
+
+        validatePagination({
+            pageSize: defaultedPageSize,
+            page,
+            queryMaxLimit: this.lightdashConfig.query.maxPageSize,
+            totalRowCount,
+        });
 
         const formatter = (row: Record<string, unknown>) =>
             formatRow(row, queryHistory.fields);
