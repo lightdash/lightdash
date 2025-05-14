@@ -46,7 +46,6 @@ import {
     NotFoundError,
     type Organization,
     PivotIndexColum,
-    prefixPivotConfigurationReferences,
     type Project,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -1636,6 +1635,8 @@ export class AsyncQueryService extends ProjectService {
             },
         );
 
+        // ! VizColumns, virtualView, dimensions and query are not needed for SQL queries since we pass just sql the to `executeAsyncQuery`
+        // ! We keep them here for backwards compatibility until we remove them as a required argument
         const vizColumns = columns.map((col) => ({
             reference: col.name,
             type: col.type,
@@ -1651,13 +1652,6 @@ export class AsyncQueryService extends ProjectService {
         const dimensions = Object.values(
             virtualView.tables[virtualView.baseTable].dimensions,
         ).map((d) => convertFieldRefToFieldId(d.name, virtualView.name));
-
-        const prefixedPivotConfiguration = pivotConfiguration
-            ? prefixPivotConfigurationReferences(
-                  pivotConfiguration,
-                  `${virtualView.name}`,
-              )
-            : undefined;
 
         const query: MetricQuery = {
             exploreName: virtualView.name,
@@ -1687,7 +1681,7 @@ export class AsyncQueryService extends ProjectService {
                 invalidateCache,
             },
             warehouseConnection,
-            prefixedPivotConfiguration,
+            pivotConfiguration,
         );
 
         return {
@@ -1738,6 +1732,8 @@ export class AsyncQueryService extends ProjectService {
             },
         );
 
+        // ! VizColumns, virtualView, dimensions and query are not needed for SQL queries since we pass just sql the to `executeAsyncQuery`
+        // ! We keep them here for backwards compatibility until we remove them as a required argument
         const vizColumns = columns.map((col) => ({
             reference: col.name,
             type: col.type,
@@ -1754,17 +1750,14 @@ export class AsyncQueryService extends ProjectService {
             virtualView.tables[virtualView.baseTable].dimensions,
         ).map((d) => convertFieldRefToFieldId(d.name, virtualView.name));
 
-        const prefixedPivotConfiguration =
+        const pivotConfiguration =
             !isVizTableConfig(sqlChart.config) && sqlChart.config.fieldConfig
-                ? prefixPivotConfigurationReferences(
-                      {
-                          indexColumn: sqlChart.config.fieldConfig.x,
-                          valuesColumns: sqlChart.config.fieldConfig.y,
-                          groupByColumns: sqlChart.config.fieldConfig.groupBy,
-                          sortBy: sqlChart.config.fieldConfig.sortBy,
-                      },
-                      `${virtualView.name}`,
-                  )
+                ? {
+                      indexColumn: sqlChart.config.fieldConfig.x,
+                      valuesColumns: sqlChart.config.fieldConfig.y,
+                      groupByColumns: sqlChart.config.fieldConfig.groupBy,
+                      sortBy: sqlChart.config.fieldConfig.sortBy,
+                  }
                 : undefined;
 
         const query: MetricQuery = {
@@ -1780,7 +1773,7 @@ export class AsyncQueryService extends ProjectService {
         };
         return {
             query,
-            prefixedPivotConfiguration,
+            pivotConfiguration,
             virtualView,
             queryTags,
             warehouseConnection,
@@ -1817,7 +1810,7 @@ export class AsyncQueryService extends ProjectService {
             queryTags,
             query,
             virtualView,
-            prefixedPivotConfiguration,
+            pivotConfiguration,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -1840,7 +1833,7 @@ export class AsyncQueryService extends ProjectService {
                 invalidateCache,
             },
             warehouseConnection,
-            prefixedPivotConfiguration,
+            pivotConfiguration,
         );
 
         return {
@@ -1886,7 +1879,7 @@ export class AsyncQueryService extends ProjectService {
             queryTags,
             query,
             virtualView,
-            prefixedPivotConfiguration,
+            pivotConfiguration,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -1938,7 +1931,7 @@ export class AsyncQueryService extends ProjectService {
                 invalidateCache,
             },
             warehouseConnection,
-            prefixedPivotConfiguration,
+            pivotConfiguration,
         );
 
         return {
