@@ -1,3 +1,10 @@
+## [0.1626.10](https://github.com/lightdash/lightdash/compare/0.1626.9...0.1626.10) (2025-05-14)
+
+
+### Bug Fixes
+
+* support reference target for dashboard filters ([#14803](https://github.com/lightdash/lightdash/issues/14803)) ([e85e4fb](https://github.com/lightdash/lightdash/commit/e85e4fbed33e16d0e35813e4b145eeed02de1f01))
+
 ## [0.1626.9](https://github.com/lightdash/lightdash/compare/0.1626.8...0.1626.9) (2025-05-14)
 
 
