@@ -10,7 +10,7 @@ import {
     type SavedChart,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { lightdashApi } from '../../api';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
@@ -40,8 +40,6 @@ export const useDashboardChartReadyQuery = (
     tileUuid: string,
     chartUuid: string | null,
 ) => {
-    const [error, setError] = useState<ApiError | null>(null);
-
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
@@ -67,10 +65,11 @@ export const useDashboardChartReadyQuery = (
         id: chartUuid ?? undefined,
     });
 
-    useEffect(() => {
+    const error = useMemo(() => {
         if (chartQuery.error) {
-            setError(chartQuery.error);
+            return chartQuery.error;
         }
+        return null;
     }, [chartQuery.error]);
 
     const { data: explore } = useExplore(
