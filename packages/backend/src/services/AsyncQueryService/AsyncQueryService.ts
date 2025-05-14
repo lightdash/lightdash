@@ -921,7 +921,6 @@ export class AsyncQueryService extends ProjectService {
                             ...ProjectService.getMetricQueryExecutionProperties(
                                 {
                                     metricQuery,
-                                    hasExampleMetric: false, // todo: legacy prop, should be removed from codebase
                                     queryTags,
                                     dateZoom,
                                     chartUuid:
