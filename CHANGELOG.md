@@ -1,3 +1,10 @@
+## [0.1626.7](https://github.com/lightdash/lightdash/compare/0.1626.6...0.1626.7) (2025-05-14)
+
+
+### Bug Fixes
+
+* column not exists for sql chart queries ([#14802](https://github.com/lightdash/lightdash/issues/14802)) ([ed2e5bb](https://github.com/lightdash/lightdash/commit/ed2e5bb649979aafa71661e3c274dfd4704d54cf))
+
 ## [0.1626.6](https://github.com/lightdash/lightdash/compare/0.1626.5...0.1626.6) (2025-05-14)
 
 
