@@ -3,7 +3,7 @@ import { SupportedDbtAdapter } from '../types/dbt';
 import { DimensionType, FieldType } from '../types/field';
 import { FilterOperator, UnitOfTime } from '../types/filter';
 import { WeekDay } from '../utils/timeFrames';
-import { type renderFilterRuleSql } from './filtersCompiler';
+import { type renderFilterRuleSqlFromField } from './filtersCompiler';
 
 export const DimensionSqlMock = 'customers.created';
 export const NumberDimensionMock = 'customers.age';
@@ -484,7 +484,9 @@ export const stringFilterRuleMocks = {
     },
 };
 
-type RenderFilterRuleSqlParams = Parameters<typeof renderFilterRuleSql>;
+type RenderFilterRuleSqlParams = Parameters<
+    typeof renderFilterRuleSqlFromField
+>;
 
 export const disabledFilterMock: {
     filterRule: RenderFilterRuleSqlParams[0];

@@ -37,7 +37,7 @@ import {
     ItemsMap,
     MetricFilterRule,
     parseAllReferences,
-    renderFilterRuleSql,
+    renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
     SortField,
     SupportedDbtAdapter,
@@ -1178,7 +1178,7 @@ export const buildQuery = ({
                 );
             }
 
-            return renderFilterRuleSql(
+            return renderFilterRuleSqlFromField(
                 filter,
                 field,
                 fieldQuoteChar,
