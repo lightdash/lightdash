@@ -16541,6 +16541,32 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiDownloadAsyncQueryResultsAsCsv": {
+                "properties": {
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "fileUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": ["truncated", "fileUrl"],
+                "type": "object"
+            },
+            "ApiSuccess_ApiDownloadAsyncQueryResultsAsCsv_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiDownloadAsyncQueryResultsAsCsv"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "FeatureFlag": {
                 "properties": {
                     "enabled": {

@@ -590,6 +590,11 @@ export type ApiDownloadAsyncQueryResults = {
     fileUrl: string;
 };
 
+export type ApiDownloadAsyncQueryResultsAsCsv = {
+    fileUrl: string;
+    truncated: boolean;
+};
+
 export type ApiChartAndResults = {
     chart: SavedChart;
     explore: Explore;

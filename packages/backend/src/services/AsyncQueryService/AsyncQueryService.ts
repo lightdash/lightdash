@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
     type ApiDownloadAsyncQueryResults,
+    type ApiDownloadAsyncQueryResultsAsCsv,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
@@ -10,6 +11,7 @@ import {
     assertUnreachable,
     CompiledDimension,
     convertFieldRefToFieldId,
+    convertItemTypeToDimensionType,
     createVirtualView as createVirtualViewObject,
     CreateWarehouseCredentials,
     type CustomDimension,
@@ -89,6 +91,7 @@ import {
     MissCacheResult,
     ResultsCacheStatus,
 } from '../CacheService/types';
+import { CsvService } from '../CsvService/CsvService';
 import {
     ProjectService,
     type ProjectServiceArguments,
@@ -100,6 +103,7 @@ import {
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
+    type DownloadAsyncQueryResultsArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
     type ExecuteAsyncMetricQueryArgs,
@@ -230,8 +234,12 @@ export class AsyncQueryService extends ProjectService {
         }
 
         // Create upload stream for storing results
-        const { write, close } =
-            this.storageClient.createUploadStream(cacheKey);
+        const { write, close } = this.storageClient.createUploadStream(
+            `${cacheKey}.jsonl`,
+            {
+                contentType: 'application/jsonl',
+            },
+        );
 
         const now = new Date();
         const newExpiresAt = this.getCacheExpiresAt(now);
@@ -687,6 +695,92 @@ export class AsyncQueryService extends ProjectService {
         }
 
         throw new Error('Invalid query status');
+    }
+
+    async downloadAsyncQueryResultsAsCsv({
+        user,
+        projectUuid,
+        queryUuid,
+    }: DownloadAsyncQueryResultsArgs): Promise<ApiDownloadAsyncQueryResultsAsCsv> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            user.userUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (user.userUuid !== queryHistory.createdByUserUuid) {
+            throw new ForbiddenError(
+                'User is not allowed to download results for this query',
+            );
+        }
+
+        const { status, cacheKey: resultsFileName, fields } = queryHistory;
+
+        switch (status) {
+            case QueryHistoryStatus.CANCELLED:
+                throw new Error('Query was cancelled');
+            case QueryHistoryStatus.ERROR:
+                throw new Error(queryHistory.error ?? 'Warehouse query failed');
+            case QueryHistoryStatus.PENDING:
+                throw new Error('Query is in pending state');
+            case QueryHistoryStatus.READY:
+                if (!resultsFileName) {
+                    throw new Error('Results file name not found for query');
+                }
+
+                // Get the results
+                const resultsFile = await this.findCache(
+                    resultsFileName,
+                    projectUuid,
+                );
+
+                if (!resultsFile) {
+                    throw new Error('Results file not found for query');
+                }
+
+                // Generate a unique filename
+                const csvFileName = CsvService.generateFileId(resultsFileName);
+
+                // Transform and upload the results
+                return this.storageClient.transformResultsIntoNewFile(
+                    resultsFileName,
+                    csvFileName,
+                    async (readStream, writeStream) => {
+                        // Need to find a way to pass the csv header
+                        await CsvService.streamRowsToFile(
+                            false,
+                            fields,
+                            [], // TODO: sorted field ids
+                            [], // TODO: csv header
+                            {
+                                readStream,
+                                writeStream,
+                            },
+                        );
+
+                        return {
+                            truncated: false, // TODO: when is file truncated?
+                        };
+                    },
+                );
+            default:
+                return assertUnreachable(status, 'Unknown query status');
+        }
     }
 
     async downloadAsyncQueryResults({
