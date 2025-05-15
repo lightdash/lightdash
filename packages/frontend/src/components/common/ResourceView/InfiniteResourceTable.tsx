@@ -778,7 +778,7 @@ const InfiniteResourceTable = ({
     } = useContentBulkAction(filters.projectUuid);
 
     const handleBulkMoveContent = useCallback(
-        async (selectedItems: ResourceViewItem[], spaceUuid: string) => {
+        async (selectedItems: ResourceViewItem[], spaceUuid: string | null) => {
             await contentBulkAction({
                 action: {
                     type: 'move',
@@ -837,12 +837,6 @@ const InfiniteResourceTable = ({
                     spaces={spaces}
                     isLoading={isFetching || isContentBulkActionLoading}
                     onConfirm={async (spaceUuid) => {
-                        if (!spaceUuid) {
-                            throw new Error(
-                                'Space UUID is required to move items',
-                            );
-                        }
-
                         await handleBulkMoveContent(selectedItems, spaceUuid);
                     }}
                 />
