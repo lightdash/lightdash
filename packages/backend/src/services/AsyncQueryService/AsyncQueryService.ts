@@ -1823,16 +1823,16 @@ export class AsyncQueryService extends ProjectService {
     }
 
     private async prepareSqlChartAsyncQueryArgs({
-                                                    user,
-                                                    projectUuid,
-                                                    organizationUuid,
-                                                    sql,
-                                                    config,
-                                                    context,
-                                                    dashboardFilters,
-                                                    dashboardSorts,
-                                                    limit,
-                                                }: {
+        user,
+        projectUuid,
+        organizationUuid,
+        sql,
+        config,
+        context,
+        dashboardFilters,
+        dashboardSorts,
+        limit,
+    }: {
         user: SessionUser;
         projectUuid: string;
         organizationUuid: string;
@@ -1900,11 +1900,11 @@ export class AsyncQueryService extends ProjectService {
         const pivotConfiguration =
             config && !isVizTableConfig(config) && config.fieldConfig
                 ? {
-                    indexColumn: config.fieldConfig.x,
-                    valuesColumns: config.fieldConfig.y,
-                    groupByColumns: config.fieldConfig.groupBy,
-                    sortBy: config.fieldConfig.sortBy,
-                }
+                      indexColumn: config.fieldConfig.x,
+                      valuesColumns: config.fieldConfig.y,
+                      groupByColumns: config.fieldConfig.groupBy,
+                      sortBy: config.fieldConfig.sortBy,
+                  }
                 : undefined;
 
         let metricQuery: MetricQuery = {
