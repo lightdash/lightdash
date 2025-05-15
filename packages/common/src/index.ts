@@ -579,6 +579,10 @@ export type ApiGetAsyncQueryResults =
           error: string | null;
       };
 
+export type ApiDownloadAsyncQueryResults = {
+    fileUrl: string;
+};
+
 export type ApiChartAndResults = {
     chart: SavedChart;
     explore: Explore;

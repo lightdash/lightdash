@@ -18,7 +18,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 
-type S3CacheClientArguments = {
+export type S3CacheClientArguments = {
     lightdashConfig: LightdashConfig;
 };
 

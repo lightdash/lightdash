@@ -10,6 +10,7 @@ import {
     isExecuteAsyncDashboardSqlChartByUuidParams,
     isExecuteAsyncSqlChartByUuidParams,
     QueryExecutionContext,
+    type ApiDownloadAsyncQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
@@ -346,6 +347,32 @@ export class QueryController extends BaseController {
                 ...(isExecuteAsyncDashboardSqlChartByUuidParams(body)
                     ? { savedSqlUuid: body.savedSqlUuid }
                     : { slug: body.slug }),
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Hidden()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{queryUuid}/download')
+    @OperationId('downloadResults')
+    async downloadResults(
+        @Path() projectUuid: string,
+        @Path() queryUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiDownloadAsyncQueryResults>> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .downloadAsyncQueryResults({
+                user: req.user!,
+                projectUuid,
+                queryUuid,
             });
 
         return {
