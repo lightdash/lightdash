@@ -1,3 +1,10 @@
+# [0.1627.0](https://github.com/lightdash/lightdash/compare/0.1626.11...0.1627.0) (2025-05-15)
+
+
+### Features
+
+* pivot sql results and return pivot details ([#14793](https://github.com/lightdash/lightdash/issues/14793)) ([9de5a28](https://github.com/lightdash/lightdash/commit/9de5a284f1f34dff9fa15d53a3429b84b35a634d))
+
 ## [0.1626.11](https://github.com/lightdash/lightdash/compare/0.1626.10...0.1626.11) (2025-05-15)
 
 
