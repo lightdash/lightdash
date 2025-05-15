@@ -1,7 +1,6 @@
 import { type SlackAppCustomSettings } from '@lightdash/common';
 import {
     ActionIcon,
-    Button,
     Divider,
     Group,
     Paper,
@@ -9,23 +8,17 @@ import {
     Select,
     Stack,
     Text,
-    Title,
-    Tooltip,
 } from '@mantine/core';
 import type { UseFormReturnType } from '@mantine/form';
 import {
     IconArrowsHorizontal,
     IconDatabase,
     IconHash,
-    IconHelpCircle,
-    IconPlus,
-    IconRefresh,
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { TagInput } from '../../../../components/common/TagInput/TagInput';
-import { useSlackChannels } from '../../../../hooks/slack/useSlack';
 
 type Props = {
     channelOptions: { value: string; label: string }[];
@@ -146,86 +139,30 @@ const ChannelProjectMappings: FC<Props> = ({
         [form],
     );
 
-    const handleAdd = useCallback(
-        () =>
-            form.insertListItem('slackChannelProjectMappings', {
-                projectUuid: null,
-                slackChannelId: null,
-                availableTags: null,
-            }),
-        [form],
-    );
-
-    const { refresh: refreshChannels, isLoading: isRefreshing } =
-        useSlackChannels('');
-
     return (
         <Stack spacing="sm" w="100%">
-            <Group position="apart" spacing="two" mb="two">
-                <Group spacing="two">
-                    <Title order={6} fw={500}>
-                        AI Bot channel mappings
-                    </Title>
-
-                    <Tooltip
-                        variant="xs"
-                        multiline
-                        maw={250}
-                        label="Map which project is associated with which Slack channel. When a user asks a question in a channel, Lightdash will look for the answer in the associated project."
-                    >
-                        <MantineIcon icon={IconHelpCircle} />
-                    </Tooltip>
-                </Group>
-
-                <Tooltip
-                    variant="xs"
-                    multiline
-                    maw={250}
-                    label={
-                        <Text fw={500}>
-                            Refresh Slack channel list.
-                            <Text c="gray.4" fw={400}>
-                                To see private channels, ensure the bot has been
-                                invited to them. Archived channels are not
-                                included.
-                            </Text>
-                        </Text>
-                    }
-                >
-                    <ActionIcon
-                        loading={isRefreshing}
-                        onClick={refreshChannels}
-                    >
-                        <MantineIcon icon={IconRefresh} />
-                    </ActionIcon>
-                </Tooltip>
-            </Group>
-
             <Stack spacing="sm">
-                {form.values.slackChannelProjectMappings?.map(
-                    (mapping, index) => (
-                        <ChannelProjectMapping
-                            key={`${mapping.projectUuid}-${mapping.slackChannelId}`}
-                            form={form}
-                            index={index}
-                            projectOptions={projectOptions}
-                            channelOptions={channelOptions}
-                            usedChannels={usedChannels}
-                            onDelete={() => handleDelete(index)}
-                        />
-                    ),
+                {form.values.slackChannelProjectMappings &&
+                form.values.slackChannelProjectMappings.length > 0 ? (
+                    form.values.slackChannelProjectMappings.map(
+                        (mapping, index) => (
+                            <ChannelProjectMapping
+                                key={`${mapping.projectUuid}-${mapping.slackChannelId}`}
+                                form={form}
+                                index={index}
+                                projectOptions={projectOptions}
+                                channelOptions={channelOptions}
+                                usedChannels={usedChannels}
+                                onDelete={() => handleDelete(index)}
+                            />
+                        ),
+                    )
+                ) : (
+                    <Text size="xs" color="dimmed" italic>
+                        There are no Slack channel project mappings. Create a
+                        new mapping to get started.
+                    </Text>
                 )}
-
-                <div>
-                    <Button
-                        disabled={!form.isValid()}
-                        onClick={handleAdd}
-                        leftIcon={<MantineIcon icon={IconPlus} />}
-                        size="xs"
-                    >
-                        Add New Mapping
-                    </Button>
-                </div>
             </Stack>
         </Stack>
     );
