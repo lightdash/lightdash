@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
+    type ApiDownloadAsyncQueryResults,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
@@ -64,7 +65,6 @@ import {
     type WarehouseResults,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
-import { uniq } from 'lodash';
 import { createInterface } from 'readline';
 import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { DbResultsCacheUpdate } from '../../database/entities/resultsFile';
@@ -81,6 +81,7 @@ import {
     MissCacheResult,
     ResultsCacheStatus,
 } from '../CacheService/types';
+import { CsvService } from '../CsvService/CsvService';
 import {
     ProjectService,
     type ProjectServiceArguments,
@@ -91,6 +92,7 @@ import {
 } from '../ProjectService/resultsPagination';
 import { getResultsColumns } from './getResultsColumns';
 import {
+    type DownloadAsyncQueryResultsArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
     type ExecuteAsyncMetricQueryArgs,
@@ -221,10 +223,8 @@ export class AsyncQueryService extends ProjectService {
         }
 
         // Create upload stream for storing results
-        const { write, close } = this.storageClient.createUploadStream(
-            cacheKey,
-            DEFAULT_RESULTS_PAGE_SIZE,
-        );
+        const { write, close } =
+            this.storageClient.createUploadStream(cacheKey);
 
         const now = new Date();
         const newExpiresAt = this.getCacheExpiresAt(now);
@@ -623,6 +623,66 @@ export class AsyncQueryService extends ProjectService {
                 unpivotedColumns,
             },
         };
+    }
+
+    async downloadAsyncQueryResults({
+        user,
+        projectUuid,
+        queryUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<ApiDownloadAsyncQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            user.userUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (user.userUuid !== queryHistory.createdByUserUuid) {
+            throw new ForbiddenError(
+                'User is not allowed to download results for this query',
+            );
+        }
+
+        const { status, cacheKey: resultsFileName } = queryHistory;
+
+        if (status === QueryHistoryStatus.ERROR) {
+            throw new Error(queryHistory.error ?? 'Warehouse query failed');
+        }
+
+        if (status === QueryHistoryStatus.PENDING) {
+            throw new Error('Query is in pending state');
+        }
+
+        if (status === QueryHistoryStatus.READY) {
+            if (!resultsFileName) {
+                throw new Error('Results file name not found for query');
+            }
+
+            return {
+                fileUrl: await this.storageClient.getFileUrl(resultsFileName),
+                // TODO: add columns here once they're saved to query_history
+            };
+        }
+
+        throw new Error('Invalid query status');
     }
 
     /**

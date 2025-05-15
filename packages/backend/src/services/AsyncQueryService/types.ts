@@ -31,6 +31,13 @@ export type GetAsyncQueryResultsArgs = Omit<
         queryUuid: string;
     };
 
+export type DownloadAsyncQueryResultsArgs = Omit<
+    CommonAsyncQueryArgs,
+    'invalidateCache' | 'context'
+> & {
+    queryUuid: string;
+};
+
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
     dateZoom?: DateZoom;

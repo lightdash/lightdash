@@ -1,12 +1,25 @@
-import { NotFound } from '@aws-sdk/client-s3';
+import { GetObjectCommand, NotFound } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getErrorMessage, WarehouseResults } from '@lightdash/common';
 import { once, PassThrough, Readable, Writable } from 'stream';
 import Logger from '../../logging/logger';
-import { S3CacheClient } from '../Aws/S3CacheClient';
+import {
+    S3CacheClient,
+    type S3CacheClientArguments,
+} from '../Aws/S3CacheClient';
 
 export class S3ResultsFileStorageClient extends S3CacheClient {
-    createUploadStream(cacheKey: string, pageSize: number) {
+    private readonly s3ExpiresIn: number | undefined;
+
+    constructor(args: S3CacheClientArguments) {
+        super(args);
+
+        const { lightdashConfig } = args;
+        this.s3ExpiresIn = lightdashConfig.s3.expirationTime;
+    }
+
+    createUploadStream(cacheKey: string) {
         const passThrough = new PassThrough();
 
         const upload = new Upload({
@@ -77,9 +90,12 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         return { write, close };
     }
 
-    async getDowloadStream(cacheKey: string): Promise<Readable> {
+    async getDowloadStream(
+        cacheKey: string,
+        fileExtension = 'jsonl',
+    ): Promise<Readable> {
         try {
-            const results = await this.getResults(cacheKey, 'jsonl');
+            const results = await this.getResults(cacheKey, fileExtension);
             if (!results.Body) {
                 throw new Error('No results found');
             }
@@ -94,5 +110,20 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             );
             throw error;
         }
+    }
+
+    async getFileUrl(cacheKey: string, fileExtension = 'jsonl') {
+        const url = await getSignedUrl(
+            this.s3,
+            new GetObjectCommand({
+                Bucket: this.configuration.bucket,
+                Key: `${cacheKey}.${fileExtension}`,
+            }),
+            {
+                expiresIn: this.s3ExpiresIn,
+            },
+        );
+
+        return url;
     }
 }
