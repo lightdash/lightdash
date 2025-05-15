@@ -15377,6 +15377,41 @@
                 "enum": ["ready"],
                 "type": "string"
             },
+            "PivotValuesColumn": {
+                "properties": {
+                    "pivotValues": {
+                        "items": {
+                            "properties": {
+                                "value": {
+                                    "type": "string"
+                                },
+                                "referenceField": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["value", "referenceField"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "aggregation": {
+                        "$ref": "#/components/schemas/VizAggregationOptions"
+                    },
+                    "pivotColumnName": {
+                        "type": "string"
+                    },
+                    "referenceField": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "pivotValues",
+                    "aggregation",
+                    "pivotColumnName",
+                    "referenceField"
+                ],
+                "type": "object"
+            },
             "ReadyQueryResultsPage": {
                 "allOf": [
                     {
@@ -15384,6 +15419,31 @@
                     },
                     {
                         "properties": {
+                            "pivotDetails": {
+                                "properties": {
+                                    "unpivotedColumns": {
+                                        "$ref": "#/components/schemas/ResultColumns"
+                                    },
+                                    "valuesColumns": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PivotValuesColumn"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "totalColumnCount": {
+                                        "type": "number",
+                                        "format": "double",
+                                        "nullable": true
+                                    }
+                                },
+                                "required": [
+                                    "unpivotedColumns",
+                                    "valuesColumns",
+                                    "totalColumnCount"
+                                ],
+                                "type": "object",
+                                "nullable": true
+                            },
                             "status": {
                                 "$ref": "#/components/schemas/QueryHistoryStatus.READY"
                             },
@@ -15409,6 +15469,7 @@
                             }
                         },
                         "required": [
+                            "pivotDetails",
                             "status",
                             "resultsPageExecutionMs",
                             "initialQueryExecutionMs",

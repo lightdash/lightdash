@@ -14536,6 +14536,33 @@ const models: TsoaRoute.Models = {
         enums: ['ready'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PivotValuesColumn: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pivotValues: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            value: { dataType: 'string', required: true },
+                            referenceField: {
+                                dataType: 'string',
+                                required: true,
+                            },
+                        },
+                    },
+                    required: true,
+                },
+                aggregation: { ref: 'VizAggregationOptions', required: true },
+                pivotColumnName: { dataType: 'string', required: true },
+                referenceField: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ReadyQueryResultsPage: {
         dataType: 'refAlias',
         type: {
@@ -14545,6 +14572,41 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        pivotDetails: {
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    dataType: 'nestedObjectLiteral',
+                                    nestedProperties: {
+                                        unpivotedColumns: {
+                                            ref: 'ResultColumns',
+                                            required: true,
+                                        },
+                                        valuesColumns: {
+                                            dataType: 'array',
+                                            array: {
+                                                dataType: 'refAlias',
+                                                ref: 'PivotValuesColumn',
+                                            },
+                                            required: true,
+                                        },
+                                        totalColumnCount: {
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                { dataType: 'double' },
+                                                {
+                                                    dataType: 'enum',
+                                                    enums: [null],
+                                                },
+                                            ],
+                                            required: true,
+                                        },
+                                    },
+                                },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                         status: {
                             ref: 'QueryHistoryStatus.READY',
                             required: true,

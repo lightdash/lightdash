@@ -14,6 +14,19 @@ import {
 function convertDbQueryHistoryToQueryHistory(
     queryHistory: DbQueryHistory,
 ): QueryHistory {
+    function getPivotValuesColumns() {
+        if (!queryHistory.pivot_configuration) {
+            return null;
+        }
+
+        const { groupByColumns } = queryHistory.pivot_configuration;
+
+        // From ProjectService.pivotQueryWorkerTask
+        return groupByColumns && groupByColumns.length > 0
+            ? Object.values(queryHistory.pivot_values_columns ?? {})
+            : null;
+    }
+
     return {
         queryUuid: queryHistory.query_uuid,
         createdAt: queryHistory.created_at,
@@ -33,6 +46,9 @@ function convertDbQueryHistoryToQueryHistory(
         warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
         error: queryHistory.error,
         cacheKey: queryHistory.cache_key,
+        pivotConfiguration: queryHistory.pivot_configuration,
+        pivotValuesColumns: getPivotValuesColumns(),
+        pivotTotalColumnCount: queryHistory.pivot_total_column_count,
     };
 }
 
@@ -55,6 +71,8 @@ export class QueryHistoryModel {
             | 'warehouseQueryMetadata'
             | 'warehouseExecutionTimeMs'
             | 'error'
+            | 'pivotValuesColumns'
+            | 'pivotTotalColumnCount'
         > & {
             // require cacheKey at the Model level until we migrate the database
             cacheKey: string;
@@ -78,6 +96,9 @@ export class QueryHistoryModel {
                 warehouse_query_metadata: null,
                 error: null,
                 cache_key: queryHistory.cacheKey,
+                pivot_configuration: queryHistory.pivotConfiguration,
+                pivot_values_columns: null,
+                pivot_total_column_count: null,
             })
             .returning('query_uuid');
 

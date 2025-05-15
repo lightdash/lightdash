@@ -169,6 +169,7 @@ import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 import { getOrganizationNameSchema } from './utils/organization';
+import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
 export * from './authorization/index';
@@ -558,6 +559,12 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     initialQueryExecutionMs: number;
     resultsPageExecutionMs: number;
     status: QueryHistoryStatus.READY;
+    pivotDetails: {
+        // Unlimited total column count, this is used to display a warning to the user in the frontend when the number of columns is over MAX_PIVOT_COLUMN_LIMIT
+        totalColumnCount: number | null;
+        valuesColumns: PivotValuesColumn[];
+        unpivotedColumns: ResultColumns;
+    } | null;
 };
 
 export type ApiGetAsyncQueryResults =
