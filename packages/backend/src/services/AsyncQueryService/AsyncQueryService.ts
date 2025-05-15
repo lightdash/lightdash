@@ -1787,15 +1787,20 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        const { warehouseConnection, queryTags, metricQuery, virtualView } =
-            await this.prepareSqlChartAsyncQueryArgs({
-                user,
-                context,
-                projectUuid,
-                organizationUuid,
-                sql,
-                limit,
-            });
+        const {
+            warehouseConnection,
+            queryTags,
+            metricQuery,
+            virtualView,
+            sql: sqlWithParams,
+        } = await this.prepareSqlChartAsyncQueryArgs({
+            user,
+            context,
+            projectUuid,
+            organizationUuid,
+            sql,
+            limit,
+        });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -1806,7 +1811,7 @@ export class AsyncQueryService extends ProjectService {
                 metricQuery,
                 context,
                 fields: getItemMap(virtualView),
-                sql,
+                sql: sqlWithParams,
             },
             {
                 query: metricQuery,
