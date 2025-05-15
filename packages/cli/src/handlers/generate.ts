@@ -29,6 +29,7 @@ type GenerateHandlerOptions = CompileHandlerOptions & {
     assumeYes: boolean;
     excludeMeta: boolean;
     skipExisting?: boolean;
+    preserveColumnCase: boolean;
 };
 
 export const generateHandler = async (options: GenerateHandlerOptions) => {
@@ -102,6 +103,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
             const table = await getWarehouseTableForModel({
                 model: compiledModel,
                 warehouseClient,
+                preserveColumnCase: options.preserveColumnCase,
             });
             const { updatedYml, outputFilePath } = await findAndUpdateModelYaml(
                 {

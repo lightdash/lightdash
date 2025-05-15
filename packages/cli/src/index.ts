@@ -275,6 +275,11 @@ ${styles.bold('Examples:')}
     .option('--verbose', undefined, false)
     .option('-y, --assume-yes', 'assume yes to prompts', false)
     .option('-no, --assume-no', 'assume no to prompts', false)
+    .option(
+        '--preserve-column-case',
+        'preserve original casing of column names in generated schema files',
+        false,
+    )
     .action(dbtRunHandler);
 
 program
@@ -763,6 +768,11 @@ ${styles.bold('Examples:')}
     .option(
         '--exclude-meta',
         'exclude Lightdash metadata from the generated .yml',
+        false,
+    )
+    .option(
+        '--preserve-column-case',
+        'preserve original casing of column names in generated schema files',
         false,
     )
     .option('--verbose', undefined, false)
