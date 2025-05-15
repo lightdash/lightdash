@@ -29,6 +29,7 @@ import {
     getDashboardFilterRulesForTables,
     getDimensions,
     getErrorMessage,
+    getFieldQuoteChar,
     getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
@@ -73,7 +74,7 @@ import { measureTime } from '../../logging/measureTime';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import { ResultsFileModel } from '../../models/ResultsFileModel/ResultsFileModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
-import { applyLimitToSqlQuery } from '../../queryBuilder';
+import { applyLimitToSqlQuery, QueryBuilder } from '../../queryBuilder';
 import { wrapSentryTransaction } from '../../utils';
 import type { ICacheService } from '../CacheService/ICacheService';
 import {
@@ -2077,13 +2078,56 @@ export class AsyncQueryService extends ProjectService {
             };
         }
 
+        // Create a referenceMap from vizColumns
+        const referenceMap: Record<
+            string,
+            { type: DimensionType; sql: string }
+        > = {};
+        vizColumns.forEach((col) => {
+            referenceMap[col.reference] = {
+                type: col.type,
+                sql: `${col.reference}`,
+            };
+        });
+
+        // Create a QueryBuilder with a CTE containing the SQL
+        const cte: { name: string; sql: string } = {
+            name: 'sql_query',
+            sql: sqlWithLimit,
+        };
+
+        // Select all vizColumns
+        const selectColumns = vizColumns.map((col) => col.reference);
+
+        // Create and return the QueryBuilder instance
+        const queryBuilder = new QueryBuilder(
+            {
+                referenceMap,
+                select: selectColumns,
+                from: cte.name,
+                ctes: [cte],
+            },
+            {
+                fieldQuoteChar: getFieldQuoteChar(
+                    warehouseConnection.warehouseClient.credentials.type,
+                ),
+                stringQuoteChar:
+                    warehouseConnection.warehouseClient.getStringQuoteChar(),
+                escapeStringQuoteChar:
+                    warehouseConnection.warehouseClient.getEscapeStringQuoteChar(),
+                startOfWeek:
+                    warehouseConnection.warehouseClient.getStartOfWeek(),
+                adapterType:
+                    warehouseConnection.warehouseClient.getAdapterType(),
+            },
+        );
         return {
             metricQuery,
             pivotConfiguration,
             virtualView,
             queryTags,
             warehouseConnection,
-            sql: sqlWithLimit,
+            sql: queryBuilder.toSql(),
             appliedDashboardFilters,
         };
     }
