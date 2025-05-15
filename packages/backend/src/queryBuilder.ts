@@ -10,6 +10,7 @@ import {
     CustomBinDimension,
     CustomDimension,
     DbtModelJoinType,
+    DimensionType,
     Explore,
     FieldId,
     FieldReferenceError,
@@ -32,11 +33,13 @@ import {
     isAndFilterGroup,
     isCompiledCustomSqlDimension,
     isCustomBinDimension,
+    isDashboardReferenceTarget,
     isFilterGroup,
     isFilterRuleInQuery,
     ItemsMap,
     MetricFilterRule,
     parseAllReferences,
+    renderFilterRuleSql,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
     SortField,
@@ -1387,3 +1390,166 @@ export const buildQuery = ({
             fields,
         };
     });
+
+type CteBase = {
+    name: string;
+};
+type SqlCte = CteBase & { sql: string };
+type QueryBuilderCte = CteBase & { queryBuilder: QueryBuilder };
+type Cte = SqlCte | QueryBuilderCte;
+type ReferenceObject = { type: DimensionType; sql: string };
+type ReferenceMap = Record<string, ReferenceObject> | undefined;
+
+const isSqlCte = (cte: Cte): cte is SqlCte => 'sql' in cte;
+
+export class QueryBuilder {
+    // Column references, to be used in select, filters, etc
+    private readonly referenceMap: ReferenceMap;
+
+    private readonly ctes: Cte[];
+
+    // Select values are references
+    private readonly select: string[];
+
+    private readonly from: string;
+
+    private readonly filters: FilterGroup | undefined;
+
+    constructor(
+        args: {
+            referenceMap: ReferenceMap;
+            select: string[];
+            from: string;
+            filters?: FilterGroup;
+            ctes?: Cte[];
+        },
+        private config: {
+            fieldQuoteChar: string;
+            stringQuoteChar: string;
+            escapeStringQuoteChar: string;
+            startOfWeek: WeekDay | null | undefined;
+            adapterType: SupportedDbtAdapter;
+            timezone?: string;
+        },
+    ) {
+        this.ctes = args.ctes || [];
+        this.select = args.select;
+        this.from = args.from;
+        this.filters = args.filters;
+        this.referenceMap = args.referenceMap;
+    }
+
+    private quotedName(value: String) {
+        return `${this.config.fieldQuoteChar}${value}${this.config.fieldQuoteChar}`;
+    }
+
+    private getReference(reference: string): ReferenceObject {
+        const referenceObject = this.referenceMap?.[reference];
+        if (!referenceObject) {
+            throw new FieldReferenceError(`Unkown reference: ${reference}`);
+        }
+        return referenceObject;
+    }
+
+    private ctesToSql(): string | undefined {
+        if (this.ctes.length === 0) {
+            return undefined;
+        }
+        return `WITH\n${this.ctes
+            .map(
+                (cte) =>
+                    `${this.quotedName(cte.name)} AS (\n${
+                        isSqlCte(cte) ? cte.sql : cte.queryBuilder.toSql()
+                    }\n)`,
+            )
+            .join(',\n')}`;
+    }
+
+    private selectsToSql(): string | undefined {
+        let selectSQL = '*';
+        if (this.select.length > 0) {
+            selectSQL = this.select
+                .map((reference) => {
+                    const referenceObject = this.getReference(reference);
+                    return `${referenceObject.sql} AS ${this.quotedName(
+                        reference,
+                    )}`;
+                })
+                .join(',\n');
+        }
+        return `SELECT\n${selectSQL}`;
+    }
+
+    private fromToSql(): string {
+        return `FROM ${this.quotedName(this.from)}`;
+    }
+
+    private filtersToSql() {
+        // Recursive function to convert filters to SQL
+        const getNestedFilterSQLFromGroup = (
+            filterGroup: FilterGroup | undefined,
+        ): string | undefined => {
+            if (filterGroup) {
+                const operator = isAndFilterGroup(filterGroup) ? 'AND' : 'OR';
+                const items = isAndFilterGroup(filterGroup)
+                    ? filterGroup.and
+                    : filterGroup.or;
+                if (items.length === 0) return undefined;
+                const filterRules: string[] = items.reduce<string[]>(
+                    (sum, item) => {
+                        // Handle nested filters
+                        if (isFilterGroup(item)) {
+                            const nestedFilterSql =
+                                getNestedFilterSQLFromGroup(item);
+                            return nestedFilterSql
+                                ? [...sum, nestedFilterSql]
+                                : sum;
+                        }
+                        // Handle filter rule
+                        if (isDashboardReferenceTarget(item.target)) {
+                            const reference = this.getReference(
+                                item.target.reference,
+                            );
+                            const filterSQl = `(\n${renderFilterRuleSql(
+                                item,
+                                reference.type,
+                                reference.sql,
+                                this.config.stringQuoteChar,
+                                this.config.escapeStringQuoteChar,
+                                this.config.startOfWeek,
+                                this.config.adapterType,
+                                this.config.timezone,
+                            )}\n)`;
+                            return [...sum, filterSQl];
+                        }
+
+                        return sum;
+                    },
+                    [],
+                );
+                return filterRules.length > 0
+                    ? `(${filterRules.join(` ${operator} `)})`
+                    : undefined;
+            }
+            return undefined;
+        };
+
+        const filtersSql = getNestedFilterSQLFromGroup(this.filters);
+        if (filtersSql) {
+            return `WHERE ${filtersSql}`;
+        }
+        return undefined;
+    }
+
+    toSql(): string {
+        // Combine all parts of the query
+        return [
+            this.ctesToSql(),
+            this.selectsToSql(),
+            this.fromToSql(),
+            this.filtersToSql(),
+        ]
+            .filter((l) => l !== undefined)
+            .join('\n');
+    }
+}
