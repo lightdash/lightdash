@@ -1,3 +1,10 @@
+# [0.1628.0](https://github.com/lightdash/lightdash/compare/0.1627.1...0.1628.0) (2025-05-15)
+
+
+### Features
+
+* **cli:** flag to preserve original casing of column names in generated schema files ([#14804](https://github.com/lightdash/lightdash/issues/14804)) ([8b0fd54](https://github.com/lightdash/lightdash/commit/8b0fd541bb5c863319b195129ea24042288a13b6)), closes [#14798](https://github.com/lightdash/lightdash/issues/14798)
+
 ## [0.1627.1](https://github.com/lightdash/lightdash/compare/0.1627.0...0.1627.1) (2025-05-15)
 
 
