@@ -385,7 +385,7 @@ Password: demo_password!
 Lightdash writes results + exports to your machine if you're using MinIO. Make sure to clear the ./data
 directory frequently.
 
-You can do this my just deleting everything in the bucket:
+You can do this by just deleting everything in the bucket:
 
 ```shell
 rm ./data/lightdash/*
