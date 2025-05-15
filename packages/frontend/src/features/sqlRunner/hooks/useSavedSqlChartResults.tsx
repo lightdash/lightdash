@@ -78,7 +78,7 @@ export const useSavedSqlChartResults = (
         },
         Partial<ApiError>
     >(
-        ['savedSqlChartResults', savedSqlUuid ?? slug],
+        ['savedSqlChartResults', args],
         async () => {
             // Safe to assume these are defined because of the enabled flag
             const chart = chartQuery.data!;

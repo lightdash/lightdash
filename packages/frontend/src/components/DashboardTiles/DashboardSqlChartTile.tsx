@@ -58,7 +58,7 @@ const DashboardOptions = memo(
 
 const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { user } = useApp();
-    const { projectUuid } = useParams<{
+    const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
     }>();
@@ -74,6 +74,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const updateSqlChartTilesMetadata = useDashboardContext(
         (c) => c.updateSqlChartTilesMetadata,
     );
+    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
 
     const {
         chartQuery: {
@@ -91,6 +92,9 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         projectUuid,
         savedSqlUuid,
         context,
+        dashboardUuid,
+        tileUuid: tile.uuid,
+        dashboardFilters,
     });
 
     // Charts in Dashboard shouldn't have animation
