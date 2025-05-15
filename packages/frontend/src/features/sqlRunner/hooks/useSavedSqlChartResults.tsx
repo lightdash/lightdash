@@ -2,34 +2,54 @@ import {
     isVizCartesianChartConfig,
     isVizTableConfig,
     type ApiError,
+    type DashboardFilters,
     type IResultsRunner,
     type RawResultRow,
+    type SortField,
     type SqlChart,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
-import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
+import {
+    SqlRunnerResultsRunnerChart,
+    SqlRunnerResultsRunnerDashboard,
+} from '../runners/SqlRunnerResultsRunnerFrontend';
 import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 import { fetchSavedSqlChart } from './useSavedSqlCharts';
 import { getSqlChartResultsByUuid } from './useSqlChartResults';
 
-export const useSavedSqlChartResults = ({
-    savedSqlUuid,
-    slug,
-    projectUuid,
-    context,
-}: {
+type SavedSqlChartArgs = {
     savedSqlUuid?: string;
     slug?: string;
     projectUuid?: string;
     context?: string;
-}) => {
+};
+
+type SavedSqlChartDashboardArgs = SavedSqlChartArgs & {
+    dashboardUuid: string;
+    dashboardFilters: DashboardFilters;
+    dashboardSorts: SortField[];
+};
+
+type UseSavedSqlChartResultsArguments =
+    | SavedSqlChartArgs
+    | SavedSqlChartDashboardArgs;
+
+const isDashboardArgs = (
+    args: UseSavedSqlChartResultsArguments,
+): args is SavedSqlChartDashboardArgs => 'dashboardUuid' in args;
+
+export const useSavedSqlChartResults = (
+    args: UseSavedSqlChartResultsArguments,
+) => {
     // Separate chart results into two steps to provide a better loading + error experiences
     const { getResultsFromStream } = useResultsFromStreamWorker();
 
     // Needed for organization colors
     const { data: organization } = useOrganization();
+
+    const { savedSqlUuid, slug, projectUuid, context } = args;
 
     // Step 1: Get the chart
     const chartQuery = useQuery<SqlChart, Partial<ApiError>>(
@@ -70,16 +90,25 @@ export const useSavedSqlChartResults = ({
                 context,
             });
 
-            const resultsRunner = new SqlRunnerResultsRunnerFrontend({
-                rows: chartResults.results,
-                columns: chartResults.columns,
-                projectUuid: projectUuid!,
-                savedSqlUuid: chart.savedSqlUuid,
-                sql: chart.sql,
-                ...(isVizCartesianChartConfig(chart.config) && {
-                    sortBy: chart.config.fieldConfig?.sortBy,
-                }),
-            });
+            const resultsRunner = isDashboardArgs(args)
+                ? new SqlRunnerResultsRunnerDashboard({
+                      rows: chartResults.results,
+                      columns: chartResults.columns,
+                      projectUuid: projectUuid!,
+                      dashboardUuid: args.dashboardUuid,
+                      dashboardFilters: args.dashboardFilters,
+                      dashboardSorts: args.dashboardSorts,
+                      savedSqlUuid: chart.savedSqlUuid,
+                  })
+                : new SqlRunnerResultsRunnerChart({
+                      rows: chartResults.results,
+                      columns: chartResults.columns,
+                      projectUuid: projectUuid!,
+                      savedSqlUuid: chart.savedSqlUuid,
+                      ...(isVizCartesianChartConfig(chart.config) && {
+                          sortBy: chart.config.fieldConfig?.sortBy,
+                      }),
+                  });
 
             const vizConfig = isVizTableConfig(chart.config)
                 ? chart.config.columns
