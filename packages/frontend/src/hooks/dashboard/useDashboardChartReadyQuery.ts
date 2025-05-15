@@ -168,5 +168,5 @@ export const useDashboardChartReadyQuery = (
         refetchOnMount: false,
     });
 
-    return { ...queryResult, error };
+    return { ...queryResult, error: error || queryResult.error };
 };
