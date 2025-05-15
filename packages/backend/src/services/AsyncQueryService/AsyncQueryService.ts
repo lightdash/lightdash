@@ -1765,6 +1765,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         invalidateCache,
         pivotConfiguration,
+        limit,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User does not belong to an organization');
@@ -1816,6 +1817,11 @@ export class AsyncQueryService extends ProjectService {
             },
         );
 
+        const sqlWithLimit = applyLimitToSqlQuery({
+            sqlQuery: sql,
+            limit,
+        });
+
         // ! VizColumns, virtualView, dimensions and query are not needed for SQL queries since we pass just sql the to `executeAsyncQuery`
         // ! We keep them here for backwards compatibility until we remove them as a required argument
         const vizColumns = columns.map((col) => ({
@@ -1825,7 +1831,7 @@ export class AsyncQueryService extends ProjectService {
 
         const virtualView = createVirtualViewObject(
             'virtual_view',
-            sql,
+            sqlWithLimit,
             vizColumns,
             warehouseConnection.warehouseClient,
         );
@@ -1843,7 +1849,7 @@ export class AsyncQueryService extends ProjectService {
             sorts: [],
             customDimensions: [],
             additionalMetrics: [],
-            limit: 500,
+            limit: limit ?? 500,
         };
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -1855,7 +1861,7 @@ export class AsyncQueryService extends ProjectService {
                 metricQuery: query,
                 context,
                 fields: getItemMap(virtualView),
-                sql,
+                sql: sqlWithLimit,
             },
             {
                 query,
@@ -1875,10 +1881,12 @@ export class AsyncQueryService extends ProjectService {
         user,
         sqlChart,
         context,
+        limit,
     }: {
         user: SessionUser;
         sqlChart: Pick<SqlChart, 'project' | 'organization' | 'sql' | 'config'>;
         context: QueryExecutionContext;
+        limit?: number;
     }) {
         const warehouseConnection = await this._getWarehouseClient(
             sqlChart.project.projectUuid,
@@ -1913,6 +1921,11 @@ export class AsyncQueryService extends ProjectService {
             },
         );
 
+        const sqlWithLimit = applyLimitToSqlQuery({
+            sqlQuery: sqlChart.sql,
+            limit,
+        });
+
         // ! VizColumns, virtualView, dimensions and query are not needed for SQL queries since we pass just sql the to `executeAsyncQuery`
         // ! We keep them here for backwards compatibility until we remove them as a required argument
         const vizColumns = columns.map((col) => ({
@@ -1922,7 +1935,7 @@ export class AsyncQueryService extends ProjectService {
 
         const virtualView = createVirtualViewObject(
             'virtual_view',
-            sqlChart.sql,
+            sqlWithLimit,
             vizColumns,
             warehouseConnection.warehouseClient,
         );
@@ -1950,14 +1963,16 @@ export class AsyncQueryService extends ProjectService {
             sorts: [],
             customDimensions: [],
             additionalMetrics: [],
-            limit: 500,
+            limit: limit ?? 500,
         };
+
         return {
             query,
             pivotConfiguration,
             virtualView,
             queryTags,
             warehouseConnection,
+            sql: sqlWithLimit,
         };
     }
 
@@ -1974,7 +1989,7 @@ export class AsyncQueryService extends ProjectService {
             throw new Error('Either chartUuid or slug must be provided');
         }
 
-        const { user, projectUuid, context, invalidateCache } = args;
+        const { user, projectUuid, context, invalidateCache, limit } = args;
 
         const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
             user,
@@ -1992,10 +2007,12 @@ export class AsyncQueryService extends ProjectService {
             query,
             virtualView,
             pivotConfiguration,
+            sql,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
             sqlChart,
+            limit,
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -2007,7 +2024,7 @@ export class AsyncQueryService extends ProjectService {
                 metricQuery: query,
                 context,
                 fields: getItemMap(virtualView),
-                sql: sqlChart.sql,
+                sql,
             },
             {
                 query,
@@ -2043,6 +2060,7 @@ export class AsyncQueryService extends ProjectService {
             invalidateCache,
             dashboardFilters,
             dashboardSorts,
+            limit,
         } = args;
 
         const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
@@ -2061,10 +2079,12 @@ export class AsyncQueryService extends ProjectService {
             query,
             virtualView,
             pivotConfiguration,
+            sql,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
             sqlChart: savedChart,
+            limit,
         });
 
         const tables = Object.keys(virtualView.tables);
@@ -2105,7 +2125,7 @@ export class AsyncQueryService extends ProjectService {
                 metricQuery: metricQueryWithDashboardOverrides,
                 context,
                 fields: getItemMap(virtualView),
-                sql: savedChart.sql,
+                sql,
             },
             {
                 query,
