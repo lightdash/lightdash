@@ -128,6 +128,7 @@ export class SqlRunnerResultsRunnerDashboard extends BaseResultsRunner {
         savedSqlUuid,
         limit,
         dashboardUuid,
+        tileUuid,
         dashboardFilters,
         dashboardSorts,
     }: {
@@ -135,6 +136,7 @@ export class SqlRunnerResultsRunnerDashboard extends BaseResultsRunner {
         rows: RawResultRow[];
         projectUuid: string;
         dashboardUuid: string;
+        tileUuid: string;
         dashboardFilters: DashboardFilters;
         dashboardSorts: SortField[];
         savedSqlUuid?: string;
@@ -159,10 +161,11 @@ export class SqlRunnerResultsRunnerDashboard extends BaseResultsRunner {
             runPivotQuery: getPivotQueryFunctionForDashboard({
                 projectUuid,
                 dashboardUuid,
+                tileUuid,
                 savedSqlUuid,
                 limit,
                 dashboardFilters,
-                dashboardSorts,
+                dashboardSorts: dashboardSorts ?? [],
                 context: QueryExecutionContext.DASHBOARD,
             }),
         });

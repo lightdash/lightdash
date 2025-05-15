@@ -270,6 +270,7 @@ export const getPivotQueryFunctionForSqlChart = ({
 export const getPivotQueryFunctionForDashboard = ({
     projectUuid,
     dashboardUuid,
+    tileUuid,
     savedSqlUuid,
     limit,
     dashboardFilters,
@@ -278,6 +279,7 @@ export const getPivotQueryFunctionForDashboard = ({
 }: {
     projectUuid: string;
     dashboardUuid?: string;
+    tileUuid?: string;
     savedSqlUuid?: string;
     limit?: number;
     dashboardFilters: DashboardFilters;
@@ -290,6 +292,7 @@ export const getPivotQueryFunctionForDashboard = ({
         if (
             index === undefined ||
             dashboardUuid === undefined ||
+            tileUuid === undefined ||
             savedSqlUuid === undefined
         ) {
             return {
@@ -306,6 +309,7 @@ export const getPivotQueryFunctionForDashboard = ({
             projectUuid,
             {
                 dashboardUuid,
+                tileUuid,
                 savedSqlUuid,
                 context,
                 dashboardFilters,

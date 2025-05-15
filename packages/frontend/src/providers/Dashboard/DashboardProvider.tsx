@@ -33,6 +33,7 @@ import {
     useSavedDashboardFiltersOverrides,
 } from '../../hooks/useSavedDashboardFiltersOverrides';
 import DashboardContext from './context';
+import { type SqlChartTileMetadata } from './types';
 
 const emptyFilters: DashboardFilters = {
     dimensions: [],
@@ -126,6 +127,10 @@ const DashboardProvider: React.FC<
     const [invalidateCache, setInvalidateCache] = useState<boolean>(false);
 
     const [chartSort, setChartSort] = useState<Record<string, SortField[]>>({});
+
+    const [sqlChartTilesMetadata, setSqlChartTilesMetadata] = useState<
+        Record<string, SqlChartTileMetadata>
+    >({});
 
     const [dateZoomGranularity, setDateZoomGranularity] = useState<
         DateGranularity | undefined
@@ -560,6 +565,16 @@ const DashboardProvider: React.FC<
         setInvalidateCache(true);
     }, []);
 
+    const updateSqlChartTilesMetadata = useCallback(
+        (tileUuid: string, metadata: SqlChartTileMetadata) => {
+            setSqlChartTilesMetadata((prev) => ({
+                ...prev,
+                [tileUuid]: metadata,
+            }));
+        },
+        [],
+    );
+
     const oldestCacheTime = useMemo(
         () => min(resultsCacheTimes),
         [resultsCacheTimes],
@@ -636,6 +651,8 @@ const DashboardProvider: React.FC<
         hasChartTiles,
         chartSort,
         setChartSort,
+        sqlChartTilesMetadata,
+        updateSqlChartTilesMetadata,
         dateZoomGranularity,
         setDateZoomGranularity,
         chartsWithDateZoomApplied,
