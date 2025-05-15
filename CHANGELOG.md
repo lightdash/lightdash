@@ -1,3 +1,10 @@
+# [0.1629.0](https://github.com/lightdash/lightdash/compare/0.1628.1...0.1629.0) (2025-05-15)
+
+
+### Features
+
+* add initial AI agents page ([#14832](https://github.com/lightdash/lightdash/issues/14832)) ([ea8c114](https://github.com/lightdash/lightdash/commit/ea8c11407dbca19d4288063ee11d339a34774d65))
+
 ## [0.1628.1](https://github.com/lightdash/lightdash/compare/0.1628.0...0.1628.1) (2025-05-15)
 
 
