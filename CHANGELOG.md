@@ -1,3 +1,10 @@
+## [0.1626.11](https://github.com/lightdash/lightdash/compare/0.1626.10...0.1626.11) (2025-05-15)
+
+
+### Bug Fixes
+
+* capture either error on use dashboard chart query ([#14818](https://github.com/lightdash/lightdash/issues/14818)) ([17f4f0d](https://github.com/lightdash/lightdash/commit/17f4f0dbba5b17c78ca63c506ee8302788437316))
+
 ## [0.1626.10](https://github.com/lightdash/lightdash/compare/0.1626.9...0.1626.10) (2025-05-14)
 
 
