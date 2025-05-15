@@ -27,8 +27,10 @@ import {
     ForbiddenError,
     formatRow,
     getDashboardFilterRulesForTables,
+    getDashboardFilterRulesForTileAndReferences,
     getDimensions,
     getErrorMessage,
+    getFieldQuoteChar,
     getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
@@ -66,13 +68,18 @@ import {
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import { createInterface } from 'readline';
+import { v4 as uuidv4 } from 'uuid';
 import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { DbResultsCacheUpdate } from '../../database/entities/resultsFile';
 import { measureTime } from '../../logging/measureTime';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import { ResultsFileModel } from '../../models/ResultsFileModel/ResultsFileModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
-import { applyLimitToSqlQuery } from '../../queryBuilder';
+import {
+    applyLimitToSqlQuery,
+    QueryBuilder,
+    ReferenceMap,
+} from '../../queryBuilder';
 import { wrapSentryTransaction } from '../../utils';
 import type { ICacheService } from '../CacheService/ICacheService';
 import {
@@ -1900,6 +1907,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardFilters,
         dashboardSorts,
         limit,
+        tileUuid,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -1910,6 +1918,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardFilters?: ExecuteAsyncDashboardSqlChartArgs['dashboardFilters'];
         dashboardSorts?: ExecuteAsyncDashboardSqlChartArgs['dashboardSorts'];
         limit?: number;
+        tileUuid?: string;
     }) {
         const warehouseConnection = await this._getWarehouseClient(
             projectUuid,
@@ -1987,22 +1996,29 @@ export class AsyncQueryService extends ProjectService {
             limit: limit ?? 500,
         };
 
+        const fieldQuoteChar = getFieldQuoteChar(
+            warehouseConnection.warehouseClient.credentials.type,
+        );
+
+        // Create a referenceMap from vizColumns
+        const referenceMap: ReferenceMap = {};
+        vizColumns.forEach((col) => {
+            referenceMap[col.reference] = {
+                type: col.type,
+                sql: `${fieldQuoteChar}${col.reference}${fieldQuoteChar}`,
+            };
+        });
+
         let appliedDashboardFilters: DashboardFilters | undefined;
-        if (dashboardFilters) {
-            const tables = Object.keys(virtualView.tables);
+        if (dashboardFilters && tileUuid) {
             appliedDashboardFilters = {
-                dimensions: getDashboardFilterRulesForTables(
-                    tables,
+                dimensions: getDashboardFilterRulesForTileAndReferences(
+                    tileUuid,
+                    Object.keys(referenceMap),
                     dashboardFilters.dimensions,
                 ),
-                metrics: getDashboardFilterRulesForTables(
-                    tables,
-                    dashboardFilters.metrics,
-                ),
-                tableCalculations: getDashboardFilterRulesForTables(
-                    tables,
-                    dashboardFilters.tableCalculations,
-                ),
+                metrics: [],
+                tableCalculations: [],
             };
 
             // This override isn't used for anything at the moment since sql charts don't support filters, but it's here for future use
@@ -2012,6 +2028,11 @@ export class AsyncQueryService extends ProjectService {
                     appliedDashboardFilters,
                     virtualView,
                 ),
+            };
+        }
+        if (dashboardSorts) {
+            metricQuery = {
+                ...metricQuery,
                 sorts:
                     dashboardSorts && dashboardSorts.length > 0
                         ? dashboardSorts
@@ -2019,13 +2040,41 @@ export class AsyncQueryService extends ProjectService {
             };
         }
 
+        // Select all vizColumns
+        const selectColumns = vizColumns.map((col) => col.reference);
+
+        // Create and return the QueryBuilder instance
+        const queryBuilder = new QueryBuilder(
+            {
+                referenceMap,
+                select: selectColumns,
+                from: { name: 'sql_query', sql: sqlWithLimit },
+                filters: appliedDashboardFilters
+                    ? {
+                          id: uuidv4(),
+                          and: appliedDashboardFilters.dimensions,
+                      }
+                    : undefined,
+            },
+            {
+                fieldQuoteChar,
+                stringQuoteChar:
+                    warehouseConnection.warehouseClient.getStringQuoteChar(),
+                escapeStringQuoteChar:
+                    warehouseConnection.warehouseClient.getEscapeStringQuoteChar(),
+                startOfWeek:
+                    warehouseConnection.warehouseClient.getStartOfWeek(),
+                adapterType:
+                    warehouseConnection.warehouseClient.getAdapterType(),
+            },
+        );
         return {
             metricQuery,
             pivotConfiguration,
             virtualView,
             queryTags,
             warehouseConnection,
-            sql: sqlWithLimit,
+            sql: queryBuilder.toSql(),
             appliedDashboardFilters,
         };
     }
@@ -2113,6 +2162,7 @@ export class AsyncQueryService extends ProjectService {
         const {
             user,
             projectUuid,
+            tileUuid,
             context,
             invalidateCache,
             dashboardFilters,
@@ -2145,6 +2195,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid: savedChart.organization.organizationUuid,
             sql: savedChart.sql,
             config: savedChart.config,
+            tileUuid,
             dashboardFilters,
             dashboardSorts,
             limit,

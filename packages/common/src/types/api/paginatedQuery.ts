@@ -84,6 +84,7 @@ export const isExecuteAsyncSqlChartByUuidParams = (
 type ExecuteAsyncDashboardSqlChartCommonParams =
     CommonPaginatedQueryRequestParams & {
         dashboardUuid: string;
+        tileUuid: string;
         dashboardFilters: DashboardFilters;
         dashboardSorts: SortField[];
         limit?: number;

@@ -81,6 +81,7 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
 
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {
     dashboardUuid: string;
+    tileUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
 };
