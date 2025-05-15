@@ -1,3 +1,10 @@
+## [0.1628.1](https://github.com/lightdash/lightdash/compare/0.1628.0...0.1628.1) (2025-05-15)
+
+
+### Bug Fixes
+
+* Navigation enabled when selecting rows ([#14817](https://github.com/lightdash/lightdash/issues/14817)) ([d4f0c53](https://github.com/lightdash/lightdash/commit/d4f0c532a320dea0f497ef9943b340ad8d71312a))
+
 # [0.1628.0](https://github.com/lightdash/lightdash/compare/0.1627.1...0.1628.0) (2025-05-15)
 
 
