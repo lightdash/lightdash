@@ -2,15 +2,16 @@ import {
     assertUnreachable,
     createDashboardFilterRuleFromField,
     getItemId,
+    isDashboardFieldTarget,
     isField,
     isFilterableField,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
+    type DashboardFieldTarget,
     type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
-    type Field,
     type FilterableDimension,
 } from '@lightdash/common';
 import {
@@ -27,6 +28,7 @@ import {
 import { IconRotate2 } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import FieldSelect from '../../common/FieldSelect';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FieldLabel from '../../common/Filters/FieldLabel';
@@ -139,12 +141,15 @@ const FilterConfiguration: FC<Props> = ({
         },
         [setDraftFilterRule],
     );
-
+    const sqlChartTilesMetadata = useDashboardContext(
+        (c) => c.sqlChartTilesMetadata,
+    );
     const handleChangeTileConfiguration = useCallback(
-        (action: FilterActions, tileUuid: string, newField?: Field) => {
-            const filters = availableTileFilters[tileUuid];
-            if (!filters) return;
-
+        (
+            action: FilterActions,
+            tileUuid: string,
+            newTarget?: DashboardFieldTarget,
+        ) => {
             const changedFilterRule = produce(draftFilterRule, (draftState) => {
                 if (!draftState || !selectedField) return;
 
@@ -152,15 +157,34 @@ const FilterConfiguration: FC<Props> = ({
 
                 switch (action) {
                     case FilterActions.ADD:
-                        const filterableField =
-                            newField ?? getDefaultField(filters, selectedField);
+                        let filterableField:
+                            | DashboardFieldTarget
+                            | FilterableDimension
+                            | undefined = newTarget;
+                        const defaultColumn =
+                            sqlChartTilesMetadata[tileUuid]?.columns[0];
+                        if (!filterableField && defaultColumn) {
+                            filterableField = {
+                                fieldId: defaultColumn,
+                                tableName: 'mock_table',
+                            };
+                        } else if (availableTileFilters[tileUuid]) {
+                            filterableField = getDefaultField(
+                                availableTileFilters[tileUuid],
+                                selectedField,
+                            );
+                        }
 
+                        console.log('filterableField', filterableField);
                         if (!filterableField) return draftState;
 
-                        draftState.tileTargets[tileUuid] = {
-                            fieldId: getItemId(filterableField),
-                            tableName: filterableField.table,
-                        };
+                        draftState.tileTargets[tileUuid] =
+                            isDashboardFieldTarget(filterableField)
+                                ? filterableField
+                                : {
+                                      fieldId: getItemId(filterableField),
+                                      tableName: filterableField.name,
+                                  };
 
                         return draftState;
 
@@ -183,6 +207,7 @@ const FilterConfiguration: FC<Props> = ({
             availableTileFilters,
             setDraftFilterRule,
             draftFilterRule,
+            sqlChartTilesMetadata,
         ],
     );
 
