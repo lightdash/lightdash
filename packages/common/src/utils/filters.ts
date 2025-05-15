@@ -629,6 +629,7 @@ export const deleteFilterRuleFromGroup = (
 export const getDashboardFilterRulesForTile = (
     tileUuid: string,
     rules: DashboardFilterRule[],
+    needsExplicitTileOverride: boolean = false, // If true, we don't apply the default tile targets to the filter rule'
 ): DashboardFilterRule[] =>
     rules
         .filter((rule) => !rule.disabled)
@@ -643,6 +644,10 @@ export const getDashboardFilterRulesForTile = (
             // we return the filter and don't treat this tile
             // differently.
             if (tileConfig === undefined) {
+                // If needs explicit override, we remove this filter
+                if (needsExplicitTileOverride) {
+                    return null;
+                }
                 return filter;
             }
 
@@ -695,6 +700,15 @@ export const getTabUuidsForFilterRules = (
         return acc;
     }, {});
 };
+
+export const getDashboardFilterRulesForTileAndReferences = (
+    tileUuid: string,
+    references: string[],
+    rules: DashboardFilterRule[],
+): DashboardFilterRule[] =>
+    getDashboardFilterRulesForTile(tileUuid, rules, true).filter((f) =>
+        references.includes(f.target.fieldId),
+    );
 
 export const getDashboardFilterRulesForTables = (
     tables: string[],

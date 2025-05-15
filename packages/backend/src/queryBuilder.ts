@@ -33,7 +33,6 @@ import {
     isAndFilterGroup,
     isCompiledCustomSqlDimension,
     isCustomBinDimension,
-    isDashboardReferenceTarget,
     isFilterGroup,
     isFilterRuleInQuery,
     ItemsMap,
@@ -1391,27 +1390,18 @@ export const buildQuery = ({
         };
     });
 
-type CteBase = {
-    name: string;
-};
-type SqlCte = CteBase & { sql: string };
-type QueryBuilderCte = CteBase & { queryBuilder: QueryBuilder };
-type Cte = SqlCte | QueryBuilderCte;
 type ReferenceObject = { type: DimensionType; sql: string };
-type ReferenceMap = Record<string, ReferenceObject> | undefined;
-
-const isSqlCte = (cte: Cte): cte is SqlCte => 'sql' in cte;
+export type ReferenceMap = Record<string, ReferenceObject> | undefined;
+type From = { name: string; sql?: string };
 
 export class QueryBuilder {
     // Column references, to be used in select, filters, etc
     private readonly referenceMap: ReferenceMap;
 
-    private readonly ctes: Cte[];
-
     // Select values are references
     private readonly select: string[];
 
-    private readonly from: string;
+    private readonly from: From;
 
     private readonly filters: FilterGroup | undefined;
 
@@ -1419,9 +1409,8 @@ export class QueryBuilder {
         args: {
             referenceMap: ReferenceMap;
             select: string[];
-            from: string;
+            from: From;
             filters?: FilterGroup;
-            ctes?: Cte[];
         },
         private config: {
             fieldQuoteChar: string;
@@ -1432,7 +1421,6 @@ export class QueryBuilder {
             timezone?: string;
         },
     ) {
-        this.ctes = args.ctes || [];
         this.select = args.select;
         this.from = args.from;
         this.filters = args.filters;
@@ -1446,23 +1434,9 @@ export class QueryBuilder {
     private getReference(reference: string): ReferenceObject {
         const referenceObject = this.referenceMap?.[reference];
         if (!referenceObject) {
-            throw new FieldReferenceError(`Unkown reference: ${reference}`);
+            throw new FieldReferenceError(`Unknown reference: ${reference}`);
         }
         return referenceObject;
-    }
-
-    private ctesToSql(): string | undefined {
-        if (this.ctes.length === 0) {
-            return undefined;
-        }
-        return `WITH\n${this.ctes
-            .map(
-                (cte) =>
-                    `${this.quotedName(cte.name)} AS (\n${
-                        isSqlCte(cte) ? cte.sql : cte.queryBuilder.toSql()
-                    }\n)`,
-            )
-            .join(',\n')}`;
     }
 
     private selectsToSql(): string | undefined {
@@ -1481,7 +1455,9 @@ export class QueryBuilder {
     }
 
     private fromToSql(): string {
-        return `FROM ${this.quotedName(this.from)}`;
+        return `FROM ${
+            this.from.sql ? `(\n${this.from.sql}\n) AS ` : ''
+        }${this.quotedName(this.from.name)}`;
     }
 
     private filtersToSql() {
@@ -1506,24 +1482,20 @@ export class QueryBuilder {
                                 : sum;
                         }
                         // Handle filter rule
-                        if (isDashboardReferenceTarget(item.target)) {
-                            const reference = this.getReference(
-                                item.target.reference,
-                            );
-                            const filterSQl = `(\n${renderFilterRuleSql(
-                                item,
-                                reference.type,
-                                reference.sql,
-                                this.config.stringQuoteChar,
-                                this.config.escapeStringQuoteChar,
-                                this.config.startOfWeek,
-                                this.config.adapterType,
-                                this.config.timezone,
-                            )}\n)`;
-                            return [...sum, filterSQl];
-                        }
-
-                        return sum;
+                        const reference = this.getReference(
+                            item.target.fieldId,
+                        );
+                        const filterSQl = `(\n${renderFilterRuleSql(
+                            item,
+                            reference.type,
+                            reference.sql,
+                            this.config.stringQuoteChar,
+                            this.config.escapeStringQuoteChar,
+                            this.config.startOfWeek,
+                            this.config.adapterType,
+                            this.config.timezone,
+                        )}\n)`;
+                        return [...sum, filterSQl];
                     },
                     [],
                 );
@@ -1543,12 +1515,7 @@ export class QueryBuilder {
 
     toSql(): string {
         // Combine all parts of the query
-        return [
-            this.ctesToSql(),
-            this.selectsToSql(),
-            this.fromToSql(),
-            this.filtersToSql(),
-        ]
+        return [this.selectsToSql(), this.fromToSql(), this.filtersToSql()]
             .filter((l) => l !== undefined)
             .join('\n');
     }

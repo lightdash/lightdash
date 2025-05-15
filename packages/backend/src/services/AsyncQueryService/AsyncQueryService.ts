@@ -27,6 +27,7 @@ import {
     ForbiddenError,
     formatRow,
     getDashboardFilterRulesForTables,
+    getDashboardFilterRulesForTileAndReferences,
     getDimensions,
     getErrorMessage,
     getFieldQuoteChar,
@@ -68,13 +69,18 @@ import {
 import { SshTunnel } from '@lightdash/warehouses';
 import { createInterface } from 'readline';
 import { Readable } from 'stream';
+import { v4 as uuidv4 } from 'uuid';
 import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { DbResultsCacheUpdate } from '../../database/entities/resultsFile';
 import { measureTime } from '../../logging/measureTime';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import { ResultsFileModel } from '../../models/ResultsFileModel/ResultsFileModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
-import { applyLimitToSqlQuery, QueryBuilder } from '../../queryBuilder';
+import {
+    applyLimitToSqlQuery,
+    QueryBuilder,
+    ReferenceMap,
+} from '../../queryBuilder';
 import { wrapSentryTransaction } from '../../utils';
 import type { ICacheService } from '../CacheService/ICacheService';
 import {
@@ -1959,6 +1965,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardFilters,
         dashboardSorts,
         limit,
+                                                    tileUuid,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -1969,6 +1976,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardFilters?: ExecuteAsyncDashboardSqlChartArgs['dashboardFilters'];
         dashboardSorts?: ExecuteAsyncDashboardSqlChartArgs['dashboardSorts'];
         limit?: number;
+        tileUuid?: string;
     }) {
         const warehouseConnection = await this._getWarehouseClient(
             projectUuid,
@@ -2046,22 +2054,29 @@ export class AsyncQueryService extends ProjectService {
             limit: limit ?? 500,
         };
 
+        const fieldQuoteChar = getFieldQuoteChar(
+            warehouseConnection.warehouseClient.credentials.type,
+        );
+
+        // Create a referenceMap from vizColumns
+        const referenceMap: ReferenceMap = {};
+        vizColumns.forEach((col) => {
+            referenceMap[col.reference] = {
+                type: col.type,
+                sql: `${fieldQuoteChar}${col.reference}${fieldQuoteChar}`,
+            };
+        });
+
         let appliedDashboardFilters: DashboardFilters | undefined;
-        if (dashboardFilters) {
-            const tables = Object.keys(virtualView.tables);
+        if (dashboardFilters && tileUuid) {
             appliedDashboardFilters = {
-                dimensions: getDashboardFilterRulesForTables(
-                    tables,
+                dimensions: getDashboardFilterRulesForTileAndReferences(
+                    tileUuid,
+                    Object.keys(referenceMap),
                     dashboardFilters.dimensions,
                 ),
-                metrics: getDashboardFilterRulesForTables(
-                    tables,
-                    dashboardFilters.metrics,
-                ),
-                tableCalculations: getDashboardFilterRulesForTables(
-                    tables,
-                    dashboardFilters.tableCalculations,
-                ),
+                metrics: [],
+                tableCalculations: [],
             };
 
             // This override isn't used for anything at the moment since sql charts don't support filters, but it's here for future use
@@ -2071,30 +2086,17 @@ export class AsyncQueryService extends ProjectService {
                     appliedDashboardFilters,
                     virtualView,
                 ),
+            };
+        }
+        if (dashboardSorts) {
+            metricQuery = {
+                ...metricQuery,
                 sorts:
                     dashboardSorts && dashboardSorts.length > 0
                         ? dashboardSorts
                         : [],
             };
         }
-
-        // Create a referenceMap from vizColumns
-        const referenceMap: Record<
-            string,
-            { type: DimensionType; sql: string }
-        > = {};
-        vizColumns.forEach((col) => {
-            referenceMap[col.reference] = {
-                type: col.type,
-                sql: `${col.reference}`,
-            };
-        });
-
-        // Create a QueryBuilder with a CTE containing the SQL
-        const cte: { name: string; sql: string } = {
-            name: 'sql_query',
-            sql: sqlWithLimit,
-        };
 
         // Select all vizColumns
         const selectColumns = vizColumns.map((col) => col.reference);
@@ -2104,13 +2106,16 @@ export class AsyncQueryService extends ProjectService {
             {
                 referenceMap,
                 select: selectColumns,
-                from: cte.name,
-                ctes: [cte],
+                from: { name: 'sql_query', sql: sqlWithLimit },
+                filters: appliedDashboardFilters
+                    ? {
+                        id: uuidv4(),
+                        and: appliedDashboardFilters.dimensions,
+                    }
+                    : undefined,
             },
             {
-                fieldQuoteChar: getFieldQuoteChar(
-                    warehouseConnection.warehouseClient.credentials.type,
-                ),
+                fieldQuoteChar,
                 stringQuoteChar:
                     warehouseConnection.warehouseClient.getStringQuoteChar(),
                 escapeStringQuoteChar:
@@ -2215,6 +2220,7 @@ export class AsyncQueryService extends ProjectService {
         const {
             user,
             projectUuid,
+            tileUuid,
             context,
             invalidateCache,
             dashboardFilters,
@@ -2247,6 +2253,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid: savedChart.organization.organizationUuid,
             sql: savedChart.sql,
             config: savedChart.config,
+            tileUuid,
             dashboardFilters,
             dashboardSorts,
             limit,

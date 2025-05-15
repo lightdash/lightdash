@@ -88,20 +88,7 @@ export const isDashboardFieldTarget = (
     'fieldId' in target &&
     'tableName' in target;
 
-// Used for references in SQL chart
-export type DashboardReferenceTarget = {
-    reference: string;
-};
-
-export const isDashboardReferenceTarget = (
-    target: unknown,
-): target is DashboardReferenceTarget =>
-    target !== null && typeof target === 'object' && 'reference' in target;
-
-export type DashboardTileTarget =
-    | DashboardFieldTarget
-    | DashboardReferenceTarget
-    | false;
+export type DashboardTileTarget = DashboardFieldTarget | false;
 
 export type DashboardFilterRule<
     O = ConditionalOperator,
