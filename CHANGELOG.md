@@ -1,3 +1,10 @@
+## [0.1627.1](https://github.com/lightdash/lightdash/compare/0.1627.0...0.1627.1) (2025-05-15)
+
+
+### Bug Fixes
+
+* Cannot bulk move Spaces into top level Space ([#14810](https://github.com/lightdash/lightdash/issues/14810)) ([d57d7dd](https://github.com/lightdash/lightdash/commit/d57d7dd4587fdb379707e129caccaa91734cf862))
+
 # [0.1627.0](https://github.com/lightdash/lightdash/compare/0.1626.11...0.1627.0) (2025-05-15)
 
 
