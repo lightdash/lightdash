@@ -1787,6 +1787,67 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
+        const {
+            warehouseConnection,
+            queryTags,
+            metricQuery,
+            virtualView,
+            sql: sqlWithParams,
+        } = await this.prepareSqlChartAsyncQueryArgs({
+            user,
+            context,
+            projectUuid,
+            organizationUuid,
+            sql,
+            limit,
+        });
+
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
+            {
+                user,
+                projectUuid,
+                explore: virtualView,
+                queryTags,
+                metricQuery,
+                context,
+                fields: getItemMap(virtualView),
+                sql: sqlWithParams,
+            },
+            {
+                query: metricQuery,
+                invalidateCache,
+            },
+            warehouseConnection,
+            pivotConfiguration,
+        );
+
+        return {
+            queryUuid,
+            cacheMetadata,
+        };
+    }
+
+    private async prepareSqlChartAsyncQueryArgs({
+        user,
+        projectUuid,
+        organizationUuid,
+        sql,
+        config,
+        context,
+        dashboardFilters,
+        dashboardSorts,
+        limit,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        organizationUuid: string;
+        sql: string;
+        config?: SqlChart['config'];
+        context: QueryExecutionContext;
+        dashboardFilters?: ExecuteAsyncDashboardSqlChartArgs['dashboardFilters'];
+        dashboardSorts?: ExecuteAsyncDashboardSqlChartArgs['dashboardSorts'];
+        limit?: number;
+    }) {
         const warehouseConnection = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
@@ -1794,6 +1855,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
             user_uuid: user.userUuid,
             query_context: context,
         };
@@ -1840,121 +1902,17 @@ export class AsyncQueryService extends ProjectService {
             virtualView.tables[virtualView.baseTable].dimensions,
         ).map((d) => convertFieldRefToFieldId(d.name, virtualView.name));
 
-        const query: MetricQuery = {
-            exploreName: virtualView.name,
-            dimensions,
-            metrics: [],
-            filters: {},
-            tableCalculations: [],
-            sorts: [],
-            customDimensions: [],
-            additionalMetrics: [],
-            limit: limit ?? 500,
-        };
-
-        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
-            {
-                user,
-                projectUuid,
-                explore: virtualView,
-                queryTags,
-                metricQuery: query,
-                context,
-                fields: getItemMap(virtualView),
-                sql: sqlWithLimit,
-            },
-            {
-                query,
-                invalidateCache,
-            },
-            warehouseConnection,
-            pivotConfiguration,
-        );
-
-        return {
-            queryUuid,
-            cacheMetadata,
-        };
-    }
-
-    private async prepareSqlChartAsyncQueryArgs({
-        user,
-        sqlChart,
-        context,
-        limit,
-    }: {
-        user: SessionUser;
-        sqlChart: Pick<SqlChart, 'project' | 'organization' | 'sql' | 'config'>;
-        context: QueryExecutionContext;
-        limit?: number;
-    }) {
-        const warehouseConnection = await this._getWarehouseClient(
-            sqlChart.project.projectUuid,
-            await this.getWarehouseCredentials(
-                sqlChart.project.projectUuid,
-                user.userUuid,
-            ),
-        );
-
-        const queryTags: RunQueryTags = {
-            organization_uuid: sqlChart.organization.organizationUuid,
-            user_uuid: user.userUuid,
-            query_context: context,
-        };
-
-        // Get one row to get the column definitions
-        const columns: { name: string; type: DimensionType }[] = [];
-        await warehouseConnection.warehouseClient.streamQuery(
-            applyLimitToSqlQuery({ sqlQuery: sqlChart.sql, limit: 1 }),
-            (row) => {
-                if (row.fields) {
-                    Object.keys(row.fields).forEach((key) => {
-                        columns.push({
-                            name: key,
-                            type: row.fields[key].type,
-                        });
-                    });
-                }
-            },
-            {
-                tags: queryTags,
-            },
-        );
-
-        const sqlWithLimit = applyLimitToSqlQuery({
-            sqlQuery: sqlChart.sql,
-            limit,
-        });
-
-        // ! VizColumns, virtualView, dimensions and query are not needed for SQL queries since we pass just sql the to `executeAsyncQuery`
-        // ! We keep them here for backwards compatibility until we remove them as a required argument
-        const vizColumns = columns.map((col) => ({
-            reference: col.name,
-            type: col.type,
-        }));
-
-        const virtualView = createVirtualViewObject(
-            'virtual_view',
-            sqlWithLimit,
-            vizColumns,
-            warehouseConnection.warehouseClient,
-        );
-
-        const dimensions = Object.values(
-            virtualView.tables[virtualView.baseTable].dimensions,
-        ).map((d) => convertFieldRefToFieldId(d.name, virtualView.name));
-
         const pivotConfiguration =
-            !isVizTableConfig(sqlChart.config) && sqlChart.config.fieldConfig
+            config && !isVizTableConfig(config) && config.fieldConfig
                 ? {
-                      indexColumn: sqlChart.config.fieldConfig.x,
-                      valuesColumns: sqlChart.config.fieldConfig.y,
-                      groupByColumns: sqlChart.config.fieldConfig.groupBy,
-                      sortBy: sqlChart.config.fieldConfig.sortBy,
+                      indexColumn: config.fieldConfig.x,
+                      valuesColumns: config.fieldConfig.y,
+                      groupByColumns: config.fieldConfig.groupBy,
+                      sortBy: config.fieldConfig.sortBy,
                   }
                 : undefined;
 
-        const query: MetricQuery = {
+        let metricQuery: MetricQuery = {
             exploreName: virtualView.name,
             dimensions,
             metrics: [],
@@ -1966,13 +1924,46 @@ export class AsyncQueryService extends ProjectService {
             limit: limit ?? 500,
         };
 
+        let appliedDashboardFilters: DashboardFilters | undefined;
+        if (dashboardFilters) {
+            const tables = Object.keys(virtualView.tables);
+            appliedDashboardFilters = {
+                dimensions: getDashboardFilterRulesForTables(
+                    tables,
+                    dashboardFilters.dimensions,
+                ),
+                metrics: getDashboardFilterRulesForTables(
+                    tables,
+                    dashboardFilters.metrics,
+                ),
+                tableCalculations: getDashboardFilterRulesForTables(
+                    tables,
+                    dashboardFilters.tableCalculations,
+                ),
+            };
+
+            // This override isn't used for anything at the moment since sql charts don't support filters, but it's here for future use
+            metricQuery = {
+                ...addDashboardFiltersToMetricQuery(
+                    metricQuery,
+                    appliedDashboardFilters,
+                    virtualView,
+                ),
+                sorts:
+                    dashboardSorts && dashboardSorts.length > 0
+                        ? dashboardSorts
+                        : [],
+            };
+        }
+
         return {
-            query,
+            metricQuery,
             pivotConfiguration,
             virtualView,
             queryTags,
             warehouseConnection,
             sql: sqlWithLimit,
+            appliedDashboardFilters,
         };
     }
 
@@ -2004,14 +1995,17 @@ export class AsyncQueryService extends ProjectService {
         const {
             warehouseConnection,
             queryTags,
-            query,
+            metricQuery,
             virtualView,
             pivotConfiguration,
             sql,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
-            sqlChart,
+            projectUuid: sqlChart.project.projectUuid,
+            organizationUuid: sqlChart.organization.organizationUuid,
+            sql: sqlChart.sql,
+            config: sqlChart.config,
             limit,
         });
 
@@ -2021,13 +2015,13 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 explore: virtualView,
                 queryTags,
-                metricQuery: query,
+                metricQuery,
                 context,
                 fields: getItemMap(virtualView),
                 sql,
             },
             {
-                query,
+                query: metricQuery,
                 invalidateCache,
             },
             warehouseConnection,
@@ -2076,45 +2070,22 @@ export class AsyncQueryService extends ProjectService {
         const {
             warehouseConnection,
             queryTags,
-            query,
+            metricQuery,
             virtualView,
             pivotConfiguration,
             sql,
+            appliedDashboardFilters,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
-            sqlChart: savedChart,
+            projectUuid: savedChart.project.projectUuid,
+            organizationUuid: savedChart.organization.organizationUuid,
+            sql: savedChart.sql,
+            config: savedChart.config,
+            dashboardFilters,
+            dashboardSorts,
             limit,
         });
-
-        const tables = Object.keys(virtualView.tables);
-        const appliedDashboardFilters: DashboardFilters = {
-            dimensions: getDashboardFilterRulesForTables(
-                tables,
-                dashboardFilters.dimensions,
-            ),
-            metrics: getDashboardFilterRulesForTables(
-                tables,
-                dashboardFilters.metrics,
-            ),
-            tableCalculations: getDashboardFilterRulesForTables(
-                tables,
-                dashboardFilters.tableCalculations,
-            ),
-        };
-
-        // This override isn't used for anything at the moment since sql charts don't support filters, but it's here for future use
-        const metricQueryWithDashboardOverrides: MetricQuery = {
-            ...addDashboardFiltersToMetricQuery(
-                query,
-                appliedDashboardFilters,
-                virtualView,
-            ),
-            sorts:
-                dashboardSorts && dashboardSorts.length > 0
-                    ? dashboardSorts
-                    : [],
-        };
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -2122,13 +2093,13 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 explore: virtualView,
                 queryTags,
-                metricQuery: metricQueryWithDashboardOverrides,
+                metricQuery,
                 context,
                 fields: getItemMap(virtualView),
                 sql,
             },
             {
-                query,
+                query: metricQuery,
                 invalidateCache,
             },
             warehouseConnection,
@@ -2138,7 +2109,11 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata,
-            appliedDashboardFilters,
+            appliedDashboardFilters: appliedDashboardFilters || {
+                metrics: [],
+                dimensions: [],
+                tableCalculations: [],
+            },
         };
     }
 }
