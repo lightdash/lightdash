@@ -165,7 +165,7 @@ export class SqlRunnerResultsRunnerDashboard extends BaseResultsRunner {
                 savedSqlUuid,
                 limit,
                 dashboardFilters,
-                dashboardSorts,
+                dashboardSorts: dashboardSorts ?? [],
                 context: QueryExecutionContext.DASHBOARD,
             }),
         });
