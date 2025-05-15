@@ -499,6 +499,8 @@ const InfiniteResourceTable = ({
             },
         },
         mantineTableBodyRowProps: ({ row }) => {
+            const isTableSelectionActive =
+                table.getIsSomeRowsSelected() || table.getIsAllRowsSelected();
             const isSelected = row.getIsSelected();
 
             return {
@@ -525,15 +527,13 @@ const InfiniteResourceTable = ({
                 },
 
                 onClick: () => {
-                    if (
-                        table.getIsSomeRowsSelected() ||
-                        table.getIsAllRowsSelected()
-                    ) {
-                        return null;
+                    if (isTableSelectionActive) {
+                        row.toggleSelected();
+                    } else {
+                        void navigate(
+                            getResourceUrl(filters.projectUuid, row.original),
+                        );
                     }
-                    void navigate(
-                        getResourceUrl(filters.projectUuid, row.original),
-                    );
                 },
             };
         },
