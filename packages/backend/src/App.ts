@@ -276,7 +276,7 @@ export default class App {
 
         await this.serviceRepository
             .getOrganizationService()
-            .initializeProject();
+            .initializeInstance();
     }
 
     private async initExpress(expressApp: Express) {
