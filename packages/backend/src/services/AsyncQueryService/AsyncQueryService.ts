@@ -91,7 +91,7 @@ import {
     getNextAndPreviousPage,
     validatePagination,
 } from '../ProjectService/resultsPagination';
-import { getResultsColumns } from './getResultsColumns';
+import { getPivotedColumns } from './getPivotedColumns';
 import {
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
@@ -589,12 +589,7 @@ export class AsyncQueryService extends ProjectService {
 
         const returnObject = {
             rows,
-            columns: getResultsColumns(
-                columns,
-                pivotConfiguration,
-                pivotValuesColumns,
-                rows,
-            ),
+            columns,
             totalPageCount: pageCount,
             totalResults: cacheTotalRowCount,
             queryUuid: queryHistory.queryUuid,
@@ -782,15 +777,30 @@ export class AsyncQueryService extends ProjectService {
         // Total column count includes the unlimited number of columns that can be pivoted, so we can show a warning in the frontend
         let pivotTotalColumnCount: undefined | number;
         let pivotTotalRows = 0;
-        let columns: ResultColumns = {};
+        let unpivotedColumns: ResultColumns = {};
 
         const writeAndTransformRowsIfPivot = pivotConfiguration
-            ? (rows: WarehouseResults['rows']) => {
+            ? (
+                  rows: WarehouseResults['rows'],
+                  fields: WarehouseResults['fields'],
+              ) => {
                   if ('total_columns' in rows[0]) {
                       const numberTotalColumns = Number(rows[0].total_columns);
                       pivotTotalColumnCount = Number.isNaN(numberTotalColumns)
                           ? undefined
                           : numberTotalColumns;
+                  }
+
+                  if (!Object.keys(unpivotedColumns).length) {
+                      unpivotedColumns = Object.entries(
+                          fields,
+                      ).reduce<ResultColumns>((acc, [key, value]) => {
+                          acc[key] = {
+                              reference: key,
+                              type: value.type,
+                          };
+                          return acc;
+                      }, {});
                   }
 
                   const { indexColumn, valuesColumns, groupByColumns } =
@@ -848,17 +858,16 @@ export class AsyncQueryService extends ProjectService {
                   fields: WarehouseResults['fields'],
               ) => {
                   // Capture columns from the first batch if available
-                  if (!Object.keys(columns).length && fields) {
-                      columns = Object.entries(fields).reduce<ResultColumns>(
-                          (acc, [key, value]) => {
-                              acc[key] = {
-                                  reference: key,
-                                  type: value.type,
-                              };
-                              return acc;
-                          },
-                          {},
-                      );
+                  if (!Object.keys(unpivotedColumns).length && fields) {
+                      unpivotedColumns = Object.entries(
+                          fields,
+                      ).reduce<ResultColumns>((acc, [key, value]) => {
+                          acc[key] = {
+                              reference: key,
+                              type: value.type,
+                          };
+                          return acc;
+                      }, {});
                   }
                   resultsCache.write(rows);
               };
@@ -870,6 +879,14 @@ export class AsyncQueryService extends ProjectService {
             },
             writeAndTransformRowsIfPivot,
         );
+
+        const columns = pivotConfiguration
+            ? getPivotedColumns(
+                  unpivotedColumns,
+                  pivotConfiguration,
+                  Array.from(valuesColumnData.keys()),
+              )
+            : unpivotedColumns;
 
         // Write the last row
         if (currentTransformedRow) {
