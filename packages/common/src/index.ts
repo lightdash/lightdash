@@ -885,7 +885,8 @@ type ApiResults =
     | ApiExecuteAsyncMetricQueryResults
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
-    | ApiUserActivityDownloadCsv['results'];
+    | ApiUserActivityDownloadCsv['results']
+    | ApiDownloadAsyncQueryResults;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

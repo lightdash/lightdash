@@ -1,31 +1,12 @@
 import {
-    isApiSqlRunnerJobSuccessResponse,
-    isErrorDetails,
     type ApiError,
-    type ApiJobScheduledResponse,
     type RawResultRow,
     type SqlRunnerBody,
     type VizColumn,
 } from '@lightdash/common';
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
-import { getSqlRunnerCompleteJob } from './requestUtils';
+import { executeSqlQuery } from '../store/thunks';
 import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
-
-export const scheduleSqlJob = async ({
-    projectUuid,
-    sql,
-    limit,
-}: {
-    projectUuid: string;
-    sql: SqlRunnerBody['sql'];
-    limit: SqlRunnerBody['limit'];
-}) =>
-    lightdashApi<ApiJobScheduledResponse['results']>({
-        url: `/projects/${projectUuid}/sqlRunner/run`,
-        method: 'POST',
-        body: JSON.stringify({ sql, limit }),
-    });
 
 export type ResultsAndColumns = {
     fileUrl: string | undefined;
@@ -57,32 +38,14 @@ export const useSqlQueryRun = (
         UseSqlQueryRunParams
     >(
         async ({ sql, limit }) => {
-            const scheduledJob = await scheduleSqlJob({
-                projectUuid,
-                sql,
-                limit,
-            });
+            const query = await executeSqlQuery(projectUuid, sql, limit);
+            const results = await getResultsFromStream(query.fileUrl);
 
-            const job = await getSqlRunnerCompleteJob(scheduledJob.jobId);
-            if (isApiSqlRunnerJobSuccessResponse(job)) {
-                const url =
-                    job.details && !isErrorDetails(job.details)
-                        ? job.details.fileUrl
-                        : undefined;
-
-                const results = await getResultsFromStream(url);
-
-                return {
-                    fileUrl: url,
-                    results,
-                    columns:
-                        job.details && !isErrorDetails(job.details)
-                            ? job.details.columns
-                            : [],
-                };
-            } else {
-                throw job;
-            }
+            return {
+                fileUrl: query.fileUrl,
+                results,
+                columns: query.columns,
+            };
         },
         {
             mutationKey: ['sqlRunner', 'run'],
