@@ -1,46 +1,26 @@
-import { type SlackAppCustomSettings } from '@lightdash/common';
 import {
-    ActionIcon,
+    Avatar,
     Box,
     Button,
     Group,
+    Paper,
     Stack,
+    Table,
     Text,
     Title,
-    Tooltip,
-} from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
-import { IconPlus, IconRefresh } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, type FC } from 'react';
-import { z } from 'zod';
+} from '@mantine-8/core';
+import { IconHelpHexagon, IconPlus } from '@tabler/icons-react';
+import { useCallback, useMemo, type FC } from 'react';
+import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import {
     useGetSlack,
     useSlackChannels,
-    useUpdateSlackAppCustomSettingsMutation,
 } from '../../../../hooks/slack/useSlack';
 import { useProjects } from '../../../../hooks/useProjects';
-import ChannelProjectMappings from './ChannelProjectMappings';
-
-const formSchema = z.object({
-    notificationChannel: z.string().min(1).nullable(),
-    appProfilePhotoUrl: z.string().url().nullable(),
-    slackChannelProjectMappings: z.array(
-        z.object({
-            projectUuid: z
-                .string({ message: 'You must select a project' })
-                .uuid({ message: 'Invalid project' }),
-            slackChannelId: z
-                .string({
-                    message: 'You must select a Slack channel',
-                })
-                .min(1),
-            availableTags: z.array(z.string().min(1)).nullable(),
-        }),
-    ),
-});
 
 export const AiAgents: FC = () => {
+    const navigate = useNavigate();
     const { data: slackInstallation } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
 
@@ -48,81 +28,52 @@ export const AiAgents: FC = () => {
         enabled: organizationHasSlack,
     });
 
-    const { mutateAsync: updateCustomSettings, isLoading: isSubmitting } =
-        useUpdateSlackAppCustomSettingsMutation();
-
-    const form = useForm<SlackAppCustomSettings>({
-        initialValues: {
-            notificationChannel: null,
-            appProfilePhotoUrl: null,
-            slackChannelProjectMappings: [],
-        },
-        validate: zodResolver(formSchema),
-    });
-
-    useEffect(() => {
-        if (!slackInstallation) return;
-
-        const initialValues = {
-            notificationChannel: slackInstallation.notificationChannel ?? null,
-            appProfilePhotoUrl: slackInstallation.appProfilePhotoUrl ?? null,
-            slackChannelProjectMappings:
-                slackInstallation.slackChannelProjectMappings ?? [],
-        };
-
-        if (form.initialized) {
-            form.setInitialValues(initialValues);
-            form.setValues(initialValues);
-        } else {
-            form.initialize(initialValues);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [slackInstallation]);
-
-    const slackChannelOptions = useMemo(() => {
-        return (
-            slackChannels?.map((channel) => ({
-                value: channel.id,
-                label: channel.name,
-            })) ?? []
-        );
-    }, [slackChannels]);
-
     const { data: projects } = useProjects();
 
-    const projectOptions = useMemo(() => {
-        return (
-            projects?.map((project) => ({
-                value: project.projectUuid,
-                label: project.name,
-            })) ?? []
-        );
-    }, [projects]);
-
-    const { refresh: refreshChannels, isLoading: isRefreshing } =
-        useSlackChannels('');
-
-    const handleSubmit = form.onSubmit(async (args) => {
-        if (organizationHasSlack) {
-            await updateCustomSettings(args);
+    const agentList = useMemo(() => {
+        if (!slackInstallation?.slackChannelProjectMappings?.length) {
+            return undefined;
         }
-    });
-    const handleAdd = useCallback(
-        () =>
-            form.insertListItem('slackChannelProjectMappings', {
-                projectUuid: null,
-                slackChannelId: null,
-                availableTags: null,
-            }),
-        [form],
+
+        // Map agents from project mappings
+        // TODO: Use different hook for agents after API is done
+        return slackInstallation.slackChannelProjectMappings.map((mapping) => {
+            const project = projects?.find(
+                (p) => p.projectUuid === mapping.projectUuid,
+            );
+            const channel = slackChannels?.find(
+                (c) => c.id === mapping.slackChannelId,
+            );
+
+            return {
+                name: `Agent`,
+                projectName: project?.name,
+                channelName: channel?.name,
+            };
+        });
+    }, [
+        slackInstallation?.slackChannelProjectMappings,
+        projects,
+        slackChannels,
+    ]);
+
+    const handleAgentClick = useCallback(
+        (index: number) => {
+            void navigate(`/generalSettings/aiAgents/${index + 1}`);
+        },
+        [navigate],
     );
+
+    const handleAddClick = useCallback(() => {
+        void navigate('/generalSettings/aiAgents/new');
+    }, [navigate]);
 
     if (!organizationHasSlack) {
         return (
-            <Stack spacing="md">
+            <Stack gap="md">
                 <Box>
                     <Title order={5}>AI Agent Configuration</Title>
-                    <Text size="sm" color="dimmed">
+                    <Text size="sm" c="dimmed">
                         You need to connect Slack first in the Integrations
                         settings before you can configure AI agents.
                     </Text>
@@ -132,72 +83,69 @@ export const AiAgents: FC = () => {
     }
 
     return (
-        <form onSubmit={handleSubmit}>
-            <Stack>
-                <Stack spacing="xs">
-                    <Group position="apart">
-                        <Group spacing="xs">
-                            <Title order={5}>
-                                Slack Channel Project Mappings
-                            </Title>
-
-                            <Tooltip
-                                variant="xs"
-                                multiline
-                                maw={250}
-                                label={
-                                    <Text fw={500}>
-                                        Refresh Slack channel list.
-                                        <Text c="gray.4" fw={400}>
-                                            To see private channels, ensure the
-                                            bot has been invited to them.
-                                            Archived channels are not included.
+        <Stack gap="sm">
+            <Group justify="flex-end">
+                <Button
+                    variant="default"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    size="xs"
+                    onClick={handleAddClick}
+                >
+                    Add
+                </Button>
+            </Group>
+            {!agentList ? (
+                <Paper withBorder p="md" radius="md" bg="gray.0">
+                    <Stack gap="xs" align="center">
+                        <Paper withBorder p="xs" radius="md">
+                            <MantineIcon icon={IconHelpHexagon} />
+                        </Paper>
+                        <Text size="sm" c="dimmed" ta="center">
+                            No agents found. Get started by adding an agent.
+                        </Text>
+                    </Stack>
+                </Paper>
+            ) : (
+                <Table highlightOnHover withTableBorder>
+                    <Table.Thead>
+                        <Table.Tr>
+                            <Table.Th>Name</Table.Th>
+                            <Table.Th>Description</Table.Th>
+                        </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                        {agentList.map((agent, index) => (
+                            <Table.Tr
+                                key={index}
+                                onClick={() => handleAgentClick(index)}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                <Table.Td>
+                                    <Group gap="sm">
+                                        <Avatar
+                                            size={30}
+                                            radius="sm"
+                                            color="blue.6"
+                                        >
+                                            {index + 1}
+                                        </Avatar>
+                                        <Text fw={500}>{agent.name}</Text>
+                                    </Group>
+                                </Table.Td>
+                                <Table.Td>
+                                    {agent.projectName && agent.channelName && (
+                                        <Text size="xs" c="dimmed">
+                                            Answers questions about{' '}
+                                            <b>{agent.projectName}</b> data in{' '}
+                                            <b>{agent.channelName}</b>
                                         </Text>
-                                    </Text>
-                                }
-                            >
-                                <ActionIcon
-                                    loading={isRefreshing}
-                                    onClick={refreshChannels}
-                                >
-                                    <MantineIcon icon={IconRefresh} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Group>
-                        <Box align="end">
-                            <Button
-                                variant="default"
-                                disabled={!form.isValid()}
-                                onClick={handleAdd}
-                                leftIcon={<MantineIcon icon={IconPlus} />}
-                                size="xs"
-                            >
-                                Add
-                            </Button>
-                        </Box>
-                    </Group>
-                    <Text size="xs" color="dimmed">
-                        Map which project is associated with which Slack
-                        channel. When a user asks a question in a channel,
-                        Lightdash will look for the answer in the associated
-                        project.
-                    </Text>
-                </Stack>
-
-                <ChannelProjectMappings
-                    form={form}
-                    channelOptions={slackChannelOptions}
-                    projectOptions={projectOptions}
-                />
-
-                {form.isDirty() && (
-                    <Box align="end">
-                        <Button type="submit" loading={isSubmitting}>
-                            Save changes
-                        </Button>
-                    </Box>
-                )}
-            </Stack>
-        </form>
+                                    )}
+                                </Table.Td>
+                            </Table.Tr>
+                        ))}
+                    </Table.Tbody>
+                </Table>
+            )}
+        </Stack>
     );
 };
