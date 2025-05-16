@@ -11,10 +11,7 @@ export type BaseAiAgent = {
     description: string;
     imageUrl: string;
 
-    dataSources: {
-        // null means all tags are available
-        fieldNameTags: string[] | null; // slack_project_mappings.available_tags
-    };
+    tags: string[] | null;
 
     integrations: {
         type: AiAgentIntegrationType;
@@ -22,7 +19,6 @@ export type BaseAiAgent = {
     }[];
 
     createdAt: string;
-    updatedAt: string;
 
     instructions: string | null;
     provider: 'openai';
@@ -31,12 +27,12 @@ export type BaseAiAgent = {
 
 export type AiAgent = Pick<
     BaseAiAgent,
-    'uuid' | 'projectUuid' | 'organizationUuid' | 'integrations' | 'dataSources'
+    'uuid' | 'projectUuid' | 'organizationUuid' | 'integrations' | 'tags'
 >;
 
 export type AiAgentSummary = Pick<
     AiAgent,
-    'uuid' | 'projectUuid' | 'organizationUuid' | 'integrations' | 'dataSources'
+    'uuid' | 'projectUuid' | 'organizationUuid' | 'integrations' | 'tags'
 >;
 
 export type AiAgentMessage =
@@ -93,12 +89,12 @@ export type ApiAiAgentSummaryResponse = {
 
 export type ApiCreateAiAgent = Pick<
     AiAgent,
-    'projectUuid' | 'integrations' | 'dataSources'
+    'projectUuid' | 'integrations' | 'tags'
 >;
 
 export type ApiUpdateAiAgent = {
     uuid: AiAgent['uuid'];
-    dataSources?: AiAgent['dataSources'];
+    tags?: AiAgent['tags'];
     integrations?: AiAgent['integrations'];
 };
 
