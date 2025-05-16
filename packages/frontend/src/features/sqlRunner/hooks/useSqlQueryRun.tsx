@@ -5,7 +5,7 @@ import {
     type VizColumn,
 } from '@lightdash/common';
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
-import { executeSqlQuery } from '../store/thunks';
+import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 
 export type ResultsAndColumns = {

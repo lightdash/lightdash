@@ -15412,6 +15412,12 @@
                 ],
                 "type": "object"
             },
+            "SortBy": {
+                "items": {
+                    "$ref": "#/components/schemas/VizSortBy"
+                },
+                "type": "array"
+            },
             "ReadyQueryResultsPage": {
                 "allOf": [
                     {
@@ -15424,11 +15430,23 @@
                                     "unpivotedColumns": {
                                         "$ref": "#/components/schemas/ResultColumns"
                                     },
+                                    "sortBy": {
+                                        "$ref": "#/components/schemas/SortBy"
+                                    },
+                                    "groupByColumns": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/GroupByColumn"
+                                        },
+                                        "type": "array"
+                                    },
                                     "valuesColumns": {
                                         "items": {
                                             "$ref": "#/components/schemas/PivotValuesColumn"
                                         },
                                         "type": "array"
+                                    },
+                                    "indexColumn": {
+                                        "$ref": "#/components/schemas/PivotIndexColum"
                                     },
                                     "totalColumnCount": {
                                         "type": "number",
@@ -15439,6 +15457,7 @@
                                 "required": [
                                     "unpivotedColumns",
                                     "valuesColumns",
+                                    "indexColumn",
                                     "totalColumnCount"
                                 ],
                                 "type": "object",
@@ -15894,12 +15913,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "SortBy": {
-                "items": {
-                    "$ref": "#/components/schemas/VizSortBy"
-                },
-                "type": "array"
             },
             "ExecuteAsyncSqlQueryRequestParams": {
                 "allOf": [

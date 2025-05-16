@@ -14563,6 +14563,15 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SortBy: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'array',
+            array: { dataType: 'refAlias', ref: 'VizSortBy' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ReadyQueryResultsPage: {
         dataType: 'refAlias',
         type: {
@@ -14582,12 +14591,38 @@ const models: TsoaRoute.Models = {
                                             ref: 'ResultColumns',
                                             required: true,
                                         },
+                                        sortBy: {
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                { ref: 'SortBy' },
+                                                { dataType: 'undefined' },
+                                            ],
+                                            required: true,
+                                        },
+                                        groupByColumns: {
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                {
+                                                    dataType: 'array',
+                                                    array: {
+                                                        dataType: 'refAlias',
+                                                        ref: 'GroupByColumn',
+                                                    },
+                                                },
+                                                { dataType: 'undefined' },
+                                            ],
+                                            required: true,
+                                        },
                                         valuesColumns: {
                                             dataType: 'array',
                                             array: {
                                                 dataType: 'refAlias',
                                                 ref: 'PivotValuesColumn',
                                             },
+                                            required: true,
+                                        },
+                                        indexColumn: {
+                                            ref: 'PivotIndexColum',
                                             required: true,
                                         },
                                         totalColumnCount: {
@@ -15061,15 +15096,6 @@ const models: TsoaRoute.Models = {
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SortBy: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'array',
-            array: { dataType: 'refAlias', ref: 'VizSortBy' },
             validators: {},
         },
     },

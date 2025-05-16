@@ -161,6 +161,8 @@ import {
     type ApiSqlChart,
     type ApiSqlRunnerJobStatusResponse,
     type ApiUpdateSqlChart,
+    type GroupByColumn,
+    type SortBy,
 } from './types/sqlRunner';
 import { TimeFrames } from './types/timeFrames';
 import { type ApiWarehouseTableFields } from './types/warehouse';
@@ -169,7 +171,10 @@ import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 import { getOrganizationNameSchema } from './utils/organization';
-import type { PivotValuesColumn } from './visualizations/types';
+import type {
+    PivotIndexColum,
+    PivotValuesColumn,
+} from './visualizations/types';
 
 dayjs.extend(utc);
 export * from './authorization/index';
@@ -562,7 +567,10 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     pivotDetails: {
         // Unlimited total column count, this is used to display a warning to the user in the frontend when the number of columns is over MAX_PIVOT_COLUMN_LIMIT
         totalColumnCount: number | null;
+        indexColumn: PivotIndexColum;
         valuesColumns: PivotValuesColumn[];
+        groupByColumns: GroupByColumn[] | undefined;
+        sortBy: SortBy | undefined;
         unpivotedColumns: ResultColumns;
     } | null;
 };

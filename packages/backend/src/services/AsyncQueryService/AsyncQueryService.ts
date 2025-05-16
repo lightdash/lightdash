@@ -620,6 +620,9 @@ export class AsyncQueryService extends ProjectService {
             pivotDetails: {
                 totalColumnCount: pivotTotalColumnCount,
                 valuesColumns: pivotValuesColumns,
+                indexColumn: pivotConfiguration.indexColumn,
+                groupByColumns: pivotConfiguration.groupByColumns,
+                sortBy: pivotConfiguration.sortBy,
                 unpivotedColumns,
             },
         };
