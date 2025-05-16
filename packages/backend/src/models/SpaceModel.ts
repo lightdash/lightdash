@@ -1762,6 +1762,12 @@ export class SpaceModel {
             );
         }
 
+        if (path && path.includes('.') && !spaceData.parentSpaceUuid) {
+            throw new Error(
+                'parentSpaceUuid is required when nested space is created',
+            );
+        }
+
         const [space] = await trx(SpaceTableName)
             .insert({
                 project_id: project.project_id,
@@ -1968,7 +1974,7 @@ export class SpaceModel {
 
             if (!root) {
                 throw new NotFoundError(
-                    `Root space for space for ${spaceUuid} not found`,
+                    `Root space for space "${spaceUuid}" not found`,
                 );
             }
 
