@@ -1406,6 +1406,24 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
+            // This check is necessary to ensure that nested spaces always have a parent space
+            const invalidSpaces = await trx('spaces')
+                .select('space_uuid')
+                .whereIn('project_id', [
+                    project.project_id,
+                    previewProject.project_id,
+                ])
+                .andWhereRaw('nlevel(path) > 1')
+                .andWhere('parent_space_uuid', null);
+
+            if (invalidSpaces.length > 0) {
+                throw new Error(
+                    `Parent space not found for nested spaces: ${invalidSpaces
+                        .map((space) => space.space_uuid)
+                        .join(', ')}`,
+                );
+            }
+
             // fix parent_space_uuid based on path for the spaces
             await trx.raw(
                 `
