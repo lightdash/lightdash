@@ -14578,10 +14578,6 @@ const models: TsoaRoute.Models = {
                                 {
                                     dataType: 'nestedObjectLiteral',
                                     nestedProperties: {
-                                        unpivotedColumns: {
-                                            ref: 'ResultColumns',
-                                            required: true,
-                                        },
                                         valuesColumns: {
                                             dataType: 'array',
                                             array: {

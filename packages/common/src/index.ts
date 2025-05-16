@@ -563,7 +563,6 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
         // Unlimited total column count, this is used to display a warning to the user in the frontend when the number of columns is over MAX_PIVOT_COLUMN_LIMIT
         totalColumnCount: number | null;
         valuesColumns: PivotValuesColumn[];
-        unpivotedColumns: ResultColumns;
     } | null;
 };
 
