@@ -591,6 +591,7 @@ export type ApiChartAndResults = {
     cacheMetadata: CacheMetadata;
     rows: ResultRow[];
     fields: ItemsMap;
+    queryUuid: string;
 };
 
 export type ApiSqlQueryResults = {
