@@ -346,8 +346,10 @@ export class ProjectModel {
     }
 
     async hasAnyProjects(): Promise<boolean> {
-        const projects = await this.database('projects').select('project_uuid');
-        return projects.length > 0;
+        const results = await this.database('projects')
+            .count('project_uuid as count')
+            .first<{ count: string }>();
+        return parseInt(results.count, 10) > 0;
     }
 
     async hasProjects(organizationUuid: string): Promise<boolean> {

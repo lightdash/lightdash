@@ -779,7 +779,7 @@ export class OrganizationService extends BaseService {
         return palette;
     }
 
-    async initializeProject() {
+    async initializeInstance() {
         // No permissions check here, there are no users yet
         // No initial setup, we skip this step
         if (!this.lightdashConfig.initialSetup) return;
@@ -800,7 +800,7 @@ export class OrganizationService extends BaseService {
             if (hasAnyProjects) {
                 // This should not happen, since we can't have projects without orgs
                 throw new UnexpectedServerError(
-                    `Initial setup: There is already a project, we skip this initial setup`,
+                    `Initial setup: cannot initialize instance, there are already defined projects. Exiting`,
                 );
             }
 
@@ -819,7 +819,67 @@ export class OrganizationService extends BaseService {
                 `Initial setup: Organization "${organizationUuid}" created`,
             );
 
+            this.logger.debug(
+                `Initial setup: Creating admin user with email "${setup.organization.admin.email}"`,
+            );
+
+            // We need `AUTH_ENABLE_OIDC_TO_EMAIL_LINKING=true`
+            // So the user can login using SSO for the pending user
+            const { email, name: adminName } = setup.organization.admin;
+            const user = await this.userModel.createPendingUser(
+                organizationUuid,
+                {
+                    firstName: adminName.split(' ')[0],
+                    lastName: adminName.split(' ').slice(1).join(' '),
+                    email,
+                    role: OrganizationMemberRole.ADMIN,
+                    password: undefined,
+                },
+            );
+            // whatever email they use here will be trusted. And any user with an OIDC account with that email will access the admin user.
+            await this.emailModel.verifyUserEmailIfExists(user.userUuid, email);
+
+            this.logger.info(`Initial setup: User ${user.userUuid} created`);
+
+            this.logger.debug(
+                `Initial setup: Creating project "${setup.project.name}"`,
+            );
+            const project: CreateProject = {
+                name: setup.project.name,
+                type: ProjectType.DEFAULT,
+                warehouseConnection: setup.project,
+                copyWarehouseConnectionFromUpstreamProject: undefined,
+                dbtConnection: setup.dbt,
+                upstreamProjectUuid: undefined,
+                dbtVersion: DbtVersionOptionLatest.LATEST,
+            };
+
+            const projectUuid = await this.projectModel.create(
+                user.userUuid,
+                organizationUuid,
+                project,
+            );
+            this.logger.info(`Initial setup: Project ${projectUuid} created`);
+
+            this.logger.info(`Initial setup: Compiling project ${projectUuid}`);
+
+            const sessionUser =
+                await this.userModel.findSessionUserAndOrgByUuid(
+                    user.userUuid,
+                    organizationUuid,
+                );
+            await this.projectService.scheduleCompileProject(
+                sessionUser,
+                projectUuid,
+                RequestMethod.BACKEND,
+                true, // Skip permission check
+            );
+
+            // Optional steps are performed at the end
             if (setup.organization.emailDomain) {
+                this.logger.debug(
+                    `Initial setup: Whitelisting domain "${setup.organization.emailDomain}"`,
+                );
                 const emailDomains = [setup.organization.emailDomain];
                 // Validates input
                 const error = validateOrganizationEmailDomains(emailDomains);
@@ -845,86 +905,21 @@ export class OrganizationService extends BaseService {
                 );
             }
 
-            this.logger.debug(
-                `Initial setup: Creating admin user with email "${setup.organization.admin.email}"`,
-            );
-
-            // We need `AUTH_ENABLE_OIDC_TO_EMAIL_LINKING=true`
-            // So the user can login using SSO for the pending user
-            const { email, name: adminName } = setup.organization.admin;
-            const user = await this.userModel.createPendingUser(
-                organizationUuid,
-                {
-                    firstName: adminName.split(' ')[0],
-                    lastName: adminName.split(' ').slice(1).join(' '),
-                    email,
-                    role: OrganizationMemberRole.ADMIN,
-                    password: undefined,
-                },
-            );
-            await this.emailModel.verifyUserEmailIfExists(user.userUuid, email);
-
-            this.logger.info(`Initial setup: User ${user.userUuid} created`);
-
-            this.logger.debug(
-                `Initial setup: Creating project "${setup.project.name}"`,
-            );
-            const project: CreateProject = {
-                name: setup.project.name,
-                type: ProjectType.DEFAULT,
-                warehouseConnection: setup.project,
-                copyWarehouseConnectionFromUpstreamProject: undefined,
-                dbtConnection: setup.dbt,
-                upstreamProjectUuid: undefined,
-                dbtVersion: DbtVersionOptionLatest.LATEST,
-            };
-
-            const projectUuid = await this.projectModel.create(
-                user.userUuid,
-                organizationUuid,
-                project,
-            );
-            this.logger.info(`Initial setup: Project ${projectUuid} created`);
-
             if (setup.apiKey) {
                 this.logger.debug(`Initial setup: creating API key`);
-                // TODO validate api token input ?
-                const sessionUser =
-                    await this.userModel.findSessionUserAndOrgByUuid(
-                        user.userUuid,
-                        organizationUuid,
-                    );
-                const result = await this.personalAccessTokenModel.save(
-                    sessionUser,
-                    {
-                        expiresAt: new Date(
-                            Date.now() + 1000 * 60 * 60 * 24 * 30,
-                        ), // 30 days
-                        description: 'Initial setup API token',
-                        autoGenerated: false,
-                        token: setup.apiKey,
-                    },
-                );
+
+                await this.personalAccessTokenModel.save(sessionUser, {
+                    expiresAt: setup.apiKey.expirationTime,
+                    description: 'Initial setup API token',
+                    autoGenerated: false,
+                    token: setup.apiKey.token,
+                });
                 this.logger.info(`Initial setup: API key created`);
             } else {
                 this.logger.info(
                     `Initial setup: No API key provided, skipping`,
                 );
             }
-
-            this.logger.info(`Initial setup: Compiling project ${projectUuid}`);
-
-            const sessionUser =
-                await this.userModel.findSessionUserAndOrgByUuid(
-                    user.userUuid,
-                    organizationUuid,
-                );
-            await this.projectService.scheduleCompileProject(
-                sessionUser,
-                projectUuid,
-                RequestMethod.UNKNOWN,
-                true, // Skip permission check
-            );
         } catch (error) {
             this.logger.error(
                 `Initial setup: Error initializing project: ${error}`,

@@ -6,6 +6,7 @@ export enum RequestMethod {
     WEB_APP = 'WEB_APP',
     HEADLESS_BROWSER = 'HEADLESS_BROWSER',
     UNKNOWN = 'UNKNOWN',
+    BACKEND = 'BACKEND',
 }
 
 export const isRequestMethod = (
