@@ -1,6 +1,8 @@
 import { LightdashInstallType } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { PersonalAccessTokenModel } from '../../models/DashboardModel/PersonalAccessTokenModel';
+import { EmailModel } from '../../models/EmailModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -9,6 +11,7 @@ import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberP
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
+import { ProjectService } from '../ProjectService/ProjectService';
 import { OrganizationService } from './OrganizationService';
 import { organization, user } from './OrganizationService.mock';
 
@@ -32,6 +35,9 @@ describe('organization service', () => {
         organizationAllowedEmailDomainsModel:
             {} as OrganizationAllowedEmailDomainsModel,
         groupsModel: {} as GroupsModel,
+        personalAccessTokenModel: {} as PersonalAccessTokenModel,
+        emailModel: {} as EmailModel,
+        projectService: {} as ProjectService,
     });
 
     afterEach(() => {

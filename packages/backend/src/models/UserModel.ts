@@ -214,6 +214,7 @@ export class UserModel {
         trx: Transaction,
         createUser: (Omit<CreateUserWithRole, 'role'> | OpenIdUser) & {
             isActive: boolean;
+            isVerified?: boolean;
         },
     ) {
         const userIn: DbUserIn = isOpenIdUser(createUser)
@@ -578,7 +579,6 @@ export class UserModel {
         if (!org) {
             throw new NotExistsError('Cannot find organization');
         }
-
         const email = isOpenIdUser(createUser)
             ? createUser.openId.email
             : createUser.email;

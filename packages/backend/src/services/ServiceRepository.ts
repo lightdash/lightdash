@@ -405,6 +405,10 @@ export class ServiceRepository
                     organizationAllowedEmailDomainsModel:
                         this.models.getOrganizationAllowedEmailDomainsModel(),
                     groupsModel: this.models.getGroupsModel(),
+                    personalAccessTokenModel:
+                        this.models.getPersonalAccessTokenModel(),
+                    emailModel: this.models.getEmailModel(),
+                    projectService: this.getProjectService(),
                 }),
         );
     }
