@@ -47,6 +47,7 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import RouterNavLink from '../components/common/RouterNavLink';
 import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
+import { AgentDetails } from '../ee/features/aiCopilot/components/AgentDetails';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
@@ -320,6 +321,10 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/aiAgents',
                 element: <AiAgentsPanel />,
+            });
+            allowedRoutes.push({
+                path: '/aiAgents/:agentId',
+                element: <AgentDetails />,
             });
         }
 
