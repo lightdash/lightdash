@@ -5075,6 +5075,424 @@
             "ItemsMap": {
                 "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
+            "Pick_AiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-dataSources_": {
+                "properties": {
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "integrations": {
+                        "items": {
+                            "properties": {
+                                "channelId": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": ["slack"],
+                                    "nullable": false
+                                }
+                            },
+                            "required": ["channelId", "type"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "dataSources": {
+                        "properties": {
+                            "fieldNameTags": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["fieldNameTags"],
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "projectUuid",
+                    "uuid",
+                    "organizationUuid",
+                    "integrations",
+                    "dataSources"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiAgentSummary": {
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-dataSources_"
+            },
+            "ApiAiAgentSummaryResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-dataSources_": {
+                "properties": {
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "integrations": {
+                        "items": {
+                            "properties": {
+                                "channelId": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": ["slack"],
+                                    "nullable": false
+                                }
+                            },
+                            "required": ["channelId", "type"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "dataSources": {
+                        "properties": {
+                            "fieldNameTags": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["fieldNameTags"],
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "projectUuid",
+                    "uuid",
+                    "organizationUuid",
+                    "integrations",
+                    "dataSources"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiAgent": {
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-dataSources_"
+            },
+            "ApiAiAgentResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgent"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCreateAiAgentResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgent"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_AiAgent.projectUuid-or-integrations-or-dataSources_": {
+                "properties": {
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "integrations": {
+                        "items": {
+                            "properties": {
+                                "channelId": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": ["slack"],
+                                    "nullable": false
+                                }
+                            },
+                            "required": ["channelId", "type"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "dataSources": {
+                        "properties": {
+                            "fieldNameTags": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["fieldNameTags"],
+                        "type": "object"
+                    }
+                },
+                "required": ["projectUuid", "integrations", "dataSources"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ApiCreateAiAgent": {
+                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-dataSources_"
+            },
+            "ApiUpdateAiAgent": {
+                "properties": {
+                    "integrations": {
+                        "items": {
+                            "properties": {
+                                "channelId": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": ["slack"],
+                                    "nullable": false
+                                }
+                            },
+                            "required": ["channelId", "type"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "dataSources": {
+                        "properties": {
+                            "fieldNameTags": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["fieldNameTags"],
+                        "type": "object"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["uuid"],
+                "type": "object"
+            },
+            "AiAgentThreadSummary": {
+                "properties": {
+                    "user": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "firstMessage": {
+                        "type": "string"
+                    },
+                    "createdFrom": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user",
+                    "firstMessage",
+                    "createdFrom",
+                    "createdAt",
+                    "agentUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiAiAgentThreadSummaryListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentThreadSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AiAgentMessage": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "user": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "uuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["name", "uuid"],
+                                "type": "object"
+                            },
+                            "createdAt": {
+                                "type": "string"
+                            },
+                            "message": {
+                                "type": "string"
+                            },
+                            "threadUuid": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            },
+                            "role": {
+                                "type": "string",
+                                "enum": ["user"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "user",
+                            "createdAt",
+                            "message",
+                            "threadUuid",
+                            "uuid",
+                            "role"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "humanScore": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "metricQuery": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "filtersOutput": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "vizConfigOutput": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "createdAt": {
+                                "type": "string"
+                            },
+                            "message": {
+                                "type": "string"
+                            },
+                            "threadUuid": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            },
+                            "role": {
+                                "type": "string",
+                                "enum": ["assistant"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "createdAt",
+                            "message",
+                            "threadUuid",
+                            "uuid",
+                            "role"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiAgentThread": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiAgentThreadSummary"
+                    },
+                    {
+                        "properties": {
+                            "messages": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentMessage"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["messages"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiAiAgentThreadResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentThread"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiJobScheduledResponse": {
                 "properties": {
                     "results": {
@@ -7401,10 +7819,10 @@
                     "uuid": {
                         "type": "string"
                     },
-                    "spaceUuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "spaceUuid": {
                         "type": "string"
                     },
                     "pinnedListUuid": {
@@ -7430,8 +7848,8 @@
                     "name",
                     "projectUuid",
                     "uuid",
-                    "spaceUuid",
                     "organizationUuid",
+                    "spaceUuid",
                     "pinnedListUuid",
                     "slug",
                     "spaceName",
@@ -7577,10 +7995,10 @@
                     "uuid": {
                         "type": "string"
                     },
-                    "spaceUuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "spaceUuid": {
                         "type": "string"
                     },
                     "pinnedListUuid": {
@@ -7620,8 +8038,8 @@
                     "name",
                     "projectUuid",
                     "uuid",
-                    "spaceUuid",
                     "organizationUuid",
+                    "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "updatedAt",
@@ -8968,10 +9386,10 @@
                     "uuid": {
                         "type": "string"
                     },
-                    "spaceUuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "spaceUuid": {
                         "type": "string"
                     },
                     "pinnedListUuid": {
@@ -9048,8 +9466,8 @@
                     "name",
                     "projectUuid",
                     "uuid",
-                    "spaceUuid",
                     "organizationUuid",
+                    "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
@@ -9108,10 +9526,10 @@
                     "uuid": {
                         "type": "string"
                     },
-                    "spaceUuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "spaceUuid": {
                         "type": "string"
                     },
                     "pinnedListUuid": {
@@ -9179,8 +9597,8 @@
                     "name",
                     "projectUuid",
                     "uuid",
-                    "spaceUuid",
                     "organizationUuid",
+                    "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
@@ -11542,22 +11960,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -16778,7 +17196,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1628.1",
+        "version": "0.1630.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

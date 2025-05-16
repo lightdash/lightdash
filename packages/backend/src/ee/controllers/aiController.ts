@@ -1,14 +1,20 @@
 import {
+    ApiAiAgentResponse,
+    ApiAiAgentSummaryResponse,
     ApiAiConversationMessages,
     ApiAiConversationResponse,
     ApiAiConversations,
     ApiAiDashboardSummaryResponse,
     ApiAiGenerateCustomVizResponse,
     ApiAiGetDashboardSummaryResponse,
+    ApiCreateAiAgent,
+    ApiCreateAiAgentResponse,
     ApiErrorPayload,
+    ApiUpdateAiAgent,
     DashboardSummary,
     Field,
     ItemsMap,
+    NotImplementedError,
     ResultRow,
 } from '@lightdash/common';
 import {
@@ -17,6 +23,7 @@ import {
     Hidden,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Request,

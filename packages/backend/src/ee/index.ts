@@ -18,6 +18,7 @@ import { EmbedModel } from './models/EmbedModel';
 import { ScimOrganizationAccessTokenModel } from './models/ScimOrganizationAccessTokenModel';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
+import { AiAgentService } from './services/AiAgentService';
 import { AiService } from './services/AiService/AiService';
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialCatalogService } from './services/CommercialCatalogService';
@@ -99,6 +100,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     slackClient: clients.getSlackClient(),
                     lightdashConfig: context.lightdashConfig,
                     organizationModel: models.getOrganizationModel(),
+                    slackAuthenticationModel:
+                        models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
+                    featureFlagService: repository.getFeatureFlagService(),
+                }),
+            aiAgentService: ({ models, repository }) =>
+                new AiAgentService({
                     slackAuthenticationModel:
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
                     featureFlagService: repository.getFeatureFlagService(),

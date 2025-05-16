@@ -1,6 +1,7 @@
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
 import { LightdashConfig } from '../config/parseConfig';
+import { AiAgentService } from '../ee/services/AiAgentService';
 import { ModelRepository } from '../models/ModelRepository';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
@@ -91,6 +92,7 @@ interface ServiceManifest {
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
+    aiAgentService: unknown;
     scimService: unknown;
     supportService: unknown;
     cacheService: unknown;
@@ -855,6 +857,10 @@ export class ServiceRepository
 
     public getAiService<AiServiceImplT>(): AiServiceImplT {
         return this.getService('aiService');
+    }
+
+    public getAiAgentService<TAiAgentServiceImpl>(): TAiAgentServiceImpl {
+        return this.getService('aiAgentService');
     }
 
     public getScimService<ScimServiceImplT>(): ScimServiceImplT {
