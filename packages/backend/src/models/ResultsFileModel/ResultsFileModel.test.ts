@@ -89,6 +89,7 @@ describe('ResultsFileModel', () => {
                 expires_at: futureDate,
                 total_row_count: 100,
                 status: ResultsCacheStatus.READY,
+                columns: null,
             };
 
             const expectedResponse = {
@@ -123,6 +124,7 @@ describe('ResultsFileModel', () => {
                 expires_at: futureDate,
                 total_row_count: null,
                 status: ResultsCacheStatus.READY,
+                columns: null,
             };
 
             const expectedResponse = {

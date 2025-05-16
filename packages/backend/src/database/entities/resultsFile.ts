@@ -1,3 +1,4 @@
+import { ResultColumns } from '@lightdash/common';
 import { Knex } from 'knex';
 import { ResultsCacheStatus } from '../../services/CacheService/types';
 
@@ -13,6 +14,7 @@ export type DbResultsCache = {
     expires_at: Date;
     total_row_count: number | null;
     status: ResultsCacheStatus;
+    columns: ResultColumns | null;
 };
 
 export type DbResultsCacheIn = Omit<
@@ -23,7 +25,7 @@ export type DbResultsCacheIn = Omit<
 export type DbResultsCacheUpdate = Partial<
     Pick<
         DbResultsCache,
-        'total_row_count' | 'status' | 'expires_at' | 'updated_at'
+        'total_row_count' | 'status' | 'expires_at' | 'updated_at' | 'columns'
     >
 >;
 
