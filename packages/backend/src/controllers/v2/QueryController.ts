@@ -11,6 +11,7 @@ import {
     isExecuteAsyncSqlChartByUuidParams,
     QueryExecutionContext,
     type ApiDownloadAsyncQueryResults,
+    type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiExecuteAsyncMetricQueryResults,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
@@ -370,6 +371,32 @@ export class QueryController extends BaseController {
         const results = await this.services
             .getAsyncQueryService()
             .downloadAsyncQueryResults({
+                user: req.user!,
+                projectUuid,
+                queryUuid,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Hidden()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{queryUuid}/csv')
+    @OperationId('downloadResultsAsCsv')
+    async downloadResultsAsCsv(
+        @Path() projectUuid: string,
+        @Path() queryUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiDownloadAsyncQueryResultsAsCsv>> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .downloadAsyncQueryResultsAsCsv({
                 user: req.user!,
                 projectUuid,
                 queryUuid,
