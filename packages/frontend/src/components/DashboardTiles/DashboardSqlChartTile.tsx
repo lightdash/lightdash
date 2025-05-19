@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ChartKind,
+    getDashboardFilterRulesForTile,
     isVizCartesianChartConfig,
     isVizPieChartConfig,
     isVizTableConfig,
@@ -76,6 +77,26 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     );
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
 
+    const dashboardFiltersForThisTile = useMemo(() => {
+        return {
+            dimensions: getDashboardFilterRulesForTile(
+                tile.uuid,
+                dashboardFilters.dimensions,
+                true,
+            ),
+            metrics: getDashboardFilterRulesForTile(
+                tile.uuid,
+                dashboardFilters.metrics,
+                true,
+            ),
+            tableCalculations: getDashboardFilterRulesForTile(
+                tile.uuid,
+                dashboardFilters.tableCalculations,
+                true,
+            ),
+        };
+    }, [tile.uuid, dashboardFilters]);
+
     const {
         chartQuery: {
             data: chartData,
@@ -94,7 +115,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         context,
         dashboardUuid,
         tileUuid: tile.uuid,
-        dashboardFilters,
+        dashboardFilters: dashboardFiltersForThisTile,
         dashboardSorts: [],
     });
 
