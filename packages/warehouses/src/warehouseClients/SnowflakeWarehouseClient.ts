@@ -382,7 +382,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 sqlText: '',
                 queryId,
             });
-            const fields = this.getFieldsFromStatement(completedStatement);
+            const fieldsFromCompletedStatement =
+                this.getFieldsFromStatement(completedStatement);
             await new Promise<void>((resolve, reject) => {
                 completedStatement
                     .streamRows()
@@ -390,11 +391,14 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         reject(e);
                     })
                     .on('data', (row) => {
-                        resultsStreamCallback([row], fields);
-                })
-                .on('end', () => {
-                    resolve();
-                });
+                        resultsStreamCallback(
+                            [row],
+                            fieldsFromCompletedStatement,
+                        );
+                    })
+                    .on('end', () => {
+                        resolve();
+                    });
             });
         }
 
