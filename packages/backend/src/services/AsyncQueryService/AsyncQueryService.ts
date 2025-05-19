@@ -66,6 +66,7 @@ import {
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import { createInterface } from 'readline';
+import { Readable } from 'stream';
 import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { DbResultsCacheUpdate } from '../../database/entities/resultsFile';
 import { measureTime } from '../../logging/measureTime';
@@ -626,6 +627,63 @@ export class AsyncQueryService extends ProjectService {
                 unpivotedColumns,
             },
         };
+    }
+
+    async getResultsStream({
+        user,
+        projectUuid,
+        queryUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<Readable> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            user.userUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (user.userUuid !== queryHistory.createdByUserUuid) {
+            throw new ForbiddenError(
+                'User is not allowed to download results for this query',
+            );
+        }
+
+        const { status, cacheKey: resultsFileName } = queryHistory;
+
+        if (status === QueryHistoryStatus.ERROR) {
+            throw new Error(queryHistory.error ?? 'Warehouse query failed');
+        }
+
+        if (status === QueryHistoryStatus.PENDING) {
+            throw new Error('Query is in pending state');
+        }
+
+        if (status === QueryHistoryStatus.READY) {
+            if (!resultsFileName) {
+                throw new Error('Results file name not found for query');
+            }
+
+            return this.storageClient.getDowloadStream(resultsFileName);
+        }
+
+        throw new Error('Invalid query status');
     }
 
     async downloadAsyncQueryResults({

@@ -1,5 +1,4 @@
 import {
-    type ApiDownloadAsyncQueryResults,
     type ApiExecuteAsyncSqlQueryResults,
     type ApiGetAsyncQueryResults,
     type ExecuteAsyncDashboardSqlChartRequestParams,
@@ -56,19 +55,12 @@ export const executeSqlQuery = async (
         throw new Error('Unexpected query status');
     }
 
-    const downloadResponse = await lightdashApi<ApiDownloadAsyncQueryResults>({
-        url: `/projects/${projectUuid}/query/${response.queryUuid}/download`,
-        version: 'v2',
-        method: 'GET',
-        body: undefined,
-    });
+    const fileUrl = `/api/v2/projects/${projectUuid}/query/${response.queryUuid}/results`;
 
-    const results = await getResultsFromStream<RawResultRow>(
-        downloadResponse.fileUrl,
-    );
+    const results = await getResultsFromStream<RawResultRow>(fileUrl);
 
     return {
-        fileUrl: downloadResponse.fileUrl,
+        fileUrl,
         results,
         columns: Object.values(query.columns),
     };
@@ -85,23 +77,16 @@ const getPivotQueryResults = async (projectUuid: string, queryUuid: string) => {
         throw new Error('Unexpected query status');
     }
 
-    const downloadResponse = await lightdashApi<ApiDownloadAsyncQueryResults>({
-        url: `/projects/${projectUuid}/query/${queryUuid}/download`,
-        version: 'v2',
-        method: 'GET',
-        body: undefined,
-    });
+    const fileUrl = `/api/v2/projects/${projectUuid}/query/${queryUuid}/results`;
 
-    const results = await getResultsFromStream<RawResultRow>(
-        downloadResponse.fileUrl,
-    );
+    const results = await getResultsFromStream<RawResultRow>(fileUrl);
 
     return {
         results,
         indexColumn: query.pivotDetails?.indexColumn,
         valuesColumns: query.pivotDetails?.valuesColumns ?? [],
         columnCount: query.pivotDetails?.totalColumnCount ?? undefined,
-        fileUrl: downloadResponse.fileUrl,
+        fileUrl,
         columns: query.columns,
     };
 };
