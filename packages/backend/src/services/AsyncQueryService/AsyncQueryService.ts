@@ -1965,7 +1965,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardFilters,
         dashboardSorts,
         limit,
-                                                    tileUuid,
+        tileUuid,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -2109,9 +2109,9 @@ export class AsyncQueryService extends ProjectService {
                 from: { name: 'sql_query', sql: sqlWithLimit },
                 filters: appliedDashboardFilters
                     ? {
-                        id: uuidv4(),
-                        and: appliedDashboardFilters.dimensions,
-                    }
+                          id: uuidv4(),
+                          and: appliedDashboardFilters.dimensions,
+                      }
                     : undefined,
             },
             {
