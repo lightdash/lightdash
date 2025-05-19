@@ -1,4 +1,4 @@
-import { type MetricFilterRule } from './filter';
+import { type ModelRequiredFilterRule } from './filter';
 import type { DefaultTimeDimension } from './timeFrames';
 
 export enum OrderFieldsByStrategy {
@@ -22,7 +22,7 @@ export type TableBase = {
     orderFieldsBy?: OrderFieldsByStrategy;
     groupLabel?: string;
     sqlWhere?: string;
-    requiredFilters?: MetricFilterRule[];
+    requiredFilters?: ModelRequiredFilterRule[];
     hidden?: boolean;
     requiredAttributes?: Record<string, string | string[]>;
     groupDetails?: Record<string, GroupType>;

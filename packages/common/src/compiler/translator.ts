@@ -29,7 +29,10 @@ import {
     type Metric,
     type Source,
 } from '../types/field';
-import { parseFilters } from '../types/filterGrammar';
+import {
+    parseFilters,
+    parseModelRequiredFilters,
+} from '../types/filterGrammar';
 import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 import { OrderFieldsByStrategy, type GroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
@@ -570,7 +573,7 @@ export const convertTable = (
                 : OrderFieldsByStrategy.LABEL,
         groupLabel: meta.group_label,
         sqlWhere: meta.sql_filter || meta.sql_where,
-        requiredFilters: parseFilters(meta.required_filters),
+        requiredFilters: parseModelRequiredFilters(meta.required_filters),
         requiredAttributes: meta.required_attributes,
         groupDetails,
         ...(meta.default_time_dimension

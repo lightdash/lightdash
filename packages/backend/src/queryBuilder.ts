@@ -6,7 +6,7 @@ import {
     CompiledDimension,
     CompiledMetricQuery,
     CompiledTable,
-    createFilterRuleFromRequiredMetricRule,
+    createFilterRuleFromModelRequiredFilterRule,
     CustomBinDimension,
     CustomDimension,
     DbtModelJoinType,
@@ -34,6 +34,7 @@ import {
     isCustomBinDimension,
     isFilterGroup,
     isFilterRuleInQuery,
+    isJoinModelRequiredFilter,
     ItemsMap,
     MetricFilterRule,
     parseAllReferences,
@@ -1009,6 +1010,7 @@ export const buildQuery = ({
 
         const tableCompiledSqlWhere =
             explore.tables[explore.baseTable].sqlWhere;
+
         const tableSqlWhere =
             explore.tables[explore.baseTable].uncompiledSqlWhere;
 
@@ -1020,10 +1022,21 @@ export const buildQuery = ({
             ? tableSqlWhereTableReferences.map((ref) => ref.refTable)
             : [];
 
+        const requiredFilterJoinedTables =
+            explore.tables[explore.baseTable].requiredFilters
+                ?.map((filter) => {
+                    if (isJoinModelRequiredFilter(filter)) {
+                        return filter.target.tableName;
+                    }
+                    return undefined;
+                })
+                .filter((s): s is string => Boolean(s)) || [];
+
         const joinedTables = new Set([
             ...selectedTables,
             ...getJoinedTables(explore, [...selectedTables]),
             ...tablesFromTableSqlWhereFilter,
+            ...requiredFilterJoinedTables,
         ]);
 
         const sqlJoins = explore.joinedTables
@@ -1228,15 +1241,35 @@ export const buildQuery = ({
 
             const reducedRules: string[] = modelFilterRules.reduce<string[]>(
                 (acc, filter) => {
-                    const filterRule = createFilterRuleFromRequiredMetricRule(
-                        filter,
-                        table.name,
-                    );
-                    const dimension = Object.values(table.dimensions).find(
-                        (tc) => getItemId(tc) === filterRule.target.fieldId,
-                    );
+                    let dimension: CompiledDimension | undefined;
+
+                    // This function already takes care of falling back to the base table if the fieldRef doesn't have 2 parts (falls back to base table name)
+                    const filterRule =
+                        createFilterRuleFromModelRequiredFilterRule(
+                            filter,
+                            table.name,
+                        );
+
+                    if (isJoinModelRequiredFilter(filter)) {
+                        const joinedTable =
+                            explore.tables[filter.target.tableName];
+
+                        if (joinedTable) {
+                            dimension = Object.values(
+                                joinedTable.dimensions,
+                            ).find(
+                                (d) =>
+                                    getItemId(d) === filterRule.target.fieldId,
+                            );
+                        }
+                    } else {
+                        dimension = Object.values(table.dimensions).find(
+                            (tc) => getItemId(tc) === filterRule.target.fieldId,
+                        );
+                    }
 
                     if (!dimension) return acc;
+
                     if (
                         isFilterRuleInQuery(
                             dimension,
