@@ -1,3 +1,10 @@
+## [0.1632.1](https://github.com/lightdash/lightdash/compare/0.1632.0...0.1632.1) (2025-05-19)
+
+
+### Bug Fixes
+
+* results page smaller than actual results ([#14869](https://github.com/lightdash/lightdash/issues/14869)) ([a9a5789](https://github.com/lightdash/lightdash/commit/a9a578982d75624731ba6a3f48c231bb84da3093))
+
 # [0.1632.0](https://github.com/lightdash/lightdash/compare/0.1631.1...0.1632.0) (2025-05-19)
 
 
