@@ -212,55 +212,61 @@ const TileFilterConfiguration: FC<Props> = ({
             );
         const tileWithTargetColumns = Object.entries(
             sqlChartTilesMetadata,
-        ).map<TileWithTargetColumns>(([tileUuid, { columns }], index) => {
-            const tile = tiles.find((t) => t.uuid === tileUuid);
+        ).reduce<TileWithTargetColumns[]>(
+            (acc, [tileUuid, { columns }], index) => {
+                const tile = tiles.find((t) => t.uuid === tileUuid);
+                if (!tile) {
+                    return acc;
+                }
 
-            // tileConfig overrides the default filter state for a tile
-            // if it is a field, we use that field for the filter.
-            // If it is the empty string, the filter is disabled.
-            const tileConfig = filterRule.tileTargets?.[tileUuid];
+                // tileConfig overrides the default filter state for a tile
+                // if it is a field, we use that field for the filter.
+                // If it is the empty string, the filter is disabled.
+                const tileConfig = filterRule.tileTargets?.[tileUuid];
 
-            let selectedField;
-            let invalidField: string | undefined;
-            if (tileConfig !== false) {
-                selectedField =
-                    tileConfig && isDashboardFieldTarget(tileConfig)
-                        ? columns?.find((f) => tileConfig?.fieldId === f)
-                        : undefined;
+                let selectedField;
+                let invalidField: string | undefined;
+                if (tileConfig !== false) {
+                    selectedField =
+                        tileConfig && isDashboardFieldTarget(tileConfig)
+                            ? columns?.find((f) => tileConfig?.fieldId === f)
+                            : undefined;
 
-                // If tileConfig?.fieldId is set, but the field is not found in the filters, we mark it as invalid filter (missing dimension in model)
-                invalidField =
-                    tileConfig &&
-                    isDashboardFieldTarget(tileConfig) &&
-                    tileConfig?.fieldId !== undefined &&
-                    selectedField === undefined
-                        ? tileConfig?.fieldId
-                        : undefined;
-            }
+                    // If tileConfig?.fieldId is set, but the field is not found in the filters, we mark it as invalid filter (missing dimension in model)
+                    invalidField =
+                        tileConfig &&
+                        isDashboardFieldTarget(tileConfig) &&
+                        tileConfig?.fieldId !== undefined &&
+                        selectedField === undefined
+                            ? tileConfig?.fieldId
+                            : undefined;
+                }
 
-            const tileWithoutTitle =
-                !tile?.properties.title || tile.properties.title.length === 0;
-            const isSqlTileType = tile && isDashboardSqlChartTile(tile);
-            let tileLabel = '';
-            if (tile) {
+                const tileWithoutTitle =
+                    !tile.properties.title ||
+                    tile.properties.title.length === 0;
+                const isSqlTileType = tile && isDashboardSqlChartTile(tile);
+                let tileLabel = '';
                 if (tileWithoutTitle && isSqlTileType) {
                     tileLabel = tile.properties.chartName || '';
                 } else if (tile.properties.title) {
                     tileLabel = tile.properties.title;
                 }
-            }
-            return {
-                key: tileUuid + index,
-                label: tileLabel,
-                checked: !!selectedField,
-                disabled: false,
-                invalidField,
-                tileUuid,
-                sortedFilters: columns,
-                selectedField,
-                tabUuid: tile?.tabUuid,
-            };
-        });
+                acc.push({
+                    key: tileUuid + index,
+                    label: tileLabel,
+                    checked: !!selectedField,
+                    disabled: false,
+                    invalidField,
+                    tileUuid,
+                    sortedFilters: columns,
+                    selectedField,
+                    tabUuid: tile.tabUuid,
+                });
+                return acc;
+            },
+            [],
+        );
 
         return [...tileWithTargetFields, ...tileWithTargetColumns];
     }, [
