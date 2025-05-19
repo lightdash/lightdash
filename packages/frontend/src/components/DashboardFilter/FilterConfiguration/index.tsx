@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     createDashboardFilterRuleFromField,
     getItemId,
-    isDashboardFieldTarget,
     isField,
     isFilterableField,
     matchFieldByType,
@@ -156,38 +155,39 @@ const FilterConfiguration: FC<Props> = ({
                 draftState.tileTargets = draftState.tileTargets ?? {};
 
                 switch (action) {
-                    case FilterActions.ADD:
-                        let filterableField:
-                            | DashboardFieldTarget
-                            | FilterableDimension
-                            | undefined = newTarget;
-                        const defaultColumn =
-                            sqlChartTilesMetadata[tileUuid]?.columns[0];
-                        if (!filterableField && defaultColumn) {
-                            filterableField = {
-                                fieldId: defaultColumn,
-                                tableName: 'mock_table',
-                            };
-                        } else if (availableTileFilters[tileUuid]) {
-                            filterableField = getDefaultField(
-                                availableTileFilters[tileUuid],
+                    case FilterActions.ADD: {
+                        let target: DashboardFieldTarget | undefined =
+                            newTarget;
+
+                        // Find fallback target
+                        if (!target) {
+                            const defaultColumn: string | undefined =
+                                sqlChartTilesMetadata[tileUuid]?.columns[0];
+                            const defaultField = getDefaultField(
+                                availableTileFilters[tileUuid] ?? [],
                                 selectedField,
                             );
+
+                            if (defaultColumn) {
+                                // Set SQL chart fallback column
+                                target = {
+                                    fieldId: defaultColumn,
+                                    tableName: 'mock_table',
+                                };
+                            } else if (defaultField) {
+                                // Set default field
+                                target = {
+                                    fieldId: getItemId(defaultField),
+                                    tableName: defaultField.name,
+                                };
+                            }
                         }
 
-                        console.log('filterableField', filterableField);
-                        if (!filterableField) return draftState;
+                        if (!target) return draftState;
 
-                        draftState.tileTargets[tileUuid] =
-                            isDashboardFieldTarget(filterableField)
-                                ? filterableField
-                                : {
-                                      fieldId: getItemId(filterableField),
-                                      tableName: filterableField.name,
-                                  };
-
+                        draftState.tileTargets[tileUuid] = target;
                         return draftState;
-
+                    }
                     case FilterActions.REMOVE:
                         draftState.tileTargets[tileUuid] = false;
                         return draftState;
