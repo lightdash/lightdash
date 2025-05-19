@@ -103,12 +103,29 @@ export class PersonalAccessTokenModel {
         };
     }
 
+    /* 
+    Generates a new token and saves it
+    */
     async create(
         user: Pick<SessionUser, 'userId'>,
         data: CreatePersonalAccessToken,
     ): Promise<PersonalAccessTokenWithToken> {
         const token = crypto.randomBytes(16).toString('hex');
-        const tokenHash = PersonalAccessTokenModel._hash(token);
+        return this.save(user, {
+            ...data,
+            token,
+        });
+    }
+
+    /* 
+    Save an already generated token
+    it might be provided by the user, or generated automatically on this.create
+    */
+    async save(
+        user: Pick<SessionUser, 'userId'>,
+        data: CreatePersonalAccessToken & { token: string },
+    ): Promise<PersonalAccessTokenWithToken> {
+        const tokenHash = PersonalAccessTokenModel._hash(data.token);
         const [row] = await this.database(PersonalAccessTokenTableName)
             .insert({
                 created_by_user_id: user.userId,
@@ -124,7 +141,7 @@ export class PersonalAccessTokenModel {
         }
         return {
             ...PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
-            token,
+            token: data.token,
         };
     }
 

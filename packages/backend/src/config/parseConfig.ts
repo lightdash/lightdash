@@ -1,5 +1,11 @@
 import {
+    AnyType,
     cleanColorArray,
+    CreateDatabricksCredentials,
+    DbtGithubProjectConfig,
+    DbtProjectType,
+    DbtVersionOption,
+    DbtVersionOptionLatest,
     getErrorMessage,
     getInvalidHexColors,
     isLightdashMode,
@@ -9,6 +15,9 @@ import {
     ParameterError,
     ParseError,
     SentryConfig,
+    SupportedDbtVersions,
+    WarehouseTypes,
+    WeekDay,
 } from '@lightdash/common';
 import { type ClientAuthMethod } from 'openid-client';
 import { VERSION } from '../version';
@@ -237,6 +246,103 @@ export const parseOrganizationMemberRoleArray = (
         return role;
     });
 };
+const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
+    const parseEnum = <T>(
+        value: string | undefined,
+        enumObj?: AnyType,
+    ): T | undefined => {
+        if (!value) return undefined;
+
+        const enumValues = enumObj ? Object.values(enumObj) : [];
+        if (enumValues.length > 0 && !enumValues.includes(value)) {
+            throw new ParameterError(
+                `Invalid value "${value}". Must be one of ${enumValues.join(
+                    ', ',
+                )}`,
+            );
+        }
+        return value as T;
+    };
+
+    const parseApiExpiration = (): Date | null => {
+        const apiExpiration = process.env.LD_SETUP_API_KEY_EXPIRATION;
+        const apiExpirationDays = apiExpiration
+            ? parseInt(apiExpiration, 10)
+            : 30; // Convert to number, this might throw an error
+        if (apiExpirationDays === 0) return null; // If 0, we return null, which means, no expiration
+        if (Number.isNaN(apiExpirationDays)) {
+            throw new ParameterError(
+                'LD_SETUP_API_KEY_EXPIRATION must be a valid number',
+            );
+        }
+        return new Date(Date.now() + 1000 * 60 * 60 * 24 * apiExpirationDays);
+    };
+    const parseCompute = (): CreateDatabricksCredentials['compute'] => {
+        // This is a stringified array of objects, in JSON format
+        // If format is not correct, it will throw an error
+        const compute = process.env.LD_SETUP_PROJECT_COMPUTE;
+        if (!compute) return undefined;
+        return JSON.parse(compute) as CreateDatabricksCredentials['compute'];
+    };
+
+    try {
+        if (!process.env.LD_SETUP_ADMIN_EMAIL) return undefined;
+
+        return {
+            organization: {
+                admin: {
+                    name: process.env.LD_SETUP_ADMIN_NAME || 'Admin User',
+                    email: process.env.LD_SETUP_ADMIN_EMAIL!,
+                },
+                emailDomain: process.env.LD_SETUP_ORGANIZATION_EMAIL_DOMAIN!,
+                defaultRole:
+                    parseEnum<OrganizationMemberRole>(
+                        process.env.LD_SETUP_ORGANIZATION_DEFAULT_ROLE,
+                        OrganizationMemberRole,
+                    ) || OrganizationMemberRole.VIEWER,
+                name: process.env.LD_SETUP_ORGANIZATION_NAME!,
+            },
+            apiKey: {
+                token: process.env.LD_SETUP_ADMIN_API_KEY!,
+                expirationTime: parseApiExpiration(),
+            },
+            project: {
+                name: process.env.LD_SETUP_PROJECT_NAME!,
+                type: WarehouseTypes.DATABRICKS,
+                catalog: process.env.LD_SETUP_PROJECT_CATALOG,
+                database: process.env.LD_SETUP_PROJECT_SCHEMA!,
+                serverHostName: process.env.LD_SETUP_PROJECT_HOST!,
+                httpPath: process.env.LD_SETUP_PROJECT_HTTP_PATH!,
+                personalAccessToken: process.env.LD_SETUP_PROJECT_PAT!,
+                requireUserCredentials: undefined,
+                startOfWeek: parseEnum<WeekDay>(
+                    process.env.LD_SETUP_START_OF_WEEK,
+                    WeekDay,
+                ),
+                compute: parseCompute(),
+                dbtVersion:
+                    parseEnum<SupportedDbtVersions>(
+                        process.env.LD_SETUP_DBT_VERSION,
+                        SupportedDbtVersions,
+                    ) || DbtVersionOptionLatest.LATEST,
+            },
+            dbt: {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'personal_access_token',
+                personal_access_token: process.env.LD_SETUP_GITHUB_PAT!,
+                repository: process.env.LD_SETUP_GITHUB_REPOSITORY!,
+                branch: process.env.LD_SETUP_GITHUB_BRANCH!,
+                project_sub_path: process.env.LD_SETUP_GITHUB_PATH || '/',
+                host_domain: undefined,
+            },
+        };
+    } catch (e) {
+        // If a variable is not set, we will skip the initial setup
+        // log an error, but don't throw an error, to avoid blocking the backend
+        console.error('Error parsing initial setup config', e);
+        return undefined;
+    }
+};
 
 export const parseBaseS3Config = (): LightdashConfig['s3'] => {
     const endpoint = process.env.S3_ENDPOINT;
@@ -430,6 +536,27 @@ export type LightdashConfig = {
     };
     googleCloudPlatform: {
         projectId?: string;
+    };
+
+    initialSetup?: {
+        organization: {
+            admin: {
+                email: string;
+                name: string;
+            };
+            emailDomain?: string;
+            name: string;
+            defaultRole: OrganizationMemberRole;
+        };
+        apiKey?: {
+            token: string;
+            expirationTime: Date | null;
+        };
+        project: CreateDatabricksCredentials & {
+            name: string;
+            dbtVersion: DbtVersionOption;
+        };
+        dbt: DbtGithubProjectConfig;
     };
 };
 
@@ -1024,5 +1151,6 @@ export const parseConfig = (): LightdashConfig => {
         googleCloudPlatform: {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
+        initialSetup: getInitialSetupConfig(),
     };
 };
