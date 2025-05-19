@@ -333,10 +333,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         },
     ) {
         const startTime = performance.now();
-        const { queryId, totalRows, durationMs } = await new Promise<{
+        const { queryId, totalRows, durationMs, fields } = await new Promise<{
             queryId: string;
             totalRows: number;
             durationMs: number;
+            fields: WarehouseResults['fields'];
         }>((resolve, reject) => {
             connection.execute({
                 sqlText: sql,
@@ -363,6 +364,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                                     queryId: stmt.getQueryId(),
                                     totalRows: stmt2.getNumRows(),
                                     durationMs: performance.now() - startTime,
+                                    fields: this.getFieldsFromStatement(stmt2),
                                 });
                             },
                         })
@@ -375,12 +377,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
         // If we have a callback, stream the rows to the callback.
         // This is used when writing to the results cache.
-        const completedStatement = await connection.getResultsFromQueryId({
-            sqlText: '',
-            queryId,
-        });
-
-        const fields = this.getFieldsFromStatement(completedStatement);
+        if (resultsStreamCallback) {
+            const completedStatement = await connection.getResultsFromQueryId({
+                sqlText: '',
+                queryId,
+            });
+            const fields = this.getFieldsFromStatement(completedStatement);
             await new Promise<void>((resolve, reject) => {
                 completedStatement
                     .streamRows()
@@ -388,12 +390,13 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         reject(e);
                     })
                     .on('data', (row) => {
-                        resultsStreamCallback?.([row], fields);
+                        resultsStreamCallback([row], fields);
                 })
                 .on('end', () => {
                     resolve();
                 });
-        });
+            });
+        }
 
         return {
             queryId,
