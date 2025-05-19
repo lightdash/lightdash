@@ -19,12 +19,18 @@ function convertDbQueryHistoryToQueryHistory(
             return null;
         }
 
-        const { groupByColumns } = queryHistory.pivot_configuration;
+        const { groupByColumns, valuesColumns: valuesColumnsConfig } =
+            queryHistory.pivot_configuration;
 
         // From ProjectService.pivotQueryWorkerTask
         return groupByColumns && groupByColumns.length > 0
             ? Object.values(queryHistory.pivot_values_columns ?? {})
-            : null;
+            : valuesColumnsConfig.map((col) => ({
+                  referenceField: col.reference,
+                  pivotColumnName: `${col.reference}_${col.aggregation}`,
+                  aggregation: col.aggregation,
+                  pivotValues: [],
+              }));
     }
 
     return {

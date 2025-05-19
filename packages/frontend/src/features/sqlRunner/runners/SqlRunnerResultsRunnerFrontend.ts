@@ -1,15 +1,22 @@
 import {
     DimensionType,
     FieldType,
+    QueryExecutionContext,
     SemanticLayerFieldType,
     assertUnreachable,
+    type DashboardFilters,
     type RawResultRow,
     type SemanticLayerField,
+    type SortField,
     type VizColumn,
     type VizSortBy,
 } from '@lightdash/common';
 import { BaseResultsRunner } from '../../queryRunner/BaseResultsRunner';
-import { getPivotQueryFunctionForSqlRunner } from '../../queryRunner/sqlRunnerPivotQueries';
+import {
+    getPivotQueryFunctionForDashboard,
+    getPivotQueryFunctionForSqlChart,
+    getPivotQueryFunctionForSqlQuery,
+} from '../../queryRunner/sqlRunnerPivotQueries';
 
 const getSemanticLayerFieldTypeFromDimensionType = (
     type: DimensionType,
@@ -34,7 +41,6 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         columns,
         rows,
         projectUuid,
-        savedSqlUuid,
         limit,
         sql,
         sortBy,
@@ -42,7 +48,6 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         columns: VizColumn[];
         rows: RawResultRow[];
         projectUuid: string;
-        savedSqlUuid?: string;
         limit?: number;
         sql: string;
         sortBy?: VizSortBy[];
@@ -63,13 +68,102 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
             fields,
             rows,
             columnNames: fields.map((field) => field.name),
-            runPivotQuery: getPivotQueryFunctionForSqlRunner({
+            runPivotQuery: getPivotQueryFunctionForSqlQuery({
                 projectUuid,
-                savedSqlUuid,
                 limit,
                 sql,
                 fields,
                 sortBy,
+                context: QueryExecutionContext.SQL_RUNNER,
+            }),
+        });
+    }
+}
+
+export class SqlRunnerResultsRunnerChart extends BaseResultsRunner {
+    constructor({
+        columns,
+        rows,
+        projectUuid,
+        savedSqlUuid,
+        limit,
+    }: {
+        columns: VizColumn[];
+        rows: RawResultRow[];
+        projectUuid: string;
+        savedSqlUuid?: string;
+        limit?: number;
+    }) {
+        const fields: SemanticLayerField[] = columns.map((column) => ({
+            kind: FieldType.DIMENSION,
+            name: column.reference,
+            type: getSemanticLayerFieldTypeFromDimensionType(
+                column.type || DimensionType.STRING,
+            ),
+            visible: true,
+            label: column.reference,
+            // TODO: why are these required?
+            availableGranularities: [],
+            availableOperators: [],
+        }));
+        super({
+            fields,
+            rows,
+            columnNames: fields.map((field) => field.name),
+            runPivotQuery: getPivotQueryFunctionForSqlChart({
+                projectUuid,
+                savedSqlUuid,
+                limit,
+                context: QueryExecutionContext.SQL_CHART,
+            }),
+        });
+    }
+}
+
+export class SqlRunnerResultsRunnerDashboard extends BaseResultsRunner {
+    constructor({
+        columns,
+        rows,
+        projectUuid,
+        savedSqlUuid,
+        limit,
+        dashboardUuid,
+        dashboardFilters,
+        dashboardSorts,
+    }: {
+        columns: VizColumn[];
+        rows: RawResultRow[];
+        projectUuid: string;
+        dashboardUuid: string;
+        dashboardFilters: DashboardFilters;
+        dashboardSorts: SortField[];
+        savedSqlUuid?: string;
+        limit?: number;
+    }) {
+        const fields: SemanticLayerField[] = columns.map((column) => ({
+            kind: FieldType.DIMENSION,
+            name: column.reference,
+            type: getSemanticLayerFieldTypeFromDimensionType(
+                column.type || DimensionType.STRING,
+            ),
+            visible: true,
+            label: column.reference,
+            // TODO: why are these required?
+            availableGranularities: [],
+            availableOperators: [],
+        }));
+        super({
+            fields,
+            rows,
+            columnNames: fields.map((field) => field.name),
+            runPivotQuery: getPivotQueryFunctionForDashboard({
+                projectUuid,
+                dashboardUuid,
+                savedSqlUuid,
+                limit,
+                dashboardFilters,
+                dashboardSorts,
+                context: QueryExecutionContext.DASHBOARD,
             }),
         });
     }
