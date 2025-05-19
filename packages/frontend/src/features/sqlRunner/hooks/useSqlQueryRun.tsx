@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { executeSqlQuery } from '../store/thunks';
-import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 
 export type ResultsAndColumns = {
     fileUrl: string | undefined;
@@ -31,25 +30,12 @@ export const useSqlQueryRun = (
         UseSqlQueryRunParams
     >,
 ) => {
-    const { getResultsFromStream } = useResultsFromStreamWorker();
     return useMutation<
         ResultsAndColumns | undefined,
         ApiError,
         UseSqlQueryRunParams
-    >(
-        async ({ sql, limit }) => {
-            const query = await executeSqlQuery(projectUuid, sql, limit);
-            const results = await getResultsFromStream(query.fileUrl);
-
-            return {
-                fileUrl: query.fileUrl,
-                results,
-                columns: query.columns,
-            };
-        },
-        {
-            mutationKey: ['sqlRunner', 'run'],
-            ...useMutationOptions,
-        },
-    );
+    >(async ({ sql, limit }) => executeSqlQuery(projectUuid, sql, limit), {
+        mutationKey: ['sqlRunner', 'run'],
+        ...useMutationOptions,
+    });
 };
