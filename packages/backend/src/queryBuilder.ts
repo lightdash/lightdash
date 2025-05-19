@@ -1427,7 +1427,7 @@ export class QueryBuilder {
         this.referenceMap = args.referenceMap;
     }
 
-    private quotedName(value: String) {
+    private quotedName(value: string) {
         return `${this.config.fieldQuoteChar}${value}${this.config.fieldQuoteChar}`;
     }
 
