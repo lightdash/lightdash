@@ -118,6 +118,13 @@ export class ProjectModel {
         this.exploreCache = new ExploreCache();
     }
 
+    createTransaction<T>(
+        transactionScope: (trx: Knex.Transaction) => Promise<T> | void,
+        config?: Knex.TransactionConfig,
+    ): Promise<T> {
+        return this.database.transaction(transactionScope, config);
+    }
+
     static mergeMissingDbtConfigSecrets(
         incompleteConfig: DbtProjectConfig,
         completeConfig: DbtProjectConfig,
@@ -370,14 +377,15 @@ export class ProjectModel {
         userUuid: string,
         organizationUuid: string,
         data: CreateProject,
+        { tx = this.database }: { tx?: Knex } = {},
     ): Promise<string> {
-        const orgs = await this.database('organizations')
+        const orgs = await tx('organizations')
             .where('organization_uuid', organizationUuid)
             .select('*');
         if (orgs.length === 0) {
             throw new NotExistsError('Cannot find organization');
         }
-        return this.database.transaction(async (trx) => {
+        return tx.transaction(async (trx) => {
             let encryptedCredentials: Buffer;
             try {
                 encryptedCredentials = this.encryptionUtil.encrypt(
@@ -1373,11 +1381,31 @@ export class ProjectModel {
                 spaces.map((s) => s.uuid),
             );
 
+            const invalidPreviewSpacesQuery = trx('spaces')
+                .select('space_uuid')
+                .where('project_id', previewProject.project_id)
+                .whereNull('parent_space_uuid')
+                .whereRaw('nlevel(path) > 1');
+
             Logger.info(
                 `Duplicating ${spaces.length} spaces on ${previewProjectUuid}`,
             );
             const spaceIds = dbSpaces.map((s) => s.space_id);
             const spaceUuids = dbSpaces.map((s) => s.space_uuid);
+
+            // This checks if upstream project does not have defective nested spaces with no parent space uuid
+            const invalidSpaces = await invalidPreviewSpacesQuery.where(
+                'project_id',
+                project.project_id,
+            );
+
+            if (invalidSpaces.length > 0) {
+                throw new Error(
+                    `Parent space not found for nested spaces: ${invalidSpaces
+                        .map((space) => `"${space.space_uuid}"`)
+                        .join(', ')} in project "${projectUuid}"`,
+                );
+            }
 
             const newSpaces =
                 spaces.length > 0
@@ -1413,16 +1441,6 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
-            // This check is necessary to ensure that nested spaces always have a parent space
-            const invalidSpaces = await trx('spaces')
-                .select('space_uuid')
-                .whereIn('project_id', [
-                    project.project_id,
-                    previewProject.project_id,
-                ])
-                .andWhereRaw('nlevel(path) > 1')
-                .andWhere('parent_space_uuid', null);
-
             if (invalidSpaces.length > 0) {
                 throw new Error(
                     `Parent space not found for nested spaces: ${invalidSpaces
@@ -1444,6 +1462,20 @@ export class ProjectModel {
                     AND nlevel(child.path) > 1;`,
                 [previewProject.project_id, previewProject.project_id],
             );
+
+            // this checks if preview project has nested spaces with no parent space uuid
+            const invalidPreviewSpaces = await invalidPreviewSpacesQuery.where(
+                'project_id',
+                previewProject.project_id,
+            );
+
+            if (invalidPreviewSpaces.length > 0) {
+                throw new Error(
+                    `Parent space not found for nested spaces: ${invalidPreviewSpaces
+                        .map((space) => `"${space.space_uuid}"`)
+                        .join(', ')} in project "${previewProjectUuid}"`,
+                );
+            }
 
             const spaceMapping = dbSpaces.map((s, i) => ({
                 id: s.space_id,
