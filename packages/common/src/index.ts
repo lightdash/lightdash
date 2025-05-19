@@ -147,6 +147,7 @@ import type {
 import type { ResultsPaginationMetadata } from './types/paginateResults';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import type { QueryHistoryStatus } from './types/queryHistory';
+import { type ApiRenameFieldsResponse } from './types/rename';
 import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
     type ApiSemanticLayerClientInfo,
@@ -886,6 +887,7 @@ type ApiResults =
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
     | ApiUserActivityDownloadCsv['results']
+    | ApiRenameFieldsResponse['results']
     | ApiDownloadAsyncQueryResults;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {

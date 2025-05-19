@@ -9334,6 +9334,25 @@
                 "required": ["type", "from", "to"],
                 "type": "object"
             },
+            "ApiRenameChartResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "jobId": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiRenameChartBody": {
                 "properties": {
                     "fixAll": {
@@ -9350,6 +9369,33 @@
                     }
                 },
                 "required": ["type", "to", "from"],
+                "type": "object"
+            },
+            "ApiRenameFieldsResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "fields": {
+                                "properties": {},
+                                "additionalProperties": {
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "type": "array"
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "required": ["fields"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "ProjectType": {
@@ -16778,7 +16824,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1628.1",
+        "version": "0.1631.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -19805,7 +19851,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                    "$ref": "#/components/schemas/ApiRenameChartResponse"
                                 }
                             }
                         }
@@ -19862,7 +19908,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/AnyType"
+                                    "$ref": "#/components/schemas/ApiRenameFieldsResponse"
                                 }
                             }
                         }

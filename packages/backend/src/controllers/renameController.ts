@@ -1,10 +1,10 @@
 import {
-    AnyType,
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiRenameBody,
     ApiRenameChartBody,
-    ApiSuccessEmpty,
+    ApiRenameChartResponse,
+    ApiRenameFieldsResponse,
     getRequestMethod,
     LightdashRequestMethodHeader,
 } from '@lightdash/common';
@@ -79,13 +79,13 @@ export class RenameController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
         @Body() body: ApiRenameChartBody,
-    ): Promise<ApiSuccessEmpty> {
+    ): Promise<ApiRenameChartResponse> {
         this.setStatus(200);
         const context = getRequestMethod(
             req.header(LightdashRequestMethodHeader),
         );
 
-        await this.services.getRenameService().renameChart({
+        const jobId = await this.services.getRenameService().renameChart({
             user: req.user!,
             projectUuid,
             context,
@@ -95,7 +95,7 @@ export class RenameController extends BaseController {
 
         return {
             status: 'ok',
-            results: undefined,
+            results: { jobId },
         };
     }
 
@@ -114,7 +114,7 @@ export class RenameController extends BaseController {
         @Path() projectUuid: string,
         @Path() chartUuid: string,
         @Request() req: express.Request,
-    ): Promise<AnyType> {
+    ): Promise<ApiRenameFieldsResponse> {
         this.setStatus(200);
         const fields = await this.services
             .getRenameService()
@@ -126,7 +126,7 @@ export class RenameController extends BaseController {
 
         return {
             status: 'ok',
-            results: fields,
+            results: { fields },
         };
     }
 }
