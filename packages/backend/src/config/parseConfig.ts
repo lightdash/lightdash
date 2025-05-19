@@ -294,7 +294,7 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
                     name: process.env.LD_SETUP_ADMIN_NAME || 'Admin User',
                     email: process.env.LD_SETUP_ADMIN_EMAIL!,
                 },
-                emailDomain: process.env.LD_SETUP_ORGANIZATION_EMAIL_DOMAIN!,
+                emailDomain: process.env.LD_SETUP_ORGANIZATION_EMAIL_DOMAIN,
                 defaultRole:
                     parseEnum<OrganizationMemberRole>(
                         process.env.LD_SETUP_ORGANIZATION_DEFAULT_ROLE,
@@ -302,10 +302,12 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
                     ) || OrganizationMemberRole.VIEWER,
                 name: process.env.LD_SETUP_ORGANIZATION_NAME!,
             },
-            apiKey: {
-                token: process.env.LD_SETUP_ADMIN_API_KEY!,
-                expirationTime: parseApiExpiration(),
-            },
+            apiKey: process.env.LD_SETUP_ADMIN_API_KEY
+                ? {
+                      token: process.env.LD_SETUP_ADMIN_API_KEY,
+                      expirationTime: parseApiExpiration(),
+                  }
+                : undefined,
             project: {
                 name: process.env.LD_SETUP_PROJECT_NAME!,
                 type: WarehouseTypes.DATABRICKS,
