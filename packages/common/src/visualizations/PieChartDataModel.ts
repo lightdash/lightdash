@@ -342,7 +342,7 @@ export class PieChartDataModel {
         if (!transformedData) {
             return undefined;
         }
-
+        console.log('getPivotedTableData', transformedData.results);
         return {
             columns: Object.keys(transformedData.results[0]) ?? [],
             rows: transformedData.results,

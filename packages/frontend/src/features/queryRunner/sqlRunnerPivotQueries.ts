@@ -1,6 +1,7 @@
 import {
     VIZ_DEFAULT_AGGREGATION,
     type DashboardFilters,
+    type PivotChartData,
     type QueryExecutionContext,
     type RunPivotQuery,
     type SemanticLayerField,
@@ -129,7 +130,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
     };
 };
 
-export const getPivotQueryFunctionForSqlChart = ({
+export const getPivotQueryFunctionForSqlChart = async ({
     projectUuid,
     savedSqlUuid,
     limit,
@@ -139,45 +140,41 @@ export const getPivotQueryFunctionForSqlChart = ({
     savedSqlUuid?: string;
     limit?: number;
     context?: QueryExecutionContext;
-}): RunPivotQuery => {
-    return async (query: SemanticLayerQuery) => {
-        const index = query.pivot?.index[0];
-
-        if (index === undefined || savedSqlUuid === undefined) {
-            return {
-                results: [],
-                indexColumn: undefined,
-                valuesColumns: [],
-                columns: [],
-                fileUrl: undefined,
-                columnCount: undefined,
-            };
-        }
-
-        const pivotResults = await executeSqlChartPivotQuery(projectUuid, {
-            savedSqlUuid,
-            context,
-            limit,
-        });
-
-        const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
-            (field) => ({
-                reference: field,
-            }),
-        );
-
+}): Promise<PivotChartData> => {
+    if (savedSqlUuid === undefined) {
         return {
-            fileUrl: pivotResults.fileUrl,
-            results: pivotResults.results,
-            indexColumn: pivotResults.indexColumn,
-            valuesColumns: pivotResults.valuesColumns,
-            columns,
-            columnCount: pivotResults.columnCount,
+            results: [],
+            indexColumn: undefined,
+            valuesColumns: [],
+            columns: [],
+            fileUrl: undefined,
+            columnCount: undefined,
         };
+    }
+
+    const pivotResults = await executeSqlChartPivotQuery(projectUuid, {
+        savedSqlUuid,
+        context,
+        limit,
+    });
+
+    const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
+        (field) => ({
+            reference: field,
+        }),
+    );
+
+    return {
+        fileUrl: pivotResults.fileUrl,
+        results: pivotResults.results,
+        indexColumn: pivotResults.indexColumn,
+        valuesColumns: pivotResults.valuesColumns,
+        columns,
+        columnCount: pivotResults.columnCount,
     };
 };
 
-export const getPivotQueryFunctionForDashboard = ({
+export const getPivotQueryFunctionForDashboard = async ({
     projectUuid,
     dashboardUuid,
     tileUuid,
@@ -195,52 +192,44 @@ export const getPivotQueryFunctionForDashboard = ({
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[]; // TODO: check if dashboardSorts is needed, seems to be unused
     context?: QueryExecutionContext;
-}): RunPivotQuery => {
-    return async (query: SemanticLayerQuery) => {
-        const index = query.pivot?.index[0];
-
-        if (
-            index === undefined ||
-            dashboardUuid === undefined ||
-            savedSqlUuid === undefined ||
-            tileUuid === undefined
-        ) {
-            return {
-                results: [],
-                indexColumn: undefined,
-                valuesColumns: [],
-                columns: [],
-                fileUrl: undefined,
-                columnCount: undefined,
-            };
-        }
-
-        const pivotResults = await executeDashboardSqlChartPivotQuery(
-            projectUuid,
-            {
-                dashboardUuid,
-                tileUuid,
-                savedSqlUuid,
-                context,
-                dashboardFilters,
-                dashboardSorts,
-                limit,
-            },
-        );
-
-        const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
-            (field) => ({
-                reference: field,
-            }),
-        );
-
+}): Promise<PivotChartData> => {
+    if (
+        dashboardUuid === undefined ||
+        tileUuid === undefined ||
+        savedSqlUuid === undefined
+    ) {
         return {
-            fileUrl: pivotResults.fileUrl,
-            results: pivotResults.results,
-            indexColumn: pivotResults.indexColumn,
-            valuesColumns: pivotResults.valuesColumns,
-            columns,
-            columnCount: pivotResults.columnCount,
+            results: [],
+            indexColumn: undefined,
+            valuesColumns: [],
+            columns: [],
+            fileUrl: undefined,
+            columnCount: undefined,
         };
+    }
+
+    const pivotResults = await executeDashboardSqlChartPivotQuery(projectUuid, {
+        dashboardUuid,
+        tileUuid,
+        savedSqlUuid,
+        context,
+        dashboardFilters,
+        dashboardSorts,
+        limit,
+    });
+
+    const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
+        (field) => ({
+            reference: field,
+        }),
+    );
+
+    return {
+        fileUrl: pivotResults.fileUrl,
+        results: pivotResults.results,
+        indexColumn: pivotResults.indexColumn,
+        valuesColumns: pivotResults.valuesColumns,
+        columns,
+        columnCount: pivotResults.columnCount,
     };
 };

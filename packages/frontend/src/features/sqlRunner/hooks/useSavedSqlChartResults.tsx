@@ -1,9 +1,10 @@
 import {
-    isVizCartesianChartConfig,
     isVizTableConfig,
     type ApiError,
     type DashboardFilters,
     type IResultsRunner,
+    type PivotChartData,
+    type QueryExecutionContext,
     type RawResultRow,
     type SortField,
     type SqlChart,
@@ -12,18 +13,17 @@ import { useQuery } from '@tanstack/react-query';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import {
-    SqlRunnerResultsRunnerChart,
-    SqlRunnerResultsRunnerDashboard,
-} from '../runners/SqlRunnerResultsRunnerFrontend';
-import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
+    getPivotQueryFunctionForDashboard,
+    getPivotQueryFunctionForSqlChart,
+} from '../../queryRunner/sqlRunnerPivotQueries';
+import { SqlRunnerFromPivotData } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { fetchSavedSqlChart } from './useSavedSqlCharts';
-import { getSqlChartResultsByUuid } from './useSqlChartResults';
 
 type SavedSqlChartArgs = {
     savedSqlUuid?: string;
     slug?: string;
     projectUuid?: string;
-    context?: string;
+    context?: QueryExecutionContext;
 };
 
 type SavedSqlChartDashboardArgs = SavedSqlChartArgs & {
@@ -44,13 +44,10 @@ const isDashboardArgs = (
 export const useSavedSqlChartResults = (
     args: UseSavedSqlChartResultsArguments,
 ) => {
-    // Separate chart results into two steps to provide a better loading + error experiences
-    const { getResultsFromStream } = useResultsFromStreamWorker();
-
     // Needed for organization colors
     const { data: organization } = useOrganization();
 
-    const { savedSqlUuid, slug, projectUuid, context } = args;
+    const { savedSqlUuid, slug, projectUuid } = args;
 
     // Step 1: Get the chart
     const chartQuery = useQuery<SqlChart, Partial<ApiError>>(
@@ -82,35 +79,29 @@ export const useSavedSqlChartResults = (
         async () => {
             // Safe to assume these are defined because of the enabled flag
             const chart = chartQuery.data!;
+            let chartResults: PivotChartData;
+            if (isDashboardArgs(args)) {
+                chartResults = await getPivotQueryFunctionForDashboard({
+                    projectUuid: projectUuid!,
+                    dashboardUuid: args.dashboardUuid,
+                    tileUuid: args.tileUuid,
+                    dashboardFilters: args.dashboardFilters,
+                    dashboardSorts: args.dashboardSorts,
+                    savedSqlUuid,
+                    context: args.context,
+                });
+            } else {
+                chartResults = await getPivotQueryFunctionForSqlChart({
+                    projectUuid: projectUuid!,
+                    savedSqlUuid,
+                    context: args.context,
+                });
+            }
 
-            // TODO: This shouldn't be needed - it gets the raw unpivoted results
-            const chartResults = await getSqlChartResultsByUuid({
-                projectUuid: projectUuid!,
-                chartUuid: chart.savedSqlUuid,
-                getResultsFromStream,
-                context,
+            console.log('chartResults', chartResults);
+            const resultsRunner = new SqlRunnerFromPivotData({
+                pivotChartData: chartResults,
             });
-
-            const resultsRunner = isDashboardArgs(args)
-                ? new SqlRunnerResultsRunnerDashboard({
-                      rows: chartResults.results,
-                      columns: chartResults.columns,
-                      projectUuid: projectUuid!,
-                      dashboardUuid: args.dashboardUuid,
-                      tileUuid: args.tileUuid,
-                      dashboardFilters: args.dashboardFilters,
-                      dashboardSorts: args.dashboardSorts,
-                      savedSqlUuid: chart.savedSqlUuid,
-                  })
-                : new SqlRunnerResultsRunnerChart({
-                      rows: chartResults.results,
-                      columns: chartResults.columns,
-                      projectUuid: projectUuid!,
-                      savedSqlUuid: chart.savedSqlUuid,
-                      ...(isVizCartesianChartConfig(chart.config) && {
-                          sortBy: chart.config.fieldConfig?.sortBy,
-                      }),
-                  });
 
             const vizConfig = isVizTableConfig(chart.config)
                 ? chart.config.columns

@@ -6,6 +6,7 @@ import {
     isVizPieChartConfig,
     isVizTableConfig,
     type DashboardSqlChartTile,
+    type QueryExecutionContext,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
@@ -63,7 +64,8 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         projectUuid: string;
         dashboardUuid: string;
     }>();
-    const context = useSearchParams('context') || undefined;
+    const context: QueryExecutionContext | undefined =
+        useSearchParams('context') || undefined;
     const savedSqlUuid = tile.properties.savedSqlUuid || undefined;
     const canManageSqlRunner = user.data?.ability?.can(
         'manage',
