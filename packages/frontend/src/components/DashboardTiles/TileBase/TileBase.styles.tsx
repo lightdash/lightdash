@@ -102,13 +102,6 @@ export const TileTitleLink = styled.a<TileTitleProps>`
         `}
 `;
 
-export const ButtonsWrapper = styled.div`
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-end;
-    gap: 8px;
-`;
-
 export const ChartContainer = styled.div`
     flex: 1;
     overflow: hidden;
