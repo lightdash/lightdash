@@ -1,3 +1,10 @@
+## [0.1631.1](https://github.com/lightdash/lightdash/compare/0.1631.0...0.1631.1) (2025-05-19)
+
+
+### Bug Fixes
+
+* required initialize project vars ([#14865](https://github.com/lightdash/lightdash/issues/14865)) ([3f6aa2e](https://github.com/lightdash/lightdash/commit/3f6aa2e5e004ca989f9d9f211dbdb561c4923a7f))
+
 # [0.1631.0](https://github.com/lightdash/lightdash/compare/0.1630.0...0.1631.0) (2025-05-19)
 
 
