@@ -89,7 +89,7 @@ export interface WarehouseClient {
 
     executeAsyncQuery(
         args: WarehouseExecuteAsyncQueryArgs,
-        resultsStreamCallback?: (rows: WarehouseResults['rows']) => void,
+        resultsStreamCallback: (rows: WarehouseResults['rows']) => void,
     ): Promise<WarehouseExecuteAsyncQuery>;
 
     /**

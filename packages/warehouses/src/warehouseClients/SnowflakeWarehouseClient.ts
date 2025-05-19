@@ -292,7 +292,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     async executeAsyncQuery(
         { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
-        resultsStreamCallback?: (rows: WarehouseResults['rows']) => void,
+        resultsStreamCallback: (rows: WarehouseResults['rows']) => void,
     ): Promise<WarehouseExecuteAsyncQuery> {
         const connection = await this.getConnection();
         await this.prepareWarehouse(connection, {
@@ -304,10 +304,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             await this.executeAsyncStatement(
                 connection,
                 sql,
+                resultsStreamCallback,
                 {
                     values,
                 },
-                resultsStreamCallback,
             );
 
         return {
@@ -321,10 +321,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private async executeAsyncStatement(
         connection: Connection,
         sql: string,
+        resultsStreamCallback: (rows: WarehouseResults['rows']) => void,
         options?: {
             values?: AnyType[];
         },
-        resultsStreamCallback?: (rows: WarehouseResults['rows']) => void,
     ) {
         const startTime = performance.now();
         const { queryId, totalRows, durationMs } = await new Promise<{
@@ -369,25 +369,24 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
         // If we have a callback, stream the rows to the callback.
         // This is used when writing to the results cache.
-        if (resultsStreamCallback) {
-            const completedStatement = await connection.getResultsFromQueryId({
-                sqlText: '',
-                queryId,
-            });
-            await new Promise<void>((resolve, reject) => {
-                completedStatement
-                    .streamRows()
-                    .on('error', (e) => {
-                        reject(e);
-                    })
-                    .on('data', (row) => {
-                        resultsStreamCallback([row]);
-                    })
-                    .on('end', () => {
-                        resolve();
-                    });
-            });
-        }
+        const completedStatement = await connection.getResultsFromQueryId({
+            sqlText: '',
+            queryId,
+        });
+
+        await new Promise<void>((resolve, reject) => {
+            completedStatement
+                .streamRows()
+                .on('error', (e) => {
+                    reject(e);
+                })
+                .on('data', (row) => {
+                    resultsStreamCallback([row]);
+                })
+                .on('end', () => {
+                    resolve();
+                });
+        });
 
         return {
             queryId,
