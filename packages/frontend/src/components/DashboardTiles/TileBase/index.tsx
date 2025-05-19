@@ -31,7 +31,6 @@ import MoveTileToTabModal from '../TileForms/MoveTileToTabModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
 
 import {
-    ButtonsWrapper,
     ChartContainer,
     HeaderContainer,
     TileTitleLink,
@@ -198,13 +197,16 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         </TitleWrapper>
                     </Group>
                 )}
-                {visibleHeaderElement && (
-                    <ButtonsWrapper className="non-draggable">
-                        {visibleHeaderElement}
-                    </ButtonsWrapper>
-                )}
-
-                <ButtonsWrapper className="non-draggable">
+                <Group
+                    spacing="xs"
+                    className="non-draggable"
+                    sx={{ marginLeft: 'auto' }}
+                >
+                    {visibleHeaderElement && (
+                        <Group spacing="xs" className="non-draggable">
+                            {visibleHeaderElement}
+                        </Group>
+                    )}
                     {(containerHovered && !titleHovered) ||
                     isMenuOpen ||
                     lockHeaderVisibility ? (
@@ -314,7 +316,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             )}
                         </>
                     ) : null}
-                </ButtonsWrapper>
+                </Group>
             </HeaderContainer>
 
             <ChartContainer className="non-draggable sentry-block ph-no-capture">
