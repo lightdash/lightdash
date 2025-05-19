@@ -51,6 +51,8 @@ services:
             - OPENAI_EMBEDDING_MODEL_NAME=${OPENAI_EMBEDDING_MODEL_NAME}
             - AI_COPILOT_ENABLED=${AI_COPILOT_ENABLED}
             - AI_COPILOT_EMBEDDING_SEARCH_ENABLED=${AI_COPILOT_EMBEDDING_SEARCH_ENABLED}
+            - CLIENT_AI_COPILOT_FEATURE_FLAG_ENABLED=${CLIENT_AI_COPILOT_FEATURE_FLAG_ENABLED}
+            - SERVER_AI_COPILOT_FEATURE_FLAG_ENABLED=${SERVER_AI_COPILOT_FEATURE_FLAG_ENABLED}
             - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2}
             - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT}
             - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
@@ -79,6 +81,7 @@ services:
             - RESULTS_CACHE_S3_ACCESS_KEY=${RESULTS_CACHE_S3_ACCESS_KEY}
         volumes:
             - '${DBT_PROJECT_DIR}:/usr/app/dbt'
+            - './credentials/bratrax-757cb21d02c8.json:/usr/app/bigquery-credentials.json'
         ports:
             - ${PORT:-8080}:${PORT:-8080}
 
@@ -98,5 +101,18 @@ services:
         ports:
             - '3001:3000'
 
+    minio:
+        image: minio/minio
+        ports:
+            - '9000:9000'
+            - '9001:9001'
+        volumes:
+            - minio-data:/data
+        environment:
+            - MINIO_ROOT_USER=minioadmin
+            - MINIO_ROOT_PASSWORD=minioadmin
+        command: server /data --console-address ":9001"
+
 volumes:
     db-data:
+    minio-data:
