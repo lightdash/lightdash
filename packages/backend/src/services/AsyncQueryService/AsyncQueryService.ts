@@ -10,7 +10,6 @@ import {
     assertUnreachable,
     CompiledDimension,
     convertFieldRefToFieldId,
-    convertItemTypeToDimensionType,
     createVirtualView as createVirtualViewObject,
     CreateWarehouseCredentials,
     type CustomDimension,
@@ -92,6 +91,7 @@ import {
     validatePagination,
 } from '../ProjectService/resultsPagination';
 import { getPivotedColumns } from './getPivotedColumns';
+import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
@@ -500,6 +500,7 @@ export class AsyncQueryService extends ProjectService {
                 totalRowCount: cacheTotalRowCount,
                 expiresAt,
             },
+            result,
             durationMs,
         } = await measureTime(
             () =>
@@ -581,6 +582,7 @@ export class AsyncQueryService extends ProjectService {
             pivotTotalColumnCount,
         } = queryHistory;
 
+        console.log(JSON.stringify(result, null, 2));
         if (!columns) {
             throw new UnexpectedServerError(
                 `No columns found for query ${queryUuid}`,
@@ -791,17 +793,10 @@ export class AsyncQueryService extends ProjectService {
                           : numberTotalColumns;
                   }
 
-                  if (!Object.keys(unpivotedColumns).length) {
-                      unpivotedColumns = Object.entries(
-                          fields,
-                      ).reduce<ResultColumns>((acc, [key, value]) => {
-                          acc[key] = {
-                              reference: key,
-                              type: value.type,
-                          };
-                          return acc;
-                      }, {});
-                  }
+                  unpivotedColumns = getUnpivotedColumns(
+                      unpivotedColumns,
+                      fields,
+                  );
 
                   const { indexColumn, valuesColumns, groupByColumns } =
                       pivotConfiguration;
@@ -858,17 +853,10 @@ export class AsyncQueryService extends ProjectService {
                   fields: WarehouseResults['fields'],
               ) => {
                   // Capture columns from the first batch if available
-                  if (!Object.keys(unpivotedColumns).length && fields) {
-                      unpivotedColumns = Object.entries(
-                          fields,
-                      ).reduce<ResultColumns>((acc, [key, value]) => {
-                          acc[key] = {
-                              reference: key,
-                              type: value.type,
-                          };
-                          return acc;
-                      }, {});
-                  }
+                  unpivotedColumns = getUnpivotedColumns(
+                      unpivotedColumns,
+                      fields,
+                  );
                   resultsCache.write(rows);
               };
 

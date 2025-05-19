@@ -98,6 +98,7 @@ describe('ResultsFileModel', () => {
                 updated_at: now,
                 expires_at: futureDate,
                 status: ResultsCacheStatus.READY,
+                columns: null,
             };
 
             tracker.on
@@ -110,6 +111,7 @@ describe('ResultsFileModel', () => {
             expect(tracker.history.insert).toHaveLength(1);
             expect(tracker.history.insert[0].bindings).toEqual([
                 cacheKey,
+                null,
                 futureDate,
                 projectUuid,
                 ResultsCacheStatus.READY,
@@ -133,6 +135,7 @@ describe('ResultsFileModel', () => {
                 updated_at: now,
                 expires_at: futureDate,
                 status: ResultsCacheStatus.READY,
+                columns: null,
             };
 
             tracker.on
@@ -145,6 +148,7 @@ describe('ResultsFileModel', () => {
             expect(tracker.history.insert).toHaveLength(1);
             expect(tracker.history.insert[0].bindings).toEqual([
                 cacheKey,
+                null,
                 futureDate,
                 projectUuid,
                 ResultsCacheStatus.READY,
