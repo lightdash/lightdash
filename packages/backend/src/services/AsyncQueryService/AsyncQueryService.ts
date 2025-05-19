@@ -582,7 +582,6 @@ export class AsyncQueryService extends ProjectService {
             pivotTotalColumnCount,
         } = queryHistory;
 
-        console.log(JSON.stringify(result, null, 2));
         if (!columns) {
             throw new UnexpectedServerError(
                 `No columns found for query ${queryUuid}`,
