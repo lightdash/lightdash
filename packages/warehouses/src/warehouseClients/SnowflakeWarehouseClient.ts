@@ -382,8 +382,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 sqlText: '',
                 queryId,
             });
-            const fieldsFromCompletedStatement =
-                this.getFieldsFromStatement(completedStatement);
             await new Promise<void>((resolve, reject) => {
                 completedStatement
                     .streamRows()
@@ -391,10 +389,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         reject(e);
                     })
                     .on('data', (row) => {
-                        resultsStreamCallback(
-                            [row],
-                            fieldsFromCompletedStatement,
-                        );
+                        resultsStreamCallback([row], fields);
                     })
                     .on('end', () => {
                         resolve();
