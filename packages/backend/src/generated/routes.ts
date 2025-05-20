@@ -1210,24 +1210,12 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardReferenceTarget: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                reference: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardTileTarget: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
             subSchemas: [
                 { ref: 'DashboardFieldTarget' },
-                { ref: 'DashboardReferenceTarget' },
                 { dataType: 'enum', enums: [false] },
             ],
             validators: {},
@@ -15636,6 +15624,7 @@ const models: TsoaRoute.Models = {
                             ref: 'DashboardFilters',
                             required: true,
                         },
+                        tileUuid: { dataType: 'string', required: true },
                         dashboardUuid: { dataType: 'string', required: true },
                     },
                 },

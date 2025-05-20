@@ -1220,22 +1220,10 @@
                 "type": "object",
                 "additionalProperties": true
             },
-            "DashboardReferenceTarget": {
-                "properties": {
-                    "reference": {
-                        "type": "string"
-                    }
-                },
-                "required": ["reference"],
-                "type": "object"
-            },
             "DashboardTileTarget": {
                 "anyOf": [
                     {
                         "$ref": "#/components/schemas/DashboardFieldTarget"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardReferenceTarget"
                     },
                     {
                         "type": "boolean",
@@ -16472,6 +16460,9 @@
                             "dashboardFilters": {
                                 "$ref": "#/components/schemas/DashboardFilters"
                             },
+                            "tileUuid": {
+                                "type": "string"
+                            },
                             "dashboardUuid": {
                                 "type": "string"
                             }
@@ -16479,6 +16470,7 @@
                         "required": [
                             "dashboardSorts",
                             "dashboardFilters",
+                            "tileUuid",
                             "dashboardUuid"
                         ],
                         "type": "object"
