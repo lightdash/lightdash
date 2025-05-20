@@ -4,16 +4,14 @@ import {
     QueryExecutionContext,
     SemanticLayerFieldType,
     assertUnreachable,
-    type DashboardFilters,
+    type PivotChartData,
     type RawResultRow,
     type SemanticLayerField,
-    type SortField,
     type VizColumn,
     type VizSortBy,
 } from '@lightdash/common';
 import { BaseResultsRunner } from '../../queryRunner/BaseResultsRunner';
 import {
-    getPivotQueryFunctionForDashboard,
     getPivotQueryFunctionForSqlChart,
     getPivotQueryFunctionForSqlQuery,
 } from '../../queryRunner/sqlRunnerPivotQueries';
@@ -121,53 +119,26 @@ export class SqlRunnerResultsRunnerChart extends BaseResultsRunner {
 }
 
 export class SqlRunnerResultsRunnerDashboard extends BaseResultsRunner {
-    constructor({
-        columns,
-        rows,
-        projectUuid,
-        savedSqlUuid,
-        limit,
-        dashboardUuid,
-        tileUuid,
-        dashboardFilters,
-        dashboardSorts,
-    }: {
-        columns: VizColumn[];
-        rows: RawResultRow[];
-        projectUuid: string;
-        dashboardUuid: string;
-        tileUuid: string;
-        dashboardFilters: DashboardFilters;
-        dashboardSorts: SortField[];
-        savedSqlUuid?: string;
-        limit?: number;
-    }) {
-        const fields: SemanticLayerField[] = columns.map((column) => ({
-            kind: FieldType.DIMENSION,
-            name: column.reference,
-            type: getSemanticLayerFieldTypeFromDimensionType(
-                column.type || DimensionType.STRING,
-            ),
-            visible: true,
-            label: column.reference,
-            // TODO: why are these required?
-            availableGranularities: [],
-            availableOperators: [],
-        }));
+    constructor({ pivotChartData }: { pivotChartData: PivotChartData }) {
+        const fields: SemanticLayerField[] = pivotChartData.columns.map(
+            (column) => ({
+                kind: FieldType.DIMENSION,
+                name: column.reference,
+                type: getSemanticLayerFieldTypeFromDimensionType(
+                    column.type || DimensionType.STRING,
+                ),
+                visible: true,
+                label: column.reference,
+                // TODO: why are these required?
+                availableGranularities: [],
+                availableOperators: [],
+            }),
+        );
         super({
             fields,
-            rows,
+            rows: pivotChartData.results,
             columnNames: fields.map((field) => field.name),
-            runPivotQuery: getPivotQueryFunctionForDashboard({
-                projectUuid,
-                dashboardUuid,
-                tileUuid,
-                savedSqlUuid,
-                limit,
-                dashboardFilters,
-                dashboardSorts,
-                context: QueryExecutionContext.DASHBOARD,
-            }),
+            runPivotQuery: async () => pivotChartData,
         });
     }
 }
