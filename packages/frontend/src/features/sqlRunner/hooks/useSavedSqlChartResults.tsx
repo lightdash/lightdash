@@ -28,6 +28,7 @@ type SavedSqlChartArgs = {
 
 type SavedSqlChartDashboardArgs = SavedSqlChartArgs & {
     dashboardUuid: string;
+    tileUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
 };
@@ -96,6 +97,7 @@ export const useSavedSqlChartResults = (
                       columns: chartResults.columns,
                       projectUuid: projectUuid!,
                       dashboardUuid: args.dashboardUuid,
+                      tileUuid: args.tileUuid,
                       dashboardFilters: args.dashboardFilters,
                       dashboardSorts: args.dashboardSorts,
                       savedSqlUuid: chart.savedSqlUuid,
