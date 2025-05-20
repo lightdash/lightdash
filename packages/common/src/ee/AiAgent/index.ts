@@ -27,7 +27,12 @@ export type BaseAiAgent = {
 
 export type AiAgent = Pick<
     BaseAiAgent,
-    'uuid' | 'projectUuid' | 'organizationUuid' | 'integrations' | 'tags'
+    | 'uuid'
+    | 'projectUuid'
+    | 'organizationUuid'
+    | 'integrations'
+    | 'tags'
+    | 'name'
 >;
 
 export type AiAgentSummary = Pick<
@@ -94,6 +99,8 @@ export type ApiCreateAiAgent = Pick<
 
 export type ApiUpdateAiAgent = {
     uuid: AiAgent['uuid'];
+    projectUuid?: AiAgent['projectUuid'];
+    name?: AiAgent['name'];
     tags?: AiAgent['tags'];
     integrations?: AiAgent['integrations'];
 };
