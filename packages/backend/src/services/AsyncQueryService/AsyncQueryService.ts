@@ -407,8 +407,9 @@ export class AsyncQueryService extends ProjectService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -648,8 +649,9 @@ export class AsyncQueryService extends ProjectService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -705,8 +707,9 @@ export class AsyncQueryService extends ProjectService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -1325,8 +1328,9 @@ export class AsyncQueryService extends ProjectService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1733,8 +1737,9 @@ export class AsyncQueryService extends ProjectService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(

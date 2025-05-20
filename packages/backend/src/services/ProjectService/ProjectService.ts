@@ -1464,8 +1464,9 @@ export class ProjectService extends BaseService {
     ) {
         const { user, metricQuery, projectUuid } = args;
 
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1560,8 +1561,9 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1874,8 +1876,9 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -5017,8 +5020,9 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -5193,8 +5197,9 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -5434,8 +5439,9 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         payload: CreateVirtualViewPayload,
     ) {
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -5532,8 +5538,9 @@ export class ProjectService extends BaseService {
             throw new NotFoundError('Virtual view not found');
         }
 
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -5575,8 +5582,9 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         name: string,
     ) {
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
