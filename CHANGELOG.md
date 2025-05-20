@@ -1,3 +1,10 @@
+## [0.1632.2](https://github.com/lightdash/lightdash/compare/0.1632.1...0.1632.2) (2025-05-20)
+
+
+### Bug Fixes
+
+* debug ai chat ui ([#14874](https://github.com/lightdash/lightdash/issues/14874)) ([7b72ba0](https://github.com/lightdash/lightdash/commit/7b72ba077e3b906f72c889d7112ac4fd396c0717)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.1632.1](https://github.com/lightdash/lightdash/compare/0.1632.0...0.1632.1) (2025-05-19)
 
 
