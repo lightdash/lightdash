@@ -31,6 +31,7 @@ export class AiAgentModel {
                 uuid: `${AiAgentTableName}.ai_agent_uuid`,
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
                 projectUuid: `${AiAgentTableName}.project_uuid`,
+                name: `${AiAgentTableName}.name`,
                 tags: `${AiAgentTableName}.tags`,
                 integrations: this.database.raw(`
                     json_agg(
