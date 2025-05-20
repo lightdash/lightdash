@@ -1,3 +1,10 @@
+# [0.1634.0](https://github.com/lightdash/lightdash/compare/0.1633.0...0.1634.0) (2025-05-20)
+
+
+### Features
+
+* create agent list view,detail,edit ([#14861](https://github.com/lightdash/lightdash/issues/14861)) ([059c63e](https://github.com/lightdash/lightdash/commit/059c63e11ee263f5c64ce3890f3be985941a6da2))
+
 # [0.1633.0](https://github.com/lightdash/lightdash/compare/0.1632.2...0.1633.0) (2025-05-20)
 
 
