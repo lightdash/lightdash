@@ -1,3 +1,10 @@
+## [0.1637.1](https://github.com/lightdash/lightdash/compare/0.1637.0...0.1637.1) (2025-05-20)
+
+
+### Bug Fixes
+
+* dashbaord comments placement ([#14870](https://github.com/lightdash/lightdash/issues/14870)) ([07b4426](https://github.com/lightdash/lightdash/commit/07b4426ac79e76607a88cf835f9e61beb92daa13))
+
 # [0.1637.0](https://github.com/lightdash/lightdash/compare/0.1636.0...0.1637.0) (2025-05-20)
 
 
