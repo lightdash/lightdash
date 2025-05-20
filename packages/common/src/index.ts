@@ -571,7 +571,6 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
         valuesColumns: PivotValuesColumn[];
         groupByColumns: GroupByColumn[] | undefined;
         sortBy: SortBy | undefined;
-        unpivotedColumns: ResultColumns;
     } | null;
 };
 
