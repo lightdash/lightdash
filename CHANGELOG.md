@@ -1,3 +1,10 @@
+# [0.1633.0](https://github.com/lightdash/lightdash/compare/0.1632.2...0.1633.0) (2025-05-20)
+
+
+### Features
+
+* Agent configuration api spec ([#14855](https://github.com/lightdash/lightdash/issues/14855)) ([6291719](https://github.com/lightdash/lightdash/commit/62917199861e1d5fea078847ebb230df2f88e49c))
+
 ## [0.1632.2](https://github.com/lightdash/lightdash/compare/0.1632.1...0.1632.2) (2025-05-20)
 
 
