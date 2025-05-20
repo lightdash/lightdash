@@ -1,0 +1,29 @@
+name: Cleanup Preview Environment
+
+on:
+  pull_request:
+    types:
+      - closed
+
+permissions:
+  deployments: write
+  contents: read
+
+jobs:
+  closed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Context
+        uses: okteto/context@latest
+        with:
+          url: ${{secrets.OKTETO_CONTEXT}}
+          token: ${{ secrets.OKTETO_TOKEN }}
+
+      # Ideally would clean up deployment status
+      # but unsure how to obtain the environment id from
+      # the preview.yml workflow
+
+      - name: Destroy preview environment
+        uses: okteto/destroy-preview@latest
+        with:
+          name: pr-${{ github.event.number }} 
