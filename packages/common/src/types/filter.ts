@@ -75,6 +75,22 @@ export interface FilterRule<
 export interface MetricFilterRule
     extends FilterRule<ConditionalOperator, { fieldRef: string }> {}
 
+type JoinModelRequiredFilterTarget = {
+    fieldRef: string;
+    tableName: string;
+};
+
+export interface JoinModelRequiredFilterRule
+    extends FilterRule<ConditionalOperator, JoinModelRequiredFilterTarget> {}
+
+export type ModelRequiredFilterRule =
+    | MetricFilterRule // Keeping backwards compatibility with existing filters
+    | JoinModelRequiredFilterRule;
+
+export const isJoinModelRequiredFilter = (
+    filter: ModelRequiredFilterRule,
+): filter is JoinModelRequiredFilterRule => 'tableName' in filter.target;
+
 export type DashboardFieldTarget = {
     fieldId: string;
     tableName: string;

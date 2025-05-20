@@ -4,7 +4,7 @@ import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { type AnyType } from '../types/any';
 import { DashboardTileTypes, type DashboardTile } from '../types/dashboard';
-import { type Explore, type Table } from '../types/explore';
+import { type Explore } from '../types/explore';
 import {
     DimensionType,
     MetricType,
@@ -32,6 +32,7 @@ import {
     isFilterGroup,
     isFilterRule,
     isFilterRuleDefinedForFieldId,
+    isJoinModelRequiredFilter,
     type AndFilterGroup,
     type DashboardFieldTarget,
     type DashboardFilterRule,
@@ -42,7 +43,7 @@ import {
     type FilterGroupItem,
     type FilterRule,
     type Filters,
-    type MetricFilterRule,
+    type ModelRequiredFilterRule,
     type OrFilterGroup,
     type TimeBasedOverrideMap,
 } from '../types/filter';
@@ -1061,8 +1062,8 @@ export const addDashboardFiltersToMetricQuery = (
     };
 };
 
-export const createFilterRuleFromRequiredMetricRule = (
-    filter: MetricFilterRule,
+export const createFilterRuleFromModelRequiredFilterRule = (
+    filter: ModelRequiredFilterRule,
     tableName: string,
 ): FilterRule => ({
     id: filter.id,
@@ -1104,23 +1105,40 @@ export const isFilterRuleInQuery = (
 };
 
 export const reduceRequiredDimensionFiltersToFilterRules = (
-    requiredFilters: MetricFilterRule[],
-    table: Table,
+    requiredFilters: ModelRequiredFilterRule[],
     filters: FilterGroup | undefined,
-): FilterRule[] =>
-    requiredFilters.reduce<FilterRule[]>((acc, filter): FilterRule[] => {
-        const filterRule = createFilterRuleFromRequiredMetricRule(
+    explore: Explore,
+): FilterRule[] => {
+    const table = explore.tables[explore.baseTable];
+
+    return requiredFilters.reduce<FilterRule[]>((acc, filter): FilterRule[] => {
+        let dimension: Dimension | undefined;
+        // This function already takes care of falling back to the base table if the fieldRef doesn't have 2 parts (falls back to base table name)
+        const filterRule = createFilterRuleFromModelRequiredFilterRule(
             filter,
             table.name,
         );
-        const dimension = Object.values(table.dimensions).find(
-            (tc) => getItemId(tc) === filterRule.target.fieldId,
-        );
+
+        if (isJoinModelRequiredFilter(filter)) {
+            const joinedTable = explore.tables[filter.target.tableName];
+
+            if (joinedTable) {
+                dimension = Object.values(joinedTable.dimensions).find(
+                    (d) => getItemId(d) === filterRule.target.fieldId,
+                );
+            }
+        } else {
+            dimension = Object.values(table.dimensions).find(
+                (tc) => getItemId(tc) === filterRule.target.fieldId,
+            );
+        }
+
         if (dimension && !isFilterRuleInQuery(dimension, filterRule, filters)) {
             return [...acc, filterRule];
         }
         return acc;
     }, []);
+};
 
 export const resetRequiredFilterRules = (
     filterGroup: FilterGroup,

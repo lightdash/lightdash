@@ -51,8 +51,8 @@ const FiltersCard: FC = memo(() => {
         const allRequiredFilters: FilterRule[] =
             reduceRequiredDimensionFiltersToFilterRules(
                 requiredFilters,
-                data.tables[tableName],
                 undefined,
+                data,
             );
         const allFilterRefs = allRequiredFilters.map(
             (filter) => filter.target.fieldId,
@@ -81,8 +81,8 @@ const FiltersCard: FC = memo(() => {
                 const reducedRules: FilterRule[] =
                     reduceRequiredDimensionFiltersToFilterRules(
                         requiredFilters,
-                        data.tables[tableName],
                         unsavedQueryFilters.dimensions,
+                        data,
                     );
                 // Add to the existing filter rules with the missing required filter rules
 
