@@ -292,7 +292,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     async executeAsyncQuery(
         { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
-        resultsStreamCallback: (rows: WarehouseResults['rows']) => void,
+        resultsStreamCallback: (
+            rows: WarehouseResults['rows'],
+            fields: WarehouseResults['fields'],
+        ) => void,
     ): Promise<WarehouseExecuteAsyncQuery> {
         const connection = await this.getConnection();
         await this.prepareWarehouse(connection, {
@@ -321,16 +324,20 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private async executeAsyncStatement(
         connection: Connection,
         sql: string,
-        resultsStreamCallback: (rows: WarehouseResults['rows']) => void,
+        resultsStreamCallback?: (
+            rows: WarehouseResults['rows'],
+            fields: WarehouseResults['fields'],
+        ) => void,
         options?: {
             values?: AnyType[];
         },
     ) {
         const startTime = performance.now();
-        const { queryId, totalRows, durationMs } = await new Promise<{
+        const { queryId, totalRows, durationMs, fields } = await new Promise<{
             queryId: string;
             totalRows: number;
             durationMs: number;
+            fields: WarehouseResults['fields'];
         }>((resolve, reject) => {
             connection.execute({
                 sqlText: sql,
@@ -357,6 +364,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                                     queryId: stmt.getQueryId(),
                                     totalRows: stmt2.getNumRows(),
                                     durationMs: performance.now() - startTime,
+                                    fields: this.getFieldsFromStatement(stmt2),
                                 });
                             },
                         })
@@ -369,79 +377,31 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
         // If we have a callback, stream the rows to the callback.
         // This is used when writing to the results cache.
-        const completedStatement = await connection.getResultsFromQueryId({
-            sqlText: '',
-            queryId,
-        });
-
-        await new Promise<void>((resolve, reject) => {
-            completedStatement
-                .streamRows()
-                .on('error', (e) => {
-                    reject(e);
-                })
-                .on('data', (row) => {
-                    resultsStreamCallback([row]);
-                })
-                .on('end', () => {
-                    resolve();
-                });
-        });
+        if (resultsStreamCallback) {
+            const completedStatement = await connection.getResultsFromQueryId({
+                sqlText: '',
+                queryId,
+            });
+            await new Promise<void>((resolve, reject) => {
+                completedStatement
+                    .streamRows()
+                    .on('error', (e) => {
+                        reject(e);
+                    })
+                    .on('data', (row) => {
+                        resultsStreamCallback([row], fields);
+                    })
+                    .on('end', () => {
+                        resolve();
+                    });
+            });
+        }
 
         return {
             queryId,
             queryMetadata: null,
             totalRows,
             durationMs,
-        };
-    }
-
-    private async getAsyncStatementResults<
-        TFormattedRow extends Record<string, unknown>,
-    >(
-        connection: Connection,
-        queryId: string,
-        start: number,
-        end: number,
-        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<{
-        rows: TFormattedRow[];
-        fields: Record<string, { type: DimensionType }>;
-        numRows: number;
-    }> {
-        const statement = await connection.getResultsFromQueryId({
-            sqlText: '', // ! This shouldn't be needed but is required by the snowflake sdk, https://github.com/snowflakedb/snowflake-connector-nodejs/issues/978
-            queryId,
-        });
-
-        const rows: TFormattedRow[] = [];
-
-        await new Promise<void>((resolve, reject) => {
-            statement
-                .streamRows({
-                    start,
-                    end,
-                })
-                .on('error', (err) => {
-                    reject(err);
-                })
-                .on('data', (row) => {
-                    const parsedRow = parseRow(row);
-                    const formattedRow = rowFormatter
-                        ? rowFormatter(parsedRow)
-                        : (parsedRow as TFormattedRow);
-
-                    rows.push(formattedRow);
-                })
-                .on('end', () => {
-                    resolve();
-                });
-        });
-
-        return {
-            rows,
-            fields: this.getFieldsFromStatement(statement),
-            numRows: statement.getNumRows(),
         };
     }
 

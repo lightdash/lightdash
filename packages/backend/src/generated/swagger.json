@@ -15857,7 +15857,6 @@
                                     }
                                 },
                                 "required": [
-                                    "unpivotedColumns",
                                     "valuesColumns",
                                     "indexColumn",
                                     "totalColumnCount"

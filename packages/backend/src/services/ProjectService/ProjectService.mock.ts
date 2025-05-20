@@ -24,6 +24,7 @@ import {
     Project,
     ProjectSummary,
     ProjectType,
+    ResultColumns,
     SessionUser,
     Space,
     SummaryExplore,
@@ -455,6 +456,13 @@ export const expectedFormattedRow = {
             formatted: '1',
             raw: 1,
         },
+    },
+};
+
+export const expectedColumns: ResultColumns = {
+    dim1: {
+        reference: 'dim1',
+        type: DimensionType.STRING,
     },
 };
 
