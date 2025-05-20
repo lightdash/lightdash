@@ -1,8 +1,5 @@
-import React from 'react';
 import { Navigate, Outlet, type RouteObject } from 'react-router';
-import AppRoute from '../components/AppRoute';
 import NavBar from '../components/NavBar';
-import ProjectRoute from '../components/ProjectRoute';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
 import AiConversationsPage from './pages/AiConversations';
@@ -33,13 +30,7 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
 const COMMERCIAL_AI_ROUTES: RouteObject[] = [
     {
         path: '/projects/:projectUuid/ai',
-        element: (
-            <AppRoute>
-                <ProjectRoute>
-                    <Outlet />
-                </ProjectRoute>
-            </AppRoute>
-        ),
+        element: <Outlet />,
         children: [
             ...[
                 '/projects/:projectUuid/ai/conversations/:threadUuid/:promptUuid',
