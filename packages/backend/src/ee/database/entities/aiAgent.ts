@@ -40,5 +40,10 @@ export type DbAiAgentSlackIntegration = {
     created_at: Date;
 };
 
-export type AiAgentSlackIntegrationTable =
-    Knex.CompositeTableType<DbAiAgentSlackIntegration>;
+export type AiAgentSlackIntegrationTable = Knex.CompositeTableType<
+    DbAiAgentSlackIntegration,
+    Omit<
+        DbAiAgentSlackIntegration,
+        'ai_agent_integration_slack_uuid' | 'created_at'
+    >
+>;

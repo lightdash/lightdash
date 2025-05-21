@@ -183,9 +183,12 @@ export const AgentDetails: FC = () => {
                 <Card withBorder p="xl">
                     <Stack gap="xl">
                         <Group gap="md">
-                            <Avatar size={40} radius="sm" color="blue.6">
-                                {isCreateMode ? '+' : agentId}
-                            </Avatar>
+                            <Avatar
+                                size={40}
+                                radius="sm"
+                                color="initials"
+                                name={isCreateMode ? '+' : agentId}
+                            />
                             <Title order={3}>
                                 {isCreateMode
                                     ? 'New Agent'
