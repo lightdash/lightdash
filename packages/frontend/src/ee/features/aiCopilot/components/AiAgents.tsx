@@ -137,7 +137,6 @@ export const AiAgents: FC = () => {
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th>Name</Table.Th>
-                            <Table.Th>Description</Table.Th>
                         </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
@@ -157,18 +156,9 @@ export const AiAgents: FC = () => {
                                         />
 
                                         <Text size="sm" fw={500}>
-                                            {agent.name}
+                                            {agent.name || 'AI Agent'}
                                         </Text>
                                     </Group>
-                                </Table.Td>
-                                <Table.Td>
-                                    {agent.projectName && agent.channelName && (
-                                        <Text size="xs" c="dimmed">
-                                            Answers questions about{' '}
-                                            <b>{agent.projectName}</b> data in{' '}
-                                            <b>{agent.channelName}</b>
-                                        </Text>
-                                    )}
                                 </Table.Td>
                             </Table.Tr>
                         ))}

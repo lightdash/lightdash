@@ -5,10 +5,10 @@ import {
     Card,
     Group,
     MantineProvider,
+    MultiSelect,
     Select,
     Stack,
     Tabs,
-    TagsInput,
     Text,
     TextInput,
     Title,
@@ -68,9 +68,12 @@ export const AgentDetails: FC = () => {
     const isCreateMode = agentId === 'new';
     const agentUuid = !isCreateMode && agentId ? agentId : undefined;
 
-    const { data: agent } = useAiAgent(agentUuid || '', {
-        enabled: !!agentUuid,
-    });
+    const { data: agent, isLoading: isLoadingAgent } = useAiAgent(
+        agentUuid || '',
+        {
+            enabled: !!agentUuid,
+        },
+    );
 
     const { data: slackInstallation } = useGetSlack();
     const {
@@ -99,10 +102,10 @@ export const AgentDetails: FC = () => {
 
         if (!form.initialized) {
             form.setValues({
-                name: agent.results.name,
-                projectUuid: agent.results.projectUuid,
-                integrations: agent.results.integrations,
-                tags: agent.results.tags,
+                name: agent.name,
+                projectUuid: agent.projectUuid,
+                integrations: agent.integrations,
+                tags: agent.tags,
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -146,7 +149,7 @@ export const AgentDetails: FC = () => {
         void navigate('/generalSettings/aiAgents');
     }, [navigate]);
 
-    if (!isCreateMode && agentUuid && !agent) {
+    if (!isCreateMode && agentUuid && !agent && !isLoadingAgent) {
         return (
             <MantineProvider>
                 <Stack gap="md">
@@ -259,13 +262,14 @@ export const AgentDetails: FC = () => {
                                                 </Button>
                                             </Group>
 
-                                            <TagsInput
+                                            <MultiSelect
                                                 label="Slack"
                                                 placeholder="Pick a channel"
                                                 data={slackChannelOptions}
                                                 value={form.values.integrations.map(
                                                     (i) => i.channelId,
                                                 )}
+                                                searchable
                                                 onChange={(value) => {
                                                     form.setFieldValue(
                                                         'integrations',
