@@ -81,6 +81,15 @@ const Filter: FC<Props> = ({
     const allFilterableFields = useDashboardContext(
         (c) => c.allFilterableFields,
     );
+    const sqlChartTilesMetadata = useDashboardContext(
+        (c) => c.sqlChartTilesMetadata,
+    );
+    const disabled = useMemo(() => {
+        return (
+            !allFilterableFields &&
+            Object.keys(sqlChartTilesMetadata).length === 0
+        );
+    }, [allFilterableFields, sqlChartTilesMetadata]);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -99,13 +108,19 @@ const Filter: FC<Props> = ({
     const isDraggable = isEditMode && !isTemporary;
 
     const defaultFilterRule = useMemo(() => {
-        if (!filterableFieldsByTileUuid || !field || !filterRule) return;
+        if (!filterRule) return;
 
-        return applyDefaultTileTargets(
-            filterRule,
-            field,
-            filterableFieldsByTileUuid,
-        );
+        console.log('filterRule', filterRule);
+
+        if (filterableFieldsByTileUuid && field) {
+            return applyDefaultTileTargets(
+                filterRule,
+                field,
+                filterableFieldsByTileUuid,
+            );
+        } else {
+            return filterRule;
+        }
     }, [filterableFieldsByTileUuid, field, filterRule]);
 
     // Only used by active filters
@@ -170,9 +185,6 @@ const Filter: FC<Props> = ({
         [isCreatingNew, onSave, onUpdate, handleClose],
     );
 
-    const isPopoverDisabled =
-        !filterableFieldsByTileUuid || !allFilterableFields;
-
     return (
         <>
             <Popover
@@ -182,7 +194,7 @@ const Filter: FC<Props> = ({
                 closeOnEscape={!isSubPopoverOpen}
                 closeOnClickOutside={!isSubPopoverOpen}
                 onClose={handleClose}
-                disabled={isPopoverDisabled}
+                disabled={disabled}
                 transitionProps={{ transition: 'pop-top-left' }}
                 withArrow
                 shadow="md"
@@ -217,7 +229,7 @@ const Filter: FC<Props> = ({
                                         icon={IconFilter}
                                     />
                                 }
-                                disabled={!allFilterableFields}
+                                disabled={disabled}
                                 loading={
                                     isLoadingDashboardFilters ||
                                     isFetchingDashboardFilters
@@ -389,26 +401,24 @@ const Filter: FC<Props> = ({
                 </Popover.Target>
 
                 <Popover.Dropdown>
-                    {filterableFieldsByTileUuid && dashboardTiles && (
-                        <FilterConfiguration
-                            isCreatingNew={isCreatingNew}
-                            isEditMode={isEditMode}
-                            isTemporary={isTemporary}
-                            field={field}
-                            fields={allFilterableFields || []}
-                            tiles={dashboardTiles}
-                            tabs={dashboardTabs}
-                            activeTabUuid={activeTabUuid}
-                            originalFilterRule={originalFilterRule}
-                            availableTileFilters={filterableFieldsByTileUuid}
-                            defaultFilterRule={defaultFilterRule}
-                            onSave={handelSaveChanges}
-                            popoverProps={{
-                                onOpen: openSubPopover,
-                                onClose: closeSubPopover,
-                            }}
-                        />
-                    )}
+                    <FilterConfiguration
+                        isCreatingNew={isCreatingNew}
+                        isEditMode={isEditMode}
+                        isTemporary={isTemporary}
+                        field={field}
+                        fields={allFilterableFields || []}
+                        tiles={dashboardTiles || []}
+                        tabs={dashboardTabs}
+                        activeTabUuid={activeTabUuid}
+                        originalFilterRule={originalFilterRule}
+                        availableTileFilters={filterableFieldsByTileUuid || {}}
+                        defaultFilterRule={defaultFilterRule}
+                        onSave={handelSaveChanges}
+                        popoverProps={{
+                            onOpen: openSubPopover,
+                            onClose: closeSubPopover,
+                        }}
+                    />
                 </Popover.Dropdown>
             </Popover>
         </>

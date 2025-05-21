@@ -87,7 +87,9 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     const theme = useMantineTheme();
     const { itemsMap } =
         useFiltersContext<Record<string, FilterableDimension>>();
-    const field = itemsMap[dashboardFilter.target.fieldId];
+    const field = dashboardFilter.target
+        ? itemsMap[dashboardFilter.target.fieldId]
+        : undefined;
     const [isEditing, setIsEditing] = useState(false);
 
     const filterType = useMemo(() => {
@@ -121,12 +123,17 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                         <Text span fw={500}>
                             Invalid filter
                         </Text>
-                        <Text fw={400} span>
-                            <Text span color="gray.6">
-                                Tried to reference field with unknown id:
+                        {dashboardFilter.target && (
+                            <Text fw={400} span>
+                                <Text span color="gray.6">
+                                    Tried to reference field with unknown id:
+                                </Text>
+                                <Text span>
+                                    {' '}
+                                    {dashboardFilter.target.fieldId}
+                                </Text>
                             </Text>
-                            <Text span> {dashboardFilter.target.fieldId}</Text>
-                        </Text>
+                        )}
                     </Group>
                 </Stack>
             </Group>

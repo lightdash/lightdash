@@ -1,7 +1,7 @@
 import moment from 'moment';
 import {
     getDateGroupLabel,
-    getFilterRuleWithDefaultValue,
+    getFilterRuleFromFieldWithDefaultValue,
     getPasswordSchema,
     isValidEmailAddress,
 } from '.';
@@ -21,11 +21,11 @@ describe('Common index', () => {
             const date = moment().format('YYYY-MM-DD');
 
             expect(
-                getFilterRuleWithDefaultValue(
-                    dateDayDimension,
-                    emptyValueFilter,
-                    undefined,
-                ).values,
+                getFilterRuleFromFieldWithDefaultValue({
+                    field: dateDayDimension,
+                    filterRule: emptyValueFilter,
+                    values: undefined,
+                }).values,
             ).toEqual([date]);
         });
 
@@ -33,11 +33,11 @@ describe('Common index', () => {
             const date = moment().format('YYYY-MM-01');
 
             expect(
-                getFilterRuleWithDefaultValue(
-                    dateMonthDimension,
-                    emptyValueFilter,
-                    undefined,
-                ).values,
+                getFilterRuleFromFieldWithDefaultValue({
+                    field: dateMonthDimension,
+                    filterRule: emptyValueFilter,
+                    values: undefined,
+                }).values,
             ).toEqual([date]);
         });
 
@@ -45,11 +45,11 @@ describe('Common index', () => {
             const date = moment().format('YYYY-01-01');
 
             expect(
-                getFilterRuleWithDefaultValue(
-                    dateYearDimension,
-                    emptyValueFilter,
-                    undefined,
-                ).values,
+                getFilterRuleFromFieldWithDefaultValue({
+                    field: dateYearDimension,
+                    filterRule: emptyValueFilter,
+                    values: undefined,
+                }).values,
             ).toEqual([date]);
         });
     });
@@ -57,38 +57,38 @@ describe('Common index', () => {
     describe('filter rule with default values', () => {
         test('should return with undefined values', async () => {
             expect(
-                getFilterRuleWithDefaultValue(
-                    stringDimension,
-                    emptyValueFilter,
-                    undefined,
-                ).values,
+                getFilterRuleFromFieldWithDefaultValue({
+                    field: stringDimension,
+                    filterRule: emptyValueFilter,
+                    values: undefined,
+                }).values,
             ).toEqual([]);
         });
         test('should return with empty values', async () => {
             expect(
-                getFilterRuleWithDefaultValue(
-                    stringDimension,
-                    emptyValueFilter,
-                    [],
-                ).values,
+                getFilterRuleFromFieldWithDefaultValue({
+                    field: stringDimension,
+                    filterRule: emptyValueFilter,
+                    values: [],
+                }).values,
             ).toEqual([]);
         });
         test('should return single value', async () => {
             expect(
-                getFilterRuleWithDefaultValue(
-                    stringDimension,
-                    emptyValueFilter,
-                    ['test'],
-                ).values,
+                getFilterRuleFromFieldWithDefaultValue({
+                    field: stringDimension,
+                    filterRule: emptyValueFilter,
+                    values: ['test'],
+                }).values,
             ).toEqual(['test']);
         });
         test('should return multiple values', async () => {
             expect(
-                getFilterRuleWithDefaultValue(
-                    stringDimension,
-                    emptyValueFilter,
-                    ['test1', 'test2'],
-                ).values,
+                getFilterRuleFromFieldWithDefaultValue({
+                    field: stringDimension,
+                    filterRule: emptyValueFilter,
+                    values: ['test1', 'test2'],
+                }).values,
             ).toEqual(['test1', 'test2']);
         });
     });

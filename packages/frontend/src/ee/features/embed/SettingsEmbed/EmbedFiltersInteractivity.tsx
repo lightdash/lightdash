@@ -171,10 +171,11 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                     <Group spacing="lg">
                         {dashboardFilters &&
                             dashboardFilters.map((filter) => {
-                                const field =
-                                    fieldsWithSuggestions[
-                                        filter.target.fieldId
-                                    ];
+                                const field = filter.target
+                                    ? fieldsWithSuggestions[
+                                          filter.target.fieldId
+                                      ]
+                                    : undefined;
 
                                 if (!field) return;
 

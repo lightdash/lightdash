@@ -1,6 +1,8 @@
 import {
     assertUnreachable,
+    createDashboardFilterRule,
     createDashboardFilterRuleFromField,
+    FilterType,
     getItemId,
     isField,
     isFilterableField,
@@ -18,6 +20,7 @@ import {
     Button,
     Flex,
     Group,
+    Select,
     Stack,
     Tabs,
     Text,
@@ -26,7 +29,7 @@ import {
 } from '@mantine/core';
 import { IconRotate2 } from '@tabler/icons-react';
 import { produce } from 'immer';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import FieldSelect from '../../common/FieldSelect';
 import FieldIcon from '../../common/Filters/FieldIcon';
@@ -85,7 +88,9 @@ const FilterConfiguration: FC<Props> = ({
     onSave,
 }) => {
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>(DEFAULT_TAB);
-
+    const [selectedFilterType, setSelectedFilterType] = useState<
+        FilterType | undefined
+    >();
     const [selectedField, setSelectedField] = useState<
         FilterableDimension | undefined
     >(field);
@@ -94,12 +99,32 @@ const FilterConfiguration: FC<Props> = ({
         DashboardFilterRule | undefined
     >(defaultFilterRule);
 
+    useEffect(() => {
+        console.log('useEffect', defaultFilterRule, isCreatingNew);
+        if (defaultFilterRule?.filterType && !isCreatingNew) {
+            setSelectedFilterType(defaultFilterRule.filterType);
+            setDraftFilterRule(defaultFilterRule);
+        }
+    }, [defaultFilterRule, isCreatingNew]);
+
     const isFilterModified = useMemo(() => {
         if (!originalFilterRule || !draftFilterRule) return false;
 
         return hasSavedFilterValueChanged(originalFilterRule, draftFilterRule);
     }, [originalFilterRule, draftFilterRule]);
 
+    const handleChangeFilterType = (newType: FilterType) => {
+        const isCreatingTemporary = isCreatingNew && !isEditMode;
+
+        setDraftFilterRule(
+            createDashboardFilterRule({
+                filterType: newType,
+                isTemporary: isCreatingTemporary,
+            }),
+        );
+
+        setSelectedFilterType(newType);
+    };
     const handleChangeField = (newField: FilterableDimension) => {
         const isCreatingTemporary = isCreatingNew && !isEditMode;
 
@@ -150,7 +175,7 @@ const FilterConfiguration: FC<Props> = ({
             newTarget?: DashboardFieldTarget,
         ) => {
             const changedFilterRule = produce(draftFilterRule, (draftState) => {
-                if (!draftState || !selectedField) return;
+                if (!draftState) return;
 
                 draftState.tileTargets = draftState.tileTargets ?? {};
 
@@ -163,10 +188,12 @@ const FilterConfiguration: FC<Props> = ({
                         if (!target) {
                             const defaultColumn: string | undefined =
                                 sqlChartTilesMetadata[tileUuid]?.columns[0];
-                            const defaultField = getDefaultField(
-                                availableTileFilters[tileUuid] ?? [],
-                                selectedField,
-                            );
+                            const defaultField = selectedField
+                                ? getDefaultField(
+                                      availableTileFilters[tileUuid] ?? [],
+                                      selectedField,
+                                  )
+                                : undefined;
 
                             if (defaultColumn) {
                                 // Set SQL chart fallback column
@@ -284,7 +311,7 @@ const FilterConfiguration: FC<Props> = ({
                         >
                             <Tabs.Tab
                                 value={FilterTabs.TILES}
-                                disabled={!selectedField}
+                                disabled={!draftFilterRule}
                             >
                                 Chart tiles
                             </Tabs.Tab>
@@ -295,51 +322,73 @@ const FilterConfiguration: FC<Props> = ({
                 <Tabs.Panel value={FilterTabs.SETTINGS} miw={350} maw={520}>
                     <Stack spacing="sm">
                         {!!fields && isCreatingNew ? (
-                            <FieldSelect
-                                data-testid="FilterConfiguration/FieldSelect"
-                                size="xs"
-                                focusOnRender={true}
-                                label={
-                                    <Text>
-                                        Select a dimension to filter{' '}
-                                        <Text color="red" span>
-                                            *
-                                        </Text>{' '}
-                                    </Text>
-                                }
-                                withinPortal={popoverProps?.withinPortal}
-                                onDropdownOpen={popoverProps?.onOpen}
-                                onDropdownClose={popoverProps?.onClose}
-                                hasGrouping
-                                item={selectedField}
-                                items={fields}
-                                onChange={(newField) => {
-                                    if (!newField) return;
+                            <>
+                                <Select
+                                    label="Filter type"
+                                    placeholder="Pick one"
+                                    value={selectedFilterType}
+                                    data={Object.values(FilterType)}
+                                    onChange={(newValue) => {
+                                        if (!newValue) return;
+                                        handleChangeFilterType(
+                                            newValue as FilterType,
+                                        );
+                                    }}
+                                />
+                                {fields.length > 0 && (
+                                    <FieldSelect
+                                        data-testid="FilterConfiguration/FieldSelect"
+                                        size="xs"
+                                        focusOnRender={true}
+                                        label={
+                                            <Text>
+                                                Select a dimension to filter{' '}
+                                                <Text color="red" span>
+                                                    *
+                                                </Text>{' '}
+                                            </Text>
+                                        }
+                                        withinPortal={
+                                            popoverProps?.withinPortal
+                                        }
+                                        onDropdownOpen={popoverProps?.onOpen}
+                                        onDropdownClose={popoverProps?.onClose}
+                                        hasGrouping
+                                        item={selectedField}
+                                        items={fields}
+                                        onChange={(newField) => {
+                                            if (!newField) return;
 
-                                    handleChangeField(newField);
-                                }}
-                            />
+                                            handleChangeField(newField);
+                                        }}
+                                    />
+                                )}
+                            </>
+                        ) : selectedField ? (
+                            <Group spacing="xs">
+                                <FieldIcon item={selectedField} />
+                                {originalFilterRule?.label && !isEditMode ? (
+                                    <Text span fw={500}>
+                                        {originalFilterRule.label}
+                                    </Text>
+                                ) : (
+                                    <FieldLabel item={selectedField} />
+                                )}
+                            </Group>
                         ) : (
-                            selectedField && (
-                                <Group spacing="xs">
-                                    <FieldIcon item={selectedField} />
-                                    {originalFilterRule?.label &&
-                                    !isEditMode ? (
-                                        <Text span fw={500}>
-                                            {originalFilterRule.label}
-                                        </Text>
-                                    ) : (
-                                        <FieldLabel item={selectedField} />
-                                    )}
-                                </Group>
-                            )
+                            <Group spacing="xs">
+                                <Text span fw={500}>
+                                    {originalFilterRule?.label ?? 'Filter'}
+                                </Text>
+                            </Group>
                         )}
 
-                        {!!selectedField && draftFilterRule && (
+                        {draftFilterRule && selectedFilterType && (
                             <FilterSettings
                                 isEditMode={isEditMode}
                                 isCreatingNew={isCreatingNew}
                                 field={selectedField}
+                                filterType={selectedFilterType}
                                 filterRule={draftFilterRule}
                                 onChangeFilterRule={handleChangeFilterRule}
                                 popoverProps={popoverProps}
@@ -348,7 +397,7 @@ const FilterConfiguration: FC<Props> = ({
                     </Stack>
                 </Tabs.Panel>
 
-                {!!selectedField && draftFilterRule && (
+                {draftFilterRule && (
                     <Tabs.Panel
                         value={FilterTabs.TILES}
                         w={500}

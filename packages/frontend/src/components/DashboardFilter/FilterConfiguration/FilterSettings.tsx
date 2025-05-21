@@ -1,11 +1,11 @@
 import {
     FilterOperator,
-    FilterType,
+    getFilterRuleFromFieldWithDefaultValue,
     getFilterRuleWithDefaultValue,
-    getFilterTypeFromItem,
     supportsSingleValue,
     type DashboardFilterRule,
     type FilterRule,
+    type FilterType,
     type FilterableDimension,
 } from '@lightdash/common';
 import {
@@ -30,7 +30,8 @@ import MantineIcon from '../../common/MantineIcon';
 interface FilterSettingsProps {
     isEditMode: boolean;
     isCreatingNew: boolean;
-    field: FilterableDimension;
+    field?: FilterableDimension;
+    filterType: FilterType;
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
@@ -40,15 +41,12 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     isEditMode,
     isCreatingNew,
     field,
+    filterType,
     filterRule,
     popoverProps,
     onChangeFilterRule,
 }) => {
     const [filterLabel, setFilterLabel] = useState<string>();
-
-    const filterType = useMemo(() => {
-        return field ? getFilterTypeFromItem(field) : FilterType.STRING;
-    }, [field]);
 
     const filterOperatorOptions = useMemo(
         () => getFilterOperatorOptions(filterType),
@@ -58,16 +56,25 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     // Set default label when using revert (undo) button
     useEffect(() => {
         if (filterLabel !== '') {
-            setFilterLabel(filterRule.label ?? field.label);
+            setFilterLabel(filterRule.label ?? field?.label);
         }
-    }, [filterLabel, filterRule.label, field.label]);
+    }, [filterLabel, filterRule.label, field?.label]);
 
     const handleChangeFilterOperator = (operator: FilterRule['operator']) => {
+        const stagingFilterRule: DashboardFilterRule = {
+            ...filterRule,
+            operator,
+        };
         onChangeFilterRule(
-            getFilterRuleWithDefaultValue(field, {
-                ...filterRule,
-                operator,
-            }),
+            field
+                ? getFilterRuleFromFieldWithDefaultValue({
+                      field,
+                      filterRule: stagingFilterRule,
+                  })
+                : getFilterRuleWithDefaultValue({
+                      filterType,
+                      filterRule: stagingFilterRule,
+                  }),
         );
     };
 
@@ -110,7 +117,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 label: e.target.value || undefined,
                             });
                         }}
-                        placeholder={`Label for ${field.label}`}
+                        placeholder={`Label for ${field?.label || 'filter'}`}
                         value={filterLabel}
                     />
                 )}
@@ -244,10 +251,22 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                             onChangeFilterRule(
                                                 e.currentTarget.checked
                                                     ? newFilter
+                                                    : field
+                                                    ? getFilterRuleFromFieldWithDefaultValue(
+                                                          {
+                                                              field,
+                                                              filterRule:
+                                                                  newFilter,
+                                                              values: null,
+                                                          },
+                                                      )
                                                     : getFilterRuleWithDefaultValue(
-                                                          field,
-                                                          newFilter,
-                                                          null,
+                                                          {
+                                                              filterType,
+                                                              filterRule:
+                                                                  newFilter,
+                                                              values: null,
+                                                          },
                                                       ),
                                             );
                                         }}
@@ -268,11 +287,19 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 onChangeFilterRule(
                                     e.currentTarget.checked
                                         ? newFilter
-                                        : getFilterRuleWithDefaultValue(
-                                              field,
-                                              newFilter,
-                                              null,
-                                          ),
+                                        : field
+                                        ? getFilterRuleFromFieldWithDefaultValue(
+                                              {
+                                                  field,
+                                                  filterRule: newFilter,
+                                                  values: null,
+                                              },
+                                          )
+                                        : getFilterRuleWithDefaultValue({
+                                              filterType,
+                                              filterRule: newFilter,
+                                              values: null,
+                                          }),
                                 );
                             }}
                             label="Require value for dashboard to run"

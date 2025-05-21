@@ -1,7 +1,7 @@
 import {
     DimensionType,
     FilterOperator,
-    getFilterRuleWithDefaultValue,
+    getFilterRuleFromFieldWithDefaultValue,
     getItemId,
     type CompiledDimension,
     type FilterRule,
@@ -45,15 +45,15 @@ export const createFilterRule = (
     operator: FilterOperator,
     values?: string[],
 ): FilterRule => {
-    return getFilterRuleWithDefaultValue(
-        dimension,
-        {
+    return getFilterRuleFromFieldWithDefaultValue({
+        field: dimension,
+        filterRule: {
             id: uuidv4(),
             target: {
                 fieldId: getItemId(dimension),
             },
             operator,
         },
-        doesDimensionRequireValues(dimension) ? values : [],
-    );
+        values: doesDimensionRequireValues(dimension) ? values : [],
+    });
 };

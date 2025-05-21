@@ -1,4 +1,5 @@
 import {
+    convertDashboardFilterRuleToFilterRule,
     isField,
     type DashboardFilters,
     type FilterRule,
@@ -44,13 +45,13 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
             }
             return {
                 id: uuid4(),
-                and: dashboardFilters.dimensions.filter(
-                    (dimensionFilterRule) => {
+                and: dashboardFilters.dimensions
+                    .filter((dimensionFilterRule) => {
                         const isNotSelectedFilter =
                             dimensionFilterRule.id !== filterId;
                         return isNotSelectedFilter;
-                    },
-                ),
+                    })
+                    .map(convertDashboardFilterRuleToFilterRule),
             };
         },
         [dashboardFilters],

@@ -1,7 +1,7 @@
 import {
     FilterType,
     createFilterRuleFromField,
-    getFilterRuleWithDefaultValue,
+    getFilterRuleFromFieldWithDefaultValue,
     getFilterTypeFromItem,
     getItemId,
     isDateItem,
@@ -67,11 +67,11 @@ const FilterRuleForm: FC<Props> = ({
 
                     const newFilterRule = isDateItem(selectedField)
                         ? // If the field is the same type but different field, we need to update the filter rule with the new time frames
-                          getFilterRuleWithDefaultValue(
-                              selectedField,
-                              newFilterRuleBase,
-                              filterRule.values,
-                          )
+                          getFilterRuleFromFieldWithDefaultValue({
+                              field: selectedField,
+                              filterRule: newFilterRuleBase,
+                              values: filterRule.values,
+                          })
                         : newFilterRuleBase;
 
                     onChange(newFilterRule);
@@ -122,16 +122,17 @@ const FilterRuleForm: FC<Props> = ({
                     if (!value) return;
 
                     onChange(
-                        getFilterRuleWithDefaultValue(
-                            activeField,
-                            {
+                        getFilterRuleFromFieldWithDefaultValue({
+                            field: activeField,
+                            filterRule: {
                                 ...filterRule,
                                 operator: value as FilterRule['operator'],
                             },
-                            (filterRule.values?.length || 0) > 0
-                                ? filterRule.values
-                                : [1],
-                        ),
+                            values:
+                                (filterRule.values?.length || 0) > 0
+                                    ? filterRule.values
+                                    : [1],
+                        }),
                     );
                 }}
             />

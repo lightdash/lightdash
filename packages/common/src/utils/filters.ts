@@ -28,6 +28,7 @@ import {
     FilterOperator,
     FilterType,
     UnitOfTime,
+    convertDashboardFilterRuleToFilterRule,
     isAndFilterGroup,
     isFilterGroup,
     isFilterRule,
@@ -194,12 +195,23 @@ export const isWithValueFilter = (filterOperator: FilterOperator) =>
     filterOperator !== FilterOperator.NULL &&
     filterOperator !== FilterOperator.NOT_NULL;
 
-export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
-    field: FilterableField,
-    filterRule: T,
-    values?: AnyType[] | null,
-): T => {
-    const filterType = getFilterTypeFromItem(field);
+export const getFilterRuleWithDefaultValue = <
+    T extends Omit<FilterRule, 'target'>,
+>({
+    filterType,
+    isTimestamp,
+    defaultUnitOfTime,
+    timeInterval,
+    filterRule,
+    values,
+}: {
+    filterType: FilterType;
+    filterRule: T;
+    isTimestamp?: boolean;
+    defaultUnitOfTime?: UnitOfTime;
+    timeInterval?: TimeFrames;
+    values?: AnyType[] | null;
+}): T => {
     const filterRuleDefaults: Partial<FilterRule> = {};
 
     if (
@@ -212,10 +224,6 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
             case FilterType.DATE: {
                 const value = values ? values[0] : undefined;
 
-                const isTimestamp =
-                    (isCustomSqlDimension(field)
-                        ? field.dimensionType
-                        : field.type) === DimensionType.TIMESTAMP;
                 if (
                     filterRule.operator === FilterOperator.IN_THE_PAST ||
                     filterRule.operator === FilterOperator.NOT_IN_THE_PAST ||
@@ -227,10 +235,6 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         value === undefined || typeof value !== 'number'
                             ? 1
                             : value;
-                    const defaultUnitOfTime =
-                        isDimension(field) && field.timeInterval
-                            ? timeframeToUnitOfTime(field.timeInterval)
-                            : UnitOfTime.days;
                     filterRuleDefaults.values = [numberValue];
                     filterRuleDefaults.settings = {
                         unitOfTime: defaultUnitOfTime,
@@ -269,15 +273,9 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         ).startOf('year'),
                     };
 
-                    const fieldTimeInterval =
-                        isDimension(field) && field.timeInterval
-                            ? field.timeInterval
-                            : undefined;
-
                     const defaultDate =
-                        fieldTimeInterval &&
-                        defaultTimeIntervalValues[fieldTimeInterval]
-                            ? defaultTimeIntervalValues[fieldTimeInterval]
+                        timeInterval && defaultTimeIntervalValues[timeInterval]
+                            ? defaultTimeIntervalValues[timeInterval]
                             : moment();
 
                     const dateValue = valueIsDate
@@ -285,9 +283,9 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                               // Treat the date as UTC, then remove its timezone information before formatting
                               moment.utc(value).format('YYYY-MM-DD'),
                               // For QUARTER, we don't want to use the field's time interval(YYYY-[Q]Q) because the date is already in the correct format when generating the SQL
-                              fieldTimeInterval === TimeFrames.QUARTER
+                              timeInterval === TimeFrames.QUARTER
                                   ? undefined
-                                  : fieldTimeInterval, // Use the field's time interval if it has one
+                                  : timeInterval, // Use the field's time interval if it has one
                               false,
                           )
                         : formatDate(defaultDate, undefined, false);
@@ -307,19 +305,54 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     }
     return {
         ...filterRule,
+        filterType,
         values: values !== undefined && values !== null ? values : [],
         settings: undefined,
         ...filterRuleDefaults,
     };
 };
 
+export const getFilterRuleFromFieldWithDefaultValue = <
+    T extends Omit<FilterRule, 'target'>,
+>({
+    field,
+    filterRule,
+    values,
+}: {
+    field: FilterableField;
+    filterRule: T;
+    values?: AnyType[] | null;
+}): T => {
+    const filterType = getFilterTypeFromItem(field);
+    const isTimestamp =
+        (isCustomSqlDimension(field) ? field.dimensionType : field.type) ===
+        DimensionType.TIMESTAMP;
+    const defaultUnitOfTime =
+        isDimension(field) && field.timeInterval
+            ? timeframeToUnitOfTime(field.timeInterval)
+            : UnitOfTime.days;
+    const timeInterval =
+        isDimension(field) && field.timeInterval
+            ? field.timeInterval
+            : undefined;
+
+    return getFilterRuleWithDefaultValue<T>({
+        filterType,
+        isTimestamp,
+        defaultUnitOfTime,
+        timeInterval,
+        filterRule,
+        values,
+    });
+};
+
 export const createFilterRuleFromField = (
     field: FilterableField,
     value?: AnyType,
 ): FilterRule =>
-    getFilterRuleWithDefaultValue(
+    getFilterRuleFromFieldWithDefaultValue({
         field,
-        {
+        filterRule: {
             id: uuidv4(),
             target: {
                 fieldId: getItemId(field),
@@ -327,8 +360,8 @@ export const createFilterRuleFromField = (
             operator:
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
         },
-        value ? [value] : [],
-    );
+        values: value ? [value] : [],
+    });
 
 export const matchFieldExact = (a: Field) => (b: Field) =>
     a.type === b.type && a.name === b.name && a.table === b.table;
@@ -381,6 +414,29 @@ export const applyDefaultTileTargets = (
     return filterRule;
 };
 
+export const createDashboardFilterRule = ({
+    filterType,
+    isTemporary,
+    value,
+}: {
+    filterType: FilterType;
+    isTemporary: boolean;
+    value?: unknown;
+}): DashboardFilterRule =>
+    getFilterRuleWithDefaultValue({
+        filterType,
+        filterRule: {
+            id: uuidv4(),
+            filterType,
+            operator:
+                value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
+            tileTargets: {},
+            disabled: !isTemporary,
+            label: undefined,
+        },
+        values: !isNil(value) ? [value] : null, // When `null`, don't set default value if no value is provided
+    });
+
 export const createDashboardFilterRuleFromField = ({
     field,
     availableTileFilters,
@@ -394,9 +450,9 @@ export const createDashboardFilterRuleFromField = ({
     isTemporary: boolean;
     value?: unknown;
 }): FilterDashboardToRule =>
-    getFilterRuleWithDefaultValue(
+    getFilterRuleFromFieldWithDefaultValue({
         field,
-        {
+        filterRule: {
             id: uuidv4(),
             operator:
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
@@ -409,8 +465,8 @@ export const createDashboardFilterRuleFromField = ({
             disabled: !isTemporary,
             label: undefined,
         },
-        !isNil(value) ? [value] : null, // When `null`, don't set default value if no value is provided
-    );
+        values: !isNil(value) ? [value] : null, // When `null`, don't set default value if no value is provided
+    });
 
 type AddFilterRuleArgs = {
     filters: Filters;
@@ -681,7 +737,7 @@ export const getTabUuidsForFilterRules = (
                 // TODO: Move this fallback logic to the getDashboardFilterRulesForTile function
                 if (tileConfig === undefined && filterableFieldsByTileUuid) {
                     return filterableFieldsByTileUuid[tile.uuid]?.some(
-                        (f) => getItemId(f) === filterRule.target.fieldId,
+                        (f) => getItemId(f) === filterRule.target?.fieldId,
                     );
                 }
                 // Apply filter to tile
@@ -707,15 +763,17 @@ export const getDashboardFilterRulesForTileAndReferences = (
     references: string[],
     rules: DashboardFilterRule[],
 ): DashboardFilterRule[] =>
-    getDashboardFilterRulesForTile(tileUuid, rules, true).filter((f) =>
-        references.includes(f.target.fieldId),
+    getDashboardFilterRulesForTile(tileUuid, rules, true).filter(
+        (f) => f.target?.fieldId && references.includes(f.target.fieldId),
     );
 
 export const getDashboardFilterRulesForTables = (
     tables: string[],
     rules: DashboardFilterRule[],
 ): DashboardFilterRule[] =>
-    rules.filter((f) => tables.includes(f.target.tableName));
+    rules.filter(
+        (f) => f.target?.tableName && tables.includes(f.target.tableName),
+    );
 
 export const getDashboardFilterRulesForTileAndTables = (
     tileUuid: string,
@@ -906,24 +964,6 @@ export const overrideFilterGroupWithFilterRules = (
     };
 };
 
-const convertDashboardFilterRuleToFilterRule = (
-    dashboardFilterRule: DashboardFilterRule,
-): FilterRule => ({
-    id: dashboardFilterRule.id,
-    target: {
-        // ...dashboardFilterRule.target,
-        fieldId: dashboardFilterRule.target.fieldId,
-    },
-    operator: dashboardFilterRule.operator,
-    values: dashboardFilterRule.values,
-    ...(dashboardFilterRule.settings && {
-        settings: dashboardFilterRule.settings,
-    }),
-    ...(dashboardFilterRule.disabled && {
-        disabled: dashboardFilterRule.disabled,
-    }),
-});
-
 const getFieldIdWithoutTable = (fieldId: string, tableName: string) =>
     fieldId.replace(`${tableName}_`, '');
 
@@ -945,14 +985,12 @@ export const trackWhichTimeBasedMetricFiltersToOverride = (
         fieldsToChange: string[];
     };
 } => {
-    if (!explore) return { filter: dashboardFilterRule };
+    const { target } = dashboardFilterRule;
+    if (!explore || !target) return { filter: dashboardFilterRule };
 
     const baseDimension =
-        explore.tables[dashboardFilterRule.target.tableName]?.dimensions[
-            getFieldIdWithoutTable(
-                dashboardFilterRule.target.fieldId,
-                dashboardFilterRule.target.tableName,
-            )
+        explore.tables[target.tableName]?.dimensions[
+            getFieldIdWithoutTable(target.fieldId, target.tableName)
         ];
 
     if (!baseDimension?.timeIntervalBaseDimensionName) {
@@ -973,11 +1011,12 @@ export const trackWhichTimeBasedMetricFiltersToOverride = (
                 if (isFilterRule(item)) {
                     const itemFieldId = getFieldIdWithoutTable(
                         item.target.fieldId,
-                        dashboardFilterRule.target.tableName,
+                        target.tableName,
                     );
                     const itemDimension =
-                        explore.tables[dashboardFilterRule.target.tableName]
-                            ?.dimensions[itemFieldId];
+                        explore.tables[target.tableName]?.dimensions[
+                            itemFieldId
+                        ];
 
                     const isTimeOrDateDimension =
                         itemDimension?.timeIntervalBaseDimensionName ===

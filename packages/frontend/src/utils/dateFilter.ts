@@ -10,7 +10,9 @@ import {
 } from '@lightdash/common';
 import dayjs from 'dayjs';
 
-const convertFilterRule = <T extends FilterRule>(filterRule: T): T => {
+const convertFilterRule = <T extends Pick<FilterRule, 'values'>>(
+    filterRule: T,
+): T => {
     return {
         ...filterRule,
         values: filterRule.values?.map((value) => {
