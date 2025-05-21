@@ -1,5 +1,4 @@
 import {
-    AiAgentSummary,
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
     CommercialFeatureFlags,
@@ -129,5 +128,31 @@ export class AiAgentService {
         });
 
         return updatedAgent;
+    }
+
+    public async deleteAgent(user: SessionUser, agentUuid: string) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.getAgent(user, agentUuid);
+        if (!agent) {
+            throw new ForbiddenError('Agent not found');
+        }
+
+        if (agent.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError('Agent not found');
+        }
+
+        return this.aiAgentModel.deleteAgent({
+            organizationUuid,
+            agentUuid,
+        });
     }
 }

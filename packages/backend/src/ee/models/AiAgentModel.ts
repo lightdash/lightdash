@@ -302,4 +302,17 @@ export class AiAgentModel {
             };
         });
     }
+
+    async deleteAgent({
+        organizationUuid,
+        agentUuid,
+    }: {
+        organizationUuid: string;
+        agentUuid: string;
+    }): Promise<void> {
+        await this.database(AiAgentTableName)
+            .where('ai_agent_uuid', agentUuid)
+            .where('organization_uuid', organizationUuid)
+            .delete();
+    }
 }
