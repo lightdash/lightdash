@@ -1,4 +1,4 @@
-import { type ApiCreateAiAgent, type BaseAiAgent } from '@lightdash/common';
+import { type BaseAiAgent } from '@lightdash/common';
 import {
     Avatar,
     Button,
@@ -132,7 +132,7 @@ export const AgentDetails: FC = () => {
 
     const handleSubmit = form.onSubmit(async (values) => {
         if (isCreateMode) {
-            await createAgent(values as ApiCreateAiAgent);
+            await createAgent(values);
         } else if (agentUuid) {
             await updateAgent({
                 uuid: agentUuid,
@@ -187,7 +187,7 @@ export const AgentDetails: FC = () => {
                                 size={40}
                                 radius="sm"
                                 color="initials"
-                                name={isCreateMode ? '+' : agentId}
+                                name={isCreateMode ? '+' : ''}
                             />
                             <Title order={3}>
                                 {isCreateMode

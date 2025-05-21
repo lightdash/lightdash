@@ -4636,11 +4636,12 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_AiAgent.projectUuid-or-integrations-or-tags_': {
+    'Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                name: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
                 integrations: {
                     dataType: 'array',
@@ -4673,7 +4674,7 @@ const models: TsoaRoute.Models = {
     ApiCreateAiAgent: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_AiAgent.projectUuid-or-integrations-or-tags_',
+            ref: 'Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name_',
             validators: {},
         },
     },

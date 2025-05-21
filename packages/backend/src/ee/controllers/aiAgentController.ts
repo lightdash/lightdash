@@ -71,7 +71,14 @@ export class AiAgentController extends BaseController {
         @Body() body: ApiCreateAiAgent,
     ): Promise<ApiCreateAiAgentResponse> {
         this.setStatus(201);
-        throw new NotImplementedError('Create agent not implemented');
+        const agent = await this.getAiAgentService().createAgent(
+            req.user!,
+            body,
+        );
+        return {
+            status: 'ok',
+            results: agent,
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -84,7 +91,15 @@ export class AiAgentController extends BaseController {
         @Body() body: ApiUpdateAiAgent,
     ): Promise<ApiAiAgentResponse> {
         this.setStatus(200);
-        throw new NotImplementedError('Update agent not implemented');
+        const agent = await this.getAiAgentService().updateAgent(
+            req.user!,
+            agentUuid,
+            body,
+        );
+        return {
+            status: 'ok',
+            results: agent,
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

@@ -57,7 +57,9 @@ export const AiAgents: FC = () => {
 
             // TODO: handle multiple integrations
             const channel = slackChannelsQuery.data?.find(
-                (c) => c.id === agent.integrations[0].channelId,
+                (c) =>
+                    agent.integrations.length > 0 &&
+                    c.id === agent.integrations[0].channelId,
             );
 
             return {
