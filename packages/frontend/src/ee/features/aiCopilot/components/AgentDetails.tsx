@@ -11,6 +11,7 @@ import {
     MantineProvider,
     Select,
     Stack,
+    Tabs,
     TagsInput,
     Text,
     TextInput,
@@ -37,9 +38,10 @@ import {
     useCreateAiAgentMutation,
     useUpdateAiAgentMutation,
 } from '../hooks/useAiAgents';
+import { ConversationsList } from './ConversationsList';
 
 const formSchema: z.ZodType<
-    Pick<BaseAiAgent, 'name' | 'projectUuid' | 'integrations' | 'dataSources'>
+    Pick<BaseAiAgent, 'name' | 'projectUuid' | 'integrations' | 'tags'>
 > = z.object({
     name: z.string().min(1),
     projectUuid: z
@@ -51,9 +53,7 @@ const formSchema: z.ZodType<
             channelId: z.string().min(1),
         }),
     ),
-    dataSources: z.object({
-        fieldNameTags: z.array(z.string()).nullable(),
-    }),
+    tags: z.array(z.string()).nullable(),
 });
 
 export const AgentDetails: FC = () => {
@@ -91,9 +91,7 @@ export const AgentDetails: FC = () => {
             name: '',
             projectUuid: '',
             integrations: [],
-            dataSources: {
-                fieldNameTags: null,
-            },
+            tags: [],
         },
         validate: zodResolver(formSchema),
     });
@@ -108,7 +106,7 @@ export const AgentDetails: FC = () => {
                 name: agent.results.name,
                 projectUuid: agent.results.projectUuid,
                 integrations: agent.results.integrations,
-                dataSources: agent.results.dataSources,
+                tags: agent.results.tags,
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -131,8 +129,6 @@ export const AgentDetails: FC = () => {
             })) ?? []
         );
     }, [projects]);
-
-    console.log(form.values);
 
     const handleBack = () => {
         void navigate('/generalSettings/aiAgents');
@@ -188,100 +184,133 @@ export const AgentDetails: FC = () => {
                     </Button>
                 </Group>
 
-                <form onSubmit={handleSubmit}>
-                    <Card withBorder p="xl">
-                        <Stack gap="xl">
-                            <Group gap="md">
-                                <Avatar size={40} radius="sm" color="blue.6">
-                                    {isCreateMode ? '+' : agentId}
-                                </Avatar>
-                                <Title order={3}>
-                                    {isCreateMode
-                                        ? 'New Agent'
-                                        : form.values.name || 'Agent'}
-                                </Title>
-                            </Group>
+                <Card withBorder p="xl">
+                    <Stack gap="xl">
+                        <Group gap="md">
+                            <Avatar size={40} radius="sm" color="blue.6">
+                                {isCreateMode ? '+' : agentId}
+                            </Avatar>
+                            <Title order={3}>
+                                {isCreateMode
+                                    ? 'New Agent'
+                                    : form.values.name || 'Agent'}
+                            </Title>
+                        </Group>
+                        <Tabs
+                            defaultValue="general"
+                            styles={{
+                                panel: {
+                                    paddingTop: 'xs',
+                                },
+                            }}
+                        >
+                            <Tabs.List>
+                                <Tabs.Tab value="general">General</Tabs.Tab>
+                                <Tabs.Tab value="conversations">
+                                    Conversations
+                                </Tabs.Tab>
+                            </Tabs.List>
 
-                            {/* Basic Agent Info */}
-                            <Stack gap="md">
-                                <TextInput
-                                    label="Agent Name"
-                                    placeholder="Enter a name for this agent"
-                                    {...form.getInputProps('name')}
+                            <Tabs.Panel value="general" pt="xs">
+                                <form onSubmit={handleSubmit}>
+                                    <Stack gap="lg">
+                                        {/* Basic Agent Info */}
+                                        <Stack gap="sm">
+                                            <Title order={5}>Details</Title>
+                                            <TextInput
+                                                label="Agent Name"
+                                                placeholder="Enter a name for this agent"
+                                                {...form.getInputProps('name')}
+                                            />
+
+                                            <Select
+                                                label="Project"
+                                                placeholder="Select a project"
+                                                data={projectOptions}
+                                                searchable
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconDatabase}
+                                                    />
+                                                }
+                                                {...form.getInputProps(
+                                                    'projectUuid',
+                                                )}
+                                            />
+                                        </Stack>
+
+                                        {/* Integrations Section */}
+                                        <Stack gap="sm">
+                                            <Group justify="space-between">
+                                                <Title order={5}>
+                                                    Integrations
+                                                </Title>
+                                                <Button
+                                                    size="xs"
+                                                    variant="subtle"
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconRefresh}
+                                                        />
+                                                    }
+                                                    loading={_isRefreshing}
+                                                    onClick={_refreshChannels}
+                                                >
+                                                    Refresh Channels
+                                                </Button>
+                                            </Group>
+
+                                            <TagsInput
+                                                label="Slack"
+                                                placeholder="Pick a channel"
+                                                data={slackChannelOptions}
+                                                value={form.values.integrations.map(
+                                                    (i) => i.channelId,
+                                                )}
+                                                onChange={(value) => {
+                                                    form.setFieldValue(
+                                                        'integrations',
+                                                        value.map((v) => ({
+                                                            type: AiAgentIntegrationType.SLACK,
+                                                            channelId: v,
+                                                        })),
+                                                    );
+                                                }}
+                                            />
+                                        </Stack>
+                                    </Stack>
+
+                                    <Group justify="flex-end">
+                                        {!isCreateMode && (
+                                            <Button
+                                                variant="outline"
+                                                onClick={handleDelete}
+                                            >
+                                                Delete agent
+                                            </Button>
+                                        )}
+                                        <Button
+                                            type="submit"
+                                            loading={false}
+                                            leftSection={
+                                                <MantineIcon icon={IconCheck} />
+                                            }
+                                        >
+                                            {isCreateMode
+                                                ? 'Create agent'
+                                                : 'Save changes'}
+                                        </Button>
+                                    </Group>
+                                </form>
+                            </Tabs.Panel>
+                            <Tabs.Panel value="conversations" pt="xs">
+                                <ConversationsList
+                                    agentUuid={agentUuid ?? ''}
                                 />
-
-                                <Select
-                                    label="Project"
-                                    placeholder="Select a project"
-                                    data={projectOptions}
-                                    searchable
-                                    leftSection={
-                                        <MantineIcon icon={IconDatabase} />
-                                    }
-                                    {...form.getInputProps('projectUuid')}
-                                />
-                            </Stack>
-
-                            {/* Integrations Section */}
-                            <Stack gap="md">
-                                <Group justify="space-between">
-                                    <Title order={5}>Integrations</Title>
-                                    <Button
-                                        size="xs"
-                                        variant="subtle"
-                                        leftSection={
-                                            <MantineIcon icon={IconRefresh} />
-                                        }
-                                        loading={_isRefreshing}
-                                        onClick={_refreshChannels}
-                                    >
-                                        Refresh Channels
-                                    </Button>
-                                </Group>
-
-                                <TagsInput
-                                    label="Slack"
-                                    placeholder="Pick a channel"
-                                    data={slackChannelOptions}
-                                    value={form.values.integrations.map(
-                                        (i) => i.channelId,
-                                    )}
-                                    onChange={(value) => {
-                                        form.setFieldValue(
-                                            'integrations',
-                                            value.map((v) => ({
-                                                type: AiAgentIntegrationType.SLACK,
-                                                channelId: v,
-                                            })),
-                                        );
-                                    }}
-                                />
-                            </Stack>
-
-                            <Group justify="flex-end">
-                                {!isCreateMode && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleDelete}
-                                    >
-                                        Delete agent
-                                    </Button>
-                                )}
-                                <Button
-                                    type="submit"
-                                    loading={false}
-                                    leftSection={
-                                        <MantineIcon icon={IconCheck} />
-                                    }
-                                >
-                                    {isCreateMode
-                                        ? 'Create agent'
-                                        : 'Save changes'}
-                                </Button>
-                            </Group>
-                        </Stack>
-                    </Card>
-                </form>
+                            </Tabs.Panel>
+                        </Tabs>
+                    </Stack>
+                </Card>
             </Stack>
         </MantineProvider>
     );
