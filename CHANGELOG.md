@@ -1,3 +1,10 @@
+# [0.1639.0](https://github.com/lightdash/lightdash/compare/0.1638.4...0.1639.0) (2025-05-21)
+
+
+### Features
+
+* add AI agents database schema and migration ([#14862](https://github.com/lightdash/lightdash/issues/14862)) ([8441370](https://github.com/lightdash/lightdash/commit/8441370e716bcbbc03e524312e9efd4bfd778f4a))
+
 ## [0.1638.4](https://github.com/lightdash/lightdash/compare/0.1638.3...0.1638.4) (2025-05-21)
 
 
