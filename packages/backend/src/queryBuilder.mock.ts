@@ -41,12 +41,19 @@ export const warehouseClientMock: WarehouseClient = {
         });
         return Promise.resolve();
     },
-    executeAsyncQuery: async () => ({
-        queryId: null,
-        queryMetadata: null,
-        totalRows: 0,
-        durationMs: 0,
-    }),
+    executeAsyncQuery: async (query, callback) => {
+        const rows = [{ field: null }];
+        const columns = {
+            test: { type: DimensionType.STRING },
+        };
+        callback?.(rows, columns);
+        return {
+            queryId: null,
+            queryMetadata: null,
+            totalRows: 0,
+            durationMs: 0,
+        };
+    },
     runQuery: () =>
         Promise.resolve({
             fields: {},

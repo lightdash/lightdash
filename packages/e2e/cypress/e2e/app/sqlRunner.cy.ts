@@ -125,7 +125,7 @@ describe('SQL Runner (new)', () => {
         cy.get('div[role="option"]').contains('first_name').click();
         cy.get('.echarts-for-react')
             .find('text')
-            .contains('Age sum frances')
+            .contains('Age sum amy')
             .should('be.visible');
 
         // Verify that the chart is not displayed when the configuration is incomplete

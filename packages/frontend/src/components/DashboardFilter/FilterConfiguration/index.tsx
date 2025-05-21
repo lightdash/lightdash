@@ -7,10 +7,10 @@ import {
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
+    type DashboardFieldTarget,
     type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
-    type Field,
     type FilterableDimension,
 } from '@lightdash/common';
 import {
@@ -27,6 +27,7 @@ import {
 import { IconRotate2 } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import FieldSelect from '../../common/FieldSelect';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FieldLabel from '../../common/Filters/FieldLabel';
@@ -139,31 +140,54 @@ const FilterConfiguration: FC<Props> = ({
         },
         [setDraftFilterRule],
     );
-
+    const sqlChartTilesMetadata = useDashboardContext(
+        (c) => c.sqlChartTilesMetadata,
+    );
     const handleChangeTileConfiguration = useCallback(
-        (action: FilterActions, tileUuid: string, newField?: Field) => {
-            const filters = availableTileFilters[tileUuid];
-            if (!filters) return;
-
+        (
+            action: FilterActions,
+            tileUuid: string,
+            newTarget?: DashboardFieldTarget,
+        ) => {
             const changedFilterRule = produce(draftFilterRule, (draftState) => {
                 if (!draftState || !selectedField) return;
 
                 draftState.tileTargets = draftState.tileTargets ?? {};
 
                 switch (action) {
-                    case FilterActions.ADD:
-                        const filterableField =
-                            newField ?? getDefaultField(filters, selectedField);
+                    case FilterActions.ADD: {
+                        let target: DashboardFieldTarget | undefined =
+                            newTarget;
 
-                        if (!filterableField) return draftState;
+                        // Find fallback target
+                        if (!target) {
+                            const defaultColumn: string | undefined =
+                                sqlChartTilesMetadata[tileUuid]?.columns[0];
+                            const defaultField = getDefaultField(
+                                availableTileFilters[tileUuid] ?? [],
+                                selectedField,
+                            );
 
-                        draftState.tileTargets[tileUuid] = {
-                            fieldId: getItemId(filterableField),
-                            tableName: filterableField.table,
-                        };
+                            if (defaultColumn) {
+                                // Set SQL chart fallback column
+                                target = {
+                                    fieldId: defaultColumn,
+                                    tableName: 'mock_table',
+                                };
+                            } else if (defaultField) {
+                                // Set default field
+                                target = {
+                                    fieldId: getItemId(defaultField),
+                                    tableName: defaultField.name,
+                                };
+                            }
+                        }
 
+                        if (!target) return draftState;
+
+                        draftState.tileTargets[tileUuid] = target;
                         return draftState;
-
+                    }
                     case FilterActions.REMOVE:
                         draftState.tileTargets[tileUuid] = false;
                         return draftState;
@@ -183,6 +207,7 @@ const FilterConfiguration: FC<Props> = ({
             availableTileFilters,
             setDraftFilterRule,
             draftFilterRule,
+            sqlChartTilesMetadata,
         ],
     );
 

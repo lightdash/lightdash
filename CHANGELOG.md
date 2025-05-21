@@ -1,3 +1,73 @@
+# [0.1638.0](https://github.com/lightdash/lightdash/compare/0.1637.1...0.1638.0) (2025-05-20)
+
+
+### Features
+
+* filter sql charts in dashboard ([#14846](https://github.com/lightdash/lightdash/issues/14846)) ([9b2c49f](https://github.com/lightdash/lightdash/commit/9b2c49fbad90ff2e0cdcd2dd1d0c5b220786d79a))
+
+## [0.1637.1](https://github.com/lightdash/lightdash/compare/0.1637.0...0.1637.1) (2025-05-20)
+
+
+### Bug Fixes
+
+* dashbaord comments placement ([#14870](https://github.com/lightdash/lightdash/issues/14870)) ([07b4426](https://github.com/lightdash/lightdash/commit/07b4426ac79e76607a88cf835f9e61beb92daa13))
+
+# [0.1637.0](https://github.com/lightdash/lightdash/compare/0.1636.0...0.1637.0) (2025-05-20)
+
+
+### Features
+
+* saving columns to results cache table & using them ([#14858](https://github.com/lightdash/lightdash/issues/14858)) ([e76ee34](https://github.com/lightdash/lightdash/commit/e76ee34887144cb2643041633943f7be39514faa))
+
+# [0.1636.0](https://github.com/lightdash/lightdash/compare/0.1635.0...0.1636.0) (2025-05-20)
+
+
+### Features
+
+* add required joined tables filters ([#14873](https://github.com/lightdash/lightdash/issues/14873)) ([11bf8b6](https://github.com/lightdash/lightdash/commit/11bf8b69950009b161f7aec65d926bea7c7393fc))
+
+# [0.1635.0](https://github.com/lightdash/lightdash/compare/0.1634.0...0.1635.0) (2025-05-20)
+
+
+### Features
+
+* **api:** support dashboard filters with column references in sql charts ([#14828](https://github.com/lightdash/lightdash/issues/14828)) ([ed32c8f](https://github.com/lightdash/lightdash/commit/ed32c8f7ed1ed67f5ab844661db6ab01774b25b1))
+
+# [0.1634.0](https://github.com/lightdash/lightdash/compare/0.1633.0...0.1634.0) (2025-05-20)
+
+
+### Features
+
+* create agent list view,detail,edit ([#14861](https://github.com/lightdash/lightdash/issues/14861)) ([059c63e](https://github.com/lightdash/lightdash/commit/059c63e11ee263f5c64ce3890f3be985941a6da2))
+
+# [0.1633.0](https://github.com/lightdash/lightdash/compare/0.1632.2...0.1633.0) (2025-05-20)
+
+
+### Features
+
+* Agent configuration api spec ([#14855](https://github.com/lightdash/lightdash/issues/14855)) ([6291719](https://github.com/lightdash/lightdash/commit/62917199861e1d5fea078847ebb230df2f88e49c))
+
+## [0.1632.2](https://github.com/lightdash/lightdash/compare/0.1632.1...0.1632.2) (2025-05-20)
+
+
+### Bug Fixes
+
+* debug ai chat ui ([#14874](https://github.com/lightdash/lightdash/issues/14874)) ([7b72ba0](https://github.com/lightdash/lightdash/commit/7b72ba077e3b906f72c889d7112ac4fd396c0717)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+## [0.1632.1](https://github.com/lightdash/lightdash/compare/0.1632.0...0.1632.1) (2025-05-19)
+
+
+### Bug Fixes
+
+* results page smaller than actual results ([#14869](https://github.com/lightdash/lightdash/issues/14869)) ([a9a5789](https://github.com/lightdash/lightdash/commit/a9a578982d75624731ba6a3f48c231bb84da3093))
+
+# [0.1632.0](https://github.com/lightdash/lightdash/compare/0.1631.1...0.1632.0) (2025-05-19)
+
+
+### Features
+
+* use new paginated endpoint for pivoted sql results ([#14845](https://github.com/lightdash/lightdash/issues/14845)) ([a51d70b](https://github.com/lightdash/lightdash/commit/a51d70b3cd9b0568253722c29d9271afbd6e5b87))
+
 ## [0.1631.1](https://github.com/lightdash/lightdash/compare/0.1631.0...0.1631.1) (2025-05-19)
 
 

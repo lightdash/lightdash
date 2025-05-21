@@ -1,5 +1,13 @@
 import { CommercialFeatureFlags } from '@lightdash/common';
-import { Box, Group, Loader, Stack, Text, Title } from '@mantine/core';
+import {
+    Box,
+    Card,
+    Loader,
+    MantineProvider,
+    Stack,
+    Text,
+    Title,
+} from '@mantine-8/core';
 import { type FC } from 'react';
 import { AiAgents } from '../../../ee/features/aiCopilot/components/AiAgents';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
@@ -19,11 +27,9 @@ const AiAgentsPanel: FC = () => {
     if (!isAiCopilotEnabled) {
         return (
             <SettingsGridCard>
-                <Stack spacing="sm">
+                <Stack gap="sm">
                     <Box>
-                        <Group spacing="sm">
-                            <Title order={4}>AI Agents</Title>
-                        </Group>
+                        <Title order={4}>AI Agents</Title>
                     </Box>
                 </Stack>
 
@@ -35,16 +41,19 @@ const AiAgentsPanel: FC = () => {
     }
 
     return (
-        <SettingsGridCard>
-            <Stack spacing="sm">
-                <Title order={4}>AI Agents</Title>
+        <MantineProvider>
+            <Card withBorder shadow="subtle">
+                <Stack gap="sm">
+                    <Title order={4}>AI Agents</Title>
 
-                <Text size="xs" color="dimmed">
-                    Create and manage your AI agents.
-                </Text>
-            </Stack>
-            <AiAgents />
-        </SettingsGridCard>
+                    <Text size="xs" c="dimmed">
+                        Create and manage your AI agents.
+                    </Text>
+                </Stack>
+
+                <AiAgents />
+            </Card>
+        </MantineProvider>
     );
 };
 

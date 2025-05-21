@@ -10,7 +10,6 @@ import {
     assertUnreachable,
     CompiledDimension,
     convertFieldRefToFieldId,
-    convertItemTypeToDimensionType,
     createVirtualView as createVirtualViewObject,
     CreateWarehouseCredentials,
     type CustomDimension,
@@ -27,8 +26,10 @@ import {
     ForbiddenError,
     formatRow,
     getDashboardFilterRulesForTables,
+    getDashboardFilterRulesForTileAndReferences,
     getDimensions,
     getErrorMessage,
+    getFieldQuoteChar,
     getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
@@ -59,6 +60,7 @@ import {
     type SpaceShare,
     type SpaceSummary,
     SqlChart,
+    UnexpectedServerError,
     ValuesColumn,
     WarehouseClient,
     type WarehouseExecuteAsyncQuery,
@@ -66,13 +68,19 @@ import {
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import { createInterface } from 'readline';
+import { Readable } from 'stream';
+import { v4 as uuidv4 } from 'uuid';
 import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { DbResultsCacheUpdate } from '../../database/entities/resultsFile';
 import { measureTime } from '../../logging/measureTime';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
 import { ResultsFileModel } from '../../models/ResultsFileModel/ResultsFileModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
-import { applyLimitToSqlQuery } from '../../queryBuilder';
+import {
+    applyLimitToSqlQuery,
+    QueryBuilder,
+    ReferenceMap,
+} from '../../queryBuilder';
 import { wrapSentryTransaction } from '../../utils';
 import type { ICacheService } from '../CacheService/ICacheService';
 import {
@@ -81,7 +89,6 @@ import {
     MissCacheResult,
     ResultsCacheStatus,
 } from '../CacheService/types';
-import { CsvService } from '../CsvService/CsvService';
 import {
     ProjectService,
     type ProjectServiceArguments,
@@ -90,9 +97,9 @@ import {
     getNextAndPreviousPage,
     validatePagination,
 } from '../ProjectService/resultsPagination';
-import { getResultsColumns } from './getResultsColumns';
+import { getPivotedColumns } from './getPivotedColumns';
+import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
-    type DownloadAsyncQueryResultsArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
     type ExecuteAsyncMetricQueryArgs,
@@ -236,6 +243,7 @@ export class AsyncQueryService extends ProjectService {
             expires_at: newExpiresAt,
             total_row_count: null,
             status: ResultsCacheStatus.PENDING,
+            columns: null,
         });
 
         if (!createdCache) {
@@ -306,6 +314,7 @@ export class AsyncQueryService extends ProjectService {
 
         return {
             rows,
+            columns: cache.columns,
             totalRowCount: cache.total_row_count ?? 0,
             expiresAt: cache.expires_at,
         };
@@ -399,8 +408,9 @@ export class AsyncQueryService extends ProjectService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -492,7 +502,13 @@ export class AsyncQueryService extends ProjectService {
             formatRow(row, queryHistory.fields);
 
         const {
-            result: { rows, totalRowCount: cacheTotalRowCount, expiresAt },
+            result: {
+                rows,
+                columns,
+                totalRowCount: cacheTotalRowCount,
+                expiresAt,
+            },
+            result,
             durationMs,
         } = await measureTime(
             () =>
@@ -568,33 +584,21 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        // Ideally, we should use the warehouse results columns metadata. For now we can rely on the fields.
-        const unpivotedColumns = Object.values(fields).reduce<ResultColumns>(
-            (acc, field) => {
-                const column = {
-                    reference: field.name,
-                    type: convertItemTypeToDimensionType(field),
-                };
-                acc[column.reference] = column;
-                return acc;
-            },
-            {},
-        );
-
         const {
             pivotConfiguration,
             pivotValuesColumns,
             pivotTotalColumnCount,
         } = queryHistory;
 
+        if (!columns) {
+            throw new UnexpectedServerError(
+                `No columns found for query ${queryUuid}`,
+            );
+        }
+
         const returnObject = {
             rows,
-            columns: getResultsColumns(
-                unpivotedColumns,
-                pivotConfiguration,
-                pivotValuesColumns,
-                rows,
-            ),
+            columns,
             totalPageCount: pageCount,
             totalResults: cacheTotalRowCount,
             queryUuid: queryHistory.queryUuid,
@@ -620,9 +624,69 @@ export class AsyncQueryService extends ProjectService {
             pivotDetails: {
                 totalColumnCount: pivotTotalColumnCount,
                 valuesColumns: pivotValuesColumns,
-                unpivotedColumns,
+                indexColumn: pivotConfiguration.indexColumn,
+                groupByColumns: pivotConfiguration.groupByColumns,
+                sortBy: pivotConfiguration.sortBy,
             },
         };
+    }
+
+    async getResultsStream({
+        user,
+        projectUuid,
+        queryUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<Readable> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            user.userUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (user.userUuid !== queryHistory.createdByUserUuid) {
+            throw new ForbiddenError(
+                'User is not allowed to download results for this query',
+            );
+        }
+
+        const { status, cacheKey: resultsFileName } = queryHistory;
+
+        if (status === QueryHistoryStatus.ERROR) {
+            throw new Error(queryHistory.error ?? 'Warehouse query failed');
+        }
+
+        if (status === QueryHistoryStatus.PENDING) {
+            throw new Error('Query is in pending state');
+        }
+
+        if (status === QueryHistoryStatus.READY) {
+            if (!resultsFileName) {
+                throw new Error('Results file name not found for query');
+            }
+
+            return this.storageClient.getDowloadStream(resultsFileName);
+        }
+
+        throw new Error('Invalid query status');
     }
 
     async downloadAsyncQueryResults({
@@ -637,8 +701,9 @@ export class AsyncQueryService extends ProjectService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -707,6 +772,7 @@ export class AsyncQueryService extends ProjectService {
             sortBy: SortBy | undefined;
         };
     }): Promise<{
+        columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
         pivotDetails: {
             valuesColumns: Map<string, PivotValuesColumn>;
@@ -721,15 +787,24 @@ export class AsyncQueryService extends ProjectService {
         // Total column count includes the unlimited number of columns that can be pivoted, so we can show a warning in the frontend
         let pivotTotalColumnCount: undefined | number;
         let pivotTotalRows = 0;
+        let unpivotedColumns: ResultColumns = {};
 
         const writeAndTransformRowsIfPivot = pivotConfiguration
-            ? (rows: WarehouseResults['rows']) => {
+            ? (
+                  rows: WarehouseResults['rows'],
+                  fields: WarehouseResults['fields'],
+              ) => {
                   if ('total_columns' in rows[0]) {
                       const numberTotalColumns = Number(rows[0].total_columns);
                       pivotTotalColumnCount = Number.isNaN(numberTotalColumns)
                           ? undefined
                           : numberTotalColumns;
                   }
+
+                  unpivotedColumns = getUnpivotedColumns(
+                      unpivotedColumns,
+                      fields,
+                  );
 
                   const { indexColumn, valuesColumns, groupByColumns } =
                       pivotConfiguration;
@@ -781,7 +856,17 @@ export class AsyncQueryService extends ProjectService {
                       });
                   });
               }
-            : resultsCache.write;
+            : (
+                  rows: WarehouseResults['rows'],
+                  fields: WarehouseResults['fields'],
+              ) => {
+                  // Capture columns from the first batch if available
+                  unpivotedColumns = getUnpivotedColumns(
+                      unpivotedColumns,
+                      fields,
+                  );
+                  resultsCache.write(rows);
+              };
 
         const warehouseResults = await warehouseClient.executeAsyncQuery(
             {
@@ -791,6 +876,14 @@ export class AsyncQueryService extends ProjectService {
             writeAndTransformRowsIfPivot,
         );
 
+        const columns = pivotConfiguration
+            ? getPivotedColumns(
+                  unpivotedColumns,
+                  pivotConfiguration,
+                  Array.from(valuesColumnData.keys()),
+              )
+            : unpivotedColumns;
+
         // Write the last row
         if (currentTransformedRow) {
             pivotTotalRows += 1;
@@ -799,6 +892,7 @@ export class AsyncQueryService extends ProjectService {
 
         return {
             warehouseResults,
+            columns,
             pivotDetails: pivotConfiguration
                 ? {
                       valuesColumns: valuesColumnData,
@@ -849,6 +943,7 @@ export class AsyncQueryService extends ProjectService {
                     queryId,
                 },
                 pivotDetails,
+                columns,
             } = await AsyncQueryService.runQueryAndTransformRows({
                 warehouseClient,
                 query,
@@ -878,6 +973,7 @@ export class AsyncQueryService extends ProjectService {
             await this.updateCache(resultsCache.cacheKey, projectUuid, {
                 status: ResultsCacheStatus.READY,
                 total_row_count: pivotDetails?.totalRows ?? totalRows,
+                columns,
             });
 
             this.analytics.track({
@@ -1195,6 +1291,7 @@ export class AsyncQueryService extends ProjectService {
                                 error: null,
                                 total_row_count: resultsCache.totalRowCount,
                                 warehouse_execution_time_ms: 0, // When cache is hit, no query is executed
+                                // TODO: we need to update query history model here
                             },
                         );
 
@@ -1257,8 +1354,9 @@ export class AsyncQueryService extends ProjectService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1665,8 +1763,9 @@ export class AsyncQueryService extends ProjectService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1897,6 +1996,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardFilters,
         dashboardSorts,
         limit,
+        tileUuid,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -1907,6 +2007,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardFilters?: ExecuteAsyncDashboardSqlChartArgs['dashboardFilters'];
         dashboardSorts?: ExecuteAsyncDashboardSqlChartArgs['dashboardSorts'];
         limit?: number;
+        tileUuid?: string;
     }) {
         const warehouseConnection = await this._getWarehouseClient(
             projectUuid,
@@ -1984,22 +2085,29 @@ export class AsyncQueryService extends ProjectService {
             limit: limit ?? 500,
         };
 
+        const fieldQuoteChar = getFieldQuoteChar(
+            warehouseConnection.warehouseClient.credentials.type,
+        );
+
+        // Create a referenceMap from vizColumns
+        const referenceMap: ReferenceMap = {};
+        vizColumns.forEach((col) => {
+            referenceMap[col.reference] = {
+                type: col.type,
+                sql: `${fieldQuoteChar}${col.reference}${fieldQuoteChar}`,
+            };
+        });
+
         let appliedDashboardFilters: DashboardFilters | undefined;
-        if (dashboardFilters) {
-            const tables = Object.keys(virtualView.tables);
+        if (dashboardFilters && tileUuid) {
             appliedDashboardFilters = {
-                dimensions: getDashboardFilterRulesForTables(
-                    tables,
+                dimensions: getDashboardFilterRulesForTileAndReferences(
+                    tileUuid,
+                    Object.keys(referenceMap),
                     dashboardFilters.dimensions,
                 ),
-                metrics: getDashboardFilterRulesForTables(
-                    tables,
-                    dashboardFilters.metrics,
-                ),
-                tableCalculations: getDashboardFilterRulesForTables(
-                    tables,
-                    dashboardFilters.tableCalculations,
-                ),
+                metrics: [],
+                tableCalculations: [],
             };
 
             // This override isn't used for anything at the moment since sql charts don't support filters, but it's here for future use
@@ -2009,6 +2117,11 @@ export class AsyncQueryService extends ProjectService {
                     appliedDashboardFilters,
                     virtualView,
                 ),
+            };
+        }
+        if (dashboardSorts) {
+            metricQuery = {
+                ...metricQuery,
                 sorts:
                     dashboardSorts && dashboardSorts.length > 0
                         ? dashboardSorts
@@ -2016,13 +2129,41 @@ export class AsyncQueryService extends ProjectService {
             };
         }
 
+        // Select all vizColumns
+        const selectColumns = vizColumns.map((col) => col.reference);
+
+        // Create and return the QueryBuilder instance
+        const queryBuilder = new QueryBuilder(
+            {
+                referenceMap,
+                select: selectColumns,
+                from: { name: 'sql_query', sql: sqlWithLimit },
+                filters: appliedDashboardFilters
+                    ? {
+                          id: uuidv4(),
+                          and: appliedDashboardFilters.dimensions,
+                      }
+                    : undefined,
+            },
+            {
+                fieldQuoteChar,
+                stringQuoteChar:
+                    warehouseConnection.warehouseClient.getStringQuoteChar(),
+                escapeStringQuoteChar:
+                    warehouseConnection.warehouseClient.getEscapeStringQuoteChar(),
+                startOfWeek:
+                    warehouseConnection.warehouseClient.getStartOfWeek(),
+                adapterType:
+                    warehouseConnection.warehouseClient.getAdapterType(),
+            },
+        );
         return {
             metricQuery,
             pivotConfiguration,
             virtualView,
             queryTags,
             warehouseConnection,
-            sql: sqlWithLimit,
+            sql: queryBuilder.toSql(),
             appliedDashboardFilters,
         };
     }
@@ -2110,6 +2251,7 @@ export class AsyncQueryService extends ProjectService {
         const {
             user,
             projectUuid,
+            tileUuid,
             context,
             invalidateCache,
             dashboardFilters,
@@ -2142,6 +2284,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid: savedChart.organization.organizationUuid,
             sql: savedChart.sql,
             config: savedChart.config,
+            tileUuid,
             dashboardFilters,
             dashboardSorts,
             limit,

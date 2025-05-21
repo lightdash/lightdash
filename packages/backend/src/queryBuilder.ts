@@ -6,10 +6,11 @@ import {
     CompiledDimension,
     CompiledMetricQuery,
     CompiledTable,
-    createFilterRuleFromRequiredMetricRule,
+    createFilterRuleFromModelRequiredFilterRule,
     CustomBinDimension,
     CustomDimension,
     DbtModelJoinType,
+    DimensionType,
     Explore,
     FieldId,
     FieldReferenceError,
@@ -34,9 +35,11 @@ import {
     isCustomBinDimension,
     isFilterGroup,
     isFilterRuleInQuery,
+    isJoinModelRequiredFilter,
     ItemsMap,
     MetricFilterRule,
     parseAllReferences,
+    renderFilterRuleSql,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
     SortField,
@@ -1009,6 +1012,7 @@ export const buildQuery = ({
 
         const tableCompiledSqlWhere =
             explore.tables[explore.baseTable].sqlWhere;
+
         const tableSqlWhere =
             explore.tables[explore.baseTable].uncompiledSqlWhere;
 
@@ -1020,10 +1024,21 @@ export const buildQuery = ({
             ? tableSqlWhereTableReferences.map((ref) => ref.refTable)
             : [];
 
+        const requiredFilterJoinedTables =
+            explore.tables[explore.baseTable].requiredFilters
+                ?.map((filter) => {
+                    if (isJoinModelRequiredFilter(filter)) {
+                        return filter.target.tableName;
+                    }
+                    return undefined;
+                })
+                .filter((s): s is string => Boolean(s)) || [];
+
         const joinedTables = new Set([
             ...selectedTables,
             ...getJoinedTables(explore, [...selectedTables]),
             ...tablesFromTableSqlWhereFilter,
+            ...requiredFilterJoinedTables,
         ]);
 
         const sqlJoins = explore.joinedTables
@@ -1228,15 +1243,35 @@ export const buildQuery = ({
 
             const reducedRules: string[] = modelFilterRules.reduce<string[]>(
                 (acc, filter) => {
-                    const filterRule = createFilterRuleFromRequiredMetricRule(
-                        filter,
-                        table.name,
-                    );
-                    const dimension = Object.values(table.dimensions).find(
-                        (tc) => getItemId(tc) === filterRule.target.fieldId,
-                    );
+                    let dimension: CompiledDimension | undefined;
+
+                    // This function already takes care of falling back to the base table if the fieldRef doesn't have 2 parts (falls back to base table name)
+                    const filterRule =
+                        createFilterRuleFromModelRequiredFilterRule(
+                            filter,
+                            table.name,
+                        );
+
+                    if (isJoinModelRequiredFilter(filter)) {
+                        const joinedTable =
+                            explore.tables[filter.target.tableName];
+
+                        if (joinedTable) {
+                            dimension = Object.values(
+                                joinedTable.dimensions,
+                            ).find(
+                                (d) =>
+                                    getItemId(d) === filterRule.target.fieldId,
+                            );
+                        }
+                    } else {
+                        dimension = Object.values(table.dimensions).find(
+                            (tc) => getItemId(tc) === filterRule.target.fieldId,
+                        );
+                    }
 
                     if (!dimension) return acc;
+
                     if (
                         isFilterRuleInQuery(
                             dimension,
@@ -1387,3 +1422,134 @@ export const buildQuery = ({
             fields,
         };
     });
+
+type ReferenceObject = { type: DimensionType; sql: string };
+export type ReferenceMap = Record<string, ReferenceObject> | undefined;
+type From = { name: string; sql?: string };
+
+export class QueryBuilder {
+    // Column references, to be used in select, filters, etc
+    private readonly referenceMap: ReferenceMap;
+
+    // Select values are references
+    private readonly select: string[];
+
+    private readonly from: From;
+
+    private readonly filters: FilterGroup | undefined;
+
+    constructor(
+        args: {
+            referenceMap: ReferenceMap;
+            select: string[];
+            from: From;
+            filters?: FilterGroup;
+        },
+        private config: {
+            fieldQuoteChar: string;
+            stringQuoteChar: string;
+            escapeStringQuoteChar: string;
+            startOfWeek: WeekDay | null | undefined;
+            adapterType: SupportedDbtAdapter;
+            timezone?: string;
+        },
+    ) {
+        this.select = args.select;
+        this.from = args.from;
+        this.filters = args.filters;
+        this.referenceMap = args.referenceMap;
+    }
+
+    private quotedName(value: string) {
+        return `${this.config.fieldQuoteChar}${value}${this.config.fieldQuoteChar}`;
+    }
+
+    private getReference(reference: string): ReferenceObject {
+        const referenceObject = this.referenceMap?.[reference];
+        if (!referenceObject) {
+            throw new FieldReferenceError(`Unknown reference: ${reference}`);
+        }
+        return referenceObject;
+    }
+
+    private selectsToSql(): string | undefined {
+        let selectSQL = '*';
+        if (this.select.length > 0) {
+            selectSQL = this.select
+                .map((reference) => {
+                    const referenceObject = this.getReference(reference);
+                    return `${referenceObject.sql} AS ${this.quotedName(
+                        reference,
+                    )}`;
+                })
+                .join(',\n');
+        }
+        return `SELECT\n${selectSQL}`;
+    }
+
+    private fromToSql(): string {
+        return `FROM ${
+            this.from.sql ? `(\n${this.from.sql}\n) AS ` : ''
+        }${this.quotedName(this.from.name)}`;
+    }
+
+    private filtersToSql() {
+        // Recursive function to convert filters to SQL
+        const getNestedFilterSQLFromGroup = (
+            filterGroup: FilterGroup | undefined,
+        ): string | undefined => {
+            if (filterGroup) {
+                const operator = isAndFilterGroup(filterGroup) ? 'AND' : 'OR';
+                const items = isAndFilterGroup(filterGroup)
+                    ? filterGroup.and
+                    : filterGroup.or;
+                if (items.length === 0) return undefined;
+                const filterRules: string[] = items.reduce<string[]>(
+                    (sum, item) => {
+                        // Handle nested filters
+                        if (isFilterGroup(item)) {
+                            const nestedFilterSql =
+                                getNestedFilterSQLFromGroup(item);
+                            return nestedFilterSql
+                                ? [...sum, nestedFilterSql]
+                                : sum;
+                        }
+                        // Handle filter rule
+                        const reference = this.getReference(
+                            item.target.fieldId,
+                        );
+                        const filterSQl = `(\n${renderFilterRuleSql(
+                            item,
+                            reference.type,
+                            reference.sql,
+                            this.config.stringQuoteChar,
+                            this.config.escapeStringQuoteChar,
+                            this.config.startOfWeek,
+                            this.config.adapterType,
+                            this.config.timezone,
+                        )}\n)`;
+                        return [...sum, filterSQl];
+                    },
+                    [],
+                );
+                return filterRules.length > 0
+                    ? `(${filterRules.join(` ${operator} `)})`
+                    : undefined;
+            }
+            return undefined;
+        };
+
+        const filtersSql = getNestedFilterSQLFromGroup(this.filters);
+        if (filtersSql) {
+            return `WHERE ${filtersSql}`;
+        }
+        return undefined;
+    }
+
+    toSql(): string {
+        // Combine all parts of the query
+        return [this.selectsToSql(), this.fromToSql(), this.filtersToSql()]
+            .filter((l) => l !== undefined)
+            .join('\n');
+    }
+}

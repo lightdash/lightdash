@@ -2,7 +2,6 @@ import {
     NotFoundError,
     QueryExecutionContext,
     QueryHistoryStatus,
-    WarehouseQueryError,
     type CreateWarehouseCredentials,
     type ExecuteAsyncQueryRequestParams,
     type QueryHistory,
@@ -49,6 +48,7 @@ import {
 import {
     allExplores,
     expectedApiQueryResultsWith1Row,
+    expectedColumns,
     expectedFormattedRow,
     job,
     lightdashConfigWithNoSMTP,
@@ -360,8 +360,9 @@ describe('AsyncQueryService', () => {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
                 },
-                write,
+                expect.any(Function),
             );
+            expect(write).toHaveBeenCalled();
         });
 
         test('should invalidate cache when invalidateCache is true', async () => {
@@ -439,8 +440,9 @@ describe('AsyncQueryService', () => {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
                 },
-                write,
+                expect.any(Function),
             );
+            expect(write).toHaveBeenCalled();
         });
     });
 
@@ -644,6 +646,7 @@ describe('AsyncQueryService', () => {
                 .fn()
                 .mockResolvedValue({
                     rows: [expectedFormattedRow],
+                    columns: expectedColumns,
                     totalRowCount: 10,
                 });
 
@@ -668,12 +671,7 @@ describe('AsyncQueryService', () => {
                 resultsPageExecutionMs: expect.any(Number),
                 status: QueryHistoryStatus.READY,
                 pivotDetails: null,
-                columns: {
-                    dim1: {
-                        reference: 'dim1',
-                        type: 'string',
-                    },
-                },
+                columns: expectedColumns,
             });
 
             expect(serviceWithCache.getCachedResultsPage).toHaveBeenCalledWith(

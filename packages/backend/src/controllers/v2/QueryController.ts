@@ -1,4 +1,5 @@
 import {
+    AnyType,
     ApiErrorPayload,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
@@ -340,6 +341,7 @@ export class QueryController extends BaseController {
                 projectUuid,
                 invalidateCache: body.invalidateCache ?? false,
                 dashboardUuid: body.dashboardUuid,
+                tileUuid: body.tileUuid,
                 dashboardFilters: body.dashboardFilters,
                 dashboardSorts: body.dashboardSorts,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
@@ -353,6 +355,42 @@ export class QueryController extends BaseController {
             status: 'ok',
             results,
         };
+    }
+
+    /**
+     * Stream results from S3
+     */
+    @Hidden()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{queryUuid}/results')
+    @OperationId('getResultsStream')
+    async getResultsStream(
+        @Path() projectUuid: string,
+        @Path() queryUuid: string,
+        @Request() req: express.Request,
+    ): Promise<AnyType> {
+        this.setStatus(200);
+        this.setHeader('Content-Type', 'application/json');
+
+        const readStream = await this.services
+            .getAsyncQueryService()
+            .getResultsStream({
+                user: req.user!,
+                projectUuid,
+                queryUuid,
+            });
+
+        const { res } = req;
+        if (res) {
+            readStream.pipe(res);
+            await new Promise<void>((resolve, reject) => {
+                readStream.on('end', () => {
+                    res.end();
+                    resolve();
+                });
+            });
+        }
     }
 
     @Hidden()

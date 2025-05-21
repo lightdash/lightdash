@@ -2,7 +2,7 @@ import { GetObjectCommand, NotFound } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getErrorMessage, WarehouseResults } from '@lightdash/common';
-import { once, PassThrough, Readable, Writable } from 'stream';
+import { PassThrough, Readable } from 'stream';
 import Logger from '../../logging/logger';
 import {
     S3CacheClient,
@@ -53,30 +53,12 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             }
         };
 
-        function createWriteChunk(stream: Writable) {
-            let draining: Promise<void> | null = null;
-
-            return async function writeChunk(chunk: string): Promise<void> {
-                if (stream.write(chunk)) return;
-
-                if (!draining) {
-                    draining = once(stream, 'drain').then(() => {
-                        draining = null;
-                    });
-                }
-
-                await draining;
-            };
-        }
-
-        const writeChunk = createWriteChunk(passThrough);
-
-        const write = async (rows: WarehouseResults['rows']) => {
+        // Create a function that can be used as a streamQuery callback
+        const write = (rows: WarehouseResults['rows']) => {
             try {
-                for (const row of rows) {
-                    // eslint-disable-next-line no-await-in-loop
-                    await writeChunk(`${JSON.stringify(row)}\n`);
-                }
+                rows.forEach((row) =>
+                    passThrough.push(`${JSON.stringify(row)}\n`),
+                );
             } catch (error) {
                 Logger.error(
                     `Failed to write rows to cache key ${cacheKey}: ${getErrorMessage(
@@ -87,7 +69,10 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             }
         };
 
-        return { write, close };
+        return {
+            write,
+            close,
+        };
     }
 
     async getDowloadStream(
