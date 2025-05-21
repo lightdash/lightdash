@@ -61,14 +61,16 @@ const getAgent = async (agentUuid: string): Promise<ApiAiAgentResponse> => {
 
 const createAgent = async (data: ApiCreateAiAgent) =>
     lightdashApi<ApiCreateAiAgentResponse>({
-        url: `/api/v1/aiAgents`,
+        version: 'v1',
+        url: `/aiAgents`,
         method: 'POST',
         body: JSON.stringify(data),
     });
 
 const updateAgent = async (data: ApiUpdateAiAgent) =>
     lightdashApi<ApiAiAgentResponse>({
-        url: `/api/v1/aiAgents/${data.uuid}`,
+        version: 'v1',
+        url: `/aiAgents/${data.uuid}`,
         method: 'PATCH',
         body: JSON.stringify(data),
     });
@@ -121,7 +123,6 @@ export const useAiAgent = (
         ...useQueryOptions,
     });
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 export const useCreateAiAgentMutation = (
     options?: UseMutationOptions<
         ApiCreateAiAgentResponse,
@@ -140,7 +141,6 @@ export const useCreateAiAgentMutation = (
     });
 };
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 export const useUpdateAiAgentMutation = (
     options?: UseMutationOptions<
         ApiAiAgentResponse,
