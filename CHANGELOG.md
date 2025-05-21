@@ -1,3 +1,10 @@
+## [0.1638.1](https://github.com/lightdash/lightdash/compare/0.1638.0...0.1638.1) (2025-05-21)
+
+
+### Bug Fixes
+
+* ui improvement to rename in validation ([#14872](https://github.com/lightdash/lightdash/issues/14872)) ([6fd8156](https://github.com/lightdash/lightdash/commit/6fd8156986e2020bc8959441e5ee93553d3df13c))
+
 # [0.1638.0](https://github.com/lightdash/lightdash/compare/0.1637.1...0.1638.0) (2025-05-20)
 
 
