@@ -1,3 +1,10 @@
+## [0.1638.2](https://github.com/lightdash/lightdash/compare/0.1638.1...0.1638.2) (2025-05-21)
+
+
+### Bug Fixes
+
+* request user to refresh page when worker cant load old pivot script ([#14890](https://github.com/lightdash/lightdash/issues/14890)) ([5fdc14c](https://github.com/lightdash/lightdash/commit/5fdc14cd54766dd6c1fd73b869e0a857f6326b83))
+
 ## [0.1638.1](https://github.com/lightdash/lightdash/compare/0.1638.0...0.1638.1) (2025-05-21)
 
 
