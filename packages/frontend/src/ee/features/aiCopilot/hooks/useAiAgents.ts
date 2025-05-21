@@ -159,8 +159,7 @@ export const useUpdateAiAgentMutation = (
     });
 };
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-const useAiAgentThreads = (
+export const useAiAgentThreads = (
     agentUuid: string,
     useQueryOptions?: UseQueryOptions<
         ApiAiAgentThreadSummaryListResponse,
@@ -200,8 +199,7 @@ const useAiAgentThreads = (
         ...useQueryOptions,
     });
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-const useAiAgentThread = (
+export const useAiAgentThread = (
     agentUuid: string,
     threadUuid: string,
     useQueryOptions?: UseQueryOptions<ApiAiAgentThreadResponse, ApiError>,
