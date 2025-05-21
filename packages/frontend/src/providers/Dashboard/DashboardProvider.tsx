@@ -588,7 +588,9 @@ const DashboardProvider: React.FC<
                 .filter((f) => f.required && f.disabled)
                 .reduce<Pick<DashboardFilterRule, 'id' | 'label'>[]>(
                     (acc, f) => {
-                        const field = allFilterableFieldsMap[f.target.fieldId];
+                        const field = f.target
+                            ? allFilterableFieldsMap[f.target.fieldId]
+                            : undefined;
 
                         let label = '';
 

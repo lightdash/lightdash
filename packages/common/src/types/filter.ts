@@ -66,6 +66,7 @@ export interface FilterRule<
     S = AnyType,
 > extends ConditionalRule<O, V> {
     id: string;
+    filterType?: FilterType;
     target: T;
     settings?: S;
     disabled?: boolean;
@@ -111,7 +112,8 @@ export type DashboardFilterRule<
     T extends DashboardFieldTarget = DashboardFieldTarget,
     V = AnyType,
     S = AnyType,
-> = FilterRule<O, T, V, S> & {
+> = Omit<FilterRule<O, T, V, S>, 'target'> & {
+    target?: T;
     tileTargets?: Record<string, DashboardTileTarget>;
     label: undefined | string;
     singleValue?: boolean;
@@ -353,6 +355,25 @@ export enum FilterGroupOperator {
     or = 'or',
 }
 
+export const convertDashboardFilterRuleToFilterRule = (
+    dashboardFilterRule: DashboardFilterRule,
+): FilterRule => ({
+    id: dashboardFilterRule.id,
+    filterType: dashboardFilterRule.filterType,
+    target: {
+        // ...dashboardFilterRule.target,
+        fieldId: dashboardFilterRule.target?.fieldId || '', // todo: check problems with this before merge
+    },
+    operator: dashboardFilterRule.operator,
+    values: dashboardFilterRule.values,
+    ...(dashboardFilterRule.settings && {
+        settings: dashboardFilterRule.settings,
+    }),
+    ...(dashboardFilterRule.disabled && {
+        disabled: dashboardFilterRule.disabled,
+    }),
+});
+
 export const convertDashboardFiltersToFilters = (
     dashboardFilters: DashboardFilters,
 ): Filters => {
@@ -361,19 +382,19 @@ export const convertDashboardFiltersToFilters = (
     if (dimensions.length > 0) {
         filters.dimensions = {
             id: 'dashboard_dimension_filters',
-            and: dimensions.map((dimension) => dimension),
+            and: dimensions.map(convertDashboardFilterRuleToFilterRule),
         };
     }
     if (metrics.length > 0) {
         filters.metrics = {
             id: 'dashboard_dimension_metrics',
-            and: metrics.map((metric) => metric),
+            and: metrics.map(convertDashboardFilterRuleToFilterRule),
         };
     }
     if (tableCalculations.length > 0) {
         filters.tableCalculations = {
             id: 'dashboard_tablecalculation_filters',
-            and: tableCalculations.map((tableCalculation) => tableCalculation),
+            and: tableCalculations.map(convertDashboardFilterRuleToFilterRule),
         };
     }
     return filters;
@@ -433,6 +454,7 @@ export const compressDashboardFiltersToParam = (
                             // The filter will be automatically applied there
                             if (
                                 tileTargetValue !== false &&
+                                f.target &&
                                 isDashboardFieldTarget(tileTargetValue) &&
                                 tileTargetValue.fieldId === f.target.fieldId &&
                                 tileTargetValue.tableName === f.target.tableName

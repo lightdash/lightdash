@@ -30,7 +30,7 @@ const constructOverrideString = (
     updated: DashboardFilterRule,
     diffs: (keyof DashboardFilterRule)[],
 ): string | null => {
-    if (diffs.length === 0) return null;
+    if (diffs.length === 0 || !updated.target) return null;
 
     let overrideString = `${updated.target.fieldId}.${
         updated.operator || original.operator

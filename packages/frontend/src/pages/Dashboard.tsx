@@ -525,7 +525,9 @@ const Dashboard: FC = () => {
         );
     }
     const dashboardChartTiles = dashboardTiles?.filter(
-        (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
+        (tile) =>
+            tile.type === DashboardTileTypes.SAVED_CHART ||
+            tile.type === DashboardTileTypes.SQL_CHART,
     );
 
     return (

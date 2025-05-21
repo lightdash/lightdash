@@ -249,8 +249,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 onDragEnd={handleDragEnd}
             >
                 {dashboardFilters.dimensions.map((item, index) => {
-                    const field = allFilterableFieldsMap[item.target.fieldId];
+                    const field = item.target
+                        ? allFilterableFieldsMap[item.target.fieldId]
+                        : undefined;
                     const appliesToTabs = getTabsUsingFilter(item.id);
+                    const isInvalidFilter = item.target?.fieldId && !field;
                     return (
                         <DroppableArea key={item.id} id={item.id}>
                             <DraggableItem
@@ -258,7 +261,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                 id={item.id}
                                 disabled={!isEditMode || !!openPopoverId}
                             >
-                                {field ? (
+                                {!isInvalidFilter ? (
                                     <Filter
                                         key={item.id}
                                         isEditMode={isEditMode}
@@ -305,9 +308,12 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             </DndContext>
 
             {dashboardTemporaryFilters.dimensions.map((item, index) => {
-                const field = allFilterableFieldsMap[item.target.fieldId];
+                const field = item.target
+                    ? allFilterableFieldsMap[item.target.fieldId]
+                    : undefined;
                 const appliesToTabs = getTabsUsingTemporaryFilter(item.id);
-                return field ? (
+                const isInvalidFilter = item.target?.fieldId && !field;
+                return !isInvalidFilter ? (
                     <Filter
                         key={item.id}
                         isTemporary

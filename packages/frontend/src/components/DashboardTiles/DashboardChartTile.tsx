@@ -655,7 +655,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
             const fields = explore ? getFields(explore) : [];
             const field = fields.find(
-                (f) => getItemId(f) === filter.target.fieldId,
+                (f) => filter.target && getItemId(f) === filter.target.fieldId,
             );
 
             if (projectUuid && dashboardUuid) {
@@ -904,9 +904,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                 const field = fields.find(
                                                     (f) => {
                                                         return (
+                                                            filterRule.target &&
                                                             getItemId(f) ===
-                                                            filterRule.target
-                                                                .fieldId
+                                                                filterRule
+                                                                    .target
+                                                                    .fieldId
                                                         );
                                                     },
                                                 );
@@ -914,7 +916,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                     !field ||
                                                     !isFilterableField(field)
                                                 )
-                                                    return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
+                                                    return `Tried to reference field with unknown id: ${filterRule.target?.fieldId}`;
 
                                                 const filterRuleLabels =
                                                     getConditionalRuleLabel(

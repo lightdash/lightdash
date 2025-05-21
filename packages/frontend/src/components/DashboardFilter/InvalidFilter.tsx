@@ -21,6 +21,7 @@ const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
     return (
         <Tooltip
             position="top-start"
+            disabled={!filterRule.target}
             withinPortal
             offset={0}
             arrowOffset={16}
@@ -29,7 +30,7 @@ const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
                     <Text span color="gray.6">
                         Tried to reference field with unknown id:
                     </Text>
-                    <Text span> {filterRule.target.fieldId}</Text>
+                    <Text span> {filterRule.target?.fieldId}</Text>
                 </Text>
             }
         >

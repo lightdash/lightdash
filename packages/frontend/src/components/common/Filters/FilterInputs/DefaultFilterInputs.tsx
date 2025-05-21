@@ -54,7 +54,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         case FilterOperator.NOT_EQUALS: {
             switch (filterType) {
                 case FilterType.STRING:
-                    return isTableCalculation(field) ? (
+                    return !field || isTableCalculation(field) ? (
                         <FilterMultiStringInput
                             disabled={disabled}
                             placeholder={placeholder}

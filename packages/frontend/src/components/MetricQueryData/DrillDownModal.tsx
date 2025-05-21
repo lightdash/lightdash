@@ -1,5 +1,6 @@
 import {
     ChartType,
+    convertDashboardFilterRuleToFilterRule,
     FilterOperator,
     getDimensions,
     getItemId,
@@ -47,7 +48,11 @@ const combineFilters = ({
         combinedDimensionFilters.push(metricQuery.filters.dimensions);
     }
     if (dashboardFilters) {
-        combinedDimensionFilters.push(...dashboardFilters.dimensions);
+        combinedDimensionFilters.push(
+            ...dashboardFilters.dimensions.map(
+                convertDashboardFilterRuleToFilterRule,
+            ),
+        );
     }
     if (pivotReference?.pivotValues) {
         const pivotFilter: FilterRule[] = pivotReference.pivotValues.map(
