@@ -100,12 +100,16 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
     }
 
     async getFileUrl(cacheKey: string, fileExtension = 'jsonl') {
+        // Check if the cacheKey already has a file extension
+        const hasExtension = cacheKey.includes('.');
+        const key = hasExtension ? cacheKey : `${cacheKey}.${fileExtension}`;
+
         // Get the S3 URL
         const url = await getSignedUrl(
             this.s3,
             new GetObjectCommand({
                 Bucket: this.configuration.bucket,
-                Key: `${cacheKey}.${fileExtension}`,
+                Key: key,
             }),
             {
                 expiresIn: this.s3ExpiresIn,
@@ -123,9 +127,13 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             writeStream: Writable,
         ) => Promise<{ truncated: boolean }>,
     ): Promise<{ fileUrl: string; truncated: boolean }> {
+        // Determine content type based on file extension
+        const isCsv = sinkFileName.toLowerCase().endsWith('.csv');
+        const contentType = isCsv ? 'text/csv' : 'application/jsonl';
+
         // Create upload stream
         const { writeStream, close } = this.createUploadStream(sinkFileName, {
-            contentType: 'text/csv',
+            contentType,
         });
 
         // Get the results stream

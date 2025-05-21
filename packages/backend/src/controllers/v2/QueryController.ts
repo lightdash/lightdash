@@ -7,6 +7,8 @@ import {
     ApiGetAsyncQueryResults,
     ApiSuccess,
     ApiSuccessEmpty,
+    assertUnreachable,
+    DownloadFileType,
     ExecuteAsyncSqlQueryRequestParams,
     isExecuteAsyncDashboardSqlChartByUuidParams,
     isExecuteAsyncSqlChartByUuidParams,
@@ -403,7 +405,12 @@ export class QueryController extends BaseController {
         @Path() projectUuid: string,
         @Path() queryUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiDownloadAsyncQueryResults>> {
+        @Query() type: DownloadFileType = DownloadFileType.CSV,
+    ): Promise<
+        ApiSuccess<
+            ApiDownloadAsyncQueryResults | ApiDownloadAsyncQueryResultsAsCsv
+        >
+    > {
         this.setStatus(200);
 
         const results = await this.services
@@ -412,32 +419,7 @@ export class QueryController extends BaseController {
                 user: req.user!,
                 projectUuid,
                 queryUuid,
-            });
-
-        return {
-            status: 'ok',
-            results,
-        };
-    }
-
-    @Hidden()
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/{queryUuid}/csv')
-    @OperationId('downloadResultsAsCsv')
-    async downloadResultsAsCsv(
-        @Path() projectUuid: string,
-        @Path() queryUuid: string,
-        @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiDownloadAsyncQueryResultsAsCsv>> {
-        this.setStatus(200);
-
-        const results = await this.services
-            .getAsyncQueryService()
-            .downloadAsyncQueryResultsAsCsv({
-                user: req.user!,
-                projectUuid,
-                queryUuid,
+                type,
             });
 
         return {

@@ -18,6 +18,7 @@ import {
     DashboardFilters,
     DEFAULT_RESULTS_PAGE_SIZE,
     DimensionType,
+    DownloadFileType,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
@@ -31,6 +32,7 @@ import {
     getDashboardFilterRulesForTileAndReferences,
     getDimensions,
     getErrorMessage,
+    getFieldLabel,
     getFieldQuoteChar,
     getIntrinsicUserAttributes,
     getItemId,
@@ -697,101 +699,14 @@ export class AsyncQueryService extends ProjectService {
         throw new Error('Invalid query status');
     }
 
-    async downloadAsyncQueryResultsAsCsv({
-        user,
-        projectUuid,
-        queryUuid,
-    }: DownloadAsyncQueryResultsArgs): Promise<ApiDownloadAsyncQueryResultsAsCsv> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
-
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
-            user.userUuid,
-        );
-
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        if (user.userUuid !== queryHistory.createdByUserUuid) {
-            throw new ForbiddenError(
-                'User is not allowed to download results for this query',
-            );
-        }
-
-        const { status, cacheKey: resultsFileName, fields } = queryHistory;
-
-        switch (status) {
-            case QueryHistoryStatus.CANCELLED:
-                throw new Error('Query was cancelled');
-            case QueryHistoryStatus.ERROR:
-                throw new Error(queryHistory.error ?? 'Warehouse query failed');
-            case QueryHistoryStatus.PENDING:
-                throw new Error('Query is in pending state');
-            case QueryHistoryStatus.READY:
-                if (!resultsFileName) {
-                    throw new Error('Results file name not found for query');
-                }
-
-                // Get the results
-                const resultsFile = await this.findCache(
-                    resultsFileName,
-                    projectUuid,
-                );
-
-                if (!resultsFile) {
-                    throw new Error('Results file not found for query');
-                }
-
-                // Generate a unique filename
-                const csvFileName = CsvService.generateFileId(resultsFileName);
-
-                // Transform and upload the results
-                return this.storageClient.transformResultsIntoNewFile(
-                    resultsFileName,
-                    csvFileName,
-                    async (readStream, writeStream) => {
-                        // Need to find a way to pass the csv header
-                        await CsvService.streamRowsToFile(
-                            false,
-                            fields,
-                            [], // TODO: sorted field ids
-                            [], // TODO: csv header
-                            {
-                                readStream,
-                                writeStream,
-                            },
-                        );
-
-                        return {
-                            truncated: false, // TODO: when is file truncated?
-                        };
-                    },
-                );
-            default:
-                return assertUnreachable(status, 'Unknown query status');
-        }
-    }
-
     async downloadAsyncQueryResults({
         user,
         projectUuid,
         queryUuid,
-    }: {
-        user: SessionUser;
-        projectUuid: string;
-        queryUuid: string;
-    }): Promise<ApiDownloadAsyncQueryResults> {
+        type,
+    }: DownloadAsyncQueryResultsArgs): Promise<
+        ApiDownloadAsyncQueryResults | ApiDownloadAsyncQueryResultsAsCsv
+    > {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -820,28 +735,102 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const { status, cacheKey: resultsFileName } = queryHistory;
+        const { status, cacheKey: resultsFileName, fields } = queryHistory;
 
-        if (status === QueryHistoryStatus.ERROR) {
-            throw new Error(queryHistory.error ?? 'Warehouse query failed');
+        // First check the query status
+        switch (status) {
+            case QueryHistoryStatus.CANCELLED:
+                throw new Error('Query was cancelled');
+            case QueryHistoryStatus.ERROR:
+                throw new Error(queryHistory.error ?? 'Warehouse query failed');
+            case QueryHistoryStatus.PENDING:
+                throw new Error('Query is in pending state');
+            case QueryHistoryStatus.READY:
+                // Continue with execution
+                break;
+            default:
+                return assertUnreachable(status, 'Unknown query status');
         }
 
-        if (status === QueryHistoryStatus.PENDING) {
-            throw new Error('Query is in pending state');
+        // At this point, we know status is READY
+        if (!resultsFileName) {
+            throw new Error('Results file name not found for query');
         }
 
-        if (status === QueryHistoryStatus.READY) {
-            if (!resultsFileName) {
-                throw new Error('Results file name not found for query');
-            }
+        // Handle file type in a separate switch
+        switch (type) {
+            case DownloadFileType.CSV:
+                return this.downloadAsyncQueryResultsAsCsv(
+                    resultsFileName,
+                    projectUuid,
+                    fields,
+                );
+            case undefined:
+            case DownloadFileType.JSONL:
+                return this.downloadAsyncQueryResultsAsJson(resultsFileName);
+            case DownloadFileType.S3_JSONL:
+                throw new Error('S3_JSONL download not supported yet');
+            case DownloadFileType.IMAGE:
+                throw new Error(
+                    'IMAGE download not supported for query results',
+                );
+            default:
+                return assertUnreachable(
+                    type,
+                    `Unsupported file type: ${type}`,
+                );
+        }
+    }
 
-            return {
-                fileUrl: await this.storageClient.getFileUrl(resultsFileName),
-                // TODO: add columns here once they're saved to query_history
-            };
+    private async downloadAsyncQueryResultsAsCsv(
+        resultsFileName: string,
+        projectUuid: string,
+        fields: ItemsMap,
+    ): Promise<ApiDownloadAsyncQueryResultsAsCsv> {
+        // Get the results
+        const resultsFile = await this.findCache(resultsFileName, projectUuid);
+
+        if (!resultsFile) {
+            throw new Error('Results file not found for query');
         }
 
-        throw new Error('Invalid query status');
+        // Generate a unique filename
+        const csvFileName = CsvService.generateFileId(resultsFileName);
+
+        const csvHeaders = Object.keys(fields).map((field) =>
+            getFieldLabel(field),
+        );
+
+        // Transform and upload the results
+        return this.storageClient.transformResultsIntoNewFile(
+            resultsFileName,
+            csvFileName,
+            async (readStream, writeStream) => {
+                // Need to find a way to pass the csv header
+                await CsvService.streamRowsToFile(
+                    false,
+                    fields,
+                    [], // TODO: sorted field ids
+                    [], // TODO: csv header
+                    {
+                        readStream,
+                        writeStream,
+                    },
+                );
+
+                return {
+                    truncated: false, // TODO: when is file truncated?
+                };
+            },
+        );
+    }
+
+    private async downloadAsyncQueryResultsAsJson(
+        resultsFileName: string,
+    ): Promise<ApiDownloadAsyncQueryResults> {
+        return {
+            fileUrl: await this.storageClient.getFileUrl(resultsFileName),
+        };
     }
 
     /**
