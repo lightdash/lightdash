@@ -123,11 +123,6 @@ export class RenameService extends BaseService {
 
         return {
             ...fields,
-            /*
-            [explore.baseTable]: fields.map((f) =>
-                getItemId({ name: f, table: explore.baseTable }),
-            ), // add explore prefix
-            */
             // Do not do chart specific fields, since these will break if people select "fix all ocurrences"
             /*
             tableCalculations: chart.metricQuery.tableCalculations?.map(
@@ -160,7 +155,7 @@ export class RenameService extends BaseService {
         chartUuid: string;
         projectUuid: string;
         context: RequestMethod;
-    }) {
+    }): Promise<string | undefined> {
         if (from === to) {
             throw new ParameterError(
                 'Old and new names are the same, nothing to rename',
@@ -272,7 +267,7 @@ export class RenameService extends BaseService {
                     nameChanges,
                 )}`,
             );
-            await this.scheduleRenameResources({
+            const { jobId } = await this.scheduleRenameResources({
                 context,
                 dryRun: false,
                 user,
@@ -281,7 +276,10 @@ export class RenameService extends BaseService {
                 model: chart.tableName,
                 ...nameChanges,
             });
+            return jobId;
         }
+
+        return undefined;
     }
 
     async scheduleRenameResources({

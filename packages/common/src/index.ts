@@ -147,6 +147,7 @@ import type {
 import type { ResultsPaginationMetadata } from './types/paginateResults';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import type { QueryHistoryStatus } from './types/queryHistory';
+import { type ApiRenameFieldsResponse } from './types/rename';
 import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
     type ApiSemanticLayerClientInfo,
@@ -571,7 +572,6 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
         valuesColumns: PivotValuesColumn[];
         groupByColumns: GroupByColumn[] | undefined;
         sortBy: SortBy | undefined;
-        unpivotedColumns: ResultColumns;
     } | null;
 };
 
@@ -894,6 +894,7 @@ type ApiResults =
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
     | ApiUserActivityDownloadCsv['results']
+    | ApiRenameFieldsResponse['results']
     | ApiDownloadAsyncQueryResults;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {

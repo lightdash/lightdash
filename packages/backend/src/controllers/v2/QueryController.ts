@@ -341,6 +341,7 @@ export class QueryController extends BaseController {
                 projectUuid,
                 invalidateCache: body.invalidateCache ?? false,
                 dashboardUuid: body.dashboardUuid,
+                tileUuid: body.tileUuid,
                 dashboardFilters: body.dashboardFilters,
                 dashboardSorts: body.dashboardSorts,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,

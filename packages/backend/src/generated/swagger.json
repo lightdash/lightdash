@@ -1220,22 +1220,10 @@
                 "type": "object",
                 "additionalProperties": true
             },
-            "DashboardReferenceTarget": {
-                "properties": {
-                    "reference": {
-                        "type": "string"
-                    }
-                },
-                "required": ["reference"],
-                "type": "object"
-            },
             "DashboardTileTarget": {
                 "anyOf": [
                     {
                         "$ref": "#/components/schemas/DashboardFieldTarget"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardReferenceTarget"
                     },
                     {
                         "type": "boolean",
@@ -9748,6 +9736,25 @@
                 "required": ["type", "from", "to"],
                 "type": "object"
             },
+            "ApiRenameChartResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "jobId": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiRenameChartBody": {
                 "properties": {
                     "fixAll": {
@@ -9764,6 +9771,33 @@
                     }
                 },
                 "required": ["type", "to", "from"],
+                "type": "object"
+            },
+            "ApiRenameFieldsResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "fields": {
+                                "properties": {},
+                                "additionalProperties": {
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "type": "array"
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "required": ["fields"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "ProjectType": {
@@ -15869,7 +15903,6 @@
                                     }
                                 },
                                 "required": [
-                                    "unpivotedColumns",
                                     "valuesColumns",
                                     "indexColumn",
                                     "totalColumnCount"
@@ -16472,6 +16505,9 @@
                             "dashboardFilters": {
                                 "$ref": "#/components/schemas/DashboardFilters"
                             },
+                            "tileUuid": {
+                                "type": "string"
+                            },
                             "dashboardUuid": {
                                 "type": "string"
                             }
@@ -16479,6 +16515,7 @@
                         "required": [
                             "dashboardSorts",
                             "dashboardFilters",
+                            "tileUuid",
                             "dashboardUuid"
                         ],
                         "type": "object"
@@ -20232,7 +20269,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                    "$ref": "#/components/schemas/ApiRenameChartResponse"
                                 }
                             }
                         }
@@ -20289,7 +20326,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/AnyType"
+                                    "$ref": "#/components/schemas/ApiRenameFieldsResponse"
                                 }
                             }
                         }
