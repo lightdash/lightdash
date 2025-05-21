@@ -7,6 +7,7 @@ import {
 } from '@slack/bolt';
 import { SlackBot, SlackBotArguments } from '../../../clients/Slack/Slackbot';
 import Logger from '../../../logging/logger';
+import { AiAgentModel } from '../../models/AiAgentModel';
 import { AiModel } from '../../models/AiModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -16,14 +17,15 @@ import {
     followUpToolsText,
 } from '../../services/AiService/utils/aiCopilot/followUpTools';
 import {
+    AiAgentNotFoundError,
     AiDuplicateSlackPromptError,
-    AiSlackMappingNotFoundError,
 } from '../../services/AiService/utils/errors';
 
 type CommercialSlackBotArguments = SlackBotArguments & {
     schedulerClient: CommercialSchedulerClient;
     aiService: AiService;
     aiModel: AiModel;
+    aiAgentModel: AiAgentModel;
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
 };
 
@@ -34,6 +36,8 @@ export class CommercialSlackBot extends SlackBot {
 
     private readonly aiModel: AiModel;
 
+    private readonly aiAgentModel: AiAgentModel;
+
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
 
     constructor(args: CommercialSlackBotArguments) {
@@ -41,6 +45,7 @@ export class CommercialSlackBot extends SlackBot {
         this.schedulerClient = args.schedulerClient;
         this.aiService = args.aiService;
         this.aiModel = args.aiModel;
+        this.aiAgentModel = args.aiAgentModel;
         this.slackAuthenticationModel = args.slackAuthenticationModel;
     }
 
@@ -236,6 +241,7 @@ export class CommercialSlackBot extends SlackBot {
                                             prevSlackPrompt.slackThreadTs,
                                         prompt: response.message.text,
                                         promptSlackTs: response.ts,
+                                        agentUuid: prevSlackPrompt.agentUuid,
                                     });
                             } catch (e) {
                                 if (e instanceof AiDuplicateSlackPromptError) {
@@ -294,20 +300,22 @@ export class CommercialSlackBot extends SlackBot {
         let createdThread: boolean;
 
         try {
-            const projectSettings =
-                await this.slackAuthenticationModel.getProjectSettingsForSlackChannelId(
+            const agentConfig =
+                await this.aiAgentModel.getAgentBySlackChannelId({
                     organizationUuid,
-                    event.channel,
-                );
+                    slackChannelId: event.channel,
+                });
+
             [slackPromptUuid, createdThread] =
                 await this.aiService.createSlackPrompt({
                     userUuid,
-                    projectUuid: projectSettings.projectUuid,
+                    projectUuid: agentConfig.projectUuid,
                     slackUserId: event.user,
                     slackChannelId: event.channel,
                     slackThreadTs: event.thread_ts,
                     prompt: event.text,
                     promptSlackTs: event.ts,
+                    agentUuid: agentConfig.uuid ?? null,
                 });
         } catch (e) {
             if (e instanceof AiDuplicateSlackPromptError) {
@@ -315,8 +323,8 @@ export class CommercialSlackBot extends SlackBot {
                 return;
             }
 
-            if (e instanceof AiSlackMappingNotFoundError) {
-                Logger.debug('Failed to find slack mapping:', e);
+            if (e instanceof AiAgentNotFoundError) {
+                Logger.debug('Failed to find ai agent:', e);
                 return;
             }
 

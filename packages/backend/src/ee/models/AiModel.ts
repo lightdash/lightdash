@@ -43,6 +43,7 @@ export class AiModel {
                 projectUuid: 'project_uuid',
                 createdAt: 'created_at',
                 createdFrom: 'created_from',
+                agentUuid: 'agent_uuid',
             })
             .where({ ai_thread_uuid: uuid })
             .first();
@@ -92,13 +93,17 @@ export class AiModel {
                 Array<
                     Pick<
                         DbAiThread,
-                        'ai_thread_uuid' | 'created_at' | 'created_from'
+                        | 'ai_thread_uuid'
+                        | 'created_at'
+                        | 'created_from'
+                        | 'agent_uuid'
                     > &
                         Pick<DbAiPrompt, 'prompt'> &
                         Pick<DbUser, 'user_uuid'> & { user_name: string }
                 >
             >(
                 `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.agent_uuid`,
                 `${AiThreadTableName}.created_at`,
                 `${AiThreadTableName}.created_from`,
                 `${AiPromptTableName}.prompt`,
@@ -176,6 +181,7 @@ export class AiModel {
                 projectUuid: `${AiThreadTableName}.project_uuid`,
                 promptUuid: `${AiPromptTableName}.ai_prompt_uuid`,
                 threadUuid: `${AiPromptTableName}.ai_thread_uuid`,
+                agentUuid: `${AiThreadTableName}.agent_uuid`,
                 createdByUserUuid: `${AiPromptTableName}.created_by_user_uuid`,
                 prompt: `${AiPromptTableName}.prompt`,
                 createdAt: `${AiPromptTableName}.created_at`,
@@ -213,6 +219,7 @@ export class AiModel {
                     organization_uuid: data.organizationUuid,
                     project_uuid: data.projectUuid,
                     created_from: data.createdFrom,
+                    agent_uuid: data.agentUuid,
                 })
                 .returning('ai_thread_uuid');
             if (row === undefined) {
@@ -307,6 +314,7 @@ export class AiModel {
                 projectUuid: `${AiThreadTableName}.project_uuid`,
                 promptUuid: `${AiPromptTableName}.ai_prompt_uuid`,
                 threadUuid: `${AiPromptTableName}.ai_thread_uuid`,
+                agentUuid: `${AiThreadTableName}.agent_uuid`,
                 createdByUserUuid: `${AiPromptTableName}.created_by_user_uuid`,
                 userUuid: `${AiWebAppPromptTableName}.user_uuid`,
                 prompt: `${AiPromptTableName}.prompt`,
@@ -328,6 +336,7 @@ export class AiModel {
                     organization_uuid: data.organizationUuid,
                     project_uuid: data.projectUuid,
                     created_from: data.createdFrom,
+                    agent_uuid: data.agentUuid,
                 })
                 .returning('ai_thread_uuid');
             if (row === undefined) {

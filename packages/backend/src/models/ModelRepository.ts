@@ -95,6 +95,7 @@ export type ModelManifest = {
     resultsFileModel: ResultsFileModel;
     /** An implementation signature for these models are not available at this stage */
     aiModel: unknown;
+    aiAgentModel: unknown;
     embedModel: unknown;
     dashboardSummaryModel: unknown;
     scimOrganizationAccessTokenModel: unknown;
@@ -519,6 +520,10 @@ export class ModelRepository
 
     public getAiModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiModel');
+    }
+
+    public getAiAgentModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiAgentModel');
     }
 
     public getEmbedModel<ModelImplT>(): ModelImplT {
