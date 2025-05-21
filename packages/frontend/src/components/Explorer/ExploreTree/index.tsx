@@ -42,6 +42,13 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     const [search, setSearch] = useState<string>('');
     const isSearching = !!search && search !== '';
 
+    const handleSearchChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value),
+        [],
+    );
+
+    const handleClearSearch = useCallback(() => setSearch(''), []);
+
     const searchResults = useCallback(
         (table: CompiledTable) => {
             const allValues = Object.values({
@@ -81,14 +88,14 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                 icon={<MantineIcon icon={IconSearch} />}
                 rightSection={
                     search ? (
-                        <ActionIcon onClick={() => setSearch('')}>
+                        <ActionIcon onClick={handleClearSearch}>
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
                     ) : null
                 }
                 placeholder="Search metrics + dimensions"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={handleSearchChange}
             />
 
             <ScrollArea
