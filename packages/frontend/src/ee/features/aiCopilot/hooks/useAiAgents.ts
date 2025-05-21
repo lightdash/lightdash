@@ -38,26 +38,15 @@ const listAgents = () =>
         body: undefined,
     });
 
-const getAgent = async (agentUuid: string): Promise<ApiAiAgentResponse> => {
-    return Promise.resolve({
-        status: 'ok',
-        results: {
-            uuid: agentUuid,
-            organizationUuid: 'org-1',
-            tags: [],
-            name: 'Test Agent',
-            projectUuid: 'project-1',
-            integrations: [],
-            tags: null,
-        },
+const getAgent = async (
+    agentUuid: string,
+): Promise<ApiAiAgentResponse['results']> =>
+    lightdashApi<ApiAiAgentResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/${agentUuid}`,
+        method: 'GET',
+        body: undefined,
     });
-
-    // lightdashApi<ApiAiAgentResponse>({
-    //     url: `/api/v1/aiAgents/${agentUuid}`,
-    //     method: 'GET',
-    //     body: undefined,
-    // });
-};
 
 const createAgent = async (data: ApiCreateAiAgent) =>
     lightdashApi<ApiCreateAiAgentResponse>({
@@ -112,12 +101,11 @@ export const useAiAgents = (
         ...useQueryOptions,
     });
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 export const useAiAgent = (
     agentUuid: string,
-    useQueryOptions?: UseQueryOptions<ApiAiAgentResponse, ApiError>,
+    useQueryOptions?: UseQueryOptions<ApiAiAgentResponse['results'], ApiError>,
 ) =>
-    useQuery<ApiAiAgentResponse, ApiError>({
+    useQuery<ApiAiAgentResponse['results'], ApiError>({
         queryKey: getAiAgentKey(agentUuid),
         queryFn: () => getAgent(agentUuid),
         ...useQueryOptions,

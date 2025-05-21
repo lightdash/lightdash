@@ -59,7 +59,14 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
     ): Promise<ApiAiAgentResponse> {
         this.setStatus(200);
-        throw new NotImplementedError('Get agent not implemented');
+        const agent = await this.getAiAgentService().getAgent(
+            req.user!,
+            agentUuid,
+        );
+        return {
+            status: 'ok',
+            results: agent,
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
