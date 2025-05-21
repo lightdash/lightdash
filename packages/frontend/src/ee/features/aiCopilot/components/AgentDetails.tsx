@@ -1,8 +1,4 @@
-import {
-    AiAgentIntegrationType,
-    type ApiCreateAiAgent,
-    type BaseAiAgent,
-} from '@lightdash/common';
+import { AiAgentIntegrationType, type BaseAiAgent } from '@lightdash/common';
 import {
     Avatar,
     Button,
@@ -14,6 +10,7 @@ import {
     Tabs,
     TagsInput,
     Text,
+    Textarea,
     TextInput,
     Title,
 } from '@mantine-8/core';
@@ -41,7 +38,10 @@ import {
 import { ConversationsList } from './ConversationsList';
 
 const formSchema: z.ZodType<
-    Pick<BaseAiAgent, 'name' | 'projectUuid' | 'integrations' | 'tags'>
+    Pick<
+        BaseAiAgent,
+        'name' | 'projectUuid' | 'integrations' | 'tags' | 'instructions'
+    >
 > = z.object({
     name: z.string().min(1),
     projectUuid: z
@@ -54,6 +54,7 @@ const formSchema: z.ZodType<
         }),
     ),
     tags: z.array(z.string()).nullable(),
+    instructions: z.string().nullable(),
 });
 
 export const AgentDetails: FC = () => {
@@ -92,6 +93,7 @@ export const AgentDetails: FC = () => {
             projectUuid: '',
             integrations: [],
             tags: [],
+            instructions: '',
         },
         validate: zodResolver(formSchema),
     });
@@ -136,7 +138,7 @@ export const AgentDetails: FC = () => {
 
     const handleSubmit = form.onSubmit(async (values) => {
         if (isCreateMode) {
-            await createAgent(values as ApiCreateAiAgent);
+            await createAgent(values);
         } else if (agentUuid) {
             await updateAgent({
                 uuid: agentUuid,
@@ -206,9 +208,11 @@ export const AgentDetails: FC = () => {
                         >
                             <Tabs.List>
                                 <Tabs.Tab value="general">General</Tabs.Tab>
-                                <Tabs.Tab value="conversations">
-                                    Conversations
-                                </Tabs.Tab>
+                                {!isCreateMode && (
+                                    <Tabs.Tab value="conversations">
+                                        Conversations
+                                    </Tabs.Tab>
+                                )}
                             </Tabs.List>
 
                             <Tabs.Panel value="general" pt="xs">
@@ -235,6 +239,26 @@ export const AgentDetails: FC = () => {
                                                 }
                                                 {...form.getInputProps(
                                                     'projectUuid',
+                                                )}
+                                            />
+                                        </Stack>
+
+                                        <Stack gap="sm">
+                                            <Title order={5}>
+                                                Configuration
+                                            </Title>
+
+                                            <Textarea
+                                                label="System Prompt"
+                                                description="The system prompt sets the
+                                                    overall behavior and task
+                                                    for the agent. This defines
+                                                    how it should respond and
+                                                    what its purpose is."
+                                                placeholder="You are a helpful assistant that specializes in sales data analytics."
+                                                resize="vertical"
+                                                {...form.getInputProps(
+                                                    'instructions',
                                                 )}
                                             />
                                         </Stack>
@@ -280,7 +304,7 @@ export const AgentDetails: FC = () => {
                                         </Stack>
                                     </Stack>
 
-                                    <Group justify="flex-end">
+                                    <Group justify="flex-end" mt="sm">
                                         {!isCreateMode && (
                                             <Button
                                                 variant="outline"

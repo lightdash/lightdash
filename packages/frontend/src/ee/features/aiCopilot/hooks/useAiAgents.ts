@@ -49,6 +49,8 @@ const getAgent = async (agentUuid: string): Promise<ApiAiAgentResponse> => {
             name: 'Test Agent',
             projectUuid: 'project-1',
             integrations: [],
+            tags: [],
+            systemPrompt: null,
         },
     });
 
