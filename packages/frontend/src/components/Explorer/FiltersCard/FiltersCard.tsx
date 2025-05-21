@@ -13,7 +13,7 @@ import {
     type Filters,
 } from '@lightdash/common';
 import { Badge, Text, Tooltip } from '@mantine/core';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
@@ -69,12 +69,19 @@ const FiltersCard: FC = memo(() => {
             dimensions: updatedDimensionFilters,
         };
     };
+    const [hasDefaultFiltersApplied, setHasDefaultFiltersApplied] =
+        useState(false);
+
     const updateDimensionFiltersWithRequiredFilters = (
         unsavedQueryFilters: Filters,
     ) => {
         // Check if the table has required filters
         if (data && data.tables[tableName]) {
-            const requiredFilters = data.tables[tableName].requiredFilters;
+            // We only force required filters that are not explicitly set to false
+            // requiredFilters with required:false will be added on the UI, but not enforced on the backend
+            const requiredFilters = data.tables[
+                tableName
+            ].requiredFilters?.filter((filter) => filter.required !== false);
             if (requiredFilters && requiredFilters.length > 0) {
                 // Only requiredFilters that refer to existing table dimensions are added to the unsavedQueryFilters
                 // Transform requiredFilters to filterRules if the required filters are not already in the unsavedQueryFilters.
@@ -98,12 +105,16 @@ const FiltersCard: FC = memo(() => {
         }
         return unsavedQueryFilters;
     };
+
     const resetDimensionFiltersIfNoModelSelected = (
         unsavedQueryFilters: Filters,
     ) => {
         // If no model is selected, reset the dimension filters
         // This is to prevent the user from selecting a model, then deselecting it, and still having the required filters applied
         if (tableName.length === 0) {
+            // Also reset default filters applied
+            if (hasDefaultFiltersApplied) setHasDefaultFiltersApplied(false);
+
             return {
                 ...unsavedQueryFilters,
                 dimensions: undefined,
@@ -157,6 +168,56 @@ const FiltersCard: FC = memo(() => {
         () => countTotalFilterRules(filters),
         [filters],
     );
+
+    useExplorerContext((context) => {
+        if (hasDefaultFiltersApplied) return;
+        const metricQuery = context.state.unsavedChartVersion.metricQuery;
+        const defaultFilters = data?.tables[tableName]?.requiredFilters?.filter(
+            (filter) => filter.required === false,
+        );
+        if (
+            data &&
+            defaultFilters !== undefined &&
+            defaultFilters.length === 0
+        ) {
+            // No default filters
+            setHasDefaultFiltersApplied(true);
+            return;
+        }
+        const isEmptyMetricQuery =
+            metricQuery.metrics.length === 0 &&
+            metricQuery.tableCalculations.length === 0 &&
+            metricQuery.dimensions.length === 0;
+
+        if (
+            isEditMode &&
+            isEmptyMetricQuery &&
+            data &&
+            defaultFilters &&
+            defaultFilters.length > 0
+        ) {
+            const reducedRules: FilterRule[] =
+                reduceRequiredDimensionFiltersToFilterRules(
+                    defaultFilters,
+                    data.tables[tableName],
+                    undefined,
+                );
+            setHasDefaultFiltersApplied(true);
+            setFilters(
+                {
+                    metrics: undefined,
+                    tableCalculations: undefined,
+                    dimensions: overrideFilterGroupWithFilterRules(
+                        filters.dimensions,
+                        reducedRules,
+                        undefined,
+                    ),
+                },
+                false,
+            );
+        }
+    });
+
     const fieldsWithSuggestions = useFieldsWithSuggestions({
         exploreData: data,
         rows,
@@ -168,6 +229,7 @@ const FiltersCard: FC = memo(() => {
         () => getTotalFilterRules(filters),
         [filters],
     );
+
     const renderFilterRule = useCallback(
         (filterRule: FilterRule) => {
             const fields: Field[] = data ? getVisibleFields(data) : [];

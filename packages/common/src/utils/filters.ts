@@ -1062,7 +1062,7 @@ export const createFilterRuleFromRequiredMetricRule = (
             unitOfTime: filter.settings.unitOfTime,
         },
     }),
-    required: true,
+    required: filter.required === undefined ? true : filter.required,
 });
 
 export const isFilterRuleInQuery = (

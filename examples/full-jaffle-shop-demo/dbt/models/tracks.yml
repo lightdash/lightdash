@@ -1,6 +1,10 @@
 version: 2
 models:
   - name: tracks
+    meta: 
+      default_filters: 
+        - event: 'lightdash_server_saved_chart_created'
+          required: false 
     columns:
       - name: user_id
         description: ""
