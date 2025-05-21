@@ -142,6 +142,9 @@ const FixValidationErrorModal: FC<{
             title={<Title order={4}>Fix validation error</Title>}
             opened={!!validationError}
             onClose={onClose}
+            styles={() => ({
+                content: { maxHeight: 'fit-content !important' },
+            })}
         >
             <Text>
                 Fix{' '}
@@ -279,7 +282,7 @@ const FixValidationErrorModal: FC<{
                         withinPortal
                         label="Check this to rename all occurrences of this field in other charts and dashboards."
                     >
-                        <Group>
+                        <Group display={'inline-block'}>
                             <Checkbox
                                 mt="xs"
                                 size="xs"
