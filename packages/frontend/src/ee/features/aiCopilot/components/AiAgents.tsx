@@ -46,8 +46,6 @@ export const AiAgents: FC = () => {
     const agentList = useMemo(() => {
         if (!isLoaded) return undefined;
 
-        console.log(agentsListQuery.data);
-
         return agentsListQuery.data.map((agent) => {
             const project = projectsListQuery.data.find(
                 (p) => p.projectUuid === agent.projectUuid,
@@ -63,6 +61,7 @@ export const AiAgents: FC = () => {
             );
 
             return {
+                uuid: agent.uuid,
                 name: agent.name,
                 projectName: project.name,
                 channelName: channel?.name,
@@ -76,8 +75,8 @@ export const AiAgents: FC = () => {
     ]);
 
     const handleAgentClick = useCallback(
-        (index: number) => {
-            void navigate(`/generalSettings/aiAgents/${index + 1}`);
+        (agentUuid: string) => {
+            void navigate(`/generalSettings/aiAgents/${agentUuid}`);
         },
         [navigate],
     );
@@ -140,10 +139,10 @@ export const AiAgents: FC = () => {
                         </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
-                        {agentList.map((agent, index) => (
+                        {agentList.map((agent) => (
                             <Table.Tr
-                                key={index}
-                                onClick={() => handleAgentClick(index)}
+                                key={agent.uuid}
+                                onClick={() => handleAgentClick(agent.uuid)}
                                 style={{ cursor: 'pointer' }}
                             >
                                 <Table.Td>
@@ -151,11 +150,13 @@ export const AiAgents: FC = () => {
                                         <Avatar
                                             size={30}
                                             radius="sm"
-                                            color="blue.6"
-                                        >
-                                            {index + 1}
-                                        </Avatar>
-                                        <Text fw={500}>{agent.name}</Text>
+                                            name={agent.name}
+                                            color="initials"
+                                        />
+
+                                        <Text size="sm" fw={500}>
+                                            {agent.name}
+                                        </Text>
                                     </Group>
                                 </Table.Td>
                                 <Table.Td>
@@ -173,7 +174,7 @@ export const AiAgents: FC = () => {
                 </Table>
             ) : (
                 // TODO: add a nicer error state
-                <>error state...</>
+                <Text>Something went wrong</Text>
             )}
         </Stack>
     );

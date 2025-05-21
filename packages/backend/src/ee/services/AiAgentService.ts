@@ -38,6 +38,28 @@ export class AiAgentService {
         return aiCopilotFlag.enabled;
     }
 
+    public async getAgent(user: SessionUser, agentUuid: string) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        // TODO:
+        // permissions
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        return agent;
+    }
+
     public async listAgents(user: SessionUser) {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -51,19 +73,11 @@ export class AiAgentService {
 
         // TODO:
         // permissions
-        // get all agents
 
         const agents = await this.aiAgentModel.findAllAgents({
             organizationUuid,
         });
 
-        return Promise.all(
-            agents.map<Promise<AiAgentSummary>>(async (agent) => ({
-                ...agent,
-                integrations: await this.aiAgentModel.findAllIntegrations({
-                    agentUuid: agent.uuid,
-                }),
-            })),
-        );
+        return agents;
     }
 }
