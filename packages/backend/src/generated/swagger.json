@@ -9736,6 +9736,25 @@
                 "required": ["type", "from", "to"],
                 "type": "object"
             },
+            "ApiRenameChartResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "jobId": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiRenameChartBody": {
                 "properties": {
                     "fixAll": {
@@ -9752,6 +9771,33 @@
                     }
                 },
                 "required": ["type", "to", "from"],
+                "type": "object"
+            },
+            "ApiRenameFieldsResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "fields": {
+                                "properties": {},
+                                "additionalProperties": {
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "type": "array"
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "required": ["fields"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "ProjectType": {
@@ -20223,7 +20269,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                    "$ref": "#/components/schemas/ApiRenameChartResponse"
                                 }
                             }
                         }
@@ -20280,7 +20326,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/AnyType"
+                                    "$ref": "#/components/schemas/ApiRenameFieldsResponse"
                                 }
                             }
                         }
