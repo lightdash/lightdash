@@ -7,24 +7,33 @@ import {
     Accordion,
     Avatar,
     Badge,
+    Box,
     Card,
     Center,
     Drawer,
     Group,
     Loader,
+    Paper,
     Stack,
     Text,
+    Title,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import { Prism } from '@mantine/prism';
-import { IconMessage } from '@tabler/icons-react';
+import {
+    IconChartHistogram,
+    IconCode,
+    IconFilter,
+    IconMessage,
+} from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import MDEditor from '@uiw/react-md-editor';
 import dayjs from 'dayjs';
 import type { FC } from 'react';
 import { Link, useNavigate, useParams, type LinkProps } from 'react-router';
 import { lightdashApi } from '../../api';
+import MantineIcon from '../../components/common/MantineIcon';
 import Page from '../../components/common/Page/Page';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
 import { getNameInitials } from '../../features/comments/utils';
@@ -111,9 +120,16 @@ const AiThreadMessage: FC<AiThreadMessageProps> = ({
             }}
         >
             <Avatar
-                color={actor === 'human' ? 'violet' : 'gray.3'}
-                radius="xl"
+                color={actor === 'human' ? 'indigo' : 'gray.0'}
+                radius="md"
                 variant="filled"
+                sx={(theme) => ({
+                    ...(actor === 'ai'
+                        ? {
+                              border: `1px solid ${theme.colors.gray[2]}`,
+                          }
+                        : {}),
+                })}
             >
                 {initials}
             </Avatar>
@@ -130,13 +146,14 @@ const AiThreadMessage: FC<AiThreadMessageProps> = ({
 
                 <Card
                     pos="relative"
-                    shadow="md"
-                    radius="xl"
+                    // shadow="subtle"
+                    radius="sm"
                     py="sm"
-                    px="lg"
-                    bg={actor === 'ai' ? 'white' : 'blue.1'}
+                    bg={actor === 'ai' ? 'white' : 'indigo.0'}
                     color={actor === 'ai' ? 'black' : 'white'}
-                    style={{
+                    withBorder
+                    sx={{
+                        borderColor: 'gray.0',
                         overflow: 'unset',
                         ...(actor === 'ai'
                             ? { borderStartStartRadius: '0px' }
@@ -148,7 +165,10 @@ const AiThreadMessage: FC<AiThreadMessageProps> = ({
                     {message ? (
                         <MDEditor.Markdown
                             source={message}
-                            style={{ backgroundColor: 'transparent' }}
+                            style={{
+                                backgroundColor: 'transparent',
+                                fontSize: '13px',
+                            }}
                         />
                     ) : (
                         <Text italic>No response yet</Text>
@@ -202,13 +222,14 @@ const AiThread: FC<AiThreadProps> = ({
             to={`/projects/${projectUuid}/ai/conversations/${conversation.threadUuid}`}
             sx={(theme) => ({
                 borderRadius: theme.radius.md,
-                border: `2px solid ${
-                    isActive ? theme.colors.blue[6] : 'transparent'
+                border: `1px solid ${
+                    isActive ? theme.colors.indigo[6] : 'transparent'
                 }`,
                 backgroundColor: isActive
-                    ? theme.colors.blue[0]
+                    ? theme.colors.indigo[0]
                     : 'transparent',
                 padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                shadow: isActive ? 'sm' : 'none',
                 ':hover': isActive
                     ? undefined
                     : {
@@ -216,34 +237,30 @@ const AiThread: FC<AiThreadProps> = ({
                               theme.colors.gray[2],
                               0.5,
                           ),
-                          border: `2px solid ${theme.colors.gray[6]}`,
+                          border: `1px solid ${theme.colors.gray[6]}`,
                       },
             })}
         >
             <Group align="flex-start" noWrap>
-                <div style={{ position: 'relative' }}>
-                    <Avatar
-                        color="violet"
-                        radius="xl"
-                        variant="filled"
-                        // style={{ overflow: 'unset' }}
-                    >
+                <Box pos="relative">
+                    <Avatar color="indigo" radius="md" variant="filled">
                         {getNameInitials(conversation.user.name)}
                     </Avatar>
 
                     {conversation.createdFrom === 'slack' && (
                         <Avatar
-                            size="sm"
-                            p={4}
+                            size="xs"
+                            p={2}
                             src={slackSvg}
                             bg="white"
                             radius="xl"
+                            right={0}
+                            bottom={0}
                             pos="absolute"
-                            right={-12}
-                            bottom={-12}
+                            shadow="subtle"
                         />
                     )}
-                </div>
+                </Box>
 
                 <Stack spacing="xs" w="100%" style={{ overflow: 'hidden' }}>
                     <Group position="apart">
@@ -252,6 +269,8 @@ const AiThread: FC<AiThreadProps> = ({
                         <Tooltip
                             label={dayjs(conversation.createdAt).toString()}
                             withinPortal
+                            openDelay={400}
+                            variant="xs"
                         >
                             <Text component="time" color="dimmed" size="sm">
                                 {timeAgo}
@@ -301,6 +320,17 @@ const AiConversationsPage: FC = () => {
         (message) => message.promptUuid === promptUuid,
     );
 
+    const getIconByType = (type: keyof typeof debugDataWithLabels) => {
+        switch (type) {
+            case 'filtersOutput':
+                return IconFilter;
+            case 'vizConfigOutput':
+                return IconChartHistogram;
+            case 'metricQuery':
+                return IconCode;
+        }
+    };
+
     if (!projectUuid) {
         return null;
     }
@@ -308,6 +338,7 @@ const AiConversationsPage: FC = () => {
     return (
         <Page
             withFullHeight
+            backgroundColor="white"
             sidebar={
                 isAiConversationsLoading || !aiConversations ? (
                     <Center style={{ flexGrow: 1 }}>
@@ -379,11 +410,11 @@ const AiConversationsPage: FC = () => {
                                         : 'auto',
                                     border: `2px solid ${
                                         isMessageSelected
-                                            ? theme.colors.blue[6]
+                                            ? theme.colors.indigo[6]
                                             : 'transparent'
                                     }`,
                                     backgroundColor: isMessageSelected
-                                        ? theme.colors.blue[0]
+                                        ? theme.colors.indigo[0]
                                         : 'transparent',
                                     padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                                     ':hover':
@@ -396,7 +427,6 @@ const AiConversationsPage: FC = () => {
                                                           theme.colors.gray[2],
                                                           0.5,
                                                       ),
-                                                  border: `2px solid ${theme.colors.gray[6]}`,
                                               },
                                 })}
                             >
@@ -427,7 +457,14 @@ const AiConversationsPage: FC = () => {
             )}
 
             <Drawer
-                title="Response data"
+                title={
+                    <Group spacing="xs">
+                        <Paper withBorder shadow="subtle" p="xs" radius="md">
+                            <MantineIcon icon={IconMessage} />
+                        </Paper>
+                        <Title order={3}>Prompt details</Title>
+                    </Group>
+                }
                 opened={!!selectedConversation && !!selectedMessage}
                 onClose={() => {
                     void navigate(
@@ -440,7 +477,7 @@ const AiConversationsPage: FC = () => {
                 {selectedMessage &&
                 isAiConversationMessageComplete(selectedMessage) ? (
                     <Accordion
-                        variant="contained"
+                        variant="filled"
                         defaultValue={
                             debugDataKeys.find(
                                 (key) => !!selectedMessage[key],
@@ -451,7 +488,14 @@ const AiConversationsPage: FC = () => {
                             const title = debugDataWithLabels[key];
                             return selectedMessage[key] ? (
                                 <Accordion.Item key={key} value={key}>
-                                    <Accordion.Control fw={600}>
+                                    <Accordion.Control
+                                        fw={600}
+                                        icon={
+                                            <MantineIcon
+                                                icon={getIconByType(key)}
+                                            />
+                                        }
+                                    >
                                         {title}
                                     </Accordion.Control>
                                     <Accordion.Panel>
