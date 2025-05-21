@@ -1,3 +1,10 @@
+import {
+    AiAgentSummary,
+    CommercialFeatureFlags,
+    ForbiddenError,
+    LightdashUser,
+    type SessionUser,
+} from '@lightdash/common';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import type { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
@@ -19,5 +26,44 @@ export class AiAgentService {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.slackAuthenticationModel = dependencies.slackAuthenticationModel;
         this.featureFlagService = dependencies.featureFlagService;
+    }
+
+    private async getIsCopilotEnabled(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+    ) {
+        const aiCopilotFlag = await this.featureFlagService.get({
+            user,
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
+        });
+        return aiCopilotFlag.enabled;
+    }
+
+    public async listAgents(user: SessionUser) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        // TODO:
+        // permissions
+        // get all agents
+
+        const agents = await this.aiAgentModel.findAllAgents({
+            organizationUuid,
+        });
+
+        return Promise.all(
+            agents.map<Promise<AiAgentSummary>>(async (agent) => ({
+                ...agent,
+                integrations: await this.aiAgentModel.findAllIntegrations({
+                    agentUuid: agent.uuid,
+                }),
+            })),
+        );
     }
 }
