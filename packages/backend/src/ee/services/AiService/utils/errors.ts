@@ -11,3 +11,10 @@ export class AiSlackMappingNotFoundError extends Error {
         this.name = 'AiSlackMappingNotFoundError';
     }
 }
+
+export class AiAgentNotFoundError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'AiAgentNotFoundError';
+    }
+}

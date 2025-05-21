@@ -96,13 +96,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getCatalogService() as CommercialCatalogService,
                     userModel: models.getUserModel(),
                     aiModel: models.getAiModel(),
+                    aiAgentModel: models.getAiAgentModel(),
                     projectModel: models.getProjectModel(),
                     openAi: new OpenAi(), // TODO This should go in client repository as soon as it is available
                     slackClient: clients.getSlackClient(),
                     lightdashConfig: context.lightdashConfig,
                     organizationModel: models.getOrganizationModel(),
-                    slackAuthenticationModel:
-                        models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
                     featureFlagService: repository.getFeatureFlagService(),
                 }),
             aiAgentService: ({ models, repository }) =>
@@ -290,6 +289,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 schedulerClient:
                     context.clients.getSchedulerClient() as CommercialSchedulerClient,
                 aiModel: context.models.getAiModel(),
+                aiAgentModel: context.models.getAiAgentModel(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>
