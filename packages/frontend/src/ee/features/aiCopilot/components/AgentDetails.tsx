@@ -1,9 +1,10 @@
-import { AiAgentIntegrationType, type BaseAiAgent } from '@lightdash/common';
+import { AiAgentIntegrationType, type AiAgent } from '@lightdash/common';
 import {
     Avatar,
     Button,
     Card,
     Group,
+    Loader,
     MantineProvider,
     Select,
     Stack,
@@ -21,7 +22,7 @@ import {
     IconDatabase,
     IconRefresh,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -39,7 +40,7 @@ import { ConversationsList } from './ConversationsList';
 
 const formSchema: z.ZodType<
     Pick<
-        BaseAiAgent,
+        AiAgent,
         'name' | 'projectUuid' | 'integrations' | 'tags' | 'instructions'
     >
 > = z.object({
@@ -57,6 +58,23 @@ const formSchema: z.ZodType<
     instructions: z.string().nullable(),
 });
 
+type AgentState =
+    | {
+          mode: 'create';
+          data: null;
+          uuid: null;
+      }
+    | {
+          mode: 'loading';
+          data: null;
+          uuid: string;
+      }
+    | {
+          mode: 'edit';
+          data: AiAgent;
+          uuid: string;
+      };
+
 export const AgentDetails: FC = () => {
     const navigate = useNavigate();
     const { agentId } = useParams<{ agentId: string }>();
@@ -70,12 +88,35 @@ export const AgentDetails: FC = () => {
             void navigate('/generalSettings/aiAgents');
         },
     });
-    const isCreateMode = agentId === 'new';
-    const agentUuid = !isCreateMode && agentId ? agentId : undefined;
 
-    const { data: agent } = useAiAgent(agentUuid || '', {
-        enabled: !!agentUuid,
+    const [agentState, setAgentState] = useState<AgentState>(() => {
+        if (agentId === 'new') {
+            return {
+                mode: 'create',
+                data: null,
+                uuid: null,
+            };
+        }
+        return {
+            mode: 'loading',
+            data: null,
+            uuid: agentId || '',
+        };
     });
+
+    const { data: agent } = useAiAgent(agentState.uuid || '', {
+        enabled: agentState.mode !== 'create' && !!agentState.uuid,
+    });
+
+    useEffect(() => {
+        if (agentState.mode === 'loading' && agent) {
+            setAgentState({
+                mode: 'edit',
+                data: agent.results,
+                uuid: agentState.uuid,
+            });
+        }
+    }, [agent, agentState.mode, agentState.uuid]);
 
     const { data: slackInstallation } = useGetSlack();
     const {
@@ -99,7 +140,7 @@ export const AgentDetails: FC = () => {
     });
 
     useEffect(() => {
-        if (isCreateMode || !agent) {
+        if (agentState.mode === 'create' || !agent) {
             return;
         }
 
@@ -109,10 +150,11 @@ export const AgentDetails: FC = () => {
                 projectUuid: agent.results.projectUuid,
                 integrations: agent.results.integrations,
                 tags: agent.results.tags,
+                instructions: agent.results.instructions,
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [agent, isCreateMode]);
+    }, [agent, agentState.mode]);
 
     const slackChannelOptions = useMemo(() => {
         return (
@@ -137,11 +179,11 @@ export const AgentDetails: FC = () => {
     };
 
     const handleSubmit = form.onSubmit(async (values) => {
-        if (isCreateMode) {
+        if (agentState.mode === 'create') {
             await createAgent(values);
-        } else if (agentUuid) {
+        } else if (agentState.uuid) {
             await updateAgent({
-                uuid: agentUuid,
+                uuid: agentState.uuid,
                 ...values,
             });
         }
@@ -152,7 +194,7 @@ export const AgentDetails: FC = () => {
         void navigate('/generalSettings/aiAgents');
     }, [navigate]);
 
-    if (!isCreateMode && agentUuid && !agent) {
+    if (agentState.mode === 'edit' && agentState.uuid && !agent) {
         return (
             <MantineProvider>
                 <Stack gap="md">
@@ -168,6 +210,16 @@ export const AgentDetails: FC = () => {
                     <Card withBorder p="xl">
                         <Text>Agent not found</Text>
                     </Card>
+                </Stack>
+            </MantineProvider>
+        );
+    }
+
+    if (agentState.mode === 'loading') {
+        return (
+            <MantineProvider>
+                <Stack align="center" justify="center">
+                    <Loader size="lg" color="gray" />
                 </Stack>
             </MantineProvider>
         );
@@ -190,10 +242,12 @@ export const AgentDetails: FC = () => {
                     <Stack gap="xl">
                         <Group gap="md">
                             <Avatar size={40} radius="sm" color="blue.6">
-                                {isCreateMode ? '+' : agentId}
+                                {agentState.mode === 'create'
+                                    ? '+'
+                                    : agentState.uuid}
                             </Avatar>
                             <Title order={3}>
-                                {isCreateMode
+                                {agentState.mode === 'create'
                                     ? 'New Agent'
                                     : form.values.name || 'Agent'}
                             </Title>
@@ -208,7 +262,7 @@ export const AgentDetails: FC = () => {
                         >
                             <Tabs.List>
                                 <Tabs.Tab value="general">General</Tabs.Tab>
-                                {!isCreateMode && (
+                                {agentState.mode === 'edit' && (
                                     <Tabs.Tab value="conversations">
                                         Conversations
                                     </Tabs.Tab>
@@ -305,7 +359,7 @@ export const AgentDetails: FC = () => {
                                     </Stack>
 
                                     <Group justify="flex-end" mt="sm">
-                                        {!isCreateMode && (
+                                        {agentState.mode === 'edit' && (
                                             <Button
                                                 variant="outline"
                                                 onClick={handleDelete}
@@ -320,18 +374,20 @@ export const AgentDetails: FC = () => {
                                                 <MantineIcon icon={IconCheck} />
                                             }
                                         >
-                                            {isCreateMode
+                                            {agentState.mode === 'create'
                                                 ? 'Create agent'
                                                 : 'Save changes'}
                                         </Button>
                                     </Group>
                                 </form>
                             </Tabs.Panel>
-                            <Tabs.Panel value="conversations" pt="xs">
-                                <ConversationsList
-                                    agentUuid={agentUuid ?? ''}
-                                />
-                            </Tabs.Panel>
+                            {agentState.mode === 'edit' && (
+                                <Tabs.Panel value="conversations" pt="xs">
+                                    <ConversationsList
+                                        agentUuid={agentState.uuid ?? ''}
+                                    />
+                                </Tabs.Panel>
+                            )}
                         </Tabs>
                     </Stack>
                 </Card>
