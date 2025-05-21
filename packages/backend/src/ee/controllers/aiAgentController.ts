@@ -96,7 +96,13 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
     ): Promise<ApiAiAgentThreadSummaryListResponse> {
         this.setStatus(200);
-        throw new NotImplementedError('List agent threads not implemented');
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().listAgentThreads(
+                req.user!,
+                agentUuid,
+            ),
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -109,7 +115,14 @@ export class AiAgentController extends BaseController {
         @Path() threadUuid: string,
     ): Promise<ApiAiAgentThreadResponse> {
         this.setStatus(200);
-        throw new NotImplementedError('Get agent thread not implemented');
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getAgentThread(
+                req.user!,
+                agentUuid,
+                threadUuid,
+            ),
+        };
     }
 
     protected getAiAgentService() {

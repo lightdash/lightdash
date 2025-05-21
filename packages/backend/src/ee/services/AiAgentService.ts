@@ -3,6 +3,7 @@ import {
     CommercialFeatureFlags,
     ForbiddenError,
     LightdashUser,
+    NotFoundError,
     type SessionUser,
 } from '@lightdash/common';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
@@ -79,5 +80,78 @@ export class AiAgentService {
         });
 
         return agents;
+    }
+
+    async listAgentThreads(user: SessionUser, agentUuid: string) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const threads = await this.aiAgentModel.findThreads({
+            organizationUuid,
+            agentUuid,
+        });
+
+        return threads;
+    }
+
+    async getAgentThread(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+    ) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const messages = await this.aiAgentModel.findThreadMessages({
+            organizationUuid,
+            threadUuid,
+        });
+
+        return {
+            ...thread,
+            messages,
+        };
     }
 }
