@@ -25,16 +25,16 @@ export const getFindFieldsTool = ({
     availableTags,
 }: GetFindFieldsToolArgs) => {
     const getMinimalTableInformation = async ({
-        exploreName,
-        tables,
+        explore,
         embeddingSearchQueries,
     }: {
-        exploreName: string;
-        tables: Explore['tables'];
+        explore: Explore;
         embeddingSearchQueries: Array<{ name: string; description: string }>;
     }) => {
+        // TODO: revisit this once we enable embedding search
+        // first we should filter and then we should do the embedding search
         const filteredFields = await searchFields?.({
-            exploreName,
+            exploreName: explore.name,
             embeddingSearchQueries,
         });
 
@@ -43,6 +43,7 @@ export const getFindFieldsTool = ({
 
             if (
                 availableTags &&
+                intersection(availableTags, explore.tags).length === 0 &&
                 intersection(availableTags, field.tags).length === 0
             ) {
                 return false;
@@ -56,7 +57,7 @@ export const getFindFieldsTool = ({
             ...pick(field, ['label', 'description', 'type']),
         });
 
-        const mappedValues = mapValues(tables, (t) => {
+        const mappedValues = mapValues(explore.tables, (t) => {
             const dimensions = Object.values(t.dimensions);
             const metrics = Object.values(t.metrics);
 
@@ -84,8 +85,7 @@ It is important to find fields for the filters as well.`,
             try {
                 const explore = await getExplore({ exploreName });
                 const tables = await getMinimalTableInformation({
-                    exploreName: explore.name,
-                    tables: explore.tables,
+                    explore,
                     embeddingSearchQueries,
                 });
 

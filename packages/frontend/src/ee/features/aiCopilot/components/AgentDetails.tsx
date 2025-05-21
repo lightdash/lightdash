@@ -4,6 +4,7 @@ import {
     Button,
     Card,
     Group,
+    Loader,
     MantineProvider,
     MultiSelect,
     Select,
@@ -19,6 +20,7 @@ import {
     IconCheck,
     IconDatabase,
     IconRefresh,
+    IconTag,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -28,6 +30,7 @@ import {
     useGetSlack,
     useSlackChannels,
 } from '../../../../hooks/slack/useSlack';
+import { useExplores } from '../../../../hooks/useExplores';
 import { useProjects } from '../../../../hooks/useProjects';
 import {
     useAiAgent,
@@ -130,6 +133,21 @@ export const AgentDetails: FC = () => {
             })) ?? []
         );
     }, [projects]);
+
+    const { data: explores, isInitialLoading: isLoadingExplores } = useExplores(
+        form.values.projectUuid ?? undefined,
+    );
+
+    const availableTags = useMemo<string[]>(
+        () =>
+            Array.from(
+                (explores || []).reduce<Set<string>>((acc, explore) => {
+                    (explore.tags || []).forEach((tag) => acc.add(tag));
+                    return acc;
+                }, new Set()),
+            ),
+        [explores],
+    );
 
     const handleBack = () => {
         void navigate('/generalSettings/aiAgents');
@@ -247,6 +265,26 @@ export const AgentDetails: FC = () => {
                                                     'projectUuid',
                                                 )}
                                             />
+
+                                            {form.values.projectUuid && (
+                                                <TagsInput
+                                                    label="Tags"
+                                                    placeholder="Select or create tags"
+                                                    data={availableTags}
+                                                    leftSection={
+                                                        isLoadingExplores ? (
+                                                            <Loader />
+                                                        ) : (
+                                                            <MantineIcon
+                                                                icon={IconTag}
+                                                            />
+                                                        )
+                                                    }
+                                                    {...form.getInputProps(
+                                                        'tags',
+                                                    )}
+                                                />
+                                            )}
                                         </Stack>
 
                                         {/* Integrations Section */}

@@ -21,7 +21,6 @@ import {
     ItemsMap,
     LightdashUser,
     QueryExecutionContext,
-    ResultRow,
     SessionUser,
     SlackPrompt,
     UnexpectedServerError,
@@ -34,7 +33,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { AgentExecutor } from 'langchain/agents';
-import { /* intersection, */ pick } from 'lodash';
+import { flatMap, intersection, pick, some } from 'lodash';
 import moment from 'moment';
 import slackifyMarkdown from 'slackify-markdown';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -502,12 +501,23 @@ export class AiService {
         }));
 
         const minimalExploreInformation = exploresWithDescriptions
-            // TODO: enable this to allow filtering by tags
-            // .filter(
-            //     (explore) =>
-            //         !availableTags ||
-            //         /* (explore. */tags, availableTags).length > 0,
-            // )
+            .filter(
+                (explore) =>
+                    !availableTags ||
+                    intersection(availableTags, explore.tags).length !== 0 ||
+                    some(explore.tables, (t) => {
+                        const d = intersection(
+                            availableTags,
+                            flatMap(t.dimensions, (f) => f.tags ?? []),
+                        );
+                        const m = intersection(
+                            availableTags,
+                            flatMap(t.metrics, (f) => f.tags ?? []),
+                        );
+
+                        return [...d, ...m].length !== 0;
+                    }),
+            )
             .map((s) => ({
                 ...pick(s, ['name', 'label', 'description', 'baseTable']),
                 joinedTables: Object.keys(s.tables).filter(
@@ -523,7 +533,7 @@ export class AiService {
     private getToolUtilities(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
-        _availableTags: string[] | null,
+        availableTags: string[] | null,
     ) {
         const { projectUuid, organizationUuid } = prompt;
 
@@ -534,13 +544,12 @@ export class AiService {
                 exploreName,
             );
 
-            // TODO: enable this to allow filtering by tags
-            // if (
-            //     availableTags &&
-            //     /* (explore. */tags, availableTags).length === 0
-            // ) {
-            //     throw new Error('Explore is not available');
-            // }
+            if (
+                availableTags &&
+                intersection(availableTags, explore.tags).length === 0
+            ) {
+                throw new Error('Explore not found');
+            }
 
             return explore;
         };
