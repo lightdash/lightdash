@@ -37,6 +37,7 @@ export type AiAgent = Pick<
     | 'integrations'
     | 'tags'
     | 'name'
+    | 'instructions'
 >;
 
 export type AiAgentSummary = Pick<
