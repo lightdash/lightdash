@@ -243,6 +243,11 @@ import {
     AiThreadTableName,
 } from '../ee/database/entities/ai';
 import {
+    AiAgentIntegrationTableName,
+    AiAgentTable,
+    AiAgentTableName,
+} from '../ee/database/entities/aiAgent';
+import {
     DashboardSummariesTable,
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
@@ -331,6 +336,8 @@ declare module 'knex/types/tables' {
         [AiSlackThreadTableName]: AiSlackThreadTable;
         [AiPromptTableName]: AiPromptTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
+        [AiAgentTableName]: AiAgentTable;
+        [AiAgentIntegrationTableName]: AiAgentIntegrationTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
         [DashboardSummariesTableName]: DashboardSummariesTable;

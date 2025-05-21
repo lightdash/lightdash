@@ -43,7 +43,11 @@ export class AiAgentController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiAiAgentSummaryResponse> {
         this.setStatus(200);
-        throw new NotImplementedError('List agents not implemented');
+
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().listAgents(req.user!),
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

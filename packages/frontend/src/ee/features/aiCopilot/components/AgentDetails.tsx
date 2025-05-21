@@ -1,8 +1,4 @@
-import {
-    AiAgentIntegrationType,
-    type ApiCreateAiAgent,
-    type BaseAiAgent,
-} from '@lightdash/common';
+import { type ApiCreateAiAgent, type BaseAiAgent } from '@lightdash/common';
 import {
     Avatar,
     Button,
@@ -49,7 +45,7 @@ const formSchema: z.ZodType<
         .uuid({ message: 'Invalid project' }),
     integrations: z.array(
         z.object({
-            type: z.nativeEnum(AiAgentIntegrationType),
+            type: z.literal('slack'),
             channelId: z.string().min(1),
         }),
     ),
@@ -270,10 +266,14 @@ export const AgentDetails: FC = () => {
                                                 onChange={(value) => {
                                                     form.setFieldValue(
                                                         'integrations',
-                                                        value.map((v) => ({
-                                                            type: AiAgentIntegrationType.SLACK,
-                                                            channelId: v,
-                                                        })),
+                                                        value.map(
+                                                            (v) =>
+                                                                ({
+                                                                    type: 'slack',
+                                                                    channelId:
+                                                                        v,
+                                                                } as const),
+                                                        ),
                                                     );
                                                 }}
                                             />

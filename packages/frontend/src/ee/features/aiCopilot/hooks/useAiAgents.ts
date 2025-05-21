@@ -30,9 +30,10 @@ const getAiAgentThreadKey = (agentUuid: string, threadUuid: string) => [
 ];
 
 // API calls
-const listAgents = async () =>
-    lightdashApi<ApiAiAgentSummaryResponse>({
-        url: `/api/v1/aiAgents`,
+const listAgents = () =>
+    lightdashApi<ApiAiAgentSummaryResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents`,
         method: 'GET',
         body: undefined,
     });
@@ -43,9 +44,7 @@ const getAgent = async (agentUuid: string): Promise<ApiAiAgentResponse> => {
         results: {
             uuid: agentUuid,
             organizationUuid: 'org-1',
-            dataSources: {
-                fieldNameTags: null,
-            },
+            tags: [],
             name: 'Test Agent',
             projectUuid: 'project-1',
             integrations: [],
@@ -99,11 +98,13 @@ const updateAgent = async (data: ApiUpdateAiAgent) =>
 //     });
 
 // Hooks
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-const useAiAgents = (
-    useQueryOptions?: UseQueryOptions<ApiAiAgentSummaryResponse, ApiError>,
+export const useAiAgents = (
+    useQueryOptions?: UseQueryOptions<
+        ApiAiAgentSummaryResponse['results'],
+        ApiError
+    >,
 ) =>
-    useQuery<ApiAiAgentSummaryResponse, ApiError>({
+    useQuery<ApiAiAgentSummaryResponse['results'], ApiError>({
         queryKey: AI_AGENTS_KEY,
         queryFn: listAgents,
         ...useQueryOptions,

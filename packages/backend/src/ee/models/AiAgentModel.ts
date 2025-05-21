@@ -1,4 +1,8 @@
-import { type AiAgent } from '@lightdash/common';
+import {
+    type AiAgent,
+    AiAgentSummary,
+    baseAgentSchema,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     AiAgentIntegrationTableName,
@@ -18,6 +22,50 @@ export class AiAgentModel {
         this.database = dependencies.database;
     }
 
+    async findAllAgents({ organizationUuid }: { organizationUuid: string }) {
+        const rows = await this.database(AiAgentTableName)
+            .where('organization_uuid', organizationUuid)
+            .select('*');
+
+        const agents = rows.map<Omit<AiAgentSummary, 'integrations'>>(
+            (row) => ({
+                uuid: row.ai_agent_uuid,
+                projectUuid: row.project_uuid,
+                organizationUuid: row.organization_uuid,
+                name: row.name,
+                tags: row.tags,
+            }),
+        );
+
+        return agents;
+    }
+
+    async findAllIntegrations({
+        agentUuid,
+    }: {
+        agentUuid: string;
+    }): Promise<AiAgentSummary['integrations']> {
+        const integrations = await this.database(AiAgentIntegrationTableName)
+            .where('ai_agent_uuid', agentUuid)
+            .leftJoin(
+                AiAgentSlackIntegrationTableName,
+                `${AiAgentIntegrationTableName}.ai_agent_integration_uuid`,
+                `${AiAgentSlackIntegrationTableName}.ai_agent_integration_uuid`,
+            )
+            .select<{
+                type: string;
+                channelId: string;
+            }>({
+                type: `${AiAgentIntegrationTableName}.integration_type`,
+                channelId: `${AiAgentSlackIntegrationTableName}.slack_channel_id`,
+            });
+
+        const parsedIntegrations =
+            baseAgentSchema.shape.integrations.parse(integrations);
+
+        return parsedIntegrations;
+    }
+
     async getAgentBySlackChannelId({
         organizationUuid,
         slackChannelId,
@@ -25,7 +73,7 @@ export class AiAgentModel {
         organizationUuid: string;
         slackChannelId: string;
     }): Promise<AiAgent> {
-        // TODO: when `getAgent(uuid: string) is implemented, this should use it instead
+        // TODO: when `getAgent(uuid: string)` is implemented, this should use it instead
         const agent = await this.database(AiAgentTableName)
             .select({
                 uuid: `${AiAgentTableName}.ai_agent_uuid`,
@@ -39,7 +87,8 @@ export class AiAgentModel {
                             'type', ${AiAgentIntegrationTableName}.integration_type,
                             'channelId', ${AiAgentSlackIntegrationTableName}.slack_channel_id
                         )
-                    )`),
+                    )
+                `),
             } satisfies Record<keyof AiAgent, unknown>)
             .join(
                 AiAgentIntegrationTableName,

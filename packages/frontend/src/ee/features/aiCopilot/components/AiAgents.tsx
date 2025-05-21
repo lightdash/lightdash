@@ -3,6 +3,7 @@ import {
     Box,
     Button,
     Group,
+    Loader,
     Paper,
     Stack,
     Table,
@@ -18,43 +19,60 @@ import {
     useSlackChannels,
 } from '../../../../hooks/slack/useSlack';
 import { useProjects } from '../../../../hooks/useProjects';
+import { useAiAgents } from '../hooks/useAiAgents';
 
 export const AiAgents: FC = () => {
     const navigate = useNavigate();
+
     const { data: slackInstallation } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
 
-    const { data: slackChannels } = useSlackChannels('', true, {
+    const agentsListQuery = useAiAgents();
+    const projectsListQuery = useProjects();
+    const slackChannelsQuery = useSlackChannels('', true, {
         enabled: organizationHasSlack,
     });
 
-    const { data: projects } = useProjects();
+    const isLoading =
+        agentsListQuery.isLoading ||
+        projectsListQuery.isLoading ||
+        slackChannelsQuery.isLoading;
+
+    const isLoaded =
+        agentsListQuery.isSuccess &&
+        projectsListQuery.isSuccess &&
+        slackChannelsQuery.isSuccess;
 
     const agentList = useMemo(() => {
-        if (!slackInstallation?.slackChannelProjectMappings?.length) {
-            return null;
-        }
+        if (!isLoaded) return undefined;
 
-        // Map agents from project mappings
-        // TODO: Use different hook for agents after API is done
-        return slackInstallation.slackChannelProjectMappings.map((mapping) => {
-            const project = projects?.find(
-                (p) => p.projectUuid === mapping.projectUuid,
+        console.log(agentsListQuery.data);
+
+        return agentsListQuery.data.map((agent) => {
+            const project = projectsListQuery.data.find(
+                (p) => p.projectUuid === agent.projectUuid,
             );
-            const channel = slackChannels?.find(
-                (c) => c.id === mapping.slackChannelId,
+
+            if (!project) {
+                throw new Error(`Project not found for agent`);
+            }
+
+            // TODO: handle multiple integrations
+            const channel = slackChannelsQuery.data?.find(
+                (c) => c.id === agent.integrations[0].channelId,
             );
 
             return {
-                name: `Agent`,
-                projectName: project?.name,
+                name: agent.name,
+                projectName: project.name,
                 channelName: channel?.name,
             };
         });
     }, [
-        slackInstallation?.slackChannelProjectMappings,
-        projects,
-        slackChannels,
+        isLoaded,
+        agentsListQuery.data,
+        projectsListQuery.data,
+        slackChannelsQuery.data,
     ]);
 
     const handleAgentClick = useCallback(
@@ -94,7 +112,15 @@ export const AiAgents: FC = () => {
                     Add
                 </Button>
             </Group>
-            {!agentList ? (
+
+            {isLoading ? (
+                // TODO: add a nicer loading state
+                <Paper withBorder p="md" radius="md" bg="gray.0">
+                    <Stack gap="xs" align="center">
+                        <Loader />
+                    </Stack>
+                </Paper>
+            ) : agentList && agentList.length === 0 ? (
                 <Paper withBorder p="md" radius="md" bg="gray.0">
                     <Stack gap="xs" align="center">
                         <Paper withBorder p="xs" radius="md">
@@ -105,7 +131,7 @@ export const AiAgents: FC = () => {
                         </Text>
                     </Stack>
                 </Paper>
-            ) : (
+            ) : agentList && agentList.length > 0 ? (
                 <Table highlightOnHover withTableBorder>
                     <Table.Thead>
                         <Table.Tr>
@@ -145,6 +171,9 @@ export const AiAgents: FC = () => {
                         ))}
                     </Table.Tbody>
                 </Table>
+            ) : (
+                // TODO: add a nicer error state
+                <>error state...</>
             )}
         </Stack>
     );
