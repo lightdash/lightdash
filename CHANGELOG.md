@@ -1,3 +1,10 @@
+## [0.1638.3](https://github.com/lightdash/lightdash/compare/0.1638.2...0.1638.3) (2025-05-21)
+
+
+### Bug Fixes
+
+* validation rename tooltip ([#14902](https://github.com/lightdash/lightdash/issues/14902)) ([49db79d](https://github.com/lightdash/lightdash/commit/49db79da115333e25a39bb6e2f8ce6f6e53312b0))
+
 ## [0.1638.2](https://github.com/lightdash/lightdash/compare/0.1638.1...0.1638.2) (2025-05-21)
 
 
