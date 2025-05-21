@@ -13,25 +13,25 @@ import { type FC } from 'react';
 import { useAiAgentThread } from '../hooks/useAiAgents';
 
 type ThreadDetailsModalProps = {
+    agentName: string;
     agentUuid: string;
     threadUuid: string | null;
     onClose: () => void;
 };
 
 export const ThreadDetailsModal: FC<ThreadDetailsModalProps> = ({
+    agentName,
     agentUuid,
     threadUuid,
     onClose,
 }) => {
-    const { data: threadDetails, isLoading } = useAiAgentThread(
+    const { data: thread, isLoading } = useAiAgentThread(
         agentUuid,
         threadUuid || '',
         {
             enabled: !!threadUuid,
         },
     );
-
-    const thread = threadDetails?.results;
 
     // Format date function since date-fns is not available
     const formatDate = (dateString: string) => {
@@ -106,7 +106,8 @@ export const ThreadDetailsModal: FC<ThreadDetailsModalProps> = ({
                                             </Avatar>
                                             <Text fw={500} size="sm">
                                                 {message.role === 'assistant'
-                                                    ? 'AI Assistant'
+                                                    ? agentName ||
+                                                      'AI Assistant'
                                                     : thread.user.name}
                                             </Text>
                                             <Text size="xs" c="dimmed">
