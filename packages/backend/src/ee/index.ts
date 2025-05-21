@@ -9,6 +9,7 @@ import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import LicenseClient from './clients/License/LicenseClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackBot } from './clients/Slack/SlackBot';
+import { AiAgentModel } from './models/AiAgentModel';
 import { AiModel } from './models/AiModel';
 import { CommercialCatalogModel } from './models/CommercialCatalogModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
@@ -106,6 +107,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiAgentService: ({ models, repository }) =>
                 new AiAgentService({
+                    aiAgentModel: models.getAiAgentModel(),
                     slackAuthenticationModel:
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
                     featureFlagService: repository.getFeatureFlagService(),
@@ -223,6 +225,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
         },
         modelProviders: {
             aiModel: ({ database }) => new AiModel({ database }),
+            aiAgentModel: ({ database }) => new AiAgentModel({ database }),
             embedModel: ({ database }) => new EmbedModel({ database }),
             dashboardSummaryModel: ({ database }) =>
                 new DashboardSummaryModel({ database }),
