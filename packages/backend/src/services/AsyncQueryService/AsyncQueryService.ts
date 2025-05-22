@@ -807,12 +807,12 @@ export class AsyncQueryService extends ProjectService {
             resultsFileName,
             csvFileName,
             async (readStream, writeStream) => {
-                // Need to find a way to pass the csv header
-                await CsvService.streamRowsToFile(
+                // Use streamS3DataRowsToFile which handles JSONL data from S3
+                const { truncated } = await CsvService.streamS3DataRowsToFile(
                     false,
                     fields,
                     Object.keys(fields), // TODO: sorted field ids
-                    csvHeaders, // TODO: csv header
+                    csvHeaders,
                     {
                         readStream,
                         writeStream,
@@ -820,7 +820,7 @@ export class AsyncQueryService extends ProjectService {
                 );
 
                 return {
-                    truncated: false, // TODO: when is file truncated?
+                    truncated,
                 };
             },
         );
