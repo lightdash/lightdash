@@ -1,7 +1,11 @@
 import {
     type AiAgent,
     AiAgentSummary,
+    ApiCreateAiAgent,
+    ApiUpdateAiAgent,
+    assertUnreachable,
     baseAgentSchema,
+    ForbiddenError,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -40,11 +44,17 @@ export class AiAgentModel {
                 name: `${AiAgentTableName}.name`,
                 tags: `${AiAgentTableName}.tags`,
                 integrations: this.database.raw(`
-                    json_agg(
-                        json_build_object(
-                            'type', ${AiAgentIntegrationTableName}.integration_type,
-                            'channelId', ${AiAgentSlackIntegrationTableName}.slack_channel_id
-                        )
+                    COALESCE(
+                        json_agg(
+                            CASE WHEN ${AiAgentIntegrationTableName}.integration_type IS NOT NULL
+                            THEN json_build_object(
+                                'type', ${AiAgentIntegrationTableName}.integration_type,
+                                'channelId', ${AiAgentSlackIntegrationTableName}.slack_channel_id
+                            )
+                            ELSE NULL
+                            END
+                        ) FILTER (WHERE ${AiAgentIntegrationTableName}.integration_type IS NOT NULL),
+                        '[]'::json
                     )
                 `),
             } satisfies Record<keyof AiAgent, unknown>)
@@ -85,12 +95,18 @@ export class AiAgentModel {
                 name: `${AiAgentTableName}.name`,
                 tags: `${AiAgentTableName}.tags`,
                 integrations: this.database.raw(`
-                        json_agg(
-                        json_build_object(
-                            'type', ${AiAgentIntegrationTableName}.integration_type,
-                            'channelId', ${AiAgentSlackIntegrationTableName}.slack_channel_id
+                        COALESCE(
+                            json_agg(
+                                CASE WHEN ${AiAgentIntegrationTableName}.integration_type IS NOT NULL
+                                THEN json_build_object(
+                                    'type', ${AiAgentIntegrationTableName}.integration_type,
+                                    'channelId', ${AiAgentSlackIntegrationTableName}.slack_channel_id
+                                )
+                                ELSE NULL
+                                END
+                            ) FILTER (WHERE ${AiAgentIntegrationTableName}.integration_type IS NOT NULL),
+                            '[]'::json
                         )
-                    )
                 `),
             } satisfies Record<keyof AiAgentSummary, unknown>)
             .leftJoin(
@@ -147,5 +163,156 @@ export class AiAgentModel {
         });
 
         return agent;
+    }
+
+    async createAgent(
+        args: Pick<
+            ApiCreateAiAgent,
+            'name' | 'projectUuid' | 'tags' | 'integrations'
+        > & {
+            organizationUuid: string;
+        },
+    ): Promise<AiAgent> {
+        return this.database.transaction(async (trx) => {
+            const [agent] = await trx(AiAgentTableName)
+                .insert({
+                    name: args.name,
+                    project_uuid: args.projectUuid,
+                    organization_uuid: args.organizationUuid,
+                    tags: args.tags,
+                    description: null,
+                    image_url: null,
+                })
+                .returning('*');
+
+            const integrationPromises =
+                args.integrations?.map(async (integration) => {
+                    switch (integration.type) {
+                        case 'slack':
+                            const [baseIntegration] = await trx(
+                                AiAgentIntegrationTableName,
+                            )
+                                .insert({
+                                    ai_agent_uuid: agent.ai_agent_uuid,
+                                    integration_type: integration.type,
+                                })
+                                .returning('*');
+
+                            await trx(AiAgentSlackIntegrationTableName).insert({
+                                ai_agent_integration_uuid:
+                                    baseIntegration.ai_agent_integration_uuid,
+                                organization_uuid: agent.organization_uuid,
+                                slack_channel_id: integration.channelId,
+                            });
+
+                            return {
+                                type: integration.type,
+                                channelId: integration.channelId,
+                            };
+                        default:
+                            return assertUnreachable(
+                                integration.type,
+                                `Unknown integration type ${integration.type} in createAgent`,
+                            );
+                    }
+                }) || [];
+
+            // Wait for all integration creation operations to complete
+            const integrations = await Promise.all(integrationPromises);
+
+            return {
+                uuid: agent.ai_agent_uuid,
+                name: agent.name,
+                projectUuid: agent.project_uuid,
+                organizationUuid: agent.organization_uuid,
+                tags: agent.tags,
+                integrations,
+            };
+        });
+    }
+
+    async updateAgent(
+        args: Pick<
+            ApiUpdateAiAgent,
+            'name' | 'projectUuid' | 'tags' | 'integrations'
+        > & {
+            agentUuid: string;
+            organizationUuid: string;
+        },
+    ): Promise<AiAgent> {
+        return this.database.transaction(async (trx) => {
+            const [agent] = await trx(AiAgentTableName)
+                .where({
+                    ai_agent_uuid: args.agentUuid,
+                    organization_uuid: args.organizationUuid,
+                })
+                .update({
+                    name: args.name,
+                    project_uuid: args.projectUuid,
+                    tags: args.tags,
+                })
+                .returning('*');
+
+            // Reset all integrations
+            await trx(AiAgentIntegrationTableName)
+                .where('ai_agent_uuid', args.agentUuid)
+                .delete();
+
+            const integrationPromises =
+                args.integrations?.map(async (integration) => {
+                    switch (integration.type) {
+                        case 'slack':
+                            const [baseIntegration] = await trx(
+                                AiAgentIntegrationTableName,
+                            )
+                                .insert({
+                                    ai_agent_uuid: agent.ai_agent_uuid,
+                                    integration_type: integration.type,
+                                })
+                                .returning('*');
+
+                            await trx(AiAgentSlackIntegrationTableName).insert({
+                                ai_agent_integration_uuid:
+                                    baseIntegration.ai_agent_integration_uuid,
+                                organization_uuid: agent.organization_uuid,
+                                slack_channel_id: integration.channelId,
+                            });
+
+                            return {
+                                type: integration.type,
+                                channelId: integration.channelId,
+                            };
+                        default:
+                            return assertUnreachable(
+                                integration.type,
+                                `Unknown integration type ${integration.type} in updateAgent`,
+                            );
+                    }
+                }) || [];
+
+            const integrations = await Promise.all(integrationPromises);
+
+            return {
+                uuid: agent.ai_agent_uuid,
+                name: agent.name,
+                projectUuid: agent.project_uuid,
+                organizationUuid: agent.organization_uuid,
+                tags: agent.tags,
+                integrations,
+            };
+        });
+    }
+
+    async deleteAgent({
+        organizationUuid,
+        agentUuid,
+    }: {
+        organizationUuid: string;
+        agentUuid: string;
+    }): Promise<void> {
+        await this.database(AiAgentTableName)
+            .where('ai_agent_uuid', agentUuid)
+            .where('organization_uuid', organizationUuid)
+            .delete();
     }
 }

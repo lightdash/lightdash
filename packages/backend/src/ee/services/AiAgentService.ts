@@ -1,5 +1,6 @@
 import {
-    AiAgentSummary,
+    ApiCreateAiAgent,
+    ApiUpdateAiAgent,
     CommercialFeatureFlags,
     ForbiddenError,
     LightdashUser,
@@ -79,5 +80,79 @@ export class AiAgentService {
         });
 
         return agents;
+    }
+
+    public async createAgent(user: SessionUser, body: ApiCreateAiAgent) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.createAgent({
+            name: body.name,
+            projectUuid: body.projectUuid,
+            organizationUuid,
+            tags: body.tags,
+            integrations: body.integrations,
+        });
+
+        return agent;
+    }
+
+    public async updateAgent(
+        user: SessionUser,
+        agentUuid: string,
+        body: ApiUpdateAiAgent,
+    ) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const agent = await this.getAgent(user, agentUuid);
+        if (agent.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const updatedAgent = await this.aiAgentModel.updateAgent({
+            agentUuid,
+            name: body.name,
+            projectUuid: body.projectUuid,
+            organizationUuid,
+            tags: body.tags,
+            integrations: body.integrations,
+        });
+
+        return updatedAgent;
+    }
+
+    public async deleteAgent(user: SessionUser, agentUuid: string) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.getAgent(user, agentUuid);
+        if (!agent) {
+            throw new ForbiddenError('Agent not found');
+        }
+
+        if (agent.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError('Agent not found');
+        }
+
+        return this.aiAgentModel.deleteAgent({
+            organizationUuid,
+            agentUuid,
+        });
     }
 }

@@ -5272,8 +5272,11 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.projectUuid-or-integrations-or-tags_": {
+            "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name_": {
                 "properties": {
+                    "name": {
+                        "type": "string"
+                    },
                     "projectUuid": {
                         "type": "string"
                     },
@@ -5302,12 +5305,12 @@
                         "nullable": true
                     }
                 },
-                "required": ["projectUuid", "integrations", "tags"],
+                "required": ["name", "projectUuid", "integrations", "tags"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ApiCreateAiAgent": {
-                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags_"
+                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name_"
             },
             "ApiUpdateAiAgent": {
                 "properties": {
