@@ -4492,7 +4492,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid_':
+    'Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt_':
         {
             dataType: 'refAlias',
             type: {
@@ -4500,6 +4500,7 @@ const models: TsoaRoute.Models = {
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
+                    createdAt: { dataType: 'datetime', required: true },
                     uuid: { dataType: 'string', required: true },
                     organizationUuid: { dataType: 'string', required: true },
                     integrations: {
@@ -4531,6 +4532,7 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    updatedAt: { dataType: 'datetime', required: true },
                 },
                 validators: {},
             },
@@ -4539,7 +4541,7 @@ const models: TsoaRoute.Models = {
     AiAgentSummary: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid_',
+            ref: 'Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt_',
             validators: {},
         },
     },
@@ -4560,7 +4562,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name_':
+    'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt_':
         {
             dataType: 'refAlias',
             type: {
@@ -4568,6 +4570,7 @@ const models: TsoaRoute.Models = {
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
+                    createdAt: { dataType: 'datetime', required: true },
                     uuid: { dataType: 'string', required: true },
                     organizationUuid: { dataType: 'string', required: true },
                     integrations: {
@@ -4599,6 +4602,7 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    updatedAt: { dataType: 'datetime', required: true },
                 },
                 validators: {},
             },
@@ -4607,7 +4611,7 @@ const models: TsoaRoute.Models = {
     AiAgent: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name_',
+            ref: 'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt_',
             validators: {},
         },
     },
@@ -7144,6 +7148,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                updatedAt: { dataType: 'datetime', required: true },
                 pinnedListOrder: {
                     dataType: 'union',
                     subSchemas: [
@@ -7152,7 +7157,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                updatedAt: { dataType: 'datetime', required: true },
                 updatedByUser: {
                     dataType: 'union',
                     subSchemas: [
@@ -7250,6 +7254,7 @@ const models: TsoaRoute.Models = {
                     projectUuid: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
                     organizationUuid: { dataType: 'string', required: true },
+                    updatedAt: { dataType: 'datetime', required: true },
                     spaceUuid: { dataType: 'string', required: true },
                     pinnedListUuid: {
                         dataType: 'union',
@@ -7267,7 +7272,6 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
-                    updatedAt: { dataType: 'datetime', required: true },
                     updatedByUser: {
                         dataType: 'union',
                         subSchemas: [
@@ -8447,6 +8451,7 @@ const models: TsoaRoute.Models = {
                 projectUuid: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
                 organizationUuid: { dataType: 'string', required: true },
+                updatedAt: { dataType: 'datetime', required: true },
                 spaceUuid: { dataType: 'string', required: true },
                 pinnedListUuid: {
                     dataType: 'union',
@@ -8482,7 +8487,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                updatedAt: { dataType: 'datetime', required: true },
                 updatedByUser: {
                     dataType: 'union',
                     subSchemas: [
@@ -8581,6 +8585,7 @@ const models: TsoaRoute.Models = {
                 projectUuid: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
                 organizationUuid: { dataType: 'string', required: true },
+                updatedAt: { dataType: 'datetime', required: true },
                 spaceUuid: { dataType: 'string', required: true },
                 pinnedListUuid: {
                     dataType: 'union',
@@ -8600,7 +8605,6 @@ const models: TsoaRoute.Models = {
                 },
                 slug: { dataType: 'string', required: true },
                 spaceName: { dataType: 'string', required: true },
-                updatedAt: { dataType: 'datetime', required: true },
                 updatedByUser: {
                     dataType: 'union',
                     subSchemas: [
@@ -10649,8 +10653,8 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
-                    slug: { dataType: 'string', required: true },
                     updatedAt: { dataType: 'datetime', required: true },
+                    slug: { dataType: 'string', required: true },
                     tableName: { dataType: 'string', required: true },
                     metricQuery: { ref: 'MetricQuery', required: true },
                     pivotConfig: {
@@ -10814,8 +10818,8 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
-                slug: { dataType: 'string', required: true },
                 updatedAt: { dataType: 'datetime', required: true },
+                slug: { dataType: 'string', required: true },
                 tabs: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'DashboardTab' },
@@ -11148,7 +11152,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -11158,7 +11162,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -11168,7 +11172,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -11181,7 +11185,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -11256,8 +11260,8 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
-                    slug: { dataType: 'string', required: true },
                     updatedAt: { dataType: 'datetime', required: true },
+                    slug: { dataType: 'string', required: true },
                     tableName: { dataType: 'string', required: true },
                     pivotConfig: {
                         dataType: 'union',
@@ -11335,8 +11339,8 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
-                    slug: { dataType: 'string', required: true },
                     updatedAt: { dataType: 'datetime', required: true },
+                    slug: { dataType: 'string', required: true },
                     tabs: {
                         dataType: 'array',
                         array: { dataType: 'refAlias', ref: 'DashboardTab' },
@@ -11407,6 +11411,7 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     uuid: { dataType: 'string', required: true },
+                    updatedAt: { dataType: 'datetime', required: true },
                     spaceUuid: { dataType: 'string', required: true },
                     pinnedListUuid: {
                         dataType: 'union',
@@ -11424,7 +11429,6 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
-                    updatedAt: { dataType: 'datetime', required: true },
                     updatedByUser: {
                         dataType: 'union',
                         subSchemas: [
@@ -11501,6 +11505,7 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     uuid: { dataType: 'string', required: true },
+                    updatedAt: { dataType: 'datetime', required: true },
                     spaceUuid: { dataType: 'string', required: true },
                     pinnedListUuid: {
                         dataType: 'union',
@@ -11519,7 +11524,6 @@ const models: TsoaRoute.Models = {
                         required: true,
                     },
                     slug: { dataType: 'string', required: true },
-                    updatedAt: { dataType: 'datetime', required: true },
                     updatedByUser: {
                         dataType: 'union',
                         subSchemas: [
@@ -17872,6 +17876,10 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dashboardSorts: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SortField' },
+                },
                 dateZoomGranularity: { ref: 'DateGranularity' },
                 dashboardFilters: { ref: 'DashboardFilters' },
                 tileUuid: { dataType: 'string', required: true },
