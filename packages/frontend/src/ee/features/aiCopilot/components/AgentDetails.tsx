@@ -11,6 +11,7 @@ import {
     Tabs,
     TagsInput,
     Text,
+    Textarea,
     TextInput,
     Title,
     Tooltip,
@@ -44,7 +45,10 @@ import { AgentAvatar } from './AgentAvatar';
 import { ConversationsList } from './ConversationsList';
 
 const formSchema: z.ZodType<
-    Pick<BaseAiAgent, 'name' | 'projectUuid' | 'integrations' | 'tags'>
+    Pick<
+        BaseAiAgent,
+        'name' | 'projectUuid' | 'integrations' | 'tags' | 'instructions'
+    >
 > = z.object({
     name: z.string().min(1),
     projectUuid: z
@@ -57,6 +61,7 @@ const formSchema: z.ZodType<
         }),
     ),
     tags: z.array(z.string()).nullable(),
+    instructions: z.string().nullable(),
 });
 
 export const AgentDetails: FC = () => {
@@ -117,6 +122,7 @@ export const AgentDetails: FC = () => {
             projectUuid: '',
             integrations: [],
             tags: null,
+            instructions: '',
         },
         validate: zodResolver(formSchema),
     });
@@ -291,6 +297,26 @@ export const AgentDetails: FC = () => {
                                                     }}
                                                 />
                                             )}
+                                        </Stack>
+
+                                        <Stack gap="sm">
+                                            <Title order={5}>
+                                                Configuration
+                                            </Title>
+
+                                            <Textarea
+                                                label="System Prompt"
+                                                description="The system prompt sets the
+                                                    overall behavior and task
+                                                    for the agent. This defines
+                                                    how it should respond and
+                                                    what its purpose is."
+                                                placeholder="You are a helpful assistant that specializes in sales data analytics."
+                                                resize="vertical"
+                                                {...form.getInputProps(
+                                                    'instructions',
+                                                )}
+                                            />
                                         </Stack>
 
                                         {/* Integrations Section */}

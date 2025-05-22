@@ -12,6 +12,7 @@ export type DbAiAgent = {
     tags: string[] | null;
     created_at: Date;
     updated_at: Date;
+    instructions: string | null;
 };
 
 export type AiAgentTable = Knex.CompositeTableType<
