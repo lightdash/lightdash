@@ -44,11 +44,17 @@ export class AiAgentModel {
                 name: `${AiAgentTableName}.name`,
                 tags: `${AiAgentTableName}.tags`,
                 integrations: this.database.raw(`
-                    json_agg(
-                        json_build_object(
-                            'type', ${AiAgentIntegrationTableName}.integration_type,
-                            'channelId', ${AiAgentSlackIntegrationTableName}.slack_channel_id
-                        )
+                    COALESCE(
+                        json_agg(
+                            CASE WHEN ${AiAgentIntegrationTableName}.integration_type IS NOT NULL
+                            THEN json_build_object(
+                                'type', ${AiAgentIntegrationTableName}.integration_type,
+                                'channelId', ${AiAgentSlackIntegrationTableName}.slack_channel_id
+                            )
+                            ELSE NULL
+                            END
+                        ) FILTER (WHERE ${AiAgentIntegrationTableName}.integration_type IS NOT NULL),
+                        '[]'::json
                     )
                 `),
             } satisfies Record<keyof AiAgent, unknown>)
@@ -89,12 +95,18 @@ export class AiAgentModel {
                 name: `${AiAgentTableName}.name`,
                 tags: `${AiAgentTableName}.tags`,
                 integrations: this.database.raw(`
-                        json_agg(
-                        json_build_object(
-                            'type', ${AiAgentIntegrationTableName}.integration_type,
-                            'channelId', ${AiAgentSlackIntegrationTableName}.slack_channel_id
+                        COALESCE(
+                            json_agg(
+                                CASE WHEN ${AiAgentIntegrationTableName}.integration_type IS NOT NULL
+                                THEN json_build_object(
+                                    'type', ${AiAgentIntegrationTableName}.integration_type,
+                                    'channelId', ${AiAgentSlackIntegrationTableName}.slack_channel_id
+                                )
+                                ELSE NULL
+                                END
+                            ) FILTER (WHERE ${AiAgentIntegrationTableName}.integration_type IS NOT NULL),
+                            '[]'::json
                         )
-                    )
                 `),
             } satisfies Record<keyof AiAgentSummary, unknown>)
             .leftJoin(
@@ -289,5 +301,18 @@ export class AiAgentModel {
                 integrations,
             };
         });
+    }
+
+    async deleteAgent({
+        organizationUuid,
+        agentUuid,
+    }: {
+        organizationUuid: string;
+        agentUuid: string;
+    }): Promise<void> {
+        await this.database(AiAgentTableName)
+            .where('ai_agent_uuid', agentUuid)
+            .where('organization_uuid', organizationUuid)
+            .delete();
     }
 }

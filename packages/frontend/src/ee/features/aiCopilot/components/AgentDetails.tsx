@@ -5,10 +5,10 @@ import {
     Card,
     Group,
     MantineProvider,
+    MultiSelect,
     Select,
     Stack,
     Tabs,
-    TagsInput,
     Text,
     TextInput,
     Title,
@@ -32,6 +32,7 @@ import { useProjects } from '../../../../hooks/useProjects';
 import {
     useAiAgent,
     useCreateAiAgentMutation,
+    useDeleteAiAgentMutation,
     useUpdateAiAgentMutation,
 } from '../hooks/useAiAgents';
 import { ConversationsList } from './ConversationsList';
@@ -68,9 +69,13 @@ export const AgentDetails: FC = () => {
     const isCreateMode = agentId === 'new';
     const agentUuid = !isCreateMode && agentId ? agentId : undefined;
 
-    const { data: agent } = useAiAgent(agentUuid || '', {
-        enabled: !!agentUuid,
-    });
+    const { data: agent, isLoading: isLoadingAgent } = useAiAgent(
+        agentUuid || '',
+        {
+            enabled: !!agentUuid,
+        },
+    );
+    const { mutateAsync: deleteAgent } = useDeleteAiAgentMutation();
 
     const { data: slackInstallation } = useGetSlack();
     const {
@@ -99,10 +104,10 @@ export const AgentDetails: FC = () => {
 
         if (!form.initialized) {
             form.setValues({
-                name: agent.results.name,
-                projectUuid: agent.results.projectUuid,
-                integrations: agent.results.integrations,
-                tags: agent.results.tags,
+                name: agent.name,
+                projectUuid: agent.projectUuid,
+                integrations: agent.integrations,
+                tags: agent.tags,
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -142,11 +147,15 @@ export const AgentDetails: FC = () => {
     });
 
     const handleDelete = useCallback(async () => {
-        // You would need to implement a delete mutation
-        void navigate('/generalSettings/aiAgents');
-    }, [navigate]);
+        if (!agentUuid) {
+            return;
+        }
 
-    if (!isCreateMode && agentUuid && !agent) {
+        await deleteAgent(agentUuid);
+        void navigate('/generalSettings/aiAgents');
+    }, [navigate, agentUuid, deleteAgent]);
+
+    if (!isCreateMode && agentUuid && !agent && !isLoadingAgent) {
         return (
             <MantineProvider>
                 <Stack gap="md">
@@ -259,13 +268,14 @@ export const AgentDetails: FC = () => {
                                                 </Button>
                                             </Group>
 
-                                            <TagsInput
+                                            <MultiSelect
                                                 label="Slack"
                                                 placeholder="Pick a channel"
                                                 data={slackChannelOptions}
                                                 value={form.values.integrations.map(
                                                     (i) => i.channelId,
                                                 )}
+                                                searchable
                                                 onChange={(value) => {
                                                     form.setFieldValue(
                                                         'integrations',

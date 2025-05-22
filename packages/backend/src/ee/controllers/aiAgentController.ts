@@ -6,11 +6,13 @@ import {
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
     ApiErrorPayload,
+    ApiSuccessEmpty,
     ApiUpdateAiAgent,
     NotImplementedError,
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
     Hidden,
     Middlewares,
@@ -59,7 +61,14 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
     ): Promise<ApiAiAgentResponse> {
         this.setStatus(200);
-        throw new NotImplementedError('Get agent not implemented');
+        const agent = await this.getAiAgentService().getAgent(
+            req.user!,
+            agentUuid,
+        );
+        return {
+            status: 'ok',
+            results: agent,
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -99,6 +108,23 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: agent,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{agentUuid}')
+    @OperationId('deleteAgent')
+    async deleteAgent(
+        @Request() req: express.Request,
+        @Path() agentUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.getAiAgentService().deleteAgent(req.user!, agentUuid);
+
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 
