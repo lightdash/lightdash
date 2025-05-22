@@ -427,30 +427,4 @@ export class QueryController extends BaseController {
             results,
         };
     }
-
-    @Hidden()
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/{queryUuid}/csv')
-    @OperationId('downloadResultsAsCsv')
-    async downloadResultsAsCsv(
-        @Path() projectUuid: string,
-        @Path() queryUuid: string,
-        @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiDownloadAsyncQueryResultsAsCsv>> {
-        this.setStatus(200);
-
-        const results = await this.services
-            .getAsyncQueryService()
-            .downloadAsyncQueryResultsAsCsv({
-                user: req.user!,
-                projectUuid,
-                queryUuid,
-            });
-
-        return {
-            status: 'ok',
-            results,
-        };
-    }
 }
