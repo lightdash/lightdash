@@ -62,11 +62,7 @@ export const AgentDetails: FC = () => {
     const { agentId } = useParams<{ agentId: string }>();
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const { mutateAsync: createAgent, isLoading: isCreating } =
-        useCreateAiAgentMutation({
-            onSuccess: () => {
-                void navigate('/generalSettings/aiAgents');
-            },
-        });
+        useCreateAiAgentMutation();
     const { mutateAsync: updateAgent, isLoading: isUpdating } =
         useUpdateAiAgentMutation();
     const isCreateMode = agentId === 'new';
