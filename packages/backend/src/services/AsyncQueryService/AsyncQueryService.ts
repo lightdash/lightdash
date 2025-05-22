@@ -36,6 +36,7 @@ import {
     getFieldQuoteChar,
     getIntrinsicUserAttributes,
     getItemId,
+    getItemLabel,
     getItemMap,
     GroupByColumn,
     isCartesianChartConfig,
@@ -798,7 +799,7 @@ export class AsyncQueryService extends ProjectService {
         const csvFileName = CsvService.generateFileId(resultsFileName);
 
         const csvHeaders = Object.keys(fields).map((field) =>
-            getFieldLabel(field),
+            getItemLabel(fields[field]),
         );
 
         // Transform and upload the results
@@ -810,8 +811,8 @@ export class AsyncQueryService extends ProjectService {
                 await CsvService.streamRowsToFile(
                     false,
                     fields,
-                    [], // TODO: sorted field ids
-                    [], // TODO: csv header
+                    Object.keys(fields), // TODO: sorted field ids
+                    csvHeaders, // TODO: csv header
                     {
                         readStream,
                         writeStream,
