@@ -1,3 +1,10 @@
+# [0.1640.0](https://github.com/lightdash/lightdash/compare/0.1639.1...0.1640.0) (2025-05-22)
+
+
+### Features
+
+* ai agents ([#14884](https://github.com/lightdash/lightdash/issues/14884)) ([46948e0](https://github.com/lightdash/lightdash/commit/46948e0bc3b3769635aeac319ec7fb160cb47e3e))
+
 ## [0.1639.1](https://github.com/lightdash/lightdash/compare/0.1639.0...0.1639.1) (2025-05-22)
 
 
