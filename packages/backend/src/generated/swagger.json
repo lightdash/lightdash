@@ -16614,6 +16614,20 @@
                 "enum": ["csv", "image", "jsonl", "s3_jsonl"],
                 "type": "string"
             },
+            "ApiSuccess_ApiDownloadAsyncQueryResultsAsCsv_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiDownloadAsyncQueryResultsAsCsv"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "FeatureFlag": {
                 "properties": {
                     "enabled": {
