@@ -1,3 +1,10 @@
+## [0.1643.3](https://github.com/lightdash/lightdash/compare/0.1643.2...0.1643.3) (2025-05-22)
+
+
+### Bug Fixes
+
+* allow tags when project selected ([#14962](https://github.com/lightdash/lightdash/issues/14962)) ([1e74974](https://github.com/lightdash/lightdash/commit/1e74974b7018b0dd12b44af247607481947427df))
+
 ## [0.1643.2](https://github.com/lightdash/lightdash/compare/0.1643.1...0.1643.2) (2025-05-22)
 
 
