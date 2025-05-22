@@ -1,3 +1,10 @@
+# [0.1644.0](https://github.com/lightdash/lightdash/compare/0.1643.3...0.1644.0) (2025-05-22)
+
+
+### Features
+
+* add toast messaging on some hooks ([#14960](https://github.com/lightdash/lightdash/issues/14960)) ([daee447](https://github.com/lightdash/lightdash/commit/daee4477b95e22d765355853771ded9bb5cff7fe))
+
 ## [0.1643.3](https://github.com/lightdash/lightdash/compare/0.1643.2...0.1643.3) (2025-05-22)
 
 
