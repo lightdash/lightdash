@@ -1110,11 +1110,9 @@ export const reduceRequiredDimensionFiltersToFilterRules = (
     explore: Explore,
 ): FilterRule[] => {
     const table = explore.tables[explore.baseTable];
-    if (!table) return [];
 
     return requiredFilters.reduce<FilterRule[]>((acc, filter): FilterRule[] => {
         let dimension: Dimension | undefined;
-
         // This function already takes care of falling back to the base table if the fieldRef doesn't have 2 parts (falls back to base table name)
         const filterRule = createFilterRuleFromModelRequiredFilterRule(
             filter,
