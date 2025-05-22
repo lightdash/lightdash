@@ -1,5 +1,4 @@
 import {
-    Avatar,
     Badge,
     Group,
     Modal,
@@ -11,6 +10,7 @@ import {
 } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useAiAgentThread } from '../hooks/useAiAgents';
+import { AgentAvatar } from './AgentAvatar';
 
 type ThreadDetailsModalProps = {
     agentName: string;
@@ -89,21 +89,15 @@ export const ThreadDetailsModal: FC<ThreadDetailsModalProps> = ({
                                 >
                                     <Stack gap="xs">
                                         <Group gap="xs">
-                                            <Avatar
-                                                size="sm"
-                                                radius="xl"
-                                                color={
+                                            <AgentAvatar
+                                                name={
                                                     message.role === 'assistant'
-                                                        ? 'blue'
-                                                        : 'gray'
+                                                        ? agentName ||
+                                                          'AI Assistant'
+                                                        : thread.user.name
                                                 }
-                                            >
-                                                {message.role === 'assistant'
-                                                    ? 'AI'
-                                                    : thread.user.name.charAt(
-                                                          0,
-                                                      )}
-                                            </Avatar>
+                                            />
+
                                             <Text fw={500} size="sm">
                                                 {message.role === 'assistant'
                                                     ? agentName ||

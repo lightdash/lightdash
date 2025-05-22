@@ -1,6 +1,5 @@
 import { type BaseAiAgent } from '@lightdash/common';
 import {
-    Avatar,
     Button,
     Card,
     Group,
@@ -35,6 +34,7 @@ import {
     useDeleteAiAgentMutation,
     useUpdateAiAgentMutation,
 } from '../hooks/useAiAgents';
+import { AgentAvatar } from './AgentAvatar';
 import { ConversationsList } from './ConversationsList';
 
 const formSchema: z.ZodType<
@@ -192,12 +192,10 @@ export const AgentDetails: FC = () => {
                 <Card withBorder p="xl">
                     <Stack gap="xl">
                         <Group gap="md">
-                            <Avatar
-                                size={40}
-                                radius="sm"
-                                color="initials"
-                                name={isCreateMode ? '+' : ''}
+                            <AgentAvatar
+                                name={isCreateMode ? '+' : form.values.name}
                             />
+
                             <Title order={3}>
                                 {isCreateMode
                                     ? 'New Agent'

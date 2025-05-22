@@ -1,5 +1,4 @@
 import {
-    Avatar,
     Box,
     Button,
     Group,
@@ -20,6 +19,7 @@ import {
 } from '../../../../hooks/slack/useSlack';
 import { useProjects } from '../../../../hooks/useProjects';
 import { useAiAgents } from '../hooks/useAiAgents';
+import { AgentAvatar } from './AgentAvatar';
 
 export const AiAgents: FC = () => {
     const navigate = useNavigate();
@@ -148,12 +148,7 @@ export const AiAgents: FC = () => {
                             >
                                 <Table.Td>
                                     <Group gap="sm">
-                                        <Avatar
-                                            size={30}
-                                            radius="sm"
-                                            name={agent.name}
-                                            color="initials"
-                                        />
+                                        <AgentAvatar name={agent.name} />
 
                                         <Text size="sm" fw={500}>
                                             {agent.name || 'AI Agent'}
