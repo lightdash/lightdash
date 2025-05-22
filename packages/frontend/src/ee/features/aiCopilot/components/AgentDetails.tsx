@@ -293,29 +293,31 @@ export const AgentDetails: FC = () => {
                                                 }}
                                             />
                                         </Stack>
-                                    </Stack>
 
-                                    <Group justify="flex-end">
-                                        {!isCreateMode && (
+                                        <Group justify="flex-end">
+                                            {!isCreateMode && (
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={handleDelete}
+                                                >
+                                                    Delete agent
+                                                </Button>
+                                            )}
                                             <Button
-                                                variant="outline"
-                                                onClick={handleDelete}
+                                                type="submit"
+                                                loading={false}
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconCheck}
+                                                    />
+                                                }
                                             >
-                                                Delete agent
+                                                {isCreateMode
+                                                    ? 'Create agent'
+                                                    : 'Save changes'}
                                             </Button>
-                                        )}
-                                        <Button
-                                            type="submit"
-                                            loading={false}
-                                            leftSection={
-                                                <MantineIcon icon={IconCheck} />
-                                            }
-                                        >
-                                            {isCreateMode
-                                                ? 'Create agent'
-                                                : 'Save changes'}
-                                        </Button>
-                                    </Group>
+                                        </Group>
+                                    </Stack>
                                 </form>
                             </Tabs.Panel>
                             <Tabs.Panel value="conversations" pt="xs">
