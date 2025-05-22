@@ -63,6 +63,8 @@ export class AiAgentModel {
                         '[]'::json
                     )
                 `),
+                updatedAt: `${AiAgentTableName}.updated_at`,
+                createdAt: `${AiAgentTableName}.created_at`,
             } satisfies Record<keyof AiAgent, unknown>)
             .leftJoin(
                 AiAgentIntegrationTableName,
@@ -114,6 +116,8 @@ export class AiAgentModel {
                             '[]'::json
                         )
                 `),
+                updatedAt: `${AiAgentTableName}.updated_at`,
+                createdAt: `${AiAgentTableName}.created_at`,
             } satisfies Record<keyof AiAgentSummary, unknown>)
             .leftJoin(
                 AiAgentIntegrationTableName,
@@ -233,15 +237,14 @@ export class AiAgentModel {
                 organizationUuid: agent.organization_uuid,
                 tags: agent.tags,
                 integrations,
+                createdAt: agent.created_at,
+                updatedAt: agent.updated_at,
             };
         });
     }
 
     async updateAgent(
-        args: Pick<
-            ApiUpdateAiAgent,
-            'name' | 'projectUuid' | 'tags' | 'integrations'
-        > & {
+        args: Omit<ApiUpdateAiAgent, 'uuid'> & {
             agentUuid: string;
             organizationUuid: string;
         },
@@ -256,6 +259,7 @@ export class AiAgentModel {
                     name: args.name,
                     project_uuid: args.projectUuid,
                     tags: args.tags,
+                    updated_at: new Date(),
                 })
                 .returning('*');
 
@@ -305,6 +309,8 @@ export class AiAgentModel {
                 organizationUuid: agent.organization_uuid,
                 tags: agent.tags,
                 integrations,
+                createdAt: agent.created_at,
+                updatedAt: agent.updated_at,
             };
         });
     }

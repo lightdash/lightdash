@@ -11,11 +11,13 @@ export type DbAiAgent = {
     image_url: string | null;
     tags: string[] | null;
     created_at: Date;
+    updated_at: Date;
 };
 
 export type AiAgentTable = Knex.CompositeTableType<
     DbAiAgent,
-    Omit<DbAiAgent, 'ai_agent_uuid' | 'created_at'>
+    Omit<DbAiAgent, 'ai_agent_uuid' | 'created_at' | 'updated_at'>,
+    Partial<Omit<DbAiAgent, 'ai_agent_uuid' | 'created_at'>>
 >;
 
 export const AiAgentIntegrationTableName = 'ai_agent_integration';
