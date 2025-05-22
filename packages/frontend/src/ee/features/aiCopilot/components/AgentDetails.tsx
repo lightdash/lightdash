@@ -32,6 +32,7 @@ import {
 import { useProjects } from '../../../../hooks/useProjects';
 import {
     useAiAgent,
+    useAiAgents,
     useCreateAiAgentMutation,
     useDeleteAiAgentMutation,
     useUpdateAiAgentMutation,
@@ -81,14 +82,29 @@ export const AgentDetails: FC = () => {
     const { mutateAsync: deleteAgent } = useDeleteAiAgentMutation();
 
     const { data: slackInstallation } = useGetSlack();
+
+    const { data: agents, isSuccess: isSuccessAgents } = useAiAgents();
+
     const {
         data: slackChannels,
         refresh: _refreshChannels,
         isLoading: _isRefreshing,
     } = useSlackChannels('', true, {
-        enabled: !!slackInstallation?.organizationUuid,
+        enabled: !!slackInstallation?.organizationUuid && isSuccessAgents,
     });
     const { data: projects } = useProjects();
+
+    const slackChannelOptions = useMemo(
+        () =>
+            slackChannels?.map((channel) => ({
+                value: channel.id,
+                label: channel.name,
+                disabled: agents?.some((a) =>
+                    a.integrations.some((i) => i.channelId === channel.id),
+                ),
+            })) ?? [],
+        [slackChannels, agents],
+    );
 
     const form = useForm<z.infer<typeof formSchema>>({
         initialValues: {
@@ -115,15 +131,6 @@ export const AgentDetails: FC = () => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [agent, isCreateMode]);
-
-    const slackChannelOptions = useMemo(() => {
-        return (
-            slackChannels?.map((channel) => ({
-                value: channel.id,
-                label: channel.name,
-            })) ?? []
-        );
-    }, [slackChannels]);
 
     const projectOptions = useMemo(() => {
         return (
