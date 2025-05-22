@@ -284,27 +284,42 @@ export const AgentDetails: FC = () => {
                                         </Stack>
 
                                         {/* Integrations Section */}
+
                                         <Stack gap="sm">
                                             <Group justify="space-between">
                                                 <Title order={5}>
                                                     Integrations
                                                 </Title>
-                                                <Button
-                                                    size="xs"
-                                                    variant="subtle"
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconRefresh}
-                                                        />
-                                                    }
-                                                    loading={isRefreshing}
-                                                    onClick={refreshChannels}
-                                                >
-                                                    Refresh Channels
-                                                </Button>
+                                                {slackInstallation?.organizationUuid && (
+                                                    <Button
+                                                        size="xs"
+                                                        variant="subtle"
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconRefresh
+                                                                }
+                                                            />
+                                                        }
+                                                        loading={isRefreshing}
+                                                        onClick={
+                                                            refreshChannels
+                                                        }
+                                                    >
+                                                        Refresh Channels
+                                                    </Button>
+                                                )}
                                             </Group>
 
                                             <MultiSelect
+                                                disabled={
+                                                    !slackInstallation?.organizationUuid
+                                                }
+                                                description={
+                                                    !slackInstallation?.organizationUuid
+                                                        ? 'You need to connect Slack first in the Integrations settings before you can configure AI agents.'
+                                                        : undefined
+                                                }
                                                 label="Slack"
                                                 placeholder="Pick a channel"
                                                 data={slackChannelOptions}
