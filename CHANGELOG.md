@@ -1,3 +1,10 @@
+## [0.1640.1](https://github.com/lightdash/lightdash/compare/0.1640.0...0.1640.1) (2025-05-22)
+
+
+### Bug Fixes
+
+* dont render conversations tab in create mode ([#14951](https://github.com/lightdash/lightdash/issues/14951)) ([51dad73](https://github.com/lightdash/lightdash/commit/51dad737990e9730596c7bdca09b214b2ecc0d83))
+
 # [0.1640.0](https://github.com/lightdash/lightdash/compare/0.1639.1...0.1640.0) (2025-05-22)
 
 
