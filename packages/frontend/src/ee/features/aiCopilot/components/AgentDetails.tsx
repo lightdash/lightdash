@@ -318,12 +318,14 @@ export const AgentDetails: FC = () => {
                                     </Group>
                                 </form>
                             </Tabs.Panel>
-                            <Tabs.Panel value="conversations" pt="xs">
-                                <ConversationsList
-                                    agentUuid={agentUuid ?? ''}
-                                    agentName={form.values.name}
-                                />
-                            </Tabs.Panel>
+                            {!isCreateMode && (
+                                <Tabs.Panel value="conversations" pt="xs">
+                                    <ConversationsList
+                                        agentUuid={agentUuid ?? ''}
+                                        agentName={form.values.name}
+                                    />
+                                </Tabs.Panel>
+                            )}
                         </Tabs>
                     </Stack>
                 </Card>
