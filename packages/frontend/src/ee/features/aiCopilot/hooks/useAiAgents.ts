@@ -18,17 +18,7 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 
-// Query keys
-const AI_AGENTS_KEY = ['aiAgents'];
-const getAiAgentKey = (agentUuid: string) => [...AI_AGENTS_KEY, agentUuid];
-const getAiAgentThreadsKey = (agentUuid: string) => [
-    ...getAiAgentKey(agentUuid),
-    'threads',
-];
-const getAiAgentThreadKey = (agentUuid: string, threadUuid: string) => [
-    ...getAiAgentThreadsKey(agentUuid),
-    threadUuid,
-];
+const AI_AGENTS_KEY = 'aiAgents';
 
 // API calls
 const listAgents = () =>
@@ -58,7 +48,7 @@ const createAgent = async (data: ApiCreateAiAgent) =>
     });
 
 const updateAgent = async (data: ApiUpdateAiAgent) =>
-    lightdashApi<ApiAiAgentResponse>({
+    lightdashApi<ApiAiAgentResponse['results']>({
         version: 'v1',
         url: `/aiAgents/${data.uuid}`,
         method: 'PATCH',
@@ -87,7 +77,7 @@ export const useAiAgents = (
     >,
 ) =>
     useQuery<ApiAiAgentSummaryResponse['results'], ApiError>({
-        queryKey: AI_AGENTS_KEY,
+        queryKey: [AI_AGENTS_KEY],
         queryFn: listAgents,
         ...useQueryOptions,
     });
@@ -97,7 +87,7 @@ export const useAiAgent = (
     useQueryOptions?: UseQueryOptions<ApiAiAgentResponse['results'], ApiError>,
 ) =>
     useQuery<ApiAiAgentResponse['results'], ApiError>({
-        queryKey: getAiAgentKey(agentUuid),
+        queryKey: [AI_AGENTS_KEY, agentUuid],
         queryFn: () => getAgent(agentUuid),
         ...useQueryOptions,
     });
@@ -114,7 +104,7 @@ export const useCreateAiAgentMutation = (
     return useMutation<ApiCreateAiAgentResponse, ApiError, ApiCreateAiAgent>({
         mutationFn: createAgent,
         onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: AI_AGENTS_KEY });
+            void queryClient.invalidateQueries({ queryKey: [AI_AGENTS_KEY] });
         },
         ...options,
     });
@@ -122,18 +112,25 @@ export const useCreateAiAgentMutation = (
 
 export const useUpdateAiAgentMutation = (
     options?: UseMutationOptions<
-        ApiAiAgentResponse,
+        ApiAiAgentResponse['results'],
         ApiError,
         ApiUpdateAiAgent
     >,
 ) => {
     const queryClient = useQueryClient();
 
-    return useMutation<ApiAiAgentResponse, ApiError, ApiUpdateAiAgent>({
+    return useMutation<
+        ApiAiAgentResponse['results'],
+        ApiError,
+        ApiUpdateAiAgent
+    >({
         mutationFn: (data) => updateAgent(data),
         onSuccess: (data) => {
             void queryClient.invalidateQueries({
-                queryKey: getAiAgentKey(data.results.uuid),
+                queryKey: [AI_AGENTS_KEY, data.uuid],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENTS_KEY],
             });
         },
         ...options,
@@ -156,7 +153,9 @@ export const useDeleteAiAgentMutation = (
     return useMutation<ApiSuccessEmpty, ApiError, string>({
         mutationFn: (agentUuid) => deleteAgent(agentUuid),
         onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: AI_AGENTS_KEY });
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENTS_KEY],
+            });
         },
         ...options,
     });
@@ -170,7 +169,7 @@ export const useAiAgentThreads = (
     >,
 ) =>
     useQuery<ApiAiAgentThreadSummaryListResponse['results'], ApiError>({
-        queryKey: getAiAgentThreadsKey(agentUuid),
+        queryKey: [AI_AGENTS_KEY, agentUuid, 'threads'],
         queryFn: () => listAgentThreads(agentUuid),
         ...useQueryOptions,
     });
@@ -184,7 +183,7 @@ export const useAiAgentThread = (
     >,
 ) => {
     return useQuery<ApiAiAgentThreadResponse['results'], ApiError>({
-        queryKey: getAiAgentThreadKey(agentUuid, threadUuid),
+        queryKey: [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
         queryFn: () => getAgentThread(agentUuid, threadUuid),
         ...useQueryOptions,
     });

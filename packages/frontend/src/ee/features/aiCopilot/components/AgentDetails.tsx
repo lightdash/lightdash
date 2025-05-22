@@ -59,16 +59,14 @@ export const AgentDetails: FC = () => {
     const navigate = useNavigate();
     const { agentId } = useParams<{ agentId: string }>();
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-    const { mutateAsync: createAgent } = useCreateAiAgentMutation({
-        onSuccess: () => {
-            void navigate('/generalSettings/aiAgents');
-        },
-    });
-    const { mutateAsync: updateAgent } = useUpdateAiAgentMutation({
-        onSuccess: () => {
-            void navigate('/generalSettings/aiAgents');
-        },
-    });
+    const { mutateAsync: createAgent, isLoading: isCreating } =
+        useCreateAiAgentMutation({
+            onSuccess: () => {
+                void navigate('/generalSettings/aiAgents');
+            },
+        });
+    const { mutateAsync: updateAgent, isLoading: isUpdating } =
+        useUpdateAiAgentMutation();
     const isCreateMode = agentId === 'new';
     const agentUuid = !isCreateMode && agentId ? agentId : undefined;
 
@@ -83,8 +81,8 @@ export const AgentDetails: FC = () => {
     const { data: slackInstallation } = useGetSlack();
     const {
         data: slackChannels,
-        refresh: _refreshChannels,
-        isLoading: _isRefreshing,
+        refresh: refreshChannels,
+        isLoading: isRefreshing,
     } = useSlackChannels('', true, {
         enabled: !!slackInstallation?.organizationUuid,
     });
@@ -273,8 +271,8 @@ export const AgentDetails: FC = () => {
                                                             icon={IconRefresh}
                                                         />
                                                     }
-                                                    loading={_isRefreshing}
-                                                    onClick={_refreshChannels}
+                                                    loading={isRefreshing}
+                                                    onClick={refreshChannels}
                                                 >
                                                     Refresh Channels
                                                 </Button>
@@ -315,7 +313,9 @@ export const AgentDetails: FC = () => {
                                             )}
                                             <Button
                                                 type="submit"
-                                                loading={false}
+                                                loading={
+                                                    isCreating || isUpdating
+                                                }
                                                 leftSection={
                                                     <MantineIcon
                                                         icon={IconCheck}
