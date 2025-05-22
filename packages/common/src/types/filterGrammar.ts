@@ -227,7 +227,7 @@ export const parseOperator = (
 };
 
 export const parseFilters = (
-    rawFilters: RequiredFilter[] | undefined,
+    rawFilters: Record<string, AnyType>[] | undefined,
 ): MetricFilterRule[] => {
     if (!rawFilters || rawFilters.length === 0) {
         return [];
@@ -235,12 +235,9 @@ export const parseFilters = (
     const parser = peg.generate(filterGrammar);
 
     return rawFilters.reduce<MetricFilterRule[]>((acc, filter) => {
-        const required = filter.required === undefined ? true : filter.required;
-        // Require is a special property that is not part of the filter grammar
-        const { required: r, ...filterWithoutRequired } = filter; // Remove require from object
-        if (Object.entries(filterWithoutRequired).length !== 1) return acc;
+        if (Object.entries(filter).length !== 1) return acc;
 
-        const [key, value] = Object.entries(filterWithoutRequired)[0];
+        const [key, value] = Object.entries(filter)[0];
 
         if (value === null) {
             return [
@@ -250,11 +247,9 @@ export const parseFilters = (
                     target: { fieldRef: key },
                     operator: FilterOperator.NULL,
                     values: [1],
-                    required,
                 },
             ];
         }
-
         if (typeof value === 'string') {
             const parsedFilter: ParsedFilter = parser.parse(value);
 
@@ -275,7 +270,6 @@ export const parseFilters = (
                               },
                           }
                         : null),
-                    required,
                 },
             ];
         }
@@ -287,11 +281,9 @@ export const parseFilters = (
                     target: { fieldRef: key },
                     operator: FilterOperator.EQUALS,
                     values: value,
-                    required,
                 },
             ];
         }
-        // other types, like numbers, booleans, etc.
         return [
             ...acc,
             {
@@ -299,7 +291,6 @@ export const parseFilters = (
                 target: { fieldRef: key },
                 operator: FilterOperator.EQUALS,
                 values: [value],
-                required,
             },
         ];
     }, []);
@@ -314,9 +305,23 @@ export const parseModelRequiredFilters = (
     const parser = peg.generate(filterGrammar);
 
     return rawFilters.reduce<ModelRequiredFilterRule[]>((acc, filter) => {
-        if (Object.entries(filter).length !== 1) return acc;
+        const parseFilter = (): [boolean, RequiredFilter] => {
+            const filterHasMultipleKeys = Object.keys(filter).length > 1;
+            if (filterHasMultipleKeys) {
+                // Require is a special property that is not part of the filter grammar
+                const { required, ...filterRule } = filter; // Remove require from object
+                // we default to true for backwards compatibility
+                return [required === undefined ? true : required, filterRule];
+            }
+            // If there is only one key, we still want to return it as it is.
+            // This is to cover the case where the filter is just { required: true }, when required is used as a field.
+            // We currently don't support a "required" field which is "not" required (as in: required: false), because those keys will clash
+            return [true, filter];
+        };
+        const [required, filterRule] = parseFilter();
+        if (Object.entries(filterRule).length !== 1) return acc;
 
-        const [key, value] = Object.entries(filter)[0];
+        const [key, value] = Object.entries(filterRule)[0];
         const fieldRefParts = key.split('.');
         const filterTarget: ModelRequiredFilterRule['target'] =
             fieldRefParts.length !== 2
@@ -331,6 +336,7 @@ export const parseModelRequiredFilters = (
                     target: filterTarget,
                     operator: FilterOperator.NULL,
                     values: [1],
+                    required,
                 },
             ];
         }
@@ -354,6 +360,7 @@ export const parseModelRequiredFilters = (
                               },
                           }
                         : null),
+                    required,
                 },
             ];
         }
@@ -365,6 +372,7 @@ export const parseModelRequiredFilters = (
                     target: filterTarget,
                     operator: FilterOperator.EQUALS,
                     values: value,
+                    required,
                 },
             ];
         }
@@ -375,6 +383,7 @@ export const parseModelRequiredFilters = (
                 target: filterTarget,
                 operator: FilterOperator.EQUALS,
                 values: [value],
+                required,
             },
         ];
     }, []);

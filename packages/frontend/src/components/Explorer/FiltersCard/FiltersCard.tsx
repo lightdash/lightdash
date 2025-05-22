@@ -199,8 +199,8 @@ const FiltersCard: FC = memo(() => {
             const reducedRules: FilterRule[] =
                 reduceRequiredDimensionFiltersToFilterRules(
                     defaultFilters,
-                    data.tables[tableName],
                     undefined,
+                    data,
                 );
             setHasDefaultFiltersApplied(true);
             setFilters(

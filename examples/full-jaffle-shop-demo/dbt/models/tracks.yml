@@ -3,6 +3,8 @@ models:
   - name: tracks
     meta: 
       default_filters: 
+        - timestamp: 'inThePast 5 years'
+          required: true
         - event: 'lightdash_server_saved_chart_created'
           required: false 
     columns:

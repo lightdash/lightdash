@@ -1,6 +1,9 @@
 import peg from 'pegjs';
 import { FilterOperator, type MetricFilterRule } from './filter';
-import filterGrammar, { parseFilters } from './filterGrammar';
+import filterGrammar, {
+    parseFilters,
+    parseModelRequiredFilters,
+} from './filterGrammar';
 
 describe('Parse grammar', () => {
     const parser = peg.generate(filterGrammar);
@@ -334,10 +337,40 @@ describe('Parse metric filters', () => {
     });
 });
 
-describe('Parse required default filters', () => {
+describe('Parse required filters', () => {
+    it('Should parse a filter field called "required"', () => {
+        expect(
+            removeIds(parseModelRequiredFilters([{ required: true }])),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'required',
+                },
+                values: [true],
+                required: true, // Default
+            },
+        ]);
+        expect(
+            removeIds(parseModelRequiredFilters([{ required: false }])),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'required',
+                },
+                values: [false],
+                required: true, // Default
+            },
+        ]);
+    });
     it('Should parse "true" required filter', () => {
         expect(
-            removeIds(parseFilters([{ position: 1, required: true }])),
+            removeIds(
+                parseModelRequiredFilters([{ position: 1, required: true }]),
+            ),
         ).toStrictEqual([
             {
                 id: undefined,
@@ -352,7 +385,9 @@ describe('Parse required default filters', () => {
     });
     it('Should parse "false" required filters', () => {
         expect(
-            removeIds(parseFilters([{ name: 'javi', required: false }])),
+            removeIds(
+                parseModelRequiredFilters([{ name: 'javi', required: false }]),
+            ),
         ).toStrictEqual([
             {
                 id: undefined,
@@ -366,7 +401,9 @@ describe('Parse required default filters', () => {
         ]);
     });
     it('Should parse "undefined" required filters', () => {
-        expect(removeIds(parseFilters([{ position: 1 }]))).toStrictEqual([
+        expect(
+            removeIds(parseModelRequiredFilters([{ position: 1 }])),
+        ).toStrictEqual([
             {
                 id: undefined,
                 operator: FilterOperator.EQUALS,
@@ -374,14 +411,14 @@ describe('Parse required default filters', () => {
                     fieldRef: 'position',
                 },
                 values: [1],
-                required: undefined,
+                required: true, // Default
             },
         ]);
     });
     it('Should parse multiple required filters', () => {
         expect(
             removeIds(
-                parseFilters([
+                parseModelRequiredFilters([
                     { name: 'javi', required: false },
                     { position: 1, required: true },
                 ]),

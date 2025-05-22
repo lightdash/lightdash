@@ -75,6 +75,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
 
     const showSimplifiedForm: boolean =
         totalFilterRules.length < 2 && !hasNestedGroups(filters);
+
     const addFieldRule = useCallback(
         (field: FieldWithSuggestions) => {
             if (isFilterableField(field)) {
