@@ -1,3 +1,10 @@
+## [0.1639.1](https://github.com/lightdash/lightdash/compare/0.1639.0...0.1639.1) (2025-05-22)
+
+
+### Bug Fixes
+
+* spotlight inverse boolean ([#14923](https://github.com/lightdash/lightdash/issues/14923)) ([85b2c80](https://github.com/lightdash/lightdash/commit/85b2c80033a223e39ecc7eb4d93856c9f8a29dac))
+
 # [0.1639.0](https://github.com/lightdash/lightdash/compare/0.1638.4...0.1639.0) (2025-05-21)
 
 
