@@ -6,6 +6,7 @@ import {
     type ApiCreateAiAgent,
     type ApiCreateAiAgentResponse,
     type ApiError,
+    type ApiSuccessEmpty,
     type ApiUpdateAiAgent,
 } from '@lightdash/common';
 import {
@@ -144,6 +145,28 @@ export const useUpdateAiAgentMutation = (
             void queryClient.invalidateQueries({
                 queryKey: getAiAgentKey(data.results.uuid),
             });
+        },
+        ...options,
+    });
+};
+
+const deleteAgent = async (agentUuid: string) =>
+    lightdashApi<ApiSuccessEmpty>({
+        version: 'v1',
+        url: `/aiAgents/${agentUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteAiAgentMutation = (
+    options?: UseMutationOptions<ApiSuccessEmpty, ApiError, string>,
+) => {
+    const queryClient = useQueryClient();
+
+    return useMutation<ApiSuccessEmpty, ApiError, string>({
+        mutationFn: (agentUuid) => deleteAgent(agentUuid),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: AI_AGENTS_KEY });
         },
         ...options,
     });

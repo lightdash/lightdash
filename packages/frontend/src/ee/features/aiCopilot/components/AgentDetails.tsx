@@ -32,6 +32,7 @@ import { useProjects } from '../../../../hooks/useProjects';
 import {
     useAiAgent,
     useCreateAiAgentMutation,
+    useDeleteAiAgentMutation,
     useUpdateAiAgentMutation,
 } from '../hooks/useAiAgents';
 import { ConversationsList } from './ConversationsList';
@@ -74,6 +75,7 @@ export const AgentDetails: FC = () => {
             enabled: !!agentUuid,
         },
     );
+    const { mutateAsync: deleteAgent } = useDeleteAiAgentMutation();
 
     const { data: slackInstallation } = useGetSlack();
     const {
@@ -145,9 +147,13 @@ export const AgentDetails: FC = () => {
     });
 
     const handleDelete = useCallback(async () => {
-        // You would need to implement a delete mutation
+        if (!agentUuid) {
+            return;
+        }
+
+        await deleteAgent(agentUuid);
         void navigate('/generalSettings/aiAgents');
-    }, [navigate]);
+    }, [navigate, agentUuid, deleteAgent]);
 
     if (!isCreateMode && agentUuid && !agent && !isLoadingAgent) {
         return (
