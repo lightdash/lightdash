@@ -116,10 +116,10 @@ export class AiAgentService {
         const filteredExplore: Explore = _.update(explore, 'tables', (tables) =>
             _.mapValues(tables, (table) => ({
                 ...table,
-                metrics: _.omitBy(table.metrics, (m) =>
+                metrics: _.pickBy(table.metrics, (m) =>
                     hasMatchingTags(m.tags ?? []),
                 ),
-                dimensions: _.omitBy(table.dimensions, (d) =>
+                dimensions: _.pickBy(table.dimensions, (d) =>
                     hasMatchingTags(d.tags ?? []),
                 ),
             })),
