@@ -205,9 +205,11 @@ export const AgentDetails: FC = () => {
                         >
                             <Tabs.List>
                                 <Tabs.Tab value="general">General</Tabs.Tab>
-                                <Tabs.Tab value="conversations">
-                                    Conversations
-                                </Tabs.Tab>
+                                {!isCreateMode && (
+                                    <Tabs.Tab value="conversations">
+                                        Conversations
+                                    </Tabs.Tab>
+                                )}
                             </Tabs.List>
 
                             <Tabs.Panel value="general" pt="xs">
@@ -309,6 +311,7 @@ export const AgentDetails: FC = () => {
                             <Tabs.Panel value="conversations" pt="xs">
                                 <ConversationsList
                                     agentUuid={agentUuid ?? ''}
+                                    agentName={form.values.name}
                                 />
                             </Tabs.Panel>
                         </Tabs>
