@@ -1,7 +1,7 @@
 import {
     FilterType,
     createFilterRuleFromField,
-    getFilterRuleWithDefaultValue,
+    getFilterRuleFromFieldWithDefaultValue,
     getFilterTypeFromItem,
     getItemId,
     isDateItem,
@@ -67,7 +67,7 @@ const FilterRuleForm: FC<Props> = ({
 
                     const newFilterRule = isDateItem(selectedField)
                         ? // If the field is the same type but different field, we need to update the filter rule with the new time frames
-                          getFilterRuleWithDefaultValue(
+                          getFilterRuleFromFieldWithDefaultValue(
                               selectedField,
                               newFilterRuleBase,
                               filterRule.values,
@@ -122,7 +122,7 @@ const FilterRuleForm: FC<Props> = ({
                     if (!value) return;
 
                     onChange(
-                        getFilterRuleWithDefaultValue(
+                        getFilterRuleFromFieldWithDefaultValue(
                             activeField,
                             {
                                 ...filterRule,

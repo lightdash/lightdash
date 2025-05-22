@@ -195,11 +195,11 @@ export const isWithValueFilter = (filterOperator: FilterOperator) =>
     filterOperator !== FilterOperator.NOT_NULL;
 
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
-    field: FilterableField,
+    filterType: FilterType,
+    field: FilterableField | undefined,
     filterRule: T,
     values?: AnyType[] | null,
 ): T => {
-    const filterType = getFilterTypeFromItem(field);
     const filterRuleDefaults: Partial<FilterRule> = {};
 
     if (
@@ -213,6 +213,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                 const value = values ? values[0] : undefined;
 
                 const isTimestamp =
+                    !field ||
                     (isCustomSqlDimension(field)
                         ? field.dimensionType
                         : field.type) === DimensionType.TIMESTAMP;
@@ -313,11 +314,23 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     };
 };
 
+export const getFilterRuleFromFieldWithDefaultValue = <T extends FilterRule>(
+    field: FilterableField,
+    filterRule: T,
+    values?: AnyType[] | null,
+): T =>
+    getFilterRuleWithDefaultValue(
+        getFilterTypeFromItem(field),
+        field,
+        filterRule,
+        values,
+    );
+
 export const createFilterRuleFromField = (
     field: FilterableField,
     value?: AnyType,
 ): FilterRule =>
-    getFilterRuleWithDefaultValue(
+    getFilterRuleFromFieldWithDefaultValue(
         field,
         {
             id: uuidv4(),
@@ -394,7 +407,7 @@ export const createDashboardFilterRuleFromField = ({
     isTemporary: boolean;
     value?: unknown;
 }): FilterDashboardToRule =>
-    getFilterRuleWithDefaultValue(
+    getFilterRuleFromFieldWithDefaultValue(
         field,
         {
             id: uuidv4(),
