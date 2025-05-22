@@ -1,3 +1,10 @@
+## [0.1643.1](https://github.com/lightdash/lightdash/compare/0.1643.0...0.1643.1) (2025-05-22)
+
+
+### Bug Fixes
+
+* disable slack channels already in use ([#14955](https://github.com/lightdash/lightdash/issues/14955)) ([6e635e0](https://github.com/lightdash/lightdash/commit/6e635e005b359bf21818d1550891e8d153011128))
+
 # [0.1643.0](https://github.com/lightdash/lightdash/compare/0.1642.0...0.1643.0) (2025-05-22)
 
 
