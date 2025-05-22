@@ -1,38 +1,52 @@
-export enum AiAgentIntegrationType {
-    SLACK = 'slack',
-}
+import { z } from 'zod';
 
-export type BaseAiAgent = {
-    uuid: string;
-    projectUuid: string;
-    organizationUuid: string;
+export const baseAgentSchema = z.object({
+    uuid: z.string(),
+    projectUuid: z.string(),
+    organizationUuid: z.string(),
 
-    name: string;
-    description: string;
-    imageUrl: string;
+    name: z.string(),
+    description: z.string(),
+    imageUrl: z.string(),
 
-    tags: string[] | null;
+    tags: z.array(z.string()).nullable(),
 
-    integrations: {
-        type: AiAgentIntegrationType;
-        channelId: string; // slack_project_mappings.slack_channel_id
-    }[];
+    integrations: z.array(
+        // z.union([
+        // TODO: once we add more integrations, we should use union
+        z.object({
+            type: z.literal('slack'),
+            channelId: z.string(),
+        }),
+        // ]),
+    ),
 
-    createdAt: string;
+    createdAt: z.string(),
+    instructions: z.string().nullable(),
+    provider: z.string(),
+    model: z.string(),
+});
 
-    instructions: string | null;
-    provider: 'openai';
-    model: 'gpt-4o';
-};
+export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
 
 export type AiAgent = Pick<
     BaseAiAgent,
-    'uuid' | 'projectUuid' | 'organizationUuid' | 'integrations' | 'tags'
+    | 'uuid'
+    | 'projectUuid'
+    | 'organizationUuid'
+    | 'integrations'
+    | 'tags'
+    | 'name'
 >;
 
 export type AiAgentSummary = Pick<
     AiAgent,
-    'uuid' | 'projectUuid' | 'organizationUuid' | 'integrations' | 'tags'
+    | 'uuid'
+    | 'name'
+    | 'integrations'
+    | 'tags'
+    | 'projectUuid'
+    | 'organizationUuid'
 >;
 
 export type AiAgentMessage =
@@ -89,11 +103,13 @@ export type ApiAiAgentSummaryResponse = {
 
 export type ApiCreateAiAgent = Pick<
     AiAgent,
-    'projectUuid' | 'integrations' | 'tags'
+    'projectUuid' | 'integrations' | 'tags' | 'name'
 >;
 
 export type ApiUpdateAiAgent = {
     uuid: AiAgent['uuid'];
+    projectUuid?: AiAgent['projectUuid'];
+    name?: AiAgent['name'];
     tags?: AiAgent['tags'];
     integrations?: AiAgent['integrations'];
 };
