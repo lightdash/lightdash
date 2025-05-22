@@ -29,10 +29,7 @@ import {
     type Metric,
     type Source,
 } from '../types/field';
-import {
-    parseFilters,
-    parseModelRequiredFilters,
-} from '../types/filterGrammar';
+import { parseFilters } from '../types/filterGrammar';
 import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 import { OrderFieldsByStrategy, type GroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
