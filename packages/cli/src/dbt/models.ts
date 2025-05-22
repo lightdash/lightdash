@@ -27,10 +27,12 @@ type CompiledModel = {
 type GetDatabaseTableForModelArgs = {
     model: CompiledModel;
     warehouseClient: WarehouseClient;
+    preserveColumnCase: boolean;
 };
 export const getWarehouseTableForModel = async ({
     model,
     warehouseClient,
+    preserveColumnCase,
 }: GetDatabaseTableForModelArgs): Promise<WarehouseTableSchema> => {
     const tableRef = {
         database: model.database,
@@ -54,7 +56,8 @@ export const getWarehouseTableForModel = async ({
     }
     return Object.entries(table).reduce<WarehouseTableSchema>(
         (accumulator, [key, value]) => {
-            accumulator[key.toLowerCase()] = value;
+            const columnName = preserveColumnCase ? key : key.toLowerCase();
+            accumulator[columnName] = value;
             return accumulator;
         },
         {},

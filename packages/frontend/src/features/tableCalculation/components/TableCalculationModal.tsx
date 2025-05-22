@@ -86,7 +86,7 @@ const TableCalculationModal: FC<Props> = ({
                 separator:
                     tableCalculation?.format?.separator ||
                     NumberSeparator.DEFAULT,
-                currency: tableCalculation?.format?.currency || 'USD',
+                currency: tableCalculation?.format?.currency,
                 compact: tableCalculation?.format?.compact,
                 prefix: tableCalculation?.format?.prefix,
                 suffix: tableCalculation?.format?.suffix,

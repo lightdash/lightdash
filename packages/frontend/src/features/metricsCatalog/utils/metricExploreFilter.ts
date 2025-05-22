@@ -40,11 +40,16 @@ export const getOperatorOptions = (
 export const doesDimensionRequireValues = (dimension: CompiledDimension) =>
     dimension.type !== DimensionType.BOOLEAN;
 
+function getBooleanValueFromOperator(operator: FilterOperator) {
+    return operator === FilterOperator.EQUALS ? true : false;
+}
+
 export const createFilterRule = (
     dimension: CompiledDimension,
     operator: FilterOperator,
     values?: string[],
 ): FilterRule => {
+    const isBooleanDimension = dimension.type === DimensionType.BOOLEAN;
     return getFilterRuleWithDefaultValue(
         dimension,
         {
@@ -52,8 +57,8 @@ export const createFilterRule = (
             target: {
                 fieldId: getItemId(dimension),
             },
-            operator,
+            operator: isBooleanDimension ? FilterOperator.EQUALS : operator,
         },
-        doesDimensionRequireValues(dimension) ? values : [],
+        isBooleanDimension ? [getBooleanValueFromOperator(operator)] : values,
     );
 };

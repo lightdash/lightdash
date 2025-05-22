@@ -7,6 +7,7 @@ export type AiThread = {
     projectUuid: string;
     createdAt: Date;
     createdFrom: string;
+    agentUuid: string | null;
 };
 
 export type CreateSlackThread = {
@@ -16,6 +17,7 @@ export type CreateSlackThread = {
     slackUserId: string;
     slackChannelId: string;
     slackThreadTs: string;
+    agentUuid: string | null;
 };
 
 export type CreateWebAppThread = {
@@ -23,11 +25,13 @@ export type CreateWebAppThread = {
     projectUuid: string;
     userUuid: string;
     createdFrom: 'web_app';
+    agentUuid: string | null;
 };
 
 export type AiPrompt = {
     organizationUuid: string;
     projectUuid: string;
+    agentUuid: string | null;
     promptUuid: string;
     threadUuid: string;
     createdByUserUuid: string;

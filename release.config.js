@@ -25,7 +25,7 @@ module.exports = {
             '@semantic-release/exec',
             {
                 prepareCmd:
-                    'npm version ${nextRelease.version} --workspaces --include-workspace-root --allow-same-version --no-git-tag-version 2>&1 | grep -q EUNSUPPORTEDPROTOCOL && exit 0 || exit 1',
+                    'npm version ${nextRelease.version} --workspaces --include-workspace-root --allow-same-version --no-git-tag-version 2>&1 | grep -q -E "EUNSUPPORTEDPROTOCOL|Invalid comparator"',
             },
         ],
 

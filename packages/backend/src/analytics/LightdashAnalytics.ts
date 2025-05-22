@@ -216,7 +216,6 @@ export type MetricQueryExecutionProperties = {
     tableCalculationCustomFormatCount: number;
     filtersCount: number;
     sortsCount: number;
-    hasExampleMetric: boolean;
     additionalMetricsCount: number;
     additionalMetricsFilterCount: number;
     additionalMetricsPercentFormatCount: number;
@@ -1288,6 +1287,30 @@ export type DeprecatedRouteCalled = BaseTrack & {
         projectId: string;
         route: string;
         context: string;
+    };
+};
+
+export type RenameResourceEvent = BaseTrack & {
+    event:
+        | 'rename_chart.executed'
+        | 'rename_resource.executed'
+        | 'rename_resource.error';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | undefined;
+        context: string;
+        renamedCharts?: number;
+        renamedDashboards?: number;
+        renamedAlerts?: number;
+        renamedDashboardSchedulers?: number;
+        from: string;
+        to: string;
+        type: string;
+        error?: string;
+        dryRun?: boolean;
+        chartId?: string; // for rename_chart
+        withValidationWarning?: boolean; // for rename_resource.error
     };
 };
 

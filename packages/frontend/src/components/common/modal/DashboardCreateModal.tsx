@@ -215,6 +215,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                 size="sm"
                                 onClick={handleNextStep}
                                 disabled={!form.values.dashboardName}
+                                data-testid="DashboardCreateModal/Next"
                             >
                                 Next
                             </Button>

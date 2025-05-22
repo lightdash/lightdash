@@ -7,9 +7,7 @@ import {
     ApiAiGetDashboardSummaryResponse,
     ApiErrorPayload,
     DashboardSummary,
-    Field,
     ItemsMap,
-    ResultRow,
 } from '@lightdash/common';
 import {
     Body,

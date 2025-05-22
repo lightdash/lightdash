@@ -31,6 +31,13 @@ export type GetAsyncQueryResultsArgs = Omit<
         queryUuid: string;
     };
 
+export type DownloadAsyncQueryResultsArgs = Omit<
+    CommonAsyncQueryArgs,
+    'invalidateCache' | 'context'
+> & {
+    queryUuid: string;
+};
+
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
     dateZoom?: DateZoom;
@@ -59,12 +66,11 @@ export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncQueryReturn = {
     queryUuid: string;
     cacheMetadata: CacheMetadata;
-    metricQuery: MetricQuery;
-    fields: ItemsMap;
 };
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
+    limit?: number;
     pivotConfiguration?: {
         indexColumn: PivotIndexColum;
         valuesColumns: ValuesColumn[];
@@ -75,6 +81,7 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
 
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {
     dashboardUuid: string;
+    tileUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
 };
@@ -82,11 +89,13 @@ export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncDashboardSqlChartByUuidArgs =
     ExecuteAsyncDashboardSqlChartCommonArgs & {
         savedSqlUuid: string;
+        limit?: number;
     };
 
 export type ExecuteAsyncDashboardSqlChartBySlugArgs =
     ExecuteAsyncDashboardSqlChartCommonArgs & {
         slug: string;
+        limit?: number;
     };
 
 export type ExecuteAsyncDashboardSqlChartArgs =
@@ -96,3 +105,21 @@ export type ExecuteAsyncDashboardSqlChartArgs =
 export const isExecuteAsyncDashboardSqlChartByUuid = (
     args: ExecuteAsyncDashboardSqlChartArgs,
 ): args is ExecuteAsyncDashboardSqlChartByUuidArgs => 'savedSqlUuid' in args;
+
+export type ExecuteAsyncSqlChartByUuidArgs = CommonAsyncQueryArgs & {
+    limit?: number;
+    savedSqlUuid: string;
+};
+
+export type ExecuteAsyncSqlChartBySlugArgs = CommonAsyncQueryArgs & {
+    limit?: number;
+    slug: string;
+};
+
+export type ExecuteAsyncSqlChartArgs =
+    | ExecuteAsyncSqlChartByUuidArgs
+    | ExecuteAsyncSqlChartBySlugArgs;
+
+export const isExecuteAsyncSqlChartByUuid = (
+    args: ExecuteAsyncSqlChartArgs,
+): args is ExecuteAsyncSqlChartByUuidArgs => 'savedSqlUuid' in args;

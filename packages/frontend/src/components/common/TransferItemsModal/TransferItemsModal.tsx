@@ -81,6 +81,11 @@ const TransferItemsModal = <
         return items[0].type;
     }, [isMovingSingleItem, items]);
 
+    const allSelectedItemsAreSpaces = useMemo(
+        () => items.every((i) => i.type === ResourceViewItemType.SPACE),
+        [items],
+    );
+
     const {
         selectedSpaceUuid,
         setSelectedSpaceUuid,
@@ -125,6 +130,7 @@ const TransferItemsModal = <
             title={`Move ${getItemsText(items).type}`}
             opened={opened}
             onClose={onClose}
+            size="xl"
             actions={
                 <>
                     {!isCreatingNewSpace ? (
@@ -161,8 +167,7 @@ const TransferItemsModal = <
                             <Button
                                 disabled={
                                     !selectedSpaceUuid &&
-                                    singleItemType !==
-                                        ResourceViewItemType.SPACE
+                                    !allSelectedItemsAreSpaces
                                 }
                                 onClick={handleConfirm}
                             >
@@ -198,6 +203,7 @@ const TransferItemsModal = <
                         selectedSpaceUuid={selectedSpaceUuid}
                         onSelectSpace={setSelectedSpaceUuid}
                         isLoading={createSpaceMutation.isLoading}
+                        isRootSelectionEnabled={allSelectedItemsAreSpaces}
                     >
                         {!isCreatingNewSpace && selectedSpaceLabel ? (
                             <Alert color="gray" sx={{ flexShrink: 0 }}>

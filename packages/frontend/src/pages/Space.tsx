@@ -14,7 +14,7 @@ import {
     IconFolderX,
     IconPlus,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import AddResourceToSpaceModal from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
 import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateResourceToSpace';
@@ -35,11 +35,8 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import TransferItemsModal from '../components/common/TransferItemsModal/TransferItemsModal';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
-import {
-    useMoveSpaceMutation,
-    useSpace,
-    useSpaceSummaries,
-} from '../hooks/useSpaces';
+import { useContentAction } from '../hooks/useContent';
+import { useSpace, useSpaceSummaries } from '../hooks/useSpaces';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
@@ -63,17 +60,13 @@ const Space: FC = () => {
     const { user, health } = useApp();
     const { track } = useTracking();
 
-    const canCreateNestedSpaces = useMemo(() => {
-        const userCanManageSpace = user.data?.ability?.can(
-            'create',
-            subject('Space', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            }),
-        );
-
-        return userCanManageSpace;
-    }, [user.data?.ability, user.data?.organizationUuid, projectUuid]);
+    const userCanManageSpace = user.data?.ability?.can(
+        'create',
+        subject('Space', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const navigate = useNavigate();
@@ -93,8 +86,8 @@ const Space: FC = () => {
     const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
 
     const { data: spaces } = useSpaceSummaries(projectUuid, true, {});
-    const { mutateAsync: moveSpace, isLoading: isMovingSpace } =
-        useMoveSpaceMutation(projectUuid);
+    const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
+        useContentAction(projectUuid);
 
     const handlePinToggleSpace = useCallback(
         (spaceId: string) => pinSpace(spaceId),
@@ -191,7 +184,7 @@ const Space: FC = () => {
                         {!isDemo &&
                             (userCanCreateDashboards ||
                                 userCanCreateCharts ||
-                                canCreateNestedSpaces) && (
+                                userCanManageSpace) && (
                                 <Menu
                                     position="bottom-end"
                                     shadow="md"
@@ -215,7 +208,7 @@ const Space: FC = () => {
                                     </Menu.Target>
 
                                     <Menu.Dropdown>
-                                        {canCreateNestedSpaces && (
+                                        {userCanManageSpace && (
                                             <>
                                                 <Menu.Item
                                                     icon={
@@ -355,6 +348,7 @@ const Space: FC = () => {
                         [ColumnVisibility.SPACE]: false,
                     }}
                     enableBottomToolbar={false}
+                    enableRowSelection={userCanManageSpace}
                     initialAdminContentViewValue={
                         userCanManageSpaceAndHasNoDirectAccessToSpace
                             ? 'all'
@@ -420,12 +414,18 @@ const Space: FC = () => {
                             } satisfies ResourceViewSpaceItem,
                         ]}
                         spaces={spaces ?? []}
-                        isLoading={isMovingSpace}
+                        isLoading={isContentActionLoading}
                         onClose={closeTransferToSpace}
                         onConfirm={async (newSpaceUuid) => {
-                            await moveSpace({
-                                spaceUuid: space.uuid,
-                                parentSpaceUuid: newSpaceUuid,
+                            await contentAction({
+                                action: {
+                                    type: 'move',
+                                    targetSpaceUuid: newSpaceUuid,
+                                },
+                                item: {
+                                    uuid: space.uuid,
+                                    contentType: ContentType.SPACE,
+                                },
                             });
 
                             closeTransferToSpace();

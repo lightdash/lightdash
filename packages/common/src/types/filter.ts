@@ -75,10 +75,34 @@ export interface FilterRule<
 export interface MetricFilterRule
     extends FilterRule<ConditionalOperator, { fieldRef: string }> {}
 
+type JoinModelRequiredFilterTarget = {
+    fieldRef: string;
+    tableName: string;
+};
+
+export interface JoinModelRequiredFilterRule
+    extends FilterRule<ConditionalOperator, JoinModelRequiredFilterTarget> {}
+
+export type ModelRequiredFilterRule =
+    | MetricFilterRule // Keeping backwards compatibility with existing filters
+    | JoinModelRequiredFilterRule;
+
+export const isJoinModelRequiredFilter = (
+    filter: ModelRequiredFilterRule,
+): filter is JoinModelRequiredFilterRule => 'tableName' in filter.target;
+
 export type DashboardFieldTarget = {
     fieldId: string;
     tableName: string;
 };
+
+export const isDashboardFieldTarget = (
+    target: unknown,
+): target is DashboardFieldTarget =>
+    target !== null &&
+    typeof target === 'object' &&
+    'fieldId' in target &&
+    'tableName' in target;
 
 export type DashboardTileTarget = DashboardFieldTarget | false;
 
@@ -409,6 +433,7 @@ export const compressDashboardFiltersToParam = (
                             // The filter will be automatically applied there
                             if (
                                 tileTargetValue !== false &&
+                                isDashboardFieldTarget(tileTargetValue) &&
                                 tileTargetValue.fieldId === f.target.fieldId &&
                                 tileTargetValue.tableName === f.target.tableName
                             ) {

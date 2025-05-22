@@ -1,5 +1,6 @@
 import type { KnexPaginatedData } from './knex-paginate';
 import { type ChartKind } from './savedCharts';
+import { type SessionUser } from './user';
 
 export enum ContentType {
     CHART = 'chart',
@@ -103,3 +104,56 @@ export type ApiChartContentResponse = {
     status: 'ok';
     results: KnexPaginatedData<ChartContent[]>;
 };
+
+export type ContentActionMove = {
+    type: 'move';
+    targetSpaceUuid: string | null;
+};
+
+export type ContentActionDelete = {
+    type: 'delete';
+};
+
+type ItemPayload =
+    | {
+          uuid: string;
+          contentType: ContentType.CHART;
+          source: ChartSourceType;
+      }
+    | {
+          uuid: string;
+          contentType: ContentType.DASHBOARD;
+      }
+    | {
+          uuid: string;
+          contentType: ContentType.SPACE;
+      };
+
+export type ContentAction = ContentActionMove | ContentActionDelete;
+
+export type ApiContentActionBody<T extends ContentAction = ContentAction> = {
+    item: ItemPayload;
+    action: T;
+};
+
+export type ApiContentBulkActionBody<T extends ContentAction = ContentAction> =
+    {
+        content: ItemPayload[];
+        action: T;
+    };
+
+export interface BulkActionable<Tx extends unknown> {
+    moveToSpace: (
+        user: SessionUser,
+        args: {
+            projectUuid: string;
+            itemUuid: string;
+            targetSpaceUuid: string | null;
+        },
+        options?: {
+            tx?: Tx;
+            checkForAccess?: boolean;
+            trackEvent?: boolean;
+        },
+    ) => Promise<void>;
+}

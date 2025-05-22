@@ -2,7 +2,11 @@ import * as peg from 'pegjs';
 import { v4 as uuidv4 } from 'uuid';
 import { type AnyType } from './any';
 import { UnexpectedServerError } from './errors';
-import { FilterOperator, type MetricFilterRule } from './filter';
+import {
+    FilterOperator,
+    type MetricFilterRule,
+    type ModelRequiredFilterRule,
+} from './filter';
 
 export type ParsedFilter = {
     type: string;
@@ -279,6 +283,81 @@ export const parseFilters = (
             {
                 id: uuidv4(),
                 target: { fieldRef: key },
+                operator: FilterOperator.EQUALS,
+                values: [value],
+            },
+        ];
+    }, []);
+};
+
+export const parseModelRequiredFilters = (
+    rawFilters: Record<string, AnyType>[] | undefined,
+): ModelRequiredFilterRule[] => {
+    if (!rawFilters || rawFilters.length === 0) {
+        return [];
+    }
+    const parser = peg.generate(filterGrammar);
+
+    return rawFilters.reduce<ModelRequiredFilterRule[]>((acc, filter) => {
+        if (Object.entries(filter).length !== 1) return acc;
+
+        const [key, value] = Object.entries(filter)[0];
+        const fieldRefParts = key.split('.');
+        const filterTarget: ModelRequiredFilterRule['target'] =
+            fieldRefParts.length !== 2
+                ? { fieldRef: key }
+                : { fieldRef: key, tableName: fieldRefParts[0] };
+
+        if (value === null) {
+            return [
+                ...acc,
+                {
+                    id: uuidv4(),
+                    target: filterTarget,
+                    operator: FilterOperator.NULL,
+                    values: [1],
+                },
+            ];
+        }
+        if (typeof value === 'string') {
+            const parsedFilter: ParsedFilter = parser.parse(value);
+
+            return [
+                ...acc,
+                {
+                    id: uuidv4(),
+                    target: filterTarget,
+                    operator: parseOperator(
+                        parsedFilter.type,
+                        !!parsedFilter.is,
+                    ),
+                    values: parsedFilter.values || [1],
+                    ...(parsedFilter.date_interval
+                        ? {
+                              settings: {
+                                  unitOfTime: parsedFilter.date_interval,
+                              },
+                          }
+                        : null),
+                },
+            ];
+        }
+        if (typeof value === 'object') {
+            return [
+                ...acc,
+                {
+                    id: uuidv4(),
+                    target: filterTarget,
+                    operator: FilterOperator.EQUALS,
+                    values: value,
+                },
+            ];
+        }
+        return [
+            ...acc,
+            {
+                id: uuidv4(),
+                target: filterTarget,
                 operator: FilterOperator.EQUALS,
                 values: [value],
             },

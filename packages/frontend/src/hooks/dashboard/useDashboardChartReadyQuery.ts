@@ -61,19 +61,23 @@ export const useDashboardChartReadyQuery = (
             ?.map((ds) => `${ds.fieldId}.${ds.descending}`)
             ?.join(',') || '';
 
-    const { data: chart } = useSavedQuery({
+    const chartQuery = useSavedQuery({
         id: chartUuid ?? undefined,
     });
 
-    const { data: explore } = useExplore(chart?.metricQuery?.exploreName);
+    const error = chartQuery.error;
+
+    const { data: explore } = useExplore(
+        chartQuery.data?.metricQuery?.exploreName,
+    );
 
     const timezoneFixFilters =
         dashboardFilters && convertDateDashboardFilters(dashboardFilters);
 
     const hasADateDimension = useMemo(() => {
         const metricQueryDimensions = [
-            ...(chart?.metricQuery?.dimensions ?? []),
-            ...(chart?.metricQuery?.customDimensions ?? []),
+            ...(chartQuery.data?.metricQuery?.dimensions ?? []),
+            ...(chartQuery.data?.metricQuery?.customDimensions ?? []),
         ];
 
         if (!explore) return false;
@@ -82,8 +86,8 @@ export const useDashboardChartReadyQuery = (
                 metricQueryDimensions.includes(getItemId(c)) && isDateItem(c),
         );
     }, [
-        chart?.metricQuery?.customDimensions,
-        chart?.metricQuery?.dimensions,
+        chartQuery.data?.metricQuery?.customDimensions,
+        chartQuery.data?.metricQuery?.dimensions,
         explore,
     ]);
 
@@ -101,7 +105,7 @@ export const useDashboardChartReadyQuery = (
     const queryKey = useMemo(
         () => [
             'dashboard_chart_ready_query',
-            chart?.projectUuid,
+            chartQuery.data?.projectUuid,
             chartUuid,
             dashboardUuid,
             timezoneFixFilters,
@@ -113,7 +117,7 @@ export const useDashboardChartReadyQuery = (
             invalidateCache,
         ],
         [
-            chart?.projectUuid,
+            chartQuery.data?.projectUuid,
             chartUuid,
             dashboardUuid,
             timezoneFixFilters,
@@ -127,15 +131,15 @@ export const useDashboardChartReadyQuery = (
         ],
     );
 
-    return useQuery<DashboardChartReadyQuery, ApiError>({
+    const queryResult = useQuery<DashboardChartReadyQuery, ApiError>({
         queryKey,
         queryFn: async () => {
-            if (!chart || !explore) {
+            if (!chartQuery.data || !explore) {
                 throw new Error('Chart or explore is undefined');
             }
 
             const executeQueryResponse = await executeAsyncDashboardChartQuery(
-                chart.projectUuid,
+                chartQuery.data.projectUuid,
                 {
                     context: autoRefresh
                         ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
@@ -152,13 +156,17 @@ export const useDashboardChartReadyQuery = (
             );
 
             return {
-                chart,
+                chart: chartQuery.data,
                 explore,
                 executeQueryResponse,
             };
         },
-        enabled: Boolean(chartUuid && dashboardUuid && chart && explore),
+        enabled: Boolean(
+            chartUuid && dashboardUuid && chartQuery.data && explore,
+        ),
         retry: false,
         refetchOnMount: false,
     });
+
+    return { ...queryResult, error: error || queryResult.error };
 };

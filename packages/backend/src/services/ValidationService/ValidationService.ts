@@ -15,6 +15,7 @@ import {
     getFilterRules,
     getItemId,
     InlineErrorType,
+    isDashboardFieldTarget,
     isExploreError,
     isValidationTargetValid,
     OrganizationMemberRole,
@@ -356,10 +357,10 @@ export class ValidationService extends BaseService {
                             return containsFieldId({
                                 acc,
                                 fieldIds: allItemIdsAvailableInChart,
-                                fieldId: field.target.fieldId,
-                                error: `Filter error: the field '${field.target.fieldId}' no longer exists`,
+                                fieldId: field.target?.fieldId,
+                                error: `Filter error: the field '${field.target?.fieldId}' no longer exists`,
                                 errorType: ValidationErrorType.Filter,
-                                fieldName: field.target.fieldId,
+                                fieldName: field.target?.fieldId,
                             });
                         } catch (e) {
                             console.error(
@@ -510,7 +511,10 @@ export class ValidationService extends BaseService {
                         CreateDashboardValidation[]
                     >(
                         (acc, tileTarget) => {
-                            if (tileTarget) {
+                            if (
+                                tileTarget &&
+                                isDashboardFieldTarget(tileTarget)
+                            ) {
                                 return containsFieldId({
                                     acc,
                                     fieldIds: existingFieldIds,

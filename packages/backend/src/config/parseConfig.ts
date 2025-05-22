@@ -1,5 +1,11 @@
 import {
+    AnyType,
     cleanColorArray,
+    CreateDatabricksCredentials,
+    DbtGithubProjectConfig,
+    DbtProjectType,
+    DbtVersionOption,
+    DbtVersionOptionLatest,
     getErrorMessage,
     getInvalidHexColors,
     isLightdashMode,
@@ -9,6 +15,9 @@ import {
     ParameterError,
     ParseError,
     SentryConfig,
+    SupportedDbtVersions,
+    WarehouseTypes,
+    WeekDay,
 } from '@lightdash/common';
 import { type ClientAuthMethod } from 'openid-client';
 import { VERSION } from '../version';
@@ -237,6 +246,165 @@ export const parseOrganizationMemberRoleArray = (
         return role;
     });
 };
+const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
+    const parseEnum = <T>(
+        value: string | undefined,
+        enumObj?: AnyType,
+    ): T | undefined => {
+        if (!value) return undefined;
+
+        const enumValues = enumObj ? Object.values(enumObj) : [];
+        if (enumValues.length > 0 && !enumValues.includes(value)) {
+            throw new ParameterError(
+                `Invalid value "${value}". Must be one of ${enumValues.join(
+                    ', ',
+                )}`,
+            );
+        }
+        return value as T;
+    };
+
+    const parseApiExpiration = (): Date | null => {
+        const apiExpiration = process.env.LD_SETUP_API_KEY_EXPIRATION;
+        const apiExpirationDays = apiExpiration
+            ? parseInt(apiExpiration, 10)
+            : 30; // Convert to number, this might throw an error
+        if (apiExpirationDays === 0) return null; // If 0, we return null, which means, no expiration
+        if (Number.isNaN(apiExpirationDays)) {
+            throw new ParameterError(
+                'LD_SETUP_API_KEY_EXPIRATION must be a valid number',
+            );
+        }
+        return new Date(Date.now() + 1000 * 60 * 60 * 24 * apiExpirationDays);
+    };
+    const parseCompute = (): CreateDatabricksCredentials['compute'] => {
+        // This is a stringified array of objects, in JSON format
+        // If format is not correct, it will throw an error
+        const compute = process.env.LD_SETUP_PROJECT_COMPUTE;
+        if (!compute) return undefined;
+        return JSON.parse(compute) as CreateDatabricksCredentials['compute'];
+    };
+
+    try {
+        if (!process.env.LD_SETUP_ADMIN_EMAIL) return undefined;
+
+        return {
+            organization: {
+                admin: {
+                    name: process.env.LD_SETUP_ADMIN_NAME || 'Admin User',
+                    email: process.env.LD_SETUP_ADMIN_EMAIL!,
+                },
+                emailDomain: process.env.LD_SETUP_ORGANIZATION_EMAIL_DOMAIN,
+                defaultRole:
+                    parseEnum<OrganizationMemberRole>(
+                        process.env.LD_SETUP_ORGANIZATION_DEFAULT_ROLE,
+                        OrganizationMemberRole,
+                    ) || OrganizationMemberRole.VIEWER,
+                name: process.env.LD_SETUP_ORGANIZATION_NAME!,
+            },
+            apiKey: process.env.LD_SETUP_ADMIN_API_KEY
+                ? {
+                      token: process.env.LD_SETUP_ADMIN_API_KEY,
+                      expirationTime: parseApiExpiration(),
+                  }
+                : undefined,
+            project: {
+                name: process.env.LD_SETUP_PROJECT_NAME!,
+                type: WarehouseTypes.DATABRICKS,
+                catalog: process.env.LD_SETUP_PROJECT_CATALOG,
+                database: process.env.LD_SETUP_PROJECT_SCHEMA!,
+                serverHostName: process.env.LD_SETUP_PROJECT_HOST!,
+                httpPath: process.env.LD_SETUP_PROJECT_HTTP_PATH!,
+                personalAccessToken: process.env.LD_SETUP_PROJECT_PAT!,
+                requireUserCredentials: undefined,
+                startOfWeek: parseEnum<WeekDay>(
+                    process.env.LD_SETUP_START_OF_WEEK,
+                    WeekDay,
+                ),
+                compute: parseCompute(),
+                dbtVersion:
+                    parseEnum<SupportedDbtVersions>(
+                        process.env.LD_SETUP_DBT_VERSION,
+                        SupportedDbtVersions,
+                    ) || DbtVersionOptionLatest.LATEST,
+            },
+            dbt: {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'personal_access_token',
+                personal_access_token: process.env.LD_SETUP_GITHUB_PAT!,
+                repository: process.env.LD_SETUP_GITHUB_REPOSITORY!,
+                branch: process.env.LD_SETUP_GITHUB_BRANCH!,
+                project_sub_path: process.env.LD_SETUP_GITHUB_PATH || '/',
+                host_domain: undefined,
+            },
+        };
+    } catch (e) {
+        // If a variable is not set, we will skip the initial setup
+        // log an error, but don't throw an error, to avoid blocking the backend
+        console.error('Error parsing initial setup config', e);
+        return undefined;
+    }
+};
+
+export const parseBaseS3Config = (): LightdashConfig['s3'] => {
+    const endpoint = process.env.S3_ENDPOINT;
+    const bucket = process.env.S3_BUCKET;
+    const region = process.env.S3_REGION;
+    const accessKey = process.env.S3_ACCESS_KEY;
+    const secretKey = process.env.S3_SECRET_KEY;
+    const forcePathStyle = process.env.S3_FORCE_PATH_STYLE === 'true';
+    const expirationTime = parseInt(
+        process.env.S3_EXPIRATION_TIME || '259200', // 3 days in seconds
+        10,
+    );
+
+    if (!endpoint || !bucket || !region) {
+        console.error(
+            'ERROR: S3 is not configured. Missing S3_ENDPOINT, S3_BUCKET, S3_REGION, read docs for more info: https://docs.lightdash.com/self-host/customize-deployment/environment-variables',
+        );
+        throw new ParseError('Missing S3 configuration');
+    }
+
+    return {
+        endpoint,
+        bucket,
+        region,
+        accessKey,
+        secretKey,
+        expirationTime,
+        forcePathStyle,
+    };
+};
+
+export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
+    const baseS3Config = parseBaseS3Config();
+    const {
+        endpoint: baseEndpoint,
+        bucket: baseBucket,
+        region: baseRegion,
+        accessKey: baseAccessKey,
+        secretKey: baseSecretKey,
+        forcePathStyle: baseForcePathStyle,
+    } = baseS3Config;
+
+    // TODO: rename to RESULTS_S3_BUCKET
+    const bucket = process.env.RESULTS_CACHE_S3_BUCKET || baseBucket;
+    // TODO: rename to RESULTS_S3_REGION
+    const region = process.env.RESULTS_CACHE_S3_REGION || baseRegion;
+    // TODO: rename to RESULTS_S3_ACCESS_KEY
+    const accessKey = process.env.RESULTS_CACHE_S3_ACCESS_KEY || baseAccessKey;
+    // TODO: rename to RESULTS_S3_SECRET_KEY
+    const secretKey = process.env.RESULTS_CACHE_S3_SECRET_KEY || baseSecretKey;
+
+    return {
+        endpoint: baseEndpoint, // ! For now we keep reusing the S3_ENDPOINT like we have been so far, we are just going to enforce it
+        forcePathStyle: baseForcePathStyle, // ! For now we keep reusing the S3_FORCE_PATH_STYLE like we have been so far, we are just going to enforce it
+        bucket,
+        region,
+        accessKey,
+        secretKey,
+    };
+};
 
 export type LoggingConfig = {
     level: LoggingLevel;
@@ -323,18 +491,13 @@ export type LightdashConfig = {
         overrideColorPalette?: string[];
         overrideColorPaletteName?: string;
     };
-    s3?: S3Config;
+    s3: S3Config;
     headlessBrowser: HeadlessBrowserConfig;
-    resultsCache: {
-        resultsEnabled: boolean;
+    results: {
+        cacheEnabled: boolean;
         autocompleteEnabled: boolean;
         cacheStateTimeSeconds: number;
-        s3: {
-            bucket?: string;
-            region?: string;
-            accessKey?: string;
-            secretKey?: string;
-        };
+        s3: Omit<S3Config, 'expirationTime'>;
     };
     slack?: SlackConfig;
     scheduler: {
@@ -376,6 +539,27 @@ export type LightdashConfig = {
     googleCloudPlatform: {
         projectId?: string;
     };
+
+    initialSetup?: {
+        organization: {
+            admin: {
+                email: string;
+                name: string;
+            };
+            emailDomain?: string;
+            name: string;
+            defaultRole: OrganizationMemberRole;
+        };
+        apiKey?: {
+            token: string;
+            expirationTime: Date | null;
+        };
+        project: CreateDatabricksCredentials & {
+            name: string;
+            dbtVersion: DbtVersionOption;
+        };
+        dbt: DbtGithubProjectConfig;
+    };
 };
 
 export type SlackConfig = {
@@ -395,12 +579,13 @@ export type HeadlessBrowserConfig = {
     internalLightdashHost: string;
 };
 export type S3Config = {
-    region?: string;
+    region: string;
+    endpoint: string;
+    bucket: string;
+    expirationTime?: number;
     accessKey?: string;
     secretKey?: string;
-    endpoint?: string;
-    bucket?: string;
-    expirationTime?: number;
+    forcePathStyle?: boolean;
 };
 export type IntercomConfig = {
     appId: string;
@@ -846,37 +1031,22 @@ export const parseConfig = (): LightdashConfig => {
                     'LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT',
                 ) || 60,
         },
-        s3: {
-            region: process.env.S3_REGION,
-            accessKey: process.env.S3_ACCESS_KEY,
-            secretKey: process.env.S3_SECRET_KEY,
-            bucket: process.env.S3_BUCKET,
-            endpoint: process.env.S3_ENDPOINT,
-            expirationTime: parseInt(
-                process.env.S3_EXPIRATION_TIME || '259200', // 3 days in seconds
-                10,
-            ),
-        },
         headlessBrowser: {
             port: process.env.HEADLESS_BROWSER_PORT,
             host: process.env.HEADLESS_BROWSER_HOST,
             internalLightdashHost:
                 process.env.INTERNAL_LIGHTDASH_HOST || siteUrl,
         },
-        resultsCache: {
-            resultsEnabled: process.env.RESULTS_CACHE_ENABLED === 'true',
+        s3: parseBaseS3Config(),
+        results: {
+            cacheEnabled: process.env.RESULTS_CACHE_ENABLED === 'true',
             autocompleteEnabled:
                 process.env.AUTOCOMPLETE_CACHE_ENABLED === 'true',
             cacheStateTimeSeconds: parseInt(
                 process.env.CACHE_STALE_TIME_SECONDS || '86400', // A day in seconds
                 10,
             ),
-            s3: {
-                bucket: process.env.RESULTS_CACHE_S3_BUCKET,
-                region: process.env.RESULTS_CACHE_S3_REGION,
-                accessKey: process.env.RESULTS_CACHE_S3_ACCESS_KEY,
-                secretKey: process.env.RESULTS_CACHE_S3_SECRET_KEY,
-            },
+            s3: parseResultsS3Config(),
         },
         slack: {
             signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -983,5 +1153,6 @@ export const parseConfig = (): LightdashConfig => {
         googleCloudPlatform: {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
+        initialSetup: getInitialSetupConfig(),
     };
 };

@@ -1338,6 +1338,7 @@ export class SavedChartModel {
         slug?: string;
         slugs?: string[];
         exploreName?: string;
+        exploreNames?: string[];
         excludeChartsSavedInDashboard?: boolean;
         includeOrphanChartsWithinDashboard?: boolean;
     }): Promise<(ChartSummary & { updatedAt: Date })[]> {
@@ -1435,6 +1436,19 @@ export class SavedChartModel {
                         .where(
                             'saved_queries_versions.explore_name',
                             filters.exploreName,
+                        )
+                        .distinctOn('saved_queries.saved_query_uuid');
+                }
+                if (filters.exploreNames) {
+                    void query
+                        .leftJoin(
+                            SavedChartVersionsTableName,
+                            `${SavedChartVersionsTableName}.saved_query_id`,
+                            `${SavedChartsTableName}.saved_query_id`,
+                        )
+                        .whereIn(
+                            'saved_queries_versions.explore_name',
+                            filters.exploreNames,
                         )
                         .distinctOn('saved_queries.saved_query_uuid');
                 }
@@ -1668,5 +1682,46 @@ export class SavedChartModel {
                     SavedChartModel.convertDbSavedChartAdditionalMetricToAdditionalMetric,
                 ),
             }));
+    }
+
+    async moveToSpace(
+        {
+            projectUuid,
+            itemUuid: savedChartUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            targetSpaceUuid: string | null;
+        },
+        { tx = this.database }: { tx?: Knex } = {},
+    ): Promise<void> {
+        if (targetSpaceUuid === null) {
+            throw new Error('Cannot move saved chart out of a space');
+        }
+
+        const space = await tx(SpaceTableName)
+            .select('space_id')
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where('space_uuid', targetSpaceUuid)
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .first();
+
+        if (!space) {
+            throw new NotFoundError('Space not found');
+        }
+
+        const updateCount = await tx(SavedChartsTableName)
+            // if we move a chart from a dashboard to a space, we need to set the dashboard_uuid to null
+            .update({ space_id: space.space_id, dashboard_uuid: null })
+            .where('saved_query_uuid', savedChartUuid);
+
+        if (updateCount !== 1) {
+            throw new Error('Failed to move saved chart to space');
+        }
     }
 }

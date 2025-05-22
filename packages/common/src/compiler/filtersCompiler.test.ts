@@ -3,7 +3,7 @@ import { FilterOperator, UnitOfTime } from '../types/filter';
 import { WeekDay } from '../utils/timeFrames';
 import {
     renderDateFilterSql,
-    renderFilterRuleSql,
+    renderFilterRuleSqlFromField,
     renderNumberFilterSql,
     renderStringFilterSql,
 } from './filtersCompiler';
@@ -807,7 +807,7 @@ describe('Filter SQL', () => {
 
     test('should return 1=1 if filter is disabled', () => {
         expect(
-            renderFilterRuleSql(
+            renderFilterRuleSqlFromField(
                 disabledFilterMock.filterRule,
                 disabledFilterMock.field,
                 disabledFilterMock.fieldQuoteChar,

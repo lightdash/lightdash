@@ -16,14 +16,16 @@ type Props = {
     fileUrl: string | undefined;
     columnNames: string[];
     chartName?: string;
+    defaultQueryLimit?: number;
 };
 
 export const ResultsDownloadFromUrl: FC<Props> = ({
     fileUrl,
     columnNames,
     chartName,
+    defaultQueryLimit,
 }) => {
-    const [customLimit, setCustomLimit] = useState(DEFAULT_SQL_LIMIT);
+    const [customLimit, setCustomLimit] = useState(defaultQueryLimit);
     const { handleDownload, isLoading } = useDownloadResults({
         fileUrl,
         columnNames,
@@ -55,7 +57,7 @@ export const ResultsDownloadFromUrl: FC<Props> = ({
                         min={1}
                         autoFocus
                         required
-                        defaultValue={DEFAULT_SQL_LIMIT}
+                        defaultValue={customLimit}
                         onChange={(value: number) => setCustomLimit(value)}
                     />
                     <Button

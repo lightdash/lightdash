@@ -9,7 +9,7 @@ import {
 } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import intersectionBy from 'lodash/intersectionBy';
-import { type FC } from 'react';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../../common/MantineIcon';
 import { ItemDetailMarkdown, ItemDetailPreview } from '../ItemDetailPreview';
@@ -29,39 +29,42 @@ type Props = {
     node: GroupNode;
 };
 
-const TreeGroupNode: FC<Props> = ({ node }) => {
+const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
     const { selectedItems, isSearching, searchQuery, searchResults } =
         useTableTreeContext();
     const [isOpen, toggleOpen] = useToggle(false);
     const [isHover, toggleHover] = useToggle(false);
     const { showItemDetail } = useItemDetail();
-    const allChildrenKeys: string[] = getAllChildrenKeys([node]);
-    const hasSelectedChildren = hasIntersection(
-        allChildrenKeys,
-        Array.from(selectedItems),
+
+    const allChildrenKeys = useMemo(() => getAllChildrenKeys([node]), [node]);
+
+    const hasSelectedChildren = useMemo(
+        () => hasIntersection(allChildrenKeys, Array.from(selectedItems)),
+        [allChildrenKeys, selectedItems],
     );
-    const selectedChildrenCount = intersectionBy(
-        allChildrenKeys,
-        Array.from(selectedItems),
-    ).length;
-    const hasVisibleChildren =
-        !isSearching ||
-        hasIntersection(allChildrenKeys, Array.from(searchResults));
+
+    const selectedChildrenCount = useMemo(
+        () => intersectionBy(allChildrenKeys, Array.from(selectedItems)).length,
+        [allChildrenKeys, selectedItems],
+    );
+
+    const hasVisibleChildren = useMemo(
+        () =>
+            !isSearching ||
+            hasIntersection(allChildrenKeys, Array.from(searchResults)),
+        [isSearching, allChildrenKeys, searchResults],
+    );
+
     const forceOpen = isSearching && hasVisibleChildren;
-
-    if (!hasVisibleChildren) {
-        return null;
-    }
-
     const isNavLinkOpen = forceOpen || isOpen;
-    const description = node.description;
-    const label = node.label;
+
+    const { description, label } = node;
 
     /**
-     * Handles putting together and opening the shared modal for a groups
+     * Handles putting together and opening the shared modal for a group's
      * detailed description.
      */
-    const onOpenDescriptionView = () => {
+    const onOpenDescriptionView = useCallback(() => {
         toggleHover(false);
 
         showItemDetail({
@@ -71,35 +74,61 @@ const TreeGroupNode: FC<Props> = ({ node }) => {
                 </Group>
             ),
             detail: description ? (
-                <ItemDetailMarkdown source={description}></ItemDetailMarkdown>
+                <ItemDetailMarkdown source={description} />
             ) : (
                 <Text color="gray">No description available.</Text>
             ),
         });
-    };
+    }, [toggleHover, showItemDetail, label, description]);
+
+    const handleToggleOpen = useCallback(() => toggleOpen(), [toggleOpen]);
+    const handleMouseEnter = useCallback(
+        () => toggleHover(true),
+        [toggleHover],
+    );
+    const handleMouseLeave = useCallback(
+        () => toggleHover(false),
+        [toggleHover],
+    );
+
+    const handleDropdownClick = useCallback(
+        /**
+         * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
+         * while interacting with the hovercard.
+         */
+        (event: React.MouseEvent) => event.stopPropagation(),
+        [],
+    );
+
+    const icon = useMemo(
+        () => (
+            <MantineIcon
+                icon={IconChevronRight}
+                size={14}
+                style={{
+                    margin: 1,
+                    transition: 'transform 200ms ease',
+                    transform: isNavLinkOpen ? 'rotate(90deg)' : undefined,
+                }}
+            />
+        ),
+        [isNavLinkOpen],
+    );
+
+    if (!hasVisibleChildren) return null;
 
     return (
         <NavLink
             opened={isNavLinkOpen}
-            onClick={toggleOpen}
+            onClick={handleToggleOpen}
             // --start moves chevron to the left
             // mostly hardcoded, to match mantine's internal sizes
             disableRightSectionRotation
             rightSection={<></>}
-            icon={
-                <MantineIcon
-                    icon={IconChevronRight}
-                    size={14}
-                    style={{
-                        margin: 1,
-                        transition: 'transform 200ms ease',
-                        transform: isNavLinkOpen ? 'rotate(90deg)' : undefined,
-                    }}
-                />
-            }
-            // --end
-            onMouseEnter={() => toggleHover(true)}
-            onMouseLeave={() => toggleHover(false)}
+            icon={icon}
+            // --end moves chevron to the left
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             label={
                 <Group>
                     {!isOpen && hasSelectedChildren && (
@@ -113,7 +142,9 @@ const TreeGroupNode: FC<Props> = ({ node }) => {
                         withArrow
                         disabled={!description}
                         position="right"
-                        /** Ensures the hover card does not overlap with the right-hand menu. */
+                        /**
+                         * Ensures the hover card does not overlap with the right-hand menu.
+                         */
                         offset={80}
                     >
                         <HoverCard.Target>
@@ -133,11 +164,7 @@ const TreeGroupNode: FC<Props> = ({ node }) => {
                              * of readability.
                              */
                             maw={500}
-                            /**
-                             * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
-                             * while interacting with the hovercard.
-                             */
-                            onClick={(event) => event.stopPropagation()}
+                            onClick={handleDropdownClick}
                         >
                             <ItemDetailPreview
                                 onViewDescription={onOpenDescriptionView}
@@ -152,5 +179,8 @@ const TreeGroupNode: FC<Props> = ({ node }) => {
         </NavLink>
     );
 };
+
+const TreeGroupNode = memo(TreeGroupNodeComponent);
+TreeGroupNode.displayName = 'TreeGroupNode';
 
 export default TreeGroupNode;

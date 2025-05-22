@@ -21,6 +21,7 @@ import {
     NotificationPayloadBase,
     QueryExecutionContext,
     ReadFileError,
+    RenameResourcesPayload,
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
     ReplaceableCustomFields,
@@ -102,6 +103,8 @@ import type { CatalogService } from '../services/CatalogService/CatalogService';
 import { CsvService } from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
+import { PromoteService } from '../services/PromoteService/PromoteService';
+import { RenameService } from '../services/RenameService/RenameService';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
 import { SemanticLayerService } from '../services/SemanticLayerService/SemanticLayerService';
 import {
@@ -132,6 +135,7 @@ export type SchedulerTaskArguments = {
     catalogService: CatalogService;
     encryptionUtil: EncryptionUtil;
     msTeamsClient: MicrosoftTeamsClient;
+    renameService: RenameService;
 };
 
 export default class SchedulerTask {
@@ -171,6 +175,8 @@ export default class SchedulerTask {
 
     protected readonly msTeamsClient: MicrosoftTeamsClient;
 
+    private readonly renameService: RenameService;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -189,8 +195,8 @@ export default class SchedulerTask {
         this.semanticLayerService = args.semanticLayerService;
         this.catalogService = args.catalogService;
         this.encryptionUtil = args.encryptionUtil;
-
         this.msTeamsClient = args.msTeamsClient;
+        this.renameService = args.renameService;
     }
 
     protected async getChartOrDashboard(
@@ -2790,6 +2796,32 @@ export default class SchedulerTask {
                     replaceFields,
                     updatedCharts,
                 };
+            },
+        );
+    }
+
+    protected async renameResources(
+        jobId: string,
+        scheduledTime: Date,
+        payload: RenameResourcesPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.RENAME_RESOURCES,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
+            },
+            async () => {
+                const results =
+                    await this.renameService.runScheduledRenameResources(
+                        payload,
+                    );
+                return { results };
             },
         );
     }

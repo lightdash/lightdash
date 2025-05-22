@@ -283,6 +283,18 @@ When you want to start:
 docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env.development.local start
 ```
 
+#### Downloading files stored in local docker container MinIO
+
+When developing using the docker compose setup there's a MinIO container already setup to serve as the S3 compatible storage to save any files that are exported from the app - these can be images, results csv, etc.
+
+Because the MinIO internal docker endpoint is not accessible to the host machine - `localhost` - it needs to be added to the `/etc/hosts` configuration in your computer otherwise it will fail with a `DNS_PROBE_FINISHED_NXDOMAIN` error.
+
+1. Edit the hosts file using a text editor (e.g. vim, nano, etc.) with administrator privileges:
+   `sudo nano /etc/hosts`
+2. Add the following line at the end of the file:
+   `127.0.0.1    minio`
+3. Save the file
+
 #### Setup Development Environment without Docker
 
 To setup Development Environment without Docker you need following pre-requisites before running Lightdash:

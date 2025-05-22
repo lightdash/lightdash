@@ -117,6 +117,7 @@ const schedulerWorkerFactory = (context: {
             context.serviceRepository.getSemanticLayerService(),
         catalogService: context.serviceRepository.getCatalogService(),
         encryptionUtil: context.utils.getEncryptionUtil(),
+        renameService: context.serviceRepository.getRenameService(),
     });
 
 const slackBotFactory = (context: {
@@ -272,6 +273,10 @@ export default class App {
                 this.clients.getSchedulerClient(),
             );
         }
+
+        await this.serviceRepository
+            .getOrganizationService()
+            .initializeInstance();
     }
 
     private async initExpress(expressApp: Express) {

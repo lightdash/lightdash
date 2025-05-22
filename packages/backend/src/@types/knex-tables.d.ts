@@ -174,6 +174,10 @@ import {
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
 import {
+    ResultsCacheTable,
+    ResultsCacheTableName,
+} from '../database/entities/resultsFile';
+import {
     SavedSemanticViewerChartsTable,
     SavedSemanticViewerChartsTableName,
     SavedSemanticViewerChartVersionsTable,
@@ -239,13 +243,16 @@ import {
     AiThreadTableName,
 } from '../ee/database/entities/ai';
 import {
+    AiAgentIntegrationTableName,
+    AiAgentSlackIntegrationTable,
+    AiAgentSlackIntegrationTableName,
+    AiAgentTable,
+    AiAgentTableName,
+} from '../ee/database/entities/aiAgent';
+import {
     DashboardSummariesTable,
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
-import {
-    ResultsCacheTable,
-    ResultsCacheTableName,
-} from '../ee/database/entities/resultsCache';
 import {
     ScimOrganizationAccessTokenTable,
     ScimOrganizationAccessTokenTableName,
@@ -331,6 +338,9 @@ declare module 'knex/types/tables' {
         [AiSlackThreadTableName]: AiSlackThreadTable;
         [AiPromptTableName]: AiPromptTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
+        [AiAgentTableName]: AiAgentTable;
+        [AiAgentIntegrationTableName]: AiAgentIntegrationTable;
+        [AiAgentSlackIntegrationTableName]: AiAgentSlackIntegrationTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
         [DashboardSummariesTableName]: DashboardSummariesTable;

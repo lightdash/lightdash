@@ -343,21 +343,18 @@ export class ProjectService extends BaseService {
 
     static getMetricQueryExecutionProperties({
         metricQuery,
-        hasExampleMetric,
         dateZoom,
         chartUuid,
         queryTags,
         explore,
     }: {
         metricQuery: MetricQuery;
-        hasExampleMetric: boolean;
         dateZoom: DateZoom | undefined;
         chartUuid: string | undefined;
         queryTags: Record<string, unknown>;
         explore: Explore;
     }): MetricQueryExecutionProperties {
         return {
-            hasExampleMetric,
             dimensionsCount: metricQuery.dimensions.length,
             metricsCount: metricQuery.metrics.length,
             filtersCount: countTotalFilterRules(metricQuery.filters),
@@ -1467,8 +1464,9 @@ export class ProjectService extends BaseService {
     ) {
         const { user, metricQuery, projectUuid } = args;
 
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1563,8 +1561,9 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1877,8 +1876,9 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -2154,7 +2154,7 @@ export class ProjectService extends BaseService {
                 span.setAttribute('cacheHit', false);
 
                 if (
-                    this.lightdashConfig.resultsCache?.resultsEnabled &&
+                    this.lightdashConfig.results.cacheEnabled &&
                     !invalidateCache
                 ) {
                     const cacheEntryMetadata = await this.s3CacheClient
@@ -2165,8 +2165,7 @@ export class ProjectService extends BaseService {
                         cacheEntryMetadata?.LastModified &&
                         new Date().getTime() -
                             cacheEntryMetadata.LastModified.getTime() <
-                            this.lightdashConfig.resultsCache
-                                .cacheStateTimeSeconds *
+                            this.lightdashConfig.results.cacheStateTimeSeconds *
                                 1000
                     ) {
                         this.logger.debug(
@@ -2242,7 +2241,7 @@ export class ProjectService extends BaseService {
                     },
                 );
 
-                if (this.lightdashConfig.resultsCache?.resultsEnabled) {
+                if (this.lightdashConfig.results.cacheEnabled) {
                     this.logger.debug(
                         `Writing data to cache with key ${queryHash}`,
                     );
@@ -2366,7 +2365,7 @@ export class ProjectService extends BaseService {
                         dateZoom,
                     );
 
-                    const { query, hasExampleMetric } = fullQuery;
+                    const { query } = fullQuery;
 
                     const fieldsWithOverrides: ItemsMap = Object.fromEntries(
                         Object.entries(fullQuery.fields).map(([key, value]) => {
@@ -2409,7 +2408,6 @@ export class ProjectService extends BaseService {
                             ...ProjectService.getMetricQueryExecutionProperties(
                                 {
                                     metricQuery: metricQueryWithLimit,
-                                    hasExampleMetric,
                                     queryTags,
                                     chartUuid,
                                     dateZoom,
@@ -3054,9 +3052,7 @@ export class ProjectService extends BaseService {
             .update(queryHashKey)
             .digest('hex');
 
-        const isCacheEnabled =
-            this.lightdashConfig.resultsCache.autocompleteEnabled &&
-            this.s3CacheClient.isEnabled();
+        const isCacheEnabled = this.lightdashConfig.results.autocompleteEnabled;
 
         if (!forceRefresh && isCacheEnabled) {
             const isCached = await this.s3CacheClient.getResultsMetadata(
@@ -3170,12 +3166,7 @@ export class ProjectService extends BaseService {
                     ).length,
                     metricsCount: explores.reduce<number>((acc, explore) => {
                         if (!isExploreError(explore)) {
-                            return (
-                                acc +
-                                getMetrics(explore).filter(
-                                    ({ isAutoGenerated }) => !isAutoGenerated,
-                                ).length
-                            );
+                            return acc + getMetrics(explore).length;
                         }
                         return acc;
                     }, 0),
@@ -5029,8 +5020,9 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -5205,8 +5197,9 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -5446,8 +5439,9 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         payload: CreateVirtualViewPayload,
     ) {
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -5544,8 +5538,9 @@ export class ProjectService extends BaseService {
             throw new NotFoundError('Virtual view not found');
         }
 
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -5587,8 +5582,9 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         name: string,
     ) {
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(

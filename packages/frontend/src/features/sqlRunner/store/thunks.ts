@@ -2,14 +2,7 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
 import type * as rtk from '@reduxjs/toolkit';
 
-import {
-    ChartKind,
-    isApiError,
-    isApiSqlRunnerJobSuccessResponse,
-    isErrorDetails,
-    type ApiErrorDetail,
-    type RawResultRow,
-} from '@lightdash/common';
+import { ChartKind, isApiError, type ApiErrorDetail } from '@lightdash/common';
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { type RootState } from '.';
 import {
@@ -18,12 +11,8 @@ import {
     selectCompleteConfigByKind,
 } from '../../../components/DataViz/store/selectors';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
-import { getResultsFromStream } from '../../../utils/request';
-import { getSqlRunnerCompleteJob } from '../hooks/requestUtils';
-import {
-    scheduleSqlJob,
-    type ResultsAndColumns,
-} from '../hooks/useSqlQueryRun';
+import { executeSqlQuery } from '../../queryRunner/executeQuery';
+import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 import { selectSqlRunnerResultsRunner } from './sqlRunnerSlice';
 
 /**
@@ -41,34 +30,7 @@ export const runSqlQuery = createAsyncThunk<
     'sqlRunner/runSqlQuery',
     async ({ sql, limit, projectUuid }, { rejectWithValue }) => {
         try {
-            const scheduledJob = await scheduleSqlJob({
-                projectUuid,
-                sql,
-                limit,
-            });
-
-            const job = await getSqlRunnerCompleteJob(scheduledJob.jobId);
-            if (isApiSqlRunnerJobSuccessResponse(job)) {
-                const url =
-                    job.details && !isErrorDetails(job.details)
-                        ? job.details.fileUrl
-                        : undefined;
-
-                const results = await getResultsFromStream<RawResultRow>(url);
-
-                const columns =
-                    job.details && !isErrorDetails(job.details)
-                        ? job.details.columns
-                        : [];
-
-                return {
-                    fileUrl: url,
-                    results,
-                    columns,
-                };
-            } else {
-                return rejectWithValue(job.error);
-            }
+            return await executeSqlQuery(projectUuid, sql, limit);
         } catch (error) {
             if (isApiError(error)) {
                 return rejectWithValue(error.error);

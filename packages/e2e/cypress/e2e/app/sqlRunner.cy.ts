@@ -106,18 +106,18 @@ describe('SQL Runner (new)', () => {
             .should('be.visible');
         cy.get('.echarts-for-react')
             .find('text')
-            .contains('Customer id sum')
+            .contains('Age sum')
             .should('be.visible');
 
         // Add a new series
         cy.get('button[data-testid="add-y-axis-field"]').click();
         cy.get('.echarts-for-react')
             .find('text')
-            .contains('Customer id sum')
+            .contains('Age sum')
             .should('be.visible');
         cy.get('.echarts-for-react')
             .find('text')
-            .contains('First name count')
+            .contains('Last name count')
             .should('be.visible');
 
         // Group by first_name
@@ -125,7 +125,7 @@ describe('SQL Runner (new)', () => {
         cy.get('div[role="option"]').contains('first_name').click();
         cy.get('.echarts-for-react')
             .find('text')
-            .contains('Customer id sum frances')
+            .contains('Age sum amy')
             .should('be.visible');
 
         // Verify that the chart is not displayed when the configuration is incomplete
@@ -156,7 +156,7 @@ describe('SQL Runner (new)', () => {
             .should('be.visible');
         cy.get('.echarts-for-react')
             .find('text')
-            .contains('Customer id sum')
+            .contains('Age sum')
             .should('be.visible');
 
         // Verify that the table is displayed
@@ -229,7 +229,7 @@ describe('SQL Runner (new)', () => {
         ).should('exist');
         cy.get('div[data-testid="chart-data-table"]').should(
             'contain.text',
-            'customer_id_sum',
+            'age_sum',
         );
 
         cy.contains('label', 'SQL').click();
@@ -251,11 +251,9 @@ describe('SQL Runner (new)', () => {
             .contains('Fix errors')
             .click();
         cy.get('input[placeholder="Select X axis"]').click();
+        cy.get('div[role="option"]').contains('status').click();
+        cy.get('input[placeholder="Select Y axis"]').click();
         cy.get('div[role="option"]').contains('customer_id').click();
-        cy.get('.echarts-for-react')
-            .find('text')
-            .contains('Customer id')
-            .should('be.visible');
 
         // Verify that saving changes and going back to view page displays the chart
         cy.contains('Save').click();
@@ -265,7 +263,11 @@ describe('SQL Runner (new)', () => {
         ).should('exist');
         cy.get('.echarts-for-react')
             .find('text')
-            .contains('Customer id')
+            .contains('Customer id avg')
+            .should('be.visible');
+        cy.get('.echarts-for-react')
+            .find('text')
+            .contains('Status')
             .should('be.visible');
     });
 

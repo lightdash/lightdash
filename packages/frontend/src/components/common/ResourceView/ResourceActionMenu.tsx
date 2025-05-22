@@ -43,6 +43,7 @@ export interface ResourceViewActionMenuCommonProps {
 
 interface ResourceViewActionMenuProps
     extends ResourceViewActionMenuCommonProps {
+    disabled?: boolean;
     item: ResourceViewItem;
     allowDelete?: boolean;
     isOpen?: boolean;
@@ -51,6 +52,7 @@ interface ResourceViewActionMenuProps
 }
 
 const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
+    disabled = false,
     item,
     allowDelete = true,
     isOpen,
@@ -167,6 +169,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     return (
         <>
             <Menu
+                disabled={disabled}
                 withinPortal
                 opened={isOpen}
                 position="bottom-start"
@@ -181,7 +184,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                 <Menu.Target>
                     <Box onClick={isOpen ? onClose : onOpen}>
                         <ActionIcon
+                            disabled={disabled}
                             aria-label="Menu"
+                            data-testid={`ResourceViewActionMenu/${item.data.name}`}
                             sx={(theme) => ({
                                 ':hover': {
                                     backgroundColor: theme.colors.gray[1],

@@ -1623,6 +1623,35 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "pimmey",
+      "name": "Yegor Borisenco",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5588929?v=4",
+      "profile": "https://pimmey.com",
+      "contributions": [
+        "code",
+        "bug"
+      ]
+    },
+    {
+      "login": "lakshz",
+      "name": "Lakshya Satpal",
+      "avatar_url": "https://avatars.githubusercontent.com/u/81241551?v=4",
+      "profile": "https://github.com/lakshz",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "tatianainama",
+      "name": "Tatiana Inama",
+      "avatar_url": "https://avatars.githubusercontent.com/u/8246284?v=4",
+      "profile": "http://tatiana.inama.dev",
+      "contributions": [
+        "code",
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,

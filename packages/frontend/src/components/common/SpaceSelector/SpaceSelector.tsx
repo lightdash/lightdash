@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    ResourceViewItemType,
+    type ResourceViewItemType,
     type SpaceSummary,
 } from '@lightdash/common';
 import { Paper, ScrollArea, Stack, TextInput } from '@mantine/core';
@@ -23,6 +23,7 @@ type SpaceSelectorProps = {
     isLoading?: boolean;
     itemType: ResourceViewItemType | undefined;
     onSelectSpace: (spaceUuid: string | null) => void;
+    isRootSelectionEnabled?: boolean;
 };
 
 const SpaceSelector = ({
@@ -30,9 +31,9 @@ const SpaceSelector = ({
     selectedSpaceUuid,
     spaces = [],
     isLoading: _isLoading, // TODO: implement loading state for the tree.
-    itemType,
     onSelectSpace,
     children,
+    isRootSelectionEnabled,
 }: React.PropsWithChildren<SpaceSelectorProps>) => {
     const { user } = useApp();
 
@@ -46,7 +47,7 @@ const SpaceSelector = ({
 
     const [selectedAdminContentType, setSelectedAdminContentType] = useState<
         'all' | 'shared'
-    >('shared');
+    >(userCanManageProject ? 'shared' : 'all');
 
     const filteredSpaces = useMemo(() => {
         if (!user.data) return [];
@@ -75,7 +76,7 @@ const SpaceSelector = ({
     );
 
     return (
-        <Stack h="400px">
+        <Stack h="600px">
             {userCanManageProject ? (
                 <AdminContentViewFilter
                     value={selectedAdminContentType}
@@ -102,8 +103,7 @@ const SpaceSelector = ({
                 withBorder
             >
                 <Tree
-                    // top level item can only be selected for a single space
-                    withRootSelectable={itemType === ResourceViewItemType.SPACE}
+                    withRootSelectable={isRootSelectionEnabled}
                     data={fuzzyFilteredSpaces ?? filteredSpaces}
                     value={selectedSpaceUuid}
                     onChange={onSelectSpace}

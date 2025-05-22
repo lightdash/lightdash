@@ -31,7 +31,6 @@ import {
     isDashboardChartTileType,
     isField,
     isSlackPrompt,
-    isTableCalculation,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { AgentExecutor } from 'langchain/agents';
@@ -55,6 +54,7 @@ import {
     DashboardSummaryViewed,
 } from '../../analytics';
 import OpenAi from '../../clients/OpenAi';
+import { AiAgentModel } from '../../models/AiAgentModel';
 import { AiModel } from '../../models/AiModel';
 import type { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
@@ -101,6 +101,7 @@ type Dependencies = {
     dashboardModel: DashboardModel;
     dashboardSummaryModel: DashboardSummaryModel;
     aiModel: AiModel;
+    aiAgentModel: AiAgentModel;
     userModel: UserModel;
     projectModel: ProjectModel;
     organizationModel: OrganizationModel;
@@ -109,7 +110,6 @@ type Dependencies = {
     openAi: OpenAi;
     slackClient: SlackClient;
     lightdashConfig: LightdashConfig;
-    slackAuthenticationModel: CommercialSlackAuthenticationModel;
     featureFlagService: FeatureFlagService;
 };
 
@@ -119,6 +119,8 @@ export class AiService {
     private readonly dashboardModel: DashboardModel;
 
     private readonly aiModel: AiModel;
+
+    private readonly aiAgentModel: AiAgentModel;
 
     private readonly userModel: UserModel;
 
@@ -131,8 +133,6 @@ export class AiService {
     private readonly projectService: ProjectService;
 
     private readonly catalogService: CommercialCatalogService;
-
-    private readonly slackAuthenticationModel: CommercialSlackAuthenticationModel;
 
     private readonly openAi: OpenAi;
 
@@ -149,13 +149,13 @@ export class AiService {
         this.projectService = dependencies.projectService;
         this.openAi = dependencies.openAi;
         this.aiModel = dependencies.aiModel;
+        this.aiAgentModel = dependencies.aiAgentModel;
         this.userModel = dependencies.userModel;
         this.slackClient = dependencies.slackClient;
         this.projectModel = dependencies.projectModel;
         this.catalogService = dependencies.catalogService;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.organizationModel = dependencies.organizationModel;
-        this.slackAuthenticationModel = dependencies.slackAuthenticationModel;
         this.featureFlagService = dependencies.featureFlagService;
     }
 
@@ -656,12 +656,12 @@ export class AiService {
 
         const { projectUuid } = slackOrWebAppPrompt;
 
-        const projectSettings =
+        const agentSettings =
             'slackChannelId' in slackOrWebAppPrompt
-                ? await this.slackAuthenticationModel.getProjectSettingsForSlackChannelId(
-                      user.organizationUuid,
-                      slackOrWebAppPrompt.slackChannelId,
-                  )
+                ? await this.aiAgentModel.getAgentBySlackChannelId({
+                      organizationUuid: user.organizationUuid,
+                      slackChannelId: slackOrWebAppPrompt.slackChannelId,
+                  })
                 : undefined;
 
         const {
@@ -674,20 +674,20 @@ export class AiService {
         } = this.getToolUtilities(
             user,
             slackOrWebAppPrompt,
-            projectSettings?.availableTags ?? null,
+            agentSettings?.tags ?? null,
         );
 
         const findFieldsTool = getFindFieldsTool({
             getExplore,
             searchFields,
-            availableTags: projectSettings?.availableTags ?? null,
+            availableTags: agentSettings?.tags ?? null,
         });
 
         const generateQueryFilters = getGenerateQueryFiltersTool({
             getExplore,
             promptUuid: slackOrWebAppPrompt.promptUuid,
             updatePrompt: this.aiModel.updateSlackResponse.bind(this.aiModel),
-            availableTags: projectSettings?.availableTags ?? null,
+            availableTags: agentSettings?.tags ?? null,
         });
 
         const generateBarVizConfigTool = getGenerateBarVizConfigTool({
@@ -806,7 +806,7 @@ ${e.llmOutput}
             await this.getMinimalExploreInformation(
                 user,
                 projectUuid,
-                projectSettings?.availableTags ?? null,
+                agentSettings?.tags ?? null,
             );
 
         const results = await agentExecutor.invoke({
@@ -844,6 +844,7 @@ ${e.llmOutput}
         slackThreadTs: string | undefined;
         prompt: string;
         promptSlackTs: string;
+        agentUuid: string | null;
     }): Promise<[string, boolean]> {
         let createdThread = false;
         let threadUuid: string | undefined;
@@ -882,6 +883,7 @@ ${e.llmOutput}
                 slackUserId: data.slackUserId,
                 slackChannelId: data.slackChannelId,
                 slackThreadTs: data.slackThreadTs || data.promptSlackTs,
+                agentUuid: data.agentUuid,
             });
         }
 
@@ -1186,6 +1188,7 @@ ${
             projectUuid,
             userUuid: user.userUuid,
             createdFrom: 'web_app',
+            agentUuid: null,
         });
 
         if (threadUuid === undefined) {
@@ -1239,6 +1242,7 @@ ${
             projectUuid,
             createdFrom: 'web_app',
             userUuid: user.userUuid,
+            agentUuid: null,
         });
 
         const promptUuid = await this._createWebAppPrompt(

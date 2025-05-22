@@ -1,13 +1,21 @@
 import {
+    ApiContentActionBody,
+    ApiContentBulkActionBody,
     ApiContentResponse,
     ApiErrorPayload,
+    ApiSuccessEmpty,
+    ContentActionMove,
     ContentType,
+    ParameterError,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
     Hidden,
     Middlewares,
     OperationId,
+    Path,
+    Post,
     Query,
     Request,
     Response,
@@ -26,7 +34,7 @@ import { BaseController } from '../baseController';
 @Hidden() // Hide this endpoint from the documentation for now
 export class ContentController extends BaseController {
     /**
-     * Get content (charts, dashboards, etc.)
+     * Get content (charts, dashboards, spaces)
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -65,5 +73,67 @@ export class ContentController extends BaseController {
                 },
             ),
         };
+    }
+
+    /**
+     * Move a single item (Chart, Dashboard, Space) to another space
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/:projectUuid/move')
+    @OperationId('Move content')
+    @Tags('Content', 'Move content')
+    async moveContent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiContentActionBody<ContentActionMove>,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        if (body.action.type !== 'move') {
+            throw new ParameterError('Invalid action type');
+        }
+
+        await this.services
+            .getContentService()
+            .move(
+                req.user!,
+                projectUuid,
+                body.item,
+                body.action.targetSpaceUuid,
+            );
+
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Move multiple items (Charts, Dashboards, Spaces) to another space
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/bulk-action/:projectUuid/move')
+    @OperationId('Bulk move content')
+    @Tags('Content', 'Bulk action', 'Move content')
+    async bulkMoveContent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiContentBulkActionBody<ContentActionMove>,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        if (body.action.type !== 'move') {
+            throw new ParameterError('Invalid action type');
+        }
+
+        await this.services
+            .getContentService()
+            .bulkMove(
+                req.user!,
+                projectUuid,
+                body.content,
+                body.action.targetSpaceUuid,
+            );
+
+        return { status: 'ok', results: undefined };
     }
 }

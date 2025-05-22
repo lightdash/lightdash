@@ -49,9 +49,16 @@ import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
 
+import isNil from 'lodash/isNil';
 import moment, { MomentInput } from 'moment';
 import { nanoid } from 'nanoid';
-import { pipeline, Readable, Transform, TransformCallback } from 'stream';
+import {
+    pipeline,
+    Readable,
+    Transform,
+    TransformCallback,
+    Writable,
+} from 'stream';
 import { Worker } from 'worker_threads';
 import {
     DownloadCsv,
@@ -257,6 +264,61 @@ export class CsvService extends BaseService {
         );
     }
 
+    static async streamRowsToFile(
+        onlyRaw: boolean,
+        itemMap: ItemsMap,
+        sortedFieldIds: string[],
+        csvHeader: string[],
+        {
+            readStream,
+            writeStream,
+        }: {
+            readStream: Readable;
+            writeStream: Writable;
+        },
+    ): Promise<void> {
+        const stringifier = stringify({
+            delimiter: ',',
+            header: true,
+            columns: csvHeader,
+        });
+
+        const rowTransformer = new Transform({
+            objectMode: true,
+            transform(
+                chunk: AnyType,
+                encoding: BufferEncoding,
+                callback: TransformCallback,
+            ) {
+                callback(
+                    null,
+                    CsvService.convertRowToCsv(
+                        chunk,
+                        itemMap,
+                        onlyRaw,
+                        sortedFieldIds,
+                    ),
+                );
+            },
+        });
+
+        return new Promise((resolve, reject) => {
+            pipeline(
+                readStream,
+                rowTransformer,
+                stringifier,
+                writeStream,
+                (err) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+                    resolve();
+                },
+            );
+        });
+    }
+
     static async writeRowsToFile(
         rows: Record<string, AnyType>[],
         onlyRaw: boolean,
@@ -283,9 +345,13 @@ export class CsvService extends BaseService {
         const fileId = CsvService.generateFileId(fileName, truncated);
         const writeStream = fs.createWriteStream(`/tmp/${fileId}`);
 
-        const sortedFieldIds = Object.keys(rows[0])
-            .filter((id) => selectedFieldIds.includes(id))
-            .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
+        const sortedFieldIds = isNil(rows[0])
+            ? []
+            : Object.keys(rows[0])
+                  .filter((id) => selectedFieldIds.includes(id))
+                  .sort(
+                      (a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b),
+                  );
 
         const csvHeader = sortedFieldIds.map((id) => {
             if (customLabels[id]) {
@@ -306,47 +372,18 @@ export class CsvService extends BaseService {
             highWaterMark: CHUNK_SIZE,
         });
 
-        const stringifier = stringify({
-            delimiter: ',',
-            header: true,
-            columns: csvHeader,
-        });
-
-        const rowTransformer = new Transform({
-            objectMode: true,
-            transform(
-                chunk: AnyType,
-                encoding: BufferEncoding,
-                callback: TransformCallback,
-            ) {
-                callback(
-                    null,
-                    CsvService.convertRowToCsv(
-                        chunk,
-                        itemMap,
-                        onlyRaw,
-                        sortedFieldIds,
-                    ),
-                );
-            },
-        });
-
-        const writePromise = new Promise<string>((resolve, reject) => {
-            pipeline(
+        await CsvService.streamRowsToFile(
+            onlyRaw,
+            itemMap,
+            sortedFieldIds,
+            csvHeader,
+            {
                 readStream,
-                rowTransformer,
-                stringifier,
                 writeStream,
-                async (err) => {
-                    if (err) {
-                        reject(err);
-                    }
-                    resolve(fileId);
-                },
-            );
-        });
+            },
+        );
 
-        return writePromise;
+        return fileId;
     }
 
     static async convertSqlQueryResultsToCsv(

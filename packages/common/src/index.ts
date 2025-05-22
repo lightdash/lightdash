@@ -96,7 +96,7 @@ import {
     type WarehouseCredentials,
 } from './types/projects';
 import { type MostPopularAndRecentlyUpdated } from './types/resourceViewItem';
-import { type ResultRow } from './types/results';
+import { type ResultColumns, type ResultRow } from './types/results';
 import {
     type ApiJobScheduledResponse,
     type ApiJobStatusResponse,
@@ -104,7 +104,7 @@ import {
     type SchedulerJobStatus,
 } from './types/scheduler';
 import { type ApiSlackChannelsResponse } from './types/slack';
-import { type Space } from './types/space';
+import { SpaceMemberRole, type CreateSpace, type Space } from './types/space';
 import { type ApiSshKeyPairResponse } from './types/SshKeyPair';
 import { type TableBase } from './types/table';
 import {
@@ -116,6 +116,7 @@ import { type UserWarehouseCredentials } from './types/userWarehouseCredentials'
 import { type ValidationResponse } from './types/validation';
 
 import type {
+    ApiAiAgentThreadResponse,
     ApiAiConversationMessages,
     ApiAiConversationResponse,
     ApiAiConversations,
@@ -147,6 +148,7 @@ import type {
 import type { ResultsPaginationMetadata } from './types/paginateResults';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import type { QueryHistoryStatus } from './types/queryHistory';
+import { type ApiRenameFieldsResponse } from './types/rename';
 import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
     type ApiSemanticLayerClientInfo,
@@ -161,6 +163,8 @@ import {
     type ApiSqlChart,
     type ApiSqlRunnerJobStatusResponse,
     type ApiUpdateSqlChart,
+    type GroupByColumn,
+    type SortBy,
 } from './types/sqlRunner';
 import { TimeFrames } from './types/timeFrames';
 import { type ApiWarehouseTableFields } from './types/warehouse';
@@ -169,6 +173,10 @@ import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 import { getOrganizationNameSchema } from './utils/organization';
+import type {
+    PivotIndexColum,
+    PivotValuesColumn,
+} from './visualizations/types';
 
 dayjs.extend(utc);
 export * from './authorization/index';
@@ -236,6 +244,7 @@ export * from './types/projectMemberRole';
 export * from './types/projects';
 export * from './types/promotion';
 export * from './types/queryHistory';
+export * from './types/rename';
 export * from './types/resourceViewItem';
 export * from './types/results';
 export * from './types/savedCharts';
@@ -479,6 +488,11 @@ export const SEED_GROUP = {
     name: 'Org 1 Group',
 };
 
+export const SEED_GROUP_2 = {
+    groupUuid: '1456c265-f375-4d64-bd33-105c84ad9b5d',
+    name: 'Org 1 Editor Group',
+};
+
 export type ArgumentsOf<F extends Function> = F extends (
     ...args: infer A
 ) => AnyType
@@ -547,10 +561,19 @@ export type ApiExecuteAsyncDashboardSqlChartQueryResults =
 
 export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     queryUuid: string;
+    columns: ResultColumns;
     rows: ResultRow[];
     initialQueryExecutionMs: number;
     resultsPageExecutionMs: number;
     status: QueryHistoryStatus.READY;
+    pivotDetails: {
+        // Unlimited total column count, this is used to display a warning to the user in the frontend when the number of columns is over MAX_PIVOT_COLUMN_LIMIT
+        totalColumnCount: number | null;
+        indexColumn: PivotIndexColum;
+        valuesColumns: PivotValuesColumn[];
+        groupByColumns: GroupByColumn[] | undefined;
+        sortBy: SortBy | undefined;
+    } | null;
 };
 
 export type ApiGetAsyncQueryResults =
@@ -564,6 +587,10 @@ export type ApiGetAsyncQueryResults =
           queryUuid: string;
           error: string | null;
       };
+
+export type ApiDownloadAsyncQueryResults = {
+    fileUrl: string;
+};
 
 export type ApiChartAndResults = {
     chart: SavedChart;
@@ -867,7 +894,10 @@ type ApiResults =
     | ApiExecuteAsyncMetricQueryResults
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
-    | ApiUserActivityDownloadCsv['results'];
+    | ApiUserActivityDownloadCsv['results']
+    | ApiRenameFieldsResponse['results']
+    | ApiDownloadAsyncQueryResults
+    | ApiAiAgentThreadResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -1392,3 +1422,119 @@ export const getProjectDirectory = (
 export function isNotNull<T>(arg: T): arg is Exclude<T, null> {
     return arg !== null;
 }
+
+export type TreeCreateSpace = CreateSpace & {
+    children?: TreeCreateSpace[];
+    groupAccess?: {
+        groupUuid: string;
+        role: SpaceMemberRole;
+    }[];
+};
+
+export const SPACE_TREE_1: TreeCreateSpace[] = [
+    {
+        name: 'Parent Space 1',
+        children: [
+            {
+                name: 'Child Space 1.1',
+                children: [
+                    {
+                        name: 'Grandchild Space 1.1.1',
+                    },
+                    {
+                        name: 'Grandchild Space 1.1.2',
+                    },
+                ],
+            },
+            {
+                name: 'Child Space 1.2',
+                children: [
+                    {
+                        name: 'Grandchild Space 1.2.1',
+                    },
+                    {
+                        name: 'Grandchild Space 1.2.2',
+                        children: [
+                            {
+                                name: 'Great Grandchild Space 1.2.2.1',
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
+                name: 'Child Space 1.3',
+                children: [
+                    {
+                        name: 'Grandchild Space 1.3.1',
+                        children: [
+                            {
+                                name: 'Great Grandchild Space 1.3.1.1',
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        name: 'Parent Space 2',
+        isPrivate: true,
+        children: [
+            {
+                name: 'Child Space 2.1',
+                children: [
+                    {
+                        name: 'Grandchild Space 2.1.1',
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        name: 'Parent Space 3',
+        isPrivate: true,
+        access: [
+            // Admin will automatically be added, we only seed editor
+            {
+                userUuid: SEED_ORG_1_EDITOR.user_uuid,
+                role: SpaceMemberRole.EDITOR,
+            },
+        ],
+        children: [
+            {
+                name: 'Child Space 3.1',
+            },
+        ],
+    },
+    // Created by admin and added group access
+    {
+        name: 'Parent Space 5',
+        isPrivate: true,
+        access: [],
+        groupAccess: [
+            {
+                groupUuid: SEED_GROUP_2.groupUuid,
+                role: SpaceMemberRole.EDITOR,
+            },
+        ],
+        children: [
+            {
+                name: 'Child Space 5.1',
+            },
+        ],
+    },
+] as const;
+
+export const SPACE_TREE_2: TreeCreateSpace[] = [
+    {
+        name: 'Parent Space 4',
+        isPrivate: true,
+        access: [],
+        children: [
+            {
+                name: 'Child Space 4.1',
+            },
+        ],
+    },
+] as const;

@@ -419,16 +419,17 @@ export class SemanticLayerService extends BaseService {
             organizationUuid: savedChart.organization.organizationUuid,
         });
 
-        const { hasAccess: hasViewAccess } =
-            await this.savedSemanticViewerChartService.hasSavedChartAccess(
+        await this.savedSemanticViewerChartService.hasAccess(
+            'view',
+            {
                 user,
-                'view',
-                savedChart,
-            );
-
-        if (!hasViewAccess) {
-            throw new ForbiddenError("You don't have access to this chart");
-        }
+                projectUuid,
+            },
+            {
+                savedSemanticViewerChartUuid:
+                    savedChart.savedSemanticViewerChartUuid,
+            },
+        );
 
         const jobId = await this.schedulerClient.semanticLayerStreamingResults({
             context: QueryExecutionContext.SEMANTIC_VIEWER,

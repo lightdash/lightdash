@@ -28,7 +28,7 @@ import {
 import { type WarehouseClient } from '../types/warehouse';
 import { timeFrameConfigs } from '../utils/timeFrames';
 import { getFieldQuoteChar } from '../utils/warehouse';
-import { renderFilterRuleSql } from './filtersCompiler';
+import { renderFilterRuleSqlFromField } from './filtersCompiler';
 import {
     getCategoriesFromResource,
     getSpotlightConfigurationForResource,
@@ -455,7 +455,7 @@ export class ExploreCompiler {
                         ...compiledDimension.tablesReferences,
                     ]);
                 }
-                return renderFilterRuleSql(
+                return renderFilterRuleSqlFromField(
                     filter,
                     compiledDimension,
                     getFieldQuoteChar(this.warehouseClient.credentials.type),
