@@ -18,11 +18,13 @@ import {
     IconCheck,
     IconDatabase,
     IconRefresh,
+    IconTrash,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import MantineModal from '../../../../components/common/MantineModal';
 import {
     useGetSlack,
     useSlackChannels,
@@ -56,6 +58,7 @@ const formSchema: z.ZodType<
 export const AgentDetails: FC = () => {
     const navigate = useNavigate();
     const { agentId } = useParams<{ agentId: string }>();
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const { mutateAsync: createAgent } = useCreateAiAgentMutation({
         onSuccess: () => {
             void navigate('/generalSettings/aiAgents');
@@ -146,14 +149,23 @@ export const AgentDetails: FC = () => {
         }
     });
 
+    const handleDeleteClick = useCallback(() => {
+        setDeleteModalOpen(true);
+    }, []);
+
     const handleDelete = useCallback(async () => {
         if (!agentUuid) {
             return;
         }
 
         await deleteAgent(agentUuid);
+        setDeleteModalOpen(false);
         void navigate('/generalSettings/aiAgents');
     }, [navigate, agentUuid, deleteAgent]);
+
+    const handleCancelDelete = useCallback(() => {
+        setDeleteModalOpen(false);
+    }, []);
 
     if (!isCreateMode && agentUuid && !agent && !isLoadingAgent) {
         return (
@@ -296,7 +308,7 @@ export const AgentDetails: FC = () => {
                                             {!isCreateMode && (
                                                 <Button
                                                     variant="outline"
-                                                    onClick={handleDelete}
+                                                    onClick={handleDeleteClick}
                                                 >
                                                     Delete agent
                                                 </Button>
@@ -329,6 +341,33 @@ export const AgentDetails: FC = () => {
                         </Tabs>
                     </Stack>
                 </Card>
+
+                <MantineModal
+                    opened={deleteModalOpen}
+                    onClose={handleCancelDelete}
+                    title="Delete Agent"
+                    icon={IconTrash}
+                    actions={
+                        <Group>
+                            <Button
+                                variant="subtle"
+                                onClick={handleCancelDelete}
+                            >
+                                Cancel
+                            </Button>
+                            <Button color="red" onClick={handleDelete}>
+                                Delete
+                            </Button>
+                        </Group>
+                    }
+                >
+                    <Stack gap="md">
+                        <Text>
+                            Are you sure you want to delete this agent? This
+                            action cannot be undone.
+                        </Text>
+                    </Stack>
+                </MantineModal>
             </Stack>
         </MantineProvider>
     );
