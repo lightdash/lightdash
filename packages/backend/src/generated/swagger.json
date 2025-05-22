@@ -5431,94 +5431,100 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AiAgentMessageUser": {
+                "properties": {
+                    "user": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": ["user"],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "user",
+                    "createdAt",
+                    "message",
+                    "threadUuid",
+                    "uuid",
+                    "role"
+                ],
+                "type": "object"
+            },
+            "AiAgentMessageAssistant": {
+                "properties": {
+                    "humanScore": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "metricQuery": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "filtersOutput": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "vizConfigOutput": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": ["assistant"],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "message",
+                    "threadUuid",
+                    "uuid",
+                    "role"
+                ],
+                "type": "object"
+            },
             "AiAgentMessage": {
                 "anyOf": [
                     {
-                        "properties": {
-                            "user": {
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    },
-                                    "uuid": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": ["name", "uuid"],
-                                "type": "object"
-                            },
-                            "createdAt": {
-                                "type": "string"
-                            },
-                            "message": {
-                                "type": "string"
-                            },
-                            "threadUuid": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "role": {
-                                "type": "string",
-                                "enum": ["user"],
-                                "nullable": false
-                            }
-                        },
-                        "required": [
-                            "user",
-                            "createdAt",
-                            "message",
-                            "threadUuid",
-                            "uuid",
-                            "role"
-                        ],
-                        "type": "object"
+                        "$ref": "#/components/schemas/AiAgentMessageUser"
                     },
                     {
-                        "properties": {
-                            "humanScore": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "metricQuery": {
-                                "additionalProperties": true,
-                                "type": "object"
-                            },
-                            "filtersOutput": {
-                                "additionalProperties": true,
-                                "type": "object"
-                            },
-                            "vizConfigOutput": {
-                                "additionalProperties": true,
-                                "type": "object"
-                            },
-                            "createdAt": {
-                                "type": "string"
-                            },
-                            "message": {
-                                "type": "string"
-                            },
-                            "threadUuid": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "role": {
-                                "type": "string",
-                                "enum": ["assistant"],
-                                "nullable": false
-                            }
-                        },
-                        "required": [
-                            "createdAt",
-                            "message",
-                            "threadUuid",
-                            "uuid",
-                            "role"
-                        ],
-                        "type": "object"
+                        "$ref": "#/components/schemas/AiAgentMessageAssistant"
                     }
                 ]
             },
@@ -15976,6 +15982,9 @@
                         "properties": {
                             "pivotDetails": {
                                 "properties": {
+                                    "originalColumns": {
+                                        "$ref": "#/components/schemas/ResultColumns"
+                                    },
                                     "sortBy": {
                                         "$ref": "#/components/schemas/SortBy"
                                     },
@@ -16001,6 +16010,7 @@
                                     }
                                 },
                                 "required": [
+                                    "originalColumns",
                                     "valuesColumns",
                                     "indexColumn",
                                     "totalColumnCount"
@@ -17363,7 +17373,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1649.0",
+        "version": "0.1654.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,6 +1,9 @@
 version: 2
 models:
   - name: events
+    config:
+      tags:
+        - ai-tag-test
     meta:
       group_details:
         events:
