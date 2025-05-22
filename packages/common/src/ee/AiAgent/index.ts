@@ -103,7 +103,7 @@ export type ApiAiAgentSummaryResponse = {
 
 export type ApiCreateAiAgent = Pick<
     AiAgent,
-    'projectUuid' | 'integrations' | 'tags'
+    'projectUuid' | 'integrations' | 'tags' | 'name'
 >;
 
 export type ApiUpdateAiAgent = {

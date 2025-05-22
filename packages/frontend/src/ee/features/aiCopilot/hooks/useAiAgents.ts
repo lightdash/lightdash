@@ -6,6 +6,7 @@ import {
     type ApiCreateAiAgent,
     type ApiCreateAiAgentResponse,
     type ApiError,
+    type ApiSuccessEmpty,
     type ApiUpdateAiAgent,
 } from '@lightdash/common';
 import {
@@ -38,37 +39,28 @@ const listAgents = () =>
         body: undefined,
     });
 
-const getAgent = async (agentUuid: string): Promise<ApiAiAgentResponse> => {
-    return Promise.resolve({
-        status: 'ok',
-        results: {
-            uuid: agentUuid,
-            organizationUuid: 'org-1',
-            tags: [],
-            name: 'Test Agent',
-            projectUuid: 'project-1',
-            integrations: [],
-            tags: null,
-        },
+const getAgent = async (
+    agentUuid: string,
+): Promise<ApiAiAgentResponse['results']> =>
+    lightdashApi<ApiAiAgentResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/${agentUuid}`,
+        method: 'GET',
+        body: undefined,
     });
-
-    // lightdashApi<ApiAiAgentResponse>({
-    //     url: `/api/v1/aiAgents/${agentUuid}`,
-    //     method: 'GET',
-    //     body: undefined,
-    // });
-};
 
 const createAgent = async (data: ApiCreateAiAgent) =>
     lightdashApi<ApiCreateAiAgentResponse>({
-        url: `/api/v1/aiAgents`,
+        version: 'v1',
+        url: `/aiAgents`,
         method: 'POST',
         body: JSON.stringify(data),
     });
 
 const updateAgent = async (data: ApiUpdateAiAgent) =>
     lightdashApi<ApiAiAgentResponse>({
-        url: `/api/v1/aiAgents/${data.uuid}`,
+        version: 'v1',
+        url: `/aiAgents/${data.uuid}`,
         method: 'PATCH',
         body: JSON.stringify(data),
     });
@@ -100,18 +92,16 @@ export const useAiAgents = (
         ...useQueryOptions,
     });
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 export const useAiAgent = (
     agentUuid: string,
-    useQueryOptions?: UseQueryOptions<ApiAiAgentResponse, ApiError>,
+    useQueryOptions?: UseQueryOptions<ApiAiAgentResponse['results'], ApiError>,
 ) =>
-    useQuery<ApiAiAgentResponse, ApiError>({
+    useQuery<ApiAiAgentResponse['results'], ApiError>({
         queryKey: getAiAgentKey(agentUuid),
         queryFn: () => getAgent(agentUuid),
         ...useQueryOptions,
     });
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 export const useCreateAiAgentMutation = (
     options?: UseMutationOptions<
         ApiCreateAiAgentResponse,
@@ -130,7 +120,6 @@ export const useCreateAiAgentMutation = (
     });
 };
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 export const useUpdateAiAgentMutation = (
     options?: UseMutationOptions<
         ApiAiAgentResponse,
@@ -146,6 +135,28 @@ export const useUpdateAiAgentMutation = (
             void queryClient.invalidateQueries({
                 queryKey: getAiAgentKey(data.results.uuid),
             });
+        },
+        ...options,
+    });
+};
+
+const deleteAgent = async (agentUuid: string) =>
+    lightdashApi<ApiSuccessEmpty>({
+        version: 'v1',
+        url: `/aiAgents/${agentUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteAiAgentMutation = (
+    options?: UseMutationOptions<ApiSuccessEmpty, ApiError, string>,
+) => {
+    const queryClient = useQueryClient();
+
+    return useMutation<ApiSuccessEmpty, ApiError, string>({
+        mutationFn: (agentUuid) => deleteAgent(agentUuid),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: AI_AGENTS_KEY });
         },
         ...options,
     });
