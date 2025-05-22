@@ -1,18 +1,14 @@
-import {
-    AiAgentIntegrationType,
-    type ApiCreateAiAgent,
-    type BaseAiAgent,
-} from '@lightdash/common';
+import { type BaseAiAgent } from '@lightdash/common';
 import {
     Avatar,
     Button,
     Card,
     Group,
     MantineProvider,
+    MultiSelect,
     Select,
     Stack,
     Tabs,
-    TagsInput,
     Text,
     TextInput,
     Title,
@@ -36,6 +32,7 @@ import { useProjects } from '../../../../hooks/useProjects';
 import {
     useAiAgent,
     useCreateAiAgentMutation,
+    useDeleteAiAgentMutation,
     useUpdateAiAgentMutation,
 } from '../hooks/useAiAgents';
 import { ConversationsList } from './ConversationsList';
@@ -49,7 +46,7 @@ const formSchema: z.ZodType<
         .uuid({ message: 'Invalid project' }),
     integrations: z.array(
         z.object({
-            type: z.nativeEnum(AiAgentIntegrationType),
+            type: z.literal('slack'),
             channelId: z.string().min(1),
         }),
     ),
@@ -72,9 +69,13 @@ export const AgentDetails: FC = () => {
     const isCreateMode = agentId === 'new';
     const agentUuid = !isCreateMode && agentId ? agentId : undefined;
 
-    const { data: agent } = useAiAgent(agentUuid || '', {
-        enabled: !!agentUuid,
-    });
+    const { data: agent, isLoading: isLoadingAgent } = useAiAgent(
+        agentUuid || '',
+        {
+            enabled: !!agentUuid,
+        },
+    );
+    const { mutateAsync: deleteAgent } = useDeleteAiAgentMutation();
 
     const { data: slackInstallation } = useGetSlack();
     const {
@@ -103,10 +104,10 @@ export const AgentDetails: FC = () => {
 
         if (!form.initialized) {
             form.setValues({
-                name: agent.results.name,
-                projectUuid: agent.results.projectUuid,
-                integrations: agent.results.integrations,
-                tags: agent.results.tags,
+                name: agent.name,
+                projectUuid: agent.projectUuid,
+                integrations: agent.integrations,
+                tags: agent.tags,
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -136,7 +137,7 @@ export const AgentDetails: FC = () => {
 
     const handleSubmit = form.onSubmit(async (values) => {
         if (isCreateMode) {
-            await createAgent(values as ApiCreateAiAgent);
+            await createAgent(values);
         } else if (agentUuid) {
             await updateAgent({
                 uuid: agentUuid,
@@ -146,11 +147,15 @@ export const AgentDetails: FC = () => {
     });
 
     const handleDelete = useCallback(async () => {
-        // You would need to implement a delete mutation
-        void navigate('/generalSettings/aiAgents');
-    }, [navigate]);
+        if (!agentUuid) {
+            return;
+        }
 
-    if (!isCreateMode && agentUuid && !agent) {
+        await deleteAgent(agentUuid);
+        void navigate('/generalSettings/aiAgents');
+    }, [navigate, agentUuid, deleteAgent]);
+
+    if (!isCreateMode && agentUuid && !agent && !isLoadingAgent) {
         return (
             <MantineProvider>
                 <Stack gap="md">
@@ -187,9 +192,12 @@ export const AgentDetails: FC = () => {
                 <Card withBorder p="xl">
                     <Stack gap="xl">
                         <Group gap="md">
-                            <Avatar size={40} radius="sm" color="blue.6">
-                                {isCreateMode ? '+' : agentId}
-                            </Avatar>
+                            <Avatar
+                                size={40}
+                                radius="sm"
+                                color="initials"
+                                name={isCreateMode ? '+' : ''}
+                            />
                             <Title order={3}>
                                 {isCreateMode
                                     ? 'New Agent'
@@ -206,9 +214,11 @@ export const AgentDetails: FC = () => {
                         >
                             <Tabs.List>
                                 <Tabs.Tab value="general">General</Tabs.Tab>
-                                <Tabs.Tab value="conversations">
-                                    Conversations
-                                </Tabs.Tab>
+                                {!isCreateMode && (
+                                    <Tabs.Tab value="conversations">
+                                        Conversations
+                                    </Tabs.Tab>
+                                )}
                             </Tabs.List>
 
                             <Tabs.Panel value="general" pt="xs">
@@ -260,20 +270,25 @@ export const AgentDetails: FC = () => {
                                                 </Button>
                                             </Group>
 
-                                            <TagsInput
+                                            <MultiSelect
                                                 label="Slack"
                                                 placeholder="Pick a channel"
                                                 data={slackChannelOptions}
                                                 value={form.values.integrations.map(
                                                     (i) => i.channelId,
                                                 )}
+                                                searchable
                                                 onChange={(value) => {
                                                     form.setFieldValue(
                                                         'integrations',
-                                                        value.map((v) => ({
-                                                            type: AiAgentIntegrationType.SLACK,
-                                                            channelId: v,
-                                                        })),
+                                                        value.map(
+                                                            (v) =>
+                                                                ({
+                                                                    type: 'slack',
+                                                                    channelId:
+                                                                        v,
+                                                                } as const),
+                                                        ),
                                                     );
                                                 }}
                                             />
@@ -306,6 +321,7 @@ export const AgentDetails: FC = () => {
                             <Tabs.Panel value="conversations" pt="xs">
                                 <ConversationsList
                                     agentUuid={agentUuid ?? ''}
+                                    agentName={form.values.name}
                                 />
                             </Tabs.Panel>
                         </Tabs>

@@ -6,6 +6,7 @@ import {
     type ApiCreateAiAgent,
     type ApiCreateAiAgentResponse,
     type ApiError,
+    type ApiSuccessEmpty,
     type ApiUpdateAiAgent,
 } from '@lightdash/common';
 import {
@@ -30,97 +31,77 @@ const getAiAgentThreadKey = (agentUuid: string, threadUuid: string) => [
 ];
 
 // API calls
-const listAgents = async () =>
-    lightdashApi<ApiAiAgentSummaryResponse>({
-        url: `/api/v1/aiAgents`,
+const listAgents = () =>
+    lightdashApi<ApiAiAgentSummaryResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents`,
         method: 'GET',
         body: undefined,
     });
 
-const getAgent = async (agentUuid: string): Promise<ApiAiAgentResponse> => {
-    return Promise.resolve({
-        status: 'ok',
-        results: {
-            uuid: agentUuid,
-            organizationUuid: 'org-1',
-            dataSources: {
-                fieldNameTags: null,
-            },
-            name: 'Test Agent',
-            projectUuid: 'project-1',
-            integrations: [],
-            tags: null,
-        },
+const getAgent = async (
+    agentUuid: string,
+): Promise<ApiAiAgentResponse['results']> =>
+    lightdashApi<ApiAiAgentResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/${agentUuid}`,
+        method: 'GET',
+        body: undefined,
     });
-
-    // lightdashApi<ApiAiAgentResponse>({
-    //     url: `/api/v1/aiAgents/${agentUuid}`,
-    //     method: 'GET',
-    //     body: undefined,
-    // });
-};
 
 const createAgent = async (data: ApiCreateAiAgent) =>
     lightdashApi<ApiCreateAiAgentResponse>({
-        url: `/api/v1/aiAgents`,
+        version: 'v1',
+        url: `/aiAgents`,
         method: 'POST',
         body: JSON.stringify(data),
     });
 
 const updateAgent = async (data: ApiUpdateAiAgent) =>
     lightdashApi<ApiAiAgentResponse>({
-        url: `/api/v1/aiAgents/${data.uuid}`,
+        version: 'v1',
+        url: `/aiAgents/${data.uuid}`,
         method: 'PATCH',
         body: JSON.stringify(data),
     });
 
-// const listAgentThreads = async (agentUuid: string) =>
-//     lightdashApi<ApiAiAgentThreadSummaryListResponse>({
-//         url: `/api/v1/aiAgents/${agentUuid}/threads`,
-//         method: 'GET',
-//         body: undefined,
-//     });
+const listAgentThreads = async (agentUuid: string) =>
+    lightdashApi<ApiAiAgentThreadSummaryListResponse['results']>({
+        url: `/aiAgents/${agentUuid}/threads`,
+        method: 'GET',
+        body: undefined,
+    });
 
-// const getAgentThread = async (agentUuid: string, threadUuid: string) =>
-//     lightdashApi<ApiAiAgentThreadResponse>({
-//         url: `/api/v1/aiAgents/${agentUuid}/threads/${threadUuid}`,
-//         method: 'GET',
-//         body: undefined,
-//     });
-
-// Function removed - we're using mock data instead
-
-// Removing unused getAgentThread function
-// const getAgentThread = async (agentUuid: string, threadUuid: string) =>
-//     lightdashApi<ApiAiAgentThreadResponse>({
-//         url: `/api/v1/aiAgents/${agentUuid}/threads/${threadUuid}`,
-//         method: 'GET',
-//         body: undefined,
-//     });
+const getAgentThread = async (agentUuid: string, threadUuid: string) =>
+    lightdashApi<ApiAiAgentThreadResponse['results']>({
+        url: `/aiAgents/${agentUuid}/threads/${threadUuid}`,
+        method: 'GET',
+        body: undefined,
+    });
 
 // Hooks
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-const useAiAgents = (
-    useQueryOptions?: UseQueryOptions<ApiAiAgentSummaryResponse, ApiError>,
+export const useAiAgents = (
+    useQueryOptions?: UseQueryOptions<
+        ApiAiAgentSummaryResponse['results'],
+        ApiError
+    >,
 ) =>
-    useQuery<ApiAiAgentSummaryResponse, ApiError>({
+    useQuery<ApiAiAgentSummaryResponse['results'], ApiError>({
         queryKey: AI_AGENTS_KEY,
         queryFn: listAgents,
         ...useQueryOptions,
     });
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 export const useAiAgent = (
     agentUuid: string,
-    useQueryOptions?: UseQueryOptions<ApiAiAgentResponse, ApiError>,
+    useQueryOptions?: UseQueryOptions<ApiAiAgentResponse['results'], ApiError>,
 ) =>
-    useQuery<ApiAiAgentResponse, ApiError>({
+    useQuery<ApiAiAgentResponse['results'], ApiError>({
         queryKey: getAiAgentKey(agentUuid),
         queryFn: () => getAgent(agentUuid),
         ...useQueryOptions,
     });
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 export const useCreateAiAgentMutation = (
     options?: UseMutationOptions<
         ApiCreateAiAgentResponse,
@@ -139,7 +120,6 @@ export const useCreateAiAgentMutation = (
     });
 };
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 export const useUpdateAiAgentMutation = (
     options?: UseMutationOptions<
         ApiAiAgentResponse,
@@ -160,130 +140,52 @@ export const useUpdateAiAgentMutation = (
     });
 };
 
+const deleteAgent = async (agentUuid: string) =>
+    lightdashApi<ApiSuccessEmpty>({
+        version: 'v1',
+        url: `/aiAgents/${agentUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteAiAgentMutation = (
+    options?: UseMutationOptions<ApiSuccessEmpty, ApiError, string>,
+) => {
+    const queryClient = useQueryClient();
+
+    return useMutation<ApiSuccessEmpty, ApiError, string>({
+        mutationFn: (agentUuid) => deleteAgent(agentUuid),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: AI_AGENTS_KEY });
+        },
+        ...options,
+    });
+};
+
 export const useAiAgentThreads = (
     agentUuid: string,
     useQueryOptions?: UseQueryOptions<
-        ApiAiAgentThreadSummaryListResponse,
+        ApiAiAgentThreadSummaryListResponse['results'],
         ApiError
     >,
 ) =>
-    useQuery<ApiAiAgentThreadSummaryListResponse, ApiError>({
+    useQuery<ApiAiAgentThreadSummaryListResponse['results'], ApiError>({
         queryKey: getAiAgentThreadsKey(agentUuid),
-        queryFn: () =>
-            Promise.resolve({
-                status: 'ok',
-                results: [
-                    {
-                        uuid: 'thread-1',
-                        agentUuid,
-                        createdAt: new Date().toISOString(),
-                        createdFrom: 'web',
-                        firstMessage: 'How can I analyze my sales data?',
-                        user: {
-                            uuid: 'user-1',
-                            name: 'John Doe',
-                        },
-                    },
-                    {
-                        uuid: 'thread-2',
-                        agentUuid,
-                        createdAt: new Date().toISOString(),
-                        createdFrom: 'slack',
-                        firstMessage: 'Show me revenue by region',
-                        user: {
-                            uuid: 'user-2',
-                            name: 'Jane Smith',
-                        },
-                    },
-                ],
-            }),
+        queryFn: () => listAgentThreads(agentUuid),
         ...useQueryOptions,
     });
 
 export const useAiAgentThread = (
     agentUuid: string,
     threadUuid: string,
-    useQueryOptions?: UseQueryOptions<ApiAiAgentThreadResponse, ApiError>,
+    useQueryOptions?: UseQueryOptions<
+        ApiAiAgentThreadResponse['results'],
+        ApiError
+    >,
 ) => {
-    // Define the mock data function outside the query to avoid TypeScript issues
-    const getMockThreadData = (): ApiAiAgentThreadResponse => ({
-        status: 'ok',
-        results: {
-            uuid: threadUuid,
-            agentUuid,
-            createdAt: new Date().toISOString(),
-            // updatedAt: new Date().toISOString(),
-            createdFrom: threadUuid === 'thread-1' ? 'web' : 'slack',
-            firstMessage:
-                threadUuid === 'thread-1'
-                    ? 'How can I analyze my sales data?'
-                    : 'Show me revenue by region',
-            user: {
-                uuid: threadUuid === 'thread-1' ? 'user-1' : 'user-2',
-                name: threadUuid === 'thread-1' ? 'John Doe' : 'Jane Smith',
-            },
-            messages: [
-                {
-                    uuid: `msg-1-${threadUuid}`,
-                    threadUuid,
-                    message:
-                        threadUuid === 'thread-1'
-                            ? 'How can I analyze my sales data?'
-                            : 'Show me revenue by region',
-                    role: 'user',
-                    createdAt: new Date(Date.now() - 3600000).toISOString(),
-                    user: {
-                        uuid: threadUuid === 'thread-1' ? 'user-1' : 'user-2',
-                        name:
-                            threadUuid === 'thread-1'
-                                ? 'John Doe'
-                                : 'Jane Smith',
-                    },
-                },
-                {
-                    uuid: `msg-2-${threadUuid}`,
-                    threadUuid,
-                    message:
-                        threadUuid === 'thread-1'
-                            ? "You can analyze your sales data by looking at the 'Sales Overview' dashboard. It shows revenue by product, region, and time period. You can also create custom charts in the Explore section."
-                            : "Here's a breakdown of revenue by region:\n\n- North America: $1.2M\n- Europe: $950K\n- Asia: $820K\n- South America: $430K\n\nWould you like me to create a chart for this data?",
-                    role: 'assistant',
-                    createdAt: new Date(Date.now() - 3500000).toISOString(),
-                },
-                {
-                    uuid: `msg-3-${threadUuid}`,
-                    threadUuid,
-                    message:
-                        threadUuid === 'thread-1'
-                            ? 'Thanks! How do I filter by date range?'
-                            : 'Yes, please create a bar chart.',
-                    role: 'user',
-                    createdAt: new Date(Date.now() - 1800000).toISOString(),
-                    user: {
-                        uuid: threadUuid === 'thread-1' ? 'user-1' : 'user-2',
-                        name:
-                            threadUuid === 'thread-1'
-                                ? 'John Doe'
-                                : 'Jane Smith',
-                    },
-                },
-                {
-                    uuid: `msg-4-${threadUuid}`,
-                    threadUuid,
-                    message:
-                        threadUuid === 'thread-1'
-                            ? "To filter by date range, click on the date filter at the top of the dashboard. You can select predefined ranges like 'Last 7 days' or 'Last month', or set a custom range by selecting specific start and end dates."
-                            : "I've created a bar chart showing revenue by region. You can view it here: [Revenue by Region Chart](https://example.com/chart). The chart is also available in your 'Recent Explorations' list.",
-                    role: 'assistant',
-                    createdAt: new Date(Date.now() - 1700000).toISOString(),
-                },
-            ],
-        },
-    });
-
-    return useQuery<ApiAiAgentThreadResponse, ApiError>({
+    return useQuery<ApiAiAgentThreadResponse['results'], ApiError>({
         queryKey: getAiAgentThreadKey(agentUuid, threadUuid),
-        queryFn: () => Promise.resolve(getMockThreadData()),
+        queryFn: () => getAgentThread(agentUuid, threadUuid),
         ...useQueryOptions,
     });
 };

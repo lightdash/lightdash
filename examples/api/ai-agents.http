@@ -1,5 +1,4 @@
 ### Login
-// @no-log
 POST http://localhost:8080/api/v1/login
 Content-Type: application/json
 
@@ -8,12 +7,18 @@ Content-Type: application/json
     "password": "demo_password!"
 }
 
-
 ### List agents
 GET http://localhost:8080/api/v1/aiAgents
 Content-Type: application/json
 
-
 ### Get agent
-GET http://localhost:8080/api/v1/aiAgents/81e71729-259f-4778-aa72-649a86aa9662
+GET http://localhost:8080/api/v1/aiAgents/a4a584ce-0370-4bbe-943b-3c67fcb7ef76
+Content-Type: application/json
+
+### Get agent threads
+GET http://localhost:8080/api/v1/aiAgents/a4a584ce-0370-4bbe-943b-3c67fcb7ef76/threads
+Content-Type: application/json
+
+### Get agent thread
+GET http://localhost:8080/api/v1/aiAgents/a4a584ce-0370-4bbe-943b-3c67fcb7ef76/threads/91ea006f-bce1-4193-9099-13dddaddfcfc
 Content-Type: application/json
