@@ -8,6 +8,7 @@ import {
     Select,
     Stack,
     Tabs,
+    TagsInput,
     Text,
     TextInput,
     Title,
@@ -109,7 +110,7 @@ export const AgentDetails: FC = () => {
             name: '',
             projectUuid: '',
             integrations: [],
-            tags: [],
+            tags: null,
         },
         validate: zodResolver(formSchema),
     });
@@ -124,7 +125,7 @@ export const AgentDetails: FC = () => {
                 name: agent.name,
                 projectUuid: agent.projectUuid,
                 integrations: agent.integrations,
-                tags: agent.tags,
+                tags: agent.tags && agent.tags.length > 0 ? agent.tags : null,
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -270,6 +271,20 @@ export const AgentDetails: FC = () => {
                                                     'projectUuid',
                                                 )}
                                             />
+                                            {!!form.values.projectUuid && (
+                                                <TagsInput
+                                                    label="Tags"
+                                                    placeholder="Select tags"
+                                                    onChange={(value) => {
+                                                        form.setFieldValue(
+                                                            'tags',
+                                                            value.length > 0
+                                                                ? value
+                                                                : null,
+                                                        );
+                                                    }}
+                                                />
+                                            )}
                                         </Stack>
 
                                         {/* Integrations Section */}
