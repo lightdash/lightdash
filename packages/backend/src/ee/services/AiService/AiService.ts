@@ -37,7 +37,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { AgentExecutor } from 'langchain/agents';
-import { /* intersection, */ pick } from 'lodash';
+import { pick } from 'lodash';
 import moment from 'moment';
 import slackifyMarkdown from 'slackify-markdown';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -60,6 +60,7 @@ import OpenAi from '../../clients/OpenAi';
 import { AiAgentModel } from '../../models/AiAgentModel';
 import { AiModel } from '../../models/AiModel';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
+import { AiAgentService } from '../AiAgentService';
 import { CommercialCatalogService } from '../CommercialCatalogService';
 import { MiniMetricQuery } from './runMiniMetricQuery/runMiniMetricQuery';
 import { getFindFieldsTool } from './tools/findFieldsTool';
@@ -498,24 +499,25 @@ export class AiService {
             ),
         );
 
-        const exploresWithDescriptions = explores.map((explore, index) => ({
-            ...explore,
-            description: exploreSummaries[index]?.description,
-        }));
-
-        const minimalExploreInformation = exploresWithDescriptions
-            // TODO: enable this to allow filtering by tags
-            // .filter(
-            //     (explore) =>
-            //         !availableTags ||
-            //         /* (explore. */tags, availableTags).length > 0,
-            // )
-            .map((s) => ({
-                ...pick(s, ['name', 'label', 'description', 'baseTable']),
-                joinedTables: Object.keys(s.tables).filter(
-                    (table) => table !== s.baseTable,
-                ),
+        const exploresWithDescriptions = explores
+            .map((explore) =>
+                AiAgentService.filterExplore({
+                    explore,
+                    availableTags,
+                }),
+            )
+            .filter((explore) => explore !== undefined)
+            .map((explore, index) => ({
+                ...explore,
+                description: exploreSummaries[index]?.description,
             }));
+
+        const minimalExploreInformation = exploresWithDescriptions.map((s) => ({
+            ...pick(s, ['name', 'label', 'description', 'baseTable']),
+            joinedTables: Object.keys(s.tables).filter(
+                (table) => table !== s.baseTable,
+            ),
+        }));
 
         return minimalExploreInformation;
     }
@@ -525,7 +527,7 @@ export class AiService {
     private getToolUtilities(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
-        _availableTags: string[] | null,
+        availableTags: string[] | null,
     ) {
         const { projectUuid, organizationUuid } = prompt;
 
@@ -536,15 +538,16 @@ export class AiService {
                 exploreName,
             );
 
-            // TODO: enable this to allow filtering by tags
-            // if (
-            //     availableTags &&
-            //     /* (explore. */tags, availableTags).length === 0
-            // ) {
-            //     throw new Error('Explore is not available');
-            // }
+            const filteredExplore = await AiAgentService.filterExplore({
+                explore,
+                availableTags,
+            });
 
-            return explore;
+            if (!filteredExplore) {
+                throw new Error('Explore not found');
+            }
+
+            return filteredExplore;
         };
 
         const searchFields = this.lightdashConfig.ai.copilot
@@ -682,14 +685,12 @@ export class AiService {
         const findFieldsTool = getFindFieldsTool({
             getExplore,
             searchFields,
-            availableTags: agentSettings?.tags ?? null,
         });
 
         const generateQueryFilters = getGenerateQueryFiltersTool({
             getExplore,
             promptUuid: slackOrWebAppPrompt.promptUuid,
             updatePrompt: this.aiModel.updateSlackResponse.bind(this.aiModel),
-            availableTags: agentSettings?.tags ?? null,
         });
 
         const generateBarVizConfigTool = getGenerateBarVizConfigTool({

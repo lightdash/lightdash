@@ -2,20 +2,24 @@ import {
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
     CommercialFeatureFlags,
+    CompiledTable,
+    Explore,
     ForbiddenError,
     LightdashUser,
     NotFoundError,
     type SessionUser,
 } from '@lightdash/common';
-import uniq from 'lodash/uniq';
+import _ from 'lodash';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import type { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 
 type AiAgentServiceDependencies = {
+    // models
     aiAgentModel: AiAgentModel;
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
+    // services
     featureFlagService: FeatureFlagService;
     slackClient: SlackClient;
 };
@@ -30,10 +34,98 @@ export class AiAgentService {
     private readonly slackClient: SlackClient;
 
     constructor(dependencies: AiAgentServiceDependencies) {
+        // models
         this.aiAgentModel = dependencies.aiAgentModel;
         this.slackAuthenticationModel = dependencies.slackAuthenticationModel;
+        // services
         this.featureFlagService = dependencies.featureFlagService;
         this.slackClient = dependencies.slackClient;
+    }
+
+    /**
+     * @description
+     *
+     * No tags are configured in settings UI:
+     *
+     * | Tagging Scenario                  | AI Visibility                    |
+     * |-----------------------------------|----------------------------------|
+     * | No tags configured in settings UI | Everything is visible by default |
+     *
+     * ---
+     *
+     * Tags are configured in settings UI:
+     *
+     * | Tagging Scenario                     | AI Visibility               |
+     * |--------------------------------------|-----------------------------|
+     * | Explore only (with matching tag)     | All fields in the Explore   |
+     * | Some fields only (with matching tag) | Only those tagged fields    |
+     * | Explore + some fields (with match)   | Only those tagged fields    |
+     * | No matching tags                     | Nothing is visible          |
+     */
+    static filterExplore({
+        explore,
+        availableTags,
+    }: {
+        explore: Explore;
+        availableTags: string[] | null;
+    }) {
+        if (!availableTags) {
+            return explore;
+        }
+
+        const hasMatchingTags = (tags: string[]) =>
+            _.intersection(tags, availableTags).length > 0;
+
+        const checkIfTableFieldsHasMatchingTags = (table: CompiledTable) =>
+            hasMatchingTags(
+                _.concat(
+                    _.flatMap(table.metrics, (m) => m.tags ?? []),
+                    _.flatMap(table.dimensions, (d) => d.tags ?? []),
+                ),
+            );
+
+        const checkIfExploreHasMatchingTags = (e: Explore) => {
+            if (hasMatchingTags(e.tags)) {
+                return true;
+            }
+
+            const baseTable = e.tables[e.baseTable];
+            if (!baseTable) {
+                throw new Error(`Base table not found`);
+            }
+
+            if (checkIfTableFieldsHasMatchingTags(baseTable)) {
+                return true;
+            }
+
+            return false;
+        };
+
+        if (!checkIfExploreHasMatchingTags(explore)) {
+            return undefined;
+        }
+
+        const tablesHaveSomeMatchingTags = _.some(explore.tables, (table) =>
+            checkIfTableFieldsHasMatchingTags(table),
+        );
+        if (!tablesHaveSomeMatchingTags) {
+            return explore;
+        }
+
+        // TODO: improve typing so we don't have to force cast
+        const filteredExplore: Explore = _.update(explore, 'tables', (tables) =>
+            _.mapValues(tables, (table) => ({
+                ...table,
+                metrics: _.omitBy(table.metrics, (m) =>
+                    hasMatchingTags(m.tags ?? []),
+                ),
+                dimensions: _.omitBy(table.dimensions, (d) =>
+                    hasMatchingTags(d.tags ?? []),
+                ),
+            })),
+        );
+
+        return filteredExplore;
     }
 
     private async getIsCopilotEnabled(
@@ -163,7 +255,7 @@ export class AiAgentService {
             };
         }
 
-        const slackUserIds = uniq(
+        const slackUserIds = _.uniq(
             messages
                 .filter((message) => message.role === 'user')
                 .filter((message) => message.user.slackUserId !== null)
