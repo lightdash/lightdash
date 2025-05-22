@@ -1,3 +1,10 @@
+# [0.1642.0](https://github.com/lightdash/lightdash/compare/0.1641.0...0.1642.0) (2025-05-22)
+
+
+### Features
+
+* add deletion confirmation modal of ai agent ([#14950](https://github.com/lightdash/lightdash/issues/14950)) ([1d3bd21](https://github.com/lightdash/lightdash/commit/1d3bd21f820dcabe4b6ab23d1c51eacb650c536b))
+
 # [0.1641.0](https://github.com/lightdash/lightdash/compare/0.1640.1...0.1641.0) (2025-05-22)
 
 
