@@ -9,6 +9,7 @@ import {
     type ApiGetAsyncQueryResults,
     assertUnreachable,
     CompiledDimension,
+    convertCustomFormatToFormatExpression,
     convertFieldRefToFieldId,
     createVirtualView as createVirtualViewObject,
     CreateWarehouseCredentials,
@@ -1089,17 +1090,23 @@ export class AsyncQueryService extends ProjectService {
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(
             Object.entries(fullQuery.fields).map(([key, value]) => {
-                if (
-                    metricQuery.metricOverrides &&
-                    metricQuery.metricOverrides[key]
-                ) {
-                    return [
-                        key,
-                        {
-                            ...value,
-                            ...metricQuery.metricOverrides[key],
-                        },
-                    ];
+                const metricOverrides = metricQuery.metricOverrides?.[key];
+                if (metricOverrides) {
+                    const { formatOptions } = metricOverrides;
+
+                    if (formatOptions) {
+                        return [
+                            key,
+                            {
+                                ...value,
+                                // Override the format expression with the metric query override instead of adding `formatOptions` to the item
+                                // This ensures that legacy `formatOptions` are kept as is and we don't need to change logic over which format takes precedence
+                                format: convertCustomFormatToFormatExpression(
+                                    formatOptions,
+                                ),
+                            },
+                        ];
+                    }
                 }
                 return [key, value];
             }),
