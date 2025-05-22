@@ -1,3 +1,10 @@
+## [0.1643.2](https://github.com/lightdash/lightdash/compare/0.1643.1...0.1643.2) (2025-05-22)
+
+
+### Bug Fixes
+
+* simplify query keys on useAiAgents hooks ([#14948](https://github.com/lightdash/lightdash/issues/14948)) ([f10e8d9](https://github.com/lightdash/lightdash/commit/f10e8d95d964063f26d456460f0e9f3f7117d70f))
+
 ## [0.1643.1](https://github.com/lightdash/lightdash/compare/0.1643.0...0.1643.1) (2025-05-22)
 
 
