@@ -67,6 +67,7 @@ export const AiAgents: FC = () => {
                 name: agent.name,
                 projectName: project.name,
                 channelName: channel?.name,
+                updatedAt: agent.updatedAt,
             };
         });
     }, [
@@ -137,6 +138,8 @@ export const AiAgents: FC = () => {
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th>Name</Table.Th>
+
+                            <Table.Th>Last modified</Table.Th>
                         </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
@@ -154,6 +157,13 @@ export const AiAgents: FC = () => {
                                             {agent.name || 'AI Agent'}
                                         </Text>
                                     </Group>
+                                </Table.Td>
+                                <Table.Td>
+                                    <Text size="sm" c="dimmed">
+                                        {new Date(
+                                            agent.updatedAt,
+                                        ).toLocaleString()}
+                                    </Text>
                                 </Table.Td>
                             </Table.Tr>
                         ))}
