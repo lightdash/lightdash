@@ -1,16 +1,18 @@
-import { Badge, Stack, Table, Title } from '@mantine-8/core';
+import { Badge, Loader, Stack, Table, Text, Title } from '@mantine-8/core';
 import { useState, type FC } from 'react';
 import { useAiAgentThreads } from '../hooks/useAiAgents';
 import { ThreadDetailsModal } from './ThreadDetailsModal';
 
 type ConversationsListProps = {
     agentUuid: string;
+    agentName: string;
 };
 
 export const ConversationsList: FC<ConversationsListProps> = ({
     agentUuid,
+    agentName,
 }) => {
-    const { data: threads } = useAiAgentThreads(agentUuid);
+    const { data: threads, isLoading } = useAiAgentThreads(agentUuid);
     const [selectedThreadUuid, setSelectedThreadUuid] = useState<string | null>(
         null,
     );
@@ -22,6 +24,22 @@ export const ConversationsList: FC<ConversationsListProps> = ({
     const handleModalClose = () => {
         setSelectedThreadUuid(null);
     };
+
+    if (isLoading) {
+        return (
+            <Stack align="center" justify="center" h="100%">
+                <Loader />
+            </Stack>
+        );
+    }
+
+    if (threads?.length === 0) {
+        return (
+            <Stack>
+                <Text>No conversations found</Text>
+            </Stack>
+        );
+    }
 
     return (
         <Stack>
@@ -37,7 +55,7 @@ export const ConversationsList: FC<ConversationsListProps> = ({
                     </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                    {threads?.results.map((thread) => (
+                    {threads?.map((thread) => (
                         <Table.Tr
                             key={thread.uuid}
                             onClick={() => handleRowClick(thread.uuid)}
@@ -71,6 +89,7 @@ export const ConversationsList: FC<ConversationsListProps> = ({
             </Table>
 
             <ThreadDetailsModal
+                agentName={agentName}
                 agentUuid={agentUuid}
                 threadUuid={selectedThreadUuid}
                 onClose={handleModalClose}
