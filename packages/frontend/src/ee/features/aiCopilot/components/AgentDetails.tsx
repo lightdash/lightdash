@@ -200,6 +200,14 @@ export const AgentDetails: FC = () => {
                                 {isCreateMode
                                     ? 'New Agent'
                                     : form.values.name || 'Agent'}
+                                {!isCreateMode && (
+                                    <Text size="sm" c="dimmed">
+                                        Last modified:{' '}
+                                        {new Date(
+                                            agent?.updatedAt ?? new Date(),
+                                        ).toLocaleString()}
+                                    </Text>
+                                )}
                             </Title>
                         </Group>
                         <Tabs
