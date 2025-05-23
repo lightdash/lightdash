@@ -1,3 +1,10 @@
+# [0.1646.0](https://github.com/lightdash/lightdash/compare/0.1645.0...0.1646.0) (2025-05-23)
+
+
+### Features
+
+* sorting table charts on embedding ([#14963](https://github.com/lightdash/lightdash/issues/14963)) ([fc96821](https://github.com/lightdash/lightdash/commit/fc96821a7d999aa337ecc7e89b80abfd3faf31d8))
+
 # [0.1645.0](https://github.com/lightdash/lightdash/compare/0.1644.4...0.1645.0) (2025-05-23)
 
 
