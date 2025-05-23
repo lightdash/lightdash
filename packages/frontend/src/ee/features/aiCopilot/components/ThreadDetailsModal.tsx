@@ -69,55 +69,54 @@ export const ThreadDetailsModal: FC<ThreadDetailsModalProps> = ({
 
                     <ScrollArea h={400}>
                         <Stack gap="md">
-                            {thread.messages.map((message) => (
-                                <Paper
-                                    key={message.uuid}
-                                    withBorder
-                                    p="md"
-                                    radius="md"
-                                    style={{
-                                        backgroundColor:
-                                            message.role === 'assistant'
-                                                ? '#E6F7FF'
-                                                : 'transparent',
-                                        alignSelf:
-                                            message.role === 'assistant'
-                                                ? 'flex-start'
-                                                : 'flex-end',
-                                        maxWidth: '80%',
-                                    }}
-                                >
-                                    <Stack gap="xs">
-                                        <Group gap="xs">
-                                            <AgentAvatar
-                                                name={
-                                                    message.role === 'assistant'
-                                                        ? agentName ||
-                                                          'AI Assistant'
-                                                        : thread.user.name
-                                                }
-                                            />
+                            {thread.messages.map((message) => {
+                                const name =
+                                    message.role === 'assistant'
+                                        ? agentName || 'AI Assistant'
+                                        : message.user.name;
 
-                                            <Text fw={500} size="sm">
-                                                {message.role === 'assistant'
-                                                    ? agentName ||
-                                                      'AI Assistant'
-                                                    : thread.user.name}
+                                return (
+                                    <Paper
+                                        key={message.uuid}
+                                        withBorder
+                                        p="md"
+                                        radius="md"
+                                        style={{
+                                            backgroundColor:
+                                                message.role === 'assistant'
+                                                    ? '#E6F7FF'
+                                                    : 'transparent',
+                                            alignSelf:
+                                                message.role === 'assistant'
+                                                    ? 'flex-start'
+                                                    : 'flex-end',
+                                            maxWidth: '80%',
+                                        }}
+                                    >
+                                        <Stack gap="xs">
+                                            <Group gap="xs">
+                                                <AgentAvatar name={name} />
+
+                                                <Text fw={500} size="sm">
+                                                    {name}
+                                                </Text>
+                                                <Text size="xs" c="dimmed">
+                                                    {formatDate(
+                                                        message.createdAt,
+                                                    )}
+                                                </Text>
+                                            </Group>
+                                            <Text
+                                                style={{
+                                                    whiteSpace: 'pre-wrap',
+                                                }}
+                                            >
+                                                {message.message}
                                             </Text>
-                                            <Text size="xs" c="dimmed">
-                                                {formatDate(message.createdAt)}
-                                            </Text>
-                                        </Group>
-                                        <Text
-                                            style={{
-                                                whiteSpace: 'pre-wrap',
-                                            }}
-                                        >
-                                            {message.message}
-                                        </Text>
-                                    </Stack>
-                                </Paper>
-                            ))}
+                                        </Stack>
+                                    </Paper>
+                                );
+                            })}
                         </Stack>
                     </ScrollArea>
                 </Stack>
