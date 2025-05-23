@@ -3,6 +3,7 @@ import type {
     ApiError,
     Dashboard,
     InteractivityOptions,
+    SortField,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import useDashboardFiltersForTile from '../../../../hooks/dashboard/useDashboardFiltersForTile';
@@ -30,6 +31,8 @@ export const useEmbedChartAndResults = (
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
+    const chartSort = useDashboardContext((c) => c.chartSort);
+    const dashboardSorts: SortField[] | undefined = chartSort[tileUuid];
     return useQuery<ApiChartAndResults, ApiError>({
         queryKey: [
             'embed-chart-and-results',
@@ -37,6 +40,7 @@ export const useEmbedChartAndResults = (
             tileUuid,
             dashboardFilters,
             dateZoomGranularity,
+            dashboardSorts,
         ],
         queryFn: async () =>
             postEmbedChartAndResults(
@@ -45,6 +49,7 @@ export const useEmbedChartAndResults = (
                 tileUuid,
                 dashboardFilters,
                 dateZoomGranularity,
+                dashboardSorts,
             ),
         enabled: !!embedToken,
         retry: false,

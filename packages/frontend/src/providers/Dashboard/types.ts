@@ -14,6 +14,9 @@ import {
     type useGetComments,
 } from '../../features/comments';
 
+export type SqlChartTileMetadata = {
+    columns: string[];
+};
 export type DashboardContextType = {
     projectUuid?: string;
     isDashboardLoading: boolean;
@@ -70,6 +73,11 @@ export type DashboardContextType = {
     hasChartTiles: boolean;
     chartSort: Record<string, SortField[]>;
     setChartSort: (sort: Record<string, SortField[]>) => void;
+    sqlChartTilesMetadata: Record<string, SqlChartTileMetadata>;
+    updateSqlChartTilesMetadata: (
+        tileUuid: string,
+        metadata: SqlChartTileMetadata,
+    ) => void;
     dateZoomGranularity: DateGranularity | undefined;
     setDateZoomGranularity: Dispatch<
         SetStateAction<DateGranularity | undefined>

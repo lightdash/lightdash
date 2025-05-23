@@ -1,42 +1,58 @@
-export enum AiAgentIntegrationType {
-    SLACK = 'slack',
-}
+import { z } from 'zod';
 
-export type BaseAiAgent = {
-    uuid: string;
-    projectUuid: string;
-    organizationUuid: string;
+export const baseAgentSchema = z.object({
+    uuid: z.string(),
+    projectUuid: z.string(),
+    organizationUuid: z.string(),
 
-    name: string;
-    description: string;
-    imageUrl: string;
+    name: z.string(),
+    description: z.string(),
+    imageUrl: z.string(),
 
-    dataSources: {
-        // null means all tags are available
-        fieldNameTags: string[] | null; // slack_project_mappings.available_tags
-    };
+    tags: z.array(z.string()).nullable(),
 
-    integrations: {
-        type: AiAgentIntegrationType;
-        channelId: string; // slack_project_mappings.slack_channel_id
-    }[];
+    integrations: z.array(
+        // z.union([
+        // TODO: once we add more integrations, we should use union
+        z.object({
+            type: z.literal('slack'),
+            channelId: z.string(),
+        }),
+        // ]),
+    ),
 
-    createdAt: string;
-    updatedAt: string;
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
 
-    instructions: string | null;
-    provider: 'openai';
-    model: 'gpt-4o';
-};
+    instructions: z.string().nullable(),
+    provider: z.string(),
+    model: z.string(),
+});
+
+export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
 
 export type AiAgent = Pick<
     BaseAiAgent,
-    'uuid' | 'projectUuid' | 'organizationUuid' | 'integrations' | 'dataSources'
+    | 'uuid'
+    | 'projectUuid'
+    | 'organizationUuid'
+    | 'integrations'
+    | 'tags'
+    | 'name'
+    | 'createdAt'
+    | 'updatedAt'
 >;
 
 export type AiAgentSummary = Pick<
     AiAgent,
-    'uuid' | 'projectUuid' | 'organizationUuid' | 'integrations' | 'dataSources'
+    | 'uuid'
+    | 'name'
+    | 'integrations'
+    | 'tags'
+    | 'projectUuid'
+    | 'organizationUuid'
+    | 'createdAt'
+    | 'updatedAt'
 >;
 
 export type AiAgentMessage =
@@ -93,12 +109,14 @@ export type ApiAiAgentSummaryResponse = {
 
 export type ApiCreateAiAgent = Pick<
     AiAgent,
-    'projectUuid' | 'integrations' | 'dataSources'
+    'projectUuid' | 'integrations' | 'tags' | 'name'
 >;
 
 export type ApiUpdateAiAgent = {
     uuid: AiAgent['uuid'];
-    dataSources?: AiAgent['dataSources'];
+    projectUuid?: AiAgent['projectUuid'];
+    name?: AiAgent['name'];
+    tags?: AiAgent['tags'];
     integrations?: AiAgent['integrations'];
 };
 

@@ -6,11 +6,13 @@ import {
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
     ApiErrorPayload,
+    ApiSuccessEmpty,
     ApiUpdateAiAgent,
     NotImplementedError,
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
     Hidden,
     Middlewares,
@@ -43,7 +45,11 @@ export class AiAgentController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiAiAgentSummaryResponse> {
         this.setStatus(200);
-        throw new NotImplementedError('List agents not implemented');
+
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().listAgents(req.user!),
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -55,7 +61,14 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
     ): Promise<ApiAiAgentResponse> {
         this.setStatus(200);
-        throw new NotImplementedError('Get agent not implemented');
+        const agent = await this.getAiAgentService().getAgent(
+            req.user!,
+            agentUuid,
+        );
+        return {
+            status: 'ok',
+            results: agent,
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -67,7 +80,14 @@ export class AiAgentController extends BaseController {
         @Body() body: ApiCreateAiAgent,
     ): Promise<ApiCreateAiAgentResponse> {
         this.setStatus(201);
-        throw new NotImplementedError('Create agent not implemented');
+        const agent = await this.getAiAgentService().createAgent(
+            req.user!,
+            body,
+        );
+        return {
+            status: 'ok',
+            results: agent,
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -80,7 +100,32 @@ export class AiAgentController extends BaseController {
         @Body() body: ApiUpdateAiAgent,
     ): Promise<ApiAiAgentResponse> {
         this.setStatus(200);
-        throw new NotImplementedError('Update agent not implemented');
+        const agent = await this.getAiAgentService().updateAgent(
+            req.user!,
+            agentUuid,
+            body,
+        );
+        return {
+            status: 'ok',
+            results: agent,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{agentUuid}')
+    @OperationId('deleteAgent')
+    async deleteAgent(
+        @Request() req: express.Request,
+        @Path() agentUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.getAiAgentService().deleteAgent(req.user!, agentUuid);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -92,7 +137,13 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
     ): Promise<ApiAiAgentThreadSummaryListResponse> {
         this.setStatus(200);
-        throw new NotImplementedError('List agent threads not implemented');
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().listAgentThreads(
+                req.user!,
+                agentUuid,
+            ),
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -105,7 +156,14 @@ export class AiAgentController extends BaseController {
         @Path() threadUuid: string,
     ): Promise<ApiAiAgentThreadResponse> {
         this.setStatus(200);
-        throw new NotImplementedError('Get agent thread not implemented');
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getAgentThread(
+                req.user!,
+                agentUuid,
+                threadUuid,
+            ),
+        };
     }
 
     protected getAiAgentService() {

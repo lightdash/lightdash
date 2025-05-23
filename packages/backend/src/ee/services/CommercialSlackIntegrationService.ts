@@ -1,8 +1,25 @@
 import { ForbiddenError, SessionUser, SlackSettings } from '@lightdash/common';
-import { SlackIntegrationService } from '../../services/SlackIntegrationService/SlackIntegrationService';
+import {
+    SlackIntegrationService,
+    SlackIntegrationServiceArguments,
+} from '../../services/SlackIntegrationService/SlackIntegrationService';
+import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 
 export class CommercialSlackIntegrationService extends SlackIntegrationService<CommercialSlackAuthenticationModel> {
+    private readonly aiAgentModel: AiAgentModel;
+
+    constructor({
+        aiAgentModel,
+        ...rest
+    }: SlackIntegrationServiceArguments<CommercialSlackAuthenticationModel> & {
+        aiAgentModel: AiAgentModel;
+    }) {
+        super(rest);
+
+        this.aiAgentModel = aiAgentModel;
+    }
+
     async getInstallationFromOrganizationUuid(user: SessionUser) {
         const organizationUuid = user?.organizationUuid;
         if (!organizationUuid) throw new ForbiddenError();
@@ -25,5 +42,13 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
         };
 
         return response;
+    }
+
+    async deleteInstallationFromOrganizationUuid(user: SessionUser) {
+        await super.deleteInstallationFromOrganizationUuid(user);
+
+        await this.aiAgentModel.deleteSlackIntegrations({
+            organizationUuid: user.organizationUuid!,
+        });
     }
 }

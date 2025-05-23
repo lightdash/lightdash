@@ -1,157 +1,131 @@
-import { type SlackAppCustomSettings } from '@lightdash/common';
+import { type BaseAiAgent } from '@lightdash/common';
 import {
-    ActionIcon,
-    Avatar,
     Button,
     Card,
-    Divider,
     Group,
     MantineProvider,
-    Paper,
-    Radio,
+    MultiSelect,
     Select,
     Stack,
+    Tabs,
+    TagsInput,
     Text,
+    TextInput,
     Title,
-    Tooltip,
 } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import {
     IconArrowLeft,
-    IconArrowsHorizontal,
     IconCheck,
     IconDatabase,
-    IconHash,
     IconRefresh,
+    IconTrash,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { TagInput } from '../../../../components/common/TagInput/TagInput';
+import MantineModal from '../../../../components/common/MantineModal';
 import {
     useGetSlack,
     useSlackChannels,
-    useUpdateSlackAppCustomSettingsMutation,
 } from '../../../../hooks/slack/useSlack';
 import { useProjects } from '../../../../hooks/useProjects';
+import {
+    useAiAgent,
+    useAiAgents,
+    useCreateAiAgentMutation,
+    useDeleteAiAgentMutation,
+    useUpdateAiAgentMutation,
+} from '../hooks/useAiAgents';
+import { AgentAvatar } from './AgentAvatar';
+import { ConversationsList } from './ConversationsList';
 
-const formSchema = z.object({
-    slackChannelProjectMapping: z.object({
-        projectUuid: z
-            .string({ message: 'You must select a project' })
-            .uuid({ message: 'Invalid project' }),
-        slackChannelId: z
-            .string({
-                message: 'You must select a Slack channel',
-            })
-            .min(1),
-        availableTags: z.array(z.string().min(1)).nullable(),
-    }),
+const formSchema: z.ZodType<
+    Pick<BaseAiAgent, 'name' | 'projectUuid' | 'integrations' | 'tags'>
+> = z.object({
+    name: z.string().min(1),
+    projectUuid: z
+        .string({ message: 'You must select a project' })
+        .uuid({ message: 'Invalid project' }),
+    integrations: z.array(
+        z.object({
+            type: z.literal('slack'),
+            channelId: z.string().min(1),
+        }),
+    ),
+    tags: z.array(z.string()).nullable(),
 });
 
 export const AgentDetails: FC = () => {
-    const { agentId } = useParams<{ agentId: string }>();
     const navigate = useNavigate();
+    const { agentId } = useParams<{ agentId: string }>();
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const { mutateAsync: createAgent, isLoading: isCreating } =
+        useCreateAiAgentMutation();
+    const { mutateAsync: updateAgent, isLoading: isUpdating } =
+        useUpdateAiAgentMutation();
     const isCreateMode = agentId === 'new';
-    const index = !isCreateMode && agentId ? parseInt(agentId, 10) - 1 : -1;
+    const agentUuid = !isCreateMode && agentId ? agentId : undefined;
+
+    const { data: agent, isLoading: isLoadingAgent } = useAiAgent(
+        agentUuid || '',
+        {
+            enabled: !!agentUuid,
+        },
+    );
+    const { mutateAsync: deleteAgent } = useDeleteAiAgentMutation();
 
     const { data: slackInstallation } = useGetSlack();
+
+    const { data: agents, isSuccess: isSuccessAgents } = useAiAgents();
+
     const {
         data: slackChannels,
         refresh: refreshChannels,
         isLoading: isRefreshing,
     } = useSlackChannels('', true, {
-        enabled: !!slackInstallation?.organizationUuid,
+        enabled: !!slackInstallation?.organizationUuid && isSuccessAgents,
     });
     const { data: projects } = useProjects();
 
-    const { mutateAsync: updateCustomSettings, isLoading: isSubmitting } =
-        useUpdateSlackAppCustomSettingsMutation();
+    const slackChannelOptions = useMemo(
+        () =>
+            slackChannels?.map((channel) => ({
+                value: channel.id,
+                label: channel.name,
+                disabled: agents?.some((a) =>
+                    a.integrations.some((i) => i.channelId === channel.id),
+                ),
+            })) ?? [],
+        [slackChannels, agents],
+    );
 
-    const form = useForm<{
-        slackChannelProjectMapping:
-            | NonNullable<
-                  SlackAppCustomSettings['slackChannelProjectMappings']
-              >[number]
-            | undefined;
-    }>({
+    const form = useForm<z.infer<typeof formSchema>>({
         initialValues: {
-            slackChannelProjectMapping: isCreateMode
-                ? {
-                      projectUuid: '',
-                      slackChannelId: '',
-                      availableTags: null,
-                  }
-                : undefined,
+            name: '',
+            projectUuid: '',
+            integrations: [],
+            tags: null,
         },
         validate: zodResolver(formSchema),
     });
 
     useEffect(() => {
-        if (isCreateMode) {
-            return;
-        }
-
-        if (!slackInstallation?.slackChannelProjectMappings) {
+        if (isCreateMode || !agent) {
             return;
         }
 
         if (!form.initialized) {
             form.setValues({
-                slackChannelProjectMapping:
-                    slackInstallation.slackChannelProjectMappings[index],
+                name: agent.name,
+                projectUuid: agent.projectUuid,
+                integrations: agent.integrations,
+                tags: agent.tags && agent.tags.length > 0 ? agent.tags : null,
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [slackInstallation?.slackChannelProjectMappings, index, isCreateMode]);
-
-    const agent = useMemo(() => {
-        if (isCreateMode) {
-            return {
-                name: 'New Agent',
-                projectName: undefined,
-                channelName: undefined,
-                projectUuid: '',
-                slackChannelId: '',
-                availableTags: [],
-            };
-        }
-
-        if (!slackInstallation?.slackChannelProjectMappings || index < 0) {
-            return null;
-        }
-
-        const mappings = slackInstallation.slackChannelProjectMappings;
-        if (index >= mappings.length) {
-            return null;
-        }
-
-        const mapping = mappings[index];
-        const project = projects?.find(
-            (p) => p.projectUuid === mapping.projectUuid,
-        );
-        const channel = slackChannels?.find(
-            (c) => c.id === mapping.slackChannelId,
-        );
-        return {
-            name: `Agent ${index + 1}`,
-            projectName: project?.name,
-            channelName: channel?.name,
-            projectUuid: mapping.projectUuid,
-            slackChannelId: mapping.slackChannelId,
-            availableTags: mapping.availableTags || [],
-        };
-    }, [slackInstallation, projects, slackChannels, index, isCreateMode]);
-
-    const slackChannelOptions = useMemo(() => {
-        return (
-            slackChannels?.map((channel) => ({
-                value: channel.id,
-                label: channel.name,
-            })) ?? []
-        );
-    }, [slackChannels]);
+    }, [agent, isCreateMode]);
 
     const projectOptions = useMemo(() => {
         return (
@@ -162,75 +136,40 @@ export const AgentDetails: FC = () => {
         );
     }, [projects]);
 
-    const usedChannels = useMemo(() => {
-        return (
-            slackInstallation?.slackChannelProjectMappings
-                ?.filter((_, i) => i !== index)
-                .map((mapping) => mapping.slackChannelId) ?? []
-        );
-    }, [slackInstallation?.slackChannelProjectMappings, index]);
-
     const handleBack = () => {
         void navigate('/generalSettings/aiAgents');
     };
 
     const handleSubmit = form.onSubmit(async (values) => {
-        if (
-            !slackInstallation?.organizationUuid ||
-            !values.slackChannelProjectMapping
-        ) {
+        if (isCreateMode) {
+            await createAgent(values);
+        } else if (agentUuid) {
+            await updateAgent({
+                uuid: agentUuid,
+                ...values,
+            });
+        }
+    });
+
+    const handleDeleteClick = useCallback(() => {
+        setDeleteModalOpen(true);
+    }, []);
+
+    const handleDelete = useCallback(async () => {
+        if (!agentUuid) {
             return;
         }
 
-        const currentMappings =
-            slackInstallation.slackChannelProjectMappings || [];
-
-        let newMappings;
-        if (isCreateMode) {
-            // Add new mapping
-            newMappings = [
-                ...currentMappings,
-                values.slackChannelProjectMapping,
-            ];
-        } else {
-            // Update existing mapping
-            newMappings = currentMappings.map((mapping, i) => {
-                if (i === index) {
-                    return values.slackChannelProjectMapping!;
-                }
-                return mapping;
-            });
-        }
-
-        await updateCustomSettings({
-            notificationChannel: slackInstallation.notificationChannel ?? null,
-            appProfilePhotoUrl: slackInstallation.appProfilePhotoUrl ?? null,
-            slackChannelProjectMappings: newMappings,
-        });
-
+        await deleteAgent(agentUuid);
+        setDeleteModalOpen(false);
         void navigate('/generalSettings/aiAgents');
-    });
+    }, [navigate, agentUuid, deleteAgent]);
 
-    const showTagsInput =
-        form.values.slackChannelProjectMapping?.availableTags !== null;
+    const handleCancelDelete = useCallback(() => {
+        setDeleteModalOpen(false);
+    }, []);
 
-    const handleDelete = useCallback(async () => {
-        if (slackInstallation?.organizationUuid) {
-            await updateCustomSettings({
-                notificationChannel:
-                    slackInstallation.notificationChannel ?? null,
-                appProfilePhotoUrl:
-                    slackInstallation.appProfilePhotoUrl ?? null,
-                slackChannelProjectMappings:
-                    slackInstallation.slackChannelProjectMappings?.filter(
-                        (_, i) => i !== index,
-                    ) ?? [],
-            });
-            void navigate('/generalSettings/aiAgents');
-        }
-    }, [slackInstallation, index, updateCustomSettings, navigate]);
-
-    if (!agent && !isCreateMode) {
+    if (!isCreateMode && agentUuid && !agent && !isLoadingAgent) {
         return (
             <MantineProvider>
                 <Stack gap="md">
@@ -264,196 +203,212 @@ export const AgentDetails: FC = () => {
                     </Button>
                 </Group>
 
-                <form onSubmit={handleSubmit}>
-                    <Card withBorder p="xl">
-                        <Stack gap="xl">
-                            <Group gap="md">
-                                <Avatar size={40} radius="sm" color="blue.6">
-                                    {isCreateMode ? '+' : index + 1}
-                                </Avatar>
-                                <Title order={3}>
-                                    {agent?.name || 'New Agent'}
-                                </Title>
-                            </Group>
+                <Card withBorder p="xl">
+                    <Stack gap="xl">
+                        <Group gap="md">
+                            <AgentAvatar
+                                name={isCreateMode ? '+' : form.values.name}
+                            />
 
-                            {!isCreateMode &&
-                                agent?.projectName &&
-                                agent?.channelName && (
-                                    <Stack gap="xs">
-                                        <Title order={5}>Description</Title>
-                                        <Text>
-                                            This AI agent answers questions
-                                            about <b>{agent.projectName}</b>{' '}
-                                            data when asked in the Slack channel{' '}
-                                            <b>{agent.channelName}</b>.
-                                        </Text>
-                                    </Stack>
+                            <Title order={3}>
+                                {isCreateMode
+                                    ? 'New Agent'
+                                    : form.values.name || 'Agent'}
+                                {!isCreateMode && (
+                                    <Text size="sm" c="dimmed">
+                                        Last modified:{' '}
+                                        {new Date(
+                                            agent?.updatedAt ?? new Date(),
+                                        ).toLocaleString()}
+                                    </Text>
                                 )}
+                            </Title>
+                        </Group>
+                        <Tabs
+                            defaultValue="general"
+                            styles={{
+                                panel: {
+                                    paddingTop: 'xs',
+                                },
+                            }}
+                        >
+                            <Tabs.List>
+                                <Tabs.Tab value="general">General</Tabs.Tab>
+                                {!isCreateMode && (
+                                    <Tabs.Tab value="conversations">
+                                        Conversations
+                                    </Tabs.Tab>
+                                )}
+                            </Tabs.List>
 
-                            <Stack gap="xs">
-                                <Group justify="space-between">
-                                    <Group gap="xs">
-                                        <Title order={5}>
-                                            Slack Channel Project Mappings
-                                        </Title>
+                            <Tabs.Panel value="general" pt="xs">
+                                <form onSubmit={handleSubmit}>
+                                    <Stack gap="lg">
+                                        {/* Basic Agent Info */}
+                                        <Stack gap="sm">
+                                            <Title order={5}>Details</Title>
+                                            <TextInput
+                                                label="Agent Name"
+                                                placeholder="Enter a name for this agent"
+                                                {...form.getInputProps('name')}
+                                            />
 
-                                        <Tooltip
-                                            variant="xs"
-                                            multiline
-                                            maw={250}
-                                            label={
-                                                <Text fw={500}>
-                                                    Refresh Slack channel list.
-                                                    <Text c="gray.4" fw={400}>
-                                                        To see private channels,
-                                                        ensure the bot has been
-                                                        invited to them.
-                                                        Archived channels are
-                                                        not included.
-                                                    </Text>
-                                                </Text>
-                                            }
-                                        >
-                                            <ActionIcon
-                                                loading={isRefreshing}
-                                                onClick={refreshChannels}
-                                                variant="subtle"
-                                            >
-                                                <MantineIcon
-                                                    icon={IconRefresh}
-                                                />
-                                            </ActionIcon>
-                                        </Tooltip>
-                                    </Group>
-                                </Group>
-                                <Text size="xs" c="dimmed">
-                                    Map which project is associated with which
-                                    Slack channel. When a user asks a question
-                                    in a channel, Lightdash will look for the
-                                    answer in the associated project.
-                                </Text>
-
-                                <Paper py="xs" shadow="xs" withBorder>
-                                    <Stack gap="xs">
-                                        <Group gap="xs" px="xs" wrap="nowrap">
                                             <Select
-                                                size="xs"
+                                                label="Project"
+                                                placeholder="Select a project"
                                                 data={projectOptions}
                                                 searchable
-                                                placeholder="Select project"
                                                 leftSection={
                                                     <MantineIcon
                                                         icon={IconDatabase}
                                                     />
                                                 }
                                                 {...form.getInputProps(
-                                                    `slackChannelProjectMapping.projectUuid`,
+                                                    'projectUuid',
                                                 )}
                                             />
+                                            {!!form.values.projectUuid && (
+                                                <TagsInput
+                                                    label="Tags"
+                                                    placeholder="Select tags"
+                                                    onChange={(value) => {
+                                                        form.setFieldValue(
+                                                            'tags',
+                                                            value.length > 0
+                                                                ? value
+                                                                : null,
+                                                        );
+                                                    }}
+                                                />
+                                            )}
+                                        </Stack>
 
-                                            <MantineIcon
-                                                icon={IconArrowsHorizontal}
-                                                color="gray.5"
-                                            />
+                                        {/* Integrations Section */}
 
-                                            <Select
-                                                size="xs"
-                                                data={slackChannelOptions.map(
-                                                    (channel) => ({
-                                                        value: channel.value,
-                                                        label: channel.label.replace(
-                                                            /^#/,
-                                                            '',
-                                                        ),
-                                                        disabled:
-                                                            usedChannels.includes(
-                                                                channel.value,
-                                                            ),
-                                                    }),
+                                        <Stack gap="sm">
+                                            <Group justify="space-between">
+                                                <Title order={5}>
+                                                    Integrations
+                                                </Title>
+                                                {slackInstallation?.organizationUuid && (
+                                                    <Button
+                                                        size="xs"
+                                                        variant="subtle"
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconRefresh
+                                                                }
+                                                            />
+                                                        }
+                                                        loading={isRefreshing}
+                                                        onClick={
+                                                            refreshChannels
+                                                        }
+                                                    >
+                                                        Refresh Channels
+                                                    </Button>
+                                                )}
+                                            </Group>
+
+                                            <MultiSelect
+                                                disabled={
+                                                    !slackInstallation?.organizationUuid
+                                                }
+                                                description={
+                                                    !slackInstallation?.organizationUuid
+                                                        ? 'You need to connect Slack first in the Integrations settings before you can configure AI agents.'
+                                                        : undefined
+                                                }
+                                                label="Slack"
+                                                placeholder="Pick a channel"
+                                                data={slackChannelOptions}
+                                                value={form.values.integrations.map(
+                                                    (i) => i.channelId,
                                                 )}
                                                 searchable
-                                                placeholder="Select channel"
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconHash}
-                                                    />
-                                                }
-                                                {...form.getInputProps(
-                                                    `slackChannelProjectMapping.slackChannelId`,
-                                                )}
-                                            />
-                                        </Group>
-
-                                        <Divider />
-
-                                        <Stack gap="xs" px="xs">
-                                            <Radio.Group
-                                                size="xs"
-                                                label="Configure available tags"
-                                                value={
-                                                    showTagsInput
-                                                        ? 'tags'
-                                                        : 'all'
-                                                }
                                                 onChange={(value) => {
                                                     form.setFieldValue(
-                                                        `slackChannelProjectMapping.availableTags`,
-                                                        value === 'all'
-                                                            ? null
-                                                            : [],
+                                                        'integrations',
+                                                        value.map(
+                                                            (v) =>
+                                                                ({
+                                                                    type: 'slack',
+                                                                    channelId:
+                                                                        v,
+                                                                } as const),
+                                                        ),
                                                     );
                                                 }}
-                                            >
-                                                <Stack gap="xs" pt="xs">
-                                                    <Radio
-                                                        value="all"
-                                                        label="All dimensions, and metrics"
-                                                    />
-                                                    <Radio
-                                                        value="tags"
-                                                        label="Only dimensions and metrics with any of the following tags"
-                                                    />
-
-                                                    {showTagsInput && (
-                                                        <TagInput
-                                                            size="xs"
-                                                            placeholder='Type in tags and press "Enter"'
-                                                            {...form.getInputProps(
-                                                                `slackChannelProjectMapping.availableTags`,
-                                                            )}
-                                                        />
-                                                    )}
-                                                </Stack>
-                                            </Radio.Group>
+                                            />
                                         </Stack>
-                                    </Stack>
-                                </Paper>
-                            </Stack>
 
-                            <Group justify="flex-end">
-                                {!isCreateMode && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleDelete}
-                                    >
-                                        Delete agent
-                                    </Button>
-                                )}
-                                <Button
-                                    type="submit"
-                                    loading={isSubmitting}
-                                    leftSection={
-                                        <MantineIcon icon={IconCheck} />
-                                    }
-                                >
-                                    {isCreateMode
-                                        ? 'Create agent'
-                                        : 'Save changes'}
-                                </Button>
-                            </Group>
-                        </Stack>
-                    </Card>
-                </form>
+                                        <Group justify="flex-end">
+                                            {!isCreateMode && (
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={handleDeleteClick}
+                                                >
+                                                    Delete agent
+                                                </Button>
+                                            )}
+                                            <Button
+                                                type="submit"
+                                                loading={
+                                                    isCreating || isUpdating
+                                                }
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconCheck}
+                                                    />
+                                                }
+                                            >
+                                                {isCreateMode
+                                                    ? 'Create agent'
+                                                    : 'Save changes'}
+                                            </Button>
+                                        </Group>
+                                    </Stack>
+                                </form>
+                            </Tabs.Panel>
+                            {!isCreateMode && (
+                                <Tabs.Panel value="conversations" pt="xs">
+                                    <ConversationsList
+                                        agentUuid={agentUuid ?? ''}
+                                        agentName={form.values.name}
+                                    />
+                                </Tabs.Panel>
+                            )}
+                        </Tabs>
+                    </Stack>
+                </Card>
+
+                <MantineModal
+                    opened={deleteModalOpen}
+                    onClose={handleCancelDelete}
+                    title="Delete Agent"
+                    icon={IconTrash}
+                    actions={
+                        <Group>
+                            <Button
+                                variant="subtle"
+                                onClick={handleCancelDelete}
+                            >
+                                Cancel
+                            </Button>
+                            <Button color="red" onClick={handleDelete}>
+                                Delete
+                            </Button>
+                        </Group>
+                    }
+                >
+                    <Stack gap="md">
+                        <Text>
+                            Are you sure you want to delete this agent? This
+                            action cannot be undone.
+                        </Text>
+                    </Stack>
+                </MantineModal>
             </Stack>
         </MantineProvider>
     );

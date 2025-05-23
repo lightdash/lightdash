@@ -38,7 +38,6 @@ import {
     type FC,
 } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
     useCancelQuery,
@@ -47,57 +46,16 @@ import {
     type QueryResultsProps,
 } from '../../hooks/useQueryResults';
 import ExplorerContext from './context';
+import { defaultState } from './defaultState';
 import {
     ActionType,
-    ExplorerSection,
     type Action,
     type ConfigCacheMap,
     type ExplorerContextType,
     type ExplorerReduceState,
+    type ExplorerSection,
 } from './types';
 import { getValidChartConfig } from './utils';
-
-const defaultState: ExplorerReduceState = {
-    shouldFetchResults: false,
-    previouslyFetchedState: undefined,
-    expandedSections: [ExplorerSection.RESULTS],
-    unsavedChartVersion: {
-        tableName: '',
-        metricQuery: {
-            exploreName: '',
-            dimensions: [],
-            metrics: [],
-            filters: {},
-            sorts: [],
-            limit: 500,
-            tableCalculations: [],
-            additionalMetrics: [],
-            timezone: undefined,
-        },
-        pivotConfig: undefined,
-        tableConfig: {
-            columnOrder: [],
-        },
-        chartConfig: {
-            type: ChartType.CARTESIAN,
-            config: EMPTY_CARTESIAN_CHART_CONFIG,
-        },
-    },
-    modals: {
-        format: {
-            isOpen: false,
-        },
-        additionalMetric: {
-            isOpen: false,
-        },
-        customDimension: {
-            isOpen: false,
-        },
-        writeBack: {
-            isOpen: false,
-        },
-    },
-};
 
 const calcColumnOrder = (
     columnOrder: FieldId[],
@@ -179,7 +137,9 @@ const getTableCalculationsMetadata = (
     ];
 };
 
-function reducer(
+// Export for test
+// eslint-disable-next-line react-refresh/only-export-components
+export function reducer(
     state: ExplorerReduceState,
     action: Action & { options?: { shouldFetchResults: boolean } },
 ): ExplorerReduceState {

@@ -1,8 +1,8 @@
 import {
     assertUnreachable,
     isChartValidationError,
-    isDashboardValidationError,
     RenameType,
+    type ValidationErrorChartResponse,
     type ValidationResponse,
 } from '@lightdash/common';
 import {
@@ -11,6 +11,7 @@ import {
     Button,
     Checkbox,
     Group,
+    Highlight,
     Loader,
     Modal,
     Paper,
@@ -45,15 +46,13 @@ import { getLinkToResource } from './utils/utils';
 const MIN_ROWS_TO_ENABLE_SCROLLING = 6;
 
 const FixValidationErrorModal: FC<{
-    validationError: ValidationResponse | undefined;
+    validationError: ValidationErrorChartResponse | undefined; // At the moment we can only fix chart errors
+    allValidationErrors: ValidationResponse[] | undefined;
     onClose: () => void;
-}> = ({ validationError, onClose }) => {
+}> = ({ validationError, allValidationErrors, onClose }) => {
     const { mutate: renameChart } = useRenameChart();
 
-    const chartUuid =
-        validationError && isChartValidationError(validationError)
-            ? validationError?.chartUuid
-            : undefined;
+    const chartUuid = validationError?.chartUuid;
     const { data: fields, isError: isErrorFields } = useFieldsForChart(
         validationError?.projectUuid,
         chartUuid,
@@ -66,9 +65,11 @@ const FixValidationErrorModal: FC<{
     const [renameType, setRenameType] = useState<RenameType>(RenameType.FIELD);
     const form = useForm<{}>();
 
+    const [search, setSearch] = useState('');
+
     const fieldOptions = useMemo(
         () =>
-            Object.entries(fields || {})
+            Object.entries(fields?.fields || {})
                 .sort(([groupA], [groupB]) => groupA.localeCompare(groupB)) // Sort groups alphabetically
                 .flatMap(([group, items]) =>
                     items.map((item) => ({
@@ -79,43 +80,80 @@ const FixValidationErrorModal: FC<{
                 ),
         [fields],
     );
+
+    // Check how many occurrences of the same error there are in the rest of validation errors
+    const totalOcurrences: number = useMemo(() => {
+        if (
+            !validationError ||
+            !allValidationErrors ||
+            allValidationErrors.length === 0
+        )
+            return 0;
+
+        if (renameType === RenameType.FIELD) {
+            return allValidationErrors.filter(
+                (e) =>
+                    isChartValidationError(e) &&
+                    e.fieldName === validationError?.fieldName,
+            ).length;
+        } else if (renameType === RenameType.MODEL) {
+            const tableName = savedQuery?.tableName;
+
+            return allValidationErrors.filter(
+                (e) =>
+                    isChartValidationError(e) &&
+                    (e.fieldName || '').startsWith(tableName || ''),
+            ).length;
+        } else {
+            assertUnreachable(
+                renameType,
+                `Unexpected rename type ${renameType}`,
+            );
+        }
+    }, [validationError, allValidationErrors, renameType, savedQuery]);
+
     if (!validationError) {
         return null;
     }
-    const isTableError = !(
-        isChartValidationError(validationError) ||
-        isDashboardValidationError(validationError)
-    );
 
-    const fieldName = isTableError
-        ? validationError.name
-        : validationError.fieldName;
+    const fieldName = validationError.fieldName;
 
-    const handleConfirm = form.onSubmit(() => {
-        if (isChartValidationError(validationError)) {
-            renameChart({
-                from: oldName || fieldName || '',
-                to: newName,
-                chartUuid: validationError.chartUuid!,
-                fixAll,
-                projectUuid: validationError.projectUuid!,
-                resourceUrl: getLinkToResource(
-                    validationError,
-                    validationError.projectUuid,
-                ),
-                type: renameType,
-            });
-        }
-
+    const handleClose = () => {
+        setOldName(undefined);
+        setRenameType(RenameType.FIELD);
+        setNewName('');
+        setFixAll(false);
         form.reset();
         onClose();
+    };
+
+    const handleConfirm = form.onSubmit(() => {
+        renameChart({
+            from: oldName || fieldName || '',
+            to: newName,
+            chartUuid: validationError.chartUuid!,
+            fixAll,
+            projectUuid: validationError.projectUuid!,
+            resourceUrl: getLinkToResource(
+                validationError,
+                validationError.projectUuid,
+            ),
+            type: renameType,
+        });
+
+        form.reset();
+        handleClose();
     });
 
     return (
         <Modal
+            size="lg"
             title={<Title order={4}>Fix validation error</Title>}
             opened={!!validationError}
-            onClose={onClose}
+            onClose={handleClose}
+            styles={() => ({
+                content: { maxHeight: 'fit-content !important' },
+            })}
         >
             <Text>
                 Fix{' '}
@@ -138,14 +176,8 @@ const FixValidationErrorModal: FC<{
             </Text>
 
             <Text mt="xs" mb="xs" color="gray.7" size="xs">
-                You can rename the missing{' '}
-                <Text span fw={500}>
-                    {validationError?.errorType}
-                </Text>{' '}
-                by renaming the {!isTableError && 'field or'} table{' '}
-                <Text span fw={500}>
-                    {fieldName}
-                </Text>
+                You can rename the missing dimension by renaming the affected
+                field or model using the drop down below.
             </Text>
 
             <form onSubmit={handleConfirm}>
@@ -192,6 +224,17 @@ const FixValidationErrorModal: FC<{
                         >
                             <div>
                                 <Select
+                                    itemComponent={({ label, ...others }) => (
+                                        <Highlight
+                                            highlight={search}
+                                            {...others}
+                                            highlightColor="yellow"
+                                        >
+                                            {label}
+                                        </Highlight>
+                                    )}
+                                    onSearchChange={setSearch}
+                                    searchValue={search}
                                     data={fieldOptions}
                                     required
                                     disabled={isErrorFields}
@@ -215,6 +258,17 @@ const FixValidationErrorModal: FC<{
                             value={oldName}
                         />
                         <Select
+                            searchValue={search}
+                            onSearchChange={setSearch}
+                            itemComponent={({ label, ...others }) => (
+                                <Highlight
+                                    highlight={search}
+                                    {...others}
+                                    highlightColor="yellow"
+                                >
+                                    {label}
+                                </Highlight>
+                            )}
                             data={explores?.map((e) => e.name) || []}
                             required
                             searchable
@@ -232,26 +286,36 @@ const FixValidationErrorModal: FC<{
                         `Unexpected rename type ${renameType}`,
                     )
                 )}
-                <Tooltip
-                    withinPortal
-                    label="Check this to rename all occurrences of this field in other charts and dashboards."
-                >
-                    <Group>
-                        <Checkbox
-                            mt="xs"
-                            size="xs"
-                            label="Fix all occurrences"
-                            checked={fixAll}
-                            onChange={(e) => setFixAll(e.currentTarget.checked)}
-                        />
-                    </Group>
-                </Tooltip>
+                {totalOcurrences > 1 ? (
+                    <Tooltip
+                        withinPortal
+                        label="Check this to rename all occurrences of this field in other charts and dashboards."
+                    >
+                        <Group display={'inline-block'}>
+                            <Checkbox
+                                mt="xs"
+                                size="xs"
+                                label={`Fix all occurrences (${totalOcurrences})`}
+                                checked={fixAll}
+                                onChange={(e) =>
+                                    setFixAll(e.currentTarget.checked)
+                                }
+                            />
+                        </Group>
+                    </Tooltip>
+                ) : (
+                    <Text mt="xs" size="xs" color="gray.7">
+                        This {renameType} is not used in any other charts.
+                    </Text>
+                )}
                 <Group position="right" mt="sm">
-                    <Button variant="outline" onClick={onClose}>
+                    <Button variant="outline" onClick={handleClose}>
                         Cancel
                     </Button>
 
-                    <Button type="submit">Rename</Button>
+                    <Button type="submit" disabled={newName === ''}>
+                        Rename
+                    </Button>
                 </Group>
             </form>
         </Modal>
@@ -272,11 +336,12 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
         () => setIsValidating(false),
     );
     const [selectedValidationError, setSelectedValidationError] =
-        useState<ValidationResponse>();
+        useState<ValidationErrorChartResponse>();
     return (
         <>
             <FixValidationErrorModal
                 validationError={selectedValidationError}
+                allValidationErrors={data}
                 onClose={() => {
                     setSelectedValidationError(undefined);
                 }}
@@ -330,11 +395,28 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                             <Loader color="gray" />
                         </Group>
                     ) : !!data?.length ? (
-                        <ValidatorTable
-                            data={data}
-                            projectUuid={projectUuid}
-                            onSelectValidationError={setSelectedValidationError}
-                        />
+                        <>
+                            <ValidatorTable
+                                // Hard limit to 100 rows, otherwise it breaks the UI
+                                data={data.slice(0, 100)} // TODO add pagination
+                                projectUuid={projectUuid}
+                                onSelectValidationError={(validationError) => {
+                                    if (
+                                        isChartValidationError(validationError)
+                                    ) {
+                                        setSelectedValidationError(
+                                            validationError,
+                                        );
+                                    }
+                                }}
+                            />
+                            {data.length > 100 && (
+                                <Text p="md" c="gray.7">
+                                    Showing only 100 of {data.length} validation
+                                    errors.
+                                </Text>
+                            )}
+                        </>
                     ) : (
                         <Group position="center" spacing="xs" p="md">
                             <MantineIcon icon={IconCheck} color="green" />
