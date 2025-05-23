@@ -1161,6 +1161,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                isSqlColumn: { dataType: 'boolean' },
                 tableName: { dataType: 'string', required: true },
                 fieldId: { dataType: 'string', required: true },
             },

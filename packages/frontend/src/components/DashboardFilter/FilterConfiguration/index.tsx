@@ -173,6 +173,7 @@ const FilterConfiguration: FC<Props> = ({
                                 target = {
                                     fieldId: defaultColumn,
                                     tableName: 'mock_table',
+                                    isSqlColumn: true,
                                 };
                             } else if (defaultField) {
                                 // Set default field

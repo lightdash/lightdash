@@ -94,6 +94,7 @@ export const isJoinModelRequiredFilter = (
 export type DashboardFieldTarget = {
     fieldId: string;
     tableName: string;
+    isSqlColumn?: boolean;
 };
 
 export const isDashboardFieldTarget = (

@@ -707,8 +707,8 @@ export const getDashboardFilterRulesForTileAndReferences = (
     references: string[],
     rules: DashboardFilterRule[],
 ): DashboardFilterRule[] =>
-    getDashboardFilterRulesForTile(tileUuid, rules, true).filter((f) =>
-        references.includes(f.target.fieldId),
+    getDashboardFilterRulesForTile(tileUuid, rules, true).filter(
+        (f) => f.target.isSqlColumn && references.includes(f.target.fieldId),
     );
 
 export const getDashboardFilterRulesForTables = (
