@@ -1,3 +1,10 @@
+# [0.1647.0](https://github.com/lightdash/lightdash/compare/0.1646.0...0.1647.0) (2025-05-23)
+
+
+### Features
+
+* delete AI agent slack integrations when removing Slack installation ([#14980](https://github.com/lightdash/lightdash/issues/14980)) ([1591e45](https://github.com/lightdash/lightdash/commit/1591e4564fa0e1cefb87b58c4592ac8fd04317f9)), closes [#14934](https://github.com/lightdash/lightdash/issues/14934)
+
 # [0.1646.0](https://github.com/lightdash/lightdash/compare/0.1645.0...0.1646.0) (2025-05-23)
 
 
