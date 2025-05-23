@@ -1751,7 +1751,7 @@ describe('ExplorerProvider reducer', () => {
 
             expect(
                 newState.unsavedChartVersion.tableConfig.columnOrder,
-            ).not.toContain(mockTableCalculation.name);
+            ).not.toContain('calc_1');
         });
     });
 
