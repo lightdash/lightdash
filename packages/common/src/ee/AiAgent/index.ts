@@ -24,7 +24,7 @@ export const baseAgentSchema = z.object({
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
 
-    instructions: z.string().nullable(),
+    instruction: z.string().nullable(),
     provider: z.string(),
     model: z.string(),
 });
@@ -41,7 +41,7 @@ export type AiAgent = Pick<
     | 'name'
     | 'createdAt'
     | 'updatedAt'
-    | 'instructions'
+    | 'instruction'
 >;
 
 export type AiAgentSummary = Pick<
