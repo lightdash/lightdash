@@ -34,11 +34,9 @@ import {
 
 type ContentServiceArguments = {
     analytics: LightdashAnalytics;
-    // models
     projectModel: ProjectModel;
     contentModel: ContentModel;
     spaceModel: SpaceModel;
-    // services
     spaceService: SpaceService;
     dashboardService: DashboardService;
     savedChartService: SavedChartService;

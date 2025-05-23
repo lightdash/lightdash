@@ -30,10 +30,8 @@ export class AiAgentService {
     private readonly slackClient: SlackClient;
 
     constructor(dependencies: AiAgentServiceDependencies) {
-        // models
         this.aiAgentModel = dependencies.aiAgentModel;
         this.slackAuthenticationModel = dependencies.slackAuthenticationModel;
-        // services
         this.featureFlagService = dependencies.featureFlagService;
         this.slackClient = dependencies.slackClient;
     }
