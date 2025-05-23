@@ -807,8 +807,8 @@ export class AsyncQueryService extends ProjectService {
             resultsFileName,
             csvFileName,
             async (readStream, writeStream) => {
-                // Use streamS3DataRowsToFile which handles JSONL data from S3
-                const { truncated } = await CsvService.streamS3DataRowsToFile(
+                // Use streamJsonlRowsToFile which handles JSONL data from S3
+                const { truncated } = await CsvService.streamJsonlRowsToFile(
                     false,
                     fields,
                     Object.keys(fields), // TODO: sorted field ids

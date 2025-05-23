@@ -327,7 +327,7 @@ export class CsvService extends BaseService {
      * Unlike streamRowsToFile, this method expects the readStream to be in string format,
      * not in object mode.
      */
-    static async streamS3DataRowsToFile(
+    static async streamJsonlRowsToFile(
         onlyRaw: boolean,
         itemMap: ItemsMap,
         sortedFieldIds: string[],

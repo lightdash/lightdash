@@ -100,8 +100,10 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
     }
 
     async getFileUrl(cacheKey: string, fileExtension = 'jsonl') {
-        // Check if the cacheKey already has a file extension
-        const hasExtension = cacheKey.includes('.');
+        // Check if the cacheKey already has the specified file extension
+        const hasExtension = cacheKey
+            .toLowerCase()
+            .endsWith(`.${fileExtension.toLowerCase()}`);
         const key = hasExtension ? cacheKey : `${cacheKey}.${fileExtension}`;
 
         // Get the S3 URL
@@ -146,7 +148,9 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
 
         await close();
 
-        const url = await this.getFileUrl(sinkFileName);
+        // Extract extension from filename to ensure correct URL generation
+        const extension = isCsv ? 'csv' : 'jsonl';
+        const url = await this.getFileUrl(sinkFileName, extension);
 
         return {
             fileUrl: url,
