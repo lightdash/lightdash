@@ -130,6 +130,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     slackAuthenticationModel:
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
                     analytics: context.lightdashAnalytics,
+                    aiAgentModel: models.getAiAgentModel(),
                 }),
             supportService: ({ models, context, repository, clients }) =>
                 new SupportService({

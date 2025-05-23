@@ -507,4 +507,27 @@ export class AiAgentModel {
             return messages;
         });
     }
+
+    async deleteSlackIntegrations({
+        organizationUuid,
+    }: {
+        organizationUuid: string;
+    }): Promise<void> {
+        await this.database
+            .from(AiAgentIntegrationTableName)
+            .delete()
+            .where(
+                `${AiAgentIntegrationTableName}.ai_agent_integration_uuid`,
+                'IN',
+                this.database
+                    .from(AiAgentSlackIntegrationTableName)
+                    .select(
+                        `${AiAgentSlackIntegrationTableName}.ai_agent_integration_uuid`,
+                    )
+                    .where(
+                        `${AiAgentSlackIntegrationTableName}.organization_uuid`,
+                        organizationUuid,
+                    ),
+            );
+    }
 }
