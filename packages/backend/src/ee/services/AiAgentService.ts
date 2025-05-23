@@ -7,6 +7,7 @@ import {
     NotFoundError,
     type SessionUser,
 } from '@lightdash/common';
+import _ from 'lodash';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import type { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';

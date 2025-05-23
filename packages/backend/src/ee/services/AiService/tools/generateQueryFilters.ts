@@ -9,7 +9,6 @@ import {
     UpdateSlackResponse,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { intersection } from 'lodash';
 import { z } from 'zod';
 import Logger from '../../../../logging/logger';
 import { validateFilterRules } from '../utils/aiCopilot/validators';
@@ -18,14 +17,12 @@ type GetGenerateQueryFiltersToolArgs = {
     promptUuid: string;
     updatePrompt: (prompt: UpdateSlackResponse) => Promise<void>;
     getExplore: (args: { exploreName: string }) => Promise<Explore>;
-    availableTags: string[] | null;
 };
 
 export const getGenerateQueryFiltersTool = ({
     getExplore,
     promptUuid,
     updatePrompt,
-    availableTags,
 }: GetGenerateQueryFiltersToolArgs) => {
     const schema = GenerateQueryFiltersToolSchema;
 
@@ -43,17 +40,10 @@ Rules for generating filters:
         func: async ({ exploreName, filterGroup }: z.infer<typeof schema>) => {
             try {
                 const explore = await getExplore({ exploreName });
-                const exploreFields = getFields(explore);
-                const filteredExploreFields = exploreFields.filter(
-                    (field) =>
-                        !availableTags ||
-                        intersection(field.tags, availableTags).length > 0,
-                );
 
-                const filters = getFiltersFromGroup(
-                    filterGroup,
-                    filteredExploreFields,
-                );
+                const exploreFields = getFields(explore);
+
+                const filters = getFiltersFromGroup(filterGroup, exploreFields);
                 const filterRules = getTotalFilterRules(filters);
 
                 validateFilterRules(explore, filterRules);
