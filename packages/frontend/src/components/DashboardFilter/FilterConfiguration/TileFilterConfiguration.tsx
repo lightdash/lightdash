@@ -395,6 +395,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                                       fieldId:
                                                           value.selectedField,
                                                       tableName: 'mock_table',
+                                                      isSqlColumn: true,
                                                   }
                                                 : undefined,
                                         );
@@ -456,6 +457,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                                           fieldId: newField,
                                                           tableName:
                                                               'mock_table',
+                                                          isSqlColumn: true,
                                                       }
                                                     : undefined,
                                             );

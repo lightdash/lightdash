@@ -480,6 +480,13 @@ export class ValidationService extends BaseService {
                         CreateDashboardValidation[]
                     >((acc, filter) => {
                         try {
+                            if (
+                                isDashboardFieldTarget(filter.target) &&
+                                filter.target.isSqlColumn
+                            ) {
+                                // Skip SQL column targets
+                                return acc;
+                            }
                             return containsFieldId({
                                 acc,
                                 fieldIds: existingFieldIds,
@@ -513,7 +520,8 @@ export class ValidationService extends BaseService {
                         (acc, tileTarget) => {
                             if (
                                 tileTarget &&
-                                isDashboardFieldTarget(tileTarget)
+                                isDashboardFieldTarget(tileTarget) &&
+                                !tileTarget.isSqlColumn // Skip SQL column targets
                             ) {
                                 return containsFieldId({
                                     acc,
