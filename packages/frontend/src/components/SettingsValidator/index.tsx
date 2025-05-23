@@ -118,6 +118,14 @@ const FixValidationErrorModal: FC<{
 
     const fieldName = validationError.fieldName;
 
+    const handleClose = () => {
+        setOldName(undefined);
+        setRenameType(RenameType.FIELD);
+        setNewName('');
+        setFixAll(false);
+        onClose();
+    };
+
     const handleConfirm = form.onSubmit(() => {
         renameChart({
             from: oldName || fieldName || '',
@@ -133,7 +141,7 @@ const FixValidationErrorModal: FC<{
         });
 
         form.reset();
-        onClose();
+        handleClose();
     });
 
     return (
@@ -141,7 +149,7 @@ const FixValidationErrorModal: FC<{
             size="lg"
             title={<Title order={4}>Fix validation error</Title>}
             opened={!!validationError}
-            onClose={onClose}
+            onClose={handleClose}
             styles={() => ({
                 content: { maxHeight: 'fit-content !important' },
             })}
@@ -300,11 +308,13 @@ const FixValidationErrorModal: FC<{
                     </Text>
                 )}
                 <Group position="right" mt="sm">
-                    <Button variant="outline" onClick={onClose}>
+                    <Button variant="outline" onClick={handleClose}>
                         Cancel
                     </Button>
 
-                    <Button type="submit">Rename</Button>
+                    <Button type="submit" disabled={newName === ''}>
+                        Rename
+                    </Button>
                 </Group>
             </form>
         </Modal>
