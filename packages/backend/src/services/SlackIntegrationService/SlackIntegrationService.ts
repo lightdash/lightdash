@@ -8,7 +8,7 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { BaseService } from '../BaseService';
 
-type SlackIntegrationServiceArguments<
+export type SlackIntegrationServiceArguments<
     T extends SlackAuthenticationModel = SlackAuthenticationModel,
 > = {
     analytics: LightdashAnalytics;
