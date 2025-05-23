@@ -5121,13 +5121,17 @@
             "ItemsMap": {
                 "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
-            "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid_": {
+            "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt_": {
                 "properties": {
                     "name": {
                         "type": "string"
                     },
                     "projectUuid": {
                         "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "uuid": {
                         "type": "string"
@@ -5158,21 +5162,27 @@
                         },
                         "type": "array",
                         "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
                     }
                 },
                 "required": [
                     "name",
                     "projectUuid",
+                    "createdAt",
                     "uuid",
                     "organizationUuid",
                     "integrations",
-                    "tags"
+                    "tags",
+                    "updatedAt"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -5191,13 +5201,17 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt_": {
                 "properties": {
                     "name": {
                         "type": "string"
                     },
                     "projectUuid": {
                         "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "uuid": {
                         "type": "string"
@@ -5228,21 +5242,27 @@
                         },
                         "type": "array",
                         "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
                     }
                 },
                 "required": [
                     "name",
                     "projectUuid",
+                    "createdAt",
                     "uuid",
                     "organizationUuid",
                     "integrations",
-                    "tags"
+                    "tags",
+                    "updatedAt"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -7936,20 +7956,20 @@
             },
             "Pick_SavedChart.updatedAt-or-updatedByUser-or-pinnedListOrder_": {
                 "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "pinnedListOrder": {
                         "type": "number",
                         "format": "double",
                         "nullable": true
                     },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
                     }
                 },
-                "required": ["pinnedListOrder", "updatedAt"],
+                "required": ["updatedAt", "pinnedListOrder"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -8037,6 +8057,10 @@
                     "organizationUuid": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -8048,10 +8072,6 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -8078,10 +8098,10 @@
                     "projectUuid",
                     "uuid",
                     "organizationUuid",
+                    "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
-                    "updatedAt",
                     "views",
                     "firstViewedAt"
                 ],
@@ -9428,6 +9448,10 @@
                     "organizationUuid": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -9453,10 +9477,6 @@
                     "dashboardName": {
                         "type": "string",
                         "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -9506,6 +9526,7 @@
                     "projectUuid",
                     "uuid",
                     "organizationUuid",
+                    "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -9513,7 +9534,6 @@
                     "spaceName",
                     "dashboardUuid",
                     "dashboardName",
-                    "updatedAt",
                     "tableName",
                     "metricQuery",
                     "chartConfig",
@@ -9568,6 +9588,10 @@
                     "organizationUuid": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -9585,10 +9609,6 @@
                     },
                     "spaceName": {
                         "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -9637,12 +9657,12 @@
                     "projectUuid",
                     "uuid",
                     "organizationUuid",
+                    "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
                     "spaceName",
-                    "updatedAt",
                     "views",
                     "firstViewedAt",
                     "dashboardVersionId",
@@ -11615,12 +11635,12 @@
                     "description": {
                         "type": "string"
                     },
-                    "slug": {
-                        "type": "string"
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "slug": {
+                        "type": "string"
                     },
                     "tableName": {
                         "type": "string"
@@ -11658,8 +11678,8 @@
                 },
                 "required": [
                     "name",
-                    "slug",
                     "updatedAt",
+                    "slug",
                     "tableName",
                     "metricQuery",
                     "chartConfig",
@@ -11764,12 +11784,12 @@
                     "description": {
                         "type": "string"
                     },
-                    "slug": {
-                        "type": "string"
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "slug": {
+                        "type": "string"
                     },
                     "tabs": {
                         "items": {
@@ -11778,7 +11798,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["name", "slug", "updatedAt", "tabs"],
+                "required": ["name", "updatedAt", "slug", "tabs"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -12045,22 +12065,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -12130,12 +12150,12 @@
                     "name": {
                         "type": "string"
                     },
-                    "slug": {
-                        "type": "string"
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "slug": {
+                        "type": "string"
                     },
                     "tableName": {
                         "type": "string"
@@ -12181,8 +12201,8 @@
                 },
                 "required": [
                     "name",
-                    "slug",
                     "updatedAt",
+                    "slug",
                     "tableName",
                     "tableConfig",
                     "version",
@@ -12214,12 +12234,12 @@
                     "name": {
                         "type": "string"
                     },
-                    "slug": {
-                        "type": "string"
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "slug": {
+                        "type": "string"
                     },
                     "tabs": {
                         "items": {
@@ -12241,8 +12261,8 @@
                 },
                 "required": [
                     "name",
-                    "slug",
                     "updatedAt",
+                    "slug",
                     "tabs",
                     "version",
                     "spaceSlug"
@@ -12292,6 +12312,10 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -12303,10 +12327,6 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -12337,10 +12357,10 @@
                 "required": [
                     "name",
                     "uuid",
+                    "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
-                    "updatedAt",
                     "views",
                     "firstViewedAt"
                 ],
@@ -12381,6 +12401,10 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -12395,10 +12419,6 @@
                     },
                     "slug": {
                         "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -12435,11 +12455,11 @@
                 "required": [
                     "name",
                     "uuid",
+                    "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
-                    "updatedAt",
                     "views",
                     "firstViewedAt"
                 ],
@@ -17317,7 +17337,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1639.0",
+        "version": "0.1643.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

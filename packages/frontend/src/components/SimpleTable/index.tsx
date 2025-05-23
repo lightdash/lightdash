@@ -79,7 +79,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         FC<React.PropsWithChildren<HeaderProps>>
     >(
         (props) => {
-            if (!minimal && isDashboard && tileUuid)
+            if (isDashboard && tileUuid)
                 return (
                     <DashboardHeaderContextMenu
                         {...props}
@@ -88,7 +88,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 );
             return null;
         },
-        [isDashboard, minimal, tileUuid],
+        [isDashboard, tileUuid],
     );
 
     const cellContextMenu = useCallback<
