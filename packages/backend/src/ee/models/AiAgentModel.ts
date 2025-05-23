@@ -1,28 +1,28 @@
 import {
-type AiAgent,
-AiAgentMessage,
-AiAgentSummary,
-AiAgentThreadSummary,
-ApiCreateAiAgent,
-ApiUpdateAiAgent,
-assertUnreachable,
+    type AiAgent,
+    AiAgentMessage,
+    AiAgentSummary,
+    AiAgentThreadSummary,
+    ApiCreateAiAgent,
+    ApiUpdateAiAgent,
+    assertUnreachable,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { DbUser,UserTableName } from '../../database/entities/users';
+import { DbUser, UserTableName } from '../../database/entities/users';
 import {
-AiPromptTableName,
-AiThreadTableName,
-DbAiPrompt,
-DbAiThread,
+    AiPromptTableName,
+    AiThreadTableName,
+    DbAiPrompt,
+    DbAiThread,
 } from '../database/entities/ai';
 import {
-AiAgentInstructionVersionsTableName,
-AiAgentIntegrationTableName,
-AiAgentSlackIntegrationTableName,
-AiAgentTableName,
-DbAiAgent,
-DbAiAgentIntegration,
-DbAiAgentSlackIntegration,
+    AiAgentInstructionVersionsTableName,
+    AiAgentIntegrationTableName,
+    AiAgentSlackIntegrationTableName,
+    AiAgentTableName,
+    DbAiAgent,
+    DbAiAgentIntegration,
+    DbAiAgentSlackIntegration,
 } from '../database/entities/aiAgent';
 import { AiAgentNotFoundError } from '../services/AiService/utils/errors';
 
@@ -194,7 +194,6 @@ export class AiAgentModel {
                     tags: args.tags,
                     description: null,
                     image_url: null,
-                    instructions: null,
                     last_instruction_version_updated_at: null,
                     last_instruction_version_updated_by_user_uuid: null,
                 })
@@ -558,7 +557,6 @@ export class AiAgentModel {
             .update({
                 last_instruction_version_updated_at: new Date(),
                 last_instruction_version_updated_by_user_uuid: data.userUuid,
-                instructions: data.instruction,
             })
             .where('ai_agent_uuid', data.aiAgentUuid);
 

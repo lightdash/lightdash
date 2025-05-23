@@ -45,7 +45,7 @@ import { ConversationsList } from './ConversationsList';
 const formSchema: z.ZodType<
     Pick<
         BaseAiAgent,
-        'name' | 'projectUuid' | 'integrations' | 'tags' | 'instructions'
+        'name' | 'projectUuid' | 'integrations' | 'tags' | 'instruction'
     >
 > = z.object({
     name: z.string().min(1),
@@ -59,7 +59,7 @@ const formSchema: z.ZodType<
         }),
     ),
     tags: z.array(z.string()).nullable(),
-    instructions: z.string().nullable(),
+    instruction: z.string().nullable(),
 });
 
 export const AgentDetails: FC = () => {
@@ -112,7 +112,7 @@ export const AgentDetails: FC = () => {
             projectUuid: '',
             integrations: [],
             tags: null,
-            instructions: '',
+            instruction: '',
         },
         validate: zodResolver(formSchema),
     });
@@ -304,7 +304,7 @@ export const AgentDetails: FC = () => {
                                                 placeholder="You are a helpful assistant that specializes in sales data analytics."
                                                 resize="vertical"
                                                 {...form.getInputProps(
-                                                    'instructions',
+                                                    'instruction',
                                                 )}
                                             />
                                         </Stack>

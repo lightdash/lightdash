@@ -12,7 +12,6 @@ export type DbAiAgent = {
     tags: string[] | null;
     created_at: Date;
     updated_at: Date;
-    instructions: string | null;
     last_instruction_version_updated_at: Date | null;
     last_instruction_version_updated_by_user_uuid: string | null;
 };
