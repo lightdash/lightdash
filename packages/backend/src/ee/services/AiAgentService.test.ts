@@ -5,13 +5,13 @@ describe('AiService', () => {
     test('should throw when explore does not have a base table', async () => {
         expect(() =>
             AiAgentService.filterExplore({
-                availableTags: ['zap'],
+                availableTags: ['ai-enabled'],
                 explore: {
-                    baseTable: 'base',
-                    tags: ['zip', 'zap'],
+                    baseTable: 'customers',
+                    tags: ['marketing', 'ai-enabled'],
                     tables: {
-                        // base instead of baze
-                        baze: {
+                        // customer_data instead of customers
+                        customer_data: {
                             dimensions: {},
                             metrics: {},
                         },
@@ -21,22 +21,22 @@ describe('AiService', () => {
         ).toThrow('Base table not found');
     });
 
-    test('should return explore when available tags are not configured', async () => {
+    test('should return entire explore when no AI tags are configured in settings', async () => {
         expect(
             AiAgentService.filterExplore({
                 availableTags: null,
                 explore: {
-                    baseTable: 'base',
+                    baseTable: 'customers',
                     tags: [],
                     tables: {
-                        base: {
+                        customers: {
                             dimensions: {
-                                paz: {
-                                    tags: ['zip'],
+                                customer_name: {
+                                    tags: ['pii'],
                                 },
                             },
                             metrics: {
-                                piz: {},
+                                revenue: {},
                             },
                         },
                     },
@@ -45,22 +45,22 @@ describe('AiService', () => {
         ).toBeDefined();
     });
 
-    test('should return undefined when available tags an empty array', async () => {
+    test('should return undefined when AI tags are configured but empty', async () => {
         expect(
             AiAgentService.filterExplore({
                 availableTags: [],
                 explore: {
-                    baseTable: 'base',
+                    baseTable: 'customers',
                     tags: [],
                     tables: {
-                        base: {
+                        customers: {
                             dimensions: {
-                                paz: {
-                                    tags: ['zip'],
+                                customer_name: {
+                                    tags: ['pii'],
                                 },
                             },
                             metrics: {
-                                piz: {},
+                                revenue: {},
                             },
                         },
                     },
@@ -69,15 +69,15 @@ describe('AiService', () => {
         ).toBeUndefined();
     });
 
-    test('should return undefined when explore or fields have no tags', async () => {
+    test('should return undefined when explore and fields have no matching AI tags', async () => {
         expect(
             AiAgentService.filterExplore({
-                availableTags: ['zap'],
+                availableTags: ['ai-enabled'],
                 explore: {
-                    baseTable: 'base',
+                    baseTable: 'customers',
                     tags: [],
                     tables: {
-                        base: {
+                        customers: {
                             dimensions: {},
                             metrics: {},
                         },
@@ -87,15 +87,15 @@ describe('AiService', () => {
         ).toBeUndefined();
     });
 
-    test('should return explore when explore tag matches', async () => {
+    test('should return full explore when explore-level tag matches AI settings', async () => {
         expect(
             AiAgentService.filterExplore({
-                availableTags: ['zip', 'zap'],
+                availableTags: ['marketing', 'ai-enabled'],
                 explore: {
-                    baseTable: 'base',
-                    tags: ['zap', 'zup'],
+                    baseTable: 'customers',
+                    tags: ['ai-enabled', 'analytics'],
                     tables: {
-                        base: {
+                        customers: {
                             dimensions: {},
                             metrics: {},
                         },
@@ -105,23 +105,23 @@ describe('AiService', () => {
         ).toBeDefined();
     });
 
-    test('should return explore when any of the field tag matches', async () => {
+    test('should return explore when any field tag matches AI settings', async () => {
         expect(
             AiAgentService.filterExplore({
-                availableTags: ['zip', 'zap'],
+                availableTags: ['marketing', 'ai-enabled'],
                 explore: {
-                    baseTable: 'base',
-                    tags: ['zup'],
+                    baseTable: 'customers',
+                    tags: ['analytics'],
                     tables: {
-                        base: {
+                        customers: {
                             dimensions: {
-                                paz: {
-                                    tags: ['zap'],
+                                customer_name: {
+                                    tags: ['ai-enabled'],
                                 },
                             },
                             metrics: {
-                                piz: {
-                                    tags: ['zzzzz'],
+                                revenue: {
+                                    tags: ['internal'],
                                 },
                             },
                         },
@@ -131,23 +131,23 @@ describe('AiService', () => {
         ).toBeDefined();
     });
 
-    test('should return explore when either explore or any of the field tag matches', async () => {
+    test('should return explore when both explore and field tags match AI settings', async () => {
         expect(
             AiAgentService.filterExplore({
-                availableTags: ['zip', 'zap'],
+                availableTags: ['marketing', 'ai-enabled'],
                 explore: {
-                    baseTable: 'base',
-                    tags: ['zap'],
+                    baseTable: 'customers',
+                    tags: ['ai-enabled'],
                     tables: {
-                        base: {
+                        customers: {
                             dimensions: {
-                                paz: {
-                                    tags: ['zip'],
+                                customer_name: {
+                                    tags: ['marketing'],
                                 },
                             },
                             metrics: {
-                                piz: {
-                                    tags: ['zap'],
+                                revenue: {
+                                    tags: ['ai-enabled'],
                                 },
                             },
                         },
@@ -157,25 +157,25 @@ describe('AiService', () => {
         ).toBeDefined();
     });
 
-    test('should return undefined when neither explore nor any of the field tag matches', async () => {
+    test('should return undefined when neither explore nor field tags match AI settings', async () => {
         expect(
             AiAgentService.filterExplore({
-                availableTags: ['zip', 'zap'],
+                availableTags: ['marketing', 'ai-enabled'],
                 explore: {
-                    baseTable: 'base',
-                    tags: ['zup'],
+                    baseTable: 'customers',
+                    tags: ['analytics'],
                     tables: {
-                        base: {
+                        customers: {
                             dimensions: {
-                                paz: {
+                                customer_name: {
                                     tags: [],
                                 },
-                                puz: {
-                                    tags: ['zup'],
+                                internal_id: {
+                                    tags: ['analytics'],
                                 },
                             },
                             metrics: {
-                                piz: {},
+                                revenue: {},
                             },
                         },
                     },
@@ -184,36 +184,36 @@ describe('AiService', () => {
         ).toBeUndefined();
     });
 
-    test('should return undefined when explore+base table does not match and only joined table fields match', async () => {
+    test('should return undefined when only joined table fields match but base table does not', async () => {
         expect(
             AiAgentService.filterExplore({
-                availableTags: ['zip', 'zap'],
+                availableTags: ['marketing', 'ai-enabled'],
                 explore: {
-                    baseTable: 'base',
-                    tags: ['zup'],
+                    baseTable: 'customers',
+                    tags: ['analytics'],
                     tables: {
-                        base: {
+                        customers: {
                             dimensions: {
-                                paz: {
+                                customer_name: {
                                     tags: [],
                                 },
-                                puz: {
-                                    tags: ['zup'],
+                                internal_id: {
+                                    tags: ['analytics'],
                                 },
                             },
                             metrics: {
-                                piz: {},
+                                revenue: {},
                             },
                         },
-                        another_table: {
+                        sales: {
                             dimensions: {
-                                sup: {
-                                    tags: ['zip', 'zap'],
+                                user_email: {
+                                    tags: ['marketing', 'ai-enabled'],
                                 },
                             },
                             metrics: {
-                                sap: {
-                                    tags: ['zip', 'zap'],
+                                sales_total: {
+                                    tags: ['marketing', 'ai-enabled'],
                                 },
                             },
                         },
@@ -223,33 +223,33 @@ describe('AiService', () => {
         ).toBeUndefined();
     });
 
-    test('should not filter out anything from the explore when explore has tags but base table fields does not have matching tags', async () => {
+    test('should expose all fields when explore is tagged but base table fields lack matching tags', async () => {
         const explore = {
-            baseTable: 'base',
-            tags: ['zap'],
+            baseTable: 'customers',
+            tags: ['ai-enabled'],
             tables: {
-                base: {
+                customers: {
                     dimensions: {
-                        paz: {
+                        customer_name: {
                             tags: [],
                         },
-                        puz: {
-                            tags: ['zup'],
+                        internal_id: {
+                            tags: ['analytics'],
                         },
                     },
                     metrics: {
-                        piz: {},
+                        revenue: {},
                     },
                 },
-                another_table: {
+                sales: {
                     dimensions: {
-                        sup: {
-                            tags: ['zip', 'zap'],
+                        user_email: {
+                            tags: ['marketing', 'ai-enabled'],
                         },
                     },
                     metrics: {
-                        sap: {
-                            tags: ['zip', 'zap'],
+                        sales_total: {
+                            tags: ['marketing', 'ai-enabled'],
                         },
                     },
                 },
@@ -258,39 +258,39 @@ describe('AiService', () => {
 
         expect(
             AiAgentService.filterExplore({
-                availableTags: ['zip', 'zap'],
+                availableTags: ['marketing', 'ai-enabled'],
                 explore,
             }),
         ).toStrictEqual(explore);
     });
 
-    test('should filter out fields from the explore when explore has no tags but other table fields have matching tags', async () => {
+    test('should filter fields when explore lacks tags but base table fields have matching tags', async () => {
         const explore = {
-            baseTable: 'base',
+            baseTable: 'customers',
             tags: [],
             tables: {
-                base: {
+                customers: {
                     dimensions: {
-                        paz: {
-                            tags: ['zup', 'zap'],
+                        customer_name: {
+                            tags: ['pii', 'ai-enabled'],
                         },
-                        puz: {
-                            tags: ['zup'],
+                        internal_id: {
+                            tags: ['pii'],
                         },
                     },
                     metrics: {
-                        piz: {},
+                        revenue: {},
                     },
                 },
-                another_table: {
+                sales: {
                     dimensions: {
-                        sup: {
-                            tags: ['zip', 'zap'],
+                        user_email: {
+                            tags: ['marketing', 'ai-enabled'],
                         },
                     },
                     metrics: {
-                        sap: {
-                            tags: ['zip'],
+                        sales_total: {
+                            tags: ['marketing'],
                         },
                     },
                 },
@@ -299,51 +299,51 @@ describe('AiService', () => {
 
         expect(
             AiAgentService.filterExplore({
-                availableTags: ['zap'],
+                availableTags: ['ai-enabled'],
                 explore,
             }),
         ).toStrictEqual(
             produce(explore, (draft) => {
                 // @ts-ignore
                 // eslint-disable-next-line no-param-reassign, @typescript-eslint/dot-notation
-                delete draft.tables['base'].dimensions['puz'];
+                delete draft.tables['customers'].dimensions['internal_id'];
                 // @ts-ignore
                 // eslint-disable-next-line no-param-reassign, @typescript-eslint/dot-notation
-                delete draft.tables['base'].metrics['piz'];
+                delete draft.tables['customers'].metrics['revenue'];
                 // @ts-ignore
                 // eslint-disable-next-line no-param-reassign, @typescript-eslint/dot-notation
-                delete draft.tables['another_table'].metrics['sap'];
+                delete draft.tables['sales'].metrics['sales_total'];
             }),
         );
     });
 
-    test('should filter out fields from the explore when explore has matching tags but other table fields have matching tags', async () => {
+    test('should filter fields when both explore and base table fields have matching tags', async () => {
         const explore = {
-            baseTable: 'base',
-            tags: ['zap'],
+            baseTable: 'customers',
+            tags: ['ai-enabled'],
             tables: {
-                base: {
+                customers: {
                     dimensions: {
-                        paz: {
-                            tags: ['zup', 'zap'],
+                        customer_name: {
+                            tags: ['pii', 'ai-enabled'],
                         },
-                        puz: {
-                            tags: ['zup'],
+                        internal_id: {
+                            tags: ['pii'],
                         },
                     },
                     metrics: {
-                        piz: {},
+                        revenue: {},
                     },
                 },
-                another_table: {
+                sales: {
                     dimensions: {
-                        sup: {
-                            tags: ['zip', 'zap'],
+                        user_email: {
+                            tags: ['marketing', 'ai-enabled'],
                         },
                     },
                     metrics: {
-                        sap: {
-                            tags: ['zip'],
+                        sales_total: {
+                            tags: ['marketing'],
                         },
                     },
                 },
@@ -352,21 +352,121 @@ describe('AiService', () => {
 
         expect(
             AiAgentService.filterExplore({
-                availableTags: ['zap'],
+                availableTags: ['ai-enabled'],
                 explore,
             }),
         ).toStrictEqual(
             produce(explore, (filteredExplore) => {
                 // @ts-ignore
                 // eslint-disable-next-line no-param-reassign, @typescript-eslint/dot-notation
-                delete filteredExplore.tables['base'].dimensions['puz'];
+                delete filteredExplore.tables['customers'].dimensions[
+                    // eslint-disable-next-line @typescript-eslint/dot-notation
+                    'internal_id'
+                ];
                 // @ts-ignore
                 // eslint-disable-next-line no-param-reassign, @typescript-eslint/dot-notation
-                delete filteredExplore.tables['base'].metrics['piz'];
+                delete filteredExplore.tables['customers'].metrics['revenue'];
                 // @ts-ignore
                 // eslint-disable-next-line no-param-reassign, @typescript-eslint/dot-notation
-                delete filteredExplore.tables['another_table'].metrics['sap'];
+                delete filteredExplore.tables['sales'].metrics['sales_total'];
             }),
         );
+    });
+
+    test('should handle fields with multiple tags where only some match AI settings', async () => {
+        const explore = {
+            baseTable: 'customers',
+            tags: [],
+            tables: {
+                customers: {
+                    dimensions: {
+                        customer_name: {
+                            tags: ['pii', 'sensitive', 'ai-enabled'],
+                        },
+                        customer_segment: {
+                            tags: ['marketing', 'analytics'],
+                        },
+                    },
+                    metrics: {
+                        lifetime_value: {
+                            tags: ['ai-enabled', 'finance'],
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = AiAgentService.filterExplore({
+            availableTags: ['ai-enabled'],
+            explore,
+        });
+
+        expect(result?.tables.customers.dimensions).toHaveProperty(
+            'customer_name',
+        );
+        expect(result?.tables.customers.dimensions).not.toHaveProperty(
+            'customer_segment',
+        );
+        expect(result?.tables.customers.metrics).toHaveProperty(
+            'lifetime_value',
+        );
+    });
+
+    test('should handle duplicate tags in available tags list', async () => {
+        expect(
+            AiAgentService.filterExplore({
+                availableTags: ['ai-enabled', 'ai-enabled', 'marketing'],
+                explore: {
+                    baseTable: 'customers',
+                    tags: ['ai-enabled'],
+                    tables: {
+                        customers: {
+                            dimensions: {},
+                            metrics: {},
+                        },
+                    },
+                },
+            }),
+        ).toBeDefined();
+    });
+
+    test('should handle case where field tags array contains duplicates', async () => {
+        expect(
+            AiAgentService.filterExplore({
+                availableTags: ['ai-enabled'],
+                explore: {
+                    baseTable: 'customers',
+                    tags: [],
+                    tables: {
+                        customers: {
+                            dimensions: {
+                                customer_name: {
+                                    tags: ['ai-enabled', 'ai-enabled', 'pii'],
+                                },
+                            },
+                            metrics: {},
+                        },
+                    },
+                },
+            }),
+        ).toBeDefined();
+    });
+
+    test('should return undefined when base table has no dimensions or metrics', async () => {
+        expect(
+            AiAgentService.filterExplore({
+                availableTags: ['ai-enabled'],
+                explore: {
+                    baseTable: 'empty_table',
+                    tags: [],
+                    tables: {
+                        empty_table: {
+                            dimensions: {},
+                            metrics: {},
+                        },
+                    },
+                },
+            }),
+        ).toBeUndefined();
     });
 });
