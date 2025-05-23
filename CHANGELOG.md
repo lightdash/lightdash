@@ -1,3 +1,10 @@
+## [0.1644.3](https://github.com/lightdash/lightdash/compare/0.1644.2...0.1644.3) (2025-05-23)
+
+
+### Bug Fixes
+
+* space management not updating the space uuid after chart update ([#14942](https://github.com/lightdash/lightdash/issues/14942)) ([3a4a3ad](https://github.com/lightdash/lightdash/commit/3a4a3ad5bf25b0c8e441e45efb84a718aeea6cb9))
+
 ## [0.1644.2](https://github.com/lightdash/lightdash/compare/0.1644.1...0.1644.2) (2025-05-23)
 
 
