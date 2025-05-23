@@ -29,6 +29,7 @@ import {
     SlackPrompt,
     UnexpectedServerError,
     assertUnreachable,
+    filterExploreByTags,
     getErrorMessage,
     getItemId,
     isDashboardChartTileType,
@@ -501,7 +502,7 @@ export class AiService {
 
         const exploresWithDescriptions = explores
             .map((explore) =>
-                AiAgentService.filterExplore({
+                filterExploreByTags({
                     explore,
                     availableTags,
                 }),
@@ -538,7 +539,7 @@ export class AiService {
                 exploreName,
             );
 
-            const filteredExplore = await AiAgentService.filterExplore({
+            const filteredExplore = filterExploreByTags({
                 explore,
                 availableTags,
             });
