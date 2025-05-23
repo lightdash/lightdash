@@ -123,6 +123,7 @@ const FixValidationErrorModal: FC<{
         setRenameType(RenameType.FIELD);
         setNewName('');
         setFixAll(false);
+        form.reset();
         onClose();
     };
 
