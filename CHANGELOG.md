@@ -1,3 +1,10 @@
+# [0.1648.0](https://github.com/lightdash/lightdash/compare/0.1647.1...0.1648.0) (2025-05-23)
+
+
+### Features
+
+* download csv from async query results ([#14843](https://github.com/lightdash/lightdash/issues/14843)) ([5633bda](https://github.com/lightdash/lightdash/commit/5633bda8f50397c492c6c6930ed5167c5be2f95a))
+
 ## [0.1647.1](https://github.com/lightdash/lightdash/compare/0.1647.0...0.1647.1) (2025-05-23)
 
 
