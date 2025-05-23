@@ -13,6 +13,8 @@ export type DbAiAgent = {
     created_at: Date;
     updated_at: Date;
     instructions: string | null;
+    last_instruction_version_updated_at: Date | null;
+    last_instruction_version_updated_by_user_uuid: string | null;
 };
 
 export type AiAgentTable = Knex.CompositeTableType<
@@ -52,3 +54,14 @@ export type AiAgentSlackIntegrationTable = Knex.CompositeTableType<
         'ai_agent_integration_slack_uuid' | 'created_at'
     >
 >;
+
+export const AiAgentInstructionVersionsTableName =
+    'ai_agent_instruction_versions';
+
+export type DbAiAgentInstructionVersions = {
+    ai_agent_instructions_version_uuid: string;
+    ai_agent_uuid: string;
+    instruction: string;
+    created_at: Date;
+    created_by_user_uuid: string | null;
+};
