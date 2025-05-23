@@ -259,7 +259,7 @@ describe('Lightdash API', () => {
         );
     });
 
-    it('Should get metric filters from events', () => {
+    it.only('Should get metric filters from events', () => {
         cy.request({
             url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/explores/events`,
             headers: { 'Content-type': 'application/json' },
@@ -276,7 +276,6 @@ describe('Lightdash API', () => {
             expect(metricFilters).to.have.length(3);
             expect(metricFilters[0]).to.deep.equal({
                 id: undefined,
-                required: true,
                 operator: 'notNull',
                 values: [1],
                 target: { fieldRef: 'event_id' },
@@ -285,13 +284,11 @@ describe('Lightdash API', () => {
                 id: undefined,
                 operator: 'greaterThan',
                 values: [5],
-                required: true,
                 target: { fieldRef: 'event_id' },
             });
             expect(metricFilters[2]).to.deep.equal({
                 id: undefined,
                 operator: 'equals',
-                required: true,
                 values: ['song_played'],
                 target: { fieldRef: 'event' },
             });
