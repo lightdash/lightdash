@@ -216,9 +216,9 @@ const FilterConfiguration: FC<Props> = ({
                                     ?.reference;
                             const defaultField = selectedField
                                 ? getDefaultField(
-                                    availableTileFilters[tileUuid] ?? [],
-                                    selectedField,
-                                )
+                                      availableTileFilters[tileUuid] ?? [],
+                                      selectedField,
+                                  )
                                 : undefined;
 
                             if (defaultColumn) {
@@ -376,8 +376,16 @@ const FilterConfiguration: FC<Props> = ({
                                 />
                             ) : (
                                 <Select
-                                    label="Column"
-                                    placeholder="Pick a column"
+                                    size="xs"
+                                    label={
+                                        <Text>
+                                            Select a column to filter{' '}
+                                            <Text color="red" span>
+                                                *
+                                            </Text>{' '}
+                                        </Text>
+                                    }
+                                    placeholder="Search column..."
                                     value={draftFilterRule?.target.fieldId}
                                     data={columnsOptions.map(
                                         ({ reference }) => reference,
