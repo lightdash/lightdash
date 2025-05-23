@@ -19,7 +19,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect, useMount } from 'react-use';
 import { hasSavedFilterValueChanged } from '../../components/DashboardFilter/FilterConfiguration/utils';
-import { getConditionalRuleLabel } from '../../components/common/Filters/FilterInputs/utils';
+import { getConditionalRuleLabelFromItem } from '../../components/common/Filters/FilterInputs/utils';
 import {
     useGetComments,
     type useDashboardCommentsCheck,
@@ -595,7 +595,10 @@ const DashboardProvider: React.FC<
                         if (f.label) {
                             label = f.label;
                         } else if (field) {
-                            label = getConditionalRuleLabel(f, field).field;
+                            label = getConditionalRuleLabelFromItem(
+                                f,
+                                field,
+                            ).field;
                         }
 
                         return [

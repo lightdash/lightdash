@@ -21,7 +21,7 @@ import { ExplorerSection } from '../../../providers/Explorer/types';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import FiltersForm from '../../common/Filters';
-import { getConditionalRuleLabel } from '../../common/Filters/FilterInputs/utils';
+import { getConditionalRuleLabelFromItem } from '../../common/Filters/FilterInputs/utils';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
@@ -175,7 +175,7 @@ const FiltersCard: FC = memo(() => {
                 (f) => getItemId(f) === filterRule.target.fieldId,
             );
             if (field && isFilterableField(field)) {
-                const filterRuleLabels = getConditionalRuleLabel(
+                const filterRuleLabels = getConditionalRuleLabelFromItem(
                     filterRule,
                     field,
                 );

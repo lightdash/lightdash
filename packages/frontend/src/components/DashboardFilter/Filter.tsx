@@ -18,7 +18,7 @@ import { IconFilter, IconGripVertical } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
-    getConditionalRuleLabel,
+    getConditionalRuleLabelFromItem,
     getFilterRuleTables,
 } from '../common/Filters/FilterInputs/utils';
 import MantineIcon from '../common/MantineIcon';
@@ -120,7 +120,7 @@ const Filter: FC<Props> = ({
     const filterRuleLabels = useMemo(() => {
         if (!filterRule || !field) return;
 
-        return getConditionalRuleLabel(filterRule, field);
+        return getConditionalRuleLabelFromItem(filterRule, field);
     }, [filterRule, field]);
 
     const filterRuleTables = useMemo(() => {
