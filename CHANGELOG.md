@@ -1,3 +1,10 @@
+# [0.1645.0](https://github.com/lightdash/lightdash/compare/0.1644.4...0.1645.0) (2025-05-23)
+
+
+### Features
+
+* use version for results file model query cache key ([#14981](https://github.com/lightdash/lightdash/issues/14981)) ([d7425c6](https://github.com/lightdash/lightdash/commit/d7425c6703235fe9bfb69841934620ecc3cb9995))
+
 ## [0.1644.4](https://github.com/lightdash/lightdash/compare/0.1644.3...0.1644.4) (2025-05-23)
 
 
