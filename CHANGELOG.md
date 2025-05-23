@@ -1,3 +1,10 @@
+## [0.1644.2](https://github.com/lightdash/lightdash/compare/0.1644.1...0.1644.2) (2025-05-23)
+
+
+### Bug Fixes
+
+* format overrides for bignumber and results ([#14952](https://github.com/lightdash/lightdash/issues/14952)) ([0b8194e](https://github.com/lightdash/lightdash/commit/0b8194e51d545774ff4d8b529142124849691e7f))
+
 ## [0.1644.1](https://github.com/lightdash/lightdash/compare/0.1644.0...0.1644.1) (2025-05-23)
 
 
