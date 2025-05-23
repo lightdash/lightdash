@@ -1,3 +1,10 @@
+## [0.1644.1](https://github.com/lightdash/lightdash/compare/0.1644.0...0.1644.1) (2025-05-23)
+
+
+### Bug Fixes
+
+* add minio to oss docker compose ([#14970](https://github.com/lightdash/lightdash/issues/14970)) ([37dbb0e](https://github.com/lightdash/lightdash/commit/37dbb0e6b5c7a0ecdcd28d1313d337798f8f2566))
+
 # [0.1644.0](https://github.com/lightdash/lightdash/compare/0.1643.3...0.1644.0) (2025-05-22)
 
 
