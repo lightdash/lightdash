@@ -52,9 +52,11 @@ const Schedulers: FC<SchedulersProps> = ({
     const { data: slackInstallation } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
 
-    const { data: allSlackChannels } = useSlackChannels('', false, {
-        enabled: organizationHasSlack,
-    });
+    const { data: allSlackChannels } = useSlackChannels(
+        '',
+        { excludeArchived: false },
+        { enabled: organizationHasSlack },
+    );
 
     const getSlackChannelName = useCallback(
         (channelId: string) => {

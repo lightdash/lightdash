@@ -22419,6 +22419,12 @@ export function RegisterRoutes(app: Router) {
             name: 'excludeArchived',
             dataType: 'boolean',
         },
+        excludeDms: { in: 'query', name: 'excludeDms', dataType: 'boolean' },
+        excludeGroups: {
+            in: 'query',
+            name: 'excludeGroups',
+            dataType: 'boolean',
+        },
         forceRefresh: {
             in: 'query',
             name: 'forceRefresh',

@@ -77,9 +77,15 @@ const SlackSettingsPanel: FC = () => {
     const debounceSetSearch = debounce((val) => setSearch(val), 1500);
 
     const { data: slackChannels, isInitialLoading: isLoadingSlackChannels } =
-        useSlackChannels(search, true, {
-            enabled: organizationHasSlack,
-        });
+        useSlackChannels(
+            search,
+            {
+                excludeArchived: true,
+                excludeDms: true,
+                excludeGroups: true,
+            },
+            { enabled: organizationHasSlack },
+        );
 
     const { mutate: deleteSlack } = useDeleteSlack();
     const { mutate: updateCustomSettings } =
