@@ -24,6 +24,17 @@ type AiAgentServiceDependencies = {
     slackClient: SlackClient;
 };
 
+type FilterableTable = {
+    dimensions: Record<string, { tags?: string[] }>;
+    metrics: Record<string, { tags?: string[] }>;
+};
+
+type FilterableExplore<T extends FilterableTable = FilterableTable> = {
+    tags: string[];
+    baseTable: string;
+    tables: { [tableName: string]: T };
+};
+
 export class AiAgentService {
     private readonly aiAgentModel: AiAgentModel;
 
@@ -62,36 +73,40 @@ export class AiAgentService {
      * | Explore + some fields (with match)   | Only those tagged fields    |
      * | No matching tags                     | Nothing is visible          |
      */
-    static filterExplore({
+    static filterExplore<E extends FilterableExplore>({
         explore,
         availableTags,
     }: {
-        explore: Explore;
+        explore: E;
         availableTags: string[] | null;
     }) {
         if (!availableTags) {
             return explore;
         }
 
-        const hasMatchingTags = (tags: string[]) =>
-            _.intersection(tags, availableTags).length > 0;
+        const baseTable = explore.tables[explore.baseTable];
+        if (!baseTable) {
+            throw new Error(`Base table not found`);
+        }
 
-        const checkIfTableFieldsHasMatchingTags = (table: CompiledTable) =>
-            hasMatchingTags(
+        function hasMatchingTags(tags: string[]) {
+            return _.intersection(tags, availableTags).length > 0;
+        }
+
+        function checkIfTableFieldsHasMatchingTags<T extends FilterableTable>(
+            table: T,
+        ) {
+            return hasMatchingTags(
                 _.concat(
                     _.flatMap(table.metrics, (m) => m.tags ?? []),
                     _.flatMap(table.dimensions, (d) => d.tags ?? []),
                 ),
             );
+        }
 
-        const checkIfExploreHasMatchingTags = (e: Explore) => {
+        function checkIfExploreHasMatchingTags(e: E) {
             if (hasMatchingTags(e.tags)) {
                 return true;
-            }
-
-            const baseTable = e.tables[e.baseTable];
-            if (!baseTable) {
-                throw new Error(`Base table not found`);
             }
 
             if (checkIfTableFieldsHasMatchingTags(baseTable)) {
@@ -99,16 +114,13 @@ export class AiAgentService {
             }
 
             return false;
-        };
+        }
 
         if (!checkIfExploreHasMatchingTags(explore)) {
             return undefined;
         }
 
-        const tablesHaveSomeMatchingTags = _.some(explore.tables, (table) =>
-            checkIfTableFieldsHasMatchingTags(table),
-        );
-        if (!tablesHaveSomeMatchingTags) {
+        if (!checkIfTableFieldsHasMatchingTags(baseTable)) {
             return explore;
         }
 
@@ -116,14 +128,16 @@ export class AiAgentService {
         const filteredExplore: Explore = _.update(explore, 'tables', (tables) =>
             _.mapValues(tables, (table) => ({
                 ...table,
-                metrics: _.pickBy(table.metrics, (m) =>
-                    hasMatchingTags(m.tags ?? []),
-                ),
                 dimensions: _.pickBy(table.dimensions, (d) =>
                     hasMatchingTags(d.tags ?? []),
                 ),
+                metrics: _.pickBy(table.metrics, (m) =>
+                    hasMatchingTags(m.tags ?? []),
+                ),
             })),
         );
+
+        console.dir(filteredExplore, { depth: null });
 
         return filteredExplore;
     }
