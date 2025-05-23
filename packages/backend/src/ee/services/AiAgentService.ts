@@ -2,8 +2,6 @@ import {
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
     CommercialFeatureFlags,
-    CompiledTable,
-    Explore,
     ForbiddenError,
     LightdashUser,
     NotFoundError,
@@ -16,23 +14,10 @@ import { AiAgentModel } from '../models/AiAgentModel';
 import type { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 
 type AiAgentServiceDependencies = {
-    // models
     aiAgentModel: AiAgentModel;
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
-    // services
     featureFlagService: FeatureFlagService;
     slackClient: SlackClient;
-};
-
-type FilterableTable = {
-    dimensions: Record<string, { tags?: string[] }>;
-    metrics: Record<string, { tags?: string[] }>;
-};
-
-type FilterableExplore<T extends FilterableTable = FilterableTable> = {
-    tags: string[];
-    baseTable: string;
-    tables: { [tableName: string]: T };
 };
 
 export class AiAgentService {
@@ -51,95 +36,6 @@ export class AiAgentService {
         // services
         this.featureFlagService = dependencies.featureFlagService;
         this.slackClient = dependencies.slackClient;
-    }
-
-    /**
-     * @description
-     *
-     * No tags are configured in settings UI:
-     *
-     * | Tagging Scenario                  | AI Visibility                    |
-     * |-----------------------------------|----------------------------------|
-     * | No tags configured in settings UI | Everything is visible by default |
-     *
-     * ---
-     *
-     * Tags are configured in settings UI:
-     *
-     * | Tagging Scenario                     | AI Visibility               |
-     * |--------------------------------------|-----------------------------|
-     * | Explore only (with matching tag)     | All fields in the Explore   |
-     * | Some fields only (with matching tag) | Only those tagged fields    |
-     * | Explore + some fields (with match)   | Only those tagged fields    |
-     * | No matching tags                     | Nothing is visible          |
-     */
-    static filterExplore<E extends FilterableExplore>({
-        explore,
-        availableTags,
-    }: {
-        explore: E;
-        availableTags: string[] | null;
-    }) {
-        if (!availableTags) {
-            return explore;
-        }
-
-        const baseTable = explore.tables[explore.baseTable];
-        if (!baseTable) {
-            throw new Error(`Base table not found`);
-        }
-
-        function hasMatchingTags(tags: string[]) {
-            return _.intersection(tags, availableTags).length > 0;
-        }
-
-        function checkIfTableFieldsHasMatchingTags<T extends FilterableTable>(
-            table: T,
-        ) {
-            return hasMatchingTags(
-                _.concat(
-                    _.flatMap(table.metrics, (m) => m.tags ?? []),
-                    _.flatMap(table.dimensions, (d) => d.tags ?? []),
-                ),
-            );
-        }
-
-        function checkIfExploreHasMatchingTags(e: E) {
-            if (hasMatchingTags(e.tags)) {
-                return true;
-            }
-
-            if (checkIfTableFieldsHasMatchingTags(baseTable)) {
-                return true;
-            }
-
-            return false;
-        }
-
-        if (!checkIfExploreHasMatchingTags(explore)) {
-            return undefined;
-        }
-
-        if (!checkIfTableFieldsHasMatchingTags(baseTable)) {
-            return explore;
-        }
-
-        // TODO: improve typing so we don't have to force cast
-        const filteredExplore: Explore = _.update(explore, 'tables', (tables) =>
-            _.mapValues(tables, (table) => ({
-                ...table,
-                dimensions: _.pickBy(table.dimensions, (d) =>
-                    hasMatchingTags(d.tags ?? []),
-                ),
-                metrics: _.pickBy(table.metrics, (m) =>
-                    hasMatchingTags(m.tags ?? []),
-                ),
-            })),
-        );
-
-        console.dir(filteredExplore, { depth: null });
-
-        return filteredExplore;
     }
 
     private async getIsCopilotEnabled(
