@@ -35,8 +35,9 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
     const { startOfWeek } = useFiltersContext();
 
     const isTimestamp =
+        !field ||
         (isCustomSqlDimension(field) ? field.dimensionType : field.type) ===
-        DimensionType.TIMESTAMP;
+            DimensionType.TIMESTAMP;
 
     if (!isFilterRule(rule)) {
         throw new Error('DateFilterInputs expects a FilterRule');
