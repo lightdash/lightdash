@@ -105,14 +105,11 @@ const createNodeWithGroup = (
 
 export const getNodeMapFromItemsMap = (
     itemsMap: Record<string, NodeItem>,
-    selectedItems: Set<string>,
     groupDetails: Record<string, GroupType> = {},
 ): NodeMap => {
-    // Filter items first
-    const filteredItems = Object.entries(itemsMap).filter(([itemId, item]) =>
-        isCustomDimension(item)
-            ? true
-            : !item.hidden || selectedItems.has(itemId),
+    // Filter items: only include non-hidden items and all custom dimensions
+    const filteredItems = Object.entries(itemsMap).filter(([_itemId, item]) =>
+        isCustomDimension(item) ? true : !item.hidden,
     );
 
     // Use reduce to build the node map without mutations
