@@ -3,7 +3,7 @@ import { Knex } from 'knex';
 export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable('ai_agent', (table) => {
         table.timestamp('last_instruction_version_updated_at').nullable();
-        table.uuid('last_instruction_version_updated_by_user_uuid').nullable();
+        table.text('instruction').nullable();
     });
 
     await knex.schema.createTable('ai_agent_instruction_versions', (table) => {
@@ -22,12 +22,6 @@ export async function up(knex: Knex): Promise<void> {
             .timestamp('created_at', { useTz: false })
             .notNullable()
             .defaultTo(knex.fn.now());
-        table
-            .uuid('created_by_user_uuid')
-            .references('user_uuid')
-            .inTable('users')
-            .onDelete('SET NULL')
-            .notNullable();
 
         table.index('ai_agent_uuid');
         table.index('created_at');
