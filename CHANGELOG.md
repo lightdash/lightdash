@@ -1,3 +1,10 @@
+# [0.1649.0](https://github.com/lightdash/lightdash/compare/0.1648.0...0.1649.0) (2025-05-23)
+
+
+### Features
+
+* add SQL column support for dashboard filters ([#14987](https://github.com/lightdash/lightdash/issues/14987)) ([f834052](https://github.com/lightdash/lightdash/commit/f8340524bc25261b2514fde771d75ee931047f6b))
+
 # [0.1648.0](https://github.com/lightdash/lightdash/compare/0.1647.1...0.1648.0) (2025-05-23)
 
 
