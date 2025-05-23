@@ -6,6 +6,7 @@ import {
     isVizPieChartConfig,
     isVizTableConfig,
     type DashboardSqlChartTile,
+    type ResultColumn,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
@@ -131,7 +132,12 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     // Update SQL chart columns in the dashboard context
     useEffect(() => {
         if (chartResultsData?.resultsRunner) {
-            const columns = chartResultsData.resultsRunner.getColumnNames();
+            const columns = chartResultsData.resultsRunner
+                .getPivotQueryDimensions()
+                .map<ResultColumn>(({ reference, dimensionType }) => ({
+                    reference,
+                    type: dimensionType,
+                }));
             updateSqlChartTilesMetadata(tile.uuid, { columns });
         }
     }, [
