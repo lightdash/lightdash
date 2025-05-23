@@ -54,6 +54,7 @@ export type AiAgentSummary = Pick<
     | 'organizationUuid'
     | 'createdAt'
     | 'updatedAt'
+    | 'instruction'
 >;
 
 export type AiAgentMessage =
@@ -110,16 +111,10 @@ export type ApiAiAgentSummaryResponse = {
 
 export type ApiCreateAiAgent = Pick<
     AiAgent,
-    'projectUuid' | 'integrations' | 'tags' | 'name'
+    'projectUuid' | 'integrations' | 'tags' | 'name' | 'instruction'
 >;
 
-export type ApiUpdateAiAgent = {
-    uuid: AiAgent['uuid'];
-    projectUuid?: AiAgent['projectUuid'];
-    name?: AiAgent['name'];
-    tags?: AiAgent['tags'];
-    integrations?: AiAgent['integrations'];
-};
+export type ApiUpdateAiAgent = Partial<AiAgent> & Pick<AiAgent, 'uuid'>;
 
 export type ApiCreateAiAgentResponse = {
     status: 'ok';
