@@ -312,7 +312,7 @@ export const parseModelRequiredFilters = ({
 
     return rawFilters.reduce<ModelRequiredFilterRule[]>((acc, filter) => {
         const parseFilter = (): [boolean, RequiredFilter] => {
-            const requiredDefault = requiredFilters?.includes(filter) || false;
+            const requiredDefault = requiredFilters?.includes(filter) ?? false;
 
             const filterHasMultipleKeys = Object.keys(filter).length > 1;
             if (filterHasMultipleKeys) {

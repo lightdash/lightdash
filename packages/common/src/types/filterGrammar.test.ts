@@ -376,7 +376,7 @@ describe('Parse required filters', () => {
             },
         ]);
     });
-    it('Should required filters default to "required: true', () => {
+    it('Should required filters default to "required: true"', () => {
         expect(
             removeIds(
                 parseModelRequiredFilters({
@@ -526,7 +526,7 @@ describe('Parse required filters', () => {
         ]);
     });
 
-    it('Should parse default and required filters with oposite values', () => {
+    it('Should parse default and required filters with opposite values', () => {
         expect(
             removeIds(
                 parseModelRequiredFilters({
