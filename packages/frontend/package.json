@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.1644.3",
+    "version": "0.1644.4",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
