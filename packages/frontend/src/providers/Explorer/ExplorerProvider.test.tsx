@@ -1747,7 +1747,7 @@ describe('ExplorerProvider reducer', () => {
 
             expect(
                 newState.unsavedChartVersion.metricQuery.tableCalculations,
-            ).not.toContainEqual(mockTableCalculation);
+            ).not.toContainEqual(mockTableCalculation('calc_1'));
 
             expect(
                 newState.unsavedChartVersion.tableConfig.columnOrder,
