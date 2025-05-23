@@ -112,8 +112,9 @@ export const getFilterGroupItemsPropertyName = (
     return 'and';
 };
 
-export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
-    const type = getItemType(item);
+export const getFilterTypeFromItemType = (
+    type: DimensionType | MetricType | TableCalculationType,
+): FilterType => {
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
@@ -149,6 +150,11 @@ export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
             );
         }
     }
+};
+
+export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
+    const type = getItemType(item);
+    return getFilterTypeFromItemType(type);
 };
 
 export const timeframeToUnitOfTime = (timeframe: TimeFrames) => {
