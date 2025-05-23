@@ -7,7 +7,7 @@ import {
     type Dimension,
     type Metric,
 } from '@lightdash/common';
-import { useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import TreeGroupNode from './TreeGroupNode';
 import TreeSingleNode from './TreeSingleNode';
 import { isGroupNode, type Node, type NodeMap } from './types';
@@ -63,4 +63,6 @@ const TreeNodes: FC<{ nodeMap: NodeMap }> = ({ nodeMap }) => {
     );
 };
 
-export default TreeNodes;
+const MemoizedTreeNodes = memo(TreeNodes);
+MemoizedTreeNodes.displayName = 'TreeNodes';
+export default MemoizedTreeNodes;
