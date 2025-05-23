@@ -52,6 +52,7 @@ import * as fsPromise from 'fs/promises';
 import isNil from 'lodash/isNil';
 import moment, { MomentInput } from 'moment';
 import { nanoid } from 'nanoid';
+import { createInterface } from 'readline';
 import {
     pipeline,
     Readable,
@@ -264,7 +265,7 @@ export class CsvService extends BaseService {
         );
     }
 
-    static async streamRowsToFile(
+    static async streamObjectRowsToFile(
         onlyRaw: boolean,
         itemMap: ItemsMap,
         sortedFieldIds: string[],
@@ -316,6 +317,84 @@ export class CsvService extends BaseService {
                     resolve();
                 },
             );
+        });
+    }
+
+    /**
+     * Stream S3 JSONL data to CSV file
+     * This method is specifically designed to handle JSONL data from S3 storage
+     * and convert it to CSV format.
+     * Unlike streamRowsToFile, this method expects the readStream to be in string format,
+     * not in object mode.
+     */
+    static async streamJsonlRowsToFile(
+        onlyRaw: boolean,
+        itemMap: ItemsMap,
+        sortedFieldIds: string[],
+        csvHeader: string[],
+        {
+            readStream,
+            writeStream,
+        }: {
+            readStream: Readable;
+            writeStream: Writable;
+        },
+    ): Promise<{ truncated: boolean }> {
+        const stringifier = stringify({
+            delimiter: ',',
+            header: true,
+            columns: csvHeader,
+        });
+
+        return new Promise((resolve, reject) => {
+            // Process the readStream line by line
+            const lineReader = createInterface({
+                input: readStream,
+                crlfDelay: Infinity,
+            });
+
+            let lineCount = 0;
+            const MAX_LINES = 100000; // Configurable limit
+            let truncated = false;
+
+            lineReader.on('line', (line: string) => {
+                if (!line.trim()) return;
+
+                // eslint-disable-next-line no-plusplus
+                lineCount++;
+                if (lineCount > MAX_LINES) {
+                    truncated = true;
+                    lineReader.close();
+                    return;
+                }
+
+                try {
+                    const parsedRow = JSON.parse(line);
+                    const csvRow = CsvService.convertRowToCsv(
+                        parsedRow,
+                        itemMap,
+                        onlyRaw,
+                        sortedFieldIds,
+                    );
+                    stringifier.write(csvRow);
+                } catch (error) {
+                    Logger.error(
+                        `Error processing line ${lineCount}: ${error}`,
+                    );
+                }
+            });
+
+            lineReader.on('close', () => {
+                stringifier.end();
+            });
+
+            pipeline(stringifier, writeStream, (err) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                resolve({ truncated });
+            });
         });
     }
 
@@ -372,7 +451,7 @@ export class CsvService extends BaseService {
             highWaterMark: CHUNK_SIZE,
         });
 
-        await CsvService.streamRowsToFile(
+        await CsvService.streamObjectRowsToFile(
             onlyRaw,
             itemMap,
             sortedFieldIds,

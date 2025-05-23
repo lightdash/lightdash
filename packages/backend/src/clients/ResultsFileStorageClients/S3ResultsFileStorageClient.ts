@@ -2,7 +2,7 @@ import { GetObjectCommand, NotFound } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getErrorMessage, WarehouseResults } from '@lightdash/common';
-import { PassThrough, Readable } from 'stream';
+import { once, PassThrough, Readable, Writable } from 'stream';
 import Logger from '../../logging/logger';
 import {
     S3CacheClient,
@@ -19,17 +19,22 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         this.s3ExpiresIn = lightdashConfig.s3.expirationTime;
     }
 
-    createUploadStream(cacheKey: string) {
+    createUploadStream(
+        fileName: string,
+        opts: {
+            contentType: string;
+        },
+    ) {
         const passThrough = new PassThrough();
 
         const upload = new Upload({
             client: this.s3,
             params: {
                 Bucket: this.configuration.bucket,
-                Key: `${cacheKey}.jsonl`,
+                Key: fileName,
                 Body: passThrough,
-                ContentType: 'application/jsonl',
-                ContentDisposition: `attachment; filename="${cacheKey}.jsonl"`,
+                ContentType: opts.contentType,
+                ContentDisposition: `attachment; filename="${fileName}"`,
             },
         });
 
@@ -41,13 +46,13 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
                 passThrough.end(); // signal EOF
                 await upload.done(); // wait for upload to finish
                 Logger.debug(
-                    `Successfully closed upload stream to s3://${this.configuration.bucket}/${cacheKey}.jsonl`,
+                    `Successfully closed upload stream to s3://${this.configuration.bucket}/${fileName}`,
                 );
             } catch (error) {
                 Logger.error(
                     `Error closing upload stream to s3://${
                         this.configuration.bucket
-                    }/${cacheKey}.jsonl: ${getErrorMessage(error)}`,
+                    }/${fileName}: ${getErrorMessage(error)}`,
                 );
                 throw error;
             }
@@ -61,7 +66,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
                 );
             } catch (error) {
                 Logger.error(
-                    `Failed to write rows to cache key ${cacheKey}: ${getErrorMessage(
+                    `Failed to write rows to fileName ${fileName}: ${getErrorMessage(
                         error,
                     )}`,
                 );
@@ -69,10 +74,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             }
         };
 
-        return {
-            write,
-            close,
-        };
+        return { write, close, writeStream: passThrough };
     }
 
     async getDowloadStream(
@@ -98,11 +100,18 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
     }
 
     async getFileUrl(cacheKey: string, fileExtension = 'jsonl') {
+        // Check if the cacheKey already has the specified file extension
+        const hasExtension = cacheKey
+            .toLowerCase()
+            .endsWith(`.${fileExtension.toLowerCase()}`);
+        const key = hasExtension ? cacheKey : `${cacheKey}.${fileExtension}`;
+
+        // Get the S3 URL
         const url = await getSignedUrl(
             this.s3,
             new GetObjectCommand({
                 Bucket: this.configuration.bucket,
-                Key: `${cacheKey}.${fileExtension}`,
+                Key: key,
             }),
             {
                 expiresIn: this.s3ExpiresIn,
@@ -110,5 +119,42 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         );
 
         return url;
+    }
+
+    async transformResultsIntoNewFile(
+        sourceResultsFileWithoutExtension: string,
+        sinkFileName: string,
+        streamProcessor: (
+            readStream: Readable,
+            writeStream: Writable,
+        ) => Promise<{ truncated: boolean }>,
+    ): Promise<{ fileUrl: string; truncated: boolean }> {
+        // Determine content type based on file extension
+        const isCsv = sinkFileName.toLowerCase().endsWith('.csv');
+        const contentType = isCsv ? 'text/csv' : 'application/jsonl';
+
+        // Create upload stream
+        const { writeStream, close } = this.createUploadStream(sinkFileName, {
+            contentType,
+        });
+
+        // Get the results stream
+        const resultsStream = await this.getDowloadStream(
+            sourceResultsFileWithoutExtension,
+        );
+
+        // Process the stream
+        const { truncated } = await streamProcessor(resultsStream, writeStream);
+
+        await close();
+
+        // Extract extension from filename to ensure correct URL generation
+        const extension = isCsv ? 'csv' : 'jsonl';
+        const url = await this.getFileUrl(sinkFileName, extension);
+
+        return {
+            fileUrl: url,
+            truncated,
+        };
     }
 }
