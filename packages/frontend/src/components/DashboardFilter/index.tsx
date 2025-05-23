@@ -37,7 +37,6 @@ const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
     );
-    const hasChartTiles = useDashboardContext((c) => c.hasChartTiles);
 
     const handleSaveNew = useCallback(
         (
@@ -66,8 +65,6 @@ const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const handlePopoverClose = useCallback(() => {
         setPopoverId(undefined);
     }, []);
-
-    if (!hasChartTiles) return null;
 
     return (
         <FiltersProvider<Record<string, FilterableDimension>>
