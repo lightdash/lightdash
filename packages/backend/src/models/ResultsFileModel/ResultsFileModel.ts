@@ -30,9 +30,10 @@ export class ResultsFileModel {
             timezone?: string;
         },
     ) {
+        const CACHE_VERSION = 'v1'; // change when we want to force invalidation
         const queryHashKey = resultsIdentifiers.timezone
-            ? `${projectUuid}.${resultsIdentifiers.sql}.${resultsIdentifiers.timezone}`
-            : `${projectUuid}.${resultsIdentifiers.sql}`;
+            ? `${CACHE_VERSION}.${projectUuid}.${resultsIdentifiers.sql}.${resultsIdentifiers.timezone}`
+            : `${CACHE_VERSION}.${projectUuid}.${resultsIdentifiers.sql}`;
 
         return crypto.createHash('sha256').update(queryHashKey).digest('hex');
     }
