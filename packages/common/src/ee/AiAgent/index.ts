@@ -41,6 +41,7 @@ export type AiAgent = Pick<
     | 'name'
     | 'createdAt'
     | 'updatedAt'
+    | 'instructions'
 >;
 
 export type AiAgentSummary = Pick<
