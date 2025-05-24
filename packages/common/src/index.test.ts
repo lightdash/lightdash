@@ -1,7 +1,7 @@
 import moment from 'moment';
 import {
     getDateGroupLabel,
-    getFilterRuleWithDefaultValue,
+    getFilterRuleFromFieldWithDefaultValue,
     getPasswordSchema,
     isValidEmailAddress,
 } from '.';
@@ -21,7 +21,7 @@ describe('Common index', () => {
             const date = moment().format('YYYY-MM-DD');
 
             expect(
-                getFilterRuleWithDefaultValue(
+                getFilterRuleFromFieldWithDefaultValue(
                     dateDayDimension,
                     emptyValueFilter,
                     undefined,
@@ -33,7 +33,7 @@ describe('Common index', () => {
             const date = moment().format('YYYY-MM-01');
 
             expect(
-                getFilterRuleWithDefaultValue(
+                getFilterRuleFromFieldWithDefaultValue(
                     dateMonthDimension,
                     emptyValueFilter,
                     undefined,
@@ -45,7 +45,7 @@ describe('Common index', () => {
             const date = moment().format('YYYY-01-01');
 
             expect(
-                getFilterRuleWithDefaultValue(
+                getFilterRuleFromFieldWithDefaultValue(
                     dateYearDimension,
                     emptyValueFilter,
                     undefined,
@@ -57,7 +57,7 @@ describe('Common index', () => {
     describe('filter rule with default values', () => {
         test('should return with undefined values', async () => {
             expect(
-                getFilterRuleWithDefaultValue(
+                getFilterRuleFromFieldWithDefaultValue(
                     stringDimension,
                     emptyValueFilter,
                     undefined,
@@ -66,7 +66,7 @@ describe('Common index', () => {
         });
         test('should return with empty values', async () => {
             expect(
-                getFilterRuleWithDefaultValue(
+                getFilterRuleFromFieldWithDefaultValue(
                     stringDimension,
                     emptyValueFilter,
                     [],
@@ -75,7 +75,7 @@ describe('Common index', () => {
         });
         test('should return single value', async () => {
             expect(
-                getFilterRuleWithDefaultValue(
+                getFilterRuleFromFieldWithDefaultValue(
                     stringDimension,
                     emptyValueFilter,
                     ['test'],
@@ -84,7 +84,7 @@ describe('Common index', () => {
         });
         test('should return multiple values', async () => {
             expect(
-                getFilterRuleWithDefaultValue(
+                getFilterRuleFromFieldWithDefaultValue(
                     stringDimension,
                     emptyValueFilter,
                     ['test1', 'test2'],

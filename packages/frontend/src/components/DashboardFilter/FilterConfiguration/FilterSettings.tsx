@@ -1,7 +1,7 @@
 import {
     FilterOperator,
     FilterType,
-    getFilterRuleWithDefaultValue,
+    getFilterRuleFromFieldWithDefaultValue,
     getFilterTypeFromItem,
     supportsSingleValue,
     type DashboardFilterRule,
@@ -64,7 +64,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
     const handleChangeFilterOperator = (operator: FilterRule['operator']) => {
         onChangeFilterRule(
-            getFilterRuleWithDefaultValue(field, {
+            getFilterRuleFromFieldWithDefaultValue(field, {
                 ...filterRule,
                 operator,
             }),
@@ -244,7 +244,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                             onChangeFilterRule(
                                                 e.currentTarget.checked
                                                     ? newFilter
-                                                    : getFilterRuleWithDefaultValue(
+                                                    : getFilterRuleFromFieldWithDefaultValue(
                                                           field,
                                                           newFilter,
                                                           null,
@@ -268,7 +268,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 onChangeFilterRule(
                                     e.currentTarget.checked
                                         ? newFilter
-                                        : getFilterRuleWithDefaultValue(
+                                        : getFilterRuleFromFieldWithDefaultValue(
                                               field,
                                               newFilter,
                                               null,
