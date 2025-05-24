@@ -350,7 +350,7 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
 
         if (space.parentSpaceUuid === targetSpaceUuid) {
             throw new ParameterError(
-                `Space ${spaceUuid} is already in the correct parent space ${targetSpaceUuid}`,
+                `Space "${spaceUuid}" is already in the current space "${targetSpaceUuid}"`,
             );
         }
 
