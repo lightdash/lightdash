@@ -27,9 +27,15 @@ export const AiAgents: FC = () => {
 
     const agentsListQuery = useAiAgents();
     const projectsListQuery = useProjects();
-    const slackChannelsQuery = useSlackChannels('', true, {
-        enabled: organizationHasSlack,
-    });
+    const slackChannelsQuery = useSlackChannels(
+        '',
+        {
+            excludeArchived: true,
+            excludeDms: true,
+            excludeGroups: true,
+        },
+        { enabled: organizationHasSlack },
+    );
 
     const isLoading = agentsListQuery.isLoading || projectsListQuery.isLoading;
 

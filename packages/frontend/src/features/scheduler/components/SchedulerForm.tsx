@@ -479,9 +479,11 @@ const SchedulerForm: FC<Props> = ({
         return SlackStates.SUCCESS;
     }, [isInitialLoading, organizationHasSlack, slackInstallation]);
 
-    const slackChannelsQuery = useSlackChannels(search, true, {
-        enabled: organizationHasSlack,
-    });
+    const slackChannelsQuery = useSlackChannels(
+        search,
+        { excludeArchived: true },
+        { enabled: organizationHasSlack },
+    );
 
     const slackChannels = useMemo(() => {
         return (slackChannelsQuery?.data || [])

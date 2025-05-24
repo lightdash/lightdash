@@ -84,8 +84,15 @@ export class SlackClient {
     async getChannels(
         organizationUuid: string,
         search?: string,
-        filter: { excludeArchived?: boolean; forceRefresh?: boolean } = {
+        filter: {
+            excludeArchived?: boolean;
+            excludeDms?: boolean;
+            excludeGroups?: boolean;
+            forceRefresh?: boolean;
+        } = {
             excludeArchived: true,
+            excludeDms: false,
+            excludeGroups: false,
         },
     ): Promise<SlackChannel[] | undefined> {
         const getCachedChannels = () => {
@@ -96,6 +103,18 @@ export class SlackClient {
             if (search) {
                 finalResults = finalResults.filter((channel) =>
                     channel.name.includes(search),
+                );
+            }
+            if (filter.excludeDms) {
+                finalResults = finalResults.filter(
+                    (channel) =>
+                        !channel.id.startsWith('D') &&
+                        !channel.id.startsWith('U'),
+                );
+            }
+            if (filter.excludeGroups) {
+                finalResults = finalResults.filter(
+                    (channel) => !channel.id.startsWith('G'),
                 );
             }
             return finalResults.slice(0, MAX_CHANNELS_LIMIT);
@@ -408,8 +427,8 @@ export class SlackClient {
         }
     }
 
-    /* 
-    This method will try to upload an image to slack, so it can be used in blocks, 
+    /*
+    This method will try to upload an image to slack, so it can be used in blocks,
     instead of sharing the file directly on a channel or a thread
     It returns a promise that resolves to the file url, but it takes a while for the file to be uploaded
     Note: method sharedPublicURL will not work here because it requires a user token, and we only use bot tokens

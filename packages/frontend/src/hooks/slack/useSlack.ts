@@ -55,41 +55,78 @@ export const useDeleteSlack = () => {
     });
 };
 
-const getSlackChannels = async (
-    search: string,
-    excludeArchived: boolean = true,
-    forceRefresh: boolean = false,
-) =>
-    lightdashApi<SlackChannel[] | undefined>({
-        url: `/slack/channels?search=${search}&excludeArchived=${excludeArchived}&forceRefresh=${forceRefresh}`,
+const getSlackChannels = async ({
+    search,
+    excludeArchived,
+    excludeDms,
+    excludeGroups,
+    forceRefresh,
+}: {
+    search: string;
+    excludeArchived: boolean;
+    excludeDms: boolean;
+    excludeGroups: boolean;
+    forceRefresh: boolean;
+}) => {
+    const queryString = new URLSearchParams();
+    queryString.set('search', search);
+    queryString.set('excludeArchived', excludeArchived.toString());
+    queryString.set('excludeDms', excludeDms.toString());
+    queryString.set('excludeGroups', excludeGroups.toString());
+    queryString.set('forceRefresh', forceRefresh.toString());
+
+    return lightdashApi<SlackChannel[] | undefined>({
+        url: `/slack/channels?${queryString.toString()}`,
         method: 'GET',
         body: undefined,
     });
+};
 
 export const useSlackChannels = (
     search: string,
-    excludeArchived: boolean = true,
+    { excludeArchived = true, excludeDms = false, excludeGroups = false },
     useQueryOptions?: UseQueryOptions<SlackChannel[] | undefined, ApiError>,
 ) => {
     const queryClient = useQueryClient();
 
     const query = useQuery<SlackChannel[] | undefined, ApiError>({
-        queryKey: ['slack_channels', search, excludeArchived],
-        queryFn: () => getSlackChannels(search, excludeArchived),
+        queryKey: [
+            'slack_channels',
+            search,
+            excludeArchived,
+            excludeDms,
+            excludeGroups,
+        ],
+        queryFn: () =>
+            getSlackChannels({
+                search,
+                excludeArchived,
+                excludeDms,
+                excludeGroups,
+                forceRefresh: false,
+            }),
         ...useQueryOptions,
     });
 
     const refresh = useCallback(async () => {
-        const slackChannelsAfterRefresh = await getSlackChannels(
+        const slackChannelsAfterRefresh = await getSlackChannels({
             search,
             excludeArchived,
-            true,
-        );
+            excludeDms,
+            excludeGroups,
+            forceRefresh: true,
+        });
         queryClient.setQueryData(
-            ['slack_channels', search, excludeArchived],
+            [
+                'slack_channels',
+                search,
+                excludeArchived,
+                excludeDms,
+                excludeGroups,
+            ],
             slackChannelsAfterRefresh,
         );
-    }, [search, excludeArchived, queryClient]);
+    }, [search, excludeArchived, excludeDms, excludeGroups, queryClient]);
 
     return { ...query, refresh };
 };
