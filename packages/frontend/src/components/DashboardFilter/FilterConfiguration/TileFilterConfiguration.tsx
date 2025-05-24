@@ -219,7 +219,10 @@ const TileFilterConfiguration: FC<Props> = ({
         const tileWithTargetColumns = Object.entries(
             sqlChartTilesMetadata,
         ).reduce<TileWithTargetColumns[]>(
-            (acc, [tileUuid, { columns }], index) => {
+            (acc, [tileUuid, metadata], index) => {
+                const columns = metadata.columns.map(
+                    ({ reference }) => reference,
+                );
                 const tile = tiles.find((t) => t.uuid === tileUuid);
                 if (!tile) {
                     return acc;

@@ -162,7 +162,8 @@ const FilterConfiguration: FC<Props> = ({
                         // Find fallback target
                         if (!target) {
                             const defaultColumn: string | undefined =
-                                sqlChartTilesMetadata[tileUuid]?.columns[0];
+                                sqlChartTilesMetadata[tileUuid]?.columns[0]
+                                    ?.reference;
                             const defaultField = getDefaultField(
                                 availableTileFilters[tileUuid] ?? [],
                                 selectedField,
