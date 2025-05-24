@@ -102,7 +102,7 @@ const TransferItemsModal = <
     });
 
     const selectedSpaceLabel = useMemo(() => {
-        if (!selectedSpaceUuid) return '';
+        if (!selectedSpaceUuid) return 'Spaces';
         return (
             spaces.find((space) => space.uuid === selectedSpaceUuid)?.name || ''
         );

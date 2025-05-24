@@ -103,7 +103,7 @@ const Tree: React.FC<Props> = ({
 
     return (
         <MantineProvider>
-            <Box px="sm" py="xs">
+            <Box p="xs">
                 <TreeItem
                     withRootSelectable={withRootSelectable}
                     selected={!value}

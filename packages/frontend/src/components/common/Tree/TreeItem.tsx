@@ -58,12 +58,7 @@ const TreeItem: React.FC<Props> = ({
             w="100%"
             gap={rem(4)}
             h={rem(32)}
-            // This component isn't optimized for the top-level root item,
-            // so we apply a negative left margin when the chevron isn't needed.
-            // (Root spaces are always expanded and don’t require a chevron.)
-            ml={isRoot ? rem(-4) : undefined}
-            pl={withPadding ? rem(4) : undefined}
-            pr={withPadding ? 'xs' : undefined}
+            px={withPadding ? 'xs' : undefined}
             radius="sm"
             wrap="nowrap"
             onClick={onClick}
@@ -109,7 +104,7 @@ const TreeItem: React.FC<Props> = ({
                 {stringLabel}
             </Highlight>
 
-            {!isRoot && selected && (
+            {selected && (
                 <MantineIcon
                     icon={IconCheck}
                     size="lg"
