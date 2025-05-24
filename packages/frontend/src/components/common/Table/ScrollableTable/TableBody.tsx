@@ -20,7 +20,7 @@ import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import React, { useEffect, useMemo, type FC } from 'react';
 import { getColorFromRange, readableColor } from '../../../../utils/colorUtils';
-import { getConditionalRuleLabel } from '../../Filters/FilterInputs/utils';
+import { getConditionalRuleLabelFromItem } from '../../Filters/FilterInputs/utils';
 import MantineIcon from '../../MantineIcon';
 import { SMALL_TEXT_LENGTH } from '../constants';
 import { ROW_HEIGHT_PX, Tr } from '../Table.styles';
@@ -123,7 +123,7 @@ const TableRow: FC<TableRowProps> = ({
                     field,
                     conditionalFormattingConfig,
                     rowFields,
-                    getConditionalRuleLabel,
+                    getConditionalRuleLabelFromItem,
                 );
 
                 const toggleExpander = row.getToggleExpandedHandler();
