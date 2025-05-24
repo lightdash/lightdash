@@ -471,6 +471,35 @@ export class SlackClient {
         return fileUrl;
     }
 
+    async getUserInfo(
+        organizationUuid: string,
+        userId: string,
+    ): Promise<{
+        id: string;
+        name?: string;
+        image?: string;
+    }> {
+        const webClient = await this.getWebClient(organizationUuid);
+        const response = await webClient.users.info({ user: userId });
+
+        if (!response.ok) {
+            throw new UnexpectedServerError(
+                `Failed to get user info for ${userId}: ${response.error}`,
+            );
+        }
+        if (!response.user?.profile) {
+            throw new UnexpectedServerError(
+                `Failed to get user info for ${userId}: No profile found`,
+            );
+        }
+
+        return {
+            id: userId,
+            name: response.user.profile.real_name,
+            image: response.user.profile.image_512,
+        };
+    }
+
     /**
      * Helper method to try to upload an image to slack, so it can be used in blocks without expiration
      * If it fails, we will keep using the same URL (s3)
