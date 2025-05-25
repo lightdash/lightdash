@@ -71,7 +71,7 @@ export type DashboardContextType = {
     filterableFieldsByTileUuid:
         | Record<string, FilterableDimension[]>
         | undefined;
-    hasChartTiles: boolean;
+    hasTilesThatSupportFilters: boolean;
     chartSort: Record<string, SortField[]>;
     setChartSort: (sort: Record<string, SortField[]>) => void;
     sqlChartTilesMetadata: Record<string, SqlChartTileMetadata>;
