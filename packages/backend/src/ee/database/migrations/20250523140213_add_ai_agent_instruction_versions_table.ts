@@ -33,6 +33,6 @@ export async function down(knex: Knex): Promise<void> {
 
     await knex.schema.alterTable('ai_agent', (table) => {
         table.dropColumn('last_instruction_version_updated_at');
-        table.dropColumn('last_instruction_version_updated_by_user_uuid');
+        table.dropColumn('instruction');
     });
 }

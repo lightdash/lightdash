@@ -270,13 +270,43 @@ export class AiAgentModel {
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
             const updatedAt = new Date();
-            if (args.instruction) {
-                await trx(AiAgentInstructionVersionsTableName).insert({
+            const currentAgent = await trx(AiAgentTableName)
+                .select('instruction', 'last_instruction_version_updated_at')
+                .where({
                     ai_agent_uuid: args.agentUuid,
-                    instruction: args.instruction,
-                    created_at: updatedAt,
-                });
+                    organization_uuid: args.organizationUuid,
+                })
+                .first<
+                    | Pick<
+                          DbAiAgent,
+                          'instruction' | 'last_instruction_version_updated_at'
+                      >
+                    | undefined
+                >();
+
+            if (!currentAgent) {
+                throw new AiAgentNotFoundError(
+                    `AI agent not found for uuid: ${args.agentUuid}`,
+                );
             }
+            const lastInstructionUpdated = {
+                instruction: currentAgent.instruction,
+                last_instruction_version_updated_at:
+                    currentAgent.last_instruction_version_updated_at,
+            };
+            if (currentAgent && currentAgent.instruction !== args.instruction) {
+                const [result] = await trx(AiAgentInstructionVersionsTableName)
+                    .insert({
+                        ai_agent_uuid: args.agentUuid,
+                        instruction: args.instruction,
+                        created_at: updatedAt,
+                    })
+                    .returning(['created_at', 'instruction']);
+                lastInstructionUpdated.instruction = result.instruction;
+                lastInstructionUpdated.last_instruction_version_updated_at =
+                    result.created_at;
+            }
+
             const [agent] = await trx(AiAgentTableName)
                 .where({
                     ai_agent_uuid: args.agentUuid,
@@ -287,10 +317,7 @@ export class AiAgentModel {
                     project_uuid: args.projectUuid,
                     tags: args.tags,
                     updated_at: updatedAt,
-                    last_instruction_version_updated_at: args.instruction
-                        ? updatedAt
-                        : null,
-                    instruction: args.instruction,
+                    ...lastInstructionUpdated,
                 })
                 .returning('*');
 
