@@ -138,6 +138,7 @@ export const AgentDetails: FC = () => {
                 projectUuid: agent.projectUuid,
                 integrations: agent.integrations,
                 tags: agent.tags && agent.tags.length > 0 ? agent.tags : null,
+                instruction: agent.instruction ?? '',
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps

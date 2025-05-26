@@ -242,6 +242,7 @@ export class AiAgentModel {
 
             if (args.instruction) {
                 await trx(AiAgentInstructionVersionsTableName).insert({
+                    ai_agent_uuid: agent.ai_agent_uuid,
                     created_at: createdAt,
                     instruction: args.instruction,
                 });
