@@ -15,8 +15,8 @@ export const TreeProvider: FC<React.PropsWithChildren<TreeProviderProps>> = ({
     ...rest
 }) => {
     const nodeMap = useMemo(
-        () => getNodeMapFromItemsMap(itemsMap, selectedItems, groupDetails),
-        [itemsMap, selectedItems, groupDetails],
+        () => getNodeMapFromItemsMap(itemsMap, groupDetails),
+        [itemsMap, groupDetails],
     );
     const searchResults = useMemo(
         () => getSearchResults(itemsMap, searchQuery),
