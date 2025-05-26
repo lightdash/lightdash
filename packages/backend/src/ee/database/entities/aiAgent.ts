@@ -62,5 +62,4 @@ export type DbAiAgentInstructionVersions = {
     ai_agent_uuid: string;
     instruction: string;
     created_at: Date;
-    created_by_user_uuid: string | null;
 };
