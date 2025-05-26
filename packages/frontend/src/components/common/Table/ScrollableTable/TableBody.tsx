@@ -278,15 +278,16 @@ const VirtualizedTableBody: FC<{
         return Array.from({ length: pageSize }).map((_, index) => {
             return (
                 <tr key={index}>
-                    {new Array(tableColumnsCount).fill(
-                        // Same padding as CellStyles in Table.styles.ts
-                        <td style={{ padding: 8.5 }}>
-                            <Skeleton
-                                w="100%"
-                                // Removing 17px to account for the padding of the table defined in Table.styles.ts
-                                h={`calc(${ROW_HEIGHT_PX}px - 17px)`}
-                            />
-                        </td>,
+                    {Array.from({ length: tableColumnsCount }).map(
+                        (__, colIdx) => (
+                            <td key={colIdx} style={{ padding: 8.5 }}>
+                                <Skeleton
+                                    w="100%"
+                                    // Removing 17px to account for the padding of the table defined in Table.styles.ts
+                                    h={`calc(${ROW_HEIGHT_PX}px - 17px)`}
+                                />
+                            </td>
+                        ),
                     )}
                 </tr>
             );
