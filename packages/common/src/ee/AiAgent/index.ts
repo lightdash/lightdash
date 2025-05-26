@@ -24,7 +24,13 @@ export const baseAgentSchema = z.object({
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
 
-    instruction: z.string().nullable(),
+    instruction: z
+        .string()
+        .max(
+            4096,
+            'Custom instruction is too long. Maximum allowed is 4,000 characters.',
+        )
+        .nullable(),
     provider: z.string(),
     model: z.string(),
 });
