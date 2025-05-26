@@ -122,7 +122,14 @@ export type ApiCreateAiAgent = Pick<
     'projectUuid' | 'integrations' | 'tags' | 'name' | 'instruction'
 >;
 
-export type ApiUpdateAiAgent = Partial<AiAgent> & Pick<AiAgent, 'uuid'>;
+export type ApiUpdateAiAgent = Partial<
+    Pick<
+        AiAgent,
+        'projectUuid' | 'integrations' | 'tags' | 'name' | 'instruction'
+    >
+> & {
+    uuid: string;
+};
 
 export type ApiCreateAiAgentResponse = {
     status: 'ok';

@@ -1,6 +1,10 @@
 import { subject } from '@casl/ability';
 import { type TokenUsage } from '@langchain/core/language_models/base';
-import { AIMessage, HumanMessage } from '@langchain/core/messages';
+import {
+    AIMessage,
+    HumanMessage,
+    SystemMessage,
+} from '@langchain/core/messages';
 import { OutputParserException } from '@langchain/core/output_parsers';
 import {
     ChatPromptTemplate,
@@ -737,10 +741,10 @@ export class AiService {
             throw new UnexpectedServerError('OpenAi model is not initialized');
         }
         const prompt = ChatPromptTemplate.fromMessages([
-            ...(agentSettings?.instruction
-                ? [new HumanMessage(agentSettings.instruction)]
-                : []),
             aiCopilotSystemPrompt,
+            ...(agentSettings?.instruction
+                ? [new SystemMessage(agentSettings.instruction)]
+                : []),
             new MessagesPlaceholder('metadata'),
             new MessagesPlaceholder('chat_history'),
             new MessagesPlaceholder('agent_scratchpad'),

@@ -263,7 +263,7 @@ export class AiAgentModel {
     }
 
     async updateAgent(
-        args: Omit<ApiUpdateAiAgent, 'uuid'> & {
+        args: ApiUpdateAiAgent & {
             agentUuid: string;
             organizationUuid: string;
         },
