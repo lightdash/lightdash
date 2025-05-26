@@ -961,7 +961,7 @@ export class AsyncQueryService extends ProjectService {
             writeAndTransformRowsIfPivot,
         );
 
-        const columns = pivotConfiguration
+        const columns = pivotConfiguration?.groupByColumns?.length
             ? getPivotedColumns(
                   unpivotedColumns,
                   pivotConfiguration,
