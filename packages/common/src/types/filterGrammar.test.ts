@@ -1,6 +1,9 @@
 import peg from 'pegjs';
 import { FilterOperator, type MetricFilterRule } from './filter';
-import filterGrammar, { parseFilters } from './filterGrammar';
+import filterGrammar, {
+    parseFilters,
+    parseModelRequiredFilters,
+} from './filterGrammar';
 
 describe('Parse grammar', () => {
     const parser = peg.generate(filterGrammar);
@@ -168,9 +171,10 @@ describe('Parse grammar', () => {
     });
 });
 
+const removeIds = (filters: MetricFilterRule[]) =>
+    filters.map((filter) => ({ ...filter, id: undefined }));
+
 describe('Parse metric filters', () => {
-    const removeIds = (filters: MetricFilterRule[]) =>
-        filters.map((filter) => ({ ...filter, id: undefined }));
     it('Should directly transform boolean filter', () => {
         const filters = [{ is_active: true }];
         expect(removeIds(parseFilters(filters))).toStrictEqual([
@@ -328,6 +332,281 @@ describe('Parse metric filters', () => {
                     fieldRef: 'name',
                 },
                 values: [14],
+            },
+        ]);
+    });
+});
+
+describe('Parse required filters', () => {
+    it('Should parse a filter field called "required"', () => {
+        expect(
+            removeIds(
+                parseModelRequiredFilters({
+                    requiredFilters: [{ required: true }],
+                    defaultFilters: [],
+                }),
+            ),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'required',
+                },
+                values: [true],
+                required: true, // Default
+            },
+        ]);
+        expect(
+            removeIds(
+                parseModelRequiredFilters({
+                    requiredFilters: [{ required: false }],
+                    defaultFilters: [],
+                }),
+            ),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'required',
+                },
+                values: [false],
+                required: true, // Default
+            },
+        ]);
+    });
+    it('Should required filters default to "required: true"', () => {
+        expect(
+            removeIds(
+                parseModelRequiredFilters({
+                    requiredFilters: [{ position: 1 }],
+                    defaultFilters: [],
+                }),
+            ),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'position',
+                },
+                values: [1],
+                required: true,
+            },
+        ]);
+    });
+    it('Should parse required option on required filters', () => {
+        expect(
+            removeIds(
+                parseModelRequiredFilters({
+                    requiredFilters: [{ position: 1, required: true }],
+                    defaultFilters: [],
+                }),
+            ),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'position',
+                },
+                values: [1],
+                required: true,
+            },
+        ]);
+        expect(
+            removeIds(
+                parseModelRequiredFilters({
+                    requiredFilters: [{ position: 1, required: false }],
+                    defaultFilters: [],
+                }),
+            ),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'position',
+                },
+                values: [1],
+                required: false,
+            },
+        ]);
+    });
+
+    it('Should default filters default to "required: false"', () => {
+        expect(
+            removeIds(
+                parseModelRequiredFilters({
+                    defaultFilters: [{ position: 1 }],
+                    requiredFilters: [],
+                }),
+            ),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'position',
+                },
+                values: [1],
+                required: false,
+            },
+        ]);
+    });
+
+    it('Should parse required option on default filters', () => {
+        expect(
+            removeIds(
+                parseModelRequiredFilters({
+                    defaultFilters: [{ position: 1, required: true }],
+                    requiredFilters: [],
+                }),
+            ),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'position',
+                },
+                values: [1],
+                required: true,
+            },
+        ]);
+        expect(
+            removeIds(
+                parseModelRequiredFilters({
+                    defaultFilters: [{ position: 1, required: false }],
+                    requiredFilters: [],
+                }),
+            ),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'position',
+                },
+                values: [1],
+                required: false,
+            },
+        ]);
+    });
+
+    it('Should parse default and required filters with default values', () => {
+        expect(
+            removeIds(
+                parseModelRequiredFilters({
+                    requiredFilters: [{ name: 'javi' }],
+
+                    defaultFilters: [{ position: 1 }],
+                }),
+            ),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'name',
+                },
+                values: ['javi'],
+                required: true,
+            },
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'position',
+                },
+                values: [1],
+                required: false,
+            },
+        ]);
+    });
+
+    it('Should parse default and required filters with opposite values', () => {
+        expect(
+            removeIds(
+                parseModelRequiredFilters({
+                    defaultFilters: [{ position: 1, required: true }],
+                    requiredFilters: [{ name: 'javi', required: false }],
+                }),
+            ),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'name',
+                },
+                values: ['javi'],
+                required: false,
+            },
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'position',
+                },
+                values: [1],
+                required: true,
+            },
+        ]);
+    });
+    it('Should take required from required filters if there is a duplicated filter', () => {
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+        const requiredFilters = removeIds(
+            parseModelRequiredFilters({
+                requiredFilters: [{ name: 'javi' }],
+                defaultFilters: [{ name: 'javi' }],
+            }),
+        );
+        expect(requiredFilters.length).toBe(1);
+        expect(requiredFilters).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'name',
+                },
+                values: ['javi'],
+                required: true,
+            },
+        ]);
+
+        removeIds(
+            parseModelRequiredFilters({
+                requiredFilters: [{ name: 'javi' }],
+                defaultFilters: [{ name: 'javi' }],
+            }),
+        );
+
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+            'Duplicate filter key "name" in default filters',
+        );
+
+        consoleWarnSpy.mockRestore();
+
+        // Take required from required filters
+        expect(
+            removeIds(
+                parseModelRequiredFilters({
+                    requiredFilters: [{ name: 'javi', required: false }],
+                    defaultFilters: [{ name: 'javi' }],
+                }),
+            ),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldRef: 'name',
+                },
+                values: ['javi'],
+                required: false,
             },
         ]);
     });
