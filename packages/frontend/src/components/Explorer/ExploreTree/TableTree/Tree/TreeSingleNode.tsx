@@ -41,7 +41,7 @@ import { ItemDetailMarkdown, ItemDetailPreview } from '../ItemDetailPreview';
 import { useItemDetail } from '../useItemDetails';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
 import { type Node } from './types';
-import { useTableTreeContext } from './useTableTree';
+import useTableTree from './useTableTree';
 
 // TODO: Add getFieldType function to common which should return FieldType enum (which should also have CUSTOM_METRIC, CUSTOM_DIMENSION)
 const getFieldIconColor = (field: Item | AdditionalMetric) => {
@@ -74,17 +74,19 @@ type Props = {
 };
 
 const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
-    const {
-        itemsMap,
-        selectedItems,
-        isSearching,
-        searchResults,
-        searchQuery,
-        missingCustomMetrics,
-        itemsAlerts,
-        missingCustomDimensions,
-        onItemClick,
-    } = useTableTreeContext();
+    const itemsMap = useTableTree((context) => context.itemsMap);
+    const selectedItems = useTableTree((context) => context.selectedItems);
+    const isSearching = useTableTree((context) => context.isSearching);
+    const searchResults = useTableTree((context) => context.searchResults);
+    const searchQuery = useTableTree((context) => context.searchQuery);
+    const missingCustomMetrics = useTableTree(
+        (context) => context.missingCustomMetrics,
+    );
+    const itemsAlerts = useTableTree((context) => context.itemsAlerts);
+    const missingCustomDimensions = useTableTree(
+        (context) => context.missingCustomDimensions,
+    );
+    const onItemClick = useTableTree((context) => context.onItemClick);
     const { isFilteredField } = useFilters();
     const { showItemDetail } = useItemDetail();
 
