@@ -21,7 +21,6 @@ import {
     ItemsMap,
     LightdashUser,
     QueryExecutionContext,
-    ResultRow,
     SessionUser,
     SlackPrompt,
     UnexpectedServerError,
@@ -56,7 +55,6 @@ import {
 import OpenAi from '../../clients/OpenAi';
 import { AiAgentModel } from '../../models/AiAgentModel';
 import { AiModel } from '../../models/AiModel';
-import type { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
 import { CommercialCatalogService } from '../CommercialCatalogService';
 import { MiniMetricQuery } from './runMiniMetricQuery/runMiniMetricQuery';
@@ -739,6 +737,9 @@ export class AiService {
             throw new UnexpectedServerError('OpenAi model is not initialized');
         }
         const prompt = ChatPromptTemplate.fromMessages([
+            ...(agentSettings?.instruction
+                ? [new HumanMessage(agentSettings.instruction)]
+                : []),
             aiCopilotSystemPrompt,
             new MessagesPlaceholder('metadata'),
             new MessagesPlaceholder('chat_history'),
