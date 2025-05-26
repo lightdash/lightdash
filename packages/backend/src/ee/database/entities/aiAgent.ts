@@ -58,7 +58,7 @@ export const AiAgentInstructionVersionsTableName =
     'ai_agent_instruction_versions';
 
 export type DbAiAgentInstructionVersions = {
-    ai_agent_instructions_version_uuid: string;
+    ai_agent_instruction_version_uuid: string;
     ai_agent_uuid: string;
     instruction: string;
     created_at: Date;
