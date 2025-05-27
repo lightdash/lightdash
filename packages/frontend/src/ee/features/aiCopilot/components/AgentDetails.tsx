@@ -1,5 +1,6 @@
 import { type BaseAiAgent } from '@lightdash/common';
 import {
+    ActionIcon,
     Button,
     Card,
     Group,
@@ -12,6 +13,7 @@ import {
     Text,
     TextInput,
     Title,
+    Tooltip,
 } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import {
@@ -84,9 +86,17 @@ export const AgentDetails: FC = () => {
         data: slackChannels,
         refresh: refreshChannels,
         isLoading: isRefreshing,
-    } = useSlackChannels('', true, {
-        enabled: !!slackInstallation?.organizationUuid && isSuccessAgents,
-    });
+    } = useSlackChannels(
+        '',
+        {
+            excludeArchived: true,
+            excludeDms: true,
+            excludeGroups: true,
+        },
+        {
+            enabled: !!slackInstallation?.organizationUuid && isSuccessAgents,
+        },
+    );
     const { data: projects } = useProjects();
 
     const slackChannelOptions = useMemo(
@@ -286,33 +296,13 @@ export const AgentDetails: FC = () => {
                                         {/* Integrations Section */}
 
                                         <Stack gap="sm">
-                                            <Group justify="space-between">
-                                                <Title order={5}>
-                                                    Integrations
-                                                </Title>
-                                                {slackInstallation?.organizationUuid && (
-                                                    <Button
-                                                        size="xs"
-                                                        variant="subtle"
-                                                        leftSection={
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconRefresh
-                                                                }
-                                                            />
-                                                        }
-                                                        loading={isRefreshing}
-                                                        onClick={
-                                                            refreshChannels
-                                                        }
-                                                    >
-                                                        Refresh Channels
-                                                    </Button>
-                                                )}
-                                            </Group>
+                                            <Title order={5}>
+                                                Integrations
+                                            </Title>
 
                                             <MultiSelect
                                                 disabled={
+                                                    isRefreshing ||
                                                     !slackInstallation?.organizationUuid
                                                 }
                                                 description={
@@ -327,6 +317,27 @@ export const AgentDetails: FC = () => {
                                                     (i) => i.channelId,
                                                 )}
                                                 searchable
+                                                rightSectionPointerEvents="all"
+                                                rightSection={
+                                                    <Tooltip
+                                                        withArrow
+                                                        withinPortal
+                                                        label="Refresh Slack Channels"
+                                                    >
+                                                        <ActionIcon
+                                                            variant="transparent"
+                                                            onClick={
+                                                                refreshChannels
+                                                            }
+                                                        >
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconRefresh
+                                                                }
+                                                            />
+                                                        </ActionIcon>
+                                                    </Tooltip>
+                                                }
                                                 onChange={(value) => {
                                                     form.setFieldValue(
                                                         'integrations',
