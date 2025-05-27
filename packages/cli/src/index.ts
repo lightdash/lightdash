@@ -410,6 +410,11 @@ program
         true,
     )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
+    .option(
+        '--table-configuration <prod|all>',
+        `If set to 'prod' it will copy the table configuration from prod project`,
+        'all',
+    )
     .action(previewHandler);
 
 program
@@ -483,6 +488,11 @@ program
         true,
     )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
+    .option(
+        '--table-configuration <prod|all>',
+        `If set to 'prod' it will copy the table configuration from prod project`,
+        'all',
+    )
     .action(startPreviewHandler);
 
 program

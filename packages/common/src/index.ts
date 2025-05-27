@@ -1075,6 +1075,11 @@ export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
     [DbtProjectType.NONE]: 'CLI',
 };
 
+export enum CreateProjectTableConfiguration {
+    PROD = 'prod',
+    ALL = 'all',
+}
+
 export type CreateProject = Omit<
     Project,
     | 'projectUuid'
@@ -1084,6 +1089,7 @@ export type CreateProject = Omit<
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
+    tableConfiguration?: CreateProjectTableConfiguration;
 };
 
 export type UpdateProject = Omit<
