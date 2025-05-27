@@ -111,7 +111,6 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     // Update SQL chart columns in the dashboard context
     useEffect(() => {
         if (chartResultsData?.originalColumns) {
-            console.log('columns', chartResultsData.originalColumns);
             updateSqlChartTilesMetadata(tile.uuid, {
                 columns: Object.values(chartResultsData.originalColumns),
             });
