@@ -40,11 +40,7 @@ const PrivateRoute: FC<React.PropsWithChildren> = ({ children }) => {
         return <PageSpinner />;
     }
 
-    if (
-        !emailStatus.data?.isVerified &&
-        isEmailServerConfigured &&
-        !data?.isSetupComplete
-    ) {
+    if (isEmailServerConfigured && !emailStatus.data?.isVerified) {
         return (
             <Navigate
                 to={{
