@@ -67,7 +67,7 @@ type Props = {
     tabs: DashboardTab[];
     activeTabUuid: string | undefined;
     availableTileFilters: Record<string, Field[] | undefined>;
-    field: Field;
+    field?: Field;
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChange: (
@@ -99,7 +99,7 @@ const TileFilterConfiguration: FC<Props> = ({
             a: Field[] | undefined,
             b: Field[] | undefined,
         ) => {
-            if (!a || !b) return 0;
+            if (!a || !b || !field) return 0;
 
             const matchA = a.some(fieldMatcher(field));
             const matchB = b.some(fieldMatcher(field));
@@ -114,6 +114,7 @@ const TileFilterConfiguration: FC<Props> = ({
             a: Field,
             b: Field,
         ) => {
+            if (!field) return 0;
             const matchA = fieldMatcher(field)(a);
             const matchB = fieldMatcher(field)(b);
             return matchA === matchB ? 0 : matchA ? -1 : 1;
@@ -156,9 +157,11 @@ const TileFilterConfiguration: FC<Props> = ({
                                       (f) =>
                                           tileConfig?.fieldId === getItemId(f),
                                   )
-                                : filters?.find((f) =>
+                                : field
+                                ? filters?.find((f) =>
                                       matchFieldExact(f)(field),
-                                  );
+                                  )
+                                : undefined;
 
                         // If tileConfig?.fieldId is set, but the field is not found in the filters, we mark it as invalid filter (missing dimension in model)
                         invalidField =
@@ -170,17 +173,24 @@ const TileFilterConfiguration: FC<Props> = ({
                                 : undefined;
                     }
 
-                    const isFilterAvailable =
-                        filters?.some(matchFieldByType(field)) ?? false;
+                    const isFilterAvailable = field
+                        ? filters?.some(matchFieldByType(field)) ?? false
+                        : false;
 
-                    const sortedFilters = filters
-                        ?.filter(matchFieldByType(field))
-                        .sort((a, b) =>
-                            sortFieldsByMatch(matchFieldByTypeAndName, a, b),
-                        )
-                        .sort((a, b) =>
-                            sortFieldsByMatch(matchFieldExact, a, b),
-                        );
+                    const sortedFilters = field
+                        ? filters
+                              ?.filter(matchFieldByType(field))
+                              .sort((a, b) =>
+                                  sortFieldsByMatch(
+                                      matchFieldByTypeAndName,
+                                      a,
+                                      b,
+                                  ),
+                              )
+                              .sort((a, b) =>
+                                  sortFieldsByMatch(matchFieldExact, a, b),
+                              )
+                        : filters;
 
                     const tileWithoutTitle =
                         !tile?.properties.title ||

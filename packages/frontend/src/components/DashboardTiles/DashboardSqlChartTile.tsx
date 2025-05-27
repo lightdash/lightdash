@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     ChartKind,
-    getDashboardFilterRulesForTile,
     isVizCartesianChartConfig,
     isVizPieChartConfig,
     isVizTableConfig,
@@ -13,6 +12,7 @@ import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
+import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -76,27 +76,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const updateSqlChartTilesMetadata = useDashboardContext(
         (c) => c.updateSqlChartTilesMetadata,
     );
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
-
-    const dashboardFiltersForThisTile = useMemo(() => {
-        return {
-            dimensions: getDashboardFilterRulesForTile(
-                tile.uuid,
-                dashboardFilters.dimensions,
-                true,
-            ),
-            metrics: getDashboardFilterRulesForTile(
-                tile.uuid,
-                dashboardFilters.metrics,
-                true,
-            ),
-            tableCalculations: getDashboardFilterRulesForTile(
-                tile.uuid,
-                dashboardFilters.tableCalculations,
-                true,
-            ),
-        };
-    }, [tile.uuid, dashboardFilters]);
+    const dashboardFilters = useDashboardFiltersForTile(tile.uuid);
 
     const {
         chartQuery: {
@@ -116,7 +96,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         context,
         dashboardUuid,
         tileUuid: tile.uuid,
-        dashboardFilters: dashboardFiltersForThisTile,
+        dashboardFilters,
         dashboardSorts: [],
     });
 
