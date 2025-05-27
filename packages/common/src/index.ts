@@ -573,6 +573,7 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
         valuesColumns: PivotValuesColumn[];
         groupByColumns: GroupByColumn[] | undefined;
         sortBy: SortBy | undefined;
+        originalColumns: ResultColumns;
     } | null;
 };
 

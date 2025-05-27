@@ -90,6 +90,7 @@ describe('ResultsFileModel', () => {
                 total_row_count: 100,
                 status: ResultsCacheStatus.READY,
                 columns: null,
+                original_columns: null,
             };
 
             const expectedResponse = {
@@ -113,6 +114,7 @@ describe('ResultsFileModel', () => {
                 cacheKey,
                 null,
                 futureDate,
+                null,
                 projectUuid,
                 ResultsCacheStatus.READY,
                 100,
@@ -127,6 +129,7 @@ describe('ResultsFileModel', () => {
                 total_row_count: null,
                 status: ResultsCacheStatus.READY,
                 columns: null,
+                original_columns: null,
             };
 
             const expectedResponse = {
@@ -150,6 +153,7 @@ describe('ResultsFileModel', () => {
                 cacheKey,
                 null,
                 futureDate,
+                null,
                 projectUuid,
                 ResultsCacheStatus.READY,
                 null,
