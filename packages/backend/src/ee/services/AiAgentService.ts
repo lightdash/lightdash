@@ -7,6 +7,8 @@ import {
     NotFoundError,
     type SessionUser,
 } from '@lightdash/common';
+import uniq from 'lodash/uniq';
+import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import type { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
@@ -15,6 +17,7 @@ type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
     featureFlagService: FeatureFlagService;
+    slackClient: SlackClient;
 };
 
 export class AiAgentService {
@@ -24,10 +27,13 @@ export class AiAgentService {
 
     private readonly featureFlagService: FeatureFlagService;
 
+    private readonly slackClient: SlackClient;
+
     constructor(dependencies: AiAgentServiceDependencies) {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.slackAuthenticationModel = dependencies.slackAuthenticationModel;
         this.featureFlagService = dependencies.featureFlagService;
+        this.slackClient = dependencies.slackClient;
     }
 
     private async getIsCopilotEnabled(
@@ -150,9 +156,47 @@ export class AiAgentService {
             threadUuid,
         });
 
+        if (thread.createdFrom !== 'slack') {
+            return {
+                ...thread,
+                messages,
+            };
+        }
+
+        const slackUserIds = uniq(
+            messages
+                .filter((message) => message.role === 'user')
+                .filter((message) => message.user.slackUserId !== null)
+                .map((message) => message.user.slackUserId),
+        );
+
+        const slackUsers = await Promise.all(
+            slackUserIds.map((userId) =>
+                this.slackClient.getUserInfo(organizationUuid, userId!),
+            ),
+        );
+
         return {
             ...thread,
-            messages,
+            messages: messages.map((message) => {
+                if (message.role !== 'user') {
+                    return message;
+                }
+
+                const slackUser = slackUsers.find(
+                    ({ id }) =>
+                        message.user.slackUserId != null &&
+                        id === message.user.slackUserId,
+                );
+
+                return {
+                    ...message,
+                    user: {
+                        name: slackUser?.name ?? message.user.name,
+                        uuid: message.user.uuid,
+                    },
+                };
+            }),
         };
     }
 

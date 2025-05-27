@@ -55,31 +55,33 @@ export type AiAgentSummary = Pick<
     | 'updatedAt'
 >;
 
-export type AiAgentMessage =
-    | {
-          role: 'user';
-          uuid: string;
-          threadUuid: string;
-          message: string; // ai_prompt.prompt
-          createdAt: string;
+export type AiAgentMessageUser = {
+    role: 'user';
+    uuid: string;
+    threadUuid: string;
+    message: string; // ai_prompt.prompt
+    createdAt: string;
 
-          user: {
-              uuid: string;
-              name: string;
-          };
-      }
-    | {
-          role: 'assistant';
-          uuid: string;
-          threadUuid: string;
-          message: string; // ai_prompt.response
-          createdAt: string; // ai_prompt.responded_at
+    user: {
+        uuid: string;
+        name: string;
+    };
+};
 
-          vizConfigOutput?: object;
-          filtersOutput?: object;
-          metricQuery?: object;
-          humanScore?: number;
-      };
+export type AiAgentMessageAssistant = {
+    role: 'assistant';
+    uuid: string;
+    threadUuid: string;
+    message: string; // ai_prompt.response
+    createdAt: string; // ai_prompt.responded_at
+
+    vizConfigOutput?: object;
+    filtersOutput?: object;
+    metricQuery?: object;
+    humanScore?: number;
+};
+
+export type AiAgentMessage = AiAgentMessageUser | AiAgentMessageAssistant;
 
 export type AiAgentThreadSummary = {
     uuid: string;
