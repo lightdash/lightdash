@@ -3,6 +3,7 @@ import {
     type DashboardFilters,
     type PivotChartData,
     type QueryExecutionContext,
+    type ResultColumns,
     type RunPivotQuery,
     type SemanticLayerField,
     type SemanticLayerQuery,
@@ -178,7 +179,7 @@ export const getPivotQueryFunctionForSqlChart = ({
     };
 };
 
-export const getPivotQueryFunctionForDashboard = async ({
+export const getDashboardSqlChartPivotChartData = async ({
     projectUuid,
     dashboardUuid,
     tileUuid,
@@ -196,7 +197,7 @@ export const getPivotQueryFunctionForDashboard = async ({
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[]; // TODO: check if dashboardSorts is needed, seems to be unused
     context?: QueryExecutionContext;
-}): Promise<PivotChartData> => {
+}): Promise<PivotChartData & { originalColumns: ResultColumns }> => {
     const pivotResults = await executeDashboardSqlChartPivotQuery(projectUuid, {
         dashboardUuid,
         tileUuid,
@@ -214,11 +215,7 @@ export const getPivotQueryFunctionForDashboard = async ({
     );
 
     return {
-        fileUrl: pivotResults.fileUrl,
-        results: pivotResults.results,
-        indexColumn: pivotResults.indexColumn,
-        valuesColumns: pivotResults.valuesColumns,
+        ...pivotResults,
         columns,
-        columnCount: pivotResults.columnCount,
     };
 };

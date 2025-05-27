@@ -6,6 +6,7 @@ import {
     assertUnreachable,
     type PivotChartData,
     type RawResultRow,
+    type ResultColumns,
     type SemanticLayerField,
     type VizColumn,
     type VizSortBy,
@@ -119,8 +120,14 @@ export class SqlRunnerResultsRunnerChart extends BaseResultsRunner {
 }
 
 export class SqlRunnerResultsRunnerDashboard extends BaseResultsRunner {
-    constructor({ pivotChartData }: { pivotChartData: PivotChartData }) {
-        const fields: SemanticLayerField[] = pivotChartData.columns.map(
+    constructor({
+        pivotChartData,
+        originalColumns,
+    }: {
+        pivotChartData: PivotChartData;
+        originalColumns: ResultColumns;
+    }) {
+        const fields: SemanticLayerField[] = Object.values(originalColumns).map(
             (column) => ({
                 kind: FieldType.DIMENSION,
                 name: column.reference,
