@@ -1,3 +1,15 @@
+# [0.1652.0](https://github.com/lightdash/lightdash/compare/0.1651.0...0.1652.0) (2025-05-27)
+
+
+### Bug Fixes
+
+* apply format to comparison if there's no compact ([#15003](https://github.com/lightdash/lightdash/issues/15003)) ([4d609c6](https://github.com/lightdash/lightdash/commit/4d609c60cdf40ec392952ef0ab5af2a3363c547f))
+
+
+### Features
+
+* filter by sql column ([#14968](https://github.com/lightdash/lightdash/issues/14968)) ([58e9526](https://github.com/lightdash/lightdash/commit/58e9526bda06526afb87451c8e55c017ae6566de))
+
 # [0.1651.0](https://github.com/lightdash/lightdash/compare/0.1650.0...0.1651.0) (2025-05-26)
 
 
