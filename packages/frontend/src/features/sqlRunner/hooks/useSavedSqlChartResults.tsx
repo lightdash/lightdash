@@ -1,5 +1,4 @@
 import {
-    isVizCartesianChartConfig,
     isVizTableConfig,
     type ApiError,
     type DashboardFilters,
@@ -13,15 +12,12 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
-import { type BaseResultsRunner } from '../../queryRunner/BaseResultsRunner';
-import { getDashboardSqlChartPivotChartData } from '../../queryRunner/sqlRunnerPivotQueries';
 import {
-    SqlRunnerResultsRunnerChart,
-    SqlRunnerResultsRunnerDashboard,
-} from '../runners/SqlRunnerResultsRunnerFrontend';
-import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
+    getDashboardSqlChartPivotChartData,
+    getPivotQueryFunctionForSqlChart,
+} from '../../queryRunner/sqlRunnerPivotQueries';
+import { SqlChartResultsRunner } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { fetchSavedSqlChart } from './useSavedSqlCharts';
-import { getSqlChartResultsByUuid } from './useSqlChartResults';
 
 type SavedSqlChartArgs = {
     savedSqlUuid?: string;
@@ -48,9 +44,6 @@ const isDashboardArgs = (
 export const useSavedSqlChartResults = (
     args: UseSavedSqlChartResultsArguments,
 ) => {
-    // Separate chart results into two steps to provide a better loading + error experiences
-    const { getResultsFromStream } = useResultsFromStreamWorker();
-
     // Needed for organization colors
     const { data: organization } = useOrganization();
 
@@ -88,47 +81,31 @@ export const useSavedSqlChartResults = (
             // Safe to assume these are defined because of the enabled flag
             const chart = chartQuery.data!;
 
-            let resultsRunner: BaseResultsRunner;
-            let originalColumns: ResultColumns = {};
-            if (isDashboardArgs(args) && savedSqlUuid) {
-                const pivotChartData = await getDashboardSqlChartPivotChartData(
-                    {
-                        projectUuid: projectUuid!,
-                        dashboardUuid: args.dashboardUuid,
-                        tileUuid: args.tileUuid,
-                        dashboardFilters: args.dashboardFilters,
-                        dashboardSorts: args.dashboardSorts,
-                        savedSqlUuid,
-                        context: args.context as QueryExecutionContext,
-                    },
-                );
-                originalColumns = pivotChartData.originalColumns;
-                resultsRunner = new SqlRunnerResultsRunnerDashboard({
-                    pivotChartData,
-                    originalColumns: pivotChartData.originalColumns,
-                });
-            } else {
-                // TODO: This shouldn't be needed - it gets the raw unpivoted results
-                const chartResults = await getSqlChartResultsByUuid({
-                    projectUuid: projectUuid!,
-                    chartUuid: chart.savedSqlUuid,
-                    getResultsFromStream,
-                    context,
-                });
-                resultsRunner = new SqlRunnerResultsRunnerChart({
-                    rows: chartResults.results,
-                    columns: chartResults.columns,
-                    projectUuid: projectUuid!,
-                    savedSqlUuid: chart.savedSqlUuid,
-                    ...(isVizCartesianChartConfig(chart.config) && {
-                        sortBy: chart.config.fieldConfig?.sortBy,
-                    }),
-                });
-            }
+            let { originalColumns, ...pivotChartData } =
+                isDashboardArgs(args) && savedSqlUuid
+                    ? await getDashboardSqlChartPivotChartData({
+                          projectUuid: projectUuid!,
+                          dashboardUuid: args.dashboardUuid,
+                          tileUuid: args.tileUuid,
+                          dashboardFilters: args.dashboardFilters,
+                          dashboardSorts: args.dashboardSorts,
+                          savedSqlUuid,
+                          context: args.context as QueryExecutionContext,
+                      })
+                    : await getPivotQueryFunctionForSqlChart({
+                          projectUuid: projectUuid!,
+                          savedSqlUuid: chart.savedSqlUuid,
+                          context: context as QueryExecutionContext,
+                      });
 
             const vizConfig = isVizTableConfig(chart.config)
                 ? chart.config.columns
                 : chart.config.fieldConfig;
+
+            const resultsRunner = new SqlChartResultsRunner({
+                pivotChartData,
+                originalColumns,
+            });
 
             const vizDataModel = getChartDataModel(
                 resultsRunner,
