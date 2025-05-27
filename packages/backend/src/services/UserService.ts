@@ -1517,8 +1517,9 @@ export class UserService extends BaseService {
         );
     }
 
-    private static async generateGoogleAccessToken(
+    static async generateGoogleAccessToken(
         refreshToken: string,
+        type: 'gdrive' | 'bigquery' = 'gdrive',
     ): Promise<string> {
         return new Promise((resolve, reject) => {
             refresh.requestNewAccessToken(
@@ -1537,21 +1538,36 @@ export class UserService extends BaseService {
                         ? result.scope.split(' ')
                         : [];
 
-                    if (
-                        scopes.includes(
-                            'https://www.googleapis.com/auth/drive.file',
-                        ) &&
-                        scopes.includes(
-                            'https://www.googleapis.com/auth/spreadsheets',
-                        )
-                    ) {
-                        resolve(accessToken);
+                    if (type === 'gdrive') {
+                        if (
+                            scopes.includes(
+                                'https://www.googleapis.com/auth/drive.file',
+                            ) &&
+                            scopes.includes(
+                                'https://www.googleapis.com/auth/spreadsheets',
+                            )
+                        ) {
+                            resolve(accessToken);
+                        }
+                        reject(
+                            new AuthorizationError(
+                                'Missing authorization to access Google Drive',
+                            ),
+                        );
+                    } else if (type === 'bigquery') {
+                        if (
+                            scopes.includes(
+                                'https://www.googleapis.com/auth/bigquery',
+                            )
+                        ) {
+                            resolve(accessToken);
+                        }
+                        reject(
+                            new AuthorizationError(
+                                'Missing authorization to access BigQuery',
+                            ),
+                        );
                     }
-                    reject(
-                        new AuthorizationError(
-                            'Missing authorization to access Google Drive',
-                        ),
-                    );
                 },
             );
         });
@@ -1562,12 +1578,16 @@ export class UserService extends BaseService {
      * @param user
      * @returns accessToken
      */
-    async getAccessToken(user: SessionUser): Promise<string> {
+    async getAccessToken(
+        user: SessionUser,
+        type: 'gdrive' | 'bigquery' = 'gdrive',
+    ): Promise<string> {
         const refreshToken: string = await this.userModel.getRefreshToken(
             user.userUuid,
         );
         const accessToken = await UserService.generateGoogleAccessToken(
             refreshToken,
+            type,
         );
         return accessToken;
     }
