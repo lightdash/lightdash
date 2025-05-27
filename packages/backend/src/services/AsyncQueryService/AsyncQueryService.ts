@@ -256,6 +256,7 @@ export class AsyncQueryService extends ProjectService {
             total_row_count: null,
             status: ResultsCacheStatus.PENDING,
             columns: null,
+            original_columns: null,
         });
 
         if (!createdCache) {
@@ -327,6 +328,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             rows,
             columns: cache.columns,
+            originalColumns: cache.original_columns,
             totalRowCount: cache.total_row_count ?? 0,
             expiresAt: cache.expires_at,
         };
@@ -517,6 +519,7 @@ export class AsyncQueryService extends ProjectService {
             result: {
                 rows,
                 columns,
+                originalColumns,
                 totalRowCount: cacheTotalRowCount,
                 expiresAt,
             },
@@ -639,6 +642,7 @@ export class AsyncQueryService extends ProjectService {
                 indexColumn: pivotConfiguration.indexColumn,
                 groupByColumns: pivotConfiguration.groupByColumns,
                 sortBy: pivotConfiguration.sortBy,
+                originalColumns: originalColumns || {},
             },
         };
     }
@@ -1002,6 +1006,7 @@ export class AsyncQueryService extends ProjectService {
         queryHistoryUuid,
         resultsCache,
         pivotConfiguration,
+        originalColumns,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -1018,6 +1023,7 @@ export class AsyncQueryService extends ProjectService {
             groupByColumns: GroupByColumn[] | undefined;
             sortBy: SortBy | undefined;
         };
+        originalColumns?: ResultColumns;
     }) {
         try {
             const {
@@ -1059,6 +1065,7 @@ export class AsyncQueryService extends ProjectService {
                 status: ResultsCacheStatus.READY,
                 total_row_count: pivotDetails?.totalRows ?? totalRows,
                 columns,
+                original_columns: originalColumns,
             });
 
             this.analytics.track({
@@ -1209,6 +1216,7 @@ export class AsyncQueryService extends ProjectService {
             explore: Explore;
             fields: ItemsMap;
             sql: string; // SQL generated from metric query or provided by user
+            originalColumns?: ResultColumns;
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
         {
@@ -1239,6 +1247,7 @@ export class AsyncQueryService extends ProjectService {
                     sql: compiledQuery,
                     metricQuery,
                     fields: fieldsMap,
+                    originalColumns,
                 } = args;
 
                 try {
@@ -1410,6 +1419,7 @@ export class AsyncQueryService extends ProjectService {
                         // resultsCache is MissCacheResult at this point,
                         // meaning that the cache was not hit
                         resultsCache,
+                        originalColumns,
                     });
 
                     return {
@@ -1519,6 +1529,7 @@ export class AsyncQueryService extends ProjectService {
                 invalidateCache,
                 fields,
                 sql,
+                originalColumns: undefined,
             },
             requestParameters,
             warehouseConnection,
@@ -1643,6 +1654,7 @@ export class AsyncQueryService extends ProjectService {
                 metricQuery,
                 fields,
                 sql,
+                originalColumns: undefined,
             },
             requestParameters,
             warehouseConnection,
@@ -1827,6 +1839,7 @@ export class AsyncQueryService extends ProjectService {
                 dateZoom,
                 fields,
                 sql,
+                originalColumns: undefined,
             },
             requestParameters,
             warehouseConnection,
@@ -1995,6 +2008,7 @@ export class AsyncQueryService extends ProjectService {
                     dateZoom,
                     fields,
                     sql,
+                    originalColumns: undefined,
                 },
                 requestParameters,
                 warehouseConnection,
@@ -2043,6 +2057,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery,
             virtualView,
             sql: sqlWithParams,
+            originalColumns,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2062,6 +2077,7 @@ export class AsyncQueryService extends ProjectService {
                 context,
                 fields: getItemMap(virtualView),
                 sql: sqlWithParams,
+                originalColumns,
             },
             {
                 query: metricQuery,
@@ -2130,6 +2146,15 @@ export class AsyncQueryService extends ProjectService {
                 tags: queryTags,
             },
         );
+
+        // Convert to ResultColumns format for storing as original columns
+        const originalColumns: ResultColumns = columns.reduce((acc, col) => {
+            acc[col.name] = {
+                reference: col.name,
+                type: col.type,
+            };
+            return acc;
+        }, {} as ResultColumns);
 
         const sqlWithLimit = applyLimitToSqlQuery({
             sqlQuery: sql,
@@ -2256,6 +2281,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseConnection,
             sql: queryBuilder.toSql(),
             appliedDashboardFilters,
+            originalColumns,
         };
     }
 
@@ -2291,6 +2317,7 @@ export class AsyncQueryService extends ProjectService {
             virtualView,
             pivotConfiguration,
             sql,
+            originalColumns,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2311,6 +2338,7 @@ export class AsyncQueryService extends ProjectService {
                 context,
                 fields: getItemMap(virtualView),
                 sql,
+                originalColumns,
             },
             {
                 query: metricQuery,
@@ -2368,6 +2396,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             sql,
             appliedDashboardFilters,
+            originalColumns,
         } = await this.prepareSqlChartAsyncQueryArgs({
             user,
             context,
@@ -2391,6 +2420,7 @@ export class AsyncQueryService extends ProjectService {
                 context,
                 fields: getItemMap(virtualView),
                 sql,
+                originalColumns,
             },
             {
                 query: metricQuery,

@@ -15,6 +15,7 @@ export type DbResultsCache = {
     total_row_count: number | null;
     status: ResultsCacheStatus;
     columns: ResultColumns | null;
+    original_columns: ResultColumns | null;
 };
 
 export type DbResultsCacheIn = Omit<
@@ -25,7 +26,12 @@ export type DbResultsCacheIn = Omit<
 export type DbResultsCacheUpdate = Partial<
     Pick<
         DbResultsCache,
-        'total_row_count' | 'status' | 'expires_at' | 'updated_at' | 'columns'
+        | 'total_row_count'
+        | 'status'
+        | 'expires_at'
+        | 'updated_at'
+        | 'columns'
+        | 'original_columns'
     >
 >;
 
