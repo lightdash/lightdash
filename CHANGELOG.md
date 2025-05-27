@@ -1,3 +1,10 @@
+# [0.1654.0](https://github.com/lightdash/lightdash/compare/0.1653.0...0.1654.0) (2025-05-27)
+
+
+### Features
+
+* save and use original column data ([#15019](https://github.com/lightdash/lightdash/issues/15019)) ([87cd067](https://github.com/lightdash/lightdash/commit/87cd067357253ab8fddd1f848d39f0aba088d546))
+
 # [0.1653.0](https://github.com/lightdash/lightdash/compare/0.1652.2...0.1653.0) (2025-05-27)
 
 
