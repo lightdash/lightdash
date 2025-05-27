@@ -798,59 +798,66 @@ export class ProjectService extends BaseService {
         const createProject = await this._resolveWarehouseClientSshKeys(
             newProjectData,
         );
-        const projectUuid = await this.projectModel.create(
-            user.userUuid,
-            user.organizationUuid,
-            createProject,
-        );
 
-        // Do not give this user admin permissions on this new project,
-        // as it could be an interactive viewer creating a preview
-        // and we don't want to allow users to acces sql runner or leak admin data
+        const result = await this.projectModel.createTransaction(async (tx) => {
+            const projectUuid = await this.projectModel.create(
+                user.userUuid,
+                user.organizationUuid,
+                createProject,
+                { tx },
+            );
 
-        this.analytics.track({
-            event: 'project.created',
-            userId: user.userUuid,
-            properties: {
-                projectName: createProject.name,
-                projectId: projectUuid,
-                projectType: createProject.dbtConnection.type,
-                warehouseConnectionType: createProject.warehouseConnection.type,
-                organizationId: user.organizationUuid,
-                dbtConnectionType: createProject.dbtConnection.type,
-                isPreview: createProject.type === ProjectType.PREVIEW,
-                method,
-                copiedFromProjectUuid: data.upstreamProjectUuid,
-            },
+            // Do not give this user admin permissions on this new project,
+            // as it could be an interactive viewer creating a preview
+            // and we don't want to allow users to acces sql runner or leak admin data
+
+            this.analytics.track({
+                event: 'project.created',
+                userId: user.userUuid,
+                properties: {
+                    projectName: createProject.name,
+                    projectId: projectUuid,
+                    projectType: createProject.dbtConnection.type,
+                    warehouseConnectionType:
+                        createProject.warehouseConnection.type,
+                    organizationId: user.organizationUuid,
+                    dbtConnectionType: createProject.dbtConnection.type,
+                    isPreview: createProject.type === ProjectType.PREVIEW,
+                    method,
+                    copiedFromProjectUuid: data.upstreamProjectUuid,
+                },
+            });
+
+            let hasContentCopy = false;
+
+            if (data.type === ProjectType.PREVIEW && data.upstreamProjectUuid) {
+                try {
+                    await this.copyUserAccessOnPreview(
+                        data.upstreamProjectUuid,
+                        projectUuid,
+                    );
+                    await this.copyContentOnPreview(
+                        data.upstreamProjectUuid,
+                        projectUuid,
+                        user,
+                    );
+
+                    hasContentCopy = true;
+                } catch (e) {
+                    Sentry.captureException(e);
+                    this.logger.error(`Unable to copy content on preview ${e}`);
+                }
+            }
+
+            const project = await this.projectModel.get(projectUuid);
+
+            return {
+                hasContentCopy,
+                project,
+            };
         });
 
-        let hasContentCopy = false;
-
-        if (data.type === ProjectType.PREVIEW && data.upstreamProjectUuid) {
-            try {
-                await this.copyUserAccessOnPreview(
-                    data.upstreamProjectUuid,
-                    projectUuid,
-                );
-                await this.copyContentOnPreview(
-                    data.upstreamProjectUuid,
-                    projectUuid,
-                    user,
-                );
-
-                hasContentCopy = true;
-            } catch (e) {
-                Sentry.captureException(e);
-                this.logger.error(`Unable to copy content on preview ${e}`);
-            }
-        }
-
-        const project = await this.projectModel.get(projectUuid);
-
-        return {
-            hasContentCopy,
-            project,
-        };
+        return result;
     }
 
     async scheduleCreate(
@@ -2655,8 +2662,8 @@ export class ProjectService extends BaseService {
 
             // Generate filtered rows and total columns so that we can apply a max column limit but also count the total number of columns if we exceed the MAX_PIVOT_COLUMN_LIMIT
             let pivotedSql = `
-            WITH original_query AS (${userSql}), 
-                 group_by_query AS (${groupByQuery}), 
+            WITH original_query AS (${userSql}),
+                 group_by_query AS (${groupByQuery}),
                  pivot_query AS (${pivotQuery}),
                  filtered_rows AS (
                     SELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${
