@@ -10,7 +10,6 @@ import {
     assertUnreachable,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import uniq from 'lodash/uniq';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import {
     AiPromptTableName,
@@ -21,9 +20,11 @@ import {
     DbAiThread,
 } from '../database/entities/ai';
 import {
+    AiAgentInstructionVersionsTableName,
     AiAgentIntegrationTableName,
     AiAgentSlackIntegrationTableName,
     AiAgentTableName,
+    DbAiAgent,
     DbAiAgentIntegration,
     DbAiAgentSlackIntegration,
 } from '../database/entities/aiAgent';
@@ -70,6 +71,11 @@ export class AiAgentModel {
                 `),
                 updatedAt: `${AiAgentTableName}.updated_at`,
                 createdAt: `${AiAgentTableName}.created_at`,
+                instruction: this.database.raw(`
+                    (SELECT instruction FROM ${AiAgentInstructionVersionsTableName}
+                     WHERE ${AiAgentInstructionVersionsTableName}.ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid
+                     ORDER BY created_at DESC LIMIT 1)
+                    `),
             } satisfies Record<keyof AiAgent, unknown>)
             .leftJoin(
                 AiAgentIntegrationTableName,
@@ -123,6 +129,11 @@ export class AiAgentModel {
                 `),
                 updatedAt: `${AiAgentTableName}.updated_at`,
                 createdAt: `${AiAgentTableName}.created_at`,
+                instruction: this.database.raw(`
+                    (SELECT instruction FROM ${AiAgentInstructionVersionsTableName}
+                     WHERE ${AiAgentInstructionVersionsTableName}.ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid
+                     ORDER BY created_at DESC LIMIT 1)
+                    `),
             } satisfies Record<keyof AiAgentSummary, unknown>)
             .leftJoin(
                 AiAgentIntegrationTableName,
@@ -183,12 +194,13 @@ export class AiAgentModel {
     async createAgent(
         args: Pick<
             ApiCreateAiAgent,
-            'name' | 'projectUuid' | 'tags' | 'integrations'
+            'name' | 'projectUuid' | 'tags' | 'integrations' | 'instruction'
         > & {
             organizationUuid: string;
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
+            const createdAt = new Date();
             const [agent] = await trx(AiAgentTableName)
                 .insert({
                     name: args.name,
@@ -232,8 +244,15 @@ export class AiAgentModel {
                     }
                 }) || [];
 
-            // Wait for all integration creation operations to complete
             const integrations = await Promise.all(integrationPromises);
+
+            if (args.instruction) {
+                await trx(AiAgentInstructionVersionsTableName).insert({
+                    ai_agent_uuid: agent.ai_agent_uuid,
+                    created_at: createdAt,
+                    instruction: args.instruction,
+                });
+            }
 
             return {
                 uuid: agent.ai_agent_uuid,
@@ -244,6 +263,7 @@ export class AiAgentModel {
                 integrations,
                 createdAt: agent.created_at,
                 updatedAt: agent.updated_at,
+                instruction: args.instruction,
             };
         });
     }
@@ -255,6 +275,8 @@ export class AiAgentModel {
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
+            const updatedAt = new Date();
+
             const [agent] = await trx(AiAgentTableName)
                 .where({
                     ai_agent_uuid: args.agentUuid,
@@ -264,7 +286,7 @@ export class AiAgentModel {
                     name: args.name,
                     project_uuid: args.projectUuid,
                     tags: args.tags,
-                    updated_at: new Date(),
+                    updated_at: updatedAt,
                 })
                 .returning('*');
 
@@ -304,8 +326,26 @@ export class AiAgentModel {
                             );
                     }
                 }) || [];
-
             const integrations = await Promise.all(integrationPromises);
+
+            let instruction = await this.getAgentLastInstruction(
+                {
+                    agentUuid: agent.ai_agent_uuid,
+                },
+                { tx: trx },
+            );
+
+            if (args.instruction !== instruction) {
+                const [result] = await trx(AiAgentInstructionVersionsTableName)
+                    .insert({
+                        ai_agent_uuid: agent.ai_agent_uuid,
+                        created_at: updatedAt,
+                        // We need to represent removing an instruction, so we backfill with an empty string
+                        instruction: args.instruction ?? '',
+                    })
+                    .returning('instruction');
+                instruction = result.instruction;
+            }
 
             return {
                 uuid: agent.ai_agent_uuid,
@@ -316,8 +356,26 @@ export class AiAgentModel {
                 integrations,
                 createdAt: agent.created_at,
                 updatedAt: agent.updated_at,
+                instruction,
             };
         });
+    }
+
+    async getAgentLastInstruction(
+        {
+            agentUuid,
+        }: {
+            agentUuid: string;
+        },
+        { tx = this.database }: { tx?: Knex } = {},
+    ): Promise<string | null> {
+        const result = await tx(AiAgentInstructionVersionsTableName)
+            .select('instruction')
+            .where('ai_agent_uuid', agentUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+
+        return result?.instruction ?? null;
     }
 
     async deleteAgent({

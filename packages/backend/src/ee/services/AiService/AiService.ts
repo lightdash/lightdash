@@ -1,6 +1,10 @@
 import { subject } from '@casl/ability';
 import { type TokenUsage } from '@langchain/core/language_models/base';
-import { AIMessage, HumanMessage } from '@langchain/core/messages';
+import {
+    AIMessage,
+    HumanMessage,
+    SystemMessage,
+} from '@langchain/core/messages';
 import { OutputParserException } from '@langchain/core/output_parsers';
 import {
     ChatPromptTemplate,
@@ -21,7 +25,6 @@ import {
     ItemsMap,
     LightdashUser,
     QueryExecutionContext,
-    ResultRow,
     SessionUser,
     SlackPrompt,
     UnexpectedServerError,
@@ -56,7 +59,6 @@ import {
 import OpenAi from '../../clients/OpenAi';
 import { AiAgentModel } from '../../models/AiAgentModel';
 import { AiModel } from '../../models/AiModel';
-import type { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
 import { CommercialCatalogService } from '../CommercialCatalogService';
 import { MiniMetricQuery } from './runMiniMetricQuery/runMiniMetricQuery';
@@ -740,6 +742,9 @@ export class AiService {
         }
         const prompt = ChatPromptTemplate.fromMessages([
             aiCopilotSystemPrompt,
+            ...(agentSettings?.instruction
+                ? [new SystemMessage(agentSettings.instruction)]
+                : []),
             new MessagesPlaceholder('metadata'),
             new MessagesPlaceholder('chat_history'),
             new MessagesPlaceholder('agent_scratchpad'),

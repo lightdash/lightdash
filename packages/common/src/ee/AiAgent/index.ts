@@ -24,7 +24,13 @@ export const baseAgentSchema = z.object({
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
 
-    instructions: z.string().nullable(),
+    instruction: z
+        .string()
+        .max(
+            4096,
+            'Custom instruction is too long. Maximum allowed is 4,000 characters.',
+        )
+        .nullable(),
     provider: z.string(),
     model: z.string(),
 });
@@ -41,6 +47,7 @@ export type AiAgent = Pick<
     | 'name'
     | 'createdAt'
     | 'updatedAt'
+    | 'instruction'
 >;
 
 export type AiAgentSummary = Pick<
@@ -53,6 +60,7 @@ export type AiAgentSummary = Pick<
     | 'organizationUuid'
     | 'createdAt'
     | 'updatedAt'
+    | 'instruction'
 >;
 
 export type AiAgentMessageUser = {
@@ -111,15 +119,16 @@ export type ApiAiAgentSummaryResponse = {
 
 export type ApiCreateAiAgent = Pick<
     AiAgent,
-    'projectUuid' | 'integrations' | 'tags' | 'name'
+    'projectUuid' | 'integrations' | 'tags' | 'name' | 'instruction'
 >;
 
-export type ApiUpdateAiAgent = {
-    uuid: AiAgent['uuid'];
-    projectUuid?: AiAgent['projectUuid'];
-    name?: AiAgent['name'];
-    tags?: AiAgent['tags'];
-    integrations?: AiAgent['integrations'];
+export type ApiUpdateAiAgent = Partial<
+    Pick<
+        AiAgent,
+        'projectUuid' | 'integrations' | 'tags' | 'name' | 'instruction'
+    >
+> & {
+    uuid: string;
 };
 
 export type ApiCreateAiAgentResponse = {
