@@ -10,7 +10,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -88,6 +88,7 @@ export const useSlackChannels = (
     useQueryOptions?: UseQueryOptions<SlackChannel[] | undefined, ApiError>,
 ) => {
     const queryClient = useQueryClient();
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const query = useQuery<SlackChannel[] | undefined, ApiError>({
         queryKey: [
@@ -109,6 +110,7 @@ export const useSlackChannels = (
     });
 
     const refresh = useCallback(async () => {
+        setIsRefreshing(true);
         const slackChannelsAfterRefresh = await getSlackChannels({
             search,
             excludeArchived,
@@ -126,9 +128,14 @@ export const useSlackChannels = (
             ],
             slackChannelsAfterRefresh,
         );
+        setIsRefreshing(false);
     }, [search, excludeArchived, excludeDms, excludeGroups, queryClient]);
 
-    return { ...query, refresh };
+    return {
+        ...query,
+        isRefreshing: query.isFetching || isRefreshing,
+        refresh,
+    };
 };
 
 const updateSlackCustomSettings = async (opts: SlackAppCustomSettings) =>
