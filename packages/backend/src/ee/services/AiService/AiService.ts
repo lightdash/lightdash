@@ -24,6 +24,7 @@ import {
     FeatureFlags,
     ItemsMap,
     LightdashUser,
+    NotFoundError,
     QueryExecutionContext,
     SessionUser,
     SlackPrompt,
@@ -545,7 +546,7 @@ export class AiService {
             });
 
             if (!filteredExplore) {
-                throw new Error('Explore not found');
+                throw new NotFoundError('Explore not found');
             }
 
             return filteredExplore;
