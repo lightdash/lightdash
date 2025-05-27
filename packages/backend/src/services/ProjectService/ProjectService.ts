@@ -10,6 +10,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     assertUnreachable,
+    BigqueryAuthenticationType,
     CacheMetadata,
     type CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
@@ -21,6 +22,7 @@ import {
     convertExplores,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
+    CreateBigqueryCredentials,
     type CreateDatabricksCredentials,
     createDimensionWithGranularity,
     CreateJob,
@@ -135,12 +137,13 @@ import {
     UserWarehouseCredentials,
     VizColumn,
     WarehouseClient,
+    WarehouseConnectionError,
     WarehouseCredentials,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
 } from '@lightdash/common';
-import { SshTunnel } from '@lightdash/warehouses';
+import { BigqueryWarehouseClient, SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
@@ -203,6 +206,7 @@ import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
+import { UserService } from '../UserService';
 import { ValidationService } from '../ValidationService/ValidationService';
 
 export type ProjectServiceArguments = {
@@ -562,9 +566,9 @@ export class ProjectService extends BaseService {
         return { userAttributes, intrinsicUserAttributes };
     }
 
-    private async _resolveWarehouseClientSshKeys<
+    private async _resolveWarehouseClientCredentials<
         T extends { warehouseConnection: CreateWarehouseCredentials },
-    >(args: T): Promise<T> {
+    >(args: T, userUuid: string): Promise<T> {
         if (
             (args.warehouseConnection.type === WarehouseTypes.REDSHIFT ||
                 args.warehouseConnection.type === WarehouseTypes.POSTGRES) &&
@@ -580,6 +584,36 @@ export class ProjectService extends BaseService {
                 },
             };
         }
+
+        if (
+            args.warehouseConnection.type === WarehouseTypes.BIGQUERY &&
+            args.warehouseConnection.authenticationType ===
+                BigqueryAuthenticationType.SSO &&
+            args.warehouseConnection.keyfileContents.type !== 'authorized_user'
+        ) {
+            const refreshToken = await this.userModel.getRefreshToken(userUuid);
+
+            // Validate refresh token has the right bigquery scopes
+            await UserService.generateGoogleAccessToken(
+                refreshToken,
+                'bigquery',
+            );
+            return {
+                ...args,
+                warehouseConnection: {
+                    ...args.warehouseConnection,
+                    keyfileContents: {
+                        type: 'authorized_user',
+                        client_id:
+                            this.lightdashConfig.auth.google.oauth2ClientId,
+                        client_secret:
+                            this.lightdashConfig.auth.google.oauth2ClientSecret,
+                        refresh_token: refreshToken,
+                    },
+                },
+            };
+        }
+
         return args;
     }
 
@@ -796,8 +830,9 @@ export class ProjectService extends BaseService {
                 );
         }
 
-        const createProject = await this._resolveWarehouseClientSshKeys(
+        const createProject = await this._resolveWarehouseClientCredentials(
             newProjectData,
+            user.userUuid,
         );
         const projectUuid = await this.projectModel.create(
             user.userUuid,
@@ -939,9 +974,11 @@ export class ProjectService extends BaseService {
             if (!isUserWithOrg(user)) {
                 throw new ForbiddenError('User is not part of an organization');
             }
-            const createProject = await this._resolveWarehouseClientSshKeys(
+            const createProject = await this._resolveWarehouseClientCredentials(
                 data,
+                user.userUuid,
             );
+
             await this.jobModel.update(jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
             });
@@ -1089,6 +1126,44 @@ export class ProjectService extends BaseService {
         });
     }
 
+    /* When editing a project, most fields are optional
+    but if the user switches from one authentication type to another, 
+    we need to validate the secrets are present */
+    static validateConfigSecrets(project: UpdateProject) {
+        switch (project.warehouseConnection?.type) {
+            case WarehouseTypes.BIGQUERY:
+                const keyFileContents =
+                    project.warehouseConnection?.keyfileContents;
+                const authenticationType =
+                    project.warehouseConnection?.authenticationType;
+                switch (authenticationType) {
+                    case undefined: // Default, for backwards compatibility
+                    case BigqueryAuthenticationType.PRIVATE_KEY:
+                        if (keyFileContents.private_key === undefined) {
+                            throw new ParameterError(
+                                'Bigquery key file is required for private key authentication',
+                            );
+                        }
+                        break;
+                    case BigqueryAuthenticationType.SSO:
+                        if (keyFileContents.refresh_token === undefined) {
+                            throw new ParameterError(
+                                'Bigquery refresh token is required for SSO authentication',
+                            );
+                        }
+                        break;
+                    default:
+                        assertUnreachable(
+                            authenticationType,
+                            `Unknown authentication type: ${authenticationType}`,
+                        );
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
     async updateAndScheduleAsyncWork(
         projectUuid: string,
         user: SessionUser,
@@ -1126,11 +1201,16 @@ export class ProjectService extends BaseService {
                     : [{ stepType: JobStepType.COMPILING }]),
             ],
         };
-        const createProject = await this._resolveWarehouseClientSshKeys(data);
+        const createProject = await this._resolveWarehouseClientCredentials(
+            data,
+            user.userUuid,
+        );
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             createProject,
             savedProject,
         );
+
+        ProjectService.validateConfigSecrets(updatedProject);
 
         await this.projectModel.update(projectUuid, updatedProject);
         await this.jobModel.create(job);
@@ -6075,5 +6155,46 @@ export class ProjectService extends BaseService {
             organizationUuid: project.organizationUuid,
         });
         return projectToSetExplores;
+    }
+
+    async getBigqueryDatasets(user: SessionUser, projectId: string) {
+        // At this point, there might not be any projects
+        // so we can't check any permissions here.
+        // Bigquery will handle the permissions
+        const refreshToken = await this.userModel.getRefreshToken(
+            user.userUuid,
+        );
+
+        if (projectId.length === 0) {
+            // Need to provide a projectId to get datasets
+            return [];
+        }
+        // Validate refresh token has the right bigquery scopes
+        await UserService.generateGoogleAccessToken(refreshToken, 'bigquery');
+        try {
+            const datasets = await BigqueryWarehouseClient.getDatabases(
+                projectId,
+                refreshToken,
+            );
+            return datasets;
+        } catch (error) {
+            this.logger.error(
+                `getBigqueryDatasets error: ${JSON.stringify(error)}`,
+            );
+
+            if (BigqueryWarehouseClient.isBigqueryError(error)) {
+                // This can throw other errors, like for example, if you use a projectId you don't have access
+                // Or this projectId does not have bigquery enabled
+                if (error.errors[0].reason === 'notFound') {
+                    throw new NotFoundError(
+                        `Project ${projectId} not found on BigQuery`,
+                    );
+                }
+                throw new WarehouseConnectionError(
+                    `Failed to get datasets from BigQuery`,
+                );
+            }
+            throw new UnexpectedServerError('Failed to get datasets');
+        }
     }
 }

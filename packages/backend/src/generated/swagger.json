@@ -5720,38 +5720,49 @@
             "AiMetricQuery": {
                 "$ref": "#/components/schemas/Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName-or-filters_"
             },
-            "ApiAiAgentThreadMessageVizResponse": {
+            "ApiAiAgentThreadMessageViz": {
                 "properties": {
                     "results": {
                         "properties": {
-                            "chartOptions": {
-                                "additionalProperties": true,
-                                "type": "object"
+                            "fields": {
+                                "$ref": "#/components/schemas/ItemsMap"
                             },
-                            "metricQuery": {
-                                "$ref": "#/components/schemas/AiMetricQuery"
+                            "cacheMetadata": {
+                                "$ref": "#/components/schemas/CacheMetadata"
                             },
-                            "results": {
-                                "properties": {
-                                    "fields": {
-                                        "$ref": "#/components/schemas/ItemsMap"
-                                    },
-                                    "cacheMetadata": {
-                                        "$ref": "#/components/schemas/CacheMetadata"
-                                    },
-                                    "rows": {
-                                        "items": {
-                                            "$ref": "#/components/schemas/Record_string.AnyType_"
-                                        },
-                                        "type": "array"
-                                    }
+                            "rows": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Record_string.AnyType_"
                                 },
-                                "required": ["fields", "cacheMetadata", "rows"],
-                                "type": "object"
+                                "type": "array"
                             }
                         },
-                        "required": ["metricQuery", "results"],
+                        "required": ["fields", "cacheMetadata", "rows"],
                         "type": "object"
+                    },
+                    "chartOptions": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/AiMetricQuery"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "vertical_bar_chart",
+                            "time_series_chart",
+                            "csv"
+                        ]
+                    }
+                },
+                "required": ["results", "metricQuery", "type"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadMessageVizResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiAiAgentThreadMessageViz"
                     },
                     "status": {
                         "type": "string",
@@ -10671,6 +10682,10 @@
             "PostgresCredentials": {
                 "$ref": "#/components/schemas/Omit_CreatePostgresCredentials.SensitiveCredentialsFieldNames_"
             },
+            "BigqueryAuthenticationType": {
+                "enum": ["sso", "private_key"],
+                "type": "string"
+            },
             "Pick_CreateBigqueryCredentials.Exclude_keyofCreateBigqueryCredentials.SensitiveCredentialsFieldNames__": {
                 "properties": {
                     "type": {
@@ -10678,6 +10693,9 @@
                     },
                     "requireUserCredentials": {
                         "type": "boolean"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/BigqueryAuthenticationType"
                     },
                     "threads": {
                         "type": "number",
@@ -12276,22 +12294,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -15322,6 +15340,38 @@
                 ],
                 "type": "object"
             },
+            "BigqueryDataset": {
+                "properties": {
+                    "datasetId": {
+                        "type": "string"
+                    },
+                    "location": {
+                        "type": "string"
+                    },
+                    "projectId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["datasetId", "projectId"],
+                "type": "object"
+            },
+            "ApiBigqueryDatasets": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/BigqueryDataset"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "SemanticLayerClientInfo": {
                 "properties": {
                     "name": {
@@ -17575,7 +17625,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1665.0",
+        "version": "0.1674.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -26105,6 +26155,75 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/bigquery/sso/datasets": {
+            "get": {
+                "operationId": "GetBigQueryDatasets",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiBigqueryDatasets"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/bigquery/sso/is-authenticated": {
+            "get": {
+                "operationId": "getAccessToken",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v2/feature-flag/{featureFlagId}": {
