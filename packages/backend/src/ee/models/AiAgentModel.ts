@@ -53,7 +53,6 @@ export class AiAgentModel {
                 projectUuid: `${AiAgentTableName}.project_uuid`,
                 name: `${AiAgentTableName}.name`,
                 tags: `${AiAgentTableName}.tags`,
-                instruction: `${AiAgentTableName}.instruction`,
                 integrations: this.database.raw(`
                     COALESCE(
                         json_agg(
@@ -70,6 +69,11 @@ export class AiAgentModel {
                 `),
                 updatedAt: `${AiAgentTableName}.updated_at`,
                 createdAt: `${AiAgentTableName}.created_at`,
+                instruction: this.database.raw(`
+                    (SELECT instruction FROM ${AiAgentInstructionVersionsTableName}
+                     WHERE ${AiAgentInstructionVersionsTableName}.ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid
+                     ORDER BY created_at DESC LIMIT 1)
+                    `),
             } satisfies Record<keyof AiAgent, unknown>)
             .leftJoin(
                 AiAgentIntegrationTableName,
@@ -107,7 +111,6 @@ export class AiAgentModel {
                 projectUuid: `${AiAgentTableName}.project_uuid`,
                 name: `${AiAgentTableName}.name`,
                 tags: `${AiAgentTableName}.tags`,
-                instruction: `${AiAgentTableName}.instruction`,
                 integrations: this.database.raw(`
                         COALESCE(
                             json_agg(
@@ -124,6 +127,11 @@ export class AiAgentModel {
                 `),
                 updatedAt: `${AiAgentTableName}.updated_at`,
                 createdAt: `${AiAgentTableName}.created_at`,
+                instruction: this.database.raw(`
+                    (SELECT instruction FROM ${AiAgentInstructionVersionsTableName}
+                     WHERE ${AiAgentInstructionVersionsTableName}.ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid
+                     ORDER BY created_at DESC LIMIT 1)
+                    `),
             } satisfies Record<keyof AiAgentSummary, unknown>)
             .leftJoin(
                 AiAgentIntegrationTableName,
@@ -199,10 +207,6 @@ export class AiAgentModel {
                     tags: args.tags,
                     description: null,
                     image_url: null,
-                    instruction: args.instruction,
-                    last_instruction_version_updated_at: args.instruction
-                        ? createdAt
-                        : null,
                 })
                 .returning('*');
 
@@ -257,7 +261,7 @@ export class AiAgentModel {
                 integrations,
                 createdAt: agent.created_at,
                 updatedAt: agent.updated_at,
-                instruction: agent.instruction,
+                instruction: args.instruction,
             };
         });
     }
@@ -270,42 +274,6 @@ export class AiAgentModel {
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
             const updatedAt = new Date();
-            const currentAgent = await trx(AiAgentTableName)
-                .select('instruction', 'last_instruction_version_updated_at')
-                .where({
-                    ai_agent_uuid: args.agentUuid,
-                    organization_uuid: args.organizationUuid,
-                })
-                .first<
-                    | Pick<
-                          DbAiAgent,
-                          'instruction' | 'last_instruction_version_updated_at'
-                      >
-                    | undefined
-                >();
-
-            if (!currentAgent) {
-                throw new AiAgentNotFoundError(
-                    `AI agent not found for uuid: ${args.agentUuid}`,
-                );
-            }
-            const lastInstructionUpdated = {
-                instruction: currentAgent.instruction,
-                last_instruction_version_updated_at:
-                    currentAgent.last_instruction_version_updated_at,
-            };
-            if (currentAgent && currentAgent.instruction !== args.instruction) {
-                const [result] = await trx(AiAgentInstructionVersionsTableName)
-                    .insert({
-                        ai_agent_uuid: args.agentUuid,
-                        instruction: args.instruction,
-                        created_at: updatedAt,
-                    })
-                    .returning(['created_at', 'instruction']);
-                lastInstructionUpdated.instruction = result.instruction;
-                lastInstructionUpdated.last_instruction_version_updated_at =
-                    result.created_at;
-            }
 
             const [agent] = await trx(AiAgentTableName)
                 .where({
@@ -317,7 +285,6 @@ export class AiAgentModel {
                     project_uuid: args.projectUuid,
                     tags: args.tags,
                     updated_at: updatedAt,
-                    ...lastInstructionUpdated,
                 })
                 .returning('*');
 
@@ -357,8 +324,23 @@ export class AiAgentModel {
                             );
                     }
                 }) || [];
-
             const integrations = await Promise.all(integrationPromises);
+
+            let instruction = await this.getAgentLastInstruction({
+                agentUuid: agent.ai_agent_uuid,
+            });
+
+            if (args.instruction !== instruction) {
+                const [result] = await trx(AiAgentInstructionVersionsTableName)
+                    .insert({
+                        ai_agent_uuid: agent.ai_agent_uuid,
+                        created_at: updatedAt,
+                        // We need to represent removing an instruction, so we backfill with an empty string
+                        instruction: args.instruction ?? '',
+                    })
+                    .returning('instruction');
+                instruction = result.instruction;
+            }
 
             return {
                 uuid: agent.ai_agent_uuid,
@@ -369,9 +351,23 @@ export class AiAgentModel {
                 integrations,
                 createdAt: agent.created_at,
                 updatedAt: agent.updated_at,
-                instruction: agent.instruction,
+                instruction,
             };
         });
+    }
+
+    async getAgentLastInstruction({
+        agentUuid,
+    }: {
+        agentUuid: string;
+    }): Promise<string | null> {
+        const result = await this.database(AiAgentInstructionVersionsTableName)
+            .select('instruction')
+            .where('ai_agent_uuid', agentUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+
+        return result?.instruction ?? null;
     }
 
     async deleteAgent({

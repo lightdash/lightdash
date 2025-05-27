@@ -12,8 +12,6 @@ export type DbAiAgent = {
     tags: string[] | null;
     created_at: Date;
     updated_at: Date;
-    instruction: string | null;
-    last_instruction_version_updated_at: Date | null;
 };
 
 export type AiAgentTable = Knex.CompositeTableType<
@@ -63,3 +61,12 @@ export type DbAiAgentInstructionVersions = {
     instruction: string;
     created_at: Date;
 };
+
+export type AiAgentInstructionVersionsTable = Knex.CompositeTableType<
+    DbAiAgentInstructionVersions,
+    Omit<DbAiAgentInstructionVersions, 'ai_agent_instruction_version_uuid'> &
+        Partial<Pick<DbAiAgentInstructionVersions, 'created_at'>>,
+    Partial<
+        Omit<DbAiAgentInstructionVersions, 'ai_agent_instruction_version_uuid'>
+    >
+>;
