@@ -1,3 +1,15 @@
+# [0.1653.0](https://github.com/lightdash/lightdash/compare/0.1652.2...0.1653.0) (2025-05-27)
+
+
+### Bug Fixes
+
+* Slack integration api improvements ([#15011](https://github.com/lightdash/lightdash/issues/15011)) ([26c1495](https://github.com/lightdash/lightdash/commit/26c1495a0adba0212b5c80e0365310b54242258d))
+
+
+### Features
+
+* For slack based agent threads correctly show message author name ([#14988](https://github.com/lightdash/lightdash/issues/14988)) ([114d8b8](https://github.com/lightdash/lightdash/commit/114d8b832d3544c95c615ce667d41721413e02d6)), closes [#14978](https://github.com/lightdash/lightdash/issues/14978)
+
 ## [0.1652.2](https://github.com/lightdash/lightdash/compare/0.1652.1...0.1652.2) (2025-05-27)
 
 
