@@ -306,8 +306,8 @@ export const AgentDetails: FC = () => {
                                             </Title>
 
                                             <Textarea
-                                                label="System Prompt"
-                                                description="The system prompt sets the
+                                                label="Instructions"
+                                                description="Instructions set the
                                                     overall behavior and task
                                                     for the agent. This defines
                                                     how it should respond and

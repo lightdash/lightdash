@@ -5355,22 +5355,12 @@
             "ApiCreateAiAgent": {
                 "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction_"
             },
-            "Partial_AiAgent_": {
+            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction__": {
                 "properties": {
                     "name": {
                         "type": "string"
                     },
                     "projectUuid": {
-                        "type": "string"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
                         "type": "string"
                     },
                     "integrations": {
@@ -5397,10 +5387,6 @@
                         "type": "array",
                         "nullable": true
                     },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
                     "instruction": {
                         "type": "string",
                         "nullable": true
@@ -5409,23 +5395,19 @@
                 "type": "object",
                 "description": "Make all properties in T optional"
             },
-            "Pick_AiAgent.uuid_": {
-                "properties": {
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["uuid"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
             "ApiUpdateAiAgent": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Partial_AiAgent_"
+                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction__"
                     },
                     {
-                        "$ref": "#/components/schemas/Pick_AiAgent.uuid_"
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object"
                     }
                 ]
             },
@@ -17418,7 +17400,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1650.0",
+        "version": "0.1651.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

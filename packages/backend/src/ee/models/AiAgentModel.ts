@@ -13,7 +13,9 @@ import { Knex } from 'knex';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import {
     AiPromptTableName,
+    AiSlackPromptTableName,
     AiThreadTableName,
+    AiWebAppPromptTableName,
     DbAiPrompt,
     DbAiThread,
 } from '../database/entities/ai';
@@ -267,7 +269,7 @@ export class AiAgentModel {
     }
 
     async updateAgent(
-        args: ApiUpdateAiAgent & {
+        args: Omit<ApiUpdateAiAgent, 'uuid'> & {
             agentUuid: string;
             organizationUuid: string;
         },
@@ -326,9 +328,12 @@ export class AiAgentModel {
                 }) || [];
             const integrations = await Promise.all(integrationPromises);
 
-            let instruction = await this.getAgentLastInstruction({
-                agentUuid: agent.ai_agent_uuid,
-            });
+            let instruction = await this.getAgentLastInstruction(
+                {
+                    agentUuid: agent.ai_agent_uuid,
+                },
+                { tx: trx },
+            );
 
             if (args.instruction !== instruction) {
                 const [result] = await trx(AiAgentInstructionVersionsTableName)
@@ -356,12 +361,15 @@ export class AiAgentModel {
         });
     }
 
-    async getAgentLastInstruction({
-        agentUuid,
-    }: {
-        agentUuid: string;
-    }): Promise<string | null> {
-        const result = await this.database(AiAgentInstructionVersionsTableName)
+    async getAgentLastInstruction(
+        {
+            agentUuid,
+        }: {
+            agentUuid: string;
+        },
+        { tx = this.database }: { tx?: Knex } = {},
+    ): Promise<string | null> {
+        const result = await tx(AiAgentInstructionVersionsTableName)
             .select('instruction')
             .where('ai_agent_uuid', agentUuid)
             .orderBy('created_at', 'desc')
