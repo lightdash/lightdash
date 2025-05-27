@@ -1,3 +1,10 @@
+# [0.1657.0](https://github.com/lightdash/lightdash/compare/0.1656.0...0.1657.0) (2025-05-27)
+
+
+### Features
+
+* introduce system prompts (AI Agent Instructions) ([#14993](https://github.com/lightdash/lightdash/issues/14993)) ([6e2aa72](https://github.com/lightdash/lightdash/commit/6e2aa727d0b709c338d8c0333c2d5f25e708d18d))
+
 # [0.1656.0](https://github.com/lightdash/lightdash/compare/0.1655.0...0.1656.0) (2025-05-27)
 
 
