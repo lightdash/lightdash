@@ -1,3 +1,10 @@
+## [0.1652.2](https://github.com/lightdash/lightdash/compare/0.1652.1...0.1652.2) (2025-05-27)
+
+
+### Bug Fixes
+
+* parse object custom type chart ([#15009](https://github.com/lightdash/lightdash/issues/15009)) ([2eb51d9](https://github.com/lightdash/lightdash/commit/2eb51d9500a62fd1fe212ea28798b028daa3087d))
+
 ## [0.1652.1](https://github.com/lightdash/lightdash/compare/0.1652.0...0.1652.1) (2025-05-27)
 
 
