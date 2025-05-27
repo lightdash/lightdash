@@ -899,7 +899,8 @@ describe('AsyncQueryService', () => {
             const mockRunAsyncWarehouseQuery = jest
                 .fn()
                 .mockResolvedValue(undefined);
-            serviceWithCache.runAsyncWarehouseQuery =
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            serviceWithCache['runAsyncWarehouseQuery'] =
                 mockRunAsyncWarehouseQuery;
 
             await serviceWithCache.executeAsyncQuery(
