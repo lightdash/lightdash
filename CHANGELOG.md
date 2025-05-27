@@ -1,3 +1,10 @@
+# [0.1655.0](https://github.com/lightdash/lightdash/compare/0.1654.0...0.1655.0) (2025-05-27)
+
+
+### Features
+
+* add options to exclude DMs and groups from Slack channels ([#14994](https://github.com/lightdash/lightdash/issues/14994)) ([daeef0e](https://github.com/lightdash/lightdash/commit/daeef0e54a16a5766801d8a20a04f624c03adb1f))
+
 # [0.1654.0](https://github.com/lightdash/lightdash/compare/0.1653.0...0.1654.0) (2025-05-27)
 
 
