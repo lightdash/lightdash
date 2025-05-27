@@ -30,7 +30,7 @@ export class ResultsFileModel {
             timezone?: string;
         },
     ) {
-        const CACHE_VERSION = 'v1'; // change when we want to force invalidation
+        const CACHE_VERSION = 'v2'; // change when we want to force invalidation
         const queryHashKey = resultsIdentifiers.timezone
             ? `${CACHE_VERSION}.${projectUuid}.${resultsIdentifiers.sql}.${resultsIdentifiers.timezone}`
             : `${CACHE_VERSION}.${projectUuid}.${resultsIdentifiers.sql}`;
