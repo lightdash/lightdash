@@ -1,3 +1,10 @@
+## [0.1652.1](https://github.com/lightdash/lightdash/compare/0.1652.0...0.1652.1) (2025-05-27)
+
+
+### Bug Fixes
+
+* add pdf to image in MS teams ([#14997](https://github.com/lightdash/lightdash/issues/14997)) ([196837b](https://github.com/lightdash/lightdash/commit/196837bfe464475e44f58df44322ad15bf918cf5))
+
 # [0.1652.0](https://github.com/lightdash/lightdash/compare/0.1651.0...0.1652.0) (2025-05-27)
 
 
