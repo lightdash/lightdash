@@ -258,7 +258,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                 id={item.id}
                                 disabled={!isEditMode || !!openPopoverId}
                             >
-                                {field || item.target.isSqlColumn ? (
+                                {field ? (
                                     <Filter
                                         key={item.id}
                                         isEditMode={isEditMode}
@@ -307,7 +307,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             {dashboardTemporaryFilters.dimensions.map((item, index) => {
                 const field = allFilterableFieldsMap[item.target.fieldId];
                 const appliesToTabs = getTabsUsingTemporaryFilter(item.id);
-                return field || item.target.isSqlColumn ? (
+                return field ? (
                     <Filter
                         key={item.id}
                         isTemporary

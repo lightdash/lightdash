@@ -48,7 +48,6 @@ import {
     type TimeBasedOverrideMap,
 } from '../types/filter';
 import { type MetricQuery } from '../types/metricQuery';
-import { type ResultColumn } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
@@ -426,60 +425,6 @@ export const createDashboardFilterRuleFromField = ({
                 fieldName: field.name,
             },
             tileTargets: getDefaultTileTargets(field, availableTileFilters),
-            disabled: !isTemporary,
-            label: undefined,
-        },
-        !isNil(value) ? [value] : null, // When `null`, don't set default value if no value is provided
-    );
-
-const getDefaultTileSqlTargets = (
-    column: ResultColumn,
-    availableTileColumns: Record<string, ResultColumn[] | undefined>,
-) =>
-    Object.entries(availableTileColumns).reduce<
-        Record<string, DashboardFieldTarget>
-    >((acc, [tileUuid, availableColumns]) => {
-        if (!availableColumns) return acc;
-
-        const filterableField = availableColumns.find(
-            (target) => target.reference === column.reference,
-        );
-        if (!filterableField) return acc;
-
-        return {
-            ...acc,
-            [tileUuid]: {
-                fieldId: filterableField.reference,
-                tableName: `sql_chart`,
-                isSqlColumn: true,
-            },
-        };
-    }, {});
-
-export const createDashboardFilterRuleFromSqlColumn = ({
-    column,
-    availableTileColumns,
-    isTemporary,
-    value,
-}: {
-    column: ResultColumn;
-    availableTileColumns: Record<string, ResultColumn[]>;
-    isTemporary: boolean;
-    value?: unknown;
-}): DashboardFilterRule =>
-    getFilterRuleWithDefaultValue(
-        getFilterTypeFromItemType(column.type),
-        undefined,
-        {
-            id: uuidv4(),
-            operator:
-                value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
-            target: {
-                fieldId: column.reference,
-                tableName: 'sql_chart',
-                isSqlColumn: true,
-            },
-            tileTargets: getDefaultTileSqlTargets(column, availableTileColumns),
             disabled: !isTemporary,
             label: undefined,
         },
