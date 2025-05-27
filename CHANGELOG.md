@@ -1,3 +1,10 @@
+# [0.1656.0](https://github.com/lightdash/lightdash/compare/0.1655.0...0.1656.0) (2025-05-27)
+
+
+### Features
+
+* copy tableconfiguration cli ([#15008](https://github.com/lightdash/lightdash/issues/15008)) ([717a9fd](https://github.com/lightdash/lightdash/commit/717a9fd797f01c35652edf54f060cabf5368408b))
+
 # [0.1655.0](https://github.com/lightdash/lightdash/compare/0.1654.0...0.1655.0) (2025-05-27)
 
 
