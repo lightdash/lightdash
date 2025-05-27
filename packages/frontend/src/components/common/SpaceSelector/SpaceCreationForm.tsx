@@ -28,7 +28,7 @@ const SpaceCreationForm = ({
                     size="xs"
                     compact
                 >
-                    Back
+                    Back to Space selection
                 </Button>
             </Box>
 
