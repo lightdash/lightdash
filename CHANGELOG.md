@@ -1,3 +1,10 @@
+## [0.1659.2](https://github.com/lightdash/lightdash/compare/0.1659.1...0.1659.2) (2025-05-28)
+
+
+### Bug Fixes
+
+* Duplicated refresh slack channel button ([#15047](https://github.com/lightdash/lightdash/issues/15047)) ([4368eaf](https://github.com/lightdash/lightdash/commit/4368eaf0e0b31b7c2ef14b98e914e159923a74da))
+
 ## [0.1659.1](https://github.com/lightdash/lightdash/compare/0.1659.0...0.1659.1) (2025-05-28)
 
 
