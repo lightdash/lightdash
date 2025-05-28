@@ -74,7 +74,7 @@ import { SshTunnel } from '@lightdash/warehouses';
 import { createInterface } from 'readline';
 import { Readable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
-import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { measureTime } from '../../logging/measureTime';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -370,12 +370,7 @@ export class AsyncQueryService extends ProjectService {
                 return assertUnreachable(status, 'Unknown query status');
         }
 
-        if (
-            !resultsFileName ||
-            !resultsExpiresAt ||
-            !columns ||
-            !originalColumns
-        ) {
+        if (!resultsFileName || !resultsExpiresAt) {
             throw new NotFoundError(
                 `Result file not found for query ${queryUuid}`,
             );
@@ -383,7 +378,7 @@ export class AsyncQueryService extends ProjectService {
         if (resultsExpiresAt < new Date()) {
             // TODO: throw a specific error the FE will respond to
             throw new ExpiredError(
-                `Cache expired for key ${cacheKey} and project ${projectUuid}`,
+                `Results expired for file ${resultsFileName} and project ${projectUuid}`,
             );
         }
 
@@ -563,7 +558,7 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const { status, cacheKey: resultsFileName } = queryHistory;
+        const { status, resultsFileName } = queryHistory;
 
         if (status === QueryHistoryStatus.ERROR) {
             throw new Error(queryHistory.error ?? 'Warehouse query failed');
@@ -905,9 +900,12 @@ export class AsyncQueryService extends ProjectService {
             const fileName =
                 QueryHistoryModel.createUniqueResultsFileName(cacheKey);
             // Create upload stream for storing results
-            stream = this.storageClient.createUploadStream(fileName, {
-                contentType: 'application/jsonl',
-            });
+            stream = this.storageClient.createUploadStream(
+                S3ResultsFileStorageClient.sanitizeFileExtension(fileName),
+                {
+                    contentType: 'application/jsonl',
+                },
+            );
             const createdAt = new Date();
             const newExpiresAt = this.getCacheExpiresAt(createdAt);
             this.analytics.track({
