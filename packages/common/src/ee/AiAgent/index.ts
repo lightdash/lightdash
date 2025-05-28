@@ -148,4 +148,23 @@ export type ApiAiAgentThreadResponse = {
     results: AiAgentThread;
 };
 
+export type ApiAiAgentThreadGenerateRequest = {
+    prompt: string;
+};
+
+export type ApiAiAgentThreadGenerateResponse = {
+    status: 'ok';
+    results: {
+        jobId: string;
+    };
+};
+
+export type ApiAiAgentStartThreadResponse = {
+    status: 'ok';
+    results: {
+        jobId: string;
+        threadUuid: string;
+    };
+};
+
 export * from './filterExploreByTags';

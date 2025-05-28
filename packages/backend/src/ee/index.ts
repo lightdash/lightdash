@@ -112,6 +112,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
                     featureFlagService: repository.getFeatureFlagService(),
                     slackClient: clients.getSlackClient(),
+                    aiModel: models.getAiModel(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({

@@ -13,17 +13,23 @@ import _ from 'lodash';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { AiAgentModel } from '../models/AiAgentModel';
+import { AiModel } from '../models/AiModel';
 import type { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
+import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
+    aiModel: AiModel;
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
     featureFlagService: FeatureFlagService;
     slackClient: SlackClient;
+    schedulerClient: CommercialSchedulerClient;
 };
 
 export class AiAgentService {
     private readonly aiAgentModel: AiAgentModel;
+
+    private readonly aiModel: AiModel;
 
     private readonly slackAuthenticationModel: CommercialSlackAuthenticationModel;
 
@@ -31,11 +37,15 @@ export class AiAgentService {
 
     private readonly slackClient: SlackClient;
 
+    private readonly schedulerClient: CommercialSchedulerClient;
+
     constructor(dependencies: AiAgentServiceDependencies) {
         this.aiAgentModel = dependencies.aiAgentModel;
+        this.aiModel = dependencies.aiModel;
         this.slackAuthenticationModel = dependencies.slackAuthenticationModel;
         this.featureFlagService = dependencies.featureFlagService;
         this.slackClient = dependencies.slackClient;
+        this.schedulerClient = dependencies.schedulerClient;
     }
 
     private async getIsCopilotEnabled(
@@ -310,5 +320,84 @@ export class AiAgentService {
             organizationUuid,
             agentUuid,
         });
+    }
+
+    async generateAgentThreadResponse(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid: threadUuidParam,
+            prompt,
+        }: {
+            agentUuid: string;
+            prompt: string;
+            threadUuid?: string;
+        },
+    ) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        let threadUuid: string | undefined;
+
+        if (threadUuidParam) {
+            const thread = await this.aiAgentModel.getThread({
+                organizationUuid,
+                agentUuid,
+                threadUuid: threadUuidParam,
+            });
+            if (!thread) {
+                throw new NotFoundError(`Thread not found: ${threadUuidParam}`);
+            }
+            threadUuid = thread.uuid;
+        } else {
+            threadUuid = await this.aiModel.createWebAppThread({
+                organizationUuid,
+                projectUuid: agent.projectUuid,
+                userUuid: user.userUuid,
+                createdFrom: 'web_app',
+                agentUuid,
+            });
+        }
+
+        if (!threadUuid) {
+            throw new Error('Failed to create agent thread');
+        }
+
+        const webAppPromptUuid = await this.aiModel.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: user.userUuid,
+            prompt,
+        });
+
+        if (!webAppPromptUuid) {
+            throw new Error('Failed to create agent thread prompt');
+        }
+
+        const { jobId } = await this.schedulerClient.aiAgentThreadGenerate({
+            agentUuid,
+            threadUuid,
+            promptUuid: webAppPromptUuid,
+            userUuid: user.userUuid,
+            organizationUuid,
+            projectUuid: agent.projectUuid,
+        });
+
+        return { jobId, threadUuid };
     }
 }

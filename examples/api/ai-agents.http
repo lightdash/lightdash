@@ -22,3 +22,19 @@ Content-Type: application/json
 ### Get agent thread
 GET http://localhost:8080/api/v1/aiAgents/a4a584ce-0370-4bbe-943b-3c67fcb7ef76/threads/91ea006f-bce1-4193-9099-13dddaddfcfc
 Content-Type: application/json
+
+### Start agent thread
+POST http://localhost:8080/api/v1/aiAgents/a4a584ce-0370-4bbe-943b-3c67fcb7ef76/generate
+Content-Type: application/json
+
+{
+    "prompt": "give me a chart of revenue by payment method"
+}
+
+### Generate agent thread response
+POST http://localhost:8080/api/v1/aiAgents/a4a584ce-0370-4bbe-943b-3c67fcb7ef76/threads/3185ecad-58c9-44c1-af2d-a1b859bf4c77/generate
+Content-Type: application/json
+
+{
+    "prompt": "what kind of charts can you make?"
+}
