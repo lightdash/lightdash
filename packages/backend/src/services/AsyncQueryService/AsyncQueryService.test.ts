@@ -18,6 +18,7 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
+import type { DbResultsCache } from '../../database/entities/resultsFile';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -541,12 +542,24 @@ describe('AsyncQueryService', () => {
                 pivotValuesColumns: null,
             };
 
+            const mockResultsFile: DbResultsCache = {
+                cache_key: 'test-cache-key',
+                status: ResultsCacheStatus.READY,
+                project_uuid: projectUuid,
+                created_at: new Date(),
+                updated_at: new Date(),
+                expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24),
+                total_row_count: 10,
+                columns: expectedColumns,
+                original_columns: expectedColumns,
+            };
+
             serviceWithCache.queryHistoryModel.get = jest
                 .fn()
                 .mockResolvedValue(mockQueryHistory);
             serviceWithCache.resultsFileModel.find = jest
                 .fn()
-                .mockResolvedValue(mockQueryHistory);
+                .mockResolvedValue(mockResultsFile);
             serviceWithCache.getExplore = jest
                 .fn()
                 .mockResolvedValue(validExplore);
@@ -638,9 +651,24 @@ describe('AsyncQueryService', () => {
                 pivotValuesColumns: null,
             };
 
+            const mockResultsFile: DbResultsCache = {
+                cache_key: 'test-cache-key',
+                status: ResultsCacheStatus.READY,
+                project_uuid: projectUuid,
+                created_at: new Date(),
+                updated_at: new Date(),
+                expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24),
+                total_row_count: 10,
+                columns: expectedColumns,
+                original_columns: expectedColumns,
+            };
+
             serviceWithCache.queryHistoryModel.get = jest
                 .fn()
                 .mockResolvedValue(mockQueryHistory);
+            serviceWithCache.resultsFileModel.find = jest
+                .fn()
+                .mockResolvedValue(mockResultsFile);
             serviceWithCache.getExplore = jest
                 .fn()
                 .mockResolvedValue(validExplore);

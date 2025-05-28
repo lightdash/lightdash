@@ -464,6 +464,8 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
+        const cache = await this.findCache(cacheKey, projectUuid);
+
         switch (status) {
             case QueryHistoryStatus.CANCELLED:
                 return {
@@ -471,8 +473,6 @@ export class AsyncQueryService extends ProjectService {
                     queryUuid,
                 };
             case QueryHistoryStatus.PENDING:
-                const cache = await this.findCache(cacheKey, projectUuid);
-
                 if (cache?.status === ResultsCacheStatus.READY) {
                     // If the cache is ready, we update the query history status to READY and return the current state
                     // This avoids a race condition where the query history was READY but the cache (triggered by another request) was still being written
@@ -495,6 +495,21 @@ export class AsyncQueryService extends ProjectService {
                     queryUuid,
                 };
             case QueryHistoryStatus.READY:
+                // If the cache is still in PENDING state, we return PENDING status
+                // This avoids a race condition where the query history was READY but the cache (triggered by another request) was still being written
+                // Avoids "No Columns found" error
+                if (cache?.status === ResultsCacheStatus.PENDING) {
+                    this.logger.debug(
+                        `Race condition detected, query ${queryUuid} in project ${projectUuid} is in READY state but cache is still in PENDING state. Returning PENDING status`,
+                    );
+
+                    // No need to update query history status here. Leave it as is until https://github.com/lightdash/lightdash/issues/14728 is closed
+                    return {
+                        status: QueryHistoryStatus.PENDING,
+                        queryUuid,
+                    };
+                }
+
                 break;
             default:
                 return assertUnreachable(status, 'Unknown query status');
