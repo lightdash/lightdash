@@ -1,3 +1,10 @@
+## [0.1659.3](https://github.com/lightdash/lightdash/compare/0.1659.2...0.1659.3) (2025-05-28)
+
+
+### Bug Fixes
+
+* enhance group update validation in ScimService ([#15046](https://github.com/lightdash/lightdash/issues/15046)) ([126e5d9](https://github.com/lightdash/lightdash/commit/126e5d9dd51dae1681747a6834611c08c4e6b590))
+
 ## [0.1659.2](https://github.com/lightdash/lightdash/compare/0.1659.1...0.1659.2) (2025-05-28)
 
 
