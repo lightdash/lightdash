@@ -1,3 +1,10 @@
+## [0.1660.3](https://github.com/lightdash/lightdash/compare/0.1660.2...0.1660.3) (2025-05-28)
+
+
+### Bug Fixes
+
+* simplify SQL chart results fetching and remove duplicate requests ([#15028](https://github.com/lightdash/lightdash/issues/15028)) ([a84eb6d](https://github.com/lightdash/lightdash/commit/a84eb6de97dea89945596e1bd65b1d272585fe4a))
+
 ## [0.1660.2](https://github.com/lightdash/lightdash/compare/0.1660.1...0.1660.2) (2025-05-28)
 
 
