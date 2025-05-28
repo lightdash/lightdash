@@ -1,3 +1,10 @@
+## [0.1660.1](https://github.com/lightdash/lightdash/compare/0.1660.0...0.1660.1) (2025-05-28)
+
+
+### Bug Fixes
+
+* display correct slack user names in Agent conversation history ([#15048](https://github.com/lightdash/lightdash/issues/15048)) ([392d3ea](https://github.com/lightdash/lightdash/commit/392d3ea87f746bd4706a6261b93488b643bc7e7d))
+
 # [0.1660.0](https://github.com/lightdash/lightdash/compare/0.1659.3...0.1660.0) (2025-05-28)
 
 
