@@ -1,3 +1,10 @@
+# [0.1661.0](https://github.com/lightdash/lightdash/compare/0.1660.3...0.1661.0) (2025-05-28)
+
+
+### Features
+
+* display agent name in Slack responses ([#15055](https://github.com/lightdash/lightdash/issues/15055)) ([43f1193](https://github.com/lightdash/lightdash/commit/43f1193efb53d70e1660bb1a679dfe06db6e9482))
+
 ## [0.1660.3](https://github.com/lightdash/lightdash/compare/0.1660.2...0.1660.3) (2025-05-28)
 
 
