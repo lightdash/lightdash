@@ -799,18 +799,6 @@ export class ScimService extends BaseService {
                     scimType: 'invalidValue',
                 });
             }
-            const { data: matchesByName } = await this.groupsModel.find({
-                organizationUuid,
-                name: groupToUpdate.displayName,
-            });
-
-            if (matchesByName.length > 0) {
-                throw new ScimError({
-                    detail: 'Group with this name already exists',
-                    status: 409,
-                    scimType: 'uniqueness',
-                });
-            }
 
             const group = await this.groupsModel.getGroupWithMembers(groupUuid);
             if (group.organizationUuid !== organizationUuid) {
@@ -820,6 +808,24 @@ export class ScimService extends BaseService {
                     scimType: 'noTarget',
                 });
             }
+
+            const { data: matchesByName } = await this.groupsModel.find({
+                organizationUuid,
+                name: groupToUpdate.displayName,
+            });
+
+            // Check for name uniqueness, but exclude the current group from the check
+            const conflictingGroups = matchesByName.filter(
+                (match) => match.uuid !== groupUuid,
+            );
+            if (conflictingGroups.length > 0) {
+                throw new ScimError({
+                    detail: 'Group with this name already exists',
+                    status: 409,
+                    scimType: 'uniqueness',
+                });
+            }
+
             const updatedGroup = await this.groupsModel.updateGroup({
                 updatedByUserUuid: null,
                 groupUuid,
