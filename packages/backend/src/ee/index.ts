@@ -103,6 +103,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     organizationModel: models.getOrganizationModel(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    aiAgentService: repository.getAiAgentService(),
                 }),
             aiAgentService: ({ models, repository, clients }) =>
                 new AiAgentService({
