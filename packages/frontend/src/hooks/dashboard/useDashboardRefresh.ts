@@ -11,7 +11,10 @@ const DASHBOARD_RELATED_QUERIES = [
     'dashboards',
 ];
 
-const DASHBOARD_RESULTS_QUERIES = ['dashboard_chart_ready_query'];
+const DASHBOARD_RESULTS_QUERIES = [
+    'dashboard_chart_ready_query',
+    'savedSqlChartResults',
+];
 
 const getPredicateFunction = (keyArray: string[]) => {
     return (query: Query) => {
