@@ -18,7 +18,6 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
-import type { DbResultsCache } from '../../database/entities/resultsFile';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -182,7 +181,7 @@ describe('AsyncQueryService', () => {
             );
             serviceWithCache.storageClient.createUploadStream = jest
                 .fn()
-                .mockResolvedValue({ write, close });
+                .mockImplementation(() => ({ write, close }));
         });
 
         test('should return queryUuid when cache is hit', async () => {
@@ -202,6 +201,8 @@ describe('AsyncQueryService', () => {
                 fileName: 'file-name',
                 columns: {},
                 originalColumns: {},
+                pivotValuesColumns: null,
+                pivotTotalColumnCount: null,
             };
 
             (
@@ -270,6 +271,8 @@ describe('AsyncQueryService', () => {
                     results_created_at: expect.any(Date),
                     results_updated_at: expect.any(Date),
                     results_expires_at: expect.any(Date),
+                    pivot_total_column_count: null,
+                    pivot_values_columns: null,
                 },
             );
 
@@ -367,18 +370,6 @@ describe('AsyncQueryService', () => {
         });
 
         test('should invalidate cache when invalidateCache is true', async () => {
-            // Mock the resultsCacheModel to return a cache miss
-            const mockCacheResult = {
-                cacheHit: false,
-                cacheKey: 'test-cache-key',
-                write,
-                close,
-            };
-
-            (
-                serviceWithCache.findResultsCache as jest.Mock
-            ).mockResolvedValueOnce(mockCacheResult);
-
             // Mock the queryHistoryModel.create to return a queryUuid
             (
                 serviceWithCache.queryHistoryModel.create as jest.Mock
@@ -417,7 +408,7 @@ describe('AsyncQueryService', () => {
             // Verify that createOrGetExistingCache was called with invalidateCache: true
             expect(serviceWithCache.findResultsCache).toHaveBeenCalledWith(
                 projectUuid,
-                'test-cache-key',
+                expect.any(String),
                 true,
             );
 
@@ -558,24 +549,12 @@ describe('AsyncQueryService', () => {
                 originalColumns: null,
             };
 
-            const mockResultsFile: DbResultsCache = {
-                cache_key: 'test-cache-key',
-                status: ResultsCacheStatus.READY,
-                project_uuid: projectUuid,
-                created_at: new Date(),
-                updated_at: new Date(),
-                expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24),
-                total_row_count: 10,
-                columns: expectedColumns,
-                original_columns: expectedColumns,
-            };
-
             serviceWithCache.queryHistoryModel.get = jest
                 .fn()
                 .mockResolvedValue(mockQueryHistory);
             serviceWithCache.queryHistoryModel.findMostRecentByCacheKey = jest
                 .fn()
-                .mockResolvedValue(mockResultsFile);
+                .mockResolvedValue(null);
             serviceWithCache.getExplore = jest
                 .fn()
                 .mockResolvedValue(validExplore);
@@ -647,99 +626,8 @@ describe('AsyncQueryService', () => {
             });
         });
 
-        test('should fetch results from cache when query is READY and cache exists', async () => {
-            // Mock the queryHistoryModel.get to return a READY query with cache key
-            const mockQueryHistory: QueryHistory = {
-                createdAt: new Date(),
-                organizationUuid: user.organizationUuid!,
-                createdByUserUuid: user.userUuid,
-                queryUuid: 'test-query-uuid',
-                projectUuid,
-                status: QueryHistoryStatus.READY,
-                error: null,
-                metricQuery: metricQueryMock,
-                context: QueryExecutionContext.EXPLORE,
-                fields: validExplore.tables.a.dimensions,
-                compiledSql: 'SELECT * FROM test.table',
-                warehouseQueryId: 'test-warehouse-query-id',
-                warehouseQueryMetadata: null,
-                requestParameters: {} as ExecuteAsyncQueryRequestParams,
-                totalRowCount: 10,
-                warehouseExecutionTimeMs: null,
-                defaultPageSize: 10,
-                cacheKey: 'test-cache-key',
-                pivotConfiguration: null,
-                pivotTotalColumnCount: null,
-                pivotValuesColumns: null,
-                resultsFileName: 'file-name',
-                resultsCreatedAt: new Date(),
-                resultsUpdatedAt: new Date(),
-                resultsExpiresAt: new Date(),
-                columns: expectedColumns,
-                originalColumns: expectedColumns,
-            };
-
-            const mockResultsFile: DbResultsCache = {
-                cache_key: 'test-cache-key',
-                status: ResultsCacheStatus.READY,
-                project_uuid: projectUuid,
-                created_at: new Date(),
-                updated_at: new Date(),
-                expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24),
-                total_row_count: 10,
-                columns: expectedColumns,
-                original_columns: expectedColumns,
-            };
-
-            serviceWithCache.queryHistoryModel.get = jest
-                .fn()
-                .mockResolvedValue(mockQueryHistory);
-            serviceWithCache.resultsFileModel.find = jest
-                .fn()
-                .mockResolvedValue(mockResultsFile);
-            serviceWithCache.getExplore = jest
-                .fn()
-                .mockResolvedValue(validExplore);
-
-            // Mock the resultsCacheModel.getCachedResultsPage to return cached results
-            serviceWithCache.getResultsPage = jest.fn().mockResolvedValue({
-                rows: [expectedFormattedRow],
-            });
-
-            const result = await serviceWithCache.getAsyncQueryResults({
-                user,
-                projectUuid,
-                queryUuid: 'test-query-uuid',
-                page: 1,
-                pageSize: 10,
-            });
-
-            expect(result).toEqual({
-                rows: [expectedFormattedRow],
-                totalPageCount: 1,
-                totalResults: 10,
-                queryUuid: 'test-query-uuid',
-                pageSize: 1,
-                page: 1,
-                nextPage: undefined,
-                previousPage: undefined,
-                initialQueryExecutionMs: expect.any(Number),
-                resultsPageExecutionMs: expect.any(Number),
-                status: QueryHistoryStatus.READY,
-                pivotDetails: null,
-                columns: expectedColumns,
-            });
-
-            expect(serviceWithCache.getResultsPage).toHaveBeenCalledWith(
-                'test-cache-key',
-                1,
-                10,
-                expect.any(Function),
-            );
-        });
-
-        test('should error when getCachedResultsPage throws an error', async () => {
-            // Mock the queryHistoryModel.get to return a READY query with cache key
+        test('should throws an error when query is READY but resultsFileName is null', async () => {
+            // Mock the queryHistoryModel.get to return a READY query with null resultsFileName
             const mockQueryHistory: QueryHistory = {
                 createdAt: new Date(),
                 organizationUuid: user.organizationUuid!,
@@ -762,12 +650,12 @@ describe('AsyncQueryService', () => {
                 pivotConfiguration: null,
                 pivotTotalColumnCount: null,
                 pivotValuesColumns: null,
-                resultsFileName: 'file-name',
-                resultsCreatedAt: new Date(),
-                resultsUpdatedAt: new Date(),
-                resultsExpiresAt: new Date(),
-                columns: expectedColumns,
-                originalColumns: expectedColumns,
+                resultsFileName: null,
+                resultsCreatedAt: null,
+                resultsUpdatedAt: null,
+                resultsExpiresAt: null,
+                columns: null,
+                originalColumns: null,
             };
 
             serviceWithCache.queryHistoryModel.get = jest
@@ -788,7 +676,7 @@ describe('AsyncQueryService', () => {
                 }),
             ).rejects.toThrow(
                 new NotFoundError(
-                    `Cache not found for key ${mockQueryHistory.cacheKey} and project ${projectUuid}`,
+                    `Result file not found for query test-query-uuid`,
                 ),
             );
         });
@@ -914,9 +802,8 @@ describe('AsyncQueryService', () => {
                 .fn()
                 .mockImplementation(async () => ({
                     cacheHit: false,
-                    cacheKey: 'test-cache-key',
-                    write,
-                    close,
+                    updatedAt: undefined,
+                    expiresAt: undefined,
                 }));
         });
 

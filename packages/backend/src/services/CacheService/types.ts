@@ -1,4 +1,4 @@
-import { ResultColumns } from '@lightdash/common';
+import { DbQueryHistory } from '../../database/entities/queryHistory';
 
 export enum ResultsCacheStatus {
     PENDING = 'pending',
@@ -13,8 +13,10 @@ export type CacheHitCacheResult = {
     createdAt: Date;
     updatedAt: Date;
     expiresAt: Date;
-    columns: ResultColumns;
-    originalColumns: ResultColumns;
+    columns: DbQueryHistory['columns'];
+    originalColumns: DbQueryHistory['original_columns'];
+    pivotValuesColumns: DbQueryHistory['pivot_values_columns'];
+    pivotTotalColumnCount: DbQueryHistory['pivot_total_column_count'];
 };
 
 export type MissCacheResult = {

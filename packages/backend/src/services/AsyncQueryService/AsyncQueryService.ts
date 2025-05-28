@@ -203,15 +203,17 @@ export class AsyncQueryService extends ProjectService {
         cacheKey: string,
         invalidateCache: boolean = false,
     ): Promise<CreateCacheResult> {
-        // Check if cache already exists
-        const existingCache = await this.cacheService?.findCachedResultsFile(
-            projectUuid,
-            cacheKey,
-        );
-
-        // Case 1: Valid cache exists and not being invalidated
-        if (existingCache && !invalidateCache) {
-            return existingCache;
+        if (!invalidateCache) {
+            // Check if cache already exists
+            const existingCache =
+                await this.cacheService?.findCachedResultsFile(
+                    projectUuid,
+                    cacheKey,
+                );
+            // Valid cache exists and not being invalidated
+            if (existingCache) {
+                return existingCache;
+            }
         }
 
         return {
@@ -1260,6 +1262,10 @@ export class AsyncQueryService extends ProjectService {
                                 results_created_at: resultsCache.createdAt,
                                 results_updated_at: resultsCache.updatedAt,
                                 results_expires_at: resultsCache.expiresAt,
+                                pivot_values_columns:
+                                    resultsCache.pivotValuesColumns,
+                                pivot_total_column_count:
+                                    resultsCache.pivotTotalColumnCount,
                                 warehouse_execution_time_ms: 0, // When cache is hit, no query is executed
                             },
                         );

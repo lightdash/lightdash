@@ -187,12 +187,24 @@ export class QueryHistoryModel {
             .where('cache_key', cacheKey)
             .andWhere('project_uuid', projectUuid)
             .orderBy('created_at', 'desc')
+            .limit(1)
             .first();
 
         if (!result) {
             return undefined;
         }
 
-        return convertDbQueryHistoryToQueryHistory(result);
+        return {
+            totalRowCount: result.total_row_count,
+            cacheKey: result.cache_key,
+            pivotValuesColumns: result.pivot_values_columns,
+            pivotTotalColumnCount: result.pivot_total_column_count,
+            resultsFileName: result.results_file_name,
+            resultsCreatedAt: result.results_created_at,
+            resultsUpdatedAt: result.results_updated_at,
+            resultsExpiresAt: result.results_expires_at,
+            columns: result.columns,
+            originalColumns: result.original_columns,
+        };
     }
 }

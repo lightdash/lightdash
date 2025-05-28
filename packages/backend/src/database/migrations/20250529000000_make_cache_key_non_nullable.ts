@@ -15,9 +15,19 @@ export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(QUERY_HISTORY_TABLE, (table) => {
         table.string('cache_key').notNullable().alter();
     });
+
+    // Ensure the column is indexed
+    await knex.schema.alterTable(QUERY_HISTORY_TABLE, (table) => {
+        table.index(['cache_key']);
+    });
 }
 
 export async function down(knex: Knex): Promise<void> {
+    // Drop the index
+    await knex.schema.alterTable(QUERY_HISTORY_TABLE, (table) => {
+        table.dropIndex(['cache_key']);
+    });
+
     // Revert the column to be nullable
     await knex.schema.alterTable(QUERY_HISTORY_TABLE, (table) => {
         table.string('cache_key').nullable().alter();

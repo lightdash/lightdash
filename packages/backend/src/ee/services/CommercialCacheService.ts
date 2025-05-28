@@ -48,22 +48,25 @@ export class CommercialCacheService implements ICacheService {
             latestMatchingQuery &&
             latestMatchingQuery.resultsFileName &&
             latestMatchingQuery.columns &&
-            latestMatchingQuery.originalColumns &&
+            latestMatchingQuery.resultsCreatedAt &&
             latestMatchingQuery.resultsExpiresAt &&
             latestMatchingQuery.resultsUpdatedAt &&
-            latestMatchingQuery.totalRowCount &&
+            latestMatchingQuery.totalRowCount !== null &&
             latestMatchingQuery.resultsExpiresAt > new Date()
         ) {
             return {
                 cacheHit: true,
                 cacheKey: latestMatchingQuery.cacheKey,
                 fileName: latestMatchingQuery.resultsFileName,
-                createdAt: latestMatchingQuery.createdAt,
+                createdAt: latestMatchingQuery.resultsCreatedAt,
                 updatedAt: latestMatchingQuery.resultsUpdatedAt,
                 expiresAt: latestMatchingQuery.resultsExpiresAt,
                 totalRowCount: latestMatchingQuery.totalRowCount,
                 columns: latestMatchingQuery.columns,
                 originalColumns: latestMatchingQuery.originalColumns,
+                pivotValuesColumns: latestMatchingQuery.pivotValuesColumns,
+                pivotTotalColumnCount:
+                    latestMatchingQuery.pivotTotalColumnCount,
             };
         }
 
