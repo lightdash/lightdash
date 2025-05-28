@@ -1,3 +1,10 @@
+## [0.1660.2](https://github.com/lightdash/lightdash/compare/0.1660.1...0.1660.2) (2025-05-28)
+
+
+### Bug Fixes
+
+* always show verify-email box if email is not verified ([#15021](https://github.com/lightdash/lightdash/issues/15021)) ([6dd0998](https://github.com/lightdash/lightdash/commit/6dd0998786af4513ccc2494ee0b81a9251845abb))
+
 ## [0.1660.1](https://github.com/lightdash/lightdash/compare/0.1660.0...0.1660.1) (2025-05-28)
 
 
