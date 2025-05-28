@@ -1,3 +1,10 @@
+## [0.1659.1](https://github.com/lightdash/lightdash/compare/0.1659.0...0.1659.1) (2025-05-28)
+
+
+### Bug Fixes
+
+* race condition for results_cache entry pending while query history ready ([#15034](https://github.com/lightdash/lightdash/issues/15034)) ([760b220](https://github.com/lightdash/lightdash/commit/760b2201843eafad608e3a7df68caa756e7afb1a))
+
 # [0.1659.0](https://github.com/lightdash/lightdash/compare/0.1658.0...0.1659.0) (2025-05-28)
 
 
