@@ -1,3 +1,10 @@
+# [0.1660.0](https://github.com/lightdash/lightdash/compare/0.1659.3...0.1660.0) (2025-05-28)
+
+
+### Features
+
+* filter SQL chart with table viz ([#14880](https://github.com/lightdash/lightdash/issues/14880)) ([c4a9429](https://github.com/lightdash/lightdash/commit/c4a9429dded6e13e7c722ff152ac4f6b2a3de973))
+
 ## [0.1659.3](https://github.com/lightdash/lightdash/compare/0.1659.2...0.1659.3) (2025-05-28)
 
 
