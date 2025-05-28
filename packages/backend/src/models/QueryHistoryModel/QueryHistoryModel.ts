@@ -1,15 +1,16 @@
 import {
-    assertUnreachable,
     NotFoundError,
     QueryHistory,
     QueryHistoryStatus,
 } from '@lightdash/common';
+import crypto from 'crypto';
 import { Knex } from 'knex';
+import { nanoid } from 'nanoid';
 import {
+    DbQueryHistory,
+    DbQueryHistoryUpdate,
     QueryHistoryTableName,
-    type DbQueryHistory,
-    type DbQueryHistoryUpdate,
-} from '../database/entities/queryHistory';
+} from '../../database/entities/queryHistory';
 
 function convertDbQueryHistoryToQueryHistory(
     queryHistory: DbQueryHistory,
@@ -55,6 +56,12 @@ function convertDbQueryHistoryToQueryHistory(
         pivotConfiguration: queryHistory.pivot_configuration,
         pivotValuesColumns: getPivotValuesColumns(),
         pivotTotalColumnCount: queryHistory.pivot_total_column_count,
+        resultsFileName: queryHistory.results_file_name,
+        resultsCreatedAt: queryHistory.results_created_at,
+        resultsUpdatedAt: queryHistory.results_updated_at,
+        resultsExpiresAt: queryHistory.results_expires_at,
+        columns: queryHistory.columns,
+        originalColumns: queryHistory.original_columns,
     };
 }
 
@@ -63,6 +70,25 @@ export class QueryHistoryModel {
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
+    }
+
+    static getCacheKey(
+        projectUuid: string,
+        resultsIdentifiers: {
+            sql: string;
+            timezone?: string;
+        },
+    ) {
+        const CACHE_VERSION = 'v2'; // change when we want to force invalidation
+        const queryHashKey = resultsIdentifiers.timezone
+            ? `${CACHE_VERSION}.${projectUuid}.${resultsIdentifiers.sql}.${resultsIdentifiers.timezone}`
+            : `${CACHE_VERSION}.${projectUuid}.${resultsIdentifiers.sql}`;
+
+        return crypto.createHash('sha256').update(queryHashKey).digest('hex');
+    }
+
+    static createUniqueResultsFileName(cacheKey: string) {
+        return `${cacheKey}-${nanoid()}`;
     }
 
     async create(
@@ -79,10 +105,13 @@ export class QueryHistoryModel {
             | 'error'
             | 'pivotValuesColumns'
             | 'pivotTotalColumnCount'
-        > & {
-            // require cacheKey at the Model level until we migrate the database
-            cacheKey: string;
-        },
+            | 'resultsFileName'
+            | 'resultsCreatedAt'
+            | 'resultsUpdatedAt'
+            | 'resultsExpiresAt'
+            | 'columns'
+            | 'originalColumns'
+        >,
     ) {
         const [result] = await this.database(QueryHistoryTableName)
             .insert({
@@ -105,6 +134,12 @@ export class QueryHistoryModel {
                 pivot_configuration: queryHistory.pivotConfiguration,
                 pivot_values_columns: null,
                 pivot_total_column_count: null,
+                results_file_name: null,
+                results_created_at: null,
+                results_updated_at: null,
+                results_expires_at: null,
+                columns: null,
+                original_columns: null,
             })
             .returning('query_uuid');
 
@@ -142,6 +177,20 @@ export class QueryHistoryModel {
             throw new NotFoundError(
                 `Query ${queryUuid} not found for project ${projectUuid}`,
             );
+        }
+
+        return convertDbQueryHistoryToQueryHistory(result);
+    }
+
+    async findMostRecentByCacheKey(cacheKey: string, projectUuid: string) {
+        const result = await this.database(QueryHistoryTableName)
+            .where('cache_key', cacheKey)
+            .andWhere('project_uuid', projectUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+
+        if (!result) {
+            return undefined;
         }
 
         return convertDbQueryHistoryToQueryHistory(result);

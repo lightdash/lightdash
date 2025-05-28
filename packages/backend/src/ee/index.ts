@@ -214,12 +214,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     queryHistoryModel: models.getQueryHistoryModel(),
                     cacheService: repository.getCacheService(),
                     savedSqlModel: models.getSavedSqlModel(),
-                    resultsFileModel: models.getResultsFileModel(),
                     storageClient: clients.getResultsFileStorageClient(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({
-                    resultsFileModel: models.getResultsFileModel(),
+                    queryHistoryModel: models.getQueryHistoryModel(),
                     lightdashConfig: context.lightdashConfig,
                     storageClient: clients.getResultsFileStorageClient(),
                 }),
