@@ -16945,7 +16945,19 @@
                 "required": ["truncated", "fileUrl"],
                 "type": "object"
             },
-            "ApiSuccess_ApiDownloadAsyncQueryResults-or-ApiDownloadAsyncQueryResultsAsCsv_": {
+            "ApiDownloadAsyncQueryResultsAsXlsx": {
+                "properties": {
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "fileUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": ["truncated", "fileUrl"],
+                "type": "object"
+            },
+            "ApiSuccess_ApiDownloadAsyncQueryResults-or-ApiDownloadAsyncQueryResultsAsCsv-or-ApiDownloadAsyncQueryResultsAsXlsx_": {
                 "properties": {
                     "results": {
                         "anyOf": [
@@ -16954,6 +16966,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/ApiDownloadAsyncQueryResultsAsCsv"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ApiDownloadAsyncQueryResultsAsXlsx"
                             }
                         ]
                     },
@@ -16967,7 +16982,7 @@
                 "type": "object"
             },
             "DownloadFileType": {
-                "enum": ["csv", "image", "jsonl", "s3_jsonl"],
+                "enum": ["csv", "image", "jsonl", "s3_jsonl", "xlsx"],
                 "type": "string"
             },
             "FeatureFlag": {

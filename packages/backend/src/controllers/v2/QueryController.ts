@@ -15,6 +15,7 @@ import {
     QueryExecutionContext,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
+    type ApiDownloadAsyncQueryResultsAsXlsx,
     type ApiExecuteAsyncMetricQueryResults,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
@@ -408,7 +409,9 @@ export class QueryController extends BaseController {
         @Query() type: DownloadFileType = DownloadFileType.CSV,
     ): Promise<
         ApiSuccess<
-            ApiDownloadAsyncQueryResults | ApiDownloadAsyncQueryResultsAsCsv
+            | ApiDownloadAsyncQueryResults
+            | ApiDownloadAsyncQueryResultsAsCsv
+            | ApiDownloadAsyncQueryResultsAsXlsx
         >
     > {
         this.setStatus(200);
