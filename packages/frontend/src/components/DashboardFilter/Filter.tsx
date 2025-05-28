@@ -188,7 +188,7 @@ const Filter: FC<Props> = ({
         closeSubPopover();
     }, [isPopoverOpen, onPopoverClose, closeSubPopover]);
 
-    const handelSaveChanges = useCallback(
+    const handleSaveChanges = useCallback(
         (newRule: DashboardFilterRule) => {
             if (isCreatingNew && onSave) {
                 onSave(newRule);
@@ -431,7 +431,7 @@ const Filter: FC<Props> = ({
                                 filterableFieldsByTileUuid ?? {}
                             }
                             defaultFilterRule={defaultFilterRule}
-                            onSave={handelSaveChanges}
+                            onSave={handleSaveChanges}
                             popoverProps={{
                                 onOpen: openSubPopover,
                                 onClose: closeSubPopover,
