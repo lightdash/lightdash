@@ -46,6 +46,10 @@ export async function down(knex: Knex): Promise<void> {
         table.jsonb('original_columns').nullable();
     });
 
+    // Set all cache keys to null in the query_history table before setting the foreign key reference
+    // @ts-ignore ignore update type error
+    await knex(QUERY_HISTORY_TABLE).update({ cache_key: null });
+
     // Add back the foreign key reference to the existing cache_key column
     await knex.schema.alterTable(QUERY_HISTORY_TABLE, (table) => {
         table
