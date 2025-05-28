@@ -34,10 +34,8 @@ type SearchServiceArguments = {
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     downloadFileModel: DownloadFileModel;
-    // Clients
     schedulerClient: SchedulerClient;
     s3Client: S3Client;
-    // Services
     savedSemanticViewerChartService: SavedSemanticViewerChartService;
 };
 
@@ -50,13 +48,9 @@ export class SemanticLayerService extends BaseService {
 
     private readonly downloadFileModel: DownloadFileModel;
 
-    // Clients
-
     private readonly schedulerClient: SchedulerClient;
 
     private readonly s3Client: S3Client;
-
-    // Services
 
     private readonly savedSemanticViewerChartService: SavedSemanticViewerChartService;
 
@@ -67,9 +61,7 @@ export class SemanticLayerService extends BaseService {
         this.projectModel = args.projectModel;
         this.downloadFileModel = args.downloadFileModel;
         this.schedulerClient = args.schedulerClient;
-        // Clients
         this.s3Client = args.s3Client;
-        // Services
         this.savedSemanticViewerChartService =
             args.savedSemanticViewerChartService;
     }

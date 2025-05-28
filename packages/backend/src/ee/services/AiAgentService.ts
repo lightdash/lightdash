@@ -7,7 +7,7 @@ import {
     NotFoundError,
     type SessionUser,
 } from '@lightdash/common';
-import uniq from 'lodash/uniq';
+import _ from 'lodash';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { AiAgentModel } from '../models/AiAgentModel';
@@ -163,7 +163,7 @@ export class AiAgentService {
             };
         }
 
-        const slackUserIds = uniq(
+        const slackUserIds = _.uniq(
             messages
                 .filter((message) => message.role === 'user')
                 .filter((message) => message.user.slackUserId !== null)

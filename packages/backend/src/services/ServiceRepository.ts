@@ -1,7 +1,6 @@
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
 import { LightdashConfig } from '../config/parseConfig';
-import { AiAgentService } from '../ee/services/AiAgentService';
 import { ModelRepository } from '../models/ModelRepository';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
@@ -795,11 +794,9 @@ export class ServiceRepository
             () =>
                 new ContentService({
                     analytics: this.context.lightdashAnalytics,
-                    // models
                     projectModel: this.models.getProjectModel(),
                     contentModel: this.models.getContentModel(),
                     spaceModel: this.models.getSpaceModel(),
-                    // services
                     spaceService: this.getSpaceService(),
                     dashboardService: this.getDashboardService(),
                     savedChartService: this.getSavedChartService(),
