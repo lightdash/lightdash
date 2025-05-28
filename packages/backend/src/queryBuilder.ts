@@ -1237,8 +1237,13 @@ export const buildQuery = ({
             table: CompiledTable,
             dimensionsFilterGroup: FilterGroup | undefined,
         ): string | undefined => {
+            // We only force required filters that are not explicitly set to false
+            // requiredFilters with required:false will be added on the UI, but not enforced on the backend
             const modelFilterRules: MetricFilterRule[] | undefined =
-                table.requiredFilters;
+                table.requiredFilters?.filter(
+                    (filter) => filter.required !== false,
+                );
+
             if (!modelFilterRules) return undefined;
 
             const reducedRules: string[] = modelFilterRules.reduce<string[]>(

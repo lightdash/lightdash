@@ -26,6 +26,7 @@ import {
     CreateJob,
     CreateProject,
     CreateProjectMember,
+    CreateProjectTableConfiguration,
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
@@ -842,6 +843,32 @@ export class ProjectService extends BaseService {
             } catch (e) {
                 Sentry.captureException(e);
                 this.logger.error(`Unable to copy content on preview ${e}`);
+            }
+        }
+
+        if (
+            data.tableConfiguration === CreateProjectTableConfiguration.PROD &&
+            data.upstreamProjectUuid
+        ) {
+            try {
+                const prodTablesConfiguration =
+                    await this.projectModel.getTablesConfiguration(
+                        data.upstreamProjectUuid,
+                    );
+                this.logger.info(
+                    `Copying table configuration to preview project ${projectUuid} from prod: ${JSON.stringify(
+                        data.upstreamProjectUuid,
+                    )}`,
+                );
+                await this.projectModel.updateTablesConfiguration(
+                    projectUuid,
+                    prodTablesConfiguration,
+                );
+            } catch (e) {
+                Sentry.captureException(e);
+                this.logger.error(
+                    `Unable to copy table configuration on preview ${e}`,
+                );
             }
         }
 

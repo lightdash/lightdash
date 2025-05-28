@@ -1,11 +1,10 @@
 import {
     FilterOperator,
-    FilterType,
-    getFilterRuleFromFieldWithDefaultValue,
-    getFilterTypeFromItem,
+    getFilterRuleWithDefaultValue,
     supportsSingleValue,
     type DashboardFilterRule,
     type FilterRule,
+    type FilterType,
     type FilterableDimension,
 } from '@lightdash/common';
 import {
@@ -30,7 +29,8 @@ import MantineIcon from '../../common/MantineIcon';
 interface FilterSettingsProps {
     isEditMode: boolean;
     isCreatingNew: boolean;
-    field: FilterableDimension;
+    filterType: FilterType;
+    field?: FilterableDimension;
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
@@ -40,15 +40,12 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     isEditMode,
     isCreatingNew,
     field,
+    filterType,
     filterRule,
     popoverProps,
     onChangeFilterRule,
 }) => {
     const [filterLabel, setFilterLabel] = useState<string>();
-
-    const filterType = useMemo(() => {
-        return field ? getFilterTypeFromItem(field) : FilterType.STRING;
-    }, [field]);
 
     const filterOperatorOptions = useMemo(
         () => getFilterOperatorOptions(filterType),
@@ -58,13 +55,13 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     // Set default label when using revert (undo) button
     useEffect(() => {
         if (filterLabel !== '') {
-            setFilterLabel(filterRule.label ?? field.label);
+            setFilterLabel(filterRule.label ?? field?.label);
         }
-    }, [filterLabel, filterRule.label, field.label]);
+    }, [filterLabel, filterRule.label, field?.label]);
 
     const handleChangeFilterOperator = (operator: FilterRule['operator']) => {
         onChangeFilterRule(
-            getFilterRuleFromFieldWithDefaultValue(field, {
+            getFilterRuleWithDefaultValue(filterType, field, {
                 ...filterRule,
                 operator,
             }),
@@ -110,7 +107,9 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 label: e.target.value || undefined,
                             });
                         }}
-                        placeholder={`Label for ${field.label}`}
+                        placeholder={
+                            field ? `Label for ${field.label}` : 'Filter label'
+                        }
                         value={filterLabel}
                     />
                 )}
@@ -244,7 +243,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                             onChangeFilterRule(
                                                 e.currentTarget.checked
                                                     ? newFilter
-                                                    : getFilterRuleFromFieldWithDefaultValue(
+                                                    : getFilterRuleWithDefaultValue(
+                                                          filterType,
                                                           field,
                                                           newFilter,
                                                           null,
@@ -268,7 +268,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 onChangeFilterRule(
                                     e.currentTarget.checked
                                         ? newFilter
-                                        : getFilterRuleFromFieldWithDefaultValue(
+                                        : getFilterRuleWithDefaultValue(
+                                              filterType,
                                               field,
                                               newFilter,
                                               null,

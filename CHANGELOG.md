@@ -1,3 +1,88 @@
+# [0.1658.0](https://github.com/lightdash/lightdash/compare/0.1657.0...0.1658.0) (2025-05-27)
+
+
+### Features
+
+* Improve Slack integration UI in Agent details ([#15006](https://github.com/lightdash/lightdash/issues/15006)) ([2700e8a](https://github.com/lightdash/lightdash/commit/2700e8a5c5135a62ab3a2c465163623600dd4de0))
+
+# [0.1657.0](https://github.com/lightdash/lightdash/compare/0.1656.0...0.1657.0) (2025-05-27)
+
+
+### Features
+
+* introduce system prompts (AI Agent Instructions) ([#14993](https://github.com/lightdash/lightdash/issues/14993)) ([6e2aa72](https://github.com/lightdash/lightdash/commit/6e2aa727d0b709c338d8c0333c2d5f25e708d18d))
+
+# [0.1656.0](https://github.com/lightdash/lightdash/compare/0.1655.0...0.1656.0) (2025-05-27)
+
+
+### Features
+
+* copy tableconfiguration cli ([#15008](https://github.com/lightdash/lightdash/issues/15008)) ([717a9fd](https://github.com/lightdash/lightdash/commit/717a9fd797f01c35652edf54f060cabf5368408b))
+
+# [0.1655.0](https://github.com/lightdash/lightdash/compare/0.1654.0...0.1655.0) (2025-05-27)
+
+
+### Features
+
+* add options to exclude DMs and groups from Slack channels ([#14994](https://github.com/lightdash/lightdash/issues/14994)) ([daeef0e](https://github.com/lightdash/lightdash/commit/daeef0e54a16a5766801d8a20a04f624c03adb1f))
+
+# [0.1654.0](https://github.com/lightdash/lightdash/compare/0.1653.0...0.1654.0) (2025-05-27)
+
+
+### Features
+
+* save and use original column data ([#15019](https://github.com/lightdash/lightdash/issues/15019)) ([87cd067](https://github.com/lightdash/lightdash/commit/87cd067357253ab8fddd1f848d39f0aba088d546))
+
+# [0.1653.0](https://github.com/lightdash/lightdash/compare/0.1652.2...0.1653.0) (2025-05-27)
+
+
+### Bug Fixes
+
+* Slack integration api improvements ([#15011](https://github.com/lightdash/lightdash/issues/15011)) ([26c1495](https://github.com/lightdash/lightdash/commit/26c1495a0adba0212b5c80e0365310b54242258d))
+
+
+### Features
+
+* For slack based agent threads correctly show message author name ([#14988](https://github.com/lightdash/lightdash/issues/14988)) ([114d8b8](https://github.com/lightdash/lightdash/commit/114d8b832d3544c95c615ce667d41721413e02d6)), closes [#14978](https://github.com/lightdash/lightdash/issues/14978)
+
+## [0.1652.2](https://github.com/lightdash/lightdash/compare/0.1652.1...0.1652.2) (2025-05-27)
+
+
+### Bug Fixes
+
+* parse object custom type chart ([#15009](https://github.com/lightdash/lightdash/issues/15009)) ([2eb51d9](https://github.com/lightdash/lightdash/commit/2eb51d9500a62fd1fe212ea28798b028daa3087d))
+
+## [0.1652.1](https://github.com/lightdash/lightdash/compare/0.1652.0...0.1652.1) (2025-05-27)
+
+
+### Bug Fixes
+
+* add pdf to image in MS teams ([#14997](https://github.com/lightdash/lightdash/issues/14997)) ([196837b](https://github.com/lightdash/lightdash/commit/196837bfe464475e44f58df44322ad15bf918cf5))
+
+# [0.1652.0](https://github.com/lightdash/lightdash/compare/0.1651.0...0.1652.0) (2025-05-27)
+
+
+### Bug Fixes
+
+* apply format to comparison if there's no compact ([#15003](https://github.com/lightdash/lightdash/issues/15003)) ([4d609c6](https://github.com/lightdash/lightdash/commit/4d609c60cdf40ec392952ef0ab5af2a3363c547f))
+
+
+### Features
+
+* filter by sql column ([#14968](https://github.com/lightdash/lightdash/issues/14968)) ([58e9526](https://github.com/lightdash/lightdash/commit/58e9526bda06526afb87451c8e55c017ae6566de))
+
+# [0.1651.0](https://github.com/lightdash/lightdash/compare/0.1650.0...0.1651.0) (2025-05-26)
+
+
+### Bug Fixes
+
+* filtering latest dashboard version on validation for charts within dashboard ([#15000](https://github.com/lightdash/lightdash/issues/15000)) ([6edf349](https://github.com/lightdash/lightdash/commit/6edf349d512d9a8873273f7d289bc9611d882980))
+
+
+### Features
+
+* default filters ([#14898](https://github.com/lightdash/lightdash/issues/14898)) ([5854caa](https://github.com/lightdash/lightdash/commit/5854caa912082c6d03c6c2a4887501580b41e5a2))
+
 # [0.1650.0](https://github.com/lightdash/lightdash/compare/0.1649.0...0.1650.0) (2025-05-25)
 
 

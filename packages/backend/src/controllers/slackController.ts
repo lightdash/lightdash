@@ -42,6 +42,8 @@ export class SlackController extends BaseController {
         @Request() req: express.Request,
         @Query() search?: string,
         @Query() excludeArchived?: boolean,
+        @Query() excludeDms?: boolean,
+        @Query() excludeGroups?: boolean,
         @Query() forceRefresh?: boolean,
     ): Promise<ApiSlackChannelsResponse> {
         this.setStatus(200);
@@ -53,6 +55,8 @@ export class SlackController extends BaseController {
                 .getSlackClient()
                 .getChannels(organizationUuid, search, {
                     excludeArchived,
+                    excludeDms,
+                    excludeGroups,
                     forceRefresh,
                 }),
         };

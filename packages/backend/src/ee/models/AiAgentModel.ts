@@ -1,6 +1,8 @@
 import {
     type AiAgent,
     AiAgentMessage,
+    AiAgentMessageAssistant,
+    AiAgentMessageUser,
     AiAgentSummary,
     AiAgentThreadSummary,
     ApiCreateAiAgent,
@@ -11,14 +13,18 @@ import { Knex } from 'knex';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import {
     AiPromptTableName,
+    AiSlackPromptTableName,
     AiThreadTableName,
+    AiWebAppPromptTableName,
     DbAiPrompt,
     DbAiThread,
 } from '../database/entities/ai';
 import {
+    AiAgentInstructionVersionsTableName,
     AiAgentIntegrationTableName,
     AiAgentSlackIntegrationTableName,
     AiAgentTableName,
+    DbAiAgent,
     DbAiAgentIntegration,
     DbAiAgentSlackIntegration,
 } from '../database/entities/aiAgent';
@@ -65,6 +71,11 @@ export class AiAgentModel {
                 `),
                 updatedAt: `${AiAgentTableName}.updated_at`,
                 createdAt: `${AiAgentTableName}.created_at`,
+                instruction: this.database.raw(`
+                    (SELECT instruction FROM ${AiAgentInstructionVersionsTableName}
+                     WHERE ${AiAgentInstructionVersionsTableName}.ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid
+                     ORDER BY created_at DESC LIMIT 1)
+                    `),
             } satisfies Record<keyof AiAgent, unknown>)
             .leftJoin(
                 AiAgentIntegrationTableName,
@@ -118,6 +129,11 @@ export class AiAgentModel {
                 `),
                 updatedAt: `${AiAgentTableName}.updated_at`,
                 createdAt: `${AiAgentTableName}.created_at`,
+                instruction: this.database.raw(`
+                    (SELECT instruction FROM ${AiAgentInstructionVersionsTableName}
+                     WHERE ${AiAgentInstructionVersionsTableName}.ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid
+                     ORDER BY created_at DESC LIMIT 1)
+                    `),
             } satisfies Record<keyof AiAgentSummary, unknown>)
             .leftJoin(
                 AiAgentIntegrationTableName,
@@ -178,12 +194,13 @@ export class AiAgentModel {
     async createAgent(
         args: Pick<
             ApiCreateAiAgent,
-            'name' | 'projectUuid' | 'tags' | 'integrations'
+            'name' | 'projectUuid' | 'tags' | 'integrations' | 'instruction'
         > & {
             organizationUuid: string;
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
+            const createdAt = new Date();
             const [agent] = await trx(AiAgentTableName)
                 .insert({
                     name: args.name,
@@ -227,8 +244,15 @@ export class AiAgentModel {
                     }
                 }) || [];
 
-            // Wait for all integration creation operations to complete
             const integrations = await Promise.all(integrationPromises);
+
+            if (args.instruction) {
+                await trx(AiAgentInstructionVersionsTableName).insert({
+                    ai_agent_uuid: agent.ai_agent_uuid,
+                    created_at: createdAt,
+                    instruction: args.instruction,
+                });
+            }
 
             return {
                 uuid: agent.ai_agent_uuid,
@@ -239,6 +263,7 @@ export class AiAgentModel {
                 integrations,
                 createdAt: agent.created_at,
                 updatedAt: agent.updated_at,
+                instruction: args.instruction,
             };
         });
     }
@@ -250,6 +275,8 @@ export class AiAgentModel {
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
+            const updatedAt = new Date();
+
             const [agent] = await trx(AiAgentTableName)
                 .where({
                     ai_agent_uuid: args.agentUuid,
@@ -259,7 +286,7 @@ export class AiAgentModel {
                     name: args.name,
                     project_uuid: args.projectUuid,
                     tags: args.tags,
-                    updated_at: new Date(),
+                    updated_at: updatedAt,
                 })
                 .returning('*');
 
@@ -299,8 +326,26 @@ export class AiAgentModel {
                             );
                     }
                 }) || [];
-
             const integrations = await Promise.all(integrationPromises);
+
+            let instruction = await this.getAgentLastInstruction(
+                {
+                    agentUuid: agent.ai_agent_uuid,
+                },
+                { tx: trx },
+            );
+
+            if (args.instruction !== instruction) {
+                const [result] = await trx(AiAgentInstructionVersionsTableName)
+                    .insert({
+                        ai_agent_uuid: agent.ai_agent_uuid,
+                        created_at: updatedAt,
+                        // We need to represent removing an instruction, so we backfill with an empty string
+                        instruction: args.instruction ?? '',
+                    })
+                    .returning('instruction');
+                instruction = result.instruction;
+            }
 
             return {
                 uuid: agent.ai_agent_uuid,
@@ -311,8 +356,26 @@ export class AiAgentModel {
                 integrations,
                 createdAt: agent.created_at,
                 updatedAt: agent.updated_at,
+                instruction,
             };
         });
+    }
+
+    async getAgentLastInstruction(
+        {
+            agentUuid,
+        }: {
+            agentUuid: string;
+        },
+        { tx = this.database }: { tx?: Knex } = {},
+    ): Promise<string | null> {
+        const result = await tx(AiAgentInstructionVersionsTableName)
+            .select('instruction')
+            .where('ai_agent_uuid', agentUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+
+        return result?.instruction ?? null;
     }
 
     async deleteAgent({
@@ -437,7 +500,7 @@ export class AiAgentModel {
     }: {
         organizationUuid: string;
         threadUuid: string;
-    }): Promise<AiAgentMessage[]> {
+    }) {
         const rows = await this.database(AiPromptTableName)
             .join(
                 UserTableName,
@@ -450,7 +513,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.ai_thread_uuid`,
             )
             .select(
-                'ai_prompt_uuid',
+                `${AiPromptTableName}.ai_prompt_uuid`,
                 'prompt',
                 'response',
                 'responded_at',
@@ -458,8 +521,10 @@ export class AiAgentModel {
                 'viz_config_output',
                 'metric_query',
                 'human_score',
-                'user_uuid',
+                `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiSlackPromptTableName}.slack_user_id`,
+                `${AiWebAppPromptTableName}.user_uuid`,
             )
             .select({
                 uuid: `${AiPromptTableName}.ai_prompt_uuid`,
@@ -468,6 +533,16 @@ export class AiAgentModel {
                     `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)`,
                 ),
             })
+            .leftJoin(
+                AiSlackPromptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiSlackPromptTableName}.ai_prompt_uuid`,
+            )
+            .leftJoin(
+                AiWebAppPromptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiWebAppPromptTableName}.ai_prompt_uuid`,
+            )
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(
                 `${AiThreadTableName}.organization_uuid`,
@@ -476,7 +551,14 @@ export class AiAgentModel {
             .orderBy(`${AiPromptTableName}.created_at`, 'asc');
 
         return rows.flatMap((row) => {
-            const messages: AiAgentMessage[] = [
+            const messages: (
+                | (AiAgentMessageUser & {
+                      user: AiAgentMessageUser['user'] & {
+                          slackUserId: string | null;
+                      };
+                  })
+                | AiAgentMessageAssistant
+            )[] = [
                 {
                     role: 'user',
                     uuid: row.ai_prompt_uuid,
@@ -486,6 +568,7 @@ export class AiAgentModel {
                     user: {
                         uuid: row.user_uuid,
                         name: row.user_name,
+                        slackUserId: row.slack_user_id,
                     },
                 },
             ];

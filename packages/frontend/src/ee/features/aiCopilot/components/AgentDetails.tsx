@@ -1,7 +1,9 @@
 import { type BaseAiAgent } from '@lightdash/common';
 import {
+    ActionIcon,
     Button,
     Card,
+    Fieldset,
     Group,
     MantineProvider,
     MultiSelect,
@@ -10,8 +12,10 @@ import {
     Tabs,
     TagsInput,
     Text,
+    Textarea,
     TextInput,
     Title,
+    Tooltip,
 } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import {
@@ -42,7 +46,10 @@ import { AgentAvatar } from './AgentAvatar';
 import { ConversationsList } from './ConversationsList';
 
 const formSchema: z.ZodType<
-    Pick<BaseAiAgent, 'name' | 'projectUuid' | 'integrations' | 'tags'>
+    Pick<
+        BaseAiAgent,
+        'name' | 'projectUuid' | 'integrations' | 'tags' | 'instruction'
+    >
 > = z.object({
     name: z.string().min(1),
     projectUuid: z
@@ -55,6 +62,7 @@ const formSchema: z.ZodType<
         }),
     ),
     tags: z.array(z.string()).nullable(),
+    instruction: z.string().nullable(),
 });
 
 export const AgentDetails: FC = () => {
@@ -83,10 +91,18 @@ export const AgentDetails: FC = () => {
     const {
         data: slackChannels,
         refresh: refreshChannels,
-        isLoading: isRefreshing,
-    } = useSlackChannels('', true, {
-        enabled: !!slackInstallation?.organizationUuid && isSuccessAgents,
-    });
+        isRefreshing,
+    } = useSlackChannels(
+        '',
+        {
+            excludeArchived: true,
+            excludeDms: true,
+            excludeGroups: true,
+        },
+        {
+            enabled: !!slackInstallation?.organizationUuid && isSuccessAgents,
+        },
+    );
     const { data: projects } = useProjects();
 
     const slackChannelOptions = useMemo(
@@ -107,6 +123,7 @@ export const AgentDetails: FC = () => {
             projectUuid: '',
             integrations: [],
             tags: null,
+            instruction: null,
         },
         validate: zodResolver(formSchema),
     });
@@ -122,6 +139,7 @@ export const AgentDetails: FC = () => {
                 projectUuid: agent.projectUuid,
                 integrations: agent.integrations,
                 tags: agent.tags && agent.tags.length > 0 ? agent.tags : null,
+                instruction: agent.instruction,
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -283,6 +301,26 @@ export const AgentDetails: FC = () => {
                                             )}
                                         </Stack>
 
+                                        <Stack gap="sm">
+                                            <Title order={5}>
+                                                Configuration
+                                            </Title>
+
+                                            <Textarea
+                                                label="Instructions"
+                                                description="Instructions set the
+                                                    overall behavior and task
+                                                    for the agent. This defines
+                                                    how it should respond and
+                                                    what its purpose is."
+                                                placeholder="You are a helpful assistant that specializes in sales data analytics."
+                                                resize="vertical"
+                                                {...form.getInputProps(
+                                                    'instruction',
+                                                )}
+                                            />
+                                        </Stack>
+
                                         {/* Integrations Section */}
 
                                         <Stack gap="sm">
@@ -290,57 +328,97 @@ export const AgentDetails: FC = () => {
                                                 <Title order={5}>
                                                     Integrations
                                                 </Title>
-                                                {slackInstallation?.organizationUuid && (
-                                                    <Button
-                                                        size="xs"
-                                                        variant="subtle"
-                                                        leftSection={
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconRefresh
-                                                                }
-                                                            />
-                                                        }
-                                                        loading={isRefreshing}
-                                                        onClick={
-                                                            refreshChannels
-                                                        }
-                                                    >
-                                                        Refresh Channels
-                                                    </Button>
-                                                )}
                                             </Group>
 
-                                            <MultiSelect
-                                                disabled={
-                                                    !slackInstallation?.organizationUuid
-                                                }
-                                                description={
-                                                    !slackInstallation?.organizationUuid
-                                                        ? 'You need to connect Slack first in the Integrations settings before you can configure AI agents.'
-                                                        : undefined
-                                                }
-                                                label="Slack"
-                                                placeholder="Pick a channel"
-                                                data={slackChannelOptions}
-                                                value={form.values.integrations.map(
-                                                    (i) => i.channelId,
+                                            <Fieldset legend="Slack">
+                                                <MultiSelect
+                                                    disabled={
+                                                        isRefreshing ||
+                                                        !slackInstallation?.organizationUuid
+                                                    }
+                                                    description={
+                                                        !slackInstallation?.organizationUuid
+                                                            ? 'You need to connect Slack first in the Integrations settings before you can configure AI agents.'
+                                                            : undefined
+                                                    }
+                                                    labelProps={{
+                                                        style: {
+                                                            width: '100%',
+                                                        },
+                                                    }}
+                                                    label="Channels"
+                                                    placeholder="Pick a channel"
+                                                    data={slackChannelOptions}
+                                                    value={form.values.integrations.map(
+                                                        (i) => i.channelId,
+                                                    )}
+                                                    searchable
+                                                    rightSectionPointerEvents="all"
+                                                    rightSection={
+                                                        <Tooltip
+                                                            withArrow
+                                                            withinPortal
+                                                            label="Refresh Slack Channels"
+                                                        >
+                                                            <ActionIcon
+                                                                variant="transparent"
+                                                                onClick={
+                                                                    refreshChannels
+                                                                }
+                                                            >
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconRefresh
+                                                                    }
+                                                                />
+                                                            </ActionIcon>
+                                                        </Tooltip>
+                                                    }
+                                                    onChange={(value) => {
+                                                        form.setFieldValue(
+                                                            'integrations',
+                                                            value.map(
+                                                                (v) =>
+                                                                    ({
+                                                                        type: 'slack',
+                                                                        channelId:
+                                                                            v,
+                                                                    } as const),
+                                                            ),
+                                                        );
+                                                    }}
+                                                />
+                                                {slackInstallation?.organizationUuid && (
+                                                    <Group mt="xs" gap="none">
+                                                        <Text
+                                                            size="xs"
+                                                            c="dimmed"
+                                                        >
+                                                            Not finding the
+                                                            channel you need?
+                                                        </Text>
+                                                        <Button
+                                                            size="xs"
+                                                            variant="subtle"
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconRefresh
+                                                                    }
+                                                                />
+                                                            }
+                                                            loading={
+                                                                isRefreshing
+                                                            }
+                                                            onClick={
+                                                                refreshChannels
+                                                            }
+                                                        >
+                                                            Refresh Channels
+                                                        </Button>
+                                                    </Group>
                                                 )}
-                                                searchable
-                                                onChange={(value) => {
-                                                    form.setFieldValue(
-                                                        'integrations',
-                                                        value.map(
-                                                            (v) =>
-                                                                ({
-                                                                    type: 'slack',
-                                                                    channelId:
-                                                                        v,
-                                                                } as const),
-                                                        ),
-                                                    );
-                                                }}
-                                            />
+                                            </Fieldset>
                                         </Stack>
 
                                         <Group justify="flex-end">

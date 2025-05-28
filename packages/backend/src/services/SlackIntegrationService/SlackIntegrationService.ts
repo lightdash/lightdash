@@ -32,6 +32,10 @@ export class SlackIntegrationService<
         const organizationUuid = user?.organizationUuid;
         if (!organizationUuid) throw new ForbiddenError();
 
+        if (user.ability.cannot('view', 'Organization')) {
+            throw new ForbiddenError();
+        }
+
         const installation =
             await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 organizationUuid,
@@ -53,6 +57,11 @@ export class SlackIntegrationService<
     async deleteInstallationFromOrganizationUuid(user: SessionUser) {
         const organizationUuid = user?.organizationUuid;
         if (!organizationUuid) throw new ForbiddenError();
+
+        if (user.ability.cannot('manage', 'Organization')) {
+            throw new ForbiddenError();
+        }
+
         await this.slackAuthenticationModel.deleteInstallationFromOrganizationUuid(
             organizationUuid,
         );

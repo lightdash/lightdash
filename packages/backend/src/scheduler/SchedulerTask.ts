@@ -918,6 +918,7 @@ export default class SchedulerTask {
                         webhookUrl: webhook,
                         ...getBlocksArgs,
                         image: imageUrl,
+                        pdfUrl: pdfFile?.source,
                     });
             } else if (format === SchedulerFormat.CSV) {
                 if (savedChartUuid) {

@@ -1,5 +1,9 @@
 import * as core from '@actions/core';
-import { Project, ProjectType } from '@lightdash/common';
+import {
+    CreateProjectTableConfiguration,
+    Project,
+    ProjectType,
+} from '@lightdash/common';
 import chokidar from 'chokidar';
 import inquirer from 'inquirer';
 import path from 'path';
@@ -26,6 +30,7 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     verbose: boolean;
     startOfWeek?: number;
     ignoreErrors: boolean;
+    tableConfiguration: CreateProjectTableConfiguration;
 };
 
 type StopPreviewHandlerOptions = {

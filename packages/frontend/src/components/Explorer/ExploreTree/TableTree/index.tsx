@@ -76,7 +76,12 @@ const TableTreeWrapper: FC<React.PropsWithChildren<TableTreeWrapperProps>> = ({
                 },
             }}
         >
-            {children}
+            {/* Don't render children if the table is not open. 
+                NOTE: when it is closed, we return a fragment, otherwise 
+                it thinks it has no children and doesn't render the button to open.
+                This is and issue with mantine 6. 
+            */}
+            {isOpen ? children : <></>}
         </NavLink>
     );
 };
@@ -137,6 +142,7 @@ const TableTree: FC<Props> = ({
     const Wrapper = showTableLabel ? TableTreeWrapper : EmptyWrapper;
     const [isOpen, toggle] = useToggle(isOpenByDefault);
     const isSearching = !!searchQuery && searchQuery !== '';
+
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <MantineProvider inherit theme={themeOverride}>

@@ -1139,9 +1139,10 @@ export class SavedChartModel {
                 // filter by last version
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 this.database.raw(`(select dashboard_version_id
-                            from ${DashboardVersionsTableName}
-                            order by ${DashboardVersionsTableName}.created_at desc
-                            limit 1)`),
+                    from ${DashboardVersionsTableName} dv
+                    where dv.dashboard_id = ${DashboardsTableName}.dashboard_id
+                    order by dv.created_at desc
+                    limit 1)`),
             );
 
         const chartsNotInTilesUuids = await this.database(SavedChartsTableName)

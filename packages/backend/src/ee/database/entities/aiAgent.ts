@@ -51,3 +51,22 @@ export type AiAgentSlackIntegrationTable = Knex.CompositeTableType<
         'ai_agent_integration_slack_uuid' | 'created_at'
     >
 >;
+
+export const AiAgentInstructionVersionsTableName =
+    'ai_agent_instruction_versions';
+
+export type DbAiAgentInstructionVersions = {
+    ai_agent_instruction_version_uuid: string;
+    ai_agent_uuid: string;
+    instruction: string;
+    created_at: Date;
+};
+
+export type AiAgentInstructionVersionsTable = Knex.CompositeTableType<
+    DbAiAgentInstructionVersions,
+    Omit<DbAiAgentInstructionVersions, 'ai_agent_instruction_version_uuid'> &
+        Partial<Pick<DbAiAgentInstructionVersions, 'created_at'>>,
+    Partial<
+        Omit<DbAiAgentInstructionVersions, 'ai_agent_instruction_version_uuid'>
+    >
+>;

@@ -23,6 +23,11 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
     async getInstallationFromOrganizationUuid(user: SessionUser) {
         const organizationUuid = user?.organizationUuid;
         if (!organizationUuid) throw new ForbiddenError();
+
+        if (user.ability.cannot('view', 'Organization')) {
+            throw new ForbiddenError();
+        }
+
         const installation =
             await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 organizationUuid,

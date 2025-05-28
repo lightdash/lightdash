@@ -1,13 +1,18 @@
-import { useContext } from 'react';
+import { useContextSelector } from 'use-context-selector';
 import TreeContext from './TreeContext';
 import { type TableTreeContext } from './types';
 
-export function useTableTreeContext(): TableTreeContext {
-    const context = useContext(TreeContext);
-    if (context === undefined) {
-        throw new Error(
-            'useTableTreeContext must be used within a TableTreeProvider',
-        );
-    }
-    return context;
+function useTableTree<Selected>(
+    selector: (value: TableTreeContext) => Selected,
+) {
+    return useContextSelector(TreeContext, (context) => {
+        if (context === undefined) {
+            throw new Error(
+                'useTableTree must be used within a TableTreeProvider',
+            );
+        }
+        return selector(context);
+    });
 }
+
+export default useTableTree;
