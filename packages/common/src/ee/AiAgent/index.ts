@@ -63,17 +63,19 @@ export type AiAgentSummary = Pick<
     | 'instruction'
 >;
 
-export type AiAgentMessageUser = {
+export type AiAgentUser = {
+    uuid: string;
+    name: string;
+};
+
+export type AiAgentMessageUser<TUser extends AiAgentUser = AiAgentUser> = {
     role: 'user';
     uuid: string;
     threadUuid: string;
     message: string; // ai_prompt.prompt
     createdAt: string;
 
-    user: {
-        uuid: string;
-        name: string;
-    };
+    user: TUser;
 };
 
 export type AiAgentMessageAssistant = {
@@ -89,23 +91,23 @@ export type AiAgentMessageAssistant = {
     humanScore?: number;
 };
 
-export type AiAgentMessage = AiAgentMessageUser | AiAgentMessageAssistant;
+export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
+    | AiAgentMessageUser<TUser>
+    | AiAgentMessageAssistant;
 
-export type AiAgentThreadSummary = {
+export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     uuid: string;
     agentUuid: string;
     createdAt: string;
     createdFrom: string;
     firstMessage: string;
-    user: {
-        uuid: string;
-        name: string;
-    };
+    user: TUser;
 };
 
-export type AiAgentThread = AiAgentThreadSummary & {
-    messages: AiAgentMessage[];
-};
+export type AiAgentThread<TUser extends AiAgentUser = AiAgentUser> =
+    AiAgentThreadSummary<TUser> & {
+        messages: AiAgentMessage<TUser>[];
+    };
 
 export type ApiAiAgentResponse = {
     status: 'ok';
