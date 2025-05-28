@@ -361,6 +361,9 @@ export const AgentDetails: FC = () => {
                                                             label="Refresh Slack Channels"
                                                         >
                                                             <ActionIcon
+                                                                loading={
+                                                                    isRefreshing
+                                                                }
                                                                 variant="transparent"
                                                                 onClick={
                                                                     refreshChannels
@@ -388,36 +391,6 @@ export const AgentDetails: FC = () => {
                                                         );
                                                     }}
                                                 />
-                                                {slackInstallation?.organizationUuid && (
-                                                    <Group mt="xs" gap="none">
-                                                        <Text
-                                                            size="xs"
-                                                            c="dimmed"
-                                                        >
-                                                            Not finding the
-                                                            channel you need?
-                                                        </Text>
-                                                        <Button
-                                                            size="xs"
-                                                            variant="subtle"
-                                                            leftSection={
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        IconRefresh
-                                                                    }
-                                                                />
-                                                            }
-                                                            loading={
-                                                                isRefreshing
-                                                            }
-                                                            onClick={
-                                                                refreshChannels
-                                                            }
-                                                        >
-                                                            Refresh Channels
-                                                        </Button>
-                                                    </Group>
-                                                )}
                                             </Fieldset>
                                         </Stack>
 
