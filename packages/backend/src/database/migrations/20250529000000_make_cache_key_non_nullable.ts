@@ -6,14 +6,14 @@ export async function up(knex: Knex): Promise<void> {
     // First update all null values to 'n/a'
     await knex(QUERY_HISTORY_TABLE)
         .update({
-            // @ts-ignore ignore update typing
+            // @ts-ignore ignore update type
             cache_key: 'n/a',
         })
         .whereNull('cache_key');
 
-    // Then alter the column to be non-nullable with default value
+    // Then alter the column to be non-nullable
     await knex.schema.alterTable(QUERY_HISTORY_TABLE, (table) => {
-        table.string('cache_key').notNullable().defaultTo('n/a').alter();
+        table.string('cache_key').notNullable().alter();
     });
 }
 
