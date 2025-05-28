@@ -131,51 +131,32 @@ export const getPivotQueryFunctionForSqlQuery = ({
     };
 };
 
-export const getPivotQueryFunctionForSqlChart = ({
+export const getSqlChartPivotChartData = async ({
     projectUuid,
     savedSqlUuid,
     limit,
     context,
 }: {
     projectUuid: string;
-    savedSqlUuid?: string;
+    savedSqlUuid: string;
     limit?: number;
     context?: QueryExecutionContext;
-}): RunPivotQuery => {
-    return async (query: SemanticLayerQuery) => {
-        const index = query.pivot?.index[0];
+}): Promise<PivotChartData & { originalColumns: ResultColumns }> => {
+    const pivotResults = await executeSqlChartPivotQuery(projectUuid, {
+        savedSqlUuid,
+        context,
+        limit,
+    });
 
-        if (index === undefined || savedSqlUuid === undefined) {
-            return {
-                results: [],
-                indexColumn: undefined,
-                valuesColumns: [],
-                columns: [],
-                fileUrl: undefined,
-                columnCount: undefined,
-            };
-        }
+    const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
+        (field) => ({
+            reference: field,
+        }),
+    );
 
-        const pivotResults = await executeSqlChartPivotQuery(projectUuid, {
-            savedSqlUuid,
-            context,
-            limit,
-        });
-
-        const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
-            (field) => ({
-                reference: field,
-            }),
-        );
-
-        return {
-            fileUrl: pivotResults.fileUrl,
-            results: pivotResults.results,
-            indexColumn: pivotResults.indexColumn,
-            valuesColumns: pivotResults.valuesColumns,
-            columns,
-            columnCount: pivotResults.columnCount,
-        };
+    return {
+        ...pivotResults,
+        columns,
     };
 };
 

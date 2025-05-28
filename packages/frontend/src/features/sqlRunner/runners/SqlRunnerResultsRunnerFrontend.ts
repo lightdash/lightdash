@@ -12,10 +12,7 @@ import {
     type VizSortBy,
 } from '@lightdash/common';
 import { BaseResultsRunner } from '../../queryRunner/BaseResultsRunner';
-import {
-    getPivotQueryFunctionForSqlChart,
-    getPivotQueryFunctionForSqlQuery,
-} from '../../queryRunner/sqlRunnerPivotQueries';
+import { getPivotQueryFunctionForSqlQuery } from '../../queryRunner/sqlRunnerPivotQueries';
 
 const getSemanticLayerFieldTypeFromDimensionType = (
     type: DimensionType,
@@ -79,47 +76,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
     }
 }
 
-export class SqlRunnerResultsRunnerChart extends BaseResultsRunner {
-    constructor({
-        columns,
-        rows,
-        projectUuid,
-        savedSqlUuid,
-        limit,
-    }: {
-        columns: VizColumn[];
-        rows: RawResultRow[];
-        projectUuid: string;
-        savedSqlUuid?: string;
-        limit?: number;
-    }) {
-        const fields: SemanticLayerField[] = columns.map((column) => ({
-            kind: FieldType.DIMENSION,
-            name: column.reference,
-            type: getSemanticLayerFieldTypeFromDimensionType(
-                column.type || DimensionType.STRING,
-            ),
-            visible: true,
-            label: column.reference,
-            // TODO: why are these required?
-            availableGranularities: [],
-            availableOperators: [],
-        }));
-        super({
-            fields,
-            rows,
-            columnNames: fields.map((field) => field.name),
-            runPivotQuery: getPivotQueryFunctionForSqlChart({
-                projectUuid,
-                savedSqlUuid,
-                limit,
-                context: QueryExecutionContext.SQL_CHART,
-            }),
-        });
-    }
-}
-
-export class SqlRunnerResultsRunnerDashboard extends BaseResultsRunner {
+export class SqlChartResultsRunner extends BaseResultsRunner {
     constructor({
         pivotChartData,
         originalColumns,
