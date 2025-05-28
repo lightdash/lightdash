@@ -1,4 +1,6 @@
 import {
+    AiAgentThread,
+    AiAgentThreadSummary,
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
     CommercialFeatureFlags,
@@ -89,7 +91,10 @@ export class AiAgentService {
         return agents;
     }
 
-    async listAgentThreads(user: SessionUser, agentUuid: string) {
+    async listAgentThreads(
+        user: SessionUser,
+        agentUuid: string,
+    ): Promise<AiAgentThreadSummary[]> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError();
@@ -114,14 +119,45 @@ export class AiAgentService {
             agentUuid,
         });
 
-        return threads;
+        const slackUserIds = _.uniq(
+            threads
+                .filter((thread) => thread.createdFrom === 'slack')
+                .filter((thread) => thread.user.slackUserId != null)
+                .map((thread) => thread.user.slackUserId),
+        );
+
+        const slackUsers = await Promise.all(
+            slackUserIds.map((userId) =>
+                this.slackClient.getUserInfo(organizationUuid, userId!),
+            ),
+        );
+
+        return threads.map((thread) => {
+            if (thread.createdFrom !== 'slack') {
+                return thread;
+            }
+
+            const slackUser = slackUsers.find(
+                ({ id }) =>
+                    thread.user.slackUserId != null &&
+                    id === thread.user.slackUserId,
+            );
+
+            return {
+                ...thread,
+                user: {
+                    name: slackUser?.name ?? thread.user.name,
+                    uuid: thread.user.uuid,
+                },
+            };
+        });
     }
 
     async getAgentThread(
         user: SessionUser,
         agentUuid: string,
         threadUuid: string,
-    ) {
+    ): Promise<AiAgentThread> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
