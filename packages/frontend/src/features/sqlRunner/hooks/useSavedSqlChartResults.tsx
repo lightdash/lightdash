@@ -14,7 +14,7 @@ import getChartDataModel from '../../../components/DataViz/transformers/getChart
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import {
     getDashboardSqlChartPivotChartData,
-    getPivotQueryFunctionForSqlChart,
+    getSqlChartPivotChartData,
 } from '../../queryRunner/sqlRunnerPivotQueries';
 import { SqlChartResultsRunner } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { fetchSavedSqlChart } from './useSavedSqlCharts';
@@ -92,7 +92,7 @@ export const useSavedSqlChartResults = (
                           savedSqlUuid,
                           context: args.context as QueryExecutionContext,
                       })
-                    : await getPivotQueryFunctionForSqlChart({
+                    : await getSqlChartPivotChartData({
                           projectUuid: projectUuid!,
                           savedSqlUuid: chart.savedSqlUuid,
                           context: context as QueryExecutionContext,

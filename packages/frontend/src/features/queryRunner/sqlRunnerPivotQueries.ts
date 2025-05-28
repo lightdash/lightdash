@@ -131,7 +131,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
     };
 };
 
-export const getPivotQueryFunctionForSqlChart = async ({
+export const getSqlChartPivotChartData = async ({
     projectUuid,
     savedSqlUuid,
     limit,
