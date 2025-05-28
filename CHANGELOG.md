@@ -1,3 +1,10 @@
+# [0.1659.0](https://github.com/lightdash/lightdash/compare/0.1658.0...0.1659.0) (2025-05-28)
+
+
+### Features
+
+* implement AI tag filtering for explore visibility ([#14964](https://github.com/lightdash/lightdash/issues/14964)) ([183cfb0](https://github.com/lightdash/lightdash/commit/183cfb0e3da7020d33de20f031453841c46bd056))
+
 # [0.1658.0](https://github.com/lightdash/lightdash/compare/0.1657.0...0.1658.0) (2025-05-27)
 
 
