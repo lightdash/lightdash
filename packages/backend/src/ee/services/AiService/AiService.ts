@@ -116,6 +116,7 @@ type Dependencies = {
     slackClient: SlackClient;
     lightdashConfig: LightdashConfig;
     featureFlagService: FeatureFlagService;
+    aiAgentService: AiAgentService;
 };
 
 export class AiService {
@@ -147,6 +148,8 @@ export class AiService {
 
     private readonly featureFlagService: FeatureFlagService;
 
+    private readonly aiAgentService: AiAgentService;
+
     constructor(dependencies: Dependencies) {
         this.analytics = dependencies.analytics;
         this.dashboardModel = dependencies.dashboardModel;
@@ -162,6 +165,7 @@ export class AiService {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.organizationModel = dependencies.organizationModel;
         this.featureFlagService = dependencies.featureFlagService;
+        this.aiAgentService = dependencies.aiAgentService;
     }
 
     private async getIsCopilotEnabled(
@@ -531,7 +535,7 @@ export class AiService {
         prompt: SlackPrompt | AiWebAppPrompt,
         availableTags: string[] | null,
     ) {
-        const { projectUuid, organizationUuid } = prompt;
+        const { projectUuid, organizationUuid, agentUuid } = prompt;
 
         const getExplore = async ({ exploreName }: { exploreName: string }) => {
             const explore = await this.projectService.getExplore(
@@ -635,6 +639,19 @@ export class AiService {
         };
 
         const sendFile = async (args: PostSlackFile) => {
+            //
+            // TODO: https://api.slack.com/methods/files.upload does not support setting custom usernames
+            // support this in the future
+            //
+            // const agent = agentUuid
+            //     ? await this.aiAgentService.getAgent(user, agentUuid)
+            //     : undefined;
+            // let username: string | undefined;
+            // if (agent) {
+            //     username = agent.name;
+            // }
+            //
+
             await this.slackClient.postFileToThread(args);
         };
 
@@ -995,14 +1012,29 @@ ${
             slackPrompt.organizationUuid,
         );
 
-        let response: string | undefined;
-        try {
-            const threadMessages = await this.aiModel.getThreadMessages(
-                slackPrompt.organizationUuid,
-                slackPrompt.projectUuid,
-                slackPrompt.threadUuid,
+        const threadMessages = await this.aiModel.getThreadMessages(
+            slackPrompt.organizationUuid,
+            slackPrompt.projectUuid,
+            slackPrompt.threadUuid,
+        );
+
+        const thread = await this.aiModel.findThread(slackPrompt.threadUuid);
+        if (!thread) {
+            throw new Error('Thread not found');
+        }
+
+        let name: string | undefined;
+        if (thread.agentUuid) {
+            const agent = await this.aiAgentService.getAgent(
+                user,
+                thread.agentUuid,
             );
 
+            name = agent.name;
+        }
+
+        let response: string | undefined;
+        try {
             const chatHistoryMessages =
                 this.getChatHistoryFromThreadMessages(threadMessages);
 
@@ -1017,6 +1049,7 @@ ${
                 text: `🔴 Co-pilot failed to generate a response 😥 Please try again.`,
                 channel: slackPrompt.slackChannelId,
                 thread_ts: slackPrompt.slackThreadTs,
+                username: name,
             });
 
             Logger.error('Failed to generate response:', e);
@@ -1058,6 +1091,7 @@ ${
         const newResponse = await this.slackClient.postMessage({
             organizationUuid: slackPrompt.organizationUuid,
             text: slackifiedMarkdown,
+            username: name,
             channel: slackPrompt.slackChannelId,
             thread_ts: slackPrompt.slackThreadTs,
             unfurl_links: false,

@@ -298,6 +298,7 @@ export class CommercialSlackBot extends SlackBot {
 
         let slackPromptUuid: string;
         let createdThread: boolean;
+        let name: string | undefined;
 
         try {
             const agentConfig =
@@ -305,6 +306,8 @@ export class CommercialSlackBot extends SlackBot {
                     organizationUuid,
                     slackChannelId: event.channel,
                 });
+
+            name = agentConfig.name;
 
             [slackPromptUuid, createdThread] =
                 await this.aiService.createSlackPrompt({
@@ -332,6 +335,7 @@ export class CommercialSlackBot extends SlackBot {
         }
 
         const postedMessage = await say({
+            username: name,
             thread_ts: event.ts,
             blocks: [
                 {
