@@ -2313,7 +2313,7 @@ export class AsyncQueryService extends ProjectService {
             throw new Error('Either chartUuid or slug must be provided');
         }
 
-        const { user, projectUuid, context, invalidateCache, limit } = args;
+        const { user, projectUuid, context, invalidateCache } = args;
 
         const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
             user,
@@ -2340,7 +2340,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid: sqlChart.organization.organizationUuid,
             sql: sqlChart.sql,
             config: sqlChart.config,
-            limit,
+            limit: sqlChart.limit,
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
