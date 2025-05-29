@@ -1,3 +1,10 @@
+## [0.1662.3](https://github.com/lightdash/lightdash/compare/0.1662.2...0.1662.3) (2025-05-29)
+
+
+### Bug Fixes
+
+* invalidate cache on embed fetch ([#15053](https://github.com/lightdash/lightdash/issues/15053)) ([9d6cd56](https://github.com/lightdash/lightdash/commit/9d6cd5663aaf22e316fd3f391acaa77e475c7366))
+
 ## [0.1662.2](https://github.com/lightdash/lightdash/compare/0.1662.1...0.1662.2) (2025-05-29)
 
 
