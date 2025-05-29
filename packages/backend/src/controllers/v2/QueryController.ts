@@ -7,8 +7,7 @@ import {
     ApiGetAsyncQueryResults,
     ApiSuccess,
     ApiSuccessEmpty,
-    assertUnreachable,
-    DownloadFileType,
+    DownloadAsyncQueryResultsRequestParams,
     ExecuteAsyncSqlQueryRequestParams,
     isExecuteAsyncDashboardSqlChartByUuidParams,
     isExecuteAsyncSqlChartByUuidParams,
@@ -181,6 +180,7 @@ export class QueryController extends BaseController {
                 chartUuid: body.chartUuid,
                 versionUuid: body.versionUuid,
                 context: context ?? QueryExecutionContext.API,
+                limit: body.limit,
             });
 
         return {
@@ -400,13 +400,13 @@ export class QueryController extends BaseController {
     @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{queryUuid}/download')
+    @Post('/{queryUuid}/download')
     @OperationId('downloadResults')
     async downloadResults(
         @Path() projectUuid: string,
         @Path() queryUuid: string,
         @Request() req: express.Request,
-        @Query() type: DownloadFileType = DownloadFileType.CSV,
+        @Body() body: Omit<DownloadAsyncQueryResultsRequestParams, 'queryUuid'>,
     ): Promise<
         ApiSuccess<
             | ApiDownloadAsyncQueryResults
@@ -422,7 +422,15 @@ export class QueryController extends BaseController {
                 user: req.user!,
                 projectUuid,
                 queryUuid,
-                type,
+                type: body.type,
+                csvLimit: body.csvLimit,
+                onlyRaw: body.onlyRaw,
+                showTableNames: body.showTableNames,
+                customLabels: body.customLabels,
+                columnOrder: body.columnOrder,
+                hiddenFields: body.hiddenFields,
+                chartName: body.chartName,
+                pivotConfig: body.pivotConfig,
             });
 
         return {

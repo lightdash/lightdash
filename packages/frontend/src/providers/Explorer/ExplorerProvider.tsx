@@ -40,6 +40,7 @@ import {
 import { useNavigate, useParams } from 'react-router';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import {
+    executeQueryAndWaitForResults,
     useCancelQuery,
     useGetReadyQueryResults,
     useInfiniteQueryResults,
@@ -1288,11 +1289,27 @@ const ExplorerProvider: FC<
             setQueryUuidHistory((prev) => [...prev, query.data.queryUuid]);
         }
     }, [query.data]);
-
     const queryResults = useInfiniteQueryResults(
         validQueryArgs?.projectUuid,
         // get last value from queryUuidHistory
         queryUuidHistory[queryUuidHistory.length - 1],
+    );
+    const getDownloadQueryUuid = useCallback(
+        async (limit: number | null) => {
+            let queryUuid = queryResults.queryUuid;
+            if (limit !== null && limit !== queryResults.totalResults) {
+                const downloadQuery = await executeQueryAndWaitForResults(
+                    validQueryArgs,
+                    limit,
+                );
+                queryUuid = downloadQuery.queryUuid;
+            }
+            if (!queryUuid) {
+                throw new Error(`Missing query uuid`);
+            }
+            return queryUuid;
+        },
+        [queryResults.queryUuid, queryResults.totalResults, validQueryArgs],
     );
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { remove: clearQueryResults } = query;
@@ -1469,6 +1486,7 @@ const ExplorerProvider: FC<
             toggleFormatModal,
             updateMetricFormat,
             replaceFields,
+            getDownloadQueryUuid,
         }),
         [
             clearExplore,
@@ -1507,6 +1525,7 @@ const ExplorerProvider: FC<
             updateMetricFormat,
             toggleWriteBackModal,
             replaceFields,
+            getDownloadQueryUuid,
         ],
     );
 

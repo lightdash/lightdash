@@ -9,6 +9,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     ApiExecuteAsyncSqlQueryResults,
     type ApiGetAsyncQueryResults,
+    applyLimitOverrideToQuery,
     assertUnreachable,
     CompiledDimension,
     convertCustomFormatToFormatExpression,
@@ -37,6 +38,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getItemLabel,
+    getItemLabelWithoutTableName,
     getItemMap,
     GroupByColumn,
     isCartesianChartConfig,
@@ -52,6 +54,7 @@ import {
     MetricQuery,
     NotFoundError,
     type Organization,
+    PivotConfig,
     PivotIndexColum,
     type PivotValuesColumn,
     type Project,
@@ -588,6 +591,14 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         queryUuid,
         type,
+        csvLimit,
+        onlyRaw = false,
+        showTableNames = false,
+        customLabels = {},
+        columnOrder = [],
+        hiddenFields = [],
+        chartName,
+        pivotConfig,
     }: DownloadAsyncQueryResultsArgs): Promise<
         | ApiDownloadAsyncQueryResults
         | ApiDownloadAsyncQueryResultsAsCsv
@@ -653,6 +664,16 @@ export class AsyncQueryService extends ProjectService {
                         generateFileId: CsvService.generateFileId,
                         streamJsonlRowsToFile: CsvService.streamJsonlRowsToFile,
                     },
+                    {
+                        onlyRaw,
+                        showTableNames,
+                        customLabels,
+                        columnOrder,
+                        hiddenFields,
+                        chartName,
+                        csvLimit,
+                        pivotConfig,
+                    },
                 );
             case DownloadFileType.XLSX:
                 return this.downloadAsyncQueryResultsAsFormattedFile(
@@ -662,6 +683,16 @@ export class AsyncQueryService extends ProjectService {
                         generateFileId: ExcelService.generateFileId,
                         streamJsonlRowsToFile:
                             ExcelService.streamJsonlRowsToFile,
+                    },
+                    {
+                        onlyRaw,
+                        showTableNames,
+                        customLabels,
+                        columnOrder,
+                        hiddenFields,
+                        chartName,
+                        csvLimit,
+                        pivotConfig,
                     },
                 );
             case undefined:
@@ -694,13 +725,57 @@ export class AsyncQueryService extends ProjectService {
                 streams: { readStream: Readable; writeStream: Writable },
             ) => Promise<{ truncated: boolean }>;
         },
+        options?: {
+            onlyRaw?: boolean;
+            showTableNames?: boolean;
+            customLabels?: Record<string, string>;
+            columnOrder?: string[];
+            hiddenFields?: string[];
+            chartName?: string;
+            csvLimit?: number | null;
+            pivotConfig?: PivotConfig;
+        },
     ): Promise<{ fileUrl: string; truncated: boolean }> {
         // Generate a unique filename
         const formattedFileName = service.generateFileId(resultsFileName);
 
-        const headers = Object.keys(fields).map((field) =>
-            getItemLabel(fields[field]),
+        // Handle column ordering and filtering
+        const {
+            onlyRaw = false,
+            showTableNames = false,
+            customLabels = {},
+            columnOrder = [],
+            hiddenFields = [],
+        } = options || {};
+
+        // Filter out hidden fields and apply column ordering
+        const availableFieldIds = Object.keys(fields).filter(
+            (id) => !hiddenFields.includes(id),
         );
+        const sortedFieldIds =
+            columnOrder.length > 0
+                ? [
+                      ...columnOrder.filter((id) =>
+                          availableFieldIds.includes(id),
+                      ),
+                      ...availableFieldIds.filter(
+                          (id) => !columnOrder.includes(id),
+                      ),
+                  ]
+                : availableFieldIds;
+
+        const headers = sortedFieldIds.map((fieldId) => {
+            if (customLabels[fieldId]) {
+                return customLabels[fieldId];
+            }
+            const item = fields[fieldId];
+            if (!item) {
+                return fieldId;
+            }
+            return showTableNames
+                ? getItemLabel(item)
+                : getItemLabelWithoutTableName(item);
+        });
 
         // Transform and upload the results
         return this.storageClient.transformResultsIntoNewFile(
@@ -709,9 +784,9 @@ export class AsyncQueryService extends ProjectService {
             async (readStream, writeStream) => {
                 // Use streamJsonlRowsToFile which handles JSONL data from S3
                 const { truncated } = await service.streamJsonlRowsToFile(
-                    false,
+                    onlyRaw,
                     fields,
-                    Object.keys(fields), // TODO: sorted field ids
+                    sortedFieldIds,
                     headers,
                     {
                         readStream,
@@ -1449,6 +1524,7 @@ export class AsyncQueryService extends ProjectService {
         versionUuid,
         context,
         invalidateCache,
+        limit,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Check user is in organization
         if (!isUserWithOrg(user)) {
@@ -1508,7 +1584,14 @@ export class AsyncQueryService extends ProjectService {
             context,
             chartUuid,
             versionUuid,
+            limit,
         };
+
+        // Apply limit override if provided in the request
+        const metricQueryWithLimit = applyLimitOverrideToQuery(
+            metricQuery,
+            limit,
+        );
 
         const queryTags: RunQueryTags = {
             organization_uuid: savedChartOrganizationUuid,
@@ -1537,7 +1620,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { sql, fields } = await this.prepareMetricQueryAsyncQueryArgs({
             user,
-            metricQuery,
+            metricQuery: metricQueryWithLimit,
             explore,
             warehouseClient: warehouseConnection.warehouseClient,
         });
@@ -1550,7 +1633,7 @@ export class AsyncQueryService extends ProjectService {
                 context,
                 queryTags,
                 invalidateCache,
-                metricQuery,
+                metricQuery: metricQueryWithLimit,
                 fields,
                 sql,
                 originalColumns: undefined,
@@ -1562,7 +1645,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata,
-            metricQuery,
+            metricQuery: metricQueryWithLimit,
             fields,
         };
     }

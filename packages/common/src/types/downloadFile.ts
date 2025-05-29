@@ -1,3 +1,5 @@
+import { type PivotConfig } from './pivot';
+
 export enum DownloadFileType {
     CSV = 'csv',
     IMAGE = 'image',
@@ -11,4 +13,19 @@ export type DownloadFile = {
     path: string;
     createdAt: Date;
     type: DownloadFileType;
+};
+
+/**
+ * Backwards compatible options for downloading query results
+ */
+export type DownloadOptions = {
+    fileType?: DownloadFileType;
+    csvLimit?: number | null;
+    onlyRaw?: boolean;
+    showTableNames?: boolean;
+    customLabels?: Record<string, string>;
+    columnOrder?: string[];
+    hiddenFields?: string[];
+    chartName?: string;
+    pivotConfig?: PivotConfig;
 };

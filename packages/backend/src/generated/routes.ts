@@ -15786,6 +15786,13 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        limit: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'double' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
                         versionUuid: { dataType: 'string' },
                         chartUuid: { dataType: 'string', required: true },
                     },
@@ -16183,6 +16190,95 @@ const models: TsoaRoute.Models = {
     DownloadFileType: {
         dataType: 'refEnum',
         enums: ['csv', 'image', 'jsonl', 's3_jsonl', 'xlsx'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DownloadAsyncQueryResultsRequestParams.Exclude_keyofDownloadAsyncQueryResultsRequestParams.queryUuid__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    type: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'DownloadFileType' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    pivotConfig: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'PivotConfig' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    csvLimit: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    onlyRaw: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    showTableNames: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    customLabels: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'Record_string.string_' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    columnOrder: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    hiddenFields: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    chartName: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_DownloadAsyncQueryResultsRequestParams.queryUuid_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_DownloadAsyncQueryResultsRequestParams.Exclude_keyofDownloadAsyncQueryResultsRequestParams.queryUuid__',
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FeatureFlag: {
@@ -33410,14 +33506,14 @@ export function RegisterRoutes(app: Router) {
             dataType: 'string',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        type: {
-            default: 'csv',
-            in: 'query',
-            name: 'type',
-            ref: 'DownloadFileType',
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'Omit_DownloadAsyncQueryResultsRequestParams.queryUuid_',
         },
     };
-    app.get(
+    app.post(
         '/api/v2/projects/:projectUuid/query/:queryUuid/download',
         ...fetchMiddlewares<RequestHandler>(QueryController),
         ...fetchMiddlewares<RequestHandler>(

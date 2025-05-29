@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
 import { type FC, memo, useCallback, useMemo, useState } from 'react';
-import { downloadCsv } from '../../../api/csv';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
@@ -80,6 +79,9 @@ const VisualizationCard: FC<{
     const tableCalculationsMetadata = useExplorerContext(
         (context) => context.state.metadata?.tableCalculations,
     );
+    const getDownloadQueryUuid = useExplorerContext(
+        (context) => context.actions.getDownloadQueryUuid,
+    );
 
     const isOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.VISUALIZATION),
@@ -117,32 +119,6 @@ const VisualizationCard: FC<{
         return <CollapsableCard title="Charts" disabled />;
     }
 
-    const getCsvLink = async (
-        csvLimit: number | null,
-        onlyRaw: boolean,
-        showTableNames: boolean,
-        columnOrder: string[],
-        customLabels?: Record<string, string>,
-    ) => {
-        if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
-            const csvResponse = await downloadCsv({
-                projectUuid,
-                tableId: explore?.name,
-                query: unsavedChartVersion.metricQuery,
-                csvLimit,
-                onlyRaw,
-                showTableNames,
-                columnOrder: columnOrder,
-                customLabels,
-                hiddenFields: getHiddenTableFields(
-                    unsavedChartVersion.chartConfig,
-                ),
-                pivotConfig: getPivotConfig(unsavedChartVersion),
-            });
-            return csvResponse;
-        }
-        throw new NotFoundError('no metric query defined');
-    };
     const getGsheetLink = async (
         columnOrder: string[],
         showTableNames: boolean,
@@ -211,7 +187,9 @@ const VisualizationCard: FC<{
                                 ) : null}
                                 {!!projectUuid && (
                                     <ChartDownloadMenu
-                                        getCsvLink={getCsvLink}
+                                        getDownloadQueryUuid={
+                                            getDownloadQueryUuid
+                                        }
                                         projectUuid={projectUuid}
                                         getGsheetLink={getGsheetLink}
                                     />

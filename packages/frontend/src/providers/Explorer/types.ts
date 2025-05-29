@@ -345,5 +345,6 @@ export interface ExplorerContextType {
             formatOptions: CustomFormat | undefined;
         }) => void;
         replaceFields: (fieldsToReplace: ReplaceCustomFields[string]) => void;
+        getDownloadQueryUuid: (limit: number | null) => Promise<string>;
     };
 }

@@ -3,6 +3,7 @@ import {
     GroupByColumn,
     ItemsMap,
     MetricQuery,
+    PivotConfig,
     SortBy,
     ValuesColumn,
     type CacheMetadata,
@@ -10,6 +11,7 @@ import {
     type DateGranularity,
     type DateZoom,
     type Filters,
+    type LimitOverride,
     type PivotIndexColum,
     type QueryExecutionContext,
     type ResultsPaginationArgs,
@@ -38,6 +40,14 @@ export type DownloadAsyncQueryResultsArgs = Omit<
 > & {
     queryUuid: string;
     type?: DownloadFileType;
+    csvLimit?: number | null;
+    onlyRaw?: boolean;
+    showTableNames?: boolean;
+    customLabels?: Record<string, string>;
+    columnOrder?: string[];
+    hiddenFields?: string[];
+    chartName?: string;
+    pivotConfig?: PivotConfig;
 };
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
@@ -48,6 +58,7 @@ export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     chartUuid: string;
     versionUuid?: string;
+    limit?: LimitOverride;
 };
 
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {

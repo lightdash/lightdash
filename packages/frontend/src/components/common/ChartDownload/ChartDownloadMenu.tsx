@@ -26,13 +26,7 @@ import ChartDownloadOptions from './ChartDownloadOptions';
 
 interface ChartDownloadMenuProps {
     projectUuid: string;
-    getCsvLink?: (
-        limit: number | null,
-        onlyRaw: boolean,
-        showTableNames: boolean,
-        columnOrder: string[],
-        customLabels?: Record<string, string>,
-    ) => Promise<ApiScheduledDownloadCsv>;
+    getDownloadQueryUuid?: (limit: number | null) => Promise<string>;
     getGsheetLink?: (
         columnOrder: string[],
         showTableNames: boolean,
@@ -41,7 +35,7 @@ interface ChartDownloadMenuProps {
 }
 
 const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
-    ({ getCsvLink, getGsheetLink, projectUuid }) => {
+    ({ getDownloadQueryUuid, getGsheetLink, projectUuid }) => {
         const { chartRef, visualizationConfig, resultsData } =
             useVisualizationContext();
 
@@ -64,7 +58,8 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             [chartRef],
         );
 
-        return isTableVisualizationConfig(visualizationConfig) && getCsvLink ? (
+        return isTableVisualizationConfig(visualizationConfig) &&
+            getDownloadQueryUuid ? (
             <Can
                 I="manage"
                 this={subject('ExportCsv', {
@@ -91,22 +86,7 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                         <ExportSelector
                             projectUuid={projectUuid}
                             totalResults={resultsData?.totalResults}
-                            getCsvLink={async (
-                                limit: number | null,
-                                onlyRaw: boolean,
-                            ) =>
-                                getCsvLink(
-                                    limit,
-                                    onlyRaw,
-                                    visualizationConfig.chartConfig
-                                        .showTableNames,
-                                    visualizationConfig.chartConfig.columnOrder,
-                                    getCustomLabelsFromColumnProperties(
-                                        visualizationConfig.chartConfig
-                                            .columnProperties,
-                                    ),
-                                )
-                            }
+                            getDownloadQueryUuid={getDownloadQueryUuid}
                             getGsheetLink={
                                 getGsheetLink === undefined
                                     ? undefined
@@ -128,7 +108,7 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 </Popover>
             </Can>
         ) : isTableVisualizationConfig(visualizationConfig) &&
-          !getCsvLink ? null : (
+          !getDownloadQueryUuid ? null : (
             <Popover
                 {...COLLAPSABLE_CARD_POPOVER_PROPS}
                 disabled={disabled}
