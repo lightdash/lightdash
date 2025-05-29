@@ -1,3 +1,10 @@
+## [0.1661.1](https://github.com/lightdash/lightdash/compare/0.1661.0...0.1661.1) (2025-05-29)
+
+
+### Bug Fixes
+
+* refresh SQL charts on dashboards ([#15060](https://github.com/lightdash/lightdash/issues/15060)) ([0032b9c](https://github.com/lightdash/lightdash/commit/0032b9ce3cd87e61ce081b569f0cc8cac47434c2))
+
 # [0.1661.0](https://github.com/lightdash/lightdash/compare/0.1660.3...0.1661.0) (2025-05-28)
 
 
