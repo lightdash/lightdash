@@ -1,3 +1,10 @@
+# [0.1663.0](https://github.com/lightdash/lightdash/compare/0.1662.3...0.1663.0) (2025-05-29)
+
+
+### Features
+
+* deprecate RESULTS_CACHE variables ([#15023](https://github.com/lightdash/lightdash/issues/15023)) ([d91a2f0](https://github.com/lightdash/lightdash/commit/d91a2f056fb5d8437e53c6a9e8833b6b24c3d2b4))
+
 ## [0.1662.3](https://github.com/lightdash/lightdash/compare/0.1662.2...0.1662.3) (2025-05-29)
 
 
