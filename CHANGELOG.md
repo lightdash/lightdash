@@ -1,3 +1,10 @@
+## [0.1662.2](https://github.com/lightdash/lightdash/compare/0.1662.1...0.1662.2) (2025-05-29)
+
+
+### Bug Fixes
+
+* only close connection on finally call ([#15077](https://github.com/lightdash/lightdash/issues/15077)) ([c50af90](https://github.com/lightdash/lightdash/commit/c50af90c871763d543ff771ac5dc5145331a7c8f))
+
 ## [0.1662.1](https://github.com/lightdash/lightdash/compare/0.1662.0...0.1662.1) (2025-05-29)
 
 
