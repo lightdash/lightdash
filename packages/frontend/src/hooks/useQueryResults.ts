@@ -1,4 +1,5 @@
 import {
+    type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
@@ -6,6 +7,7 @@ import {
     assertUnreachable,
     type DateGranularity,
     DEFAULT_RESULTS_PAGE_SIZE,
+    type DownloadFileType,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type MetricQuery,
@@ -19,6 +21,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lightdashApi } from '../api';
+import { pollForResults } from '../features/queryRunner/executeQuery';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 
@@ -68,6 +71,85 @@ const executeAsyncSavedChartQuery = async (
         signal: options.signal,
     });
 
+export const downloadQuery = async (
+    projectUuid: string,
+    queryUuid: string,
+    fileType: DownloadFileType,
+) =>
+    lightdashApi<ApiDownloadAsyncQueryResultsAsCsv>({
+        url: `/projects/${projectUuid}/query/${queryUuid}/download?type=${fileType}`,
+        method: 'GET',
+        body: undefined,
+        version: 'v2',
+    });
+
+const executeAsyncQuery = (
+    data?: QueryResultsProps | null,
+    signal?: AbortSignal,
+) => {
+    if (data?.chartUuid && data?.chartVersionUuid) {
+        return executeAsyncSavedChartQuery(
+            data.projectUuid,
+            {
+                context: QueryExecutionContext.CHART_HISTORY,
+                chartUuid: data.chartUuid,
+                versionUuid: data.chartVersionUuid,
+            },
+            { signal },
+        );
+    } else if (data?.chartUuid) {
+        return executeAsyncSavedChartQuery(
+            data.projectUuid,
+            {
+                context: QueryExecutionContext.CHART,
+                chartUuid: data.chartUuid,
+            },
+            { signal },
+        );
+    } else if (data?.query) {
+        return executeAsyncMetricQuery(
+            data.projectUuid,
+            {
+                context: QueryExecutionContext.EXPLORE,
+                query: {
+                    ...data.query,
+                    filters: convertDateFilters(data.query.filters),
+                    timezone: data.query.timezone ?? undefined,
+                    exploreName: data.tableId,
+                    dateZoom: data.dateZoomGranularity
+                        ? {
+                              granularity: data.dateZoomGranularity,
+                          }
+                        : undefined,
+                },
+                invalidateCache: true, // Note: do not cache explore queries
+            },
+            { signal },
+        );
+    }
+    return Promise.reject(new ParameterError('Missing QueryResultsProps'));
+};
+
+export const executeQueryAndWaitForResults = async (
+    data?: QueryResultsProps | null,
+) => {
+    if (!data) throw new Error('Missing data');
+
+    const query = await executeAsyncQuery(data);
+
+    const results = await pollForResults(data.projectUuid, query.queryUuid);
+
+    if (results.status === QueryHistoryStatus.ERROR) {
+        throw new Error(results.error || 'Error executing SQL query');
+    }
+
+    if (results.status !== QueryHistoryStatus.READY) {
+        throw new Error('Unexpected query status');
+    }
+
+    return results;
+};
+
 export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
@@ -78,49 +160,7 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
         enabled: !!data,
         queryKey: ['create-query', data],
         queryFn: ({ signal }) => {
-            if (data?.chartUuid && data?.chartVersionUuid) {
-                return executeAsyncSavedChartQuery(
-                    data.projectUuid,
-                    {
-                        context: QueryExecutionContext.CHART_HISTORY,
-                        chartUuid: data.chartUuid,
-                        versionUuid: data.chartVersionUuid,
-                    },
-                    { signal },
-                );
-            } else if (data?.chartUuid) {
-                return executeAsyncSavedChartQuery(
-                    data.projectUuid,
-                    {
-                        context: QueryExecutionContext.CHART,
-                        chartUuid: data.chartUuid,
-                    },
-                    { signal },
-                );
-            } else if (data?.query) {
-                return executeAsyncMetricQuery(
-                    data.projectUuid,
-                    {
-                        context: QueryExecutionContext.EXPLORE,
-                        query: {
-                            ...data.query,
-                            filters: convertDateFilters(data.query.filters),
-                            timezone: data.query.timezone ?? undefined,
-                            exploreName: data.tableId,
-                            dateZoom: data.dateZoomGranularity
-                                ? {
-                                      granularity: data.dateZoomGranularity,
-                                  }
-                                : undefined,
-                        },
-                        invalidateCache: true, // Note: do not cache explore queries
-                    },
-                    { signal },
-                );
-            }
-            return Promise.reject(
-                new ParameterError('Missing QueryResultsProps'),
-            );
+            return executeAsyncQuery(data, signal);
         },
     });
 

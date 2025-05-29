@@ -3,7 +3,6 @@ import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
-import { downloadCsv } from '../../../api/csv';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -47,26 +46,13 @@ const ResultsCard: FC = memo(() => {
     const columnOrder = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
     );
+    const getDownloadQueryUuid = useExplorerContext(
+        (context) => context.actions.getDownloadQueryUuid,
+    );
 
     const disabled = useMemo(() => (totalResults ?? 0) <= 0, [totalResults]);
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
-        if (projectUuid) {
-            return downloadCsv({
-                projectUuid,
-                tableId: tableName,
-                query: metricQuery,
-                csvLimit,
-                onlyRaw,
-                columnOrder,
-                showTableNames: true,
-                pivotConfig: undefined, // results are always unpivoted
-            });
-        } else {
-            throw new Error('Project UUID is missing');
-        }
-    };
 
     const getGsheetLink = async () => {
         if (projectUuid) {
@@ -140,7 +126,9 @@ const ResultsCard: FC = memo(() => {
                                     <ExportSelector
                                         projectUuid={projectUuid}
                                         totalResults={totalResults}
-                                        getCsvLink={getCsvLink}
+                                        getDownloadQueryUuid={
+                                            getDownloadQueryUuid
+                                        }
                                         getGsheetLink={getGsheetLink}
                                     />
                                 </Popover.Dropdown>
