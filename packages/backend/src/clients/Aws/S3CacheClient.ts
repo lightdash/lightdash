@@ -47,12 +47,10 @@ export class S3CacheClient {
                 },
             });
             Logger.debug(
-                'Using results cache S3 storage with access key credentials',
+                'Using results S3 storage with access key credentials',
             );
         } else {
-            Logger.debug(
-                'Using results cache S3 storage with IAM role credentials',
-            );
+            Logger.debug('Using results S3 storage with IAM role credentials');
         }
 
         this.s3 = new S3(s3Config);
