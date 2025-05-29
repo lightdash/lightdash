@@ -1,43 +1,33 @@
 import {
     AnyType,
     DimensionType,
+    DownloadFileType,
     formatItemValue,
-    isMomentInput,
     ItemsMap,
 } from '@lightdash/common';
 import * as Excel from 'exceljs';
-import moment, { MomentInput } from 'moment';
+import moment from 'moment';
 import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import Logger from '../../logging/logger';
-
-const isRowValueTimestamp = (
-    value: unknown,
-    field: { type: DimensionType },
-): value is MomentInput =>
-    isMomentInput(value) && field.type === DimensionType.TIMESTAMP;
-
-const isRowValueDate = (
-    value: unknown,
-    field: { type: DimensionType },
-): value is MomentInput =>
-    isMomentInput(value) && field.type === DimensionType.DATE;
+import {
+    generateGenericFileId,
+    isRowValueDate,
+    isRowValueTimestamp,
+} from '../../utils/FileDownloadUtils';
 
 export class ExcelService {
-    static sanitizeFileName(name: string): string {
-        return name.replace(/[/\\?%*:|"<>]/g, '');
-    }
-
     static generateFileId(
         fileName: string,
         truncated: boolean = false,
         time: moment.Moment = moment(),
     ): string {
-        const timeFormat = time.format('YYYY-MM-DD-HH-mm-ss-SSS');
-        const truncatedText = truncated ? '-truncated' : '';
-        return `${ExcelService.sanitizeFileName(
+        return generateGenericFileId({
             fileName,
-        )}-${timeFormat}${truncatedText}.xlsx`;
+            fileExtension: DownloadFileType.XLSX,
+            truncated,
+            time,
+        });
     }
 
     static convertRowToExcel(
