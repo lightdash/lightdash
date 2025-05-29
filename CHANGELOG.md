@@ -1,3 +1,10 @@
+## [0.1662.1](https://github.com/lightdash/lightdash/compare/0.1662.0...0.1662.1) (2025-05-29)
+
+
+### Bug Fixes
+
+* Agent tags input ([#15075](https://github.com/lightdash/lightdash/issues/15075)) ([583a370](https://github.com/lightdash/lightdash/commit/583a37036c20923ad30ed5c157c323a6eaea9989))
+
 # [0.1662.0](https://github.com/lightdash/lightdash/compare/0.1661.1...0.1662.0) (2025-05-29)
 
 
