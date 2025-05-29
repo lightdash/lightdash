@@ -231,7 +231,7 @@ const FilterConfiguration: FC<Props> = ({
                                 // Set default field
                                 target = {
                                     fieldId: getItemId(defaultField),
-                                    tableName: defaultField.name,
+                                    tableName: defaultField.table,
                                 };
                             }
                         }
