@@ -289,6 +289,14 @@ export const AgentDetails: FC = () => {
                                                 <TagsInput
                                                     label="Tags"
                                                     placeholder="Select tags"
+                                                    {...form.getInputProps(
+                                                        'tags',
+                                                    )}
+                                                    value={
+                                                        form.getInputProps(
+                                                            'tags',
+                                                        ).value ?? []
+                                                    }
                                                     onChange={(value) => {
                                                         form.setFieldValue(
                                                             'tags',
