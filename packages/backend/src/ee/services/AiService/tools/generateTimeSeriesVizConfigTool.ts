@@ -10,6 +10,7 @@ import * as Sentry from '@sentry/node';
 import { z } from 'zod';
 import { SlackClient } from '../../../../clients/Slack/SlackClient';
 import Logger from '../../../../logging/logger';
+import { renderEcharts } from '../charts/renderEcharts';
 import {
     generateTimeSeriesVizConfigToolSchema,
     renderTimeseriesChart,
@@ -56,11 +57,14 @@ Rules for generating the time series chart visualization:
 
                 await updateProgress('📈 Generating your line chart...');
 
-                const { file, metricQuery } = await renderTimeseriesChart({
-                    runMetricQuery: runMiniMetricQuery,
-                    vizConfig,
-                    filters,
-                });
+                const { chartOptions, metricQuery } =
+                    await renderTimeseriesChart({
+                        runMetricQuery: runMiniMetricQuery,
+                        vizConfig,
+                        filters,
+                    });
+
+                const file = await renderEcharts(chartOptions);
 
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,

@@ -1,4 +1,8 @@
 import {
+    type AiAgentMessage,
+    type AiAgentMessageAssistant,
+} from '@lightdash/common';
+import {
     Avatar,
     Badge,
     Card,
@@ -9,116 +13,182 @@ import {
 } from '@mantine-8/core';
 import MDEditor from '@uiw/react-md-editor';
 import dayjs from 'dayjs';
-import { useLayoutEffect, useRef, type FC } from 'react';
+import EChartsReact from 'echarts-for-react';
+import {
+    useLayoutEffect,
+    useRef,
+    type FC,
+    type PropsWithChildren,
+} from 'react';
 import { useParams } from 'react-router';
 import PageSpinner from '../../../components/PageSpinner';
 import { getNameInitials } from '../../../features/comments/utils';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { AgentChatInput } from '../../features/aiCopilot/components/AgentChatInput';
 import {
     useAiAgentThread,
+    useAiAgentThreadMessageViz,
     useGenerateAgentThreadResponseMutation,
 } from '../../features/aiCopilot/hooks/useAiAgents';
 
-// TODO:: this type should be removed in favor of existing types
-type AiThreadMessageProps = {
-    actor: 'user' | 'assistant';
-    initials: string;
-    message: string;
-    messagedAt: Date;
-    humanScore?: number;
+type MessageBubbleProps = {
+    message: AiAgentMessage;
 };
 
-// TODO :: rename this component to AiAgentThreadMessage, extract as a separate file
-const AiThreadMessage: FC<AiThreadMessageProps> = ({
-    actor,
-    initials,
+const MessageBubble: FC<PropsWithChildren<MessageBubbleProps>> = ({
+    children,
     message,
-    messagedAt,
-    humanScore,
 }) => {
-    const timeAgo = useTimeAgo(messagedAt);
-
     return (
-        <Group
-            maw="70%"
-            align="flex-start"
-            gap="sm"
+        <Card
+            pos="relative"
+            shadow="md"
+            radius="xl"
+            py="sm"
+            px="lg"
+            bg={message.role === 'assistant' ? 'white' : 'blue.1'}
+            color={message.role === 'assistant' ? 'black' : 'white'}
             style={{
-                marginLeft: actor === 'user' ? 'auto' : undefined,
-                flexDirection: actor === 'user' ? 'row-reverse' : 'row',
+                overflow: 'unset',
+                ...(message.role === 'assistant'
+                    ? { borderStartStartRadius: '0px' }
+                    : message.role === 'user'
+                    ? { borderStartEndRadius: '0px' }
+                    : {}),
             }}
         >
-            <Avatar
-                color={actor === 'user' ? 'violet' : 'gray.3'}
-                radius="xl"
-                variant="filled"
-            >
-                {initials}
-            </Avatar>
+            {children}
+        </Card>
+    );
+};
 
-            <Stack
-                gap="xs"
-                align={actor === 'user' ? 'flex-end' : 'flex-start'}
-            >
-                <Tooltip label={dayjs(messagedAt).toString()} withinPortal>
-                    <Text size="xs" c="dimmed">
-                        {timeAgo}
-                    </Text>
-                </Tooltip>
+type AiResultMessageProps = {
+    message: AiAgentMessageAssistant;
+};
 
-                <Card
-                    pos="relative"
-                    shadow="md"
+const AiResultMessage: FC<AiResultMessageProps> = ({ message }) => {
+    const { agentUuid } = useParams();
+    const { activeProjectUuid } = useActiveProjectUuid();
+
+    const vizQuery = useAiAgentThreadMessageViz(
+        {
+            agentUuid: agentUuid!,
+            threadUuid: message.threadUuid,
+            messageUuid: message.uuid,
+        },
+        {
+            enabled:
+                !!message.metricQuery &&
+                !!message.vizConfigOutput &&
+                !!activeProjectUuid,
+        },
+    );
+
+    if (vizQuery.isLoading) {
+        return <PageSpinner />;
+    }
+
+    if (vizQuery.isError) {
+        return <Text>Error fetching viz</Text>;
+    }
+
+    return (
+        <MessageBubble message={message}>
+            {vizQuery.data.chartOptions ? (
+                <EChartsReact option={vizQuery.data.chartOptions} />
+            ) : (
+                <Text>Should Render Table</Text>
+            )}
+        </MessageBubble>
+    );
+};
+
+type AiThreadMessageProps = {
+    message: AiAgentMessage;
+};
+
+const AiThreadMessage: FC<AiThreadMessageProps> = ({ message }) => {
+    const initials =
+        message.role === 'user' ? getNameInitials(message.user.name) : 'AI';
+
+    const timeAgo = useTimeAgo(new Date(message.createdAt));
+
+    return (
+        <>
+            <Group
+                maw="70%"
+                align="flex-start"
+                gap="sm"
+                style={{
+                    marginLeft: message.role === 'user' ? 'auto' : undefined,
+                    flexDirection:
+                        message.role === 'user' ? 'row-reverse' : 'row',
+                }}
+            >
+                <Avatar
+                    color={message.role === 'user' ? 'violet' : 'gray.3'}
                     radius="xl"
-                    py="sm"
-                    px="lg"
-                    bg={actor === 'assistant' ? 'white' : 'blue.1'}
-                    color={actor === 'assistant' ? 'black' : 'white'}
-                    style={{
-                        overflow: 'unset',
-                        ...(actor === 'assistant'
-                            ? { borderStartStartRadius: '0px' }
-                            : actor === 'user'
-                            ? { borderStartEndRadius: '0px' }
-                            : {}),
-                    }}
+                    variant="filled"
                 >
-                    {message ? (
-                        <MDEditor.Markdown
-                            source={message}
-                            style={{ backgroundColor: 'transparent' }}
-                        />
-                    ) : (
-                        <Text c="dimmed">No response yet</Text>
-                    )}
+                    {initials}
+                </Avatar>
 
-                    {actor === 'assistant' && humanScore !== undefined && (
-                        <Badge
-                            pos="absolute"
-                            right={10}
-                            bottom={-14}
-                            variant="filled"
-                            size="lg"
-                            fz="lg"
-                            bg={
-                                humanScore === 1
-                                    ? 'green.7'
-                                    : humanScore === -1
-                                    ? 'red.7'
-                                    : undefined
-                            }
-                        >
-                            {humanScore === 1
-                                ? '👍'
-                                : humanScore === -1
-                                ? '👎'
-                                : undefined}
-                        </Badge>
-                    )}
-                </Card>
-            </Stack>
-        </Group>
+                <Stack
+                    gap="xs"
+                    align={message.role === 'user' ? 'flex-end' : 'flex-start'}
+                >
+                    <Tooltip
+                        label={dayjs(message.createdAt).toString()}
+                        withinPortal
+                    >
+                        <Text size="xs" c="dimmed">
+                            {timeAgo}
+                        </Text>
+                    </Tooltip>
+
+                    <MessageBubble message={message}>
+                        {message ? (
+                            <MDEditor.Markdown
+                                source={message.message}
+                                style={{ backgroundColor: 'transparent' }}
+                            />
+                        ) : (
+                            <Text c="dimmed">No response yet</Text>
+                        )}
+
+                        {message.role === 'assistant' &&
+                            typeof message.humanScore === 'number' && (
+                                <Badge
+                                    pos="absolute"
+                                    right={10}
+                                    bottom={-14}
+                                    variant="filled"
+                                    size="lg"
+                                    fz="lg"
+                                    bg={
+                                        message.humanScore === 1
+                                            ? 'green.7'
+                                            : message.humanScore === -1
+                                            ? 'red.7'
+                                            : undefined
+                                    }
+                                >
+                                    {message.humanScore === 1
+                                        ? '👍'
+                                        : message.humanScore === -1
+                                        ? '👎'
+                                        : undefined}
+                                </Badge>
+                            )}
+                    </MessageBubble>
+                </Stack>
+            </Group>
+
+            {message.role === 'assistant' &&
+                message.vizConfigOutput &&
+                message.metricQuery && <AiResultMessage message={message} />}
+        </>
     );
 };
 
@@ -161,16 +231,8 @@ const AgentConversationPage = () => {
             >
                 {thread.messages.map((message) => (
                     <AiThreadMessage
-                        // TODO:: this is needed because of ai_prompt mapping
-                        key={`${message.uuid}-${message.role}`}
-                        actor={message.role}
-                        initials={
-                            message.role === 'user'
-                                ? getNameInitials(message.user.name)
-                                : 'A'
-                        }
-                        message={message.message}
-                        messagedAt={new Date(message.createdAt)}
+                        key={`${message.role}-${message.uuid}`}
+                        message={message}
                     />
                 ))}
             </Stack>

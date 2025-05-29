@@ -49,12 +49,14 @@ Rules for generating the CSV file:
 
                 await updateProgress('🔢 Generating your CSV...');
 
-                const { file, metricQuery } = await renderCsvFile({
+                const { csv, metricQuery } = await renderCsvFile({
                     runMetricQuery: runMiniMetricQuery,
                     config: vizConfig,
                     filters,
                     maxLimit,
                 });
+
+                const file = Buffer.from(csv, 'utf8');
 
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,

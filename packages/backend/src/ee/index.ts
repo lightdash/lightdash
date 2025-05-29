@@ -115,6 +115,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiModel: models.getAiModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
+                    projectService: repository.getProjectService(),
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({

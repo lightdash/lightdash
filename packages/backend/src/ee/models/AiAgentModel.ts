@@ -611,6 +611,105 @@ export class AiAgentModel {
         });
     }
 
+    async findThreadMessage(
+        role: 'user' | 'assistant',
+        {
+            organizationUuid,
+            threadUuid,
+            messageUuid,
+        }: {
+            organizationUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        },
+    ): Promise<AiAgentMessage> {
+        const row = await this.database(AiPromptTableName)
+            .join(
+                UserTableName,
+                `${AiPromptTableName}.created_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .join(
+                AiThreadTableName,
+                `${AiPromptTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
+            .select(
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                'prompt',
+                'response',
+                'responded_at',
+                'filters_output',
+                'viz_config_output',
+                'metric_query',
+                'human_score',
+                `${UserTableName}.user_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiSlackPromptTableName}.slack_user_id`,
+                `${AiWebAppPromptTableName}.user_uuid`,
+            )
+            .select({
+                uuid: `${AiPromptTableName}.ai_prompt_uuid`,
+                created_at: `${AiPromptTableName}.created_at`,
+                user_name: this.database.raw(
+                    `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)`,
+                ),
+            })
+            .leftJoin(
+                AiSlackPromptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiSlackPromptTableName}.ai_prompt_uuid`,
+            )
+            .leftJoin(
+                AiWebAppPromptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiWebAppPromptTableName}.ai_prompt_uuid`,
+            )
+            .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
+            .andWhere(
+                `${AiThreadTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .andWhere(`${AiPromptTableName}.ai_prompt_uuid`, messageUuid)
+            .orderBy(`${AiPromptTableName}.created_at`, 'asc')
+            .first();
+
+        if (!row) {
+            throw new AiAgentNotFoundError(
+                `AI agent message not found for uuid: ${messageUuid}`,
+            );
+        }
+
+        switch (role) {
+            case 'user':
+                return {
+                    role: 'user',
+                    uuid: row.ai_prompt_uuid,
+                    threadUuid: row.ai_thread_uuid,
+                    message: row.prompt,
+                    createdAt: row.created_at,
+                    user: {
+                        uuid: row.user_uuid,
+                        name: row.user_name,
+                    },
+                } satisfies AiAgentMessageUser;
+            case 'assistant':
+                return {
+                    role: 'assistant',
+                    uuid: row.ai_prompt_uuid,
+                    threadUuid: row.ai_thread_uuid,
+                    message: row.response,
+                    createdAt: row.responded_at,
+                    vizConfigOutput: row.viz_config_output,
+                    filtersOutput: row.filters_output,
+                    metricQuery: row.metric_query,
+                    humanScore: row.human_score,
+                } satisfies AiAgentMessageAssistant;
+            default:
+                return assertUnreachable(role, `Unknown role ${role}`);
+        }
+    }
+
     async deleteSlackIntegrations({
         organizationUuid,
     }: {
