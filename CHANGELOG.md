@@ -1,3 +1,10 @@
+## [0.1663.1](https://github.com/lightdash/lightdash/compare/0.1663.0...0.1663.1) (2025-05-29)
+
+
+### Bug Fixes
+
+* set the correct table name when editing tile targets ([#15057](https://github.com/lightdash/lightdash/issues/15057)) ([c64c7b1](https://github.com/lightdash/lightdash/commit/c64c7b1c1f1ae015e525de8613ee1c2fa13d0794))
+
 # [0.1663.0](https://github.com/lightdash/lightdash/compare/0.1662.3...0.1663.0) (2025-05-29)
 
 
