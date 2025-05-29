@@ -1123,6 +1123,61 @@ ${
         }
     }
 
+    async generateAgentThreadResponse(
+        agentUuid: string,
+        threadUuid: string,
+        promptUuid: string,
+    ): Promise<void> {
+        const thread = await this.aiModel.findThread(threadUuid);
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const prompt = await this.aiModel.findWebAppPrompt(promptUuid);
+        if (!prompt) {
+            throw new NotFoundError(`Prompt not found: ${promptUuid}`);
+        }
+
+        const { organizationUuid, projectUuid } = thread;
+
+        const threadMessages = await this.aiModel.getThreadMessages(
+            organizationUuid,
+            projectUuid,
+            threadUuid,
+        );
+
+        if (threadMessages.length === 0) {
+            throw new Error(
+                `No messages found in thread: ${threadUuid}. ${agentUuid} ${promptUuid}`,
+            );
+        }
+
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            prompt.createdByUserUuid,
+            organizationUuid,
+        );
+
+        try {
+            const chatHistoryMessages =
+                this.getChatHistoryFromThreadMessages(threadMessages);
+
+            // TODO: when we move this method to `aiAgentService` we can move the `generateAgentThreadResponse` too
+            const response = await this.generateExploreResult(
+                user,
+                chatHistoryMessages,
+                prompt,
+            );
+
+            await this.aiModel.updateWebAppResponse({
+                promptUuid,
+                response,
+            });
+        } catch (e) {
+            Logger.error('Failed to generate agent thread response:', e);
+            throw new Error('Failed to generate agent thread response');
+        }
+    }
+
     async getConversations(
         user: SessionUser,
         projectUuid: string,

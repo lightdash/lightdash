@@ -5623,6 +5623,35 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiAiAgentThreadGenerateResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "jobId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["jobId"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadGenerateRequest": {
+                "properties": {
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prompt"],
+                "type": "object"
+            },
             "ApiJobScheduledResponse": {
                 "properties": {
                     "results": {
@@ -8996,6 +9025,7 @@
                 "type": "string",
                 "enum": [
                     "slackAiPrompt",
+                    "aiAgentThreadGenerate",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
                     "sendEmailNotification",

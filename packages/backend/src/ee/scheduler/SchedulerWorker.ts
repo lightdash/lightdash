@@ -24,6 +24,16 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     payload.slackPromptUuid,
                 );
             },
+            [EE_SCHEDULER_TASKS.AI_AGENT_THREAD_GENERATE]: async (
+                payload,
+                _helpers,
+            ) => {
+                await this.aiService.generateAgentThreadResponse(
+                    payload.agentUuid,
+                    payload.threadUuid,
+                    payload.promptUuid,
+                );
+            },
         };
     }
 }
