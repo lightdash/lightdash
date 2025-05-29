@@ -9,13 +9,18 @@ import {
 } from '@mantine-8/core';
 import MDEditor from '@uiw/react-md-editor';
 import dayjs from 'dayjs';
-import { type FC } from 'react';
+import { useLayoutEffect, useRef, type FC } from 'react';
 import { useParams } from 'react-router';
 import PageSpinner from '../../../components/PageSpinner';
 import { getNameInitials } from '../../../features/comments/utils';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
-import { useAiAgentThread } from '../../features/aiCopilot/hooks/useAiAgents';
+import { AgentChatInput } from '../../features/aiCopilot/components/AgentChatInput';
+import {
+    useAiAgentThread,
+    useGenerateAgentThreadResponseMutation,
+} from '../../features/aiCopilot/hooks/useAiAgents';
 
+// TODO:: this type should be removed in favor of existing types
 type AiThreadMessageProps = {
     actor: 'user' | 'assistant';
     initials: string;
@@ -24,6 +29,7 @@ type AiThreadMessageProps = {
     humanScore?: number;
 };
 
+// TODO :: rename this component to AiAgentThreadMessage, extract as a separate file
 const AiThreadMessage: FC<AiThreadMessageProps> = ({
     actor,
     initials,
@@ -116,33 +122,65 @@ const AiThreadMessage: FC<AiThreadMessageProps> = ({
     );
 };
 
+// TODO :: rename this component to AiAgentThreadPage
 const AgentConversationPage = () => {
     const { agentUuid, threadUuid } = useParams();
     const { data: thread, isLoading: isLoadingThread } = useAiAgentThread(
-        agentUuid ?? '',
-        threadUuid ?? '',
+        agentUuid!,
+        threadUuid!,
     );
+
+    const {
+        mutateAsync: generateAgentThreadResponse,
+        isLoading: isGenerating,
+    } = useGenerateAgentThreadResponseMutation(agentUuid!, threadUuid!);
+
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    useLayoutEffect(() => {
+        if (!scrollRef.current) return;
+
+        // TODO :: debounce scrollTo
+        scrollRef.current.scrollTo({
+            top: scrollRef.current.scrollHeight,
+            behavior: 'smooth',
+        });
+    }, [thread?.messages]);
 
     if (isLoadingThread || !thread) {
         return <PageSpinner />;
     }
 
-    console.log(thread);
     return (
-        <Stack>
-            {thread.messages.map((message) => (
-                <AiThreadMessage
-                    key={message.uuid}
-                    actor={message.role}
-                    initials={
-                        message.role === 'user'
-                            ? getNameInitials(message.user.name)
-                            : 'A'
-                    }
-                    message={message.message}
-                    messagedAt={new Date(message.createdAt)}
-                />
-            ))}
+        <Stack h="100%" mah="100%" justify="space-between" gap={0}>
+            <Stack
+                flex={1}
+                style={{ overflowY: 'auto' }}
+                p="md"
+                ref={scrollRef}
+            >
+                {thread.messages.map((message) => (
+                    <AiThreadMessage
+                        // TODO:: this is needed because of ai_prompt mapping
+                        key={`${message.uuid}-${message.role}`}
+                        actor={message.role}
+                        initials={
+                            message.role === 'user'
+                                ? getNameInitials(message.user.name)
+                                : 'A'
+                        }
+                        message={message.message}
+                        messagedAt={new Date(message.createdAt)}
+                    />
+                ))}
+            </Stack>
+            <AgentChatInput
+                disabled={thread.createdFrom === 'slack'}
+                loading={isGenerating}
+                onSubmit={(prompt) => {
+                    void generateAgentThreadResponse({ prompt });
+                }}
+            />
         </Stack>
     );
 };
