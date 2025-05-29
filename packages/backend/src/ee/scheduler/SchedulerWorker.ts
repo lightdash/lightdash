@@ -1,4 +1,4 @@
-import { EE_SCHEDULER_TASKS } from '@lightdash/common';
+import { EE_SCHEDULER_TASKS, SchedulerJobStatus } from '@lightdash/common';
 import { SchedulerTaskArguments } from '../../scheduler/SchedulerTask';
 import { SchedulerWorker } from '../../scheduler/SchedulerWorker';
 import { TypedEETaskList } from '../../scheduler/types';
@@ -26,13 +26,29 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             },
             [EE_SCHEDULER_TASKS.AI_AGENT_THREAD_GENERATE]: async (
                 payload,
-                _helpers,
+                helpers,
             ) => {
-                await this.aiService.generateAgentThreadResponse(
-                    payload.agentUuid,
-                    payload.threadUuid,
-                    payload.promptUuid,
-                );
+                try {
+                    await this.schedulerService.setJobStatus(
+                        helpers.job.id,
+                        SchedulerJobStatus.STARTED,
+                    );
+                    await this.aiService.generateAgentThreadResponse(
+                        payload.agentUuid,
+                        payload.threadUuid,
+                        payload.promptUuid,
+                    );
+                    await this.schedulerService.setJobStatus(
+                        helpers.job.id,
+                        SchedulerJobStatus.COMPLETED,
+                    );
+                } catch (e) {
+                    await this.schedulerService.setJobStatus(
+                        helpers.job.id,
+                        SchedulerJobStatus.ERROR,
+                    );
+                    throw e;
+                }
             },
         };
     }

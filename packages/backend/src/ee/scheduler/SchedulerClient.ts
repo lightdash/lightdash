@@ -1,6 +1,7 @@
 import {
     AiAgentThreadGenerateJobPayload,
     EE_SCHEDULER_TASKS,
+    SchedulerJobStatus,
     SlackPromptJobPayload,
 } from '@lightdash/common';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -31,6 +32,17 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 maxAttempts: 1,
             },
         );
+        // We need this for polling from frontend
+        await this.schedulerModel.logSchedulerJob({
+            task: EE_SCHEDULER_TASKS.AI_AGENT_THREAD_GENERATE,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.userUuid,
+                ...payload,
+            },
+        });
         return { jobId };
     }
 }
