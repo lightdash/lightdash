@@ -1,3 +1,10 @@
+# [0.1662.0](https://github.com/lightdash/lightdash/compare/0.1661.1...0.1662.0) (2025-05-29)
+
+
+### Features
+
+* **backend:** add AI agent thread generation endpoints ([#15052](https://github.com/lightdash/lightdash/issues/15052)) ([a9215a1](https://github.com/lightdash/lightdash/commit/a9215a1ba27a2dcb1353220a945b85544dd1902e)), closes [#15041](https://github.com/lightdash/lightdash/issues/15041)
+
 ## [0.1661.1](https://github.com/lightdash/lightdash/compare/0.1661.0...0.1661.1) (2025-05-29)
 
 
