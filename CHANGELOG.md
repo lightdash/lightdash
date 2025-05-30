@@ -1,3 +1,10 @@
+# [0.1664.0](https://github.com/lightdash/lightdash/compare/0.1663.2...0.1664.0) (2025-05-30)
+
+
+### Features
+
+* track AI agent thread generation job status for frontend polling ([#15087](https://github.com/lightdash/lightdash/issues/15087)) ([d27929b](https://github.com/lightdash/lightdash/commit/d27929bed28a5202cc7f939d2ef20d0c8fb98f2d))
+
 ## [0.1663.2](https://github.com/lightdash/lightdash/compare/0.1663.1...0.1663.2) (2025-05-30)
 
 
