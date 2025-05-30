@@ -10,6 +10,7 @@ import {
 import dayjs from 'dayjs';
 import type { FC } from 'react';
 import { Link } from 'react-router';
+import { LightdashUserAvatar } from '../../../../components/Avatar';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import slackSvg from '../../../../svgs/slack.svg';
 
@@ -36,8 +37,8 @@ export const AgentThreadCardEmpty = ({
             onClick={onClick}
             sx={(theme) => ({
                 borderRadius: theme.radius.md,
-                border: `2px solid ${
-                    isActive ? theme.colors.blue[6] : 'transparent'
+                border: `1px solid ${
+                    isActive ? theme.colors.blue[5] : 'transparent'
                 }`,
                 backgroundColor: isActive
                     ? theme.colors.blue[0]
@@ -68,13 +69,7 @@ const AgentThreadCard: FC<AgentThreadCardProps> = ({ thread, isActive }) => {
         >
             <Group align="flex-start" noWrap>
                 <div style={{ position: 'relative' }}>
-                    <Avatar
-                        radius="xl"
-                        variant="filled"
-                        // style={{ overflow: 'unset' }}
-                        name={thread.user.name}
-                        color="initials"
-                    />
+                    <LightdashUserAvatar name={thread.user.name} />
 
                     {thread.createdFrom === 'slack' && (
                         <Avatar

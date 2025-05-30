@@ -28,6 +28,7 @@ import {
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
+import { LightdashUserAvatar } from '../../../../components/Avatar';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import {
@@ -42,7 +43,6 @@ import {
     useDeleteAiAgentMutation,
     useUpdateAiAgentMutation,
 } from '../hooks/useAiAgents';
-import { AgentAvatar } from './AgentAvatar';
 import { ConversationsList } from './ConversationsList';
 
 const formSchema: z.ZodType<
@@ -224,8 +224,9 @@ export const AgentDetails: FC = () => {
                 <Card withBorder p="xl">
                     <Stack gap="xl">
                         <Group gap="md">
-                            <AgentAvatar
+                            <LightdashUserAvatar
                                 name={isCreateMode ? '+' : form.values.name}
+                                variant="filled"
                             />
 
                             <Title order={3}>
