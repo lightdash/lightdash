@@ -3,10 +3,10 @@ import { Navigate, Outlet, type RouteObject } from 'react-router';
 import NavBar from '../components/NavBar';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
-import AgentConversationListPage from './pages/AiAgents/AgentConversationListPage';
 import AgentConversationPage from './pages/AiAgents/AgentConversationPage';
 import AgentPage from './pages/AiAgents/AgentPage';
 import AgentsListPage from './pages/AiAgents/AgentsListPage';
+import AiAgentNewThreadPage from './pages/AiAgents/AiAgentNewThreadPage';
 import AiConversationsPage from './pages/AiConversations';
 import EmbedDashboard from './pages/EmbedDashboard';
 import EmbedProvider from './providers/Embed/EmbedProvider';
@@ -89,7 +89,7 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                         children: [
                             {
                                 index: true,
-                                element: <AgentConversationListPage />,
+                                element: <AiAgentNewThreadPage />,
                             },
                             {
                                 path: ':threadUuid',

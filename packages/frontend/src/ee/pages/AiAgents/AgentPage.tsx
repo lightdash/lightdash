@@ -1,29 +1,29 @@
-import {
-    Avatar,
-    Box,
-    Group,
-    NavLink,
-    Stack,
-    Text,
-    Title,
-} from '@mantine-8/core';
-import { IconArrowLeft } from '@tabler/icons-react';
+import { Box, Button, Group, Stack, Text, Title } from '@mantine-8/core';
+import { IconArrowLeft, IconChevronDown, IconPlus } from '@tabler/icons-react';
+import { useState } from 'react';
 import { Link, Navigate, Outlet, useParams } from 'react-router';
 import LinkButton from '../../../components/common/LinkButton';
 import Page from '../../../components/common/Page/Page';
 import PageSpinner from '../../../components/PageSpinner';
+import { AgentAvatar } from '../../features/aiCopilot/components/AgentAvatar';
+import AgentThreadCard, {
+    AgentThreadCardEmpty,
+} from '../../features/aiCopilot/components/AgentThreadCard';
 import {
     useAiAgent,
     useAiAgentThreads,
 } from '../../features/aiCopilot/hooks/useAiAgents';
 
+const INITIAL_MAX_THREADS = 10;
+const MAX_THREADS_INCREMENT = 10;
+
 const AgentPage = () => {
-    const { agentUuid } = useParams();
+    const { agentUuid, threadUuid } = useParams();
     const { data: threads } = useAiAgentThreads(agentUuid ?? '');
 
-    const { data: agent, isLoading: isLoadingAgent } = useAiAgent(
-        agentUuid ?? '',
-    );
+    const { data: agent, isLoading: isLoadingAgent } = useAiAgent(agentUuid!);
+
+    const [showMaxItems, setShowMaxItems] = useState(INITIAL_MAX_THREADS);
 
     if (isLoadingAgent) {
         return <PageSpinner />;
@@ -43,7 +43,10 @@ const AgentPage = () => {
                             All agents
                         </LinkButton>
                         <Group>
-                            <Avatar size="lg" radius="xl" />
+                            <AgentAvatar
+                                size={54}
+                                name={agent.name || 'AI Agent'}
+                            />
                             <Box>
                                 <Title order={3}>{agent.name}</Title>
                                 <Text size="sm" c="dimmed">
@@ -55,6 +58,24 @@ const AgentPage = () => {
                             </Box>
                         </Group>
                     </Stack>
+                    <Group>
+                        <Button
+                            leftSection={<IconPlus />}
+                            component={Link}
+                            to={`/aiAgents/${agent.uuid}/threads`}
+                        >
+                            New thread
+                        </Button>
+                        <Button
+                            variant="default"
+                            c="dimmed"
+                            bd="none"
+                            component={Link}
+                            to={`/generalSettings/aiAgents/${agent.uuid}`}
+                        >
+                            Settings
+                        </Button>
+                    </Group>
                     {agent.tags && (
                         <Stack gap="xs">
                             <Text size="md">Tags</Text>
@@ -73,31 +94,34 @@ const AgentPage = () => {
                     )}
                     {threads && (
                         <Stack gap="xs">
-                            <Text size="md">Recent conversations</Text>
-                            {threads.slice(0, 5).map((thread) => (
-                                <NavLink
-                                    label={thread.firstMessage}
+                            <Title order={4}>Threads</Title>
+                            {threads.slice(0, showMaxItems).map((thread) => (
+                                <AgentThreadCard
                                     key={thread.uuid}
-                                    component={Link}
-                                    to={`/aiAgents/${agentUuid}/threads/${thread.uuid}`}
+                                    thread={thread}
+                                    isActive={thread.uuid === threadUuid}
                                 />
                             ))}
-                            <Link to={`/aiAgents/${agentUuid}/threads`}>
-                                View all
-                            </Link>
+                            {threads.length >= showMaxItems && (
+                                <AgentThreadCardEmpty
+                                    onClick={() =>
+                                        setShowMaxItems(
+                                            (s) => s + MAX_THREADS_INCREMENT,
+                                        )
+                                    }
+                                >
+                                    <Group gap="xs">
+                                        <IconChevronDown />
+                                        <Text size="sm">View more</Text>
+                                    </Group>
+                                </AgentThreadCardEmpty>
+                            )}
                         </Stack>
                     )}
-                    <Link to={`/generalSettings/aiAgents/${agentUuid}`}>
-                        Settings
-                    </Link>
                 </Stack>
             }
         >
-            <Group align="flex-start" gap="xl">
-                <Box style={{ flex: 1 }}>
-                    <Outlet />
-                </Box>
-            </Group>
+            <Outlet />
         </Page>
     );
 };

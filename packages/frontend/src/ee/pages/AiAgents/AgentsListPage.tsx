@@ -1,10 +1,12 @@
 import { subject } from '@casl/ability';
+import { type AiAgent } from '@lightdash/common';
 import {
-    Box,
     Button,
     Card,
+    Divider,
     Grid,
     Group,
+    Pill,
     Stack,
     Text,
     Title,
@@ -14,44 +16,64 @@ import { Link } from 'react-router';
 import Page from '../../../components/common/Page/Page';
 import PageSpinner from '../../../components/PageSpinner';
 import useApp from '../../../providers/App/useApp';
+import { AgentAvatar } from '../../features/aiCopilot/components/AgentAvatar';
 import { useAiAgents } from '../../features/aiCopilot/hooks/useAiAgents';
 
 type AgentCardProps = {
-    name: string;
-    description: string;
-    uuid: string;
+    agent: AiAgent;
 };
 
-const AgentCard = ({ name, description, uuid }: AgentCardProps) => {
+const AgentCard = ({ agent }: AgentCardProps) => {
     return (
         <Card
             withBorder
-            p="lg"
+            p={0}
             radius="md"
             styles={{
                 root: { height: '100%' },
             }}
             component={Link}
-            to={`/aiAgents/${uuid}/threads`}
+            to={`/aiAgents/${agent.uuid}/threads`}
         >
-            <Stack gap="sm">
+            <Stack gap="sm" p="lg">
                 <Group>
-                    <Box
-                        w={40}
-                        h={40}
-                        bg="gray.1"
-                        style={{
-                            borderRadius: '50%',
-                            overflow: 'hidden',
-                        }}
-                    ></Box>
-                    <Title order={4}>{name}</Title>
+                    <AgentAvatar name={agent.name} size={54} />
+                    <Stack gap="xs">
+                        <Title order={4}>{agent.name}</Title>
+                        <Group gap={4}>
+                            {agent.tags && agent.tags.length > 0 ? (
+                                agent.tags.map((tag) => (
+                                    <Pill key={tag}>{tag}</Pill>
+                                ))
+                            ) : (
+                                <Text size="sm" c="dimmed">
+                                    Last modified:{' '}
+                                    {new Date(
+                                        agent.updatedAt ?? new Date(),
+                                    ).toLocaleString()}
+                                </Text>
+                            )}
+                        </Group>
+                    </Stack>
                 </Group>
 
                 <Text size="sm" c="dimmed">
-                    {description}
+                    {agent.instruction}
                 </Text>
             </Stack>
+            <Divider />
+            <Group justify="space-between" p="lg">
+                <Button
+                    variant="default"
+                    c="dimmed"
+                    bd="none"
+                    component={Link}
+                    to={`/generalSettings/aiAgents/${agent.uuid}`}
+                >
+                    Settings
+                </Button>
+                <Button variant="default">Start a chat</Button>
+            </Group>
         </Card>
     );
 };
@@ -94,11 +116,7 @@ const AgentsListPage = () => {
             <Grid>
                 {agentsListQuery.data?.map((agent) => (
                     <Grid.Col span={4} key={agent.uuid}>
-                        <AgentCard
-                            name={agent.name}
-                            description="Labore elit in dolor duis anim aute quis sit."
-                            uuid={agent.uuid}
-                        />
+                        <AgentCard agent={agent} />
                     </Grid.Col>
                 ))}
             </Grid>
