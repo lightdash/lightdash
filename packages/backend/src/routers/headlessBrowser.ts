@@ -96,11 +96,9 @@ if (
         let browser;
 
         try {
-            const browserWSEndpoint = `ws://${process.env.HEADLESS_BROWSER_HOST}:${process.env.HEADLESS_BROWSER_PORT}`;
-            console.debug(`Headless chrome endpoint: ${browserWSEndpoint}`);
-            browser = await playwright.chromium.connectOverCDP(
-                browserWSEndpoint,
-            );
+            const { browserEndpoint } = lightdashConfig.headlessBrowser;
+            console.debug(`Headless chrome endpoint: ${browserEndpoint}`);
+            browser = await playwright.chromium.connectOverCDP(browserEndpoint);
 
             const page = await browser.newPage();
 
@@ -117,7 +115,7 @@ if (
                 response: result,
                 request: {
                     flag: req.params.flag,
-                    browser: browserWSEndpoint,
+                    browser: browserEndpoint,
                     url: testUrl,
                 },
             });
@@ -141,11 +139,9 @@ if (
               // : 'http://lightdash-dev:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/saved/e3877884-11f2-4208-b623-6e4d65624e56' //bignumber
               'http://lightdash-dev:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/tables/payments?create_saved_chart_version=%7B%22uuid%22%3A%22cacddbc1-faf0-496c-9ca1-b5ac0feb6636%22%2C%22projectUuid%22%3A%223675b69e-8324-4110-bdca-059031aa8da3%22%2C%22name%22%3A%22Which+customers+have+not+recently+ordered+an+item%3F%22%2C%22description%22%3A%22A+table+of+the+20+customers+that+least+recently+placed+an+order+with+us%22%2C%22tableName%22%3A%22payments%22%2C%22updatedAt%22%3A%222022-12-05T14%3A21%3A29.871Z%22%2C%22updatedByUser%22%3A%7B%22userUuid%22%3A%22b264d83a-9000-426a-85ec-3f9c20f368ce%22%2C%22firstName%22%3A%22David%22%2C%22lastName%22%3A%22Attenborough%22%7D%2C%22metricQuery%22%3A%7B%22dimensions%22%3A%5B%22customers_customer_id%22%2C%22customers_days_since_last_order%22%2C%22customers_days_between_created_and_first_order%22%5D%2C%22metrics%22%3A%5B%22payments_total_revenue%22%2C%22payments_unique_payment_count%22%5D%2C%22filters%22%3A%7B%7D%2C%22sorts%22%3A%5B%7B%22fieldId%22%3A%22customers_days_since_last_order%22%2C%22descending%22%3Afalse%7D%5D%2C%22limit%22%3A500%2C%22tableCalculations%22%3A%5B%5D%2C%22additionalMetrics%22%3A%5B%5D%7D%2C%22chartConfig%22%3A%7B%22type%22%3A%22table%22%2C%22config%22%3A%7B%22showColumnCalculation%22%3Afalse%2C%22showTableNames%22%3Atrue%2C%22columns%22%3A%7B%7D%2C%22hideRowNumbers%22%3Afalse%7D%7D%2C%22tableConfig%22%3A%7B%22columnOrder%22%3A%5B%22customers_customer_id%22%2C%22customers_days_since_last_order%22%2C%22customers_days_between_created_and_first_order%22%2C%22payments_total_revenue%22%2C%22payments_unique_payment_count%22%5D%7D%2C%22spaceUuid%22%3A%22bb3824a8-9465-490c-91b7-3d51408a9668%22%2C%22spaceName%22%3A%22Jaffle+shop%22%7D'; // explore
         try {
-            const browserWSEndpoint = `ws://${process.env.HEADLESS_BROWSER_HOST}:${process.env.HEADLESS_BROWSER_PORT}`;
-            console.debug(`Headless chrome endpoint: ${browserWSEndpoint}`);
-            browser = await playwright.chromium.connectOverCDP(
-                browserWSEndpoint,
-            );
+            const { browserEndpoint } = lightdashConfig.headlessBrowser;
+            console.debug(`Headless chrome endpoint: ${browserEndpoint}`);
+            browser = await playwright.chromium.connectOverCDP(browserEndpoint);
 
             const page = await browser.newPage();
             await page.setExtraHTTPHeaders({
