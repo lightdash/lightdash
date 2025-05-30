@@ -1,3 +1,10 @@
+# [0.1666.0](https://github.com/lightdash/lightdash/compare/0.1665.0...0.1666.0) (2025-05-30)
+
+
+### Features
+
+* chat with Agents from web-ui ([#15083](https://github.com/lightdash/lightdash/issues/15083)) ([442c4ee](https://github.com/lightdash/lightdash/commit/442c4eefc82d184a95897c590b7347f81b8c0833))
+
 # [0.1665.0](https://github.com/lightdash/lightdash/compare/0.1664.0...0.1665.0) (2025-05-30)
 
 
