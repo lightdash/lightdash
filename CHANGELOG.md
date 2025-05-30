@@ -1,3 +1,10 @@
+## [0.1668.1](https://github.com/lightdash/lightdash/compare/0.1668.0...0.1668.1) (2025-05-30)
+
+
+### Bug Fixes
+
+* SQL runner update chart modal ([#14813](https://github.com/lightdash/lightdash/issues/14813)) ([7e56463](https://github.com/lightdash/lightdash/commit/7e564631d9ab1db9c9d24a8a92e26ca57bc46f85))
+
 # [0.1668.0](https://github.com/lightdash/lightdash/compare/0.1667.1...0.1668.0) (2025-05-30)
 
 
