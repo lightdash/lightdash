@@ -407,6 +407,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/lakshz"><img src="https://avatars.githubusercontent.com/u/81241551?v=4?s=100" width="100px;" alt="Lakshya Satpal"/><br /><sub><b>Lakshya Satpal</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=lakshz" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://tatiana.inama.dev"><img src="https://avatars.githubusercontent.com/u/8246284?v=4?s=100" width="100px;" alt="Tatiana Inama"/><br /><sub><b>Tatiana Inama</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=tatianainama" title="Code">💻</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3Atatianainama" title="Bug reports">🐛</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Divyansh200102"><img src="https://avatars.githubusercontent.com/u/146909065?v=4?s=100" width="100px;" alt="Divyansh200102"/><br /><sub><b>Divyansh200102</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=Divyansh200102" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
