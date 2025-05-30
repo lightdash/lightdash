@@ -686,7 +686,10 @@ export class AiService {
                       organizationUuid: user.organizationUuid,
                       slackChannelId: slackOrWebAppPrompt.slackChannelId,
                   })
-                : undefined;
+                : await this.aiAgentModel.getAgent({
+                      organizationUuid: slackOrWebAppPrompt.organizationUuid,
+                      agentUuid: slackOrWebAppPrompt.agentUuid!,
+                  });
 
         const {
             getExplore,
