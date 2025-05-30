@@ -5,6 +5,7 @@ import {
     type ApiAiAgentSummaryResponse,
     type ApiAiAgentThreadGenerateRequest,
     type ApiAiAgentThreadGenerateResponse,
+    type ApiAiAgentThreadMessageVizResponse,
     type ApiAiAgentThreadResponse,
     type ApiAiAgentThreadSummaryListResponse,
     type ApiCreateAiAgent,
@@ -74,6 +75,17 @@ const listAgentThreads = async (agentUuid: string) =>
 const getAgentThread = async (agentUuid: string, threadUuid: string) =>
     lightdashApi<ApiAiAgentThreadResponse['results']>({
         url: `/aiAgents/${agentUuid}/threads/${threadUuid}`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const getAgentThreadMessageViz = async (args: {
+    agentUuid: string;
+    threadUuid: string;
+    messageUuid: string;
+}) =>
+    lightdashApi<ApiAiAgentThreadMessageVizResponse['results']>({
+        url: `/aiAgents/${args.agentUuid}/threads/${args.threadUuid}/message/${args.messageUuid}/viz`,
         method: 'GET',
         body: undefined,
     });
@@ -455,5 +467,39 @@ export const useGenerateAgentThreadResponseMutation = (
             });
         },
         ...options,
+    });
+};
+
+export const useAiAgentThreadMessageViz = (
+    args: {
+        agentUuid: string;
+        threadUuid: string;
+        messageUuid: string;
+    },
+    useQueryOptions?: UseQueryOptions<
+        ApiAiAgentThreadMessageVizResponse['results'],
+        ApiError
+    >,
+) => {
+    const { showToastApiError } = useToaster();
+
+    return useQuery<ApiAiAgentThreadMessageVizResponse['results'], ApiError>({
+        queryKey: [
+            AI_AGENTS_KEY,
+            args.agentUuid,
+            'threads',
+            args.threadUuid,
+            'message',
+            args.messageUuid,
+            'viz',
+        ],
+        queryFn: () => getAgentThreadMessageViz(args),
+        onError: (error) => {
+            showToastApiError({
+                title: 'Failed to fetch visualization',
+                apiError: error.error,
+            });
+        },
+        ...useQueryOptions,
     });
 };

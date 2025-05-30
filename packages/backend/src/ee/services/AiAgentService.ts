@@ -1,28 +1,46 @@
 import {
     AiAgentThread,
     AiAgentThreadSummary,
+    AiMetricQuery,
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
     CommercialFeatureFlags,
     EE_SCHEDULER_TASKS,
+    filterExploreByTags,
     ForbiddenError,
     LightdashUser,
     NotFoundError,
+    QueryExecutionContext,
     type SessionUser,
 } from '@lightdash/common';
 import _ from 'lodash';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
+import { ProjectService } from '../../services/ProjectService/ProjectService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { AiModel } from '../models/AiModel';
 import type { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
+import { csvFileConfigSchema, renderCsvFile } from './AiService/charts/csvFile';
+import {
+    renderTimeseriesChart,
+    timeSeriesMetricChartConfigSchema,
+} from './AiService/charts/timeSeriesChart';
+import {
+    renderVerticalBarMetricChart,
+    verticalBarMetricChartConfigSchema,
+} from './AiService/charts/verticalBarChart';
+import {
+    AI_DEFAULT_MAX_QUERY_LIMIT,
+    validateSelectedFieldsExistence,
+} from './AiService/utils/aiCopilot/validators';
 
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
     aiModel: AiModel;
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
     featureFlagService: FeatureFlagService;
+    projectService: ProjectService;
     slackClient: SlackClient;
     schedulerClient: CommercialSchedulerClient;
 };
@@ -36,6 +54,8 @@ export class AiAgentService {
 
     private readonly featureFlagService: FeatureFlagService;
 
+    private readonly projectService: ProjectService;
+
     private readonly slackClient: SlackClient;
 
     private readonly schedulerClient: CommercialSchedulerClient;
@@ -45,8 +65,73 @@ export class AiAgentService {
         this.aiModel = dependencies.aiModel;
         this.slackAuthenticationModel = dependencies.slackAuthenticationModel;
         this.featureFlagService = dependencies.featureFlagService;
+        this.projectService = dependencies.projectService;
         this.slackClient = dependencies.slackClient;
         this.schedulerClient = dependencies.schedulerClient;
+    }
+
+    // from AiService getToolUtilities
+    private async getExplore(
+        user: SessionUser,
+        projectUuid: string,
+        availableTags: string[] | null,
+        exploreName: string,
+    ) {
+        const explore = await this.projectService.getExplore(
+            user,
+            projectUuid,
+            exploreName,
+        );
+
+        const filteredExplore = filterExploreByTags({
+            explore,
+            availableTags,
+        });
+
+        if (!filteredExplore) {
+            throw new NotFoundError('Explore not found');
+        }
+
+        return filteredExplore;
+    }
+
+    // from AiService getToolUtilities
+    private async runAiMetricQuery(
+        user: SessionUser,
+        projectUuid: string,
+        metricQuery: AiMetricQuery,
+    ) {
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            null,
+            metricQuery.exploreName,
+        );
+
+        const metricQueryFields = [
+            ...metricQuery.dimensions,
+            ...metricQuery.metrics,
+        ];
+
+        validateSelectedFieldsExistence(explore, metricQueryFields);
+
+        return this.projectService.runMetricQuery({
+            user,
+            projectUuid,
+            metricQuery: {
+                ...metricQuery,
+                tableCalculations: [],
+            },
+            exploreName: metricQuery.exploreName,
+            csvLimit: metricQuery.limit,
+            context: QueryExecutionContext.AI,
+            chartUuid: undefined,
+            queryTags: {
+                project_uuid: projectUuid,
+                user_uuid: user.userUuid,
+                organization_uuid: user.organizationUuid,
+            },
+        });
     }
 
     private async getIsCopilotEnabled(
@@ -400,5 +485,108 @@ export class AiAgentService {
         });
 
         return { jobId, threadUuid };
+    }
+
+    async generateAgentThreadMessageViz(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            messageUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        },
+    ): Promise<{
+        results: Awaited<
+            ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
+        >;
+        metricQuery: AiMetricQuery;
+        vizConfig?: object;
+    }> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const { projectUuid } = agent;
+
+        const message = await this.aiAgentModel.findThreadMessage('assistant', {
+            organizationUuid,
+            threadUuid,
+            messageUuid,
+        });
+
+        if (message.role === 'user') {
+            throw new ForbiddenError(
+                'User messages are not supported for this endpoint',
+            );
+        }
+
+        if (!message.metricQuery || !message.vizConfigOutput) {
+            throw new ForbiddenError(
+                'Viz config or metric query not found for this message',
+            );
+        }
+
+        const verticalBarMetricChartConfig =
+            verticalBarMetricChartConfigSchema.safeParse(
+                message.vizConfigOutput,
+            );
+        const timeSeriesMetricChartConfig =
+            timeSeriesMetricChartConfigSchema.safeParse(
+                message.vizConfigOutput,
+            );
+        const csvFileConfig = csvFileConfigSchema.safeParse(
+            message.vizConfigOutput,
+        );
+
+        // FIXME: viz config should have a type so we can use an exhaustive switch
+        if (verticalBarMetricChartConfig.success) {
+            return renderVerticalBarMetricChart({
+                runMetricQuery: (q) => {
+                    console.log({ projectUuid, q });
+                    return this.runAiMetricQuery(user, projectUuid, q);
+                },
+                vizConfig: verticalBarMetricChartConfig.data,
+                filters: message.filtersOutput ?? undefined,
+            });
+        }
+
+        if (timeSeriesMetricChartConfig.success) {
+            return renderTimeseriesChart({
+                runMetricQuery: (q) =>
+                    this.runAiMetricQuery(user, projectUuid, q),
+                vizConfig: timeSeriesMetricChartConfig.data,
+                filters: message.filtersOutput ?? undefined,
+            });
+        }
+
+        if (csvFileConfig.success) {
+            return renderCsvFile({
+                runMetricQuery: (q) =>
+                    this.runAiMetricQuery(user, projectUuid, q),
+                config: csvFileConfig.data,
+                filters: message.filtersOutput ?? undefined,
+                maxLimit: AI_DEFAULT_MAX_QUERY_LIMIT,
+            });
+        }
+
+        throw new ForbiddenError('Invalid viz config');
     }
 }

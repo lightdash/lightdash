@@ -5675,6 +5675,93 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName-or-filters_": {
+                "properties": {
+                    "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    },
+                    "filters": {
+                        "$ref": "#/components/schemas/Filters"
+                    }
+                },
+                "required": [
+                    "metrics",
+                    "dimensions",
+                    "sorts",
+                    "limit",
+                    "exploreName",
+                    "filters"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiMetricQuery": {
+                "$ref": "#/components/schemas/Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName-or-filters_"
+            },
+            "ApiAiAgentThreadMessageVizResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "chartOptions": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/AiMetricQuery"
+                            },
+                            "results": {
+                                "properties": {
+                                    "fields": {
+                                        "$ref": "#/components/schemas/ItemsMap"
+                                    },
+                                    "cacheMetadata": {
+                                        "$ref": "#/components/schemas/CacheMetadata"
+                                    },
+                                    "rows": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/Record_string.AnyType_"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "required": ["fields", "cacheMetadata", "rows"],
+                                "type": "object"
+                            }
+                        },
+                        "required": ["metricQuery", "results"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiJobScheduledResponse": {
                 "properties": {
                     "results": {
@@ -9716,6 +9803,9 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "filters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -9763,9 +9853,6 @@
                         },
                         "type": "array"
                     },
-                    "filters": {
-                        "$ref": "#/components/schemas/DashboardFilters"
-                    },
                     "tabs": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardTab"
@@ -9782,6 +9869,7 @@
                     "uuid",
                     "organizationUuid",
                     "updatedAt",
+                    "filters",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -9791,7 +9879,6 @@
                     "firstViewedAt",
                     "dashboardVersionId",
                     "tiles",
-                    "filters",
                     "tabs"
                 ],
                 "type": "object",
@@ -12189,22 +12276,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -15385,13 +15472,13 @@
             },
             "Pick_SemanticLayerQuery.dimensions-or-timeDimensions-or-metrics_": {
                 "properties": {
-                    "dimensions": {
+                    "metrics": {
                         "items": {
                             "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
                         },
                         "type": "array"
                     },
-                    "metrics": {
+                    "dimensions": {
                         "items": {
                             "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
                         },
@@ -15404,7 +15491,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["dimensions", "metrics", "timeDimensions"],
+                "required": ["metrics", "dimensions", "timeDimensions"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -16331,34 +16418,17 @@
             },
             "Pick_MetricQueryRequest.Exclude_keyofMetricQueryRequest.csvLimit__": {
                 "properties": {
-                    "filters": {
-                        "properties": {
-                            "tableCalculations": {},
-                            "metrics": {},
-                            "dimensions": {}
-                        },
-                        "type": "object"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
                     "metrics": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
                     },
-                    "tableCalculations": {
+                    "dimensions": {
                         "items": {
-                            "$ref": "#/components/schemas/TableCalculation"
+                            "type": "string"
                         },
                         "type": "array"
-                    },
-                    "exploreName": {
-                        "type": "string"
                     },
                     "sorts": {
                         "items": {
@@ -16369,6 +16439,23 @@
                     "limit": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    },
+                    "filters": {
+                        "properties": {
+                            "tableCalculations": {},
+                            "metrics": {},
+                            "dimensions": {}
+                        },
+                        "type": "object"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        "type": "array"
                     },
                     "additionalMetrics": {
                         "items": {
@@ -16402,13 +16489,13 @@
                     }
                 },
                 "required": [
-                    "filters",
-                    "dimensions",
                     "metrics",
-                    "tableCalculations",
-                    "exploreName",
+                    "dimensions",
                     "sorts",
-                    "limit"
+                    "limit",
+                    "exploreName",
+                    "filters",
+                    "tableCalculations"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -17488,7 +17575,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1664.0",
+        "version": "0.1665.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

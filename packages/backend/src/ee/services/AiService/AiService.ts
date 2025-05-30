@@ -15,6 +15,7 @@ import {
     AiChatMessage,
     AiConversation,
     AiConversationMessage,
+    AiMetricQuery,
     AiWebAppPrompt,
     AnyType,
     CatalogType,
@@ -64,7 +65,6 @@ import { AiModel } from '../../models/AiModel';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
 import { AiAgentService } from '../AiAgentService';
 import { CommercialCatalogService } from '../CommercialCatalogService';
-import { MiniMetricQuery } from './runMiniMetricQuery/runMiniMetricQuery';
 import { getFindFieldsTool } from './tools/findFieldsTool';
 import { getGenerateBarVizConfigTool } from './tools/generateBarVizConfigTool';
 import { getGenerateCsvTool } from './tools/generateCsvTool';
@@ -530,7 +530,7 @@ export class AiService {
 
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack
     // This is scoped to the project, user and prompt (closure)
-    private getToolUtilities(
+    public getToolUtilities(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
         availableTags: string[] | null,
@@ -607,7 +607,7 @@ export class AiService {
             return webOrSlackPrompt;
         };
 
-        const runMiniMetricQuery = async (metricQuery: MiniMetricQuery) => {
+        const runMiniMetricQuery = async (metricQuery: AiMetricQuery) => {
             const explore = await getExplore({
                 exploreName: metricQuery.exploreName,
             });
@@ -1382,7 +1382,7 @@ ${
         const rows = finalPrompt.metricQuery
             ? (
                   await utils.runMiniMetricQuery(
-                      finalPrompt.metricQuery as MiniMetricQuery,
+                      finalPrompt.metricQuery as AiMetricQuery,
                   )
               ).rows
             : undefined;

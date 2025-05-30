@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import type { AnyType, CacheMetadata, ItemsMap, MetricQuery } from '../..';
+
+export type AiMetricQuery = Pick<
+    MetricQuery,
+    'metrics' | 'dimensions' | 'sorts' | 'limit' | 'exploreName' | 'filters'
+>;
 
 export const baseAgentSchema = z.object({
     uuid: z.string(),
@@ -164,6 +170,19 @@ export type ApiAiAgentStartThreadResponse = {
     results: {
         jobId: string;
         threadUuid: string;
+    };
+};
+
+export type ApiAiAgentThreadMessageVizResponse = {
+    status: 'ok';
+    results: {
+        results: {
+            rows: Record<string, AnyType>[];
+            cacheMetadata: CacheMetadata;
+            fields: ItemsMap;
+        };
+        metricQuery: AiMetricQuery;
+        chartOptions?: object;
     };
 };
 
