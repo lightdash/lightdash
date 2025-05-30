@@ -12,7 +12,6 @@ import {
     CompiledDimension,
     convertCustomFormatToFormatExpression,
     convertFieldRefToFieldId,
-    convertItemTypeToDimensionType,
     createVirtualView as createVirtualViewObject,
     CreateWarehouseCredentials,
     type CustomDimension,
@@ -33,7 +32,6 @@ import {
     getDashboardFilterRulesForTileAndReferences,
     getDimensions,
     getErrorMessage,
-    getFieldLabel,
     getFieldQuoteChar,
     getIntrinsicUserAttributes,
     getItemId,
@@ -76,11 +74,9 @@ import { SshTunnel } from '@lightdash/warehouses';
 import { createInterface } from 'readline';
 import { Readable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
-import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
-import type { DbResultsCacheUpdate } from '../../database/entities/resultsFile';
+import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { measureTime } from '../../logging/measureTime';
-import type { QueryHistoryModel } from '../../models/QueryHistoryModel';
-import { ResultsFileModel } from '../../models/ResultsFileModel/ResultsFileModel';
+import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import {
     applyLimitToSqlQuery,
@@ -89,12 +85,7 @@ import {
 } from '../../queryBuilder';
 import { wrapSentryTransaction } from '../../utils';
 import type { ICacheService } from '../CacheService/ICacheService';
-import {
-    type CacheHitCacheResult,
-    CreateCacheResult,
-    MissCacheResult,
-    ResultsCacheStatus,
-} from '../CacheService/types';
+import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import {
     ProjectService,
@@ -125,7 +116,6 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     queryHistoryModel: QueryHistoryModel;
     cacheService?: ICacheService;
     savedSqlModel: SavedSqlModel;
-    resultsFileModel: ResultsFileModel;
     storageClient: S3ResultsFileStorageClient;
 };
 
@@ -136,15 +126,12 @@ export class AsyncQueryService extends ProjectService {
 
     savedSqlModel: SavedSqlModel;
 
-    resultsFileModel: ResultsFileModel;
-
     storageClient: S3ResultsFileStorageClient;
 
     constructor({
         queryHistoryModel,
         cacheService,
         savedSqlModel,
-        resultsFileModel,
         storageClient,
         ...projectServiceArgs
     }: AsyncQueryServiceArguments) {
@@ -152,7 +139,6 @@ export class AsyncQueryService extends ProjectService {
         this.queryHistoryModel = queryHistoryModel;
         this.cacheService = cacheService;
         this.savedSqlModel = savedSqlModel;
-        this.resultsFileModel = resultsFileModel;
         this.storageClient = storageClient;
     }
 
@@ -212,96 +198,38 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
-    async createOrGetExistingCache(
+    async findResultsCache(
         projectUuid: string,
-        cacheIdentifiers: {
-            sql: string;
-            timezone?: string;
-        },
+        cacheKey: string,
         invalidateCache: boolean = false,
     ): Promise<CreateCacheResult> {
-        // Generate cache key from project and query identifiers
-        const cacheKey = ResultsFileModel.getCacheKey(
-            projectUuid,
-            cacheIdentifiers,
-        );
-
-        // Check if cache already exists
-        const existingCache = await this.cacheService?.findCachedResultsFile(
-            projectUuid,
-            cacheIdentifiers,
-        );
-
-        // Case 1: Valid cache exists and not being invalidated
-        if (existingCache && !invalidateCache) {
-            return existingCache;
-        }
-
-        // Create upload stream for storing results
-        const { write, close } = this.storageClient.createUploadStream(
-            `${cacheKey}.jsonl`,
-            {
-                contentType: 'application/jsonl',
-            },
-        );
-
-        const now = new Date();
-        const newExpiresAt = this.getCacheExpiresAt(now);
-
-        // Case 2: No valid cache exists - upsert cache entry
-        const createdCache = await this.resultsFileModel.create({
-            cache_key: cacheKey,
-            project_uuid: projectUuid,
-            expires_at: newExpiresAt,
-            total_row_count: null,
-            status: ResultsCacheStatus.PENDING,
-            columns: null,
-            original_columns: null,
-        });
-
-        if (!createdCache) {
-            await close();
-            throw new Error('Failed to create cache');
+        if (!invalidateCache) {
+            // Check if cache already exists
+            const existingCache =
+                await this.cacheService?.findCachedResultsFile(
+                    projectUuid,
+                    cacheKey,
+                );
+            // Valid cache exists and not being invalidated
+            if (existingCache) {
+                return existingCache;
+            }
         }
 
         return {
-            cacheKey: createdCache.cache_key,
-            createdAt: createdCache.created_at,
-            updatedAt: createdCache.updated_at,
-            expiresAt: createdCache.expires_at,
-            write,
-            close,
             cacheHit: false,
-            totalRowCount: null,
+            updatedAt: undefined,
+            expiresAt: undefined,
         };
     }
 
-    async getCachedResultsPage(
-        cacheKey: string,
-        projectUuid: string,
+    async getResultsPage(
+        fileName: string,
         page: number,
         pageSize: number,
         formatter: (row: ResultRow) => ResultRow,
     ) {
-        const cache = await this.resultsFileModel.find(cacheKey, projectUuid);
-
-        if (!cache) {
-            // TODO: throw a specific error the FE will respond to
-            throw new NotFoundError(
-                `Cache not found for key ${cacheKey} and project ${projectUuid}`,
-            );
-        }
-
-        if (cache.expires_at < new Date()) {
-            await this.resultsFileModel.delete(cacheKey, projectUuid);
-
-            // TODO: throw a specific error the FE will respond to
-            throw new ExpiredError(
-                `Cache expired for key ${cacheKey} and project ${projectUuid}`,
-            );
-        }
-
-        const cacheStream = await this.storageClient.getDowloadStream(cacheKey);
+        const cacheStream = await this.storageClient.getDowloadStream(fileName);
 
         const rows: ResultRow[] = [];
         const rl = createInterface({
@@ -327,46 +255,7 @@ export class AsyncQueryService extends ProjectService {
 
         return {
             rows,
-            columns: cache.columns,
-            originalColumns: cache.original_columns,
-            totalRowCount: cache.total_row_count ?? 0,
-            expiresAt: cache.expires_at,
         };
-    }
-
-    async updateCache(
-        cacheKey: string,
-        projectUuid: string,
-        update: DbResultsCacheUpdate,
-    ) {
-        await this.resultsFileModel.update(cacheKey, projectUuid, update);
-    }
-
-    async deleteCache(cacheKey: string, projectUuid: string) {
-        await this.resultsFileModel.delete(cacheKey, projectUuid);
-    }
-
-    async findCache(
-        cacheKey: string,
-        projectUuid: string,
-    ): Promise<CacheHitCacheResult | undefined> {
-        const cache = await this.resultsFileModel.find(cacheKey, projectUuid);
-
-        if (cache) {
-            return {
-                cacheKey,
-                createdAt: cache.created_at,
-                updatedAt: cache.updated_at,
-                expiresAt: cache.expires_at,
-                cacheHit: true,
-                write: undefined,
-                close: undefined,
-                totalRowCount: cache.total_row_count ?? 0,
-                status: cache.status,
-            };
-        }
-
-        return undefined;
     }
 
     async cancelAsyncQuery({
@@ -447,8 +336,16 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const { context, status, totalRowCount, cacheKey, fields } =
-            queryHistory;
+        const {
+            context,
+            status,
+            totalRowCount,
+            cacheKey,
+            resultsFileName,
+            resultsExpiresAt,
+            columns,
+            originalColumns,
+        } = queryHistory;
 
         if (status === QueryHistoryStatus.ERROR) {
             return {
@@ -458,14 +355,6 @@ export class AsyncQueryService extends ProjectService {
             };
         }
 
-        if (!cacheKey) {
-            throw new NotFoundError(
-                `Result file not found for query ${queryUuid}`,
-            );
-        }
-
-        const cache = await this.findCache(cacheKey, projectUuid);
-
         switch (status) {
             case QueryHistoryStatus.CANCELLED:
                 return {
@@ -473,46 +362,26 @@ export class AsyncQueryService extends ProjectService {
                     queryUuid,
                 };
             case QueryHistoryStatus.PENDING:
-                if (cache?.status === ResultsCacheStatus.READY) {
-                    // If the cache is ready, we update the query history status to READY and return the current state
-                    // This avoids a race condition where the query history was READY but the cache (triggered by another request) was still being written
-                    this.logger.debug(
-                        `Updating query history status to READY for query ${queryUuid} in project ${projectUuid}. Cache status: ${cache?.status}`,
-                    );
-                    void this.queryHistoryModel.update(
-                        queryUuid,
-                        projectUuid,
-                        user.userUuid,
-                        {
-                            status: QueryHistoryStatus.READY,
-                            total_row_count: cache.totalRowCount,
-                        },
-                    );
-                }
-
                 return {
                     status,
                     queryUuid,
                 };
             case QueryHistoryStatus.READY:
-                // If the cache is still in PENDING state, we return PENDING status
-                // This avoids a race condition where the query history was READY but the cache (triggered by another request) was still being written
-                // Avoids "No Columns found" error
-                if (cache?.status === ResultsCacheStatus.PENDING) {
-                    this.logger.debug(
-                        `Race condition detected, query ${queryUuid} in project ${projectUuid} is in READY state but cache is still in PENDING state. Returning PENDING status`,
-                    );
-
-                    // No need to update query history status here. Leave it as is until https://github.com/lightdash/lightdash/issues/14728 is closed
-                    return {
-                        status: QueryHistoryStatus.PENDING,
-                        queryUuid,
-                    };
-                }
-
                 break;
             default:
                 return assertUnreachable(status, 'Unknown query status');
+        }
+
+        if (!resultsFileName || !resultsExpiresAt) {
+            throw new NotFoundError(
+                `Result file not found for query ${queryUuid}`,
+            );
+        }
+        if (resultsExpiresAt < new Date()) {
+            // TODO: throw a specific error the FE will respond to
+            throw new ExpiredError(
+                `Results expired for file ${resultsFileName} and project ${projectUuid}`,
+            );
         }
 
         const defaultedPageSize =
@@ -531,20 +400,12 @@ export class AsyncQueryService extends ProjectService {
             formatRow(row, queryHistory.fields);
 
         const {
-            result: {
-                rows,
-                columns,
-                originalColumns,
-                totalRowCount: cacheTotalRowCount,
-                expiresAt,
-            },
-            result,
+            result: { rows },
             durationMs,
         } = await measureTime(
             () =>
-                this.getCachedResultsPage(
-                    cacheKey,
-                    projectUuid,
+                this.getResultsPage(
+                    resultsFileName,
                     page,
                     defaultedPageSize,
                     formatter,
@@ -554,7 +415,7 @@ export class AsyncQueryService extends ProjectService {
             context,
         );
 
-        const pageCount = Math.ceil(cacheTotalRowCount / defaultedPageSize);
+        const pageCount = Math.ceil((totalRowCount ?? 0) / defaultedPageSize);
 
         const roundedDurationMs = Math.round(durationMs);
 
@@ -587,13 +448,13 @@ export class AsyncQueryService extends ProjectService {
                     queryHistory?.warehouseQueryMetadata?.type ?? null,
                 page,
                 columnsCount: Object.keys(queryHistory.fields).length,
-                totalRowCount: cacheTotalRowCount,
+                totalRowCount: totalRowCount ?? 0,
                 totalPageCount: pageCount,
                 resultsPageSize: rows.length,
                 resultsPageExecutionMs: roundedDurationMs,
                 status,
                 cacheMetadata: {
-                    cacheExpiresAt: expiresAt,
+                    cacheExpiresAt: resultsExpiresAt,
                     cacheKey,
                 },
             },
@@ -630,7 +491,7 @@ export class AsyncQueryService extends ProjectService {
             rows,
             columns,
             totalPageCount: pageCount,
-            totalResults: cacheTotalRowCount,
+            totalResults: totalRowCount ?? 0,
             queryUuid: queryHistory.queryUuid,
             pageSize: rows.length,
             page,
@@ -699,7 +560,7 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const { status, cacheKey: resultsFileName } = queryHistory;
+        const { status, resultsFileName } = queryHistory;
 
         if (status === QueryHistoryStatus.ERROR) {
             throw new Error(queryHistory.error ?? 'Warehouse query failed');
@@ -756,7 +617,7 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const { status, cacheKey: resultsFileName, fields } = queryHistory;
+        const { status, resultsFileName, fields } = queryHistory;
 
         // First check the query status
         switch (status) {
@@ -783,7 +644,6 @@ export class AsyncQueryService extends ProjectService {
             case DownloadFileType.CSV:
                 return this.downloadAsyncQueryResultsAsCsv(
                     resultsFileName,
-                    projectUuid,
                     fields,
                 );
             case undefined:
@@ -805,16 +665,8 @@ export class AsyncQueryService extends ProjectService {
 
     private async downloadAsyncQueryResultsAsCsv(
         resultsFileName: string,
-        projectUuid: string,
         fields: ItemsMap,
     ): Promise<ApiDownloadAsyncQueryResultsAsCsv> {
-        // Get the results
-        const resultsFile = await this.findCache(resultsFileName, projectUuid);
-
-        if (!resultsFile) {
-            throw new Error('Results file not found for query');
-        }
-
         // Generate a unique filename
         const csvFileName = CsvService.generateFileId(resultsFileName);
 
@@ -862,13 +714,13 @@ export class AsyncQueryService extends ProjectService {
         warehouseClient,
         query,
         queryTags,
-        resultsCache,
+        write,
         pivotConfiguration,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
         queryTags: RunQueryTags;
-        resultsCache: MissCacheResult;
+        write: (rows: Record<string, unknown>[]) => void;
         pivotConfiguration?: {
             indexColumn: PivotIndexColum;
             valuesColumns: ValuesColumn[];
@@ -914,7 +766,7 @@ export class AsyncQueryService extends ProjectService {
                       pivotConfiguration;
 
                   if (!groupByColumns || groupByColumns.length === 0) {
-                      resultsCache.write(rows);
+                      write(rows);
                       return;
                   }
 
@@ -923,7 +775,7 @@ export class AsyncQueryService extends ProjectService {
                       if (currentRowIndex !== row.row_index) {
                           if (currentTransformedRow) {
                               pivotTotalRows += 1;
-                              resultsCache.write([currentTransformedRow]);
+                              write([currentTransformedRow]);
                           }
 
                           if (indexColumn) {
@@ -969,7 +821,7 @@ export class AsyncQueryService extends ProjectService {
                       unpivotedColumns,
                       fields,
                   );
-                  resultsCache.write(rows);
+                  write(rows);
               };
 
         const warehouseResults = await warehouseClient.executeAsyncQuery(
@@ -991,7 +843,7 @@ export class AsyncQueryService extends ProjectService {
         // Write the last row
         if (currentTransformedRow) {
             pivotTotalRows += 1;
-            resultsCache.write([currentTransformedRow]);
+            write([currentTransformedRow]);
         }
 
         return {
@@ -1019,7 +871,7 @@ export class AsyncQueryService extends ProjectService {
         warehouseClient,
         sshTunnel,
         queryHistoryUuid,
-        resultsCache,
+        cacheKey,
         pivotConfiguration,
         originalColumns,
     }: {
@@ -1029,7 +881,7 @@ export class AsyncQueryService extends ProjectService {
         query: string;
         fieldsMap: ItemsMap;
         queryHistoryUuid: string;
-        resultsCache: MissCacheResult;
+        cacheKey: string;
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
         pivotConfiguration?: {
@@ -1040,7 +892,35 @@ export class AsyncQueryService extends ProjectService {
         };
         originalColumns?: ResultColumns;
     }) {
+        let stream:
+            | {
+                  write: (rows: Record<string, unknown>[]) => void;
+                  close: () => Promise<void>;
+              }
+            | undefined;
         try {
+            const fileName =
+                QueryHistoryModel.createUniqueResultsFileName(cacheKey);
+            // Create upload stream for storing results
+            stream = this.storageClient.createUploadStream(
+                S3ResultsFileStorageClient.sanitizeFileExtension(fileName),
+                {
+                    contentType: 'application/jsonl',
+                },
+            );
+            const createdAt = new Date();
+            const newExpiresAt = this.getCacheExpiresAt(createdAt);
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'results_cache.create',
+                properties: {
+                    projectId: projectUuid,
+                    cacheKey,
+                    totalRowCount: null,
+                    createdAt,
+                    expiresAt: newExpiresAt,
+                },
+            });
             const {
                 warehouseResults: {
                     durationMs,
@@ -1054,7 +934,7 @@ export class AsyncQueryService extends ProjectService {
                 warehouseClient,
                 query,
                 queryTags,
-                resultsCache,
+                write: stream.write,
                 pivotConfiguration,
             });
 
@@ -1075,13 +955,7 @@ export class AsyncQueryService extends ProjectService {
             });
 
             // Wait for the cache to be written before marking the query as ready
-            await resultsCache.close();
-            await this.updateCache(resultsCache.cacheKey, projectUuid, {
-                status: ResultsCacheStatus.READY,
-                total_row_count: pivotDetails?.totalRows ?? totalRows,
-                columns,
-                original_columns: originalColumns,
-            });
+            await stream.close();
 
             this.analytics.track({
                 userId: user.userUuid,
@@ -1089,7 +963,7 @@ export class AsyncQueryService extends ProjectService {
                 properties: {
                     queryId: queryHistoryUuid,
                     projectId: projectUuid,
-                    cacheKey: resultsCache.cacheKey,
+                    cacheKey,
                     totalRowCount: pivotDetails?.totalRows ?? totalRows,
                     pivotTotalColumnCount: pivotDetails?.totalColumnCount,
                     isPivoted: pivotDetails !== null,
@@ -1113,6 +987,12 @@ export class AsyncQueryService extends ProjectService {
                               pivotDetails.valuesColumns.entries(),
                           )
                         : null,
+                    results_file_name: fileName,
+                    results_created_at: createdAt,
+                    results_updated_at: new Date(),
+                    results_expires_at: newExpiresAt,
+                    columns,
+                    original_columns: originalColumns,
                 },
             );
         } catch (e) {
@@ -1134,24 +1014,9 @@ export class AsyncQueryService extends ProjectService {
                     error: getErrorMessage(e),
                 },
             );
-
-            // When the query fails, we delete the cache entry
-            await this.deleteCache(resultsCache.cacheKey, projectUuid);
-            this.analytics.track({
-                userId: user.userUuid,
-                event: 'results_cache.delete',
-                properties: {
-                    queryId: queryHistoryUuid,
-                    projectId: projectUuid,
-                    cacheKey: resultsCache.cacheKey,
-                },
-            });
         } finally {
             void sshTunnel.disconnect();
-
-            if (resultsCache) {
-                void resultsCache.close();
-            }
+            void stream?.close();
         }
     }
 
@@ -1324,28 +1189,20 @@ export class AsyncQueryService extends ProjectService {
                         );
                     }
 
-                    const resultsCache = await this.createOrGetExistingCache(
+                    // Generate cache key from project and query identifiers
+                    const cacheKey = QueryHistoryModel.getCacheKey(
                         projectUuid,
                         {
                             sql: query,
                             timezone: metricQuery.timezone,
                         },
-                        args.invalidateCache,
                     );
 
-                    if (!resultsCache.cacheHit) {
-                        this.analytics.track({
-                            userId: user.userUuid,
-                            event: 'results_cache.create',
-                            properties: {
-                                projectId: projectUuid,
-                                cacheKey: resultsCache.cacheKey,
-                                totalRowCount: resultsCache.totalRowCount,
-                                createdAt: resultsCache.createdAt,
-                                expiresAt: resultsCache.expiresAt,
-                            },
-                        });
-                    }
+                    const resultsCache = await this.findResultsCache(
+                        projectUuid,
+                        cacheKey,
+                        args.invalidateCache,
+                    );
 
                     const { queryUuid: queryHistoryUuid } =
                         await this.queryHistoryModel.create({
@@ -1357,7 +1214,7 @@ export class AsyncQueryService extends ProjectService {
                             compiledSql: query,
                             requestParameters,
                             metricQuery,
-                            cacheKey: resultsCache.cacheKey,
+                            cacheKey,
                             pivotConfiguration: pivotConfiguration ?? null,
                         });
 
@@ -1396,17 +1253,20 @@ export class AsyncQueryService extends ProjectService {
                             projectUuid,
                             user.userUuid,
                             {
-                                // If the cache is ready, we set the query history status to READY
-                                // Otherwise, we set it to PENDING
-                                status:
-                                    resultsCache.status ===
-                                    ResultsCacheStatus.READY
-                                        ? QueryHistoryStatus.READY
-                                        : QueryHistoryStatus.PENDING,
+                                status: QueryHistoryStatus.READY,
                                 error: null,
                                 total_row_count: resultsCache.totalRowCount,
+                                columns: resultsCache.columns,
+                                original_columns: resultsCache.originalColumns,
+                                results_file_name: resultsCache.fileName,
+                                results_created_at: resultsCache.createdAt,
+                                results_updated_at: resultsCache.updatedAt,
+                                results_expires_at: resultsCache.expiresAt,
+                                pivot_values_columns:
+                                    resultsCache.pivotValuesColumns,
+                                pivot_total_column_count:
+                                    resultsCache.pivotTotalColumnCount,
                                 warehouse_execution_time_ms: 0, // When cache is hit, no query is executed
-                                // TODO: we need to update query history model here
                             },
                         );
 
@@ -1420,7 +1280,7 @@ export class AsyncQueryService extends ProjectService {
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
-                    // Trigger query in the background, update query history and cache when complete
+                    // Trigger query in the background, update query history when complete
                     void this.runAsyncWarehouseQuery({
                         user,
                         projectUuid,
@@ -1431,18 +1291,14 @@ export class AsyncQueryService extends ProjectService {
                         sshTunnel,
                         queryHistoryUuid,
                         pivotConfiguration,
-                        // resultsCache is MissCacheResult at this point,
-                        // meaning that the cache was not hit
-                        resultsCache,
+                        cacheKey,
                         originalColumns,
                     });
 
                     return {
                         queryUuid: queryHistoryUuid,
                         cacheMetadata: {
-                            cacheHit: resultsCache.cacheHit || false,
-                            cacheUpdatedTime: resultsCache.updatedAt,
-                            cacheExpiresAt: resultsCache.expiresAt,
+                            cacheHit: false,
                         },
                     } satisfies ExecuteAsyncQueryReturn;
                 } catch (e) {
