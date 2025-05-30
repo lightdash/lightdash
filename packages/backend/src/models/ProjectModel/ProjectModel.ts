@@ -335,6 +335,7 @@ export class ProjectModel {
         } catch (e) {
             throw new UnexpectedServerError('Could not save credentials.');
         }
+
         await trx('warehouse_credentials')
             .insert({
                 project_id: projectId,
@@ -781,7 +782,6 @@ export class ProjectModel {
                   ),
               ) as WarehouseCredentials)
             : undefined;
-
         const nonSensitiveSemanticLayerCredentials =
             sensitiveSemanticLayerCredentials
                 ? ProjectModel.getSemanticLayerNonSensitiveCredentials(
@@ -1323,6 +1323,7 @@ export class ProjectModel {
 
     async getWarehouseCredentialsForProject(
         projectUuid: string,
+        refreshToken?: string, // TODO make this a fucntion to get the refresh token for the user, and use it if bigquery
     ): Promise<CreateWarehouseCredentials> {
         const [row] = await this.database('warehouse_credentials')
             .innerJoin(
