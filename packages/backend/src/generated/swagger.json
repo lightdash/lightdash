@@ -16785,7 +16785,19 @@
                 "required": ["truncated", "fileUrl"],
                 "type": "object"
             },
-            "ApiSuccess_ApiDownloadAsyncQueryResults-or-ApiDownloadAsyncQueryResultsAsCsv_": {
+            "ApiDownloadAsyncQueryResultsAsXlsx": {
+                "properties": {
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "fileUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": ["truncated", "fileUrl"],
+                "type": "object"
+            },
+            "ApiSuccess_ApiDownloadAsyncQueryResults-or-ApiDownloadAsyncQueryResultsAsCsv-or-ApiDownloadAsyncQueryResultsAsXlsx_": {
                 "properties": {
                     "results": {
                         "anyOf": [
@@ -16794,6 +16806,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/ApiDownloadAsyncQueryResultsAsCsv"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ApiDownloadAsyncQueryResultsAsXlsx"
                             }
                         ]
                     },
@@ -16807,7 +16822,7 @@
                 "type": "object"
             },
             "DownloadFileType": {
-                "enum": ["csv", "image", "jsonl", "s3_jsonl"],
+                "enum": ["csv", "image", "jsonl", "s3_jsonl", "xlsx"],
                 "type": "string"
             },
             "FeatureFlag": {
@@ -17465,7 +17480,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1659.1",
+        "version": "0.1659.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

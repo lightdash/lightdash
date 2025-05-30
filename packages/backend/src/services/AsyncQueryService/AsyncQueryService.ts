@@ -3,6 +3,7 @@ import {
     addDashboardFiltersToMetricQuery,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
+    type ApiDownloadAsyncQueryResultsAsXlsx,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
@@ -74,7 +75,7 @@ import {
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import { createInterface } from 'readline';
-import { Readable } from 'stream';
+import { Readable, Writable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { DbResultsCacheUpdate } from '../../database/entities/resultsFile';
@@ -96,6 +97,7 @@ import {
     ResultsCacheStatus,
 } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
+import { ExcelService } from '../ExcelService/ExcelService';
 import {
     ProjectService,
     type ProjectServiceArguments,
@@ -726,7 +728,9 @@ export class AsyncQueryService extends ProjectService {
         queryUuid,
         type,
     }: DownloadAsyncQueryResultsArgs): Promise<
-        ApiDownloadAsyncQueryResults | ApiDownloadAsyncQueryResultsAsCsv
+        | ApiDownloadAsyncQueryResults
+        | ApiDownloadAsyncQueryResultsAsCsv
+        | ApiDownloadAsyncQueryResultsAsXlsx
     > {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -781,10 +785,25 @@ export class AsyncQueryService extends ProjectService {
         // Handle file type in a separate switch
         switch (type) {
             case DownloadFileType.CSV:
-                return this.downloadAsyncQueryResultsAsCsv(
+                return this.downloadAsyncQueryResultsAsFormattedFile(
                     resultsFileName,
                     projectUuid,
                     fields,
+                    {
+                        generateFileId: CsvService.generateFileId,
+                        streamJsonlRowsToFile: CsvService.streamJsonlRowsToFile,
+                    },
+                );
+            case DownloadFileType.XLSX:
+                return this.downloadAsyncQueryResultsAsFormattedFile(
+                    resultsFileName,
+                    projectUuid,
+                    fields,
+                    {
+                        generateFileId: ExcelService.generateFileId,
+                        streamJsonlRowsToFile:
+                            ExcelService.streamJsonlRowsToFile,
+                    },
                 );
             case undefined:
             case DownloadFileType.JSONL:
@@ -803,11 +822,21 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
-    private async downloadAsyncQueryResultsAsCsv(
+    private async downloadAsyncQueryResultsAsFormattedFile(
         resultsFileName: string,
         projectUuid: string,
         fields: ItemsMap,
-    ): Promise<ApiDownloadAsyncQueryResultsAsCsv> {
+        service: {
+            generateFileId: (fileName: string) => string;
+            streamJsonlRowsToFile: (
+                onlyRaw: boolean,
+                itemMap: ItemsMap,
+                sortedFieldIds: string[],
+                headers: string[],
+                streams: { readStream: Readable; writeStream: Writable },
+            ) => Promise<{ truncated: boolean }>;
+        },
+    ): Promise<{ fileUrl: string; truncated: boolean }> {
         // Get the results
         const resultsFile = await this.findCache(resultsFileName, projectUuid);
 
@@ -816,23 +845,23 @@ export class AsyncQueryService extends ProjectService {
         }
 
         // Generate a unique filename
-        const csvFileName = CsvService.generateFileId(resultsFileName);
+        const formattedFileName = service.generateFileId(resultsFileName);
 
-        const csvHeaders = Object.keys(fields).map((field) =>
+        const headers = Object.keys(fields).map((field) =>
             getItemLabel(fields[field]),
         );
 
         // Transform and upload the results
         return this.storageClient.transformResultsIntoNewFile(
             resultsFileName,
-            csvFileName,
+            formattedFileName,
             async (readStream, writeStream) => {
                 // Use streamJsonlRowsToFile which handles JSONL data from S3
-                const { truncated } = await CsvService.streamJsonlRowsToFile(
+                const { truncated } = await service.streamJsonlRowsToFile(
                     false,
                     fields,
                     Object.keys(fields), // TODO: sorted field ids
-                    csvHeaders,
+                    headers,
                     {
                         readStream,
                         writeStream,
