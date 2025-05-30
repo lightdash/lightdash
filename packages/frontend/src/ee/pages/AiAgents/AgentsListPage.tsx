@@ -1,19 +1,25 @@
 import { subject } from '@casl/ability';
 import { type AiAgent } from '@lightdash/common';
 import {
+    Badge,
+    Box,
     Button,
     Card,
+    Center,
     Divider,
     Grid,
     Group,
+    Paper,
     Pill,
     Stack,
     Text,
     Title,
+    Tooltip,
 } from '@mantine-8/core';
-import { IconPlus } from '@tabler/icons-react';
+import { IconBook, IconHelp, IconPlus } from '@tabler/icons-react';
 import { Link } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
+import MantineIcon from '../../../components/common/MantineIcon';
 import Page from '../../../components/common/Page/Page';
 import PageSpinner from '../../../components/PageSpinner';
 import useApp from '../../../providers/App/useApp';
@@ -35,19 +41,27 @@ const AgentCard = ({ agent }: AgentCardProps) => {
             component={Link}
             to={`/aiAgents/${agent.uuid}/threads`}
         >
-            <Stack gap="sm" p="lg">
-                <Group>
+            <Stack gap="sm" p="lg" style={{ flex: 1 }}>
+                <Group gap="sm">
                     <LightdashUserAvatar
                         name={agent.name}
-                        size="lg"
+                        h={54}
+                        w={54}
                         variant="filled"
                     />
                     <Stack gap="xs">
-                        <Title order={4}>{agent.name}</Title>
+                        <Title order={5}>{agent.name}</Title>
                         <Group gap={4}>
                             {agent.tags && agent.tags.length > 0 ? (
                                 agent.tags.map((tag) => (
-                                    <Pill key={tag}>{tag}</Pill>
+                                    <Pill
+                                        key={tag}
+                                        variant="outline"
+                                        size="sm"
+                                        px="xs"
+                                    >
+                                        {tag}
+                                    </Pill>
                                 ))
                             ) : (
                                 <Text size="sm" c="dimmed">
@@ -66,7 +80,7 @@ const AgentCard = ({ agent }: AgentCardProps) => {
                 </Text>
             </Stack>
             <Divider />
-            <Group justify="space-between" p="lg">
+            <Group justify="space-between" p="sm">
                 <Button
                     variant="default"
                     c="dimmed"
@@ -76,7 +90,9 @@ const AgentCard = ({ agent }: AgentCardProps) => {
                 >
                     Settings
                 </Button>
-                <Button variant="default">Start a chat</Button>
+                <Button variant="default" size="sm" px="md">
+                    Start a chat
+                </Button>
             </Group>
         </Card>
     );
@@ -99,31 +115,92 @@ const AgentsListPage = () => {
 
     return (
         <Page
-            withPaddedContent
+            withCenteredRoot
             withXLargePaddedContent
-            title="Lightdash Agents"
+            withLargeContent
+            backgroundColor="#FAFAFA"
         >
-            <Group justify="space-between" mb="lg">
-                <Title order={2}>Lightdash Agents</Title>
-
-                {userCanManageOrganization && (
-                    <Button
-                        component={Link}
-                        to="/generalSettings/aiAgents/new"
-                        leftSection={<IconPlus />}
+            <Stack gap="xxl" h="100%">
+                <Group justify="space-between">
+                    <Box>
+                        <Group gap="xs">
+                            <Title order={3}>AI Agents</Title>
+                            <Tooltip
+                                variant="xs"
+                                label="This feature is in alpha. We're actively testing and improving it."
+                                position="right"
+                            >
+                                <Badge
+                                    variant="filled"
+                                    color="pink.5"
+                                    radius={6}
+                                    size="md"
+                                    py="xxs"
+                                    px="xs"
+                                >
+                                    Alpha
+                                </Badge>
+                            </Tooltip>
+                        </Group>
+                        <Text c="dimmed" size="sm">
+                            Ask questions in natural language and get insights
+                            from your data.
+                        </Text>
+                    </Box>
+                    <Group gap="xs">
+                        {userCanManageOrganization && (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                radius="md"
+                                component={Link}
+                                to="/generalSettings/aiAgents/new"
+                                leftSection={<MantineIcon icon={IconPlus} />}
+                            >
+                                New Agent
+                            </Button>
+                        )}
+                        <Button
+                            size="xs"
+                            variant="default"
+                            radius="md"
+                            component="a"
+                            href="https://docs.lightdash.com/guides/ai-analyst#ai-analyst"
+                            target="_blank"
+                            leftSection={<MantineIcon icon={IconBook} />}
+                        >
+                            Learn more
+                        </Button>
+                    </Group>
+                </Group>
+                {!agentsListQuery.data || agentsListQuery.data.length === 0 ? (
+                    <Center
+                        component={Paper}
+                        h={100}
+                        mah={600}
+                        p="md"
+                        bg="gray.0"
+                        style={{ borderStyle: 'dashed', flex: 1 }}
                     >
-                        New
-                    </Button>
+                        <Stack gap="xs" align="center">
+                            <Paper withBorder p="xs" radius="md">
+                                <MantineIcon icon={IconHelp} color="gray" />
+                            </Paper>
+                            <Text size="sm" c="dimmed" ta="center">
+                                No agents found. Get started by adding an agent.
+                            </Text>
+                        </Stack>
+                    </Center>
+                ) : (
+                    <Grid>
+                        {agentsListQuery.data.map((agent) => (
+                            <Grid.Col span={4} key={agent.uuid}>
+                                <AgentCard agent={agent} />
+                            </Grid.Col>
+                        ))}
+                    </Grid>
                 )}
-            </Group>
-
-            <Grid>
-                {agentsListQuery.data?.map((agent) => (
-                    <Grid.Col span={4} key={agent.uuid}>
-                        <AgentCard agent={agent} />
-                    </Grid.Col>
-                ))}
-            </Grid>
+            </Stack>
         </Page>
     );
 };
