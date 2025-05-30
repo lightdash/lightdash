@@ -1,3 +1,10 @@
+# [0.1674.0](https://github.com/lightdash/lightdash/compare/0.1673.0...0.1674.0) (2025-05-30)
+
+
+### Features
+
+* migrate results file information to query history table ([#15059](https://github.com/lightdash/lightdash/issues/15059)) ([0c18fc1](https://github.com/lightdash/lightdash/commit/0c18fc1a2e6cf8f4c8a5ec2b42d749846fa584b4))
+
 # [0.1673.0](https://github.com/lightdash/lightdash/compare/0.1672.0...0.1673.0) (2025-05-30)
 
 
