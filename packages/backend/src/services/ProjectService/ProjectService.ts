@@ -1132,6 +1132,22 @@ export class ProjectService extends BaseService {
             savedProject,
         );
 
+        // Handle the case of Snowflake connections that are considered "leacy"
+        // This is because we defaulted to private_key (in the Frontend) for Snowflake connections
+        // that didn't have an authenticationType
+        // This is a temporary fix to ensure that we don't break existing projects
+        // that were created before we added the authenticationType field
+        if (
+            updatedProject.warehouseConnection.type ===
+                WarehouseTypes.SNOWFLAKE &&
+            updatedProject.warehouseConnection.authenticationType ===
+                'private_key' &&
+            !updatedProject.warehouseConnection.privateKey &&
+            updatedProject.warehouseConnection.password
+        ) {
+            updatedProject.warehouseConnection.authenticationType = 'password';
+        }
+
         await this.projectModel.update(projectUuid, updatedProject);
         await this.jobModel.create(job);
 

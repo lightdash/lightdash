@@ -7,7 +7,7 @@ import {
     Stack,
     TextInput,
 } from '@mantine/core';
-import { useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import FormCollapseButton from '../FormCollapseButton';
@@ -45,6 +45,27 @@ const SnowflakeForm: FC<{
         savedProject?.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE;
     const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.PassthroughLogin,
+    );
+
+    useEffect(
+        function updateConnectionBasedOnProject() {
+            if (
+                savedProject?.warehouseConnection?.type ===
+                WarehouseTypes.SNOWFLAKE
+            ) {
+                if (
+                    savedProject?.warehouseConnection?.authenticationType !==
+                    undefined
+                ) {
+                    form.setFieldValue(
+                        'warehouse.authenticationType',
+                        savedProject?.warehouseConnection?.authenticationType,
+                    );
+                }
+            }
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [savedProject],
     );
 
     if (form.values.warehouse?.type !== WarehouseTypes.SNOWFLAKE) {
@@ -93,7 +114,6 @@ const SnowflakeForm: FC<{
                 <Select
                     name="warehouse.authenticationType"
                     {...form.getInputProps('warehouse.authenticationType')}
-                    defaultValue={hasPrivateKey ? 'private_key' : 'password'}
                     label="Authentication Type"
                     description="Choose between password or key pair authentication"
                     data={[
