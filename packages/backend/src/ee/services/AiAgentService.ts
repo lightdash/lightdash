@@ -15,6 +15,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import _ from 'lodash';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
@@ -44,6 +45,7 @@ type AiAgentServiceDependencies = {
     projectService: ProjectService;
     slackClient: SlackClient;
     schedulerClient: CommercialSchedulerClient;
+    analytics: LightdashAnalytics;
 };
 
 export class AiAgentService {
@@ -61,6 +63,8 @@ export class AiAgentService {
 
     private readonly schedulerClient: CommercialSchedulerClient;
 
+    private readonly analytics: LightdashAnalytics;
+
     constructor(dependencies: AiAgentServiceDependencies) {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.aiModel = dependencies.aiModel;
@@ -69,6 +73,7 @@ export class AiAgentService {
         this.projectService = dependencies.projectService;
         this.slackClient = dependencies.slackClient;
         this.schedulerClient = dependencies.schedulerClient;
+        this.analytics = dependencies.analytics;
     }
 
     // from AiService getToolUtilities
@@ -476,6 +481,19 @@ export class AiAgentService {
             throw new Error('Failed to create agent thread prompt');
         }
 
+        this.analytics.track({
+            event: threadUuidParam
+                ? 'ai_agent.web_message_received'
+                : 'ai_agent.web_thread_created',
+            userId: user.userUuid,
+            properties: {
+                projectId: agent.projectUuid,
+                organizationId: organizationUuid,
+                agentId: agent.uuid,
+                agentName: agent.name,
+            },
+        });
+
         const { jobId } = await this.schedulerClient.aiAgentThreadGenerate({
             agentUuid,
             threadUuid,
@@ -550,6 +568,31 @@ export class AiAgentService {
         const csvFileConfig = csvFileConfigSchema.safeParse(
             message.vizConfigOutput,
         );
+
+        const getVizType = () => {
+            if (verticalBarMetricChartConfig.success) {
+                return 'vertical_bar_chart';
+            }
+            if (timeSeriesMetricChartConfig.success) {
+                return 'time_series_chart';
+            }
+            if (csvFileConfig.success) {
+                return 'csv';
+            }
+            return 'unknown';
+        };
+
+        this.analytics.track({
+            event: 'ai_agent.web_viz_query',
+            userId: user.userUuid,
+            properties: {
+                projectId: agent.projectUuid,
+                organizationId: organizationUuid,
+                agentId: agent.uuid,
+                agentName: agent.name,
+                vizType: getVizType(),
+            },
+        });
 
         // FIXME: viz config should have a type so we can use an exhaustive switch
         if (verticalBarMetricChartConfig.success) {
