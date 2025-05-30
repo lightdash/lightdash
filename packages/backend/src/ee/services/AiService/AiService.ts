@@ -843,7 +843,7 @@ ${e.llmOutput}
                     name: 'available_explores_json',
                 }),
             ],
-            agent_name: agentSettings.name || 'Cloudy',
+            agent_name: agentSettings.name || 'Lightdash AI Analyst',
             instructions: agentSettings.instruction || '',
             date: moment().utc().format('YYYY-MM-DD'),
             time: moment().utc().format('HH:mm'),
