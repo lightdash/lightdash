@@ -1,3 +1,10 @@
+## [0.1667.1](https://github.com/lightdash/lightdash/compare/0.1667.0...0.1667.1) (2025-05-30)
+
+
+### Bug Fixes
+
+* system prompts not working for web ui ([#15100](https://github.com/lightdash/lightdash/issues/15100)) ([2d72245](https://github.com/lightdash/lightdash/commit/2d72245c8447365dca903533028132545456bd70))
+
 # [0.1667.0](https://github.com/lightdash/lightdash/compare/0.1666.0...0.1667.0) (2025-05-30)
 
 
