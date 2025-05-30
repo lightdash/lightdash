@@ -1,6 +1,7 @@
 import { MantineProvider } from '@mantine-8/core';
 import { Navigate, Outlet, type RouteObject } from 'react-router';
 import NavBar from '../components/NavBar';
+import { getMantine8ThemeOverride } from '../mantine8Theme';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
 import AgentConversationPage from './pages/AiAgents/AgentConversationPage';
@@ -66,7 +67,7 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
         element: (
             <>
                 <NavBar />
-                <MantineProvider>
+                <MantineProvider theme={getMantine8ThemeOverride()}>
                     <Outlet />
                 </MantineProvider>
             </>
