@@ -419,8 +419,8 @@ export const renderTableCalculationFilterRuleSql = (
 
 export const renderFilterRuleSql = (
     filterRule: FilterRule<FilterOperator, unknown>,
-    field: CompiledField | CompiledCustomSqlDimension,
-    fieldQuoteChar: string,
+    fieldType: DimensionType | MetricType,
+    fieldSql: string,
     stringQuoteChar: string,
     escapeStringQuoteChar: string,
     startOfWeek: WeekDay | null | undefined,
@@ -430,12 +430,6 @@ export const renderFilterRuleSql = (
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
     }
-    const fieldType = isCompiledCustomSqlDimension(field)
-        ? field.dimensionType
-        : field.type;
-    const fieldSql = isMetric(field)
-        ? `${fieldQuoteChar}${getItemId(field)}${fieldQuoteChar}`
-        : field.compiledSql;
 
     switch (fieldType) {
         case DimensionType.STRING:
@@ -492,4 +486,33 @@ export const renderFilterRuleSql = (
             );
         }
     }
+};
+
+// To be used for filters with a field that is a dimension or metric
+export const renderFilterRuleSqlFromField = (
+    filterRule: FilterRule<FilterOperator, unknown>,
+    field: CompiledField | CompiledCustomSqlDimension,
+    fieldQuoteChar: string,
+    stringQuoteChar: string,
+    escapeStringQuoteChar: string,
+    startOfWeek: WeekDay | null | undefined,
+    adapterType: SupportedDbtAdapter,
+    timezone: string = 'UTC',
+): string => {
+    const fieldType = isCompiledCustomSqlDimension(field)
+        ? field.dimensionType
+        : field.type;
+    const fieldSql = isMetric(field)
+        ? `${fieldQuoteChar}${getItemId(field)}${fieldQuoteChar}`
+        : field.compiledSql;
+    return renderFilterRuleSql(
+        filterRule,
+        fieldType,
+        fieldSql,
+        stringQuoteChar,
+        escapeStringQuoteChar,
+        startOfWeek,
+        adapterType,
+        timezone,
+    );
 };

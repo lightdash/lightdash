@@ -18,7 +18,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 
-type S3CacheClientArguments = {
+export type S3CacheClientArguments = {
     lightdashConfig: LightdashConfig;
 };
 
@@ -47,12 +47,10 @@ export class S3CacheClient {
                 },
             });
             Logger.debug(
-                'Using results cache S3 storage with access key credentials',
+                'Using results S3 storage with access key credentials',
             );
         } else {
-            Logger.debug(
-                'Using results cache S3 storage with IAM role credentials',
-            );
+            Logger.debug('Using results S3 storage with IAM role credentials');
         }
 
         this.s3 = new S3(s3Config);

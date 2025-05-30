@@ -116,6 +116,8 @@ import { type UserWarehouseCredentials } from './types/userWarehouseCredentials'
 import { type ValidationResponse } from './types/validation';
 
 import type {
+    ApiAiAgentThreadMessageVizResponse,
+    ApiAiAgentThreadResponse,
     ApiAiConversationMessages,
     ApiAiConversationResponse,
     ApiAiConversations,
@@ -147,6 +149,7 @@ import type {
 import type { ResultsPaginationMetadata } from './types/paginateResults';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import type { QueryHistoryStatus } from './types/queryHistory';
+import { type ApiRenameFieldsResponse } from './types/rename';
 import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
     type ApiSemanticLayerClientInfo,
@@ -161,6 +164,8 @@ import {
     type ApiSqlChart,
     type ApiSqlRunnerJobStatusResponse,
     type ApiUpdateSqlChart,
+    type GroupByColumn,
+    type SortBy,
 } from './types/sqlRunner';
 import { TimeFrames } from './types/timeFrames';
 import { type ApiWarehouseTableFields } from './types/warehouse';
@@ -169,6 +174,10 @@ import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 import { getOrganizationNameSchema } from './utils/organization';
+import type {
+    PivotIndexColum,
+    PivotValuesColumn,
+} from './visualizations/types';
 
 dayjs.extend(utc);
 export * from './authorization/index';
@@ -558,6 +567,15 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     initialQueryExecutionMs: number;
     resultsPageExecutionMs: number;
     status: QueryHistoryStatus.READY;
+    pivotDetails: {
+        // Unlimited total column count, this is used to display a warning to the user in the frontend when the number of columns is over MAX_PIVOT_COLUMN_LIMIT
+        totalColumnCount: number | null;
+        indexColumn: PivotIndexColum;
+        valuesColumns: PivotValuesColumn[];
+        groupByColumns: GroupByColumn[] | undefined;
+        sortBy: SortBy | undefined;
+        originalColumns: ResultColumns;
+    } | null;
 };
 
 export type ApiGetAsyncQueryResults =
@@ -571,6 +589,15 @@ export type ApiGetAsyncQueryResults =
           queryUuid: string;
           error: string | null;
       };
+
+export type ApiDownloadAsyncQueryResults = {
+    fileUrl: string;
+};
+
+export type ApiDownloadAsyncQueryResultsAsCsv = {
+    fileUrl: string;
+    truncated: boolean;
+};
 
 export type ApiChartAndResults = {
     chart: SavedChart;
@@ -874,7 +901,11 @@ type ApiResults =
     | ApiExecuteAsyncMetricQueryResults
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
-    | ApiUserActivityDownloadCsv['results'];
+    | ApiUserActivityDownloadCsv['results']
+    | ApiRenameFieldsResponse['results']
+    | ApiDownloadAsyncQueryResults
+    | ApiAiAgentThreadResponse['results']
+    | ApiAiAgentThreadMessageVizResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -1047,6 +1078,11 @@ export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
     [DbtProjectType.NONE]: 'CLI',
 };
 
+export enum CreateProjectTableConfiguration {
+    PROD = 'prod',
+    ALL = 'all',
+}
+
 export type CreateProject = Omit<
     Project,
     | 'projectUuid'
@@ -1056,6 +1092,7 @@ export type CreateProject = Omit<
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
+    tableConfiguration?: CreateProjectTableConfiguration;
 };
 
 export type UpdateProject = Omit<

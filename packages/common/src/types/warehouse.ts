@@ -63,27 +63,8 @@ export type WarehouseExecuteAsyncQueryArgs = {
 export type WarehouseExecuteAsyncQuery = {
     queryId: string | null;
     queryMetadata: WarehouseQueryMetadata | null;
-    totalRows: number | null;
-    durationMs: number | null;
-};
-
-export type WarehouseGetAsyncQueryResultsArgs = WarehousePaginationArgs &
-    WarehouseExecuteAsyncQueryArgs & {
-        queryId: string | null;
-        queryMetadata: WarehouseQueryMetadata | null;
-    };
-
-type WarehouseAsyncQueryCommonResults = {
-    queryId: string | null;
-};
-
-export type WarehouseGetAsyncQueryResults<
-    TFormattedRow extends Record<string, unknown>,
-> = WarehouseAsyncQueryCommonResults & {
-    fields: Record<string, { type: DimensionType }>;
-    pageCount: number;
     totalRows: number;
-    rows: TFormattedRow[];
+    durationMs: number;
 };
 
 export interface WarehouseClient {
@@ -108,13 +89,11 @@ export interface WarehouseClient {
 
     executeAsyncQuery(
         args: WarehouseExecuteAsyncQueryArgs,
-        resultsStreamCallback?: (rows: WarehouseResults['rows']) => void,
+        resultsStreamCallback: (
+            rows: WarehouseResults['rows'],
+            fields: WarehouseResults['fields'],
+        ) => void,
     ): Promise<WarehouseExecuteAsyncQuery>;
-
-    getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
-        args: WarehouseGetAsyncQueryResultsArgs,
-        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>>;
 
     /**
      * Runs a query and returns all the results

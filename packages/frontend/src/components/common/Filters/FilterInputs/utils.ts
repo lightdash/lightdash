@@ -9,6 +9,7 @@ import {
     getItemId,
     getLocalTimeDisplay,
     isCustomSqlDimension,
+    isDashboardFieldTarget,
     isDashboardFilterRule,
     isDimension,
     isField,
@@ -104,7 +105,7 @@ export const getFilterOperatorOptions = (
 const getValueAsString = (
     filterType: FilterType,
     rule: ConditionalRule,
-    field: Field | TableCalculation | CustomSqlDimension,
+    field?: Field | TableCalculation | CustomSqlDimension,
 ) => {
     const { operator, values } = rule;
     const firstValue = values?.[0];
@@ -170,9 +171,11 @@ const getValueAsString = (
                 case FilterOperator.GREATER_THAN_OR_EQUAL:
                     return values
                         ?.map((value) => {
-                            const type = isCustomSqlDimension(field)
-                                ? field.dimensionType
-                                : field.type;
+                            const type = field
+                                ? isCustomSqlDimension(field)
+                                    ? field.dimensionType
+                                    : field.type
+                                : DimensionType.TIMESTAMP;
                             if (
                                 isDimension(field) &&
                                 isMomentInput(value) &&
@@ -208,6 +211,23 @@ const getValueAsString = (
 
 export const getConditionalRuleLabel = (
     rule: ConditionalRule,
+    filterType: FilterType,
+    label: string,
+): ConditionalRuleLabels => {
+    const operatorOptions = getFilterOperatorOptions(filterType);
+    const operationLabel =
+        operatorOptions.find((o) => o.value === rule.operator)?.label ||
+        filterOperatorLabel[rule.operator];
+
+    return {
+        field: label,
+        operator: operationLabel,
+        value: getValueAsString(filterType, rule),
+    };
+};
+
+export const getConditionalRuleLabelFromItem = (
+    rule: ConditionalRule,
     item: FilterableItem,
 ): ConditionalRuleLabels => {
     const filterType = isFilterableItem(item)
@@ -240,6 +260,7 @@ export const getFilterRuleTables = (
                 const targetField = filterableFields.find(
                     (f) =>
                         tileTarget !== false &&
+                        isDashboardFieldTarget(tileTarget) &&
                         f.table === tileTarget.tableName &&
                         getItemId(f) === tileTarget.fieldId,
                 );

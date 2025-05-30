@@ -8,11 +8,13 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
-import { memo, useMemo, type FC } from 'react';
+import { memo, useEffect, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
+import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
 import LinkMenuItem from '../common/LinkMenuItem';
@@ -57,7 +59,7 @@ const DashboardOptions = memo(
 
 const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { user } = useApp();
-    const { projectUuid } = useParams<{
+    const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
     }>();
@@ -70,6 +72,10 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             projectUuid,
         }),
     );
+    const updateSqlChartTilesMetadata = useDashboardContext(
+        (c) => c.updateSqlChartTilesMetadata,
+    );
+    const dashboardFilters = useDashboardFiltersForTile(tile.uuid);
 
     const {
         chartQuery: {
@@ -87,6 +93,10 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         projectUuid,
         savedSqlUuid,
         context,
+        dashboardUuid,
+        tileUuid: tile.uuid,
+        dashboardFilters,
+        dashboardSorts: [],
     });
 
     // Charts in Dashboard shouldn't have animation
@@ -97,6 +107,19 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             animation: false,
         };
     }, [chartResultsData?.chartSpec]);
+
+    // Update SQL chart columns in the dashboard context
+    useEffect(() => {
+        if (chartResultsData?.originalColumns) {
+            updateSqlChartTilesMetadata(tile.uuid, {
+                columns: Object.values(chartResultsData.originalColumns),
+            });
+        }
+    }, [
+        chartResultsData?.originalColumns,
+        tile.uuid,
+        updateSqlChartTilesMetadata,
+    ]);
 
     // No chart available or savedSqlUuid is undefined - which means that the chart was deleted
     if (chartData === undefined || !savedSqlUuid) {

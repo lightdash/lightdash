@@ -499,6 +499,8 @@ const InfiniteResourceTable = ({
             },
         },
         mantineTableBodyRowProps: ({ row }) => {
+            const isTableSelectionActive =
+                table.getIsSomeRowsSelected() || table.getIsAllRowsSelected();
             const isSelected = row.getIsSelected();
 
             return {
@@ -525,9 +527,13 @@ const InfiniteResourceTable = ({
                 },
 
                 onClick: () => {
-                    void navigate(
-                        getResourceUrl(filters.projectUuid, row.original),
-                    );
+                    if (isTableSelectionActive) {
+                        row.toggleSelected();
+                    } else {
+                        void navigate(
+                            getResourceUrl(filters.projectUuid, row.original),
+                        );
+                    }
                 },
             };
         },
@@ -692,7 +698,17 @@ const InfiniteResourceTable = ({
         ),
         enableRowActions: true,
         renderRowActions: ({ row, table: tableInstance }) => {
-            const isSelected = tableInstance.getIsSomeRowsSelected();
+            /**
+             * NOTE: TanStack selection API has some nuanced behavior:
+             * - getIsSomeRowsSelected() - Not used here. It should return true if any row is selected,
+             *   though it also returns false if all rows are selected.
+             * - getIsSomePageRowsSelected() - Returns true when some rows on the current page are selected,
+             *   but according to our testing, returns false if ALL rows are selected.
+             * To work around this issue, we use it in combination with `getIsAllPageRowsSelected()`.
+             */
+            const isSelected =
+                tableInstance.getIsSomePageRowsSelected() ||
+                tableInstance.getIsAllPageRowsSelected();
 
             return (
                 <Box
@@ -768,7 +784,7 @@ const InfiniteResourceTable = ({
     } = useContentBulkAction(filters.projectUuid);
 
     const handleBulkMoveContent = useCallback(
-        async (selectedItems: ResourceViewItem[], spaceUuid: string) => {
+        async (selectedItems: ResourceViewItem[], spaceUuid: string | null) => {
             await contentBulkAction({
                 action: {
                     type: 'move',
@@ -827,12 +843,6 @@ const InfiniteResourceTable = ({
                     spaces={spaces}
                     isLoading={isFetching || isContentBulkActionLoading}
                     onConfirm={async (spaceUuid) => {
-                        if (!spaceUuid) {
-                            throw new Error(
-                                'Space UUID is required to move items',
-                            );
-                        }
-
                         await handleBulkMoveContent(selectedItems, spaceUuid);
                     }}
                 />

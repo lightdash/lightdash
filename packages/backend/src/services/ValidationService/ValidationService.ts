@@ -15,6 +15,7 @@ import {
     getFilterRules,
     getItemId,
     InlineErrorType,
+    isDashboardFieldTarget,
     isExploreError,
     isValidationTargetValid,
     OrganizationMemberRole,
@@ -479,6 +480,13 @@ export class ValidationService extends BaseService {
                         CreateDashboardValidation[]
                     >((acc, filter) => {
                         try {
+                            if (
+                                isDashboardFieldTarget(filter.target) &&
+                                filter.target.isSqlColumn
+                            ) {
+                                // Skip SQL column targets
+                                return acc;
+                            }
                             return containsFieldId({
                                 acc,
                                 fieldIds: existingFieldIds,
@@ -510,7 +518,11 @@ export class ValidationService extends BaseService {
                         CreateDashboardValidation[]
                     >(
                         (acc, tileTarget) => {
-                            if (tileTarget) {
+                            if (
+                                tileTarget &&
+                                isDashboardFieldTarget(tileTarget) &&
+                                !tileTarget.isSqlColumn // Skip SQL column targets
+                            ) {
                                 return containsFieldId({
                                     acc,
                                     fieldIds: existingFieldIds,

@@ -514,6 +514,10 @@ const Dashboard: FC = () => {
         dashboardTabs.length,
     ]);
 
+    const hasTilesThatSupportFilters = useDashboardContext(
+        (c) => c.hasTilesThatSupportFilters,
+    );
+
     if (dashboardError) {
         return <ErrorState error={dashboardError.error} />;
     }
@@ -524,9 +528,6 @@ const Dashboard: FC = () => {
             </Box>
         );
     }
-    const dashboardChartTiles = dashboardTiles?.filter(
-        (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
-    );
 
     return (
         <>
@@ -659,13 +660,12 @@ const Dashboard: FC = () => {
                             overflow: 'auto',
                         }}
                     >
-                        {dashboardChartTiles &&
-                            dashboardChartTiles.length > 0 && (
-                                <DashboardFilter
-                                    isEditMode={isEditMode}
-                                    activeTabUuid={activeTab?.uuid}
-                                />
-                            )}
+                        {hasTilesThatSupportFilters && (
+                            <DashboardFilter
+                                isEditMode={isEditMode}
+                                activeTabUuid={activeTab?.uuid}
+                            />
+                        )}
                     </Group>
                     {/* DateZoom section will adjust width dynamically */}
                     {hasDashboardTiles && !hasNewSemanticLayerChart && (

@@ -49,6 +49,21 @@ export type ApiRenameResponse = {
     };
 };
 
+export type ApiRenameChartResponse = {
+    status: 'ok';
+    results: {
+        jobId: string | undefined;
+    };
+};
+export type ApiRenameFieldsResponse = {
+    status: 'ok';
+    results: {
+        fields: {
+            [x: string]: string[];
+        };
+    };
+};
+
 export type RenameResourcesPayload = TraceTaskBase &
     ApiRenameBody & {
         fromReference?: string; // When scheduler is called from UI, these are set

@@ -11,11 +11,7 @@ import {
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
 } from '@lightdash/common';
-import {
-    type WarehouseClient,
-    type WarehouseGetAsyncQueryResults,
-    type WarehouseGetAsyncQueryResultsArgs,
-} from '../types';
+import { type WarehouseClient } from '../types';
 import { getDefaultMetricSql } from '../utils/sql';
 
 export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
@@ -62,57 +58,19 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
 
     async executeAsyncQuery(
         { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
-        resultsStreamCallback?: (rows: WarehouseResults['rows']) => void,
+        resultsStreamCallback: (
+            rows: WarehouseResults['rows'],
+            fields: WarehouseResults['fields'],
+        ) => void,
     ): Promise<WarehouseExecuteAsyncQuery> {
-        if (resultsStreamCallback) {
-            let rowCount = 0;
-            await this.streamQuery(
-                sql,
-                ({ rows }) => {
-                    rowCount = (rowCount ?? 0) + rows.length;
-                    resultsStreamCallback(rows);
-                },
-                {
-                    values,
-                    tags,
-                    timezone,
-                },
-            );
+        let rowCount = 0;
 
-            // we could have this return further down but types are a bit messy with this union and count updating on a callback
-            return {
-                queryId: null,
-                queryMetadata: null,
-                durationMs: null,
-                totalRows: rowCount,
-            };
-        }
-
-        return {
-            queryId: null,
-            queryMetadata: null,
-            durationMs: null,
-            totalRows: null,
-        };
-    }
-
-    async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
-        { tags, timezone, values, ...args }: WarehouseGetAsyncQueryResultsArgs,
-        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
-        // When warehouse doesn't support async queries we run the compiled sql and return all the results
-        let fields: WarehouseResults['fields'] = {};
-        const rows: TFormattedRow[] = [];
-
+        const startTime = performance.now();
         await this.streamQuery(
-            args.sql,
-            (data) => {
-                fields = data.fields;
-                rows.push(
-                    ...((rowFormatter
-                        ? data.rows.map(rowFormatter)
-                        : data.rows) as TFormattedRow[]),
-                );
+            sql,
+            ({ rows, fields }) => {
+                rowCount = (rowCount ?? 0) + rows.length;
+                resultsStreamCallback(rows, fields);
             },
             {
                 values,
@@ -121,12 +79,12 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
             },
         );
 
+        // we could have this return further down but types are a bit messy with this union and count updating on a callback
         return {
-            fields,
-            rows,
             queryId: null,
-            pageCount: 1,
-            totalRows: rows.length,
+            queryMetadata: null,
+            durationMs: performance.now() - startTime,
+            totalRows: rowCount,
         };
     }
 

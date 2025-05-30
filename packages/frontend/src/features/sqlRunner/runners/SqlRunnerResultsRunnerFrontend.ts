@@ -1,15 +1,18 @@
 import {
     DimensionType,
     FieldType,
+    QueryExecutionContext,
     SemanticLayerFieldType,
     assertUnreachable,
+    type PivotChartData,
     type RawResultRow,
+    type ResultColumns,
     type SemanticLayerField,
     type VizColumn,
     type VizSortBy,
 } from '@lightdash/common';
 import { BaseResultsRunner } from '../../queryRunner/BaseResultsRunner';
-import { getPivotQueryFunctionForSqlRunner } from '../../queryRunner/sqlRunnerPivotQueries';
+import { getPivotQueryFunctionForSqlQuery } from '../../queryRunner/sqlRunnerPivotQueries';
 
 const getSemanticLayerFieldTypeFromDimensionType = (
     type: DimensionType,
@@ -34,7 +37,6 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         columns,
         rows,
         projectUuid,
-        savedSqlUuid,
         limit,
         sql,
         sortBy,
@@ -42,7 +44,6 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         columns: VizColumn[];
         rows: RawResultRow[];
         projectUuid: string;
-        savedSqlUuid?: string;
         limit?: number;
         sql: string;
         sortBy?: VizSortBy[];
@@ -63,14 +64,45 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
             fields,
             rows,
             columnNames: fields.map((field) => field.name),
-            runPivotQuery: getPivotQueryFunctionForSqlRunner({
+            runPivotQuery: getPivotQueryFunctionForSqlQuery({
                 projectUuid,
-                savedSqlUuid,
                 limit,
                 sql,
                 fields,
                 sortBy,
+                context: QueryExecutionContext.SQL_RUNNER,
             }),
+        });
+    }
+}
+
+export class SqlChartResultsRunner extends BaseResultsRunner {
+    constructor({
+        pivotChartData,
+        originalColumns,
+    }: {
+        pivotChartData: PivotChartData;
+        originalColumns: ResultColumns;
+    }) {
+        const fields: SemanticLayerField[] = Object.values(originalColumns).map(
+            (column) => ({
+                kind: FieldType.DIMENSION,
+                name: column.reference,
+                type: getSemanticLayerFieldTypeFromDimensionType(
+                    column.type || DimensionType.STRING,
+                ),
+                visible: true,
+                label: column.reference,
+                // TODO: why are these required?
+                availableGranularities: [],
+                availableOperators: [],
+            }),
+        );
+        super({
+            fields,
+            rows: pivotChartData.results,
+            columnNames: fields.map((field) => field.name),
+            runPivotQuery: async () => pivotChartData,
         });
     }
 }

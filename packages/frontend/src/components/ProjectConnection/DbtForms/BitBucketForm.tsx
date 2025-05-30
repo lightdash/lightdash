@@ -1,35 +1,30 @@
 import { DbtProjectType } from '@lightdash/common';
 import { Anchor, PasswordInput, TextInput } from '@mantine/core';
 import React, { type FC } from 'react';
-import { useFormContext } from 'react-hook-form';
-import {
-    hasNoWhiteSpaces,
-    isGitRepository,
-    startWithSlash,
-} from '../../../utils/fieldValidators';
+import { useFormContext } from '../formContext';
+import DbtVersionSelect from '../Inputs/DbtVersion';
 import { useProjectFormContext } from '../useProjectFormContext';
-import DbtVersionSelect from '../WarehouseForms/Inputs/DbtVersion';
+import { bitbucketDefaultValues } from './defaultValues';
 
 const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.dbtConnection.type !== DbtProjectType.BITBUCKET;
-    const { register } = useFormContext();
+    const form = useFormContext();
     return (
         <>
             <TextInput
+                name="dbt.username"
+                {...form.getInputProps('dbt.username')}
                 label="Username"
                 description="This is the login name for your Bitbucket user. This is usually the same username you use to login to Bitbucket."
                 required
-                {...register('dbt.username', {
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Username'),
-                    },
-                })}
                 disabled={disabled}
                 placeholder="BitBucket username"
             />
             <PasswordInput
+                name="dbt.personal_access_token"
+                {...form.getInputProps('dbt.personal_access_token')}
                 label="HTTP access token"
                 description={
                     <>
@@ -64,13 +59,14 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     </>
                 }
                 required={requireSecrets}
-                {...register('dbt.personal_access_token')}
                 placeholder={
                     disabled || !requireSecrets ? '**************' : undefined
                 }
                 disabled={disabled}
             />
             <TextInput
+                name="dbt.repository"
+                {...form.getInputProps('dbt.repository')}
                 label="Repository"
                 description={
                     <p>
@@ -79,18 +75,14 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     </p>
                 }
                 required
-                {...register('dbt.repository', {
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Repository'),
-                        isGitRepository: isGitRepository('Repository'),
-                    },
-                })}
                 disabled={disabled}
                 placeholder="org/project"
             />
             <DbtVersionSelect disabled={disabled} />
 
             <TextInput
+                name="dbt.branch"
+                {...form.getInputProps('dbt.branch')}
                 label="Branch"
                 description={
                     <>
@@ -106,15 +98,12 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     </>
                 }
                 required
-                {...register('dbt.branch', {
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Branch'),
-                    },
-                })}
                 disabled={disabled}
-                defaultValue="main"
+                defaultValue={bitbucketDefaultValues.branch}
             />
             <TextInput
+                name="dbt.project_sub_path"
+                {...form.getInputProps('dbt.project_sub_path')}
                 label="Project directory path"
                 description={
                     <>
@@ -143,20 +132,12 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     </>
                 }
                 required
-                {...register('dbt.project_sub_path', {
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces(
-                            'Project directory path',
-                        ),
-                        startWithSlash: startWithSlash(
-                            'Project directory path',
-                        ),
-                    },
-                })}
                 disabled={disabled}
-                defaultValue="/"
+                defaultValue={bitbucketDefaultValues.project_sub_path}
             />
             <TextInput
+                name="dbt.host_domain"
+                {...form.getInputProps('dbt.host_domain')}
                 label="Host domain (for self-hosted instances)"
                 description={
                     <p>
@@ -173,12 +154,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     </p>
                 }
                 disabled={disabled}
-                defaultValue="bitbucket.org"
-                {...register('dbt.host_domain', {
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Host domain'),
-                    },
-                })}
+                defaultValue={bitbucketDefaultValues.host_domain}
             />
         </>
     );

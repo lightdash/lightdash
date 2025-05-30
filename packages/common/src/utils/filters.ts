@@ -4,7 +4,7 @@ import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { type AnyType } from '../types/any';
 import { DashboardTileTypes, type DashboardTile } from '../types/dashboard';
-import { type Explore, type Table } from '../types/explore';
+import { type Explore } from '../types/explore';
 import {
     DimensionType,
     MetricType,
@@ -32,6 +32,7 @@ import {
     isFilterGroup,
     isFilterRule,
     isFilterRuleDefinedForFieldId,
+    isJoinModelRequiredFilter,
     type AndFilterGroup,
     type DashboardFieldTarget,
     type DashboardFilterRule,
@@ -42,11 +43,12 @@ import {
     type FilterGroupItem,
     type FilterRule,
     type Filters,
-    type MetricFilterRule,
+    type ModelRequiredFilterRule,
     type OrFilterGroup,
     type TimeBasedOverrideMap,
 } from '../types/filter';
 import { type MetricQuery } from '../types/metricQuery';
+import { type ResultColumn } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
@@ -111,8 +113,9 @@ export const getFilterGroupItemsPropertyName = (
     return 'and';
 };
 
-export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
-    const type = getItemType(item);
+export const getFilterTypeFromItemType = (
+    type: DimensionType | MetricType | TableCalculationType,
+): FilterType => {
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
@@ -148,6 +151,11 @@ export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
             );
         }
     }
+};
+
+export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
+    const type = getItemType(item);
+    return getFilterTypeFromItemType(type);
 };
 
 export const timeframeToUnitOfTime = (timeframe: TimeFrames) => {
@@ -194,11 +202,11 @@ export const isWithValueFilter = (filterOperator: FilterOperator) =>
     filterOperator !== FilterOperator.NOT_NULL;
 
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
-    field: FilterableField,
+    filterType: FilterType,
+    field: FilterableField | undefined,
     filterRule: T,
     values?: AnyType[] | null,
 ): T => {
-    const filterType = getFilterTypeFromItem(field);
     const filterRuleDefaults: Partial<FilterRule> = {};
 
     if (
@@ -212,6 +220,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                 const value = values ? values[0] : undefined;
 
                 const isTimestamp =
+                    !field ||
                     (isCustomSqlDimension(field)
                         ? field.dimensionType
                         : field.type) === DimensionType.TIMESTAMP;
@@ -312,11 +321,23 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     };
 };
 
+export const getFilterRuleFromFieldWithDefaultValue = <T extends FilterRule>(
+    field: FilterableField,
+    filterRule: T,
+    values?: AnyType[] | null,
+): T =>
+    getFilterRuleWithDefaultValue(
+        getFilterTypeFromItem(field),
+        field,
+        filterRule,
+        values,
+    );
+
 export const createFilterRuleFromField = (
     field: FilterableField,
     value?: AnyType,
 ): FilterRule =>
-    getFilterRuleWithDefaultValue(
+    getFilterRuleFromFieldWithDefaultValue(
         field,
         {
             id: uuidv4(),
@@ -393,7 +414,7 @@ export const createDashboardFilterRuleFromField = ({
     isTemporary: boolean;
     value?: unknown;
 }): FilterDashboardToRule =>
-    getFilterRuleWithDefaultValue(
+    getFilterRuleFromFieldWithDefaultValue(
         field,
         {
             id: uuidv4(),
@@ -405,6 +426,60 @@ export const createDashboardFilterRuleFromField = ({
                 fieldName: field.name,
             },
             tileTargets: getDefaultTileTargets(field, availableTileFilters),
+            disabled: !isTemporary,
+            label: undefined,
+        },
+        !isNil(value) ? [value] : null, // When `null`, don't set default value if no value is provided
+    );
+
+const getDefaultTileSqlTargets = (
+    column: ResultColumn,
+    availableTileColumns: Record<string, ResultColumn[] | undefined>,
+) =>
+    Object.entries(availableTileColumns).reduce<
+        Record<string, DashboardFieldTarget>
+    >((acc, [tileUuid, availableColumns]) => {
+        if (!availableColumns) return acc;
+
+        const filterableField = availableColumns.find(
+            (target) => target.reference === column.reference,
+        );
+        if (!filterableField) return acc;
+
+        return {
+            ...acc,
+            [tileUuid]: {
+                fieldId: filterableField.reference,
+                tableName: `sql_chart`,
+                isSqlColumn: true,
+            },
+        };
+    }, {});
+
+export const createDashboardFilterRuleFromSqlColumn = ({
+    column,
+    availableTileColumns,
+    isTemporary,
+    value,
+}: {
+    column: ResultColumn;
+    availableTileColumns: Record<string, ResultColumn[]>;
+    isTemporary: boolean;
+    value?: unknown;
+}): DashboardFilterRule =>
+    getFilterRuleWithDefaultValue(
+        getFilterTypeFromItemType(column.type),
+        undefined,
+        {
+            id: uuidv4(),
+            operator:
+                value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
+            target: {
+                fieldId: column.reference,
+                tableName: 'sql_chart',
+                isSqlColumn: true,
+            },
+            tileTargets: getDefaultTileSqlTargets(column, availableTileColumns),
             disabled: !isTemporary,
             label: undefined,
         },
@@ -629,6 +704,7 @@ export const deleteFilterRuleFromGroup = (
 export const getDashboardFilterRulesForTile = (
     tileUuid: string,
     rules: DashboardFilterRule[],
+    needsExplicitTileOverride: boolean = false, // If true, we don't apply the default tile targets to the filter rule'
 ): DashboardFilterRule[] =>
     rules
         .filter((rule) => !rule.disabled)
@@ -643,15 +719,16 @@ export const getDashboardFilterRulesForTile = (
             // we return the filter and don't treat this tile
             // differently.
             if (tileConfig === undefined) {
+                // If needs explicit override, we remove this filter
+                if (needsExplicitTileOverride) {
+                    return null;
+                }
                 return filter;
             }
 
             return {
                 ...filter,
-                target: {
-                    fieldId: tileConfig.fieldId,
-                    tableName: tileConfig.tableName,
-                },
+                target: tileConfig,
             };
         })
         .filter((f): f is DashboardFilterRule => f !== null);
@@ -698,6 +775,15 @@ export const getTabUuidsForFilterRules = (
         return acc;
     }, {});
 };
+
+export const getDashboardFilterRulesForTileAndReferences = (
+    tileUuid: string,
+    references: string[],
+    rules: DashboardFilterRule[],
+): DashboardFilterRule[] =>
+    getDashboardFilterRulesForTile(tileUuid, rules, true).filter(
+        (f) => f.target.isSqlColumn && references.includes(f.target.fieldId),
+    );
 
 export const getDashboardFilterRulesForTables = (
     tables: string[],
@@ -1050,8 +1136,8 @@ export const addDashboardFiltersToMetricQuery = (
     };
 };
 
-export const createFilterRuleFromRequiredMetricRule = (
-    filter: MetricFilterRule,
+export const createFilterRuleFromModelRequiredFilterRule = (
+    filter: ModelRequiredFilterRule,
     tableName: string,
 ): FilterRule => ({
     id: filter.id,
@@ -1065,7 +1151,7 @@ export const createFilterRuleFromRequiredMetricRule = (
             unitOfTime: filter.settings.unitOfTime,
         },
     }),
-    required: true,
+    required: filter.required === undefined ? true : filter.required,
 });
 
 export const isFilterRuleInQuery = (
@@ -1093,23 +1179,40 @@ export const isFilterRuleInQuery = (
 };
 
 export const reduceRequiredDimensionFiltersToFilterRules = (
-    requiredFilters: MetricFilterRule[],
-    table: Table,
+    requiredFilters: ModelRequiredFilterRule[],
     filters: FilterGroup | undefined,
-): FilterRule[] =>
-    requiredFilters.reduce<FilterRule[]>((acc, filter): FilterRule[] => {
-        const filterRule = createFilterRuleFromRequiredMetricRule(
+    explore: Explore,
+): FilterRule[] => {
+    const table = explore.tables[explore.baseTable];
+
+    return requiredFilters.reduce<FilterRule[]>((acc, filter): FilterRule[] => {
+        let dimension: Dimension | undefined;
+        // This function already takes care of falling back to the base table if the fieldRef doesn't have 2 parts (falls back to base table name)
+        const filterRule = createFilterRuleFromModelRequiredFilterRule(
             filter,
             table.name,
         );
-        const dimension = Object.values(table.dimensions).find(
-            (tc) => getItemId(tc) === filterRule.target.fieldId,
-        );
+
+        if (isJoinModelRequiredFilter(filter)) {
+            const joinedTable = explore.tables[filter.target.tableName];
+
+            if (joinedTable) {
+                dimension = Object.values(joinedTable.dimensions).find(
+                    (d) => getItemId(d) === filterRule.target.fieldId,
+                );
+            }
+        } else {
+            dimension = Object.values(table.dimensions).find(
+                (tc) => getItemId(tc) === filterRule.target.fieldId,
+            );
+        }
+
         if (dimension && !isFilterRuleInQuery(dimension, filterRule, filters)) {
             return [...acc, filterRule];
         }
         return acc;
     }, []);
+};
 
 export const resetRequiredFilterRules = (
     filterGroup: FilterGroup,

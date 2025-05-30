@@ -6,6 +6,7 @@ import {
     type DashboardFilters,
     type DateGranularity,
     type FilterableDimension,
+    type ResultColumn,
     type SortField,
 } from '@lightdash/common';
 import { type Dispatch, type SetStateAction } from 'react';
@@ -14,6 +15,9 @@ import {
     type useGetComments,
 } from '../../features/comments';
 
+export type SqlChartTileMetadata = {
+    columns: ResultColumn[];
+};
 export type DashboardContextType = {
     projectUuid?: string;
     isDashboardLoading: boolean;
@@ -67,9 +71,14 @@ export type DashboardContextType = {
     filterableFieldsByTileUuid:
         | Record<string, FilterableDimension[]>
         | undefined;
-    hasChartTiles: boolean;
+    hasTilesThatSupportFilters: boolean;
     chartSort: Record<string, SortField[]>;
     setChartSort: (sort: Record<string, SortField[]>) => void;
+    sqlChartTilesMetadata: Record<string, SqlChartTileMetadata>;
+    updateSqlChartTilesMetadata: (
+        tileUuid: string,
+        metadata: SqlChartTileMetadata,
+    ) => void;
     dateZoomGranularity: DateGranularity | undefined;
     setDateZoomGranularity: Dispatch<
         SetStateAction<DateGranularity | undefined>

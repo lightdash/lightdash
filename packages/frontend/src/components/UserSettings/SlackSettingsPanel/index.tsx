@@ -30,8 +30,8 @@ import {
 } from '@tabler/icons-react';
 import { debounce } from 'lodash';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import { Link } from 'react-router';
 import { z } from 'zod';
-import ChannelProjectMappings from '../../../ee/features/aiCopilot/components/ChannelProjectMappings';
 import {
     useDeleteSlack,
     useGetSlack,
@@ -39,7 +39,6 @@ import {
     useUpdateSlackAppCustomSettingsMutation,
 } from '../../../hooks/slack/useSlack';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
-import { useProjects } from '../../../hooks/useProjects';
 import slackSvg from '../../../svgs/slack.svg';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
@@ -78,9 +77,15 @@ const SlackSettingsPanel: FC = () => {
     const debounceSetSearch = debounce((val) => setSearch(val), 1500);
 
     const { data: slackChannels, isInitialLoading: isLoadingSlackChannels } =
-        useSlackChannels(search, true, {
-            enabled: organizationHasSlack,
-        });
+        useSlackChannels(
+            search,
+            {
+                excludeArchived: true,
+                excludeDms: true,
+                excludeGroups: true,
+            },
+            { enabled: organizationHasSlack },
+        );
 
     const { mutate: deleteSlack } = useDeleteSlack();
     const { mutate: updateCustomSettings } =
@@ -124,17 +129,6 @@ const SlackSettingsPanel: FC = () => {
             })) ?? []
         );
     }, [slackChannels]);
-
-    const { data: projects } = useProjects();
-
-    const projectOptions = useMemo(() => {
-        return (
-            projects?.map((project) => ({
-                value: project.projectUuid,
-                label: project.name,
-            })) ?? []
-        );
-    }, [projects]);
 
     let responsiveChannelsSearchEnabled =
         slackChannelOptions.length >= MAX_SLACK_CHANNELS || search.length > 0; // enable responvive channels search if there are more than MAX_SLACK_CHANNELS defined channels
@@ -254,11 +248,20 @@ const SlackSettingsPanel: FC = () => {
                                 />
                             </Group>
                             {aiCopilotFlag?.enabled && (
-                                <ChannelProjectMappings
-                                    form={form}
-                                    channelOptions={slackChannelOptions}
-                                    projectOptions={projectOptions}
-                                />
+                                <Alert
+                                    color="blue"
+                                    fz="xs"
+                                    icon={<MantineIcon icon={IconHelpCircle} />}
+                                >
+                                    Configure Slack channel project mappings{' '}
+                                    <Anchor
+                                        component={Link}
+                                        to="/generalSettings/aiAgents"
+                                    >
+                                        here
+                                    </Anchor>
+                                    .
+                                </Alert>
                             )}
                         </Stack>
                         <Stack align="end" mt="xl">

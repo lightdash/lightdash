@@ -5,7 +5,7 @@ import {
     getErrorMessage,
     getFields,
     getItemId,
-    renderFilterRuleSql,
+    renderFilterRuleSqlFromField,
     SupportedDbtAdapter,
     WeekDay,
 } from '@lightdash/common';
@@ -36,7 +36,7 @@ ${nonExploreFields.join('\n')}
 
 function validateFilterRule(filterRule: FilterRule, field: CompiledField) {
     try {
-        renderFilterRuleSql(
+        renderFilterRuleSqlFromField(
             filterRule,
             field,
             // ! The following args are used to actually render the SQL, we don't care about the ouput, just that it doesn't throw

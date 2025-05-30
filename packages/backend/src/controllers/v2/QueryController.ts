@@ -1,4 +1,5 @@
 import {
+    AnyType,
     ApiErrorPayload,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
@@ -6,10 +7,14 @@ import {
     ApiGetAsyncQueryResults,
     ApiSuccess,
     ApiSuccessEmpty,
+    assertUnreachable,
+    DownloadFileType,
     ExecuteAsyncSqlQueryRequestParams,
     isExecuteAsyncDashboardSqlChartByUuidParams,
     isExecuteAsyncSqlChartByUuidParams,
     QueryExecutionContext,
+    type ApiDownloadAsyncQueryResults,
+    type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiExecuteAsyncMetricQueryResults,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
@@ -276,6 +281,7 @@ export class QueryController extends BaseController {
                 sql: body.sql,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
                 pivotConfiguration: body.pivotConfiguration,
+                limit: body.limit,
             });
 
         return {
@@ -305,6 +311,7 @@ export class QueryController extends BaseController {
                 projectUuid,
                 invalidateCache: body.invalidateCache ?? false,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
+                limit: body.limit,
                 ...(isExecuteAsyncSqlChartByUuidParams(body)
                     ? { savedSqlUuid: body.savedSqlUuid }
                     : { slug: body.slug }),
@@ -337,12 +344,82 @@ export class QueryController extends BaseController {
                 projectUuid,
                 invalidateCache: body.invalidateCache ?? false,
                 dashboardUuid: body.dashboardUuid,
+                tileUuid: body.tileUuid,
                 dashboardFilters: body.dashboardFilters,
                 dashboardSorts: body.dashboardSorts,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
+                limit: body.limit,
                 ...(isExecuteAsyncDashboardSqlChartByUuidParams(body)
                     ? { savedSqlUuid: body.savedSqlUuid }
                     : { slug: body.slug }),
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Stream results from S3
+     */
+    @Hidden()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{queryUuid}/results')
+    @OperationId('getResultsStream')
+    async getResultsStream(
+        @Path() projectUuid: string,
+        @Path() queryUuid: string,
+        @Request() req: express.Request,
+    ): Promise<AnyType> {
+        this.setStatus(200);
+        this.setHeader('Content-Type', 'application/json');
+
+        const readStream = await this.services
+            .getAsyncQueryService()
+            .getResultsStream({
+                user: req.user!,
+                projectUuid,
+                queryUuid,
+            });
+
+        const { res } = req;
+        if (res) {
+            readStream.pipe(res);
+            await new Promise<void>((resolve, reject) => {
+                readStream.on('end', () => {
+                    res.end();
+                    resolve();
+                });
+            });
+        }
+    }
+
+    @Hidden()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{queryUuid}/download')
+    @OperationId('downloadResults')
+    async downloadResults(
+        @Path() projectUuid: string,
+        @Path() queryUuid: string,
+        @Request() req: express.Request,
+        @Query() type: DownloadFileType = DownloadFileType.CSV,
+    ): Promise<
+        ApiSuccess<
+            ApiDownloadAsyncQueryResults | ApiDownloadAsyncQueryResultsAsCsv
+        >
+    > {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .downloadAsyncQueryResults({
+                user: req.user!,
+                projectUuid,
+                queryUuid,
+                type,
             });
 
         return {

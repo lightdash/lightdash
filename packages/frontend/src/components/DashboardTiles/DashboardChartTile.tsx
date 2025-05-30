@@ -110,7 +110,7 @@ import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../MetricQueryData/utils';
 import { type EchartSeriesClickEvent } from '../SimpleChart';
-import { getConditionalRuleLabel } from '../common/Filters/FilterInputs/utils';
+import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/utils';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
@@ -917,7 +917,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                     return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
 
                                                 const filterRuleLabels =
-                                                    getConditionalRuleLabel(
+                                                    getConditionalRuleLabelFromItem(
                                                         filterRule,
                                                         field,
                                                     );

@@ -275,6 +275,11 @@ ${styles.bold('Examples:')}
     .option('--verbose', undefined, false)
     .option('-y, --assume-yes', 'assume yes to prompts', false)
     .option('-no, --assume-no', 'assume no to prompts', false)
+    .option(
+        '--preserve-column-case',
+        'preserve original casing of column names in generated schema files',
+        false,
+    )
     .action(dbtRunHandler);
 
 program
@@ -405,6 +410,11 @@ program
         true,
     )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
+    .option(
+        '--table-configuration <prod|all>',
+        `If set to 'prod' it will copy the table configuration from prod project`,
+        'all',
+    )
     .action(previewHandler);
 
 program
@@ -478,6 +488,11 @@ program
         true,
     )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
+    .option(
+        '--table-configuration <prod|all>',
+        `If set to 'prod' it will copy the table configuration from prod project`,
+        'all',
+    )
     .action(startPreviewHandler);
 
 program
@@ -763,6 +778,11 @@ ${styles.bold('Examples:')}
     .option(
         '--exclude-meta',
         'exclude Lightdash metadata from the generated .yml',
+        false,
+    )
+    .option(
+        '--preserve-column-case',
+        'preserve original casing of column names in generated schema files',
         false,
     )
     .option('--verbose', undefined, false)

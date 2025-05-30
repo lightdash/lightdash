@@ -1,5 +1,6 @@
 export * from './Ai/schemas';
 export * from './Ai/types';
+export * from './AiAgent';
 export * from './commercialFeatureFlags';
 export * from './embed';
 export * from './scim/errors';

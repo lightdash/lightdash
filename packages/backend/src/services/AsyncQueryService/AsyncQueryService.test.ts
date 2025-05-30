@@ -1,11 +1,14 @@
 import {
+    DimensionType,
     NotFoundError,
     QueryExecutionContext,
     QueryHistoryStatus,
-    WarehouseQueryError,
+    VizAggregationOptions,
+    VizIndexType,
     type CreateWarehouseCredentials,
     type ExecuteAsyncQueryRequestParams,
     type QueryHistory,
+    type ResultColumns,
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -15,6 +18,7 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
+import type { DbResultsCache } from '../../database/entities/resultsFile';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -49,6 +53,7 @@ import {
 import {
     allExplores,
     expectedApiQueryResultsWith1Row,
+    expectedColumns,
     expectedFormattedRow,
     job,
     lightdashConfigWithNoSMTP,
@@ -234,6 +239,8 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
                 },
                 { query: metricQueryMock },
                 {
@@ -249,8 +256,6 @@ describe('AsyncQueryService', () => {
                     cacheUpdatedTime: updatedAt,
                     cacheExpiresAt: expiresAt,
                 },
-                metricQuery: expectedApiQueryResultsWith1Row.metricQuery,
-                fields: expectedApiQueryResultsWith1Row.fields,
             } satisfies ExecuteAsyncQueryReturn);
 
             // Verify that the query history was updated with READY status
@@ -319,6 +324,8 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
                 },
                 { query: metricQueryMock },
                 {
@@ -334,8 +341,6 @@ describe('AsyncQueryService', () => {
                     cacheUpdatedTime: updatedAt,
                     cacheExpiresAt: expiresAt,
                 },
-                metricQuery: expectedApiQueryResultsWith1Row.metricQuery,
-                fields: expectedApiQueryResultsWith1Row.fields,
             } satisfies ExecuteAsyncQueryReturn);
 
             // Verify that the query history was not updated with READY status
@@ -360,8 +365,9 @@ describe('AsyncQueryService', () => {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
                 },
-                write,
+                expect.any(Function),
             );
+            expect(write).toHaveBeenCalled();
         });
 
         test('should invalidate cache when invalidateCache is true', async () => {
@@ -402,6 +408,8 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: true,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
                 },
                 { query: metricQueryMock },
                 {
@@ -437,8 +445,9 @@ describe('AsyncQueryService', () => {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
                 },
-                write,
+                expect.any(Function),
             );
+            expect(write).toHaveBeenCalled();
         });
     });
 
@@ -480,6 +489,9 @@ describe('AsyncQueryService', () => {
                 warehouseExecutionTimeMs: null,
                 defaultPageSize: 10,
                 cacheKey: 'test-query-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
             };
 
             serviceWithCache.queryHistoryModel.get = jest
@@ -525,6 +537,21 @@ describe('AsyncQueryService', () => {
                 warehouseExecutionTimeMs: null,
                 defaultPageSize: 10,
                 cacheKey: 'test-query-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
+            };
+
+            const mockResultsFile: DbResultsCache = {
+                cache_key: 'test-cache-key',
+                status: ResultsCacheStatus.READY,
+                project_uuid: projectUuid,
+                created_at: new Date(),
+                updated_at: new Date(),
+                expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24),
+                total_row_count: 10,
+                columns: expectedColumns,
+                original_columns: expectedColumns,
             };
 
             serviceWithCache.queryHistoryModel.get = jest
@@ -532,7 +559,7 @@ describe('AsyncQueryService', () => {
                 .mockResolvedValue(mockQueryHistory);
             serviceWithCache.resultsFileModel.find = jest
                 .fn()
-                .mockResolvedValue(mockQueryHistory);
+                .mockResolvedValue(mockResultsFile);
             serviceWithCache.getExplore = jest
                 .fn()
                 .mockResolvedValue(validExplore);
@@ -572,6 +599,9 @@ describe('AsyncQueryService', () => {
                 warehouseExecutionTimeMs: null,
                 defaultPageSize: 10,
                 cacheKey: 'test-query-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
             };
 
             serviceWithCache.queryHistoryModel.get = jest
@@ -616,11 +646,29 @@ describe('AsyncQueryService', () => {
                 warehouseExecutionTimeMs: null,
                 defaultPageSize: 10,
                 cacheKey: 'test-cache-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
+            };
+
+            const mockResultsFile: DbResultsCache = {
+                cache_key: 'test-cache-key',
+                status: ResultsCacheStatus.READY,
+                project_uuid: projectUuid,
+                created_at: new Date(),
+                updated_at: new Date(),
+                expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24),
+                total_row_count: 10,
+                columns: expectedColumns,
+                original_columns: expectedColumns,
             };
 
             serviceWithCache.queryHistoryModel.get = jest
                 .fn()
                 .mockResolvedValue(mockQueryHistory);
+            serviceWithCache.resultsFileModel.find = jest
+                .fn()
+                .mockResolvedValue(mockResultsFile);
             serviceWithCache.getExplore = jest
                 .fn()
                 .mockResolvedValue(validExplore);
@@ -630,13 +678,9 @@ describe('AsyncQueryService', () => {
                 .fn()
                 .mockResolvedValue({
                     rows: [expectedFormattedRow],
+                    columns: expectedColumns,
                     totalRowCount: 10,
                 });
-
-            const warehouseClientGetAsyncQueryResultsSpy = jest.spyOn(
-                warehouseClientMock,
-                'getAsyncQueryResults',
-            );
 
             const result = await serviceWithCache.getAsyncQueryResults({
                 user,
@@ -645,10 +689,6 @@ describe('AsyncQueryService', () => {
                 page: 1,
                 pageSize: 10,
             });
-
-            expect(
-                warehouseClientGetAsyncQueryResultsSpy,
-            ).not.toHaveBeenCalled();
 
             expect(result).toEqual({
                 rows: [expectedFormattedRow],
@@ -662,12 +702,8 @@ describe('AsyncQueryService', () => {
                 initialQueryExecutionMs: expect.any(Number),
                 resultsPageExecutionMs: expect.any(Number),
                 status: QueryHistoryStatus.READY,
-                columns: {
-                    dim1: {
-                        reference: 'dim1',
-                        type: 'string',
-                    },
-                },
+                pivotDetails: null,
+                columns: expectedColumns,
             });
 
             expect(serviceWithCache.getCachedResultsPage).toHaveBeenCalledWith(
@@ -700,6 +736,9 @@ describe('AsyncQueryService', () => {
                 warehouseExecutionTimeMs: null,
                 defaultPageSize: 10,
                 cacheKey: 'test-cache-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
             };
 
             serviceWithCache.queryHistoryModel.get = jest
@@ -730,6 +769,196 @@ describe('AsyncQueryService', () => {
                 new NotFoundError(
                     `Cache not found for key ${mockQueryHistory.cacheKey} and project ${projectUuid}`,
                 ),
+            );
+        });
+
+        test('should include original columns in pivotDetails for pivoted queries', async () => {
+            const mockOriginalColumns: ResultColumns = {
+                user_id: { reference: 'user_id', type: DimensionType.STRING },
+                order_date: {
+                    reference: 'order_date',
+                    type: DimensionType.DATE,
+                },
+                amount: { reference: 'amount', type: DimensionType.NUMBER },
+            };
+
+            const mockPivotConfiguration = {
+                indexColumn: {
+                    reference: 'user_id',
+                    type: VizIndexType.CATEGORY,
+                },
+                valuesColumns: [
+                    {
+                        reference: 'amount',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'order_date' }],
+                sortBy: [],
+            };
+
+            const mockPivotValuesColumns = [
+                {
+                    referenceField: 'amount',
+                    pivotColumnName: 'amount_sum_2021',
+                    aggregation: VizAggregationOptions.SUM,
+                    pivotValues: [
+                        { referenceField: 'order_date', value: '2021' },
+                    ],
+                },
+            ];
+
+            const mockQueryHistory: QueryHistory = {
+                createdAt: new Date(),
+                organizationUuid: user.organizationUuid!,
+                createdByUserUuid: user.userUuid,
+                queryUuid: 'test-query-uuid',
+                projectUuid,
+                status: QueryHistoryStatus.READY,
+                error: null,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE, // Any context works now
+                fields: validExplore.tables.a.dimensions,
+                compiledSql: 'SELECT * FROM test.table',
+                warehouseQueryId: 'test-warehouse-query-id',
+                warehouseQueryMetadata: null,
+                requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                totalRowCount: null,
+                warehouseExecutionTimeMs: null,
+                defaultPageSize: 10,
+                cacheKey: 'test-cache-key',
+                pivotConfiguration: mockPivotConfiguration,
+                pivotTotalColumnCount: 5,
+                pivotValuesColumns: mockPivotValuesColumns,
+            };
+
+            serviceWithCache.queryHistoryModel.get = jest
+                .fn()
+                .mockResolvedValue(mockQueryHistory);
+            serviceWithCache.getCachedResultsPage = jest
+                .fn()
+                .mockResolvedValue({
+                    rows: [expectedFormattedRow],
+                    columns: expectedColumns,
+                    originalColumns: mockOriginalColumns,
+                    totalRowCount: 10,
+                });
+
+            const result = await serviceWithCache.getAsyncQueryResults({
+                user,
+                projectUuid,
+                queryUuid: 'test-query-uuid',
+                page: 1,
+                pageSize: 10,
+            });
+
+            expect(result).toMatchObject({
+                status: QueryHistoryStatus.READY,
+                pivotDetails: {
+                    totalColumnCount: 5,
+                    valuesColumns: mockPivotValuesColumns,
+                    indexColumn: mockPivotConfiguration.indexColumn,
+                    groupByColumns: mockPivotConfiguration.groupByColumns,
+                    sortBy: mockPivotConfiguration.sortBy,
+                    originalColumns: mockOriginalColumns,
+                },
+            });
+        });
+    });
+
+    describe('executeAsyncQuery with originalColumns', () => {
+        const write = jest.fn();
+        const close = jest.fn();
+        const serviceWithCache = getMockedAsyncQueryService({
+            ...lightdashConfigMock,
+            results: {
+                ...lightdashConfigMock.results,
+                cacheEnabled: true,
+            },
+        });
+
+        const mockOriginalColumns: ResultColumns = {
+            user_id: { reference: 'user_id', type: DimensionType.STRING },
+            order_date: { reference: 'order_date', type: DimensionType.DATE },
+            amount: { reference: 'amount', type: DimensionType.NUMBER },
+        };
+
+        beforeEach(() => {
+            serviceWithCache.warehouseClients = {};
+            serviceWithCache.cacheService = {} as ICacheService;
+            jest.clearAllMocks();
+
+            serviceWithCache.createOrGetExistingCache = jest
+                .fn()
+                .mockImplementation(async () => ({
+                    cacheHit: false,
+                    cacheKey: 'test-cache-key',
+                    write,
+                    close,
+                }));
+
+            serviceWithCache.deleteCache = jest.fn();
+        });
+
+        test('should store original columns when provided', async () => {
+            const mockCacheResult: MissCacheResult = {
+                cacheHit: false,
+                cacheKey: 'test-cache-key',
+                write,
+                close,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                expiresAt: new Date(),
+                totalRowCount: null,
+            };
+
+            (
+                serviceWithCache.createOrGetExistingCache as jest.Mock
+            ).mockResolvedValueOnce(mockCacheResult);
+            (
+                serviceWithCache.queryHistoryModel.create as jest.Mock
+            ).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+            });
+
+            serviceWithCache.updateCache = jest.fn();
+
+            // Mock the private method using bracket notation (common Jest pattern)
+            const mockRunAsyncWarehouseQuery = jest
+                .fn()
+                .mockResolvedValue(undefined);
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            serviceWithCache['runAsyncWarehouseQuery'] =
+                mockRunAsyncWarehouseQuery;
+
+            await serviceWithCache.executeAsyncQuery(
+                {
+                    user,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.SQL_RUNNER,
+                    },
+                    explore: validExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    originalColumns: mockOriginalColumns,
+                },
+                { query: metricQueryMock },
+                {
+                    warehouseClient: warehouseClientMock,
+                    sshTunnel: mockSshTunnel,
+                },
+            );
+
+            // Verify that original columns are passed to runAsyncWarehouseQuery
+            expect(mockRunAsyncWarehouseQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    originalColumns: mockOriginalColumns,
+                }),
             );
         });
     });

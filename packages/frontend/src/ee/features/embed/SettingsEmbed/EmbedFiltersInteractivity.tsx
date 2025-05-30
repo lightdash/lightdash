@@ -10,7 +10,7 @@ import {
 import { Checkbox, Flex, Group, Select, Stack, Text } from '@mantine/core';
 import { useCallback, useMemo } from 'react';
 import { type FieldsWithSuggestions } from '../../../../components/Explorer/FiltersCard/useFieldsWithSuggestions';
-import { getConditionalRuleLabel } from '../../../../components/common/Filters/FilterInputs/utils';
+import { getConditionalRuleLabelFromItem } from '../../../../components/common/Filters/FilterInputs/utils';
 import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
@@ -178,7 +178,7 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
 
                                 if (!field) return;
 
-                                const labels = getConditionalRuleLabel(
+                                const labels = getConditionalRuleLabelFromItem(
                                     filter,
                                     field,
                                 );

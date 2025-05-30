@@ -3,6 +3,7 @@ import { Knex } from 'knex';
 export const AiThreadTableName = 'ai_thread';
 
 export type DbAiThread = {
+    agent_uuid: string | null;
     ai_thread_uuid: string;
     created_at: Date;
     organization_uuid: string;
@@ -12,14 +13,17 @@ export type DbAiThread = {
 
 export type AiThreadTable = Knex.CompositeTableType<
     DbAiThread,
-    Pick<DbAiThread, 'organization_uuid' | 'project_uuid' | 'created_from'>
+    Pick<
+        DbAiThread,
+        'organization_uuid' | 'project_uuid' | 'created_from' | 'agent_uuid'
+    >
 >;
 
 export const AiSlackThreadTableName = 'ai_slack_thread';
 
 export const AiWebAppThreadTableName = 'ai_web_app_thread';
 
-type DbAiSlackThread = {
+export type DbAiSlackThread = {
     ai_slack_thread_uuid: string;
     ai_thread_uuid: string;
     slack_user_id: string;

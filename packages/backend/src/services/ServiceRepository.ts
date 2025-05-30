@@ -91,6 +91,7 @@ interface ServiceManifest {
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
+    aiAgentService: unknown;
     scimService: unknown;
     supportService: unknown;
     cacheService: unknown;
@@ -405,6 +406,10 @@ export class ServiceRepository
                     organizationAllowedEmailDomainsModel:
                         this.models.getOrganizationAllowedEmailDomainsModel(),
                     groupsModel: this.models.getGroupsModel(),
+                    personalAccessTokenModel:
+                        this.models.getPersonalAccessTokenModel(),
+                    emailModel: this.models.getEmailModel(),
+                    projectService: this.getProjectService(),
                 }),
         );
     }
@@ -789,11 +794,9 @@ export class ServiceRepository
             () =>
                 new ContentService({
                     analytics: this.context.lightdashAnalytics,
-                    // models
                     projectModel: this.models.getProjectModel(),
                     contentModel: this.models.getContentModel(),
                     spaceModel: this.models.getSpaceModel(),
-                    // services
                     spaceService: this.getSpaceService(),
                     dashboardService: this.getDashboardService(),
                     savedChartService: this.getSavedChartService(),
@@ -855,6 +858,10 @@ export class ServiceRepository
 
     public getAiService<AiServiceImplT>(): AiServiceImplT {
         return this.getService('aiService');
+    }
+
+    public getAiAgentService<AiAgentServiceImplT>(): AiAgentServiceImplT {
+        return this.getService('aiAgentService');
     }
 
     public getScimService<ScimServiceImplT>(): ScimServiceImplT {

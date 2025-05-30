@@ -1,9 +1,12 @@
-import { FilterSchema, SortFieldSchema } from '@lightdash/common';
+import {
+    AiMetricQuery,
+    FilterSchema,
+    SortFieldSchema,
+} from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
 import { z } from 'zod';
 import { CsvService } from '../../../../services/CsvService/CsvService';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
-import { MiniMetricQuery } from '../runMiniMetricQuery/runMiniMetricQuery';
 import {
     FollowUpTools,
     followUpToolsSchema,
@@ -55,11 +58,11 @@ export const generateCsvToolSchema = z.object({
 
 type CsvFileConfig = z.infer<typeof csvFileConfigSchema>;
 
-const metricQueryCsv = async (
+export const metricQueryCsv = async (
     config: CsvFileConfig,
     maxLimit: number,
     filters: z.infer<typeof FilterSchema> = {},
-): Promise<MiniMetricQuery> => ({
+): Promise<AiMetricQuery> => ({
     exploreName: config.exploreName,
     metrics: config.metrics,
     dimensions: config.dimensions || [],
@@ -70,7 +73,7 @@ const metricQueryCsv = async (
 
 type RenderCsvFileArgs = {
     runMetricQuery: (
-        metricQuery: MiniMetricQuery,
+        metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
     config: CsvFileConfig;
     filters?: z.infer<typeof FilterSchema>;
@@ -83,8 +86,11 @@ export const renderCsvFile = async ({
     filters,
     maxLimit,
 }: RenderCsvFileArgs): Promise<{
-    file: Buffer;
-    metricQuery: MiniMetricQuery;
+    metricQuery: AiMetricQuery;
+    results: Awaited<
+        ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
+    >;
+    csv: string;
 }> => {
     const query = await metricQueryCsv(config, maxLimit, filters);
     const results = await runMetricQuery(query);
@@ -92,9 +98,12 @@ export const renderCsvFile = async ({
     const rows = results.rows.map((row) =>
         CsvService.convertRowToCsv(row, results.fields, true, fields),
     );
+
     const csv = stringify(rows, { header: true, columns: fields });
+
     return {
-        file: Buffer.from(csv, 'utf8'),
         metricQuery: query,
+        results,
+        csv,
     };
 };

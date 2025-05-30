@@ -28,6 +28,7 @@ import {
     QueryExecutionContext,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
+    SortField,
     UpdateEmbed,
     UserAttributeValueMap,
     addDashboardFiltersToMetricQuery,
@@ -784,6 +785,7 @@ export class EmbedService extends BaseService {
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
         dateZoomGranularity?: DateGranularity,
+        dashboardSorts?: SortField[],
         checkPermissions: boolean = true,
     ) {
         const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
@@ -837,9 +839,17 @@ export class EmbedService extends BaseService {
             dashboardFilters,
         );
 
+        const metricQueryWithDashboardSorts =
+            dashboardSorts && dashboardSorts.length > 0
+                ? {
+                      ...chart.metricQuery,
+                      sorts: dashboardSorts,
+                  }
+                : chart.metricQuery;
+
         const metricQueryWithDashboardOverrides: MetricQuery = {
             ...addDashboardFiltersToMetricQuery(
-                chart.metricQuery,
+                metricQueryWithDashboardSorts,
                 appliedDashboardFilters,
                 explore,
             ),

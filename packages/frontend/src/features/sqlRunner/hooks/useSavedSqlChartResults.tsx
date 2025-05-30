@@ -1,35 +1,53 @@
 import {
-    isVizCartesianChartConfig,
     isVizTableConfig,
     type ApiError,
+    type DashboardFilters,
     type IResultsRunner,
+    type QueryExecutionContext,
     type RawResultRow,
+    type ResultColumns,
+    type SortField,
     type SqlChart,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
-import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
-import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
+import {
+    getDashboardSqlChartPivotChartData,
+    getSqlChartPivotChartData,
+} from '../../queryRunner/sqlRunnerPivotQueries';
+import { SqlChartResultsRunner } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { fetchSavedSqlChart } from './useSavedSqlCharts';
-import { getSqlChartResultsByUuid } from './useSqlChartResults';
 
-export const useSavedSqlChartResults = ({
-    savedSqlUuid,
-    slug,
-    projectUuid,
-    context,
-}: {
+type SavedSqlChartArgs = {
     savedSqlUuid?: string;
     slug?: string;
     projectUuid?: string;
     context?: string;
-}) => {
-    // Separate chart results into two steps to provide a better loading + error experiences
-    const { getResultsFromStream } = useResultsFromStreamWorker();
+};
 
+type SavedSqlChartDashboardArgs = SavedSqlChartArgs & {
+    dashboardUuid: string;
+    tileUuid: string;
+    dashboardFilters: DashboardFilters;
+    dashboardSorts: SortField[];
+};
+
+type UseSavedSqlChartResultsArguments =
+    | SavedSqlChartArgs
+    | SavedSqlChartDashboardArgs;
+
+const isDashboardArgs = (
+    args: UseSavedSqlChartResultsArguments,
+): args is SavedSqlChartDashboardArgs => 'dashboardUuid' in args;
+
+export const useSavedSqlChartResults = (
+    args: UseSavedSqlChartResultsArguments,
+) => {
     // Needed for organization colors
     const { data: organization } = useOrganization();
+
+    const { savedSqlUuid, slug, projectUuid, context } = args;
 
     // Step 1: Get the chart
     const chartQuery = useQuery<SqlChart, Partial<ApiError>>(
@@ -54,36 +72,40 @@ export const useSavedSqlChartResults = ({
             chartUnderlyingData:
                 | { columns: string[]; rows: RawResultRow[] }
                 | undefined;
+            originalColumns: ResultColumns;
         },
         Partial<ApiError>
     >(
-        ['savedSqlChartResults', savedSqlUuid ?? slug],
+        ['savedSqlChartResults', savedSqlUuid ?? slug, args], // keep uuid/slug in the key to facilitate cache invalidation
         async () => {
             // Safe to assume these are defined because of the enabled flag
             const chart = chartQuery.data!;
 
-            // TODO: This shouldn't be needed - it gets the raw unpivoted results
-            const chartResults = await getSqlChartResultsByUuid({
-                projectUuid: projectUuid!,
-                chartUuid: chart.savedSqlUuid,
-                getResultsFromStream,
-                context,
-            });
-
-            const resultsRunner = new SqlRunnerResultsRunnerFrontend({
-                rows: chartResults.results,
-                columns: chartResults.columns,
-                projectUuid: projectUuid!,
-                savedSqlUuid: chart.savedSqlUuid,
-                sql: chart.sql,
-                ...(isVizCartesianChartConfig(chart.config) && {
-                    sortBy: chart.config.fieldConfig?.sortBy,
-                }),
-            });
+            let { originalColumns, ...pivotChartData } =
+                isDashboardArgs(args) && savedSqlUuid
+                    ? await getDashboardSqlChartPivotChartData({
+                          projectUuid: projectUuid!,
+                          dashboardUuid: args.dashboardUuid,
+                          tileUuid: args.tileUuid,
+                          dashboardFilters: args.dashboardFilters,
+                          dashboardSorts: args.dashboardSorts,
+                          savedSqlUuid,
+                          context: args.context as QueryExecutionContext,
+                      })
+                    : await getSqlChartPivotChartData({
+                          projectUuid: projectUuid!,
+                          savedSqlUuid: chart.savedSqlUuid,
+                          context: context as QueryExecutionContext,
+                      });
 
             const vizConfig = isVizTableConfig(chart.config)
                 ? chart.config.columns
                 : chart.config.fieldConfig;
+
+            const resultsRunner = new SqlChartResultsRunner({
+                pivotChartData,
+                originalColumns,
+            });
 
             const vizDataModel = getChartDataModel(
                 resultsRunner,
@@ -105,6 +127,7 @@ export const useSavedSqlChartResults = ({
                 fileUrl: vizDataModel.getDataDownloadUrl()!, // TODO: this is known if the results have been fetched - can we improve the types on vizdatamodel?
                 resultsRunner,
                 chartUnderlyingData,
+                originalColumns,
             };
         },
         {

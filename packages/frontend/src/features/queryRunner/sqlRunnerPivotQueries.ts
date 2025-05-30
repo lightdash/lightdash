@@ -1,80 +1,24 @@
 import {
     VIZ_DEFAULT_AGGREGATION,
-    isApiSqlRunnerJobPivotQuerySuccessResponse,
-    isErrorDetails,
-    type ApiJobScheduledResponse,
+    type DashboardFilters,
     type PivotChartData,
-    type RawResultRow,
+    type QueryExecutionContext,
+    type ResultColumns,
     type RunPivotQuery,
     type SemanticLayerField,
     type SemanticLayerQuery,
+    type SortField,
     type SqlRunnerPivotQueryBody,
     type VizColumn,
     type VizSortBy,
 } from '@lightdash/common';
-import { lightdashApi } from '../../api';
-import { getResultsFromStream } from '../../utils/request';
-import { getSqlRunnerCompleteJob } from '../sqlRunner/hooks/requestUtils';
 import { getVizIndexTypeFromSemanticLayerFieldType } from './BaseResultsRunner';
+import {
+    executeDashboardSqlChartPivotQuery,
+    executeSqlChartPivotQuery,
+    executeSqlPivotQuery,
+} from './executeQuery';
 
-const schedulePivotSqlJob = async ({
-    projectUuid,
-    context,
-    ...payload
-}: {
-    projectUuid: string;
-    savedSqlUuid?: string;
-    context?: string;
-} & SqlRunnerPivotQueryBody) =>
-    lightdashApi<ApiJobScheduledResponse['results']>({
-        url: `/projects/${projectUuid}/sqlRunner/runPivotQuery${
-            context ? `?context=${context}` : ''
-        }`,
-        method: 'POST',
-        body: JSON.stringify(payload),
-    });
-
-type PivotQueryFn = (
-    args: SqlRunnerPivotQueryBody & {
-        projectUuid: string;
-        savedSqlUuid?: string;
-        context?: string;
-    },
-) => Promise<Omit<PivotChartData, 'columns'>>;
-
-const pivotQueryFn: PivotQueryFn = async ({
-    projectUuid,
-    savedSqlUuid,
-    context,
-    ...args
-}) => {
-    const scheduledJob = await schedulePivotSqlJob({
-        projectUuid,
-        savedSqlUuid,
-        context,
-        ...args,
-    });
-
-    const job = await getSqlRunnerCompleteJob(scheduledJob.jobId);
-
-    if (isApiSqlRunnerJobPivotQuerySuccessResponse(job)) {
-        const url =
-            job.details && !isErrorDetails(job.details)
-                ? job.details.fileUrl
-                : undefined;
-        const results = await getResultsFromStream<RawResultRow>(url);
-
-        return {
-            results,
-            indexColumn: job.details.indexColumn,
-            valuesColumns: job.details.valuesColumns,
-            columnCount: job.details.columnCount,
-            fileUrl: url,
-        };
-    } else {
-        throw job;
-    }
-};
 // TODO: REMOVE THIS - temporary mapping logic - also needs access to fields :(
 const convertSemanticLayerQueryToSqlRunnerPivotQuery = (
     query: SemanticLayerQuery,
@@ -126,9 +70,8 @@ const convertSemanticLayerQueryToSqlRunnerPivotQuery = (
     };
 };
 // TEMPORARY
-export const getPivotQueryFunctionForSqlRunner = ({
+export const getPivotQueryFunctionForSqlQuery = ({
     projectUuid,
-    savedSqlUuid,
     limit,
     sortBy,
     sql,
@@ -136,15 +79,15 @@ export const getPivotQueryFunctionForSqlRunner = ({
     context,
 }: {
     projectUuid: string;
-    savedSqlUuid?: string;
     limit?: number;
     sql: string;
     sortBy?: VizSortBy[];
     fields: SemanticLayerField[];
-    context?: string;
+    context?: QueryExecutionContext;
 }): RunPivotQuery => {
     return async (query: SemanticLayerQuery) => {
         const index = query.pivot?.index[0];
+
         if (index === undefined) {
             return {
                 results: [],
@@ -155,30 +98,27 @@ export const getPivotQueryFunctionForSqlRunner = ({
                 columnCount: undefined,
             };
         }
+
         const { indexColumn, valuesColumns, groupByColumns } =
             convertSemanticLayerQueryToSqlRunnerPivotQuery(query, fields);
-        const pivotResults = await pivotQueryFn({
-            projectUuid,
-            savedSqlUuid,
-            sql,
-            indexColumn,
-            valuesColumns,
-            groupByColumns,
-            limit,
-            sortBy,
+
+        const pivotResults = await executeSqlPivotQuery(projectUuid, {
             context,
+            limit,
+            sql,
+            pivotConfiguration: {
+                indexColumn,
+                valuesColumns,
+                groupByColumns,
+                sortBy,
+            },
         });
 
-        const columns: VizColumn[] = [
-            ...(pivotResults.indexColumn?.reference
-                ? [pivotResults.indexColumn.reference]
-                : []),
-            ...pivotResults.valuesColumns.map(
-                (valueColumn) => valueColumn.pivotColumnName,
-            ),
-        ].map((field) => ({
-            reference: field,
-        }));
+        const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
+            (field) => ({
+                reference: field,
+            }),
+        );
 
         return {
             fileUrl: pivotResults.fileUrl,
@@ -188,5 +128,75 @@ export const getPivotQueryFunctionForSqlRunner = ({
             columns,
             columnCount: pivotResults.columnCount,
         };
+    };
+};
+
+export const getSqlChartPivotChartData = async ({
+    projectUuid,
+    savedSqlUuid,
+    limit,
+    context,
+}: {
+    projectUuid: string;
+    savedSqlUuid: string;
+    limit?: number;
+    context?: QueryExecutionContext;
+}): Promise<PivotChartData & { originalColumns: ResultColumns }> => {
+    const pivotResults = await executeSqlChartPivotQuery(projectUuid, {
+        savedSqlUuid,
+        context,
+        limit,
+    });
+
+    const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
+        (field) => ({
+            reference: field,
+        }),
+    );
+
+    return {
+        ...pivotResults,
+        columns,
+    };
+};
+
+export const getDashboardSqlChartPivotChartData = async ({
+    projectUuid,
+    dashboardUuid,
+    tileUuid,
+    savedSqlUuid,
+    limit,
+    dashboardFilters,
+    dashboardSorts,
+    context,
+}: {
+    projectUuid: string;
+    dashboardUuid: string;
+    tileUuid: string;
+    savedSqlUuid: string;
+    limit?: number;
+    dashboardFilters: DashboardFilters;
+    dashboardSorts: SortField[]; // TODO: check if dashboardSorts is needed, seems to be unused
+    context?: QueryExecutionContext;
+}): Promise<PivotChartData & { originalColumns: ResultColumns }> => {
+    const pivotResults = await executeDashboardSqlChartPivotQuery(projectUuid, {
+        dashboardUuid,
+        tileUuid,
+        savedSqlUuid,
+        context,
+        dashboardFilters,
+        dashboardSorts,
+        limit,
+    });
+
+    const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
+        (field) => ({
+            reference: field,
+        }),
+    );
+
+    return {
+        ...pivotResults,
+        columns,
     };
 };

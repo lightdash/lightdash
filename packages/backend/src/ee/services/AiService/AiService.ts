@@ -1,6 +1,10 @@
 import { subject } from '@casl/ability';
 import { type TokenUsage } from '@langchain/core/language_models/base';
-import { AIMessage, HumanMessage } from '@langchain/core/messages';
+import {
+    AIMessage,
+    HumanMessage,
+    SystemMessage,
+} from '@langchain/core/messages';
 import { OutputParserException } from '@langchain/core/output_parsers';
 import {
     ChatPromptTemplate,
@@ -11,6 +15,7 @@ import {
     AiChatMessage,
     AiConversation,
     AiConversationMessage,
+    AiMetricQuery,
     AiWebAppPrompt,
     AnyType,
     CatalogType,
@@ -20,22 +25,22 @@ import {
     FeatureFlags,
     ItemsMap,
     LightdashUser,
+    NotFoundError,
     QueryExecutionContext,
-    ResultRow,
     SessionUser,
     SlackPrompt,
     UnexpectedServerError,
     assertUnreachable,
+    filterExploreByTags,
     getErrorMessage,
     getItemId,
     isDashboardChartTileType,
     isField,
     isSlackPrompt,
-    isTableCalculation,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { AgentExecutor } from 'langchain/agents';
-import { /* intersection, */ pick } from 'lodash';
+import { pick } from 'lodash';
 import moment from 'moment';
 import slackifyMarkdown from 'slackify-markdown';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -55,11 +60,11 @@ import {
     DashboardSummaryViewed,
 } from '../../analytics';
 import OpenAi from '../../clients/OpenAi';
+import { AiAgentModel } from '../../models/AiAgentModel';
 import { AiModel } from '../../models/AiModel';
-import type { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
+import { AiAgentService } from '../AiAgentService';
 import { CommercialCatalogService } from '../CommercialCatalogService';
-import { MiniMetricQuery } from './runMiniMetricQuery/runMiniMetricQuery';
 import { getFindFieldsTool } from './tools/findFieldsTool';
 import { getGenerateBarVizConfigTool } from './tools/generateBarVizConfigTool';
 import { getGenerateCsvTool } from './tools/generateCsvTool';
@@ -101,6 +106,7 @@ type Dependencies = {
     dashboardModel: DashboardModel;
     dashboardSummaryModel: DashboardSummaryModel;
     aiModel: AiModel;
+    aiAgentModel: AiAgentModel;
     userModel: UserModel;
     projectModel: ProjectModel;
     organizationModel: OrganizationModel;
@@ -109,8 +115,8 @@ type Dependencies = {
     openAi: OpenAi;
     slackClient: SlackClient;
     lightdashConfig: LightdashConfig;
-    slackAuthenticationModel: CommercialSlackAuthenticationModel;
     featureFlagService: FeatureFlagService;
+    aiAgentService: AiAgentService;
 };
 
 export class AiService {
@@ -119,6 +125,8 @@ export class AiService {
     private readonly dashboardModel: DashboardModel;
 
     private readonly aiModel: AiModel;
+
+    private readonly aiAgentModel: AiAgentModel;
 
     private readonly userModel: UserModel;
 
@@ -132,8 +140,6 @@ export class AiService {
 
     private readonly catalogService: CommercialCatalogService;
 
-    private readonly slackAuthenticationModel: CommercialSlackAuthenticationModel;
-
     private readonly openAi: OpenAi;
 
     private readonly slackClient: SlackClient;
@@ -142,6 +148,8 @@ export class AiService {
 
     private readonly featureFlagService: FeatureFlagService;
 
+    private readonly aiAgentService: AiAgentService;
+
     constructor(dependencies: Dependencies) {
         this.analytics = dependencies.analytics;
         this.dashboardModel = dependencies.dashboardModel;
@@ -149,14 +157,15 @@ export class AiService {
         this.projectService = dependencies.projectService;
         this.openAi = dependencies.openAi;
         this.aiModel = dependencies.aiModel;
+        this.aiAgentModel = dependencies.aiAgentModel;
         this.userModel = dependencies.userModel;
         this.slackClient = dependencies.slackClient;
         this.projectModel = dependencies.projectModel;
         this.catalogService = dependencies.catalogService;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.organizationModel = dependencies.organizationModel;
-        this.slackAuthenticationModel = dependencies.slackAuthenticationModel;
         this.featureFlagService = dependencies.featureFlagService;
+        this.aiAgentService = dependencies.aiAgentService;
     }
 
     private async getIsCopilotEnabled(
@@ -496,36 +505,37 @@ export class AiService {
             ),
         );
 
-        const exploresWithDescriptions = explores.map((explore, index) => ({
-            ...explore,
-            description: exploreSummaries[index]?.description,
-        }));
-
-        const minimalExploreInformation = exploresWithDescriptions
-            // TODO: enable this to allow filtering by tags
-            // .filter(
-            //     (explore) =>
-            //         !availableTags ||
-            //         /* (explore. */tags, availableTags).length > 0,
-            // )
-            .map((s) => ({
-                ...pick(s, ['name', 'label', 'description', 'baseTable']),
-                joinedTables: Object.keys(s.tables).filter(
-                    (table) => table !== s.baseTable,
-                ),
+        const exploresWithDescriptions = explores
+            .map((explore) =>
+                filterExploreByTags({
+                    explore,
+                    availableTags,
+                }),
+            )
+            .filter((explore) => explore !== undefined)
+            .map((explore, index) => ({
+                ...explore,
+                description: exploreSummaries[index]?.description,
             }));
+
+        const minimalExploreInformation = exploresWithDescriptions.map((s) => ({
+            ...pick(s, ['name', 'label', 'description', 'baseTable']),
+            joinedTables: Object.keys(s.tables).filter(
+                (table) => table !== s.baseTable,
+            ),
+        }));
 
         return minimalExploreInformation;
     }
 
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack
     // This is scoped to the project, user and prompt (closure)
-    private getToolUtilities(
+    public getToolUtilities(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
-        _availableTags: string[] | null,
+        availableTags: string[] | null,
     ) {
-        const { projectUuid, organizationUuid } = prompt;
+        const { projectUuid, organizationUuid, agentUuid } = prompt;
 
         const getExplore = async ({ exploreName }: { exploreName: string }) => {
             const explore = await this.projectService.getExplore(
@@ -534,15 +544,16 @@ export class AiService {
                 exploreName,
             );
 
-            // TODO: enable this to allow filtering by tags
-            // if (
-            //     availableTags &&
-            //     /* (explore. */tags, availableTags).length === 0
-            // ) {
-            //     throw new Error('Explore is not available');
-            // }
+            const filteredExplore = filterExploreByTags({
+                explore,
+                availableTags,
+            });
 
-            return explore;
+            if (!filteredExplore) {
+                throw new NotFoundError('Explore not found');
+            }
+
+            return filteredExplore;
         };
 
         const searchFields = this.lightdashConfig.ai.copilot
@@ -596,7 +607,7 @@ export class AiService {
             return webOrSlackPrompt;
         };
 
-        const runMiniMetricQuery = async (metricQuery: MiniMetricQuery) => {
+        const runMiniMetricQuery = async (metricQuery: AiMetricQuery) => {
             const explore = await getExplore({
                 exploreName: metricQuery.exploreName,
             });
@@ -628,6 +639,19 @@ export class AiService {
         };
 
         const sendFile = async (args: PostSlackFile) => {
+            //
+            // TODO: https://api.slack.com/methods/files.upload does not support setting custom usernames
+            // support this in the future
+            //
+            // const agent = agentUuid
+            //     ? await this.aiAgentService.getAgent(user, agentUuid)
+            //     : undefined;
+            // let username: string | undefined;
+            // if (agent) {
+            //     username = agent.name;
+            // }
+            //
+
             await this.slackClient.postFileToThread(args);
         };
 
@@ -656,13 +680,16 @@ export class AiService {
 
         const { projectUuid } = slackOrWebAppPrompt;
 
-        const projectSettings =
+        const agentSettings =
             'slackChannelId' in slackOrWebAppPrompt
-                ? await this.slackAuthenticationModel.getProjectSettingsForSlackChannelId(
-                      user.organizationUuid,
-                      slackOrWebAppPrompt.slackChannelId,
-                  )
-                : undefined;
+                ? await this.aiAgentModel.getAgentBySlackChannelId({
+                      organizationUuid: user.organizationUuid,
+                      slackChannelId: slackOrWebAppPrompt.slackChannelId,
+                  })
+                : await this.aiAgentModel.getAgent({
+                      organizationUuid: slackOrWebAppPrompt.organizationUuid,
+                      agentUuid: slackOrWebAppPrompt.agentUuid!,
+                  });
 
         const {
             getExplore,
@@ -674,20 +701,18 @@ export class AiService {
         } = this.getToolUtilities(
             user,
             slackOrWebAppPrompt,
-            projectSettings?.availableTags ?? null,
+            agentSettings?.tags ?? null,
         );
 
         const findFieldsTool = getFindFieldsTool({
             getExplore,
             searchFields,
-            availableTags: projectSettings?.availableTags ?? null,
         });
 
         const generateQueryFilters = getGenerateQueryFiltersTool({
             getExplore,
             promptUuid: slackOrWebAppPrompt.promptUuid,
             updatePrompt: this.aiModel.updateSlackResponse.bind(this.aiModel),
-            availableTags: projectSettings?.availableTags ?? null,
         });
 
         const generateBarVizConfigTool = getGenerateBarVizConfigTool({
@@ -740,6 +765,9 @@ export class AiService {
         }
         const prompt = ChatPromptTemplate.fromMessages([
             aiCopilotSystemPrompt,
+            ...(agentSettings?.instruction
+                ? [new SystemMessage(agentSettings.instruction)]
+                : []),
             new MessagesPlaceholder('metadata'),
             new MessagesPlaceholder('chat_history'),
             new MessagesPlaceholder('agent_scratchpad'),
@@ -806,7 +834,7 @@ ${e.llmOutput}
             await this.getMinimalExploreInformation(
                 user,
                 projectUuid,
-                projectSettings?.availableTags ?? null,
+                agentSettings?.tags ?? null,
             );
 
         const results = await agentExecutor.invoke({
@@ -844,6 +872,7 @@ ${e.llmOutput}
         slackThreadTs: string | undefined;
         prompt: string;
         promptSlackTs: string;
+        agentUuid: string | null;
     }): Promise<[string, boolean]> {
         let createdThread = false;
         let threadUuid: string | undefined;
@@ -882,6 +911,7 @@ ${e.llmOutput}
                 slackUserId: data.slackUserId,
                 slackChannelId: data.slackChannelId,
                 slackThreadTs: data.slackThreadTs || data.promptSlackTs,
+                agentUuid: data.agentUuid,
             });
         }
 
@@ -985,14 +1015,29 @@ ${
             slackPrompt.organizationUuid,
         );
 
-        let response: string | undefined;
-        try {
-            const threadMessages = await this.aiModel.getThreadMessages(
-                slackPrompt.organizationUuid,
-                slackPrompt.projectUuid,
-                slackPrompt.threadUuid,
+        const threadMessages = await this.aiModel.getThreadMessages(
+            slackPrompt.organizationUuid,
+            slackPrompt.projectUuid,
+            slackPrompt.threadUuid,
+        );
+
+        const thread = await this.aiModel.findThread(slackPrompt.threadUuid);
+        if (!thread) {
+            throw new Error('Thread not found');
+        }
+
+        let name: string | undefined;
+        if (thread.agentUuid) {
+            const agent = await this.aiAgentService.getAgent(
+                user,
+                thread.agentUuid,
             );
 
+            name = agent.name;
+        }
+
+        let response: string | undefined;
+        try {
             const chatHistoryMessages =
                 this.getChatHistoryFromThreadMessages(threadMessages);
 
@@ -1007,6 +1052,7 @@ ${
                 text: `🔴 Co-pilot failed to generate a response 😥 Please try again.`,
                 channel: slackPrompt.slackChannelId,
                 thread_ts: slackPrompt.slackThreadTs,
+                username: name,
             });
 
             Logger.error('Failed to generate response:', e);
@@ -1048,6 +1094,7 @@ ${
         const newResponse = await this.slackClient.postMessage({
             organizationUuid: slackPrompt.organizationUuid,
             text: slackifiedMarkdown,
+            username: name,
             channel: slackPrompt.slackChannelId,
             thread_ts: slackPrompt.slackThreadTs,
             unfurl_links: false,
@@ -1076,6 +1123,61 @@ ${
                 promptUuid: slackPrompt.promptUuid,
                 responseSlackTs: newResponse.ts,
             });
+        }
+    }
+
+    async generateAgentThreadResponse(
+        agentUuid: string,
+        threadUuid: string,
+        promptUuid: string,
+    ): Promise<void> {
+        const thread = await this.aiModel.findThread(threadUuid);
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const prompt = await this.aiModel.findWebAppPrompt(promptUuid);
+        if (!prompt) {
+            throw new NotFoundError(`Prompt not found: ${promptUuid}`);
+        }
+
+        const { organizationUuid, projectUuid } = thread;
+
+        const threadMessages = await this.aiModel.getThreadMessages(
+            organizationUuid,
+            projectUuid,
+            threadUuid,
+        );
+
+        if (threadMessages.length === 0) {
+            throw new Error(
+                `No messages found in thread: ${threadUuid}. ${agentUuid} ${promptUuid}`,
+            );
+        }
+
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            prompt.createdByUserUuid,
+            organizationUuid,
+        );
+
+        try {
+            const chatHistoryMessages =
+                this.getChatHistoryFromThreadMessages(threadMessages);
+
+            // TODO: when we move this method to `aiAgentService` we can move the `generateAgentThreadResponse` too
+            const response = await this.generateExploreResult(
+                user,
+                chatHistoryMessages,
+                prompt,
+            );
+
+            await this.aiModel.updateWebAppResponse({
+                promptUuid,
+                response,
+            });
+        } catch (e) {
+            Logger.error('Failed to generate agent thread response:', e);
+            throw new Error('Failed to generate agent thread response');
         }
     }
 
@@ -1186,6 +1288,7 @@ ${
             projectUuid,
             userUuid: user.userUuid,
             createdFrom: 'web_app',
+            agentUuid: null,
         });
 
         if (threadUuid === undefined) {
@@ -1239,6 +1342,7 @@ ${
             projectUuid,
             createdFrom: 'web_app',
             userUuid: user.userUuid,
+            agentUuid: null,
         });
 
         const promptUuid = await this._createWebAppPrompt(
@@ -1281,7 +1385,7 @@ ${
         const rows = finalPrompt.metricQuery
             ? (
                   await utils.runMiniMetricQuery(
-                      finalPrompt.metricQuery as MiniMetricQuery,
+                      finalPrompt.metricQuery as AiMetricQuery,
                   )
               ).rows
             : undefined;
