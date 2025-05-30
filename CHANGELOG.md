@@ -1,3 +1,10 @@
+# [0.1671.0](https://github.com/lightdash/lightdash/compare/0.1670.0...0.1671.0) (2025-05-30)
+
+
+### Features
+
+* move agent name and instructions to prompt template ([#15105](https://github.com/lightdash/lightdash/issues/15105)) ([711b001](https://github.com/lightdash/lightdash/commit/711b0011c47bada4a9b6208df7dd42a2d52a5e13)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.1670.0](https://github.com/lightdash/lightdash/compare/0.1669.0...0.1670.0) (2025-05-30)
 
 
