@@ -1,3 +1,10 @@
+# [0.1668.0](https://github.com/lightdash/lightdash/compare/0.1667.1...0.1668.0) (2025-05-30)
+
+
+### Features
+
+* add table visualization for AI agent thread messages ([#15098](https://github.com/lightdash/lightdash/issues/15098)) ([68e10ae](https://github.com/lightdash/lightdash/commit/68e10ae274b6abeccb8e26fd940b451a49b2b132)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.1667.1](https://github.com/lightdash/lightdash/compare/0.1667.0...0.1667.1) (2025-05-30)
 
 
