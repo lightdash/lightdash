@@ -4,6 +4,7 @@ import {
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
     CommercialFeatureFlags,
+    EE_SCHEDULER_TASKS,
     ForbiddenError,
     LightdashUser,
     NotFoundError,
