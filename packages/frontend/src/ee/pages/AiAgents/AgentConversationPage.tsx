@@ -4,7 +4,6 @@ import {
     type AiAgentMessageAssistant,
 } from '@lightdash/common';
 import {
-    Avatar,
     Badge,
     Card,
     Group,
@@ -12,6 +11,7 @@ import {
     Stack,
     Text,
     Tooltip,
+    type CardProps,
 } from '@mantine-8/core';
 import MDEditor from '@uiw/react-md-editor';
 import dayjs from 'dayjs';
@@ -23,11 +23,12 @@ import {
     type PropsWithChildren,
 } from 'react';
 import { useParams } from 'react-router';
-import { getNameInitials } from '../../../features/comments/utils';
+import { LightdashUserAvatar } from '../../../components/Avatar';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { AgentChatInput } from '../../features/aiCopilot/components/AgentChatInput';
 import {
+    useAiAgent,
     useAiAgentThread,
     useAiAgentThreadMessageViz,
     useGenerateAgentThreadResponseMutation,
@@ -36,11 +37,13 @@ import AiTableViz from './AiTableViz';
 
 type MessageBubbleProps = {
     message: AiAgentMessage;
+    cardProps?: CardProps;
 };
 
 const MessageBubble: FC<PropsWithChildren<MessageBubbleProps>> = ({
     children,
     message,
+    cardProps,
 }) => {
     return (
         <Card
@@ -49,7 +52,8 @@ const MessageBubble: FC<PropsWithChildren<MessageBubbleProps>> = ({
             radius="xl"
             py="sm"
             px="lg"
-            bg={message.role === 'assistant' ? 'white' : 'blue.1'}
+            bg={message.role === 'assistant' ? 'white' : 'blue.2'}
+            fw={message.role === 'user' ? 500 : undefined}
             color={message.role === 'assistant' ? 'black' : 'white'}
             style={{
                 overflow: 'unset',
@@ -59,6 +63,7 @@ const MessageBubble: FC<PropsWithChildren<MessageBubbleProps>> = ({
                     ? { borderStartEndRadius: '0px' }
                     : {}),
             }}
+            {...cardProps}
         >
             {children}
         </Card>
@@ -88,7 +93,15 @@ const AiResultMessage: FC<AiResultMessageProps> = ({ message }) => {
     );
 
     return (
-        <MessageBubble message={message}>
+        <MessageBubble
+            message={message}
+            cardProps={
+                vizQuery.data?.type === 'time_series_chart' ||
+                vizQuery.data?.type === 'vertical_bar_chart'
+                    ? { w: '100%' }
+                    : undefined
+            }
+        >
             {vizQuery.isLoading ? (
                 <Loader />
             ) : vizQuery.isError ? (
@@ -108,11 +121,12 @@ const AiResultMessage: FC<AiResultMessageProps> = ({ message }) => {
 
 type AiThreadMessageProps = {
     message: AiAgentMessage;
+    agentName?: string;
 };
 
-const AiThreadMessage: FC<AiThreadMessageProps> = ({ message }) => {
-    const initials =
-        message.role === 'user' ? getNameInitials(message.user.name) : 'AI';
+const AiThreadMessage: FC<AiThreadMessageProps> = ({ message, agentName }) => {
+    const name =
+        message.role === 'user' ? message.user.name : agentName || 'AI';
 
     const timeAgo = useTimeAgo(new Date(message.createdAt));
 
@@ -121,6 +135,7 @@ const AiThreadMessage: FC<AiThreadMessageProps> = ({ message }) => {
             <Group
                 maw="70%"
                 align="flex-start"
+                wrap="nowrap"
                 gap="sm"
                 style={{
                     marginLeft: message.role === 'user' ? 'auto' : undefined,
@@ -128,13 +143,10 @@ const AiThreadMessage: FC<AiThreadMessageProps> = ({ message }) => {
                         message.role === 'user' ? 'row-reverse' : 'row',
                 }}
             >
-                <Avatar
-                    color={message.role === 'user' ? 'violet' : 'gray.3'}
-                    radius="xl"
-                    variant="filled"
-                >
-                    {initials}
-                </Avatar>
+                <LightdashUserAvatar
+                    variant={message.role === 'assistant' ? 'filled' : 'light'}
+                    name={name}
+                />
 
                 <Stack
                     gap="xs"
@@ -184,12 +196,14 @@ const AiThreadMessage: FC<AiThreadMessageProps> = ({ message }) => {
                                 </Badge>
                             )}
                     </MessageBubble>
+
+                    {message.role === 'assistant' &&
+                        message.vizConfigOutput &&
+                        message.metricQuery && (
+                            <AiResultMessage message={message} />
+                        )}
                 </Stack>
             </Group>
-
-            {message.role === 'assistant' &&
-                message.vizConfigOutput &&
-                message.metricQuery && <AiResultMessage message={message} />}
         </>
     );
 };
@@ -201,6 +215,8 @@ const AgentConversationPage = () => {
         agentUuid!,
         threadUuid!,
     );
+
+    const agentQuery = useAiAgent(agentUuid!);
 
     const {
         mutateAsync: generateAgentThreadResponse,
@@ -219,25 +235,27 @@ const AgentConversationPage = () => {
         });
     }, [thread?.messages]);
 
-    if (isLoadingThread || !thread) {
+    if (isLoadingThread || !thread || agentQuery.isLoading) {
         return <Loader />;
     }
 
     return (
-        <Stack h="100%" mah="100%" justify="space-between" gap={0}>
+        <Stack h="100%" mah="100%" justify="space-between" gap="lg">
             <Stack
                 flex={1}
                 style={{ overflowY: 'auto' }}
-                p="md"
+                py={30}
                 ref={scrollRef}
             >
                 {thread.messages.map((message) => (
                     <AiThreadMessage
                         key={`${message.role}-${message.uuid}`}
                         message={message}
+                        agentName={agentQuery.data?.name ?? 'AI'}
                     />
                 ))}
             </Stack>
+
             <AgentChatInput
                 disabled={thread.createdFrom === 'slack'}
                 loading={isGenerating}

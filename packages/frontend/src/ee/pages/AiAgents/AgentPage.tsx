@@ -2,10 +2,10 @@ import { Box, Button, Group, Stack, Text, Title } from '@mantine-8/core';
 import { IconArrowLeft, IconChevronDown, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, Navigate, Outlet, useParams } from 'react-router';
+import { LightdashUserAvatar } from '../../../components/Avatar';
 import LinkButton from '../../../components/common/LinkButton';
 import Page from '../../../components/common/Page/Page';
 import PageSpinner from '../../../components/PageSpinner';
-import { AgentAvatar } from '../../features/aiCopilot/components/AgentAvatar';
 import AgentThreadCard, {
     AgentThreadCardEmpty,
 } from '../../features/aiCopilot/components/AgentThreadCard';
@@ -43,9 +43,10 @@ const AgentPage = () => {
                             All agents
                         </LinkButton>
                         <Group>
-                            <AgentAvatar
-                                size={54}
-                                name={agent.name || 'AI Agent'}
+                            <LightdashUserAvatar
+                                size="lg"
+                                variant="filled"
+                                name={agent.name || 'AI'}
                             />
                             <Box>
                                 <Title order={3}>{agent.name}</Title>
@@ -94,7 +95,7 @@ const AgentPage = () => {
                     )}
                     {threads && (
                         <Stack gap="xs">
-                            <Title order={4}>Threads</Title>
+                            <Title order={5}>Threads</Title>
                             {threads.slice(0, showMaxItems).map((thread) => (
                                 <AgentThreadCard
                                     key={thread.uuid}

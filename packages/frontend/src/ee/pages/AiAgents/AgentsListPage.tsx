@@ -13,10 +13,10 @@ import {
 } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { Link } from 'react-router';
+import { LightdashUserAvatar } from '../../../components/Avatar';
 import Page from '../../../components/common/Page/Page';
 import PageSpinner from '../../../components/PageSpinner';
 import useApp from '../../../providers/App/useApp';
-import { AgentAvatar } from '../../features/aiCopilot/components/AgentAvatar';
 import { useAiAgents } from '../../features/aiCopilot/hooks/useAiAgents';
 
 type AgentCardProps = {
@@ -37,7 +37,11 @@ const AgentCard = ({ agent }: AgentCardProps) => {
         >
             <Stack gap="sm" p="lg">
                 <Group>
-                    <AgentAvatar name={agent.name} size={54} />
+                    <LightdashUserAvatar
+                        name={agent.name}
+                        size="lg"
+                        variant="filled"
+                    />
                     <Stack gap="xs">
                         <Title order={4}>{agent.name}</Title>
                         <Group gap={4}>
@@ -95,24 +99,24 @@ const AgentsListPage = () => {
 
     return (
         <Page
-            withFullHeight
             withPaddedContent
+            withXLargePaddedContent
             title="Lightdash Agents"
-            header={
-                <Group justify="space-between" mb="lg" p="md">
-                    <Title>Lightdash Agents</Title>
-                    {userCanManageOrganization && (
-                        <Button
-                            component={Link}
-                            to="/generalSettings/aiAgents/new"
-                            leftSection={<IconPlus />}
-                        >
-                            New
-                        </Button>
-                    )}
-                </Group>
-            }
         >
+            <Group justify="space-between" mb="lg">
+                <Title order={2}>Lightdash Agents</Title>
+
+                {userCanManageOrganization && (
+                    <Button
+                        component={Link}
+                        to="/generalSettings/aiAgents/new"
+                        leftSection={<IconPlus />}
+                    >
+                        New
+                    </Button>
+                )}
+            </Group>
+
             <Grid>
                 {agentsListQuery.data?.map((agent) => (
                     <Grid.Col span={4} key={agent.uuid}>

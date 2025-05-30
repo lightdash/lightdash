@@ -10,6 +10,7 @@ import {
 import { IconHelpHexagon, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import { LightdashUserAvatar } from '../../../../components/Avatar';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import {
     useGetSlack,
@@ -17,7 +18,6 @@ import {
 } from '../../../../hooks/slack/useSlack';
 import { useProjects } from '../../../../hooks/useProjects';
 import { useAiAgents } from '../hooks/useAiAgents';
-import { AgentAvatar } from './AgentAvatar';
 
 export const AiAgents: FC = () => {
     const navigate = useNavigate();
@@ -135,7 +135,11 @@ export const AiAgents: FC = () => {
                             >
                                 <Table.Td>
                                     <Group gap="sm">
-                                        <AgentAvatar name={agent.name} />
+                                        <LightdashUserAvatar
+                                            size="sm"
+                                            name={agent.name}
+                                            variant="filled"
+                                        />
 
                                         <Text size="sm" fw={500}>
                                             {agent.name || 'AI Agent'}

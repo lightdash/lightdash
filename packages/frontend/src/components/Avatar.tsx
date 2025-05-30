@@ -1,30 +1,18 @@
-import { Avatar, useMantineTheme, type AvatarProps } from '@mantine/core';
+import { Avatar, type AvatarProps } from '@mantine-8/core';
 import { forwardRef } from 'react';
 
-import useApp from '../providers/App/useApp';
+type Props = AvatarProps;
 
-export const UserAvatar = forwardRef<HTMLDivElement, AvatarProps>(
-    (props, ref) => {
-        const { user } = useApp();
-        const theme = useMantineTheme();
-        const initials = user.data
-            ? `${user.data.firstName[0]}${user.data.lastName[0]}`.trim()
-            : '';
-
+export const LightdashUserAvatar = forwardRef<HTMLDivElement, Props>(
+    ({ ...props }, ref) => {
         return (
             <Avatar
-                data-testid="user-avatar"
                 ref={ref}
                 variant="light"
-                size={theme.spacing.xxl}
-                radius="xl"
-                color="gray.8"
-                bg="gray.3"
-                sx={{ cursor: 'pointer' }}
+                radius="100%"
+                color="initials"
                 {...props}
-            >
-                {initials}
-            </Avatar>
+            />
         );
     },
 );
