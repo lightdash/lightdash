@@ -34,7 +34,10 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
         | Pick<CreatePostgresCredentials, 'type' | 'user' | 'password'>
         | Pick<CreateSnowflakeCredentials, 'type' | 'user' | 'password'>
         | Pick<CreateTrinoCredentials, 'type' | 'user' | 'password'>
-        | Pick<CreateBigqueryCredentials, 'type' | 'keyfileContents'>
+        | Pick<
+              CreateBigqueryCredentials,
+              'type' | 'keyfileContents' | 'authenticationType'
+          >
         | Pick<CreateDatabricksCredentials, 'type' | 'personalAccessToken'>;
 };
 
