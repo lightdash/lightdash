@@ -1,3 +1,10 @@
+# [0.1672.0](https://github.com/lightdash/lightdash/compare/0.1671.0...0.1672.0) (2025-05-30)
+
+
+### Features
+
+* Improve back button labels when creating spaces from charts ([#15030](https://github.com/lightdash/lightdash/issues/15030)) ([a71c802](https://github.com/lightdash/lightdash/commit/a71c802967782326a1762545a3581ca162bc1984))
+
 # [0.1671.0](https://github.com/lightdash/lightdash/compare/0.1670.0...0.1671.0) (2025-05-30)
 
 
