@@ -2,6 +2,7 @@ import {
     AiAgentThread,
     AiAgentThreadSummary,
     AiMetricQuery,
+    ApiAiAgentThreadMessageViz,
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
     CommercialFeatureFlags,
@@ -498,13 +499,7 @@ export class AiAgentService {
             threadUuid: string;
             messageUuid: string;
         },
-    ): Promise<{
-        results: Awaited<
-            ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
-        >;
-        metricQuery: AiMetricQuery;
-        vizConfig?: object;
-    }> {
+    ): Promise<ApiAiAgentThreadMessageViz> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -559,10 +554,8 @@ export class AiAgentService {
         // FIXME: viz config should have a type so we can use an exhaustive switch
         if (verticalBarMetricChartConfig.success) {
             return renderVerticalBarMetricChart({
-                runMetricQuery: (q) => {
-                    console.log({ projectUuid, q });
-                    return this.runAiMetricQuery(user, projectUuid, q);
-                },
+                runMetricQuery: (q) =>
+                    this.runAiMetricQuery(user, projectUuid, q),
                 vizConfig: verticalBarMetricChartConfig.data,
                 filters: message.filtersOutput ?? undefined,
             });

@@ -1,24 +1,24 @@
-import {
-    type AiAgent,
-    type ApiAiAgentResponse,
-    type ApiAiAgentStartThreadResponse,
-    type ApiAiAgentSummaryResponse,
-    type ApiAiAgentThreadGenerateRequest,
-    type ApiAiAgentThreadGenerateResponse,
-    type ApiAiAgentThreadMessageVizResponse,
-    type ApiAiAgentThreadResponse,
-    type ApiAiAgentThreadSummaryListResponse,
-    type ApiCreateAiAgent,
-    type ApiCreateAiAgentResponse,
-    type ApiError,
-    type ApiSuccessEmpty,
-    type ApiUpdateAiAgent,
+import type {
+    AiAgent,
+    ApiAiAgentResponse,
+    ApiAiAgentStartThreadResponse,
+    ApiAiAgentSummaryResponse,
+    ApiAiAgentThreadGenerateRequest,
+    ApiAiAgentThreadGenerateResponse,
+    ApiAiAgentThreadMessageViz,
+    ApiAiAgentThreadResponse,
+    ApiAiAgentThreadSummaryListResponse,
+    ApiCreateAiAgent,
+    ApiCreateAiAgentResponse,
+    ApiError,
+    ApiSuccessEmpty,
+    ApiUpdateAiAgent,
 } from '@lightdash/common';
 import {
     useMutation,
-    type UseMutationOptions,
     useQuery,
     useQueryClient,
+    type UseMutationOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
@@ -84,7 +84,7 @@ const getAgentThreadMessageViz = async (args: {
     threadUuid: string;
     messageUuid: string;
 }) =>
-    lightdashApi<ApiAiAgentThreadMessageVizResponse['results']>({
+    lightdashApi<ApiAiAgentThreadMessageViz>({
         url: `/aiAgents/${args.agentUuid}/threads/${args.threadUuid}/message/${args.messageUuid}/viz`,
         method: 'GET',
         body: undefined,
@@ -476,14 +476,11 @@ export const useAiAgentThreadMessageViz = (
         threadUuid: string;
         messageUuid: string;
     },
-    useQueryOptions?: UseQueryOptions<
-        ApiAiAgentThreadMessageVizResponse['results'],
-        ApiError
-    >,
+    useQueryOptions?: UseQueryOptions<ApiAiAgentThreadMessageViz, ApiError>,
 ) => {
     const { showToastApiError } = useToaster();
 
-    return useQuery<ApiAiAgentThreadMessageVizResponse['results'], ApiError>({
+    return useQuery<ApiAiAgentThreadMessageViz, ApiError>({
         queryKey: [
             AI_AGENTS_KEY,
             args.agentUuid,

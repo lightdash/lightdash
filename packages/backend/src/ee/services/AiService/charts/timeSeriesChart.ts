@@ -177,6 +177,7 @@ export const renderTimeseriesChart = async ({
     vizConfig,
     filters,
 }: RenderTimeseriesChartArgs): Promise<{
+    type: 'time_series_chart';
     metricQuery: AiMetricQuery;
     results: Awaited<
         ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
@@ -193,6 +194,7 @@ export const renderTimeseriesChart = async ({
     );
 
     return {
+        type: 'time_series_chart',
         metricQuery,
         results,
         chartOptions,

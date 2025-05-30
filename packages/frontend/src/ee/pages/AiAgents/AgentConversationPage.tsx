@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     type AiAgentMessage,
     type AiAgentMessageAssistant,
 } from '@lightdash/common';
@@ -7,6 +8,7 @@ import {
     Badge,
     Card,
     Group,
+    Loader,
     Stack,
     Text,
     Tooltip,
@@ -21,7 +23,6 @@ import {
     type PropsWithChildren,
 } from 'react';
 import { useParams } from 'react-router';
-import PageSpinner from '../../../components/PageSpinner';
 import { getNameInitials } from '../../../features/comments/utils';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
@@ -31,6 +32,7 @@ import {
     useAiAgentThreadMessageViz,
     useGenerateAgentThreadResponseMutation,
 } from '../../features/aiCopilot/hooks/useAiAgents';
+import AiTableViz from './AiTableViz';
 
 type MessageBubbleProps = {
     message: AiAgentMessage;
@@ -85,20 +87,20 @@ const AiResultMessage: FC<AiResultMessageProps> = ({ message }) => {
         },
     );
 
-    if (vizQuery.isLoading) {
-        return <PageSpinner />;
-    }
-
-    if (vizQuery.isError) {
-        return <Text>Error fetching viz</Text>;
-    }
-
     return (
         <MessageBubble message={message}>
-            {vizQuery.data.chartOptions ? (
+            {vizQuery.isLoading ? (
+                <Loader />
+            ) : vizQuery.isError ? (
+                <Text>Error fetching viz</Text>
+            ) : vizQuery.data.type === 'vertical_bar_chart' ? (
                 <EChartsReact option={vizQuery.data.chartOptions} />
+            ) : vizQuery.data.type === 'time_series_chart' ? (
+                <EChartsReact option={vizQuery.data.chartOptions} />
+            ) : vizQuery.data.type === 'csv' ? (
+                <AiTableViz results={vizQuery.data.results} />
             ) : (
-                <Text>Should Render Table</Text>
+                assertUnreachable(vizQuery.data.type, 'Unknown viz type')
             )}
         </MessageBubble>
     );
@@ -218,7 +220,7 @@ const AgentConversationPage = () => {
     }, [thread?.messages]);
 
     if (isLoadingThread || !thread) {
-        return <PageSpinner />;
+        return <Loader />;
     }
 
     return (
