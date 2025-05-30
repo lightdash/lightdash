@@ -1,3 +1,10 @@
+# [0.1665.0](https://github.com/lightdash/lightdash/compare/0.1664.0...0.1665.0) (2025-05-30)
+
+
+### Features
+
+* Add AI Agents UI with thread management ([#15050](https://github.com/lightdash/lightdash/issues/15050)) ([e75f3f6](https://github.com/lightdash/lightdash/commit/e75f3f69df65fccd2867f4adc74b94f95768dbd9))
+
 # [0.1664.0](https://github.com/lightdash/lightdash/compare/0.1663.2...0.1664.0) (2025-05-30)
 
 
