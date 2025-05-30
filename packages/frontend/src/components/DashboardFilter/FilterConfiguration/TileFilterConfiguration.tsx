@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getItemId,
     isDashboardChartTileType,
     isDashboardFieldTarget,
@@ -29,7 +28,6 @@ import {
     type PopoverProps,
 } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
@@ -131,10 +129,6 @@ const TileFilterConfiguration: FC<Props> = ({
                 sortTilesByFieldMatch(matchFieldExact, a, b),
             );
     }, [sortTilesByFieldMatch, availableTileFilters]);
-
-    const canUseSqlChartFilters = useFeatureFlagEnabled(
-        FeatureFlags.SqlChartDashboardFilters,
-    );
 
     const tileTargetList = useMemo(() => {
         const tileWithTargetFields =
@@ -287,11 +281,7 @@ const TileFilterConfiguration: FC<Props> = ({
             [],
         );
 
-        if (canUseSqlChartFilters) {
-            return [...tileWithTargetFields, ...tileWithTargetColumns];
-        }
-
-        return tileWithTargetFields;
+        return [...tileWithTargetFields, ...tileWithTargetColumns];
     }, [
         sortedTileWithFilters,
         sqlChartTilesMetadata,
@@ -299,7 +289,6 @@ const TileFilterConfiguration: FC<Props> = ({
         filterRule.tileTargets,
         field,
         sortFieldsByMatch,
-        canUseSqlChartFilters,
     ]);
 
     const filteredTileTargetList = (tabUUid: string) => {
