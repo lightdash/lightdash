@@ -86,6 +86,7 @@ export const renderCsvFile = async ({
     filters,
     maxLimit,
 }: RenderCsvFileArgs): Promise<{
+    type: 'csv';
     metricQuery: AiMetricQuery;
     results: Awaited<
         ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
@@ -102,6 +103,7 @@ export const renderCsvFile = async ({
     const csv = stringify(rows, { header: true, columns: fields });
 
     return {
+        type: 'csv',
         metricQuery: query,
         results,
         csv,

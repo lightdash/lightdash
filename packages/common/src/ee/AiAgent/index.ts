@@ -173,17 +173,20 @@ export type ApiAiAgentStartThreadResponse = {
     };
 };
 
+export type ApiAiAgentThreadMessageViz = {
+    type: 'vertical_bar_chart' | 'time_series_chart' | 'csv';
+    metricQuery: AiMetricQuery;
+    chartOptions?: object;
+    results: {
+        rows: Record<string, AnyType>[];
+        cacheMetadata: CacheMetadata;
+        fields: ItemsMap;
+    };
+};
+
 export type ApiAiAgentThreadMessageVizResponse = {
     status: 'ok';
-    results: {
-        results: {
-            rows: Record<string, AnyType>[];
-            cacheMetadata: CacheMetadata;
-            fields: ItemsMap;
-        };
-        metricQuery: AiMetricQuery;
-        chartOptions?: object;
-    };
+    results: ApiAiAgentThreadMessageViz;
 };
 
 export * from './filterExploreByTags';
