@@ -763,11 +763,9 @@ export class AiService {
         if (llm === undefined) {
             throw new UnexpectedServerError('OpenAi model is not initialized');
         }
+
         const prompt = ChatPromptTemplate.fromMessages([
             aiCopilotSystemPrompt,
-            ...(agentSettings?.instruction
-                ? [new SystemMessage(agentSettings.instruction)]
-                : []),
             new MessagesPlaceholder('metadata'),
             new MessagesPlaceholder('chat_history'),
             new MessagesPlaceholder('agent_scratchpad'),
@@ -845,6 +843,8 @@ ${e.llmOutput}
                     name: 'available_explores_json',
                 }),
             ],
+            agent_name: agentSettings.name || 'Lightdash AI Analyst',
+            instructions: agentSettings.instruction || '',
             date: moment().utc().format('YYYY-MM-DD'),
             time: moment().utc().format('HH:mm'),
         });
