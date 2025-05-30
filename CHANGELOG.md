@@ -1,3 +1,10 @@
+# [0.1669.0](https://github.com/lightdash/lightdash/compare/0.1668.1...0.1669.0) (2025-05-30)
+
+
+### Features
+
+* consistent chat UI across pages ([#15103](https://github.com/lightdash/lightdash/issues/15103)) ([9a29a7e](https://github.com/lightdash/lightdash/commit/9a29a7e1f16c511c729830f5620eeb01bbd74607)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.1668.1](https://github.com/lightdash/lightdash/compare/0.1668.0...0.1668.1) (2025-05-30)
 
 
