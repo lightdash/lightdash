@@ -1,3 +1,10 @@
+# [0.1670.0](https://github.com/lightdash/lightdash/compare/0.1669.0...0.1670.0) (2025-05-30)
+
+
+### Features
+
+* remove the sql chart filter feature flag ([#15104](https://github.com/lightdash/lightdash/issues/15104)) ([bb0a986](https://github.com/lightdash/lightdash/commit/bb0a9865de13cea1092f26f626357721b5f27b63))
+
 # [0.1669.0](https://github.com/lightdash/lightdash/compare/0.1668.1...0.1669.0) (2025-05-30)
 
 
