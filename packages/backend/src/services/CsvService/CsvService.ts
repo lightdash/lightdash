@@ -564,6 +564,7 @@ This method can be memory intensive
         onlyRaw,
         truncated,
         customLabels,
+        showTableNames = false,
     }: {
         name?: string;
         projectUuid: string;
@@ -576,6 +577,7 @@ This method can be memory intensive
         truncated: boolean;
         customLabels: Record<string, string> | undefined;
         metricsAsRows?: boolean;
+        showTableNames?: boolean;
     }) {
         return wrapSentryTransaction<AttachmentUrl>(
             'downloadPivotTableCsv',
@@ -598,6 +600,7 @@ This method can be memory intensive
                     onlyRaw,
                     maxColumnLimit:
                         this.lightdashConfig.pivotTable.maxColumnLimit,
+                    showTableNames,
                 });
 
                 const csvContent = await new Promise<string>(
@@ -1217,6 +1220,7 @@ This method can be memory intensive
                     onlyRaw,
                     truncated,
                     customLabels,
+                    showTableNames,
                 });
 
                 this.analytics.track({
