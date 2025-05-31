@@ -26,6 +26,7 @@ import { setProjectHandler } from './handlers/setProject';
 import { validateHandler } from './handlers/validate';
 import * as styles from './styles';
 
+// Trigger CLI tests
 // Suppress AWS SDK V2 warning, imported by snowflake SDK
 process.env.AWS_SDK_JS_SUPPRESS_MAINTENANCE_MODE_MESSAGE = '1';
 
