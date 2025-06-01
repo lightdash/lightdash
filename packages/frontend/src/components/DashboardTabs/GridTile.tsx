@@ -31,7 +31,16 @@ const GridTile: FC<
     if (props.locked) {
         return (
             <Box h="100%">
-                <TileBase isLoading={false} title={''} {...props} />
+                <TileBase
+                    isLoading={false}
+                    title={
+                        tile.properties.title ||
+                        ('chartName' in tile.properties
+                            ? tile.properties.chartName || ''
+                            : '')
+                    }
+                    {...props}
+                />
             </Box>
         );
     }
