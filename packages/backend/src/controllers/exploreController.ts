@@ -7,6 +7,7 @@ import {
     ApiSuccessEmpty,
     MetricQuery,
     PivotConfig,
+    QueryExecutionContext,
 } from '@lightdash/common';
 import {
     Body,
@@ -21,14 +22,17 @@ import {
     Route,
     SuccessResponse,
     Tags,
+    Deprecated,
 } from '@tsoa/runtime';
 import express from 'express';
 import {
     allowApiKeyAuthentication,
+    deprecatedDownloadRoute,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
 import { BaseController } from './baseController';
+import { getContextFromHeader, getContextFromQueryOrHeader } from '../analytics/LightdashAnalytics';
 
 @Route('/api/v1/projects/{projectUuid}/explores')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -128,13 +132,13 @@ export class ExploreController extends BaseController {
             results,
         };
     }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Deprecated()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated,deprecatedDownloadRoute])
     @SuccessResponse('200', 'Success')
     @Post('{exploreId}/downloadCsv')
     @OperationId('DownloadCsvFromExplore')
     async DownloadCsvFromExplore(
-        @Path() exploreId: string,
+        @Path() exploreId: string,      
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Body()
@@ -149,6 +153,22 @@ export class ExploreController extends BaseController {
             pivotConfig?: PivotConfig;
         },
     ): Promise<{ status: 'ok'; results: { jobId: string } }> {
+           const context = getContextFromHeader(req);
+                await this.services
+                    .getLightdashAnalyticsService()
+                    .trackDeprecatedRouteCalled(
+                        {
+                            event: 'deprecated_route.called',
+                            userId: req.user!.userUuid,
+                            properties: {
+                                route: req.path,
+                                context: context ?? QueryExecutionContext.API,
+                            },
+                        },
+                        {
+                            projectUuid,
+                        },
+                    );
         this.setStatus(200);
         const {
             onlyRaw,
