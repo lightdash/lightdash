@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Deprecated,
     Get,
     Middlewares,
     OperationId,
@@ -22,9 +23,12 @@ import {
     Route,
     SuccessResponse,
     Tags,
-    Deprecated,
 } from '@tsoa/runtime';
 import express from 'express';
+import {
+    getContextFromHeader,
+    getContextFromQueryOrHeader,
+} from '../analytics/LightdashAnalytics';
 import {
     allowApiKeyAuthentication,
     deprecatedDownloadRoute,
@@ -32,7 +36,6 @@ import {
     unauthorisedInDemo,
 } from './authentication';
 import { BaseController } from './baseController';
-import { getContextFromHeader, getContextFromQueryOrHeader } from '../analytics/LightdashAnalytics';
 
 @Route('/api/v1/projects/{projectUuid}/explores')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -133,12 +136,16 @@ export class ExploreController extends BaseController {
         };
     }
     @Deprecated()
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated,deprecatedDownloadRoute])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        deprecatedDownloadRoute,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('{exploreId}/downloadCsv')
     @OperationId('DownloadCsvFromExplore')
     async DownloadCsvFromExplore(
-        @Path() exploreId: string,      
+        @Path() exploreId: string,
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Body()
@@ -153,22 +160,22 @@ export class ExploreController extends BaseController {
             pivotConfig?: PivotConfig;
         },
     ): Promise<{ status: 'ok'; results: { jobId: string } }> {
-           const context = getContextFromHeader(req);
-                await this.services
-                    .getLightdashAnalyticsService()
-                    .trackDeprecatedRouteCalled(
-                        {
-                            event: 'deprecated_route.called',
-                            userId: req.user!.userUuid,
-                            properties: {
-                                route: req.path,
-                                context: context ?? QueryExecutionContext.API,
-                            },
-                        },
-                        {
-                            projectUuid,
-                        },
-                    );
+        const context = getContextFromHeader(req);
+        await this.services
+            .getLightdashAnalyticsService()
+            .trackDeprecatedRouteCalled(
+                {
+                    event: 'deprecated_route.called',
+                    userId: req.user!.userUuid,
+                    properties: {
+                        route: req.path,
+                        context: context ?? QueryExecutionContext.API,
+                    },
+                },
+                {
+                    projectUuid,
+                },
+            );
         this.setStatus(200);
         const {
             onlyRaw,

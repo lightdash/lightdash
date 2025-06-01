@@ -126,7 +126,7 @@ export const deprecatedResultsRoute = getDeprecatedRouteMiddleware(
     `Please use 'POST /api/v2/projects/{projectUuid}/query' in conjuntion with 'GET /api/v2/projects/{projectUuid}/query/{queryUuid}' instead.`,
 );
 export const deprecatedDownloadRoute = getDeprecatedRouteMiddleware(
-    new Date('2025-04-30'),  //not sure about the date
+    new Date('2025-04-30'), //not sure about the date
     `Please use 'POST /api/v2/projects/{projectUuid}/query' in conjuntion with 'GET /api/v2/projects/{projectUuid}/query/{queryUuid}/download' instead.`,
 );
 

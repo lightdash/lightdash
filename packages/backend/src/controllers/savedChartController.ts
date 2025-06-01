@@ -34,8 +34,8 @@ import {
 } from '../analytics/LightdashAnalytics';
 import {
     allowApiKeyAuthentication,
-    deprecatedResultsRoute,
     deprecatedDownloadRoute,
+    deprecatedResultsRoute,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -350,7 +350,11 @@ export class SavedChartController extends BaseController {
      * @param req express request
      */
     @Deprecated()
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated,deprecatedDownloadRoute])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        deprecatedDownloadRoute,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/downloadCsv')
     @OperationId('DownloadCsvFromSavedChart')
@@ -359,15 +363,14 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Body()
         body: {
-        dashboardFilters: AnyType; // DashboardFilters; temp disable validation
+            dashboardFilters: AnyType; // DashboardFilters; temp disable validation
             tileUuid?: string;
             // Csv properties
             onlyRaw: boolean;
             csvLimit: number | null | undefined;
         },
     ): Promise<{ status: 'ok'; results: { jobId: string } }> {
-
-         const context = getContextFromQueryOrHeader(req);
+        const context = getContextFromQueryOrHeader(req);
         await this.services
             .getLightdashAnalyticsService()
             .trackDeprecatedRouteCalled(
