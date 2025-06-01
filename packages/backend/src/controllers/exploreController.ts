@@ -135,6 +135,7 @@ export class ExploreController extends BaseController {
             results,
         };
     }
+
     @Deprecated()
     @Middlewares([
         allowApiKeyAuthentication,
