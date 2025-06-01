@@ -84,9 +84,13 @@ export const useDownloadResults = ({
         if (!fileUrl) return;
 
         let results: RawResultRow[] | undefined = undefined;
+        let downloadColumns = columnNames;
         if (customLimit) {
             const queryResult = await runQuery({ sql, limit: customLimit });
             results = queryResult?.results;
+            if (results && results.length > 0) {
+                downloadColumns = Object.keys(results[0]);
+            }
         } else {
             // If no custom limit applied, we can use the fileUrl directly from the original query
             results = await getResultsFromStream(fileUrl);
@@ -96,7 +100,7 @@ export const useDownloadResults = ({
             return;
         }
 
-        await downloadCsv(results, columnNames, chartName);
+        await downloadCsv(results, downloadColumns, chartName);
     }, [
         fileUrl,
         customLimit,
