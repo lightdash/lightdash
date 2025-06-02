@@ -91,6 +91,7 @@ const getPivotQueryResults = async (projectUuid: string, queryUuid: string) => {
         originalColumns: query.pivotDetails
             ? query.pivotDetails.originalColumns
             : query.columns,
+        queryUuid: query.queryUuid,
     };
 };
 

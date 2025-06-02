@@ -20,6 +20,7 @@ import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import { ChartDownload } from '../features/sqlRunner/components/Download/ChartDownload';
+import { ResultsDownload } from '../features/sqlRunner/components/Download/ResultsDownload';
 import { ResultsDownloadFromData } from '../features/sqlRunner/components/Download/ResultsDownloadFromData';
 import { ResultsDownloadFromUrl } from '../features/sqlRunner/components/Download/ResultsDownloadFromUrl';
 import { Header } from '../features/sqlRunner/components/Header';
@@ -56,6 +57,7 @@ const ViewSqlChart = () => {
             error: chartResultsError,
             isFetching: isChartResultsFetching,
         },
+        downloadMutation,
     } = useSavedSqlChartResults({
         projectUuid: params.projectUuid,
         slug: params.slug,
@@ -126,9 +128,15 @@ const ViewSqlChart = () => {
                                 onChange={(val: TabOption) => setActiveTab(val)}
                             />
                         </Group>
-                        {(activeTab === TabOption.RESULTS ||
-                            (activeTab === TabOption.CHART &&
-                                isVizTableConfig(chartData?.config))) &&
+                        {activeTab === TabOption.RESULTS &&
+                            downloadMutation && (
+                                <ResultsDownload
+                                    isDownloading={downloadMutation.isLoading}
+                                    onDownload={downloadMutation.mutate}
+                                />
+                            )}
+                        {activeTab === TabOption.CHART &&
+                            isVizTableConfig(chartData?.config) &&
                             chartResultsData &&
                             // Table charts don't have a fileUrl,
                             // So we will download the file directly from the resultsData

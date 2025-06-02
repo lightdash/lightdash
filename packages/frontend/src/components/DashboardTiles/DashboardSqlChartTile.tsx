@@ -10,6 +10,7 @@ import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
+import { ResultsDownload } from '../../features/sqlRunner/components/Download/ResultsDownload';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import useSearchParams from '../../hooks/useSearchParams';
@@ -89,6 +90,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             error: chartResultsError,
             isFetching: isChartResultsFetching,
         },
+        downloadMutation,
     } = useSavedSqlChartResults({
         projectUuid,
         savedSqlUuid,
@@ -190,14 +192,21 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             title={tile.properties.title || tile.properties.chartName || ''}
             {...rest}
             extraMenuItems={
-                projectUuid &&
-                canManageSqlRunner && (
-                    <DashboardOptions
-                        isEditMode={isEditMode}
-                        projectUuid={projectUuid}
-                        slug={chartData.slug}
-                    />
-                )
+                <>
+                    {downloadMutation && (
+                        <ResultsDownload
+                            isDownloading={downloadMutation.isLoading}
+                            onDownload={downloadMutation.mutate}
+                        />
+                    )}
+                    {projectUuid && canManageSqlRunner && (
+                        <DashboardOptions
+                            isEditMode={isEditMode}
+                            projectUuid={projectUuid}
+                            slug={chartData.slug}
+                        />
+                    )}
+                </>
             }
         >
             {chartData.config.type === ChartKind.TABLE &&
