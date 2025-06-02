@@ -657,7 +657,6 @@ export class AsyncQueryService extends ProjectService {
             case DownloadFileType.XLSX:
                 return this.downloadAsyncQueryResultsAsFormattedFile(
                     resultsFileName,
-                    projectUuid,
                     fields,
                     {
                         generateFileId: ExcelService.generateFileId,
