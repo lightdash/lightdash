@@ -115,7 +115,8 @@
         "clean-node-modules": "./scripts/clean-node-modules.sh && pnpm install",
         "clean-build-cache": "./scripts/clean-build-cache.sh",
         "clean": "pnpm clean-build-cache && pnpm clean-node-modules",
-        "clean-and-build": "pnpm clean && pnpm build"
+        "clean-and-build": "pnpm clean && pnpm build",
+        "local-init": "dotenv -c -e .env.development.local -- ./scripts/local-init.sh"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
