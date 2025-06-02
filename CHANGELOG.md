@@ -1,3 +1,10 @@
+## [0.1676.1](https://github.com/lightdash/lightdash/compare/0.1676.0...0.1676.1) (2025-06-02)
+
+
+### Bug Fixes
+
+* snowflake authenticationType backwards compat ([#15119](https://github.com/lightdash/lightdash/issues/15119)) ([879b3b6](https://github.com/lightdash/lightdash/commit/879b3b68e433c6a0b35a474ba9854f988b995dc5))
+
 # [0.1676.0](https://github.com/lightdash/lightdash/compare/0.1675.0...0.1676.0) (2025-06-02)
 
 
