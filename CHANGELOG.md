@@ -1,3 +1,10 @@
+# [0.1676.0](https://github.com/lightdash/lightdash/compare/0.1675.0...0.1676.0) (2025-06-02)
+
+
+### Features
+
+* Add Slack integration steps UI for AI agents ([#15007](https://github.com/lightdash/lightdash/issues/15007)) ([f850674](https://github.com/lightdash/lightdash/commit/f85067495202cf89da9829c3b50d61b992455cef)), closes [#14976](https://github.com/lightdash/lightdash/issues/14976)
+
 # [0.1675.0](https://github.com/lightdash/lightdash/compare/0.1674.0...0.1675.0) (2025-06-02)
 
 
