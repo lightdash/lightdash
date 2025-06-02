@@ -3,6 +3,7 @@ import {
     AnyType,
     BigqueryAuthenticationType,
     CreateProject,
+    CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     DbtProjectConfig,
@@ -21,6 +22,7 @@ import {
     ProjectSummary,
     ProjectType,
     SemanticLayerType,
+    SnowflakeCredentials,
     SpaceSummary,
     SupportedDbtVersions,
     TablesConfiguration,
@@ -765,21 +767,43 @@ export class ProjectModel {
     For example, when we introduce a new authentication type, we need to set the default value for the existing projects
     */
     static getConnectionWithDefaults(
-        connection: WarehouseCredentials | undefined,
-    ) {
-        if (!connection) {
-            return connection;
+        sensitiveCredentials?: CreateWarehouseCredentials,
+        nonSensitiveCredentials?: WarehouseCredentials,
+    ): WarehouseCredentials | undefined {
+        if (!sensitiveCredentials || !nonSensitiveCredentials) {
+            return nonSensitiveCredentials;
         }
-        switch (connection.type) {
+
+        switch (nonSensitiveCredentials.type) {
             case WarehouseTypes.BIGQUERY:
                 return {
-                    ...connection,
+                    ...nonSensitiveCredentials,
                     authenticationType:
-                        connection.authenticationType ??
+                        nonSensitiveCredentials.authenticationType ??
                         BigqueryAuthenticationType.PRIVATE_KEY,
                 };
+            case WarehouseTypes.SNOWFLAKE: {
+                const rawCredentials =
+                    sensitiveCredentials as CreateSnowflakeCredentials;
+
+                if (nonSensitiveCredentials.authenticationType !== undefined) {
+                    return nonSensitiveCredentials;
+                }
+
+                if (rawCredentials.privateKey === undefined) {
+                    return {
+                        ...nonSensitiveCredentials,
+                        authenticationType: 'password',
+                    };
+                }
+
+                return {
+                    ...nonSensitiveCredentials,
+                    authenticationType: 'private_key',
+                };
+            }
             default:
-                return connection;
+                return nonSensitiveCredentials;
         }
     }
 
@@ -814,7 +838,11 @@ export class ProjectModel {
                 : undefined;
 
         const nonSensitiveCredentialsWithDefaults =
-            ProjectModel.getConnectionWithDefaults(nonSensitiveCredentials);
+            ProjectModel.getConnectionWithDefaults(
+                sensitiveCredentials,
+                nonSensitiveCredentials,
+            );
+
         return {
             organizationUuid: project.organizationUuid,
             projectUuid,
