@@ -6,6 +6,7 @@ import { LightdashUserAvatar } from '../../../components/Avatar';
 import LinkButton from '../../../components/common/LinkButton';
 import Page from '../../../components/common/Page/Page';
 import PageSpinner from '../../../components/PageSpinner';
+import useApp from '../../../providers/App/useApp';
 import AgentThreadCard, {
     AgentThreadCardEmpty,
 } from '../../features/aiCopilot/components/AgentThreadCard';
@@ -18,6 +19,7 @@ const INITIAL_MAX_THREADS = 10;
 const MAX_THREADS_INCREMENT = 10;
 
 const AgentPage = () => {
+    const { user } = useApp();
     const { agentUuid, threadUuid } = useParams();
     const { data: threads } = useAiAgentThreads(agentUuid ?? '');
 
@@ -67,15 +69,17 @@ const AgentPage = () => {
                         >
                             New thread
                         </Button>
-                        <Button
-                            variant="default"
-                            c="dimmed"
-                            bd="none"
-                            component={Link}
-                            to={`/generalSettings/aiAgents/${agent.uuid}`}
-                        >
-                            Settings
-                        </Button>
+                        {user?.data?.ability.can('manage', 'AiAgent') && (
+                            <Button
+                                variant="default"
+                                c="dimmed"
+                                bd="none"
+                                component={Link}
+                                to={`/generalSettings/aiAgents/${agent.uuid}`}
+                            >
+                                Settings
+                            </Button>
+                        )}
                     </Group>
                     {agent.tags && (
                         <Stack gap="xs">

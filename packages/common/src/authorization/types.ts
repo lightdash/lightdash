@@ -48,6 +48,7 @@ export type CaslSubjectNames =
     | 'MetricsTree'
     | 'SpotlightTableConfig'
     | 'ContentAsCode'
+    | 'AiAgent'
     | 'AiAgentThread';
 
 export type Subject =

@@ -30,6 +30,8 @@ type AgentCardProps = {
 };
 
 const AgentCard = ({ agent }: AgentCardProps) => {
+    const { user } = useApp();
+
     return (
         <Card
             withBorder
@@ -81,15 +83,17 @@ const AgentCard = ({ agent }: AgentCardProps) => {
             </Stack>
             <Divider />
             <Group justify="space-between" p="sm">
-                <Button
-                    variant="default"
-                    c="dimmed"
-                    bd="none"
-                    component={Link}
-                    to={`/generalSettings/aiAgents/${agent.uuid}`}
-                >
-                    Settings
-                </Button>
+                {user?.data?.ability.can('manage', 'AiAgent') && (
+                    <Button
+                        variant="default"
+                        c="dimmed"
+                        bd="none"
+                        component={Link}
+                        to={`/generalSettings/aiAgents/${agent.uuid}`}
+                    >
+                        Settings
+                    </Button>
+                )}
                 <Button variant="default" size="sm" px="md">
                     Start a chat
                 </Button>
@@ -106,9 +110,9 @@ const AgentsListPage = () => {
         return <PageSpinner />;
     }
 
-    const userCanManageOrganization = user.data?.ability.can(
+    const userCanManageAiAgent = user.data?.ability.can(
         'manage',
-        subject('Organization', {
+        subject('AiAgent', {
             organizationUuid: user.data?.organizationUuid,
         }),
     );
@@ -148,7 +152,7 @@ const AgentsListPage = () => {
                         </Text>
                     </Box>
                     <Group gap="xs">
-                        {userCanManageOrganization && (
+                        {userCanManageAiAgent && (
                             <Button
                                 size="xs"
                                 variant="default"
