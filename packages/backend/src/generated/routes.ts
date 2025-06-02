@@ -74,6 +74,8 @@ import { CommentsController } from './../controllers/commentsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { CatalogController } from './../controllers/catalogController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { BigquerySSOController } from './../controllers/bigquerySSOController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SemanticLayerController } from './../controllers/v2/SemanticLayerController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { QueryController } from './../controllers/v2/QueryController';
@@ -5036,7 +5038,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiAiAgentThreadMessageVizResponse: {
+    ApiAiAgentThreadMessageViz: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -5044,30 +5046,41 @@ const models: TsoaRoute.Models = {
                 results: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        chartOptions: { dataType: 'object' },
-                        metricQuery: { ref: 'AiMetricQuery', required: true },
-                        results: {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                fields: { ref: 'ItemsMap', required: true },
-                                cacheMetadata: {
-                                    ref: 'CacheMetadata',
-                                    required: true,
-                                },
-                                rows: {
-                                    dataType: 'array',
-                                    array: {
-                                        dataType: 'refAlias',
-                                        ref: 'Record_string.AnyType_',
-                                    },
-                                    required: true,
-                                },
+                        fields: { ref: 'ItemsMap', required: true },
+                        cacheMetadata: { ref: 'CacheMetadata', required: true },
+                        rows: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'Record_string.AnyType_',
                             },
                             required: true,
                         },
                     },
                     required: true,
                 },
+                chartOptions: { dataType: 'object' },
+                metricQuery: { ref: 'AiMetricQuery', required: true },
+                type: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['vertical_bar_chart'] },
+                        { dataType: 'enum', enums: ['time_series_chart'] },
+                        { dataType: 'enum', enums: ['csv'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiAgentThreadMessageVizResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'ApiAiAgentThreadMessageViz', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -9667,6 +9680,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    BigqueryAuthenticationType: {
+        dataType: 'refEnum',
+        enums: ['sso', 'private_key'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateBigqueryCredentials.Exclude_keyofCreateBigqueryCredentials.SensitiveCredentialsFieldNames__':
         {
             dataType: 'refAlias',
@@ -9678,6 +9696,13 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    authenticationType: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'BigqueryAuthenticationType' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -11382,7 +11407,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -11392,7 +11417,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -11402,7 +11427,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -11415,7 +11440,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -14404,6 +14429,42 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 targetCatalogSearchUuid: { dataType: 'string', required: true },
                 sourceCatalogSearchUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    BigqueryDataset: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                datasetId: { dataType: 'string', required: true },
+                location: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                projectId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiBigqueryDatasets: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'BigqueryDataset' },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
@@ -31640,6 +31701,122 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'hasMetricsInCatalog',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsBigquerySSOController_getBigQueryDatabases: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectId: {
+            in: 'query',
+            name: 'projectId',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/bigquery/sso/datasets',
+        ...fetchMiddlewares<RequestHandler>(BigquerySSOController),
+        ...fetchMiddlewares<RequestHandler>(
+            BigquerySSOController.prototype.getBigQueryDatabases,
+        ),
+
+        async function BigquerySSOController_getBigQueryDatabases(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsBigquerySSOController_getBigQueryDatabases,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<BigquerySSOController>(
+                        BigquerySSOController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getBigQueryDatabases',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsBigquerySSOController_get: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/bigquery/sso/is-authenticated',
+        ...fetchMiddlewares<RequestHandler>(BigquerySSOController),
+        ...fetchMiddlewares<RequestHandler>(
+            BigquerySSOController.prototype.get,
+        ),
+
+        async function BigquerySSOController_get(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsBigquerySSOController_get,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<BigquerySSOController>(
+                        BigquerySSOController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'get',
                     controller,
                     response,
                     next,

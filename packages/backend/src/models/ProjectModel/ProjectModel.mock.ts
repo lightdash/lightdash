@@ -1,5 +1,7 @@
 import {
     AnyType,
+    BigqueryAuthenticationType,
+    BigqueryCredentials,
     ConditionalOperator,
     CreateBigqueryCredentials,
     CreatePostgresCredentials,
@@ -90,6 +92,7 @@ export const expectedProject: Project = {
         type: DbtProjectType.DBT_CLOUD_IDE,
     } as AnyType as DbtCloudIDEProjectConfig,
     warehouseConnection: {
+        authenticationType: BigqueryAuthenticationType.PRIVATE_KEY, // Default
         dataset: 'name',
         location: 'name',
         maximumBytesBilled: 1,
@@ -98,7 +101,7 @@ export const expectedProject: Project = {
         retries: 1,
         timeoutSeconds: 1,
         type: WarehouseTypes.BIGQUERY,
-    },
+    } as AnyType as BigqueryCredentials,
     dbtVersion: DefaultSupportedDbtVersion,
     schedulerTimezone: 'UTC',
     createdByUserUuid: null,

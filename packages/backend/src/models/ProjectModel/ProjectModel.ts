@@ -1,6 +1,7 @@
 import {
     AlreadyExistsError,
     AnyType,
+    BigqueryAuthenticationType,
     CreateProject,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
@@ -335,6 +336,7 @@ export class ProjectModel {
         } catch (e) {
             throw new UnexpectedServerError('Could not save credentials.');
         }
+
         await trx('warehouse_credentials')
             .insert({
                 project_id: projectId,
@@ -758,6 +760,29 @@ export class ProjectModel {
         }
     }
 
+    /* 
+    This method will load default values for backwards compatibility
+    For example, when we introduce a new authentication type, we need to set the default value for the existing projects
+    */
+    static getConnectionWithDefaults(
+        connection: WarehouseCredentials | undefined,
+    ) {
+        if (!connection) {
+            return connection;
+        }
+        switch (connection.type) {
+            case WarehouseTypes.BIGQUERY:
+                return {
+                    ...connection,
+                    authenticationType:
+                        connection.authenticationType ??
+                        BigqueryAuthenticationType.PRIVATE_KEY,
+                };
+            default:
+                return connection;
+        }
+    }
+
     async get(projectUuid: string): Promise<Project> {
         const project = await this.getWithSensitiveFields(projectUuid);
         const sensitiveCredentials = project.warehouseConnection;
@@ -781,7 +806,6 @@ export class ProjectModel {
                   ),
               ) as WarehouseCredentials)
             : undefined;
-
         const nonSensitiveSemanticLayerCredentials =
             sensitiveSemanticLayerCredentials
                 ? ProjectModel.getSemanticLayerNonSensitiveCredentials(
@@ -789,13 +813,15 @@ export class ProjectModel {
                   )
                 : undefined;
 
+        const nonSensitiveCredentialsWithDefaults =
+            ProjectModel.getConnectionWithDefaults(nonSensitiveCredentials);
         return {
             organizationUuid: project.organizationUuid,
             projectUuid,
             name: project.name,
             type: project.type,
             dbtConnection: nonSensitiveDbtCredentials,
-            warehouseConnection: nonSensitiveCredentials,
+            warehouseConnection: nonSensitiveCredentialsWithDefaults,
             pinnedListUuid: project.pinnedListUuid,
             dbtVersion: project.dbtVersion,
             upstreamProjectUuid: project.upstreamProjectUuid || undefined,
@@ -1323,6 +1349,7 @@ export class ProjectModel {
 
     async getWarehouseCredentialsForProject(
         projectUuid: string,
+        refreshToken?: string, // TODO make this a fucntion to get the refresh token for the user, and use it if bigquery
     ): Promise<CreateWarehouseCredentials> {
         const [row] = await this.database('warehouse_credentials')
             .innerJoin(

@@ -12,6 +12,7 @@ import {
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
     AnyType,
+    BigqueryDataset,
     CreateBigqueryCredentials,
     DimensionType,
     getErrorMessage,
@@ -601,5 +602,28 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 reject(error);
             });
         });
+    }
+
+    static async getDatabases(
+        projectId: string,
+        refresh_token: string,
+    ): Promise<BigqueryDataset[]> {
+        const bigqueryClient = new BigQuery({
+            projectId,
+            credentials: {
+                type: 'authorized_user',
+                client_id: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_ID,
+                client_secret: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_SECRET,
+                refresh_token,
+            },
+        });
+
+        const datasets = await bigqueryClient.getDatasets();
+        const databases = datasets[0].map((d) => ({
+            projectId: d.projectId,
+            location: d.location,
+            datasetId: d.id!,
+        }));
+        return databases;
     }
 }

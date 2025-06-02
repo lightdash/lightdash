@@ -39,6 +39,10 @@ export type SshTunnelConfiguration = {
     sshTunnelPrivateKey?: string;
 };
 
+export enum BigqueryAuthenticationType {
+    SSO = 'sso',
+    PRIVATE_KEY = 'private_key',
+}
 export type CreateBigqueryCredentials = {
     type: WarehouseTypes.BIGQUERY;
     project: string;
@@ -46,7 +50,8 @@ export type CreateBigqueryCredentials = {
     threads?: number;
     timeoutSeconds: number | undefined;
     priority: 'interactive' | 'batch' | undefined;
-    keyfileContents: Record<string, string>;
+    authenticationType?: BigqueryAuthenticationType;
+    keyfileContents: Record<string, string>; // used for both sso and private key
     requireUserCredentials?: boolean;
     retries: number | undefined;
     location: string | undefined;

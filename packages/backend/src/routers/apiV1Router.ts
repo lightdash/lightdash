@@ -154,6 +154,18 @@ apiV1Router.get(
     }),
 );
 
+apiV1Router.get(
+    '/login/bigquery',
+    storeOIDCRedirect,
+    passport.authenticate('google', {
+        scope: ['profile', 'email', 'https://www.googleapis.com/auth/bigquery'],
+        accessType: 'offline',
+        prompt: 'consent',
+        session: false,
+        includeGrantedScopes: true,
+    }),
+);
+
 apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
     passport.authenticate('google', {
         failureRedirect: getOidcRedirectURL(false)(req),
