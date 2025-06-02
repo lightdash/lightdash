@@ -105,8 +105,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     featureFlagService: repository.getFeatureFlagService(),
                     aiAgentService: repository.getAiAgentService(),
                 }),
-            aiAgentService: ({ models, repository, clients }) =>
+            aiAgentService: ({ models, repository, clients, context }) =>
                 new AiAgentService({
+                    analytics: context.lightdashAnalytics,
                     aiAgentModel: models.getAiAgentModel(),
                     slackAuthenticationModel:
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
