@@ -1,3 +1,10 @@
+# [0.1675.0](https://github.com/lightdash/lightdash/compare/0.1674.0...0.1675.0) (2025-06-02)
+
+
+### Features
+
+* bigquery SSO project creation ([#15026](https://github.com/lightdash/lightdash/issues/15026)) ([34f3f66](https://github.com/lightdash/lightdash/commit/34f3f664c777d00de88c3b33653cc6e202a795af))
+
 # [0.1674.0](https://github.com/lightdash/lightdash/compare/0.1673.0...0.1674.0) (2025-05-30)
 
 
