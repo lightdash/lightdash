@@ -347,6 +347,9 @@ importers:
       passport-local:
         specifier: ^1.0.0
         version: 1.0.0
+      passport-oauth2:
+        specifier: ^1.8.0
+        version: 1.8.0
       passport-oauth2-refresh:
         specifier: ^2.2.0
         version: 2.2.0
@@ -465,6 +468,9 @@ importers:
       '@types/passport-local':
         specifier: ^1.0.34
         version: 1.0.34
+      '@types/passport-oauth2':
+        specifier: ^1.4.17
+        version: 1.4.17
       '@types/passport-oauth2-refresh':
         specifier: ^1.1.1
         version: 1.1.1
@@ -5409,8 +5415,8 @@ packages:
   '@types/passport-oauth2-refresh@1.1.1':
     resolution: {integrity: sha512-Tw0JvfDPv9asgFPACd9oOGCaD/0/Uyi+QF7fmrJC74cJKC6I8N8wwhJJHyfd1N2E/qaLgTh431lhOa9jicpNdg==}
 
-  '@types/passport-oauth2@1.4.12':
-    resolution: {integrity: sha512-RZg6cYTyEGinrZn/7REYQds6zrTxoBorX1/fdaz5UHzkG8xdFE7QQxkJagCr2ETzGII58FAFDmnmbTUVMrltNA==}
+  '@types/passport-oauth2@1.4.17':
+    resolution: {integrity: sha512-ODiAHvso6JcWJ6ZkHHroVp05EHGhqQN533PtFNBkg8Fy5mERDqsr030AX81M0D69ZcaMvhF92SRckEk2B0HYYg==}
 
   '@types/passport-strategy@0.2.35':
     resolution: {integrity: sha512-o5D19Jy2XPFoX2rKApykY15et3Apgax00RRLf0RUotPDUsYrQa7x4howLYr9El2mlUApHmCMv5CZ1IXqKFQ2+g==}
@@ -5942,7 +5948,6 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
-    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:
@@ -10668,6 +10673,9 @@ packages:
   nwsapi@2.2.7:
     resolution: {integrity: sha512-ub5E4+FBPKwAZx0UwIQOjYWGHTEq5sPqHQNRN8Z9e4A7u3Tj1weLJsL59yH9vmvqEtBHaOmT6cYQKIZOxp35FQ==}
 
+  oauth@0.10.2:
+    resolution: {integrity: sha512-JtFnB+8nxDEXgNyniwz573xxbKSOu3R8D40xQKqcjwJ2CDkYqUDI53o6IuzDJBx60Z8VKCm271+t8iFjakrl8Q==}
+
   oauth@0.9.15:
     resolution: {integrity: sha512-a5ERWK1kh38ExDEfoO6qUHJb32rd7aYmPHuyCu3Fta/cnICvYmgd2uhuKXvPD+PXB+gCEYYEaQdIRAjCOwAKNA==}
 
@@ -10949,8 +10957,8 @@ packages:
     resolution: {integrity: sha512-yXwXHL7ZZH0s2oknnjugfvwzCB5mpJ5ZNpzkb+b/sTsHeZFbx2BXfzvwsoD4aq6gq/aWuCxBV89ef+L/cjjrjg==}
     engines: {node: '>=10'}
 
-  passport-oauth2@1.7.0:
-    resolution: {integrity: sha512-j2gf34szdTF2Onw3+76alNnaAExlUmHvkc7cL+cmaS5NzHzDP/BvFHJruueQ9XAeNOdpI+CH+PWid8RA7KCwAQ==}
+  passport-oauth2@1.8.0:
+    resolution: {integrity: sha512-cjsQbOrXIDE4P8nNb3FQRCCmJJ/utnFKEz2NX209f7KOHPoX18gF7gBzBbLLsj2/je4KrgiwLLGjf0lm9rtTBA==}
     engines: {node: '>= 0.4.0'}
 
   passport-openidconnect@0.1.1:
@@ -19598,7 +19606,7 @@ snapshots:
     dependencies:
       '@types/express': 4.17.14
       '@types/passport': 1.0.12
-      '@types/passport-oauth2': 1.4.12
+      '@types/passport-oauth2': 1.4.17
 
   '@types/passport-local@1.0.34':
     dependencies:
@@ -19609,9 +19617,9 @@ snapshots:
   '@types/passport-oauth2-refresh@1.1.1':
     dependencies:
       '@types/oauth': 0.9.1
-      '@types/passport-oauth2': 1.4.12
+      '@types/passport-oauth2': 1.4.17
 
-  '@types/passport-oauth2@1.4.12':
+  '@types/passport-oauth2@1.4.17':
     dependencies:
       '@types/express': 4.17.14
       '@types/oauth': 0.9.1
@@ -26267,6 +26275,8 @@ snapshots:
 
   nwsapi@2.2.7: {}
 
+  oauth@0.10.2: {}
+
   oauth@0.9.15: {}
 
   object-assign@4.1.1: {}
@@ -26582,7 +26592,7 @@ snapshots:
 
   passport-google-oauth20@2.0.0:
     dependencies:
-      passport-oauth2: 1.7.0
+      passport-oauth2: 1.8.0
 
   passport-google-oidc@0.1.0:
     dependencies:
@@ -26599,10 +26609,10 @@ snapshots:
 
   passport-oauth2-refresh@2.2.0: {}
 
-  passport-oauth2@1.7.0:
+  passport-oauth2@1.8.0:
     dependencies:
       base64url: 3.0.1
-      oauth: 0.9.15
+      oauth: 0.10.2
       passport-strategy: 1.0.0
       uid2: 0.0.4
       utils-merge: 1.0.1

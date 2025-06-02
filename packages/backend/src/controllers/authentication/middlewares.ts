@@ -55,7 +55,6 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
 export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
     const { redirect, inviteCode, isPopup } = req.query;
     req.session.oauth = {};
-
     if (typeof inviteCode === 'string') {
         req.session.oauth.inviteCode = inviteCode;
     }

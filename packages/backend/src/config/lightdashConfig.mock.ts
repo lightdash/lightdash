@@ -64,6 +64,14 @@ export const lightdashConfigMock: LightdashConfig = {
             x509PublicKeyCert: undefined,
             x509PublicKeyCertPath: undefined,
         },
+        snowflake: {
+            loginPath: '/login/snowflake',
+            callbackPath: '/oauth/redirect/snowflake',
+            authorizationEndpoint: undefined,
+            tokenEndpoint: undefined,
+            clientId: undefined,
+            clientSecret: undefined,
+        },
     },
     lightdashCloudInstance: 'test-instance',
     k8s: {

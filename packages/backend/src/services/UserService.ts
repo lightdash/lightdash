@@ -1594,6 +1594,22 @@ export class UserService extends BaseService {
         return accessToken;
     }
 
+    static async generateSnowflakeAccessToken(refreshToken: string) {
+        return new Promise((resolve, reject) => {
+            refresh.requestNewAccessToken(
+                'snowflake',
+                refreshToken,
+                (err: AnyType, accessToken: string, _refreshToken, result) => {
+                    if (err || !accessToken) {
+                        reject(err);
+                        return;
+                    }
+                    resolve(accessToken);
+                },
+            );
+        });
+    }
+
     async isLoginMethodAllowed(_email: string, loginMethod: LoginOptionTypes) {
         switch (loginMethod) {
             case LocalIssuerTypes.EMAIL:
@@ -1604,6 +1620,7 @@ export class UserService extends BaseService {
             case OpenIdIdentityIssuerType.ONELOGIN:
             case OpenIdIdentityIssuerType.AZUREAD:
             case OpenIdIdentityIssuerType.GENERIC_OIDC:
+            case OpenIdIdentityIssuerType.SNOWFLAKE:
                 return true;
             default:
                 assertUnreachable(
@@ -1724,6 +1741,8 @@ export class UserService extends BaseService {
                 return this.lightdashConfig.auth.oneLogin.loginPath;
             case OpenIdIdentityIssuerType.GENERIC_OIDC:
                 return this.lightdashConfig.auth.oidc.loginPath;
+            case OpenIdIdentityIssuerType.SNOWFLAKE:
+                return this.lightdashConfig.auth.snowflake.loginPath;
             default:
                 assertUnreachable(
                     issuer,

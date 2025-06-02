@@ -614,6 +614,26 @@ export class ProjectService extends BaseService {
             };
         }
 
+        if (
+            args.warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
+            args.warehouseConnection.authenticationType === 'sso' &&
+            args.warehouseConnection.token === undefined
+        ) {
+            const token = await this.userModel.getRefreshToken(userUuid);
+            const accessToken = await UserService.generateSnowflakeAccessToken(
+                token,
+            );
+
+            return {
+                ...args,
+                warehouseConnection: {
+                    ...args.warehouseConnection,
+                    authenticationType: 'sso',
+                    token: accessToken,
+                },
+            };
+        }
+
         return args;
     }
 
@@ -627,6 +647,24 @@ export class ProjectService extends BaseService {
                 projectUuid,
             );
         let userWarehouseCredentialsUuid: string | undefined;
+
+        if (
+            credentials.type === WarehouseTypes.SNOWFLAKE &&
+            // credentials.authenticationType === 'sso' && // TODO for testing, replace with credentials.requireUserCredentials
+            credentials.token === undefined
+        ) {
+            const token = await this.userModel.getRefreshToken(userUuid);
+            const accessToken = await UserService.generateSnowflakeAccessToken(
+                token,
+            );
+
+            credentials = {
+                ...credentials,
+                authenticationType: 'sso',
+                token: accessToken,
+            } as CreateWarehouseCredentials;
+        }
+
         if (credentials.requireUserCredentials) {
             const userWarehouseCredentials =
                 await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
@@ -652,6 +690,7 @@ export class ProjectService extends BaseService {
             }
             userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
         }
+
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
