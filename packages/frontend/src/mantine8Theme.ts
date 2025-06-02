@@ -1,7 +1,9 @@
 import {
     Button,
+    Card,
     Pill,
     ScrollArea,
+    type ButtonVariant,
     type MantineTheme,
     type MantineThemeOverride,
 } from '@mantine-8/core';
@@ -13,6 +15,12 @@ const {
     ScrollArea: _ScrollArea,
     ...legacyComponentsTheme
 } = components;
+
+declare module '@mantine-8/core' {
+    export interface ButtonProps {
+        variant?: ButtonVariant | 'compact-outline' | 'dark';
+    }
+}
 
 export const getMantine8ThemeOverride = (
     overrides?: Partial<MantineThemeOverride>,
@@ -27,6 +35,13 @@ export const getMantine8ThemeOverride = (
         },
         components: {
             ...legacyComponentsTheme,
+            Card: Card.extend({
+                styles: (theme) => ({
+                    root: {
+                        borderColor: theme.colors.gray[2],
+                    },
+                }),
+            }),
             Pill: Pill.extend({
                 styles: (theme, props) =>
                     props.variant === 'outline'
@@ -42,12 +57,39 @@ export const getMantine8ThemeOverride = (
                         : {},
             }),
             Button: Button.extend({
+                vars: (theme, props) => {
+                    if (props.variant === 'compact-outline') {
+                        return {
+                            root: {
+                                '--button-bd': `1px solid ${theme.colors.gray[2]}`,
+                            },
+                        };
+                    }
+                    if (props.variant === 'subtle') {
+                        return {
+                            root: {
+                                '--button-color': theme.colors.gray[7],
+                                '--button-hover': theme.colors.gray[1],
+                            },
+                        };
+                    }
+                    if (props.variant === 'dark') {
+                        return {
+                            root: {
+                                '--button-bg': theme.colors.dark[9],
+                                '--button-hover': theme.colors.dark[5],
+                                '--button-color': theme.colors.gray[0],
+                                '--button-bd': `none`,
+                            },
+                        };
+                    }
+                    return { root: {} };
+                },
                 styles: (theme) => ({
                     root: {
                         fontFamily: theme.fontFamily,
                         fontWeight: 500,
                         borderRadius: theme.radius.md,
-                        border: `1px solid ${theme.colors.gray[2]}`,
                     },
                 }),
                 defaultProps: {

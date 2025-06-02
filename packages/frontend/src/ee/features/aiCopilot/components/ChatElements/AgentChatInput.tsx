@@ -1,21 +1,35 @@
-import { ActionIcon, Paper, Stack, Textarea } from '@mantine-8/core';
+import {
+    ActionIcon,
+    Avatar,
+    Group,
+    Paper,
+    Stack,
+    Text,
+    Textarea,
+} from '@mantine-8/core';
 import { IconArrowUp } from '@tabler/icons-react';
 import { useLayoutEffect, useRef, useState } from 'react';
+import useApp from '../../../../../providers/App/useApp';
 
 interface AgentChatInputProps {
     onSubmit: (message: string) => void;
     loading?: boolean;
     disabled?: boolean;
+    disabledReason?: string;
 }
 
 export const AgentChatInput = ({
     onSubmit,
     loading = false,
     disabled = false,
+    disabledReason,
 }: AgentChatInputProps) => {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const [value, setValue] = useState('');
-
+    const { user } = useApp();
+    const name = user.data
+        ? `${user.data.firstName} ${user.data.lastName}`
+        : 'You';
     useLayoutEffect(() => {
         if (!inputRef.current) return;
         const elem = inputRef.current;
@@ -38,11 +52,11 @@ export const AgentChatInput = ({
 
     return (
         <Paper
-            bg="gray.1"
+            bg="gray.0"
             gap={0}
             p={0}
             component={Stack}
-            radius="md"
+            radius="0.75rem"
             style={{
                 position: 'relative',
             }}
@@ -50,24 +64,31 @@ export const AgentChatInput = ({
             <Textarea
                 autoFocus
                 ref={inputRef}
-                placeholder="Ask Anything"
+                placeholder={disabled ? undefined : 'Ask Anything'}
                 autosize
                 minRows={4}
-                radius="md"
+                radius="0.75rem"
                 disabled={disabled}
                 size="md"
-                value={value}
+                styles={(theme) => ({
+                    input: {
+                        '--input-bd-focus': theme.colors.violet[5],
+                    },
+                })}
+                m={-1}
                 onChange={(e) => setValue(e.target.value)}
+                value={value}
                 rightSection={
                     <ActionIcon
                         variant="filled"
-                        size="lg"
+                        size="md"
                         radius="md"
                         style={{
                             position: 'absolute',
                             bottom: 12,
                             right: 12,
                         }}
+                        color="violet"
                         disabled={disabled}
                         loading={loading}
                         onClick={() => {
@@ -78,10 +99,21 @@ export const AgentChatInput = ({
                             }
                         }}
                     >
-                        <IconArrowUp />
+                        <IconArrowUp size={18} />
                     </ActionIcon>
                 }
             />
+            <Group px="sm" py="xs" gap="xs">
+                <Avatar c="gray" name={name} size={18} />
+                <Text size="xs" c="gray.7">
+                    {name}
+                </Text>
+                {disabled && disabledReason && (
+                    <Text size="xs" c="dimmed" style={{ flex: 1 }} ta="right">
+                        {disabledReason}
+                    </Text>
+                )}
+            </Group>
         </Paper>
     );
 };

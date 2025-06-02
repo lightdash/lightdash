@@ -1,6 +1,7 @@
-import { Stack, Text, Title } from '@mantine-8/core';
+import { Image, Stack, Title } from '@mantine-8/core';
 import { useParams } from 'react-router';
-import { AgentChatInput } from '../../features/aiCopilot/components/AgentChatInput';
+import { FadeTransition } from '../../../components/FadeTransition';
+import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { useStartAgentThreadMutation } from '../../features/aiCopilot/hooks/useAiAgents';
 
 const AiAgentNewThreadPage = () => {
@@ -9,28 +10,47 @@ const AiAgentNewThreadPage = () => {
         useStartAgentThreadMutation(agentUuid!);
 
     return (
-        <Stack h="100%" mah="100%" justify="space-between" gap={0}>
+        <Stack
+            h="100%"
+            mah="100%"
+            justify="space-between"
+            gap={0}
+            pos="relative"
+        >
+            <FadeTransition>
+                {(styles) => (
+                    <Image
+                        src={
+                            'https://cdn.prod.website-files.com/62a9ae93cf7542032ae55b9c/678fb22fa7253e8363552974_road_bg-p-1600.png'
+                        }
+                        pos="absolute"
+                        bottom={0}
+                        left={0}
+                        right={0}
+                        style={{
+                            ...styles,
+                            pointerEvents: 'none',
+                        }}
+                    />
+                )}
+            </FadeTransition>
             <Stack
                 flex={1}
                 style={{ overflowY: 'auto' }}
-                p="md"
+                py="xl"
                 justify="flex-end"
             >
-                <Stack align="center" gap="xs">
-                    {/* TODO:: COPY */}
-                    <Title order={3}>New thread</Title>
-                    <Text>
-                        {/* TODO:: COPY */}
-                        Start a new thread with your agent
-                    </Text>
-                </Stack>
+                <Title order={3} ta="center" c="dimmed">
+                    How can I help you?
+                </Title>
+
+                <AgentChatInput
+                    onSubmit={(prompt) => {
+                        void startAgentThread({ prompt });
+                    }}
+                    loading={isLoading}
+                />
             </Stack>
-            <AgentChatInput
-                onSubmit={(prompt) => {
-                    void startAgentThread({ prompt });
-                }}
-                loading={isLoading}
-            />
         </Stack>
     );
 };

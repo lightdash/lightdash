@@ -4,9 +4,9 @@ import NavBar from '../components/NavBar';
 import { getMantine8ThemeOverride } from '../mantine8Theme';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
-import AgentConversationPage from './pages/AiAgents/AgentConversationPage';
 import AgentPage from './pages/AiAgents/AgentPage';
 import AgentsListPage from './pages/AiAgents/AgentsListPage';
+import AiAgentThreadPage from './pages/AiAgents/AgentThreadPage';
 import AiAgentNewThreadPage from './pages/AiAgents/AiAgentNewThreadPage';
 import AiConversationsPage from './pages/AiConversations';
 import EmbedDashboard from './pages/EmbedDashboard';
@@ -94,7 +94,7 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                             },
                             {
                                 path: ':threadUuid',
-                                element: <AgentConversationPage />,
+                                element: <AiAgentThreadPage />,
                             },
                         ],
                     },
