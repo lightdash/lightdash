@@ -387,14 +387,22 @@ export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
         forcePathStyle: baseForcePathStyle,
     } = baseS3Config;
 
-    // TODO: rename to RESULTS_S3_BUCKET
-    const bucket = process.env.RESULTS_CACHE_S3_BUCKET || baseBucket;
-    // TODO: rename to RESULTS_S3_REGION
-    const region = process.env.RESULTS_CACHE_S3_REGION || baseRegion;
-    // TODO: rename to RESULTS_S3_ACCESS_KEY
-    const accessKey = process.env.RESULTS_CACHE_S3_ACCESS_KEY || baseAccessKey;
-    // TODO: rename to RESULTS_S3_SECRET_KEY
-    const secretKey = process.env.RESULTS_CACHE_S3_SECRET_KEY || baseSecretKey;
+    const bucket =
+        process.env.RESULTS_S3_BUCKET ||
+        process.env.RESULTS_CACHE_S3_BUCKET || // Deprecated
+        baseBucket;
+    const region =
+        process.env.RESULTS_S3_REGION ||
+        process.env.RESULTS_CACHE_S3_REGION || // Deprecated
+        baseRegion;
+    const accessKey =
+        process.env.RESULTS_S3_ACCESS_KEY ||
+        process.env.RESULTS_CACHE_S3_ACCESS_KEY || // Deprecated
+        baseAccessKey;
+    const secretKey =
+        process.env.RESULTS_S3_SECRET_KEY ||
+        process.env.RESULTS_CACHE_S3_SECRET_KEY || // Deprecated
+        baseSecretKey;
 
     return {
         endpoint: baseEndpoint, // ! For now we keep reusing the S3_ENDPOINT like we have been so far, we are just going to enforce it

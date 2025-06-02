@@ -513,7 +513,6 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
-                    resultsFileModel: this.models.getResultsFileModel(),
                     storageClient: this.clients.getResultsFileStorageClient(),
                 }),
         );

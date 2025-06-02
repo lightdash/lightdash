@@ -103,6 +103,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     organizationModel: models.getOrganizationModel(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    aiAgentService: repository.getAiAgentService(),
                 }),
             aiAgentService: ({ models, repository, clients }) =>
                 new AiAgentService({
@@ -111,6 +112,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
                     featureFlagService: repository.getFeatureFlagService(),
                     slackClient: clients.getSlackClient(),
+                    aiModel: models.getAiModel(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
+                    projectService: repository.getProjectService(),
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({
@@ -214,12 +219,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     queryHistoryModel: models.getQueryHistoryModel(),
                     cacheService: repository.getCacheService(),
                     savedSqlModel: models.getSavedSqlModel(),
-                    resultsFileModel: models.getResultsFileModel(),
                     storageClient: clients.getResultsFileStorageClient(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({
-                    resultsFileModel: models.getResultsFileModel(),
+                    queryHistoryModel: models.getQueryHistoryModel(),
                     lightdashConfig: context.lightdashConfig,
                     storageClient: clients.getResultsFileStorageClient(),
                 }),

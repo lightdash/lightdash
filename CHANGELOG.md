@@ -1,3 +1,206 @@
+# [0.1674.0](https://github.com/lightdash/lightdash/compare/0.1673.0...0.1674.0) (2025-05-30)
+
+
+### Features
+
+* migrate results file information to query history table ([#15059](https://github.com/lightdash/lightdash/issues/15059)) ([0c18fc1](https://github.com/lightdash/lightdash/commit/0c18fc1a2e6cf8f4c8a5ec2b42d749846fa584b4))
+
+# [0.1673.0](https://github.com/lightdash/lightdash/compare/0.1672.0...0.1673.0) (2025-05-30)
+
+
+### Features
+
+* Improved Agents UI ([#15110](https://github.com/lightdash/lightdash/issues/15110)) ([a0c8951](https://github.com/lightdash/lightdash/commit/a0c895180cce66ed5d80ef59695923568f4ebdd7))
+
+# [0.1672.0](https://github.com/lightdash/lightdash/compare/0.1671.0...0.1672.0) (2025-05-30)
+
+
+### Features
+
+* Improve back button labels when creating spaces from charts ([#15030](https://github.com/lightdash/lightdash/issues/15030)) ([a71c802](https://github.com/lightdash/lightdash/commit/a71c802967782326a1762545a3581ca162bc1984))
+
+# [0.1671.0](https://github.com/lightdash/lightdash/compare/0.1670.0...0.1671.0) (2025-05-30)
+
+
+### Features
+
+* move agent name and instructions to prompt template ([#15105](https://github.com/lightdash/lightdash/issues/15105)) ([711b001](https://github.com/lightdash/lightdash/commit/711b0011c47bada4a9b6208df7dd42a2d52a5e13)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+# [0.1670.0](https://github.com/lightdash/lightdash/compare/0.1669.0...0.1670.0) (2025-05-30)
+
+
+### Features
+
+* remove the sql chart filter feature flag ([#15104](https://github.com/lightdash/lightdash/issues/15104)) ([bb0a986](https://github.com/lightdash/lightdash/commit/bb0a9865de13cea1092f26f626357721b5f27b63))
+
+# [0.1669.0](https://github.com/lightdash/lightdash/compare/0.1668.1...0.1669.0) (2025-05-30)
+
+
+### Features
+
+* consistent chat UI across pages ([#15103](https://github.com/lightdash/lightdash/issues/15103)) ([9a29a7e](https://github.com/lightdash/lightdash/commit/9a29a7e1f16c511c729830f5620eeb01bbd74607)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+## [0.1668.1](https://github.com/lightdash/lightdash/compare/0.1668.0...0.1668.1) (2025-05-30)
+
+
+### Bug Fixes
+
+* SQL runner update chart modal ([#14813](https://github.com/lightdash/lightdash/issues/14813)) ([7e56463](https://github.com/lightdash/lightdash/commit/7e564631d9ab1db9c9d24a8a92e26ca57bc46f85))
+
+# [0.1668.0](https://github.com/lightdash/lightdash/compare/0.1667.1...0.1668.0) (2025-05-30)
+
+
+### Features
+
+* add table visualization for AI agent thread messages ([#15098](https://github.com/lightdash/lightdash/issues/15098)) ([68e10ae](https://github.com/lightdash/lightdash/commit/68e10ae274b6abeccb8e26fd940b451a49b2b132)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+## [0.1667.1](https://github.com/lightdash/lightdash/compare/0.1667.0...0.1667.1) (2025-05-30)
+
+
+### Bug Fixes
+
+* system prompts not working for web ui ([#15100](https://github.com/lightdash/lightdash/issues/15100)) ([2d72245](https://github.com/lightdash/lightdash/commit/2d72245c8447365dca903533028132545456bd70))
+
+# [0.1667.0](https://github.com/lightdash/lightdash/compare/0.1666.0...0.1667.0) (2025-05-30)
+
+
+### Features
+
+* add visualization support for AI agent thread messages ([#15089](https://github.com/lightdash/lightdash/issues/15089)) ([16b4fae](https://github.com/lightdash/lightdash/commit/16b4fae9c84e86ef0174e73981f4c1f564f3022d))
+
+# [0.1666.0](https://github.com/lightdash/lightdash/compare/0.1665.0...0.1666.0) (2025-05-30)
+
+
+### Features
+
+* chat with Agents from web-ui ([#15083](https://github.com/lightdash/lightdash/issues/15083)) ([442c4ee](https://github.com/lightdash/lightdash/commit/442c4eefc82d184a95897c590b7347f81b8c0833))
+
+# [0.1665.0](https://github.com/lightdash/lightdash/compare/0.1664.0...0.1665.0) (2025-05-30)
+
+
+### Features
+
+* Add AI Agents UI with thread management ([#15050](https://github.com/lightdash/lightdash/issues/15050)) ([e75f3f6](https://github.com/lightdash/lightdash/commit/e75f3f69df65fccd2867f4adc74b94f95768dbd9))
+
+# [0.1664.0](https://github.com/lightdash/lightdash/compare/0.1663.2...0.1664.0) (2025-05-30)
+
+
+### Features
+
+* track AI agent thread generation job status for frontend polling ([#15087](https://github.com/lightdash/lightdash/issues/15087)) ([d27929b](https://github.com/lightdash/lightdash/commit/d27929bed28a5202cc7f939d2ef20d0c8fb98f2d))
+
+## [0.1663.2](https://github.com/lightdash/lightdash/compare/0.1663.1...0.1663.2) (2025-05-30)
+
+
+### Bug Fixes
+
+* use the correct limit for SQL-charts ([#15086](https://github.com/lightdash/lightdash/issues/15086)) ([f9f01f7](https://github.com/lightdash/lightdash/commit/f9f01f73db02c238a0f5923362c5af7098b75c08))
+
+## [0.1663.1](https://github.com/lightdash/lightdash/compare/0.1663.0...0.1663.1) (2025-05-29)
+
+
+### Bug Fixes
+
+* set the correct table name when editing tile targets ([#15057](https://github.com/lightdash/lightdash/issues/15057)) ([c64c7b1](https://github.com/lightdash/lightdash/commit/c64c7b1c1f1ae015e525de8613ee1c2fa13d0794))
+
+# [0.1663.0](https://github.com/lightdash/lightdash/compare/0.1662.3...0.1663.0) (2025-05-29)
+
+
+### Features
+
+* deprecate RESULTS_CACHE variables ([#15023](https://github.com/lightdash/lightdash/issues/15023)) ([d91a2f0](https://github.com/lightdash/lightdash/commit/d91a2f056fb5d8437e53c6a9e8833b6b24c3d2b4))
+
+## [0.1662.3](https://github.com/lightdash/lightdash/compare/0.1662.2...0.1662.3) (2025-05-29)
+
+
+### Bug Fixes
+
+* invalidate cache on embed fetch ([#15053](https://github.com/lightdash/lightdash/issues/15053)) ([9d6cd56](https://github.com/lightdash/lightdash/commit/9d6cd5663aaf22e316fd3f391acaa77e475c7366))
+
+## [0.1662.2](https://github.com/lightdash/lightdash/compare/0.1662.1...0.1662.2) (2025-05-29)
+
+
+### Bug Fixes
+
+* only close connection on finally call ([#15077](https://github.com/lightdash/lightdash/issues/15077)) ([c50af90](https://github.com/lightdash/lightdash/commit/c50af90c871763d543ff771ac5dc5145331a7c8f))
+
+## [0.1662.1](https://github.com/lightdash/lightdash/compare/0.1662.0...0.1662.1) (2025-05-29)
+
+
+### Bug Fixes
+
+* Agent tags input ([#15075](https://github.com/lightdash/lightdash/issues/15075)) ([583a370](https://github.com/lightdash/lightdash/commit/583a37036c20923ad30ed5c157c323a6eaea9989))
+
+# [0.1662.0](https://github.com/lightdash/lightdash/compare/0.1661.1...0.1662.0) (2025-05-29)
+
+
+### Features
+
+* **backend:** add AI agent thread generation endpoints ([#15052](https://github.com/lightdash/lightdash/issues/15052)) ([a9215a1](https://github.com/lightdash/lightdash/commit/a9215a1ba27a2dcb1353220a945b85544dd1902e)), closes [#15041](https://github.com/lightdash/lightdash/issues/15041)
+
+## [0.1661.1](https://github.com/lightdash/lightdash/compare/0.1661.0...0.1661.1) (2025-05-29)
+
+
+### Bug Fixes
+
+* refresh SQL charts on dashboards ([#15060](https://github.com/lightdash/lightdash/issues/15060)) ([0032b9c](https://github.com/lightdash/lightdash/commit/0032b9ce3cd87e61ce081b569f0cc8cac47434c2))
+
+# [0.1661.0](https://github.com/lightdash/lightdash/compare/0.1660.3...0.1661.0) (2025-05-28)
+
+
+### Features
+
+* display agent name in Slack responses ([#15055](https://github.com/lightdash/lightdash/issues/15055)) ([43f1193](https://github.com/lightdash/lightdash/commit/43f1193efb53d70e1660bb1a679dfe06db6e9482))
+
+## [0.1660.3](https://github.com/lightdash/lightdash/compare/0.1660.2...0.1660.3) (2025-05-28)
+
+
+### Bug Fixes
+
+* simplify SQL chart results fetching and remove duplicate requests ([#15028](https://github.com/lightdash/lightdash/issues/15028)) ([a84eb6d](https://github.com/lightdash/lightdash/commit/a84eb6de97dea89945596e1bd65b1d272585fe4a))
+
+## [0.1660.2](https://github.com/lightdash/lightdash/compare/0.1660.1...0.1660.2) (2025-05-28)
+
+
+### Bug Fixes
+
+* always show verify-email box if email is not verified ([#15021](https://github.com/lightdash/lightdash/issues/15021)) ([6dd0998](https://github.com/lightdash/lightdash/commit/6dd0998786af4513ccc2494ee0b81a9251845abb))
+
+## [0.1660.1](https://github.com/lightdash/lightdash/compare/0.1660.0...0.1660.1) (2025-05-28)
+
+
+### Bug Fixes
+
+* display correct slack user names in Agent conversation history ([#15048](https://github.com/lightdash/lightdash/issues/15048)) ([392d3ea](https://github.com/lightdash/lightdash/commit/392d3ea87f746bd4706a6261b93488b643bc7e7d))
+
+# [0.1660.0](https://github.com/lightdash/lightdash/compare/0.1659.3...0.1660.0) (2025-05-28)
+
+
+### Features
+
+* filter SQL chart with table viz ([#14880](https://github.com/lightdash/lightdash/issues/14880)) ([c4a9429](https://github.com/lightdash/lightdash/commit/c4a9429dded6e13e7c722ff152ac4f6b2a3de973))
+
+## [0.1659.3](https://github.com/lightdash/lightdash/compare/0.1659.2...0.1659.3) (2025-05-28)
+
+
+### Bug Fixes
+
+* enhance group update validation in ScimService ([#15046](https://github.com/lightdash/lightdash/issues/15046)) ([126e5d9](https://github.com/lightdash/lightdash/commit/126e5d9dd51dae1681747a6834611c08c4e6b590))
+
+## [0.1659.2](https://github.com/lightdash/lightdash/compare/0.1659.1...0.1659.2) (2025-05-28)
+
+
+### Bug Fixes
+
+* Duplicated refresh slack channel button ([#15047](https://github.com/lightdash/lightdash/issues/15047)) ([4368eaf](https://github.com/lightdash/lightdash/commit/4368eaf0e0b31b7c2ef14b98e914e159923a74da))
+
+## [0.1659.1](https://github.com/lightdash/lightdash/compare/0.1659.0...0.1659.1) (2025-05-28)
+
+
+### Bug Fixes
+
+* race condition for results_cache entry pending while query history ready ([#15034](https://github.com/lightdash/lightdash/issues/15034)) ([760b220](https://github.com/lightdash/lightdash/commit/760b2201843eafad608e3a7df68caa756e7afb1a))
+
 # [0.1659.0](https://github.com/lightdash/lightdash/compare/0.1658.0...0.1659.0) (2025-05-28)
 
 

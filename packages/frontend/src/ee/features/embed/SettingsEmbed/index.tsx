@@ -29,7 +29,8 @@ import EmbedUrlForm from './EmbedUrlForm';
 
 const useEmbedConfig = (projectUuid: string) => {
     return useQuery<DecodedEmbed, ApiError>({
-        queryKey: ['embed-config'],
+        queryKey: ['embed-config', projectUuid],
+        enabled: !!projectUuid,
         queryFn: async () =>
             lightdashApi<DecodedEmbed>({
                 url: `/embed/${projectUuid}/config`,

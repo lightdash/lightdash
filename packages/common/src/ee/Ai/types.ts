@@ -101,6 +101,12 @@ export type SlackPromptJobPayload = TraceTaskBase & {
     slackPromptUuid: string;
 };
 
+export type AiAgentThreadGenerateJobPayload = TraceTaskBase & {
+    agentUuid: string;
+    threadUuid: string;
+    promptUuid: string;
+};
+
 export enum AiChatAgents {
     HUMAN = 'human',
     AI = 'ai',

@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import type { AnyType, CacheMetadata, ItemsMap, MetricQuery } from '../..';
+
+export type AiMetricQuery = Pick<
+    MetricQuery,
+    'metrics' | 'dimensions' | 'sorts' | 'limit' | 'exploreName' | 'filters'
+>;
 
 export const baseAgentSchema = z.object({
     uuid: z.string(),
@@ -63,17 +69,19 @@ export type AiAgentSummary = Pick<
     | 'instruction'
 >;
 
-export type AiAgentMessageUser = {
+export type AiAgentUser = {
+    uuid: string;
+    name: string;
+};
+
+export type AiAgentMessageUser<TUser extends AiAgentUser = AiAgentUser> = {
     role: 'user';
     uuid: string;
     threadUuid: string;
     message: string; // ai_prompt.prompt
     createdAt: string;
 
-    user: {
-        uuid: string;
-        name: string;
-    };
+    user: TUser;
 };
 
 export type AiAgentMessageAssistant = {
@@ -89,23 +97,23 @@ export type AiAgentMessageAssistant = {
     humanScore?: number;
 };
 
-export type AiAgentMessage = AiAgentMessageUser | AiAgentMessageAssistant;
+export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
+    | AiAgentMessageUser<TUser>
+    | AiAgentMessageAssistant;
 
-export type AiAgentThreadSummary = {
+export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     uuid: string;
     agentUuid: string;
     createdAt: string;
     createdFrom: string;
     firstMessage: string;
-    user: {
-        uuid: string;
-        name: string;
-    };
+    user: TUser;
 };
 
-export type AiAgentThread = AiAgentThreadSummary & {
-    messages: AiAgentMessage[];
-};
+export type AiAgentThread<TUser extends AiAgentUser = AiAgentUser> =
+    AiAgentThreadSummary<TUser> & {
+        messages: AiAgentMessage<TUser>[];
+    };
 
 export type ApiAiAgentResponse = {
     status: 'ok';
@@ -144,6 +152,41 @@ export type ApiAiAgentThreadSummaryListResponse = {
 export type ApiAiAgentThreadResponse = {
     status: 'ok';
     results: AiAgentThread;
+};
+
+export type ApiAiAgentThreadGenerateRequest = {
+    prompt: string;
+};
+
+export type ApiAiAgentThreadGenerateResponse = {
+    status: 'ok';
+    results: {
+        jobId: string;
+    };
+};
+
+export type ApiAiAgentStartThreadResponse = {
+    status: 'ok';
+    results: {
+        jobId: string;
+        threadUuid: string;
+    };
+};
+
+export type ApiAiAgentThreadMessageViz = {
+    type: 'vertical_bar_chart' | 'time_series_chart' | 'csv';
+    metricQuery: AiMetricQuery;
+    chartOptions?: object;
+    results: {
+        rows: Record<string, AnyType>[];
+        cacheMetadata: CacheMetadata;
+        fields: ItemsMap;
+    };
+};
+
+export type ApiAiAgentThreadMessageVizResponse = {
+    status: 'ok';
+    results: ApiAiAgentThreadMessageViz;
 };
 
 export * from './filterExploreByTags';

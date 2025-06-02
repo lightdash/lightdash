@@ -15,6 +15,7 @@ import {
     AiChatMessage,
     AiConversation,
     AiConversationMessage,
+    AiMetricQuery,
     AiWebAppPrompt,
     AnyType,
     CatalogType,
@@ -64,7 +65,6 @@ import { AiModel } from '../../models/AiModel';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
 import { AiAgentService } from '../AiAgentService';
 import { CommercialCatalogService } from '../CommercialCatalogService';
-import { MiniMetricQuery } from './runMiniMetricQuery/runMiniMetricQuery';
 import { getFindFieldsTool } from './tools/findFieldsTool';
 import { getGenerateBarVizConfigTool } from './tools/generateBarVizConfigTool';
 import { getGenerateCsvTool } from './tools/generateCsvTool';
@@ -116,6 +116,7 @@ type Dependencies = {
     slackClient: SlackClient;
     lightdashConfig: LightdashConfig;
     featureFlagService: FeatureFlagService;
+    aiAgentService: AiAgentService;
 };
 
 export class AiService {
@@ -147,6 +148,8 @@ export class AiService {
 
     private readonly featureFlagService: FeatureFlagService;
 
+    private readonly aiAgentService: AiAgentService;
+
     constructor(dependencies: Dependencies) {
         this.analytics = dependencies.analytics;
         this.dashboardModel = dependencies.dashboardModel;
@@ -162,6 +165,7 @@ export class AiService {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.organizationModel = dependencies.organizationModel;
         this.featureFlagService = dependencies.featureFlagService;
+        this.aiAgentService = dependencies.aiAgentService;
     }
 
     private async getIsCopilotEnabled(
@@ -526,12 +530,12 @@ export class AiService {
 
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack
     // This is scoped to the project, user and prompt (closure)
-    private getToolUtilities(
+    public getToolUtilities(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
         availableTags: string[] | null,
     ) {
-        const { projectUuid, organizationUuid } = prompt;
+        const { projectUuid, organizationUuid, agentUuid } = prompt;
 
         const getExplore = async ({ exploreName }: { exploreName: string }) => {
             const explore = await this.projectService.getExplore(
@@ -603,7 +607,7 @@ export class AiService {
             return webOrSlackPrompt;
         };
 
-        const runMiniMetricQuery = async (metricQuery: MiniMetricQuery) => {
+        const runMiniMetricQuery = async (metricQuery: AiMetricQuery) => {
             const explore = await getExplore({
                 exploreName: metricQuery.exploreName,
             });
@@ -635,6 +639,19 @@ export class AiService {
         };
 
         const sendFile = async (args: PostSlackFile) => {
+            //
+            // TODO: https://api.slack.com/methods/files.upload does not support setting custom usernames
+            // support this in the future
+            //
+            // const agent = agentUuid
+            //     ? await this.aiAgentService.getAgent(user, agentUuid)
+            //     : undefined;
+            // let username: string | undefined;
+            // if (agent) {
+            //     username = agent.name;
+            // }
+            //
+
             await this.slackClient.postFileToThread(args);
         };
 
@@ -669,7 +686,10 @@ export class AiService {
                       organizationUuid: user.organizationUuid,
                       slackChannelId: slackOrWebAppPrompt.slackChannelId,
                   })
-                : undefined;
+                : await this.aiAgentModel.getAgent({
+                      organizationUuid: slackOrWebAppPrompt.organizationUuid,
+                      agentUuid: slackOrWebAppPrompt.agentUuid!,
+                  });
 
         const {
             getExplore,
@@ -743,11 +763,9 @@ export class AiService {
         if (llm === undefined) {
             throw new UnexpectedServerError('OpenAi model is not initialized');
         }
+
         const prompt = ChatPromptTemplate.fromMessages([
             aiCopilotSystemPrompt,
-            ...(agentSettings?.instruction
-                ? [new SystemMessage(agentSettings.instruction)]
-                : []),
             new MessagesPlaceholder('metadata'),
             new MessagesPlaceholder('chat_history'),
             new MessagesPlaceholder('agent_scratchpad'),
@@ -825,6 +843,8 @@ ${e.llmOutput}
                     name: 'available_explores_json',
                 }),
             ],
+            agent_name: agentSettings.name || 'Lightdash AI Analyst',
+            instructions: agentSettings.instruction || '',
             date: moment().utc().format('YYYY-MM-DD'),
             time: moment().utc().format('HH:mm'),
         });
@@ -995,14 +1015,29 @@ ${
             slackPrompt.organizationUuid,
         );
 
-        let response: string | undefined;
-        try {
-            const threadMessages = await this.aiModel.getThreadMessages(
-                slackPrompt.organizationUuid,
-                slackPrompt.projectUuid,
-                slackPrompt.threadUuid,
+        const threadMessages = await this.aiModel.getThreadMessages(
+            slackPrompt.organizationUuid,
+            slackPrompt.projectUuid,
+            slackPrompt.threadUuid,
+        );
+
+        const thread = await this.aiModel.findThread(slackPrompt.threadUuid);
+        if (!thread) {
+            throw new Error('Thread not found');
+        }
+
+        let name: string | undefined;
+        if (thread.agentUuid) {
+            const agent = await this.aiAgentService.getAgent(
+                user,
+                thread.agentUuid,
             );
 
+            name = agent.name;
+        }
+
+        let response: string | undefined;
+        try {
             const chatHistoryMessages =
                 this.getChatHistoryFromThreadMessages(threadMessages);
 
@@ -1017,6 +1052,7 @@ ${
                 text: `🔴 Co-pilot failed to generate a response 😥 Please try again.`,
                 channel: slackPrompt.slackChannelId,
                 thread_ts: slackPrompt.slackThreadTs,
+                username: name,
             });
 
             Logger.error('Failed to generate response:', e);
@@ -1058,6 +1094,7 @@ ${
         const newResponse = await this.slackClient.postMessage({
             organizationUuid: slackPrompt.organizationUuid,
             text: slackifiedMarkdown,
+            username: name,
             channel: slackPrompt.slackChannelId,
             thread_ts: slackPrompt.slackThreadTs,
             unfurl_links: false,
@@ -1086,6 +1123,61 @@ ${
                 promptUuid: slackPrompt.promptUuid,
                 responseSlackTs: newResponse.ts,
             });
+        }
+    }
+
+    async generateAgentThreadResponse(
+        agentUuid: string,
+        threadUuid: string,
+        promptUuid: string,
+    ): Promise<void> {
+        const thread = await this.aiModel.findThread(threadUuid);
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const prompt = await this.aiModel.findWebAppPrompt(promptUuid);
+        if (!prompt) {
+            throw new NotFoundError(`Prompt not found: ${promptUuid}`);
+        }
+
+        const { organizationUuid, projectUuid } = thread;
+
+        const threadMessages = await this.aiModel.getThreadMessages(
+            organizationUuid,
+            projectUuid,
+            threadUuid,
+        );
+
+        if (threadMessages.length === 0) {
+            throw new Error(
+                `No messages found in thread: ${threadUuid}. ${agentUuid} ${promptUuid}`,
+            );
+        }
+
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            prompt.createdByUserUuid,
+            organizationUuid,
+        );
+
+        try {
+            const chatHistoryMessages =
+                this.getChatHistoryFromThreadMessages(threadMessages);
+
+            // TODO: when we move this method to `aiAgentService` we can move the `generateAgentThreadResponse` too
+            const response = await this.generateExploreResult(
+                user,
+                chatHistoryMessages,
+                prompt,
+            );
+
+            await this.aiModel.updateWebAppResponse({
+                promptUuid,
+                response,
+            });
+        } catch (e) {
+            Logger.error('Failed to generate agent thread response:', e);
+            throw new Error('Failed to generate agent thread response');
         }
     }
 
@@ -1293,7 +1385,7 @@ ${
         const rows = finalPrompt.metricQuery
             ? (
                   await utils.runMiniMetricQuery(
-                      finalPrompt.metricQuery as MiniMetricQuery,
+                      finalPrompt.metricQuery as AiMetricQuery,
                   )
               ).rows
             : undefined;

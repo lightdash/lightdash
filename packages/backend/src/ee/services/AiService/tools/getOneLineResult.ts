@@ -14,7 +14,7 @@ import { RunMiniMetricQuery } from '../runMiniMetricQuery/runMiniMetricQuery';
 export const aiGetOneLineResultToolSchema = z.object({
     metricQuery: lighterMetricQuerySchema.describe(
         'Metric query to run to get the result',
-    ), // ! DO NOT USE MINIMETRICQUERY HERE, ZOD CANNOT GET THE TYPE CORRECTLY
+    ), // ! DO NOT USE AIMETRICQUERY HERE, ZOD CANNOT GET THE TYPE CORRECTLY
 });
 
 type AiGetOneLineResultToolArgs = {

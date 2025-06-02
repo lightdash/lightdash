@@ -1,3 +1,5 @@
+import { DbQueryHistory } from '../../database/entities/queryHistory';
+
 export enum ResultsCacheStatus {
     PENDING = 'pending',
     READY = 'ready',
@@ -5,25 +7,22 @@ export enum ResultsCacheStatus {
 
 export type CacheHitCacheResult = {
     cacheKey: string;
-    write: undefined;
-    close: undefined;
     cacheHit: true;
     totalRowCount: number;
-    status: ResultsCacheStatus;
+    fileName: string;
     createdAt: Date;
     updatedAt: Date;
     expiresAt: Date;
+    columns: DbQueryHistory['columns'];
+    originalColumns: DbQueryHistory['original_columns'];
+    pivotValuesColumns: DbQueryHistory['pivot_values_columns'];
+    pivotTotalColumnCount: DbQueryHistory['pivot_total_column_count'];
 };
 
 export type MissCacheResult = {
-    cacheKey: string;
-    write: (rows: Record<string, unknown>[]) => void;
-    close: () => Promise<void>;
     cacheHit: false;
-    totalRowCount: null;
-    createdAt: Date;
-    updatedAt: Date;
-    expiresAt: Date;
+    updatedAt: undefined;
+    expiresAt: undefined;
 };
 
 export type CreateCacheResult = CacheHitCacheResult | MissCacheResult;

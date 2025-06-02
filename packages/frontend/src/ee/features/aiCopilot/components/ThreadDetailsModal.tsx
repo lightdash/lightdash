@@ -9,8 +9,8 @@ import {
     Title,
 } from '@mantine-8/core';
 import { type FC } from 'react';
+import { LightdashUserAvatar } from '../../../../components/Avatar';
 import { useAiAgentThread } from '../hooks/useAiAgents';
-import { AgentAvatar } from './AgentAvatar';
 
 type ThreadDetailsModalProps = {
     agentName: string;
@@ -95,7 +95,10 @@ export const ThreadDetailsModal: FC<ThreadDetailsModalProps> = ({
                                     >
                                         <Stack gap="xs">
                                             <Group gap="xs">
-                                                <AgentAvatar name={name} />
+                                                <LightdashUserAvatar
+                                                    name={name}
+                                                    variant="filled"
+                                                />
 
                                                 <Text fw={500} size="sm">
                                                     {name}

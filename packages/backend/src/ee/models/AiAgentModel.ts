@@ -5,6 +5,7 @@ import {
     AiAgentMessageUser,
     AiAgentSummary,
     AiAgentThreadSummary,
+    AiAgentUser,
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
     assertUnreachable,
@@ -14,9 +15,11 @@ import { DbUser, UserTableName } from '../../database/entities/users';
 import {
     AiPromptTableName,
     AiSlackPromptTableName,
+    AiSlackThreadTableName,
     AiThreadTableName,
     AiWebAppPromptTableName,
     DbAiPrompt,
+    DbAiSlackThread,
     DbAiThread,
 } from '../database/entities/ai';
 import {
@@ -399,7 +402,9 @@ export class AiAgentModel {
         organizationUuid: string;
         agentUuid: string;
         threadUuid?: string;
-    }): Promise<AiAgentThreadSummary[]> {
+    }): Promise<
+        AiAgentThreadSummary<AiAgentUser & { slackUserId: string | null }>[]
+    > {
         const query = this.database(AiThreadTableName)
             .join(
                 AiPromptTableName,
@@ -410,6 +415,11 @@ export class AiAgentModel {
                 UserTableName,
                 `${AiPromptTableName}.created_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
+            )
+            .leftJoin(
+                AiSlackThreadTableName,
+                `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiSlackThreadTableName}.ai_thread_uuid`,
             )
             .where(
                 `${AiPromptTableName}.created_at`,
@@ -433,7 +443,10 @@ export class AiAgentModel {
                     | 'created_from'
                 > &
                     Pick<DbAiPrompt, 'prompt'> &
-                    Pick<DbUser, 'user_uuid'> & { user_name: string })[]
+                    Pick<DbUser, 'user_uuid'> &
+                    Pick<DbAiSlackThread, 'slack_user_id'> & {
+                        user_name: string;
+                    })[]
             >(
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiThreadTableName}.agent_uuid`,
@@ -444,6 +457,7 @@ export class AiAgentModel {
                 this.database.raw(
                     `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
                 ),
+                `${AiSlackThreadTableName}.slack_user_id`,
             )
             .orderBy(`${AiThreadTableName}.created_at`, 'desc');
 
@@ -466,6 +480,7 @@ export class AiAgentModel {
             user: {
                 uuid: row.user_uuid,
                 name: row.user_name,
+                slackUserId: row.slack_user_id,
             },
         }));
     }
@@ -478,7 +493,9 @@ export class AiAgentModel {
         organizationUuid: string;
         agentUuid: string;
         threadUuid: string;
-    }): Promise<AiAgentThreadSummary> {
+    }): Promise<
+        AiAgentThreadSummary<AiAgentUser & { slackUserId: string | null }>
+    > {
         const rows = await this.findThreads({
             organizationUuid,
             agentUuid,
@@ -500,7 +517,13 @@ export class AiAgentModel {
     }: {
         organizationUuid: string;
         threadUuid: string;
-    }) {
+    }): Promise<
+        AiAgentMessage<{
+            uuid: string;
+            name: string;
+            slackUserId: string | null;
+        }>[]
+    > {
         const rows = await this.database(AiPromptTableName)
             .join(
                 UserTableName,
@@ -551,14 +574,11 @@ export class AiAgentModel {
             .orderBy(`${AiPromptTableName}.created_at`, 'asc');
 
         return rows.flatMap((row) => {
-            const messages: (
-                | (AiAgentMessageUser & {
-                      user: AiAgentMessageUser['user'] & {
-                          slackUserId: string | null;
-                      };
-                  })
-                | AiAgentMessageAssistant
-            )[] = [
+            const messages: AiAgentMessage<{
+                uuid: string;
+                name: string;
+                slackUserId: string | null;
+            }>[] = [
                 {
                     role: 'user',
                     uuid: row.ai_prompt_uuid,
@@ -589,6 +609,105 @@ export class AiAgentModel {
 
             return messages;
         });
+    }
+
+    async findThreadMessage(
+        role: 'user' | 'assistant',
+        {
+            organizationUuid,
+            threadUuid,
+            messageUuid,
+        }: {
+            organizationUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        },
+    ): Promise<AiAgentMessage> {
+        const row = await this.database(AiPromptTableName)
+            .join(
+                UserTableName,
+                `${AiPromptTableName}.created_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .join(
+                AiThreadTableName,
+                `${AiPromptTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
+            .select(
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                'prompt',
+                'response',
+                'responded_at',
+                'filters_output',
+                'viz_config_output',
+                'metric_query',
+                'human_score',
+                `${UserTableName}.user_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiSlackPromptTableName}.slack_user_id`,
+                `${AiWebAppPromptTableName}.user_uuid`,
+            )
+            .select({
+                uuid: `${AiPromptTableName}.ai_prompt_uuid`,
+                created_at: `${AiPromptTableName}.created_at`,
+                user_name: this.database.raw(
+                    `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)`,
+                ),
+            })
+            .leftJoin(
+                AiSlackPromptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiSlackPromptTableName}.ai_prompt_uuid`,
+            )
+            .leftJoin(
+                AiWebAppPromptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiWebAppPromptTableName}.ai_prompt_uuid`,
+            )
+            .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
+            .andWhere(
+                `${AiThreadTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .andWhere(`${AiPromptTableName}.ai_prompt_uuid`, messageUuid)
+            .orderBy(`${AiPromptTableName}.created_at`, 'asc')
+            .first();
+
+        if (!row) {
+            throw new AiAgentNotFoundError(
+                `AI agent message not found for uuid: ${messageUuid}`,
+            );
+        }
+
+        switch (role) {
+            case 'user':
+                return {
+                    role: 'user',
+                    uuid: row.ai_prompt_uuid,
+                    threadUuid: row.ai_thread_uuid,
+                    message: row.prompt,
+                    createdAt: row.created_at,
+                    user: {
+                        uuid: row.user_uuid,
+                        name: row.user_name,
+                    },
+                } satisfies AiAgentMessageUser;
+            case 'assistant':
+                return {
+                    role: 'assistant',
+                    uuid: row.ai_prompt_uuid,
+                    threadUuid: row.ai_thread_uuid,
+                    message: row.response,
+                    createdAt: row.responded_at,
+                    vizConfigOutput: row.viz_config_output,
+                    filtersOutput: row.filters_output,
+                    metricQuery: row.metric_query,
+                    humanScore: row.human_score,
+                } satisfies AiAgentMessageAssistant;
+            default:
+                return assertUnreachable(role, `Unknown role ${role}`);
+        }
     }
 
     async deleteSlackIntegrations({

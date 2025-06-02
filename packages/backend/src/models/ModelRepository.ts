@@ -24,9 +24,8 @@ import { OrganizationModel } from './OrganizationModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PinnedListModel } from './PinnedListModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
-import { QueryHistoryModel } from './QueryHistoryModel';
+import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
-import { ResultsFileModel } from './ResultsFileModel/ResultsFileModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SavedSemanticViewerChartModel } from './SavedSemanticViewerChartModel';
 import { SavedSqlModel } from './SavedSqlModel';
@@ -92,7 +91,6 @@ export type ModelManifest = {
     featureFlagModel: FeatureFlagModel;
     spotlightTableConfigModel: SpotlightTableConfigModel;
     queryHistoryModel: QueryHistoryModel;
-    resultsFileModel: ResultsFileModel;
     /** An implementation signature for these models are not available at this stage */
     aiModel: unknown;
     aiAgentModel: unknown;
@@ -560,17 +558,6 @@ export class ModelRepository
         return this.getModel(
             'queryHistoryModel',
             () => new QueryHistoryModel({ database: this.database }),
-        );
-    }
-
-    public getResultsFileModel(): ResultsFileModel {
-        return this.getModel(
-            'resultsFileModel',
-            () =>
-                new ResultsFileModel({
-                    database: this.database,
-                    lightdashConfig: this.lightdashConfig,
-                }),
         );
     }
 

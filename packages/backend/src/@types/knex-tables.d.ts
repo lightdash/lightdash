@@ -174,10 +174,6 @@ import {
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
 import {
-    ResultsCacheTable,
-    ResultsCacheTableName,
-} from '../database/entities/resultsFile';
-import {
     SavedSemanticViewerChartsTable,
     SavedSemanticViewerChartsTableName,
     SavedSemanticViewerChartVersionsTable,
@@ -357,6 +353,5 @@ declare module 'knex/types/tables' {
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
         [QueryHistoryTableName]: QueryHistoryTable;
-        [ResultsCacheTableName]: ResultsCacheTable;
     }
 }

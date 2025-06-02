@@ -22,6 +22,7 @@ import {
     SchedulerAndTargets,
     SchedulerCronUpdate,
     SchedulerFormat,
+    SchedulerJobStatus,
     SessionUser,
     UnexpectedServerError,
     UpdateSchedulerAndTargetsWithoutId,
@@ -477,6 +478,13 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
         return { status: job.status, details: job.details };
+    }
+
+    async setJobStatus(
+        jobId: string,
+        status: SchedulerJobStatus,
+    ): Promise<void> {
+        await this.schedulerModel.setJobStatus(jobId, status);
     }
 
     async sendScheduler(

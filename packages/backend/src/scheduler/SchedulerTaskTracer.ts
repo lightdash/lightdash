@@ -124,6 +124,15 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
 
+    [SCHEDULER_TASKS.AI_AGENT_THREAD_GENERATE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+        'agent.uuid': payload.agentUuid,
+        'thread.uuid': payload.threadUuid,
+        'prompt.uuid': payload.promptUuid,
+    }),
+
     [SCHEDULER_TASKS.RENAME_RESOURCES]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
