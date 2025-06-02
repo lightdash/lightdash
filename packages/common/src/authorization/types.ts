@@ -47,7 +47,8 @@ export type CaslSubjectNames =
     | 'PersonalAccessToken'
     | 'MetricsTree'
     | 'SpotlightTableConfig'
-    | 'ContentAsCode';
+    | 'ContentAsCode'
+    | 'AiAgentThread';
 
 export type Subject =
     | CaslSubjectNames

@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     AiAgentThread,
     AiAgentThreadSummary,
@@ -219,6 +220,15 @@ export class AiAgentService {
         const threads = await this.aiAgentModel.findThreads({
             organizationUuid,
             agentUuid,
+            // Admins can view all threads
+            userUuid: user.ability.can(
+                'view',
+                subject('AiAgentThread', {
+                    organizationUuid,
+                }),
+            )
+                ? undefined
+                : user.userUuid,
         });
 
         const slackUserIds = _.uniq(
@@ -287,6 +297,18 @@ export class AiAgentService {
 
         if (!thread) {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('AiAgentThread', {
+                    organizationUuid,
+                    userUuid: thread.user.uuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
         }
 
         const messages = await this.aiAgentModel.findThreadMessages({
@@ -456,8 +478,29 @@ export class AiAgentService {
             if (!thread) {
                 throw new NotFoundError(`Thread not found: ${threadUuidParam}`);
             }
+            if (
+                user.ability.cannot(
+                    'view',
+                    subject('AiAgentThread', {
+                        organizationUuid,
+                        userUuid: thread.user.uuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             threadUuid = thread.uuid;
         } else {
+            if (
+                user.ability.cannot(
+                    'create',
+                    subject('AiAgentThread', {
+                        organizationUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             threadUuid = await this.aiModel.createWebAppThread({
                 organizationUuid,
                 projectUuid: agent.projectUuid,
