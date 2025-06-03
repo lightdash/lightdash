@@ -1,3 +1,10 @@
+# [0.1682.0](https://github.com/lightdash/lightdash/compare/0.1681.1...0.1682.0) (2025-06-03)
+
+
+### Features
+
+* Improve Agent chat UI ([#15125](https://github.com/lightdash/lightdash/issues/15125)) ([25e87f3](https://github.com/lightdash/lightdash/commit/25e87f388a00110d765ff8e6309de2b0458e31b6))
+
 ## [0.1681.1](https://github.com/lightdash/lightdash/compare/0.1681.0...0.1681.1) (2025-06-03)
 
 
