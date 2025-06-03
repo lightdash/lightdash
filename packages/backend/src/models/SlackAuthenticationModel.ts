@@ -135,6 +135,21 @@ export class SlackAuthenticationModel {
         };
     }
 
+    async getRawInstallationFromOrganizationUuid(
+        organizationUuid: string,
+    ): Promise<Installation<'v1' | 'v2', boolean> | undefined> {
+        const [row] = await this.database(SlackAuthTokensTableName)
+            .leftJoin(
+                'organizations',
+                'slack_auth_tokens.organization_id',
+                'organizations.organization_id',
+            )
+            .select('*')
+            .where('organization_uuid', organizationUuid);
+
+        return row?.installation;
+    }
+
     async deleteInstallation(installQuery: AnyType) {
         const teamId = getTeamId(installQuery);
 

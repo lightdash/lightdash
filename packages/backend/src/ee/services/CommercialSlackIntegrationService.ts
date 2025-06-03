@@ -35,9 +35,12 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
 
         if (installation === undefined) return undefined;
 
+        const appName = await this.slackClient.getAppName(organizationUuid);
+
         const response: SlackSettings = {
             organizationUuid,
             slackTeamName: installation.slackTeamName,
+            appName,
             createdAt: installation.createdAt,
             scopes: installation.scopes,
             notificationChannel: installation.notificationChannel,

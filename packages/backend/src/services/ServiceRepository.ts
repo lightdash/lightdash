@@ -600,6 +600,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     slackAuthenticationModel:
                         this.models.getSlackAuthenticationModel(),
+                    slackClient: this.clients.getSlackClient(),
                 }),
         );
     }
