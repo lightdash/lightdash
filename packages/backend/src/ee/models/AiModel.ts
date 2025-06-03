@@ -260,7 +260,7 @@ export class AiModel {
         });
     }
 
-    async updateSlackResponse(data: UpdateSlackResponse) {
+    async updateModelResponse(data: UpdateSlackResponse) {
         await this.database(AiPromptTableName)
             .update({
                 responded_at: new Date(),

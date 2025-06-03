@@ -7,7 +7,6 @@ import {
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
     CommercialFeatureFlags,
-    EE_SCHEDULER_TASKS,
     filterExploreByTags,
     ForbiddenError,
     LightdashUser,
@@ -691,5 +690,13 @@ export class AiAgentService {
         }
 
         throw new ForbiddenError('Invalid viz config');
+    }
+
+    // TODO: user permissions
+    async updateHumanScoreForMessage(messageUuid: string, humanScore: number) {
+        await this.aiModel.updateModelResponse({
+            promptUuid: messageUuid,
+            humanScore,
+        });
     }
 }
