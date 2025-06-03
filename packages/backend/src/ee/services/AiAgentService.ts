@@ -184,9 +184,6 @@ export class AiAgentService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        // TODO:
-        // permissions
-
         const agents = await this.aiAgentModel.findAllAgents({
             organizationUuid,
         });
@@ -371,6 +368,15 @@ export class AiAgentService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('AiAgent', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const agent = await this.aiAgentModel.createAgent({
             name: body.name,
             projectUuid: body.projectUuid,
@@ -397,6 +403,15 @@ export class AiAgentService {
             throw new ForbiddenError('Organization not found');
         }
 
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('AiAgent', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const updatedAgent = await this.aiAgentModel.updateAgent({
             agentUuid,
             name: body.name,
@@ -419,6 +434,15 @@ export class AiAgentService {
         const isCopilotEnabled = await this.getIsCopilotEnabled(user);
         if (!isCopilotEnabled) {
             throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('AiAgent', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
         }
 
         const agent = await this.getAgent(user, agentUuid);
