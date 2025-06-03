@@ -73,7 +73,7 @@ describe('Download CSV on Explore', () => {
         'Should download CSV from results on Explore',
         { retries: 3, pageLoadTimeout: 1000 },
         () => {
-            const downloadUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/explores/orders/downloadCsv`;
+            const downloadUrl = `/api/v2/projects/${SEED_PROJECT.project_uuid}/query/*/download`;
             cy.intercept({
                 method: 'POST',
                 url: downloadUrl,
@@ -93,8 +93,7 @@ describe('Download CSV on Explore', () => {
 
             cy.get('[data-testid=export-csv-button]').eq(1).click();
             cy.get('[data-testid=chart-export-csv-button]').click();
-
-            cy.findByText('Export CSV').click();
+            cy.get('[data-testid=chart-export-results-button]').eq(1).click();
 
             cy.wait('@apiDownloadCsv', { timeout: 3000 }).then(
                 (interception) => {
@@ -110,7 +109,7 @@ describe('Download CSV on Explore', () => {
         'Should download CSV from table chart on Explore',
         { retries: 3, pageLoadTimeout: 1000 },
         () => {
-            const downloadUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/explores/orders/downloadCsv`;
+            const downloadUrl = `/api/v2/projects/${SEED_PROJECT.project_uuid}/query/*/download`;
             cy.intercept({
                 method: 'POST',
                 url: downloadUrl,
@@ -141,6 +140,7 @@ describe('Download CSV on Explore', () => {
             // find by role and text
             cy.get('[data-testid=export-csv-button]').click();
             cy.get('[data-testid=chart-export-csv-button]').click();
+            cy.get('[data-testid=chart-export-results-button]').eq(1).click();
 
             cy.wait('@apiDownloadCsv').then((interception) => {
                 expect(interception?.response?.statusCode).to.eq(200);
