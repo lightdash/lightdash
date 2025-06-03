@@ -1,3 +1,10 @@
+# [0.1681.0](https://github.com/lightdash/lightdash/compare/0.1680.0...0.1681.0) (2025-06-03)
+
+
+### Features
+
+* add permission checks for AI Agent management ([#15122](https://github.com/lightdash/lightdash/issues/15122)) ([9e6ddfd](https://github.com/lightdash/lightdash/commit/9e6ddfd230960e61b27928246236a50e758d910f)), closes [#15136](https://github.com/lightdash/lightdash/issues/15136)
+
 # [0.1680.0](https://github.com/lightdash/lightdash/compare/0.1679.0...0.1680.0) (2025-06-03)
 
 
