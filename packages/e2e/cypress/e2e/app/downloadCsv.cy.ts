@@ -91,16 +91,16 @@ describe('Download CSV on Explore', () => {
             cy.findByText('Loading chart').should('not.exist');
             cy.findByText('Loading results').should('not.exist');
 
-            cy.get('[data-testid=export-csv-button]').eq(1).click();
+            cy.get('[data-testid=export-csv-button]').click();
             cy.get('[data-testid=chart-export-csv-button]').click();
-            cy.get('[data-testid=chart-export-results-button]').eq(1).click();
+            cy.get('[data-testid=chart-export-results-button]').click();
 
             cy.wait('@apiDownloadCsv', { timeout: 3000 }).then(
                 (interception) => {
                     expect(interception?.response?.statusCode).to.eq(200);
                     expect(
                         interception?.response?.body.results,
-                    ).to.have.property('jobId');
+                    ).to.have.property('fileUrl');
                 },
             );
         },
@@ -140,13 +140,13 @@ describe('Download CSV on Explore', () => {
             // find by role and text
             cy.get('[data-testid=export-csv-button]').click();
             cy.get('[data-testid=chart-export-csv-button]').click();
-            cy.get('[data-testid=chart-export-results-button]').eq(1).click();
+            cy.get('[data-testid=chart-export-results-button]').click();
 
             cy.wait('@apiDownloadCsv').then((interception) => {
                 expect(interception?.response?.statusCode).to.eq(200);
 
                 expect(interception?.response?.body.results).to.have.property(
-                    'jobId',
+                    'fileUrl',
                 );
             });
         },
