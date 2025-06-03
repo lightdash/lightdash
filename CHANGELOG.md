@@ -1,3 +1,10 @@
+# [0.1677.0](https://github.com/lightdash/lightdash/compare/0.1676.2...0.1677.0) (2025-06-03)
+
+
+### Features
+
+* excel service implementation for /download endpoint ([#15058](https://github.com/lightdash/lightdash/issues/15058)) ([10224b7](https://github.com/lightdash/lightdash/commit/10224b722b6454d38497547e4d479b79e9526b3f)), closes [#5715](https://github.com/lightdash/lightdash/issues/5715)
+
 ## [0.1676.2](https://github.com/lightdash/lightdash/compare/0.1676.1...0.1676.2) (2025-06-03)
 
 
