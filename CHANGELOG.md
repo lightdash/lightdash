@@ -1,3 +1,10 @@
+## [0.1683.1](https://github.com/lightdash/lightdash/compare/0.1683.0...0.1683.1) (2025-06-03)
+
+
+### Bug Fixes
+
+* Restrict Access to AiAgent Pages to Authenticated Users ([#15153](https://github.com/lightdash/lightdash/issues/15153)) ([f64eaa4](https://github.com/lightdash/lightdash/commit/f64eaa475284a1b2d34373228cc2f68eaa22787a)), closes [#15134](https://github.com/lightdash/lightdash/issues/15134)
+
 # [0.1683.0](https://github.com/lightdash/lightdash/compare/0.1682.0...0.1683.0) (2025-06-03)
 
 
