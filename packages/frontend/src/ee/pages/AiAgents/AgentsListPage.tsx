@@ -44,12 +44,13 @@ const AgentCard = ({ agent }: AgentCardProps) => {
             to={`/aiAgents/${agent.uuid}/threads`}
         >
             <Stack gap="sm" p="lg" style={{ flex: 1 }}>
-                <Group gap="sm">
+                <Group gap="sm" wrap="nowrap" align="flex-start">
                     <LightdashUserAvatar
                         name={agent.name}
                         h={54}
                         w={54}
                         variant="filled"
+                        style={{ flexShrink: 0 }}
                     />
                     <Stack gap="xs">
                         <Title order={5}>{agent.name}</Title>

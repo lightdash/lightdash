@@ -382,7 +382,9 @@ export const useStartAgentThreadMutation = (
                 }),
             );
 
-            void navigate(`/aiAgents/${agentUuid}/threads/${data.threadUuid}`);
+            void navigate(`/aiAgents/${agentUuid}/threads/${data.threadUuid}`, {
+                viewTransition: true,
+            });
         },
         onError: ({ error }) => {
             showToastApiError({

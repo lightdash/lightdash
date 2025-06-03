@@ -1,15 +1,36 @@
-import { Box, Button, Group, Stack, Text, Title } from '@mantine-8/core';
-import { IconArrowLeft, IconChevronDown, IconPlus } from '@tabler/icons-react';
-import { useState } from 'react';
+import { type AiAgentThreadSummary } from '@lightdash/common';
+import {
+    Box,
+    Button,
+    Divider,
+    Group,
+    List,
+    NavLink,
+    Paper,
+    Pill,
+    Stack,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine-8/core';
+import {
+    IconArrowLeft,
+    IconBrandSlack,
+    IconChevronDown,
+    IconClockEdit,
+    IconDatabase,
+    IconMessages,
+    IconPlus,
+} from '@tabler/icons-react';
+import { type FC, useState } from 'react';
 import { Link, Navigate, Outlet, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
-import LinkButton from '../../../components/common/LinkButton';
+import MantineIcon from '../../../components/common/MantineIcon';
 import Page from '../../../components/common/Page/Page';
 import PageSpinner from '../../../components/PageSpinner';
+import { useProject } from '../../../hooks/useProject';
+import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import useApp from '../../../providers/App/useApp';
-import AgentThreadCard, {
-    AgentThreadCardEmpty,
-} from '../../features/aiCopilot/components/AgentThreadCard';
 import {
     useAiAgent,
     useAiAgentThreads,
@@ -18,12 +39,48 @@ import {
 const INITIAL_MAX_THREADS = 10;
 const MAX_THREADS_INCREMENT = 10;
 
+type ThreadNavLinkProps = {
+    thread: AiAgentThreadSummary;
+    isActive: boolean;
+};
+
+const ThreadNavLink: FC<ThreadNavLinkProps> = ({ thread, isActive }) => (
+    <NavLink
+        color="gray"
+        component={Link}
+        key={thread.uuid}
+        to={`/aiAgents/${thread.agentUuid}/threads/${thread.uuid}`}
+        px="xs"
+        py={4}
+        mx={-8}
+        style={(theme) => ({
+            borderRadius: theme.radius.sm,
+        })}
+        label={
+            <Text truncate="end" size="sm" c="gray.7">
+                {thread.firstMessage}
+            </Text>
+        }
+        active={isActive}
+        rightSection={
+            thread.createdFrom === 'slack' && (
+                <Tooltip label={'Threads created in slack are read only'}>
+                    <IconBrandSlack size={18} stroke={1} />
+                </Tooltip>
+            )
+        }
+    />
+);
 const AgentPage = () => {
     const { user } = useApp();
     const { agentUuid, threadUuid } = useParams();
     const { data: threads } = useAiAgentThreads(agentUuid ?? '');
 
     const { data: agent, isLoading: isLoadingAgent } = useAiAgent(agentUuid!);
+    const { data: project } = useProject(agent?.projectUuid);
+
+    const updatedAt = agent?.updatedAt ? new Date(agent.updatedAt) : new Date();
+    const updatedTimeAgo = useTimeAgo(updatedAt);
 
     const [showMaxItems, setShowMaxItems] = useState(INITIAL_MAX_THREADS);
 
@@ -37,34 +94,55 @@ const AgentPage = () => {
 
     return (
         <Page
-            withPaddedContent
+            withCenteredContent
+            withXLargePaddedContent
+            withCenteredRoot
             sidebar={
                 <Stack gap="xl" align="stretch">
-                    <Stack align="flex-start">
-                        <LinkButton href={`/aiAgents`} leftIcon={IconArrowLeft}>
+                    <Stack align="flex-start" gap="xs">
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            component={Link}
+                            to="/aiAgents"
+                            leftSection={<MantineIcon icon={IconArrowLeft} />}
+                            style={{
+                                root: {
+                                    border: 'none',
+                                },
+                            }}
+                        >
                             All agents
-                        </LinkButton>
+                        </Button>
                         <Group>
                             <LightdashUserAvatar
-                                size="lg"
+                                size="md"
                                 variant="filled"
                                 name={agent.name || 'AI'}
                             />
-                            <Box>
-                                <Title order={3}>{agent.name}</Title>
-                                <Text size="sm" c="dimmed">
-                                    Last modified:{' '}
-                                    {new Date(
-                                        agent.updatedAt ?? new Date(),
-                                    ).toLocaleString()}
-                                </Text>
-                            </Box>
+                            <Title order={3}>{agent.name}</Title>
                         </Group>
+                        <List spacing="xxs" size="sm" c="dimmed" center>
+                            <List.Item icon={<IconClockEdit size={16} />}>
+                                Last updated{' '}
+                                <Tooltip
+                                    label={updatedAt.toLocaleString()}
+                                    withinPortal
+                                >
+                                    <span>{updatedTimeAgo}</span>
+                                </Tooltip>
+                            </List.Item>
+                            <List.Item icon={<IconMessages size={16} />}>
+                                {threads?.length || 0} threads
+                            </List.Item>
+                        </List>
                     </Stack>
-                    <Group>
+                    <Group gap="sm">
                         <Button
-                            leftSection={<IconPlus />}
+                            variant="dark"
+                            leftSection={<IconPlus size={16} />}
                             component={Link}
+                            size="xs"
                             to={`/aiAgents/${agent.uuid}/threads`}
                         >
                             New thread
@@ -72,8 +150,7 @@ const AgentPage = () => {
                         {user?.data?.ability.can('manage', 'AiAgent') && (
                             <Button
                                 variant="default"
-                                c="dimmed"
-                                bd="none"
+                                size="xs"
                                 component={Link}
                                 to={`/generalSettings/aiAgents/${agent.uuid}`}
                             >
@@ -81,52 +158,88 @@ const AgentPage = () => {
                             </Button>
                         )}
                     </Group>
-                    {agent.tags && (
-                        <Stack gap="xs">
-                            <Text size="md">Tags</Text>
-                            <Text size="sm" c="dimmed">
-                                {agent.tags.join(', ')}
-                            </Text>
-                        </Stack>
-                    )}
+                    <Divider variant="dashed" />
                     {agent.instruction && (
                         <Stack gap="xs">
-                            <Text size="md">Instructions</Text>
-                            <Text size="sm" c="dimmed">
+                            <Title order={6}>Instructions</Title>
+                            <Paper p="xs" bg="gray.0" c="gray.7">
                                 {agent.instruction}
-                            </Text>
+                            </Paper>
                         </Stack>
                     )}
-                    {threads && (
+
+                    {project && (
                         <Stack gap="xs">
-                            <Title order={5}>Threads</Title>
-                            {threads.slice(0, showMaxItems).map((thread) => (
-                                <AgentThreadCard
-                                    key={thread.uuid}
-                                    thread={thread}
-                                    isActive={thread.uuid === threadUuid}
-                                />
-                            ))}
-                            {threads.length >= showMaxItems && (
-                                <AgentThreadCardEmpty
-                                    onClick={() =>
-                                        setShowMaxItems(
-                                            (s) => s + MAX_THREADS_INCREMENT,
-                                        )
-                                    }
-                                >
-                                    <Group gap="xs">
-                                        <IconChevronDown />
-                                        <Text size="sm">View more</Text>
-                                    </Group>
-                                </AgentThreadCardEmpty>
+                            <Title order={6}>Lightdash Data Sources</Title>
+                            <Paper p="xs" c="gray.7">
+                                <Group gap="xs">
+                                    <IconDatabase size={16} />
+                                    {project.name}
+                                </Group>
+                            </Paper>
+                            {agent.tags && (
+                                <Group gap="xxs">
+                                    {agent.tags.map((tag, i) => (
+                                        <Pill key={i} size="sm">
+                                            {tag}
+                                        </Pill>
+                                    ))}
+                                </Group>
                             )}
+                        </Stack>
+                    )}
+
+                    {threads && threads.length > 0 && (
+                        <Stack gap="xs">
+                            <Title order={6}>Threads</Title>
+                            <Stack gap={2}>
+                                {threads
+                                    .slice(0, showMaxItems)
+                                    .map((thread) => (
+                                        <ThreadNavLink
+                                            thread={thread}
+                                            isActive={
+                                                thread.uuid === threadUuid
+                                            }
+                                            key={thread.uuid}
+                                        />
+                                    ))}
+                            </Stack>
+                            <Box>
+                                {threads.length >= showMaxItems && (
+                                    <Button
+                                        mx={-8}
+                                        size="compact-xs"
+                                        variant="subtle"
+                                        onClick={() =>
+                                            setShowMaxItems(
+                                                (s) =>
+                                                    s + MAX_THREADS_INCREMENT,
+                                            )
+                                        }
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconChevronDown}
+                                            />
+                                        }
+                                        style={{
+                                            root: {
+                                                border: 'none',
+                                            },
+                                        }}
+                                    >
+                                        View more
+                                    </Button>
+                                )}
+                            </Box>
                         </Stack>
                     )}
                 </Stack>
             }
         >
-            <Outlet />
+            <Box w="100%" maw="62rem" mx="auto" mt="xl" h="100%">
+                <Outlet />
+            </Box>
         </Page>
     );
 };
