@@ -519,6 +519,41 @@ export class SlackClient {
         };
     }
 
+    async getAppName(organizationUuid: string): Promise<string | undefined> {
+        const webClient = await this.getWebClient(organizationUuid);
+
+        // Get the raw installation data from the database which includes bot.id
+        const installation =
+            await this.slackAuthenticationModel.getRawInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        if (!installation) {
+            throw new SlackInstallationNotFoundError();
+        }
+
+        try {
+            // Try to get bot info using the bot ID from the installation
+            const botId = installation?.bot?.id;
+            if (botId) {
+                const botResponse = await webClient.bots.info({
+                    bot: botId,
+                });
+
+                if (botResponse.ok && botResponse.bot) {
+                    return botResponse.bot.name;
+                }
+            }
+
+            return undefined;
+        } catch (error) {
+            Logger.warn(
+                `Failed to get app info for organization ${organizationUuid}: ${error}`,
+            );
+            return undefined;
+        }
+    }
+
     /**
      * Helper method to try to upload an image to slack, so it can be used in blocks without expiration
      * If it fails, we will keep using the same URL (s3)

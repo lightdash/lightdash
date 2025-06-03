@@ -5687,20 +5687,33 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CreateBigqueryCredentials.type-or-keyfileContents_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                type: { ref: 'WarehouseTypes.BIGQUERY', required: true },
-                keyfileContents: {
-                    ref: 'Record_string.string_',
-                    required: true,
-                },
-            },
-            validators: {},
-        },
+    BigqueryAuthenticationType: {
+        dataType: 'refEnum',
+        enums: ['sso', 'private_key'],
     },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CreateBigqueryCredentials.type-or-keyfileContents-or-authenticationType_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    type: { ref: 'WarehouseTypes.BIGQUERY', required: true },
+                    keyfileContents: {
+                        ref: 'Record_string.string_',
+                        required: true,
+                    },
+                    authenticationType: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'BigqueryAuthenticationType' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
+            },
+        },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateDatabricksCredentials.type-or-personalAccessToken_': {
         dataType: 'refAlias',
@@ -5735,7 +5748,7 @@ const models: TsoaRoute.Models = {
                             ref: 'Pick_CreateTrinoCredentials.type-or-user-or-password_',
                         },
                         {
-                            ref: 'Pick_CreateBigqueryCredentials.type-or-keyfileContents_',
+                            ref: 'Pick_CreateBigqueryCredentials.type-or-keyfileContents-or-authenticationType_',
                         },
                         {
                             ref: 'Pick_CreateDatabricksCredentials.type-or-personalAccessToken_',
@@ -9321,6 +9334,14 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     type: { ref: 'WarehouseTypes.SNOWFLAKE', required: true },
+                    authenticationType: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['password'] },
+                            { dataType: 'enum', enums: ['private_key'] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     role: {
                         dataType: 'union',
                         subSchemas: [
@@ -9333,14 +9354,6 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'boolean' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    authenticationType: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'enum', enums: ['password'] },
-                            { dataType: 'enum', enums: ['private_key'] },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -9680,11 +9693,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    BigqueryAuthenticationType: {
-        dataType: 'refEnum',
-        enums: ['sso', 'private_key'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateBigqueryCredentials.Exclude_keyofCreateBigqueryCredentials.SensitiveCredentialsFieldNames__':
         {
             dataType: 'refAlias',
@@ -9692,17 +9700,17 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     type: { ref: 'WarehouseTypes.BIGQUERY', required: true },
-                    requireUserCredentials: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'boolean' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
                     authenticationType: {
                         dataType: 'union',
                         subSchemas: [
                             { ref: 'BigqueryAuthenticationType' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    requireUserCredentials: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -11407,7 +11415,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -11417,7 +11425,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -11427,7 +11435,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -11440,7 +11448,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
