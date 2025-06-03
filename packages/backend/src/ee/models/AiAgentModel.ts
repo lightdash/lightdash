@@ -398,10 +398,12 @@ export class AiAgentModel {
         organizationUuid,
         agentUuid,
         threadUuid,
+        userUuid,
     }: {
         organizationUuid: string;
         agentUuid: string;
         threadUuid?: string;
+        userUuid?: string;
     }): Promise<
         AiAgentThreadSummary<AiAgentUser & { slackUserId: string | null }>[]
     > {
@@ -466,6 +468,10 @@ export class AiAgentModel {
                 `${AiThreadTableName}.ai_thread_uuid`,
                 threadUuid,
             );
+        }
+
+        if (userUuid) {
+            void query.andWhere(`${UserTableName}.user_uuid`, userUuid);
         }
 
         const rows = await query;
