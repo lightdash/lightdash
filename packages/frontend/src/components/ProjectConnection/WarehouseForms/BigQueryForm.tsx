@@ -1,4 +1,8 @@
-import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
+import {
+    BigqueryAuthenticationType,
+    FeatureFlags,
+    WarehouseTypes,
+} from '@lightdash/common';
 import {
     Anchor,
     Button,
@@ -21,10 +25,12 @@ import {
     useBigqueryDatasets,
     useIsBigQueryAuthenticated,
 } from '../../../hooks/useBigquerySSO';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
+import BooleanSwitch from '../Inputs/BooleanSwitch';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
@@ -64,7 +70,7 @@ export const BigQuerySchemaInput: FC<{
     );
 };
 
-const BigQuerySSOInput: FC<{
+export const BigQuerySSOInput: FC<{
     isAuthenticated: boolean;
     disabled: boolean;
     openLoginPopup: () => void;
@@ -155,7 +161,9 @@ const BigQueryForm: FC<{
         (e: ChangeEvent<HTMLInputElement>) => {
             onChange(e.target.value === '' ? undefined : e.target.value);
         };
-
+    const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
+        FeatureFlags.PassthroughLogin,
+    );
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -393,6 +401,22 @@ const BigQueryForm: FC<{
                 )}
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
+                        {isPassthroughLoginFeatureEnabled && (
+                            <BooleanSwitch
+                                name="warehouse.requireUserCredentials"
+                                {...form.getInputProps(
+                                    'warehouse.requireUserCredentials',
+                                    {
+                                        type: 'checkbox',
+                                    },
+                                )}
+                                label="Require users to provide their own credentials"
+                                disabled={disabled}
+                                defaultChecked={
+                                    BigQueryDefaultValues.requireUserCredentials
+                                }
+                            />
+                        )}
                         <TextInput
                             name="warehouse.executionProject"
                             label="Execution project"

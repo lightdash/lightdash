@@ -5,6 +5,7 @@ import {
     ArgumentsOf,
     assertUnreachable,
     AuthorizationError,
+    BigqueryAuthenticationType,
     CompleteUserArgs,
     CreateInviteLink,
     CreatePasswordResetLink,
@@ -41,6 +42,7 @@ import {
     UserAllowedOrganization,
     validateOrganizationEmailDomains,
     validateOrganizationNameOrThrow,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
 import { uniq } from 'lodash';
@@ -1625,6 +1627,27 @@ export class UserService extends BaseService {
         return this.userWarehouseCredentialsModel.getAllByUserUuid(
             user.userUuid,
         );
+    }
+
+    async createBigqueryWarehouseCredentials(
+        user: SessionUser,
+        refreshToken: string,
+    ) {
+        const bigqueryCredentials: UpsertUserWarehouseCredentials = {
+            name: 'Default',
+            credentials: {
+                type: WarehouseTypes.BIGQUERY,
+                authenticationType: BigqueryAuthenticationType.SSO,
+                keyfileContents: {
+                    type: 'authorized_user',
+                    client_id: this.lightdashConfig.auth.google.oauth2ClientId!,
+                    client_secret:
+                        this.lightdashConfig.auth.google.oauth2ClientSecret!,
+                    refresh_token: refreshToken,
+                },
+            },
+        };
+        await this.createWarehouseCredentials(user, bigqueryCredentials);
     }
 
     async createWarehouseCredentials(
