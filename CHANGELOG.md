@@ -1,3 +1,10 @@
+## [0.1676.2](https://github.com/lightdash/lightdash/compare/0.1676.1...0.1676.2) (2025-06-03)
+
+
+### Bug Fixes
+
+* reorder migration steps to index cache_key before making it non-nullable ([#15128](https://github.com/lightdash/lightdash/issues/15128)) ([3ebe3e1](https://github.com/lightdash/lightdash/commit/3ebe3e1a908db270bdaf3564007c36a38d010744))
+
 ## [0.1676.1](https://github.com/lightdash/lightdash/compare/0.1676.0...0.1676.1) (2025-06-02)
 
 
