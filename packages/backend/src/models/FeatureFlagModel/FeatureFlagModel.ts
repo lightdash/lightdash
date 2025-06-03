@@ -10,7 +10,10 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { isFeatureFlagEnabled } from '../../postHog';
 
 export type FeatureFlagLogicArgs = {
-    user?: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>;
+    user?: Pick<
+        LightdashUser,
+        'userUuid' | 'organizationUuid' | 'organizationName'
+    >;
     featureFlagId: string;
 };
 

@@ -37,6 +37,7 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
                       {
                           userUuid: user.userUuid,
                           organizationUuid: user.organizationUuid,
+                          organizationName: user.organizationName,
                       },
                       {
                           throwOnTimeout: false,
