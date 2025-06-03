@@ -6,5 +6,17 @@
     "**/*.sass",
     "**/*.less",
     "packages/frontend/node_modules/@mantine-8/core/styles.css"
+  ],
+  "sqltools.connections": [
+    {
+      "previewLimit": 50,
+      "server": "localhost",
+      "port": 5432,
+      "driver": "PostgreSQL",
+      "name": "lightdash local",
+      "database": "postgres",
+      "username": "stevegardner",
+      "password": ""
+    }
   ]
 }

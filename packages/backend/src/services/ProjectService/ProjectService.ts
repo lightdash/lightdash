@@ -566,6 +566,11 @@ export class ProjectService extends BaseService {
         return { userAttributes, intrinsicUserAttributes };
     }
 
+    /*
+    This method is used when the user is creating a project 
+    This does not depend on `requireUserCredentials` flag (check getWarehouseCredentials for more details about that)
+    In here, we will load on runtime SSH credentials or refresh tokens for SSO
+    */
     private async _resolveWarehouseClientCredentials<
         T extends { warehouseConnection: CreateWarehouseCredentials },
     >(args: T, userUuid: string): Promise<T> {
@@ -638,6 +643,11 @@ export class ProjectService extends BaseService {
     }
 
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. Perhaps this information can be passed as a prop to the client so that other services can use the warehouse client credentials logic?
+    /* 
+        This method is used when the user is making requests to the warehouse 
+        and `requireUserCredentials` flag is enabled. 
+        Then we load the tokens from `userWarehouseCredentials` and replace them with the credentials from the project.
+    */
     protected async getWarehouseCredentials(
         projectUuid: string,
         userUuid: string,
@@ -647,23 +657,6 @@ export class ProjectService extends BaseService {
                 projectUuid,
             );
         let userWarehouseCredentialsUuid: string | undefined;
-
-        if (
-            credentials.type === WarehouseTypes.SNOWFLAKE &&
-            // credentials.authenticationType === 'sso' && // TODO for testing, replace with credentials.requireUserCredentials
-            credentials.token === undefined
-        ) {
-            const token = await this.userModel.getRefreshToken(userUuid);
-            const accessToken = await UserService.generateSnowflakeAccessToken(
-                token,
-            );
-
-            credentials = {
-                ...credentials,
-                authenticationType: 'sso',
-                token: accessToken,
-            } as CreateWarehouseCredentials;
-        }
 
         if (credentials.requireUserCredentials) {
             const userWarehouseCredentials =

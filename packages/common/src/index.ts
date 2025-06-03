@@ -1027,6 +1027,9 @@ export type HealthState = {
         pat: {
             maxExpirationTimeInDays: number | undefined;
         };
+        snowflake: {
+            enabled: boolean;
+        };
     };
     posthog:
         | {

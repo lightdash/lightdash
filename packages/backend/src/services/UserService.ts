@@ -27,6 +27,7 @@ import {
     LocalIssuerTypes,
     LoginOptions,
     LoginOptionTypes,
+    MissingConfigError,
     NotExistsError,
     NotFoundError,
     OpenIdIdentityIssuerType,
@@ -1576,17 +1577,32 @@ export class UserService extends BaseService {
     }
 
     /**
-     * This method is used on the gdrive API to get the accessToken for listing files on the user's drive
+     * This method returns an access token for different sso providers, like snowflake or google
+     * this is used on the gdrive API to get the accessToken for listing files on the user's drive
      * @param user
      * @returns accessToken
      */
     async getAccessToken(
         user: SessionUser,
-        type: 'gdrive' | 'bigquery' = 'gdrive',
+        type: 'gdrive' | 'bigquery' | 'snowflake' = 'gdrive',
     ): Promise<string> {
         const refreshToken: string = await this.userModel.getRefreshToken(
             user.userUuid,
         );
+
+        if (type === 'snowflake') {
+            if (this.lightdashConfig.auth.snowflake.clientId === undefined) {
+                // If snowflake oauth is not configured, refresh strategy will not be loaded
+                throw new MissingConfigError(
+                    'Snowflake client is not configured',
+                );
+            }
+            const accessToken = await UserService.generateSnowflakeAccessToken(
+                refreshToken,
+            );
+            return accessToken;
+        }
+
         const accessToken = await UserService.generateGoogleAccessToken(
             refreshToken,
             type,
@@ -1594,7 +1610,9 @@ export class UserService extends BaseService {
         return accessToken;
     }
 
-    static async generateSnowflakeAccessToken(refreshToken: string) {
+    static async generateSnowflakeAccessToken(
+        refreshToken: string,
+    ): Promise<string> {
         return new Promise((resolve, reject) => {
             refresh.requestNewAccessToken(
                 'snowflake',

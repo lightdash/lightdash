@@ -148,8 +148,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         let authenticationOptions: Partial<ConnectionOptions> = {};
 
         // if authenticationType is undefined, we assume it is a password authentication, for backwards compatibility
-        if (credentials.authenticationType === 'sso' || credentials.token) {
-            // TODO replace with &&
+        if (credentials.authenticationType === 'sso') {
             authenticationOptions = {
                 token: credentials.token,
                 authenticator: 'OAUTH',

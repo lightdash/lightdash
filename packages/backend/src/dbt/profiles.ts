@@ -2,6 +2,7 @@ import {
     AnyType,
     assertUnreachable,
     CreateWarehouseCredentials,
+    SnowflakeAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
 import * as yaml from 'js-yaml';
@@ -140,6 +141,12 @@ const credentialsTarget = (
                 },
             };
             if (
+                credentials.authenticationType ===
+                SnowflakeAuthenticationType.SSO
+            ) {
+                // Credentials from SSO will be loaded on _resolveWarehouseClientCredentials in ProjectService
+                console.debug('Snowflake authentication type is SSO');
+            } else if (
                 (!credentials.authenticationType ||
                     credentials.authenticationType === 'password') &&
                 credentials.password
@@ -159,7 +166,7 @@ const credentialsTarget = (
                 }
             } else {
                 throw new Error(
-                    `Incorrect snowflake profile. Profile should have password or private key.`,
+                    `Incorrect snowflake profile. Profile should have SSO credentials, password or private key.`,
                 );
             }
             return result;
