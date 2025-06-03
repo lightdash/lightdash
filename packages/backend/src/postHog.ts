@@ -82,11 +82,13 @@ export async function isFeatureFlagEnabled(
      */
     const featureFlagPromise = async () => {
         const groupProperties =
-            user.organizationName != null
+            user.organizationName != null && user.organizationUuid != null
                 ? {
-                      organization: {
-                          uuid: user.organizationUuid,
-                          name: user.organizationName,
+                      groupProperties: {
+                          organization: {
+                              uuid: user.organizationUuid,
+                              name: user.organizationName,
+                          },
                       },
                   }
                 : {};
