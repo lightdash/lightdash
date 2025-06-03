@@ -1,3 +1,10 @@
+# [0.1683.0](https://github.com/lightdash/lightdash/compare/0.1682.0...0.1683.0) (2025-06-03)
+
+
+### Features
+
+* allow up/down voting responses ([#15156](https://github.com/lightdash/lightdash/issues/15156)) ([952c520](https://github.com/lightdash/lightdash/commit/952c520bd67058978dccc193efaca0d91a366540))
+
 # [0.1682.0](https://github.com/lightdash/lightdash/compare/0.1681.1...0.1682.0) (2025-06-03)
 
 
