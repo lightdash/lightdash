@@ -1,3 +1,10 @@
+## [0.1681.1](https://github.com/lightdash/lightdash/compare/0.1681.0...0.1681.1) (2025-06-03)
+
+
+### Bug Fixes
+
+* pass `groupProperties` when checking feature-flags from back-end ([#15148](https://github.com/lightdash/lightdash/issues/15148)) ([c453d63](https://github.com/lightdash/lightdash/commit/c453d633d4958f8767352ad45e727ceaec07fe1c))
+
 # [0.1681.0](https://github.com/lightdash/lightdash/compare/0.1680.0...0.1681.0) (2025-06-03)
 
 
