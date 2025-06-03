@@ -28,7 +28,6 @@ import {
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     isField,
-    isMomentInput,
     isTableChartConfig,
     isVizCartesianChartConfig,
     ItemsMap,
@@ -50,7 +49,7 @@ import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
 
 import isNil from 'lodash/isNil';
-import moment, { MomentInput } from 'moment';
+import moment from 'moment';
 import { nanoid } from 'nanoid';
 import { createInterface } from 'readline';
 import {
@@ -78,6 +77,12 @@ import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import {
+    generateGenericFileId,
+    isRowValueDate,
+    isRowValueTimestamp,
+    sanitizeGenericFileName,
+} from '../../utils/FileDownloadUtils';
 import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
@@ -94,18 +99,6 @@ type CsvServiceArguments = {
     schedulerClient: SchedulerClient;
     projectModel: ProjectModel;
 };
-
-const isRowValueTimestamp = (
-    value: unknown,
-    field: { type: DimensionType },
-): value is MomentInput =>
-    isMomentInput(value) && field.type === DimensionType.TIMESTAMP;
-
-const isRowValueDate = (
-    value: unknown,
-    field: { type: DimensionType },
-): value is MomentInput =>
-    isMomentInput(value) && field.type === DimensionType.DATE;
 
 export const convertSqlToCsv = (
     results: Pick<ApiSqlQueryResults, 'rows' | 'fields'>,
@@ -239,24 +232,19 @@ export class CsvService extends BaseService {
         });
     }
 
-    static sanitizeFileName(name: string): string {
-        return name
-            .toLowerCase()
-            .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
-            .replace(/_{2,}/g, '_'); // Replace multiple underscores with a single one
-    }
+    static sanitizeFileName = sanitizeGenericFileName;
 
     static generateFileId(
         fileName: string,
         truncated: boolean = false,
         time: moment.Moment = moment(),
     ): string {
-        const timestamp = time.format('YYYY-MM-DD-HH-mm-ss-SSSS');
-        const sanitizedFileName = CsvService.sanitizeFileName(fileName);
-        const fileId = `csv-${
-            truncated ? 'incomplete_results-' : ''
-        }${sanitizedFileName}-${timestamp}.csv`;
-        return fileId;
+        return generateGenericFileId({
+            fileName,
+            fileExtension: DownloadFileType.CSV,
+            truncated,
+            time,
+        });
     }
 
     static isValidCsvFileId(fileId: string): boolean {

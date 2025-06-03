@@ -16097,7 +16097,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess_ApiDownloadAsyncQueryResults-or-ApiDownloadAsyncQueryResultsAsCsv_':
+    ApiDownloadAsyncQueryResultsAsXlsx: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                truncated: { dataType: 'boolean', required: true },
+                fileUrl: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess_ApiDownloadAsyncQueryResults-or-ApiDownloadAsyncQueryResultsAsCsv-or-ApiDownloadAsyncQueryResultsAsXlsx_':
         {
             dataType: 'refAlias',
             type: {
@@ -16108,6 +16120,7 @@ const models: TsoaRoute.Models = {
                         subSchemas: [
                             { ref: 'ApiDownloadAsyncQueryResults' },
                             { ref: 'ApiDownloadAsyncQueryResultsAsCsv' },
+                            { ref: 'ApiDownloadAsyncQueryResultsAsXlsx' },
                         ],
                         required: true,
                     },
@@ -16119,7 +16132,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DownloadFileType: {
         dataType: 'refEnum',
-        enums: ['csv', 'image', 'jsonl', 's3_jsonl'],
+        enums: ['csv', 'image', 'jsonl', 's3_jsonl', 'xlsx'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FeatureFlag: {

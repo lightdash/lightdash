@@ -600,6 +600,11 @@ export type ApiDownloadAsyncQueryResultsAsCsv = {
     truncated: boolean;
 };
 
+export type ApiDownloadAsyncQueryResultsAsXlsx = {
+    fileUrl: string;
+    truncated: boolean;
+};
+
 export type ApiChartAndResults = {
     chart: SavedChart;
     explore: Explore;
@@ -905,6 +910,7 @@ type ApiResults =
     | ApiUserActivityDownloadCsv['results']
     | ApiRenameFieldsResponse['results']
     | ApiDownloadAsyncQueryResults
+    | ApiDownloadAsyncQueryResultsAsXlsx
     | ApiAiAgentThreadResponse['results']
     | ApiAiAgentThreadMessageVizResponse['results'];
 
