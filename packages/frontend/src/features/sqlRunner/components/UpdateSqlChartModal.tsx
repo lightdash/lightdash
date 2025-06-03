@@ -1,3 +1,4 @@
+import type { Space, SpaceSummary, SqlChart } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -22,6 +23,8 @@ import {
     useSavedSqlChart,
     useUpdateSqlChartMutation,
 } from '../hooks/useSavedSqlCharts';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { setSavedChartData } from '../store/sqlRunnerSlice';
 
 enum ModalStep {
     InitialInfo = 'initialInfo',
@@ -52,6 +55,10 @@ export const UpdateSqlChartModal = ({
     onClose,
     onSuccess,
 }: Props) => {
+    const dispatch = useAppDispatch();
+    const savedSqlChart = useAppSelector(
+        (state) => state.sqlRunner.savedSqlChart,
+    );
     const {
         data,
         isLoading: isChartLoading,
@@ -123,7 +130,31 @@ export const UpdateSqlChartModal = ({
                     spaceUuid: newSpace?.uuid || spaceUuid || spaces[0]?.uuid,
                 },
             });
-
+            const newSavedSqlChart = { ...savedSqlChart };
+            newSavedSqlChart.name = name;
+            newSavedSqlChart.description = description;
+            if (newSpace?.uuid || spaceUuid !== savedSqlChart?.space.uuid) {
+                // only when space is updated
+                let updatedSpace: Space | SpaceSummary;
+                if (newSpace?.uuid) {
+                    updatedSpace = newSpace;
+                } else {
+                    updatedSpace = spaces.find(
+                        (space) => space.uuid === spaceUuid,
+                    )!;
+                }
+                newSavedSqlChart.space = {
+                    name: updatedSpace.name,
+                    isPrivate: updatedSpace.isPrivate,
+                    userAccess:
+                        'userAccess' in updatedSpace
+                            ? updatedSpace.userAccess
+                            : savedSqlChart?.space.userAccess, // keep the userAccess same as before if newSpace is created
+                    uuid: updatedSpace.uuid,
+                };
+            }
+            dispatch(setSavedChartData(newSavedSqlChart as SqlChart));
+            modalSteps.goToStep(ModalStep.InitialInfo);
             onSuccess();
         },
     );

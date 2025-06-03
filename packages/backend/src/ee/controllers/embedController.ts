@@ -21,6 +21,7 @@ import {
     MetricQueryResponse,
     SavedChart,
     SavedChartsInfoForDashboardAvailableFilters,
+    SortField,
     UpdateEmbed,
 } from '@lightdash/common';
 import {
@@ -218,6 +219,7 @@ export class EmbedController extends BaseController {
             tileUuid: string;
             dashboardFilters?: DashboardFilters;
             dateZoomGranularity?: DateGranularity;
+            dashboardSorts?: SortField[];
         },
     ): Promise<ApiEmbedChartAndResultsResponse> {
         this.setStatus(200);
@@ -229,6 +231,7 @@ export class EmbedController extends BaseController {
                 body.tileUuid,
                 body.dashboardFilters,
                 body.dateZoomGranularity,
+                body.dashboardSorts,
             ),
         };
     }

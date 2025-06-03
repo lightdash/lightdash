@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useCreateMutation } from './useSpaces';
 
 type UseSpaceManagementProps = {
@@ -21,6 +21,10 @@ export const useSpaceManagement = ({
     const [newSpaceName, setNewSpaceName] = useState('');
 
     const createSpaceMutation = useCreateMutation(projectUuid);
+
+    useEffect(() => {
+        setSelectedSpaceUuid(defaultSpaceUuid || null);
+    }, [defaultSpaceUuid]);
 
     const handleCreateNewSpace = useCallback(
         async ({ isPrivate }: { isPrivate?: boolean } = {}) => {

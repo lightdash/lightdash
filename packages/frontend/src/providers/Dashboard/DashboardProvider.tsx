@@ -1,4 +1,5 @@
 import {
+    DashboardTileTypes,
     DateGranularity,
     applyDimensionOverrides,
     compressDashboardFiltersToParam,
@@ -19,7 +20,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect, useMount } from 'react-use';
 import { hasSavedFilterValueChanged } from '../../components/DashboardFilter/FilterConfiguration/utils';
-import { getConditionalRuleLabel } from '../../components/common/Filters/FilterInputs/utils';
+import { getConditionalRuleLabelFromItem } from '../../components/common/Filters/FilterInputs/utils';
 import {
     useGetComments,
     type useDashboardCommentsCheck,
@@ -419,14 +420,15 @@ const DashboardProvider: React.FC<
         resetSavedFilterOverrides,
     ]);
 
-    const hasChartTiles = useMemo(
-        () =>
-            Boolean(
-                dashboardTiles &&
-                    dashboardTiles.filter(isDashboardChartTileType).length >= 1,
-            ),
-        [dashboardTiles],
-    );
+    const hasTilesThatSupportFilters = useMemo(() => {
+        const tileTypesThatSupportFilters = [
+            DashboardTileTypes.SQL_CHART,
+            DashboardTileTypes.SAVED_CHART,
+        ];
+        return !!dashboardTiles?.some(({ type }) =>
+            tileTypesThatSupportFilters.includes(type),
+        );
+    }, [dashboardTiles]);
 
     const addDimensionDashboardFilter = useCallback(
         (filter: DashboardFilterRule, isTemporary: boolean) => {
@@ -595,7 +597,10 @@ const DashboardProvider: React.FC<
                         if (f.label) {
                             label = f.label;
                         } else if (field) {
-                            label = getConditionalRuleLabel(f, field).field;
+                            label = getConditionalRuleLabelFromItem(
+                                f,
+                                field,
+                            ).field;
                         }
 
                         return [
@@ -648,7 +653,7 @@ const DashboardProvider: React.FC<
         isFetchingDashboardFilters,
         filterableFieldsByTileUuid,
         allFilters,
-        hasChartTiles,
+        hasTilesThatSupportFilters,
         chartSort,
         setChartSort,
         sqlChartTilesMetadata,

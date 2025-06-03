@@ -20,7 +20,7 @@ import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import React, { useEffect, useMemo, type FC } from 'react';
 import { getColorFromRange, readableColor } from '../../../../utils/colorUtils';
-import { getConditionalRuleLabel } from '../../Filters/FilterInputs/utils';
+import { getConditionalRuleLabelFromItem } from '../../Filters/FilterInputs/utils';
 import MantineIcon from '../../MantineIcon';
 import { SMALL_TEXT_LENGTH } from '../constants';
 import { ROW_HEIGHT_PX, Tr } from '../Table.styles';
@@ -123,7 +123,7 @@ const TableRow: FC<TableRowProps> = ({
                     field,
                     conditionalFormattingConfig,
                     rowFields,
-                    getConditionalRuleLabel,
+                    getConditionalRuleLabelFromItem,
                 );
 
                 const toggleExpander = row.getToggleExpandedHandler();
@@ -278,15 +278,16 @@ const VirtualizedTableBody: FC<{
         return Array.from({ length: pageSize }).map((_, index) => {
             return (
                 <tr key={index}>
-                    {new Array(tableColumnsCount).fill(
-                        // Same padding as CellStyles in Table.styles.ts
-                        <td style={{ padding: 8.5 }}>
-                            <Skeleton
-                                w="100%"
-                                // Removing 17px to account for the padding of the table defined in Table.styles.ts
-                                h={`calc(${ROW_HEIGHT_PX}px - 17px)`}
-                            />
-                        </td>,
+                    {Array.from({ length: tableColumnsCount }).map(
+                        (__, colIdx) => (
+                            <td key={colIdx} style={{ padding: 8.5 }}>
+                                <Skeleton
+                                    w="100%"
+                                    // Removing 17px to account for the padding of the table defined in Table.styles.ts
+                                    h={`calc(${ROW_HEIGHT_PX}px - 17px)`}
+                                />
+                            </td>
+                        ),
                     )}
                 </tr>
             );

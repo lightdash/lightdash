@@ -28,7 +28,6 @@ import {
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     isField,
-    isMomentInput,
     isTableChartConfig,
     isVizCartesianChartConfig,
     ItemsMap,
@@ -50,8 +49,9 @@ import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
 
 import isNil from 'lodash/isNil';
-import moment, { MomentInput } from 'moment';
+import moment from 'moment';
 import { nanoid } from 'nanoid';
+import { createInterface } from 'readline';
 import {
     pipeline,
     Readable,
@@ -77,6 +77,12 @@ import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import {
+    generateGenericFileId,
+    isRowValueDate,
+    isRowValueTimestamp,
+    sanitizeGenericFileName,
+} from '../../utils/FileDownloadUtils';
 import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
@@ -93,18 +99,6 @@ type CsvServiceArguments = {
     schedulerClient: SchedulerClient;
     projectModel: ProjectModel;
 };
-
-const isRowValueTimestamp = (
-    value: unknown,
-    field: { type: DimensionType },
-): value is MomentInput =>
-    isMomentInput(value) && field.type === DimensionType.TIMESTAMP;
-
-const isRowValueDate = (
-    value: unknown,
-    field: { type: DimensionType },
-): value is MomentInput =>
-    isMomentInput(value) && field.type === DimensionType.DATE;
 
 export const convertSqlToCsv = (
     results: Pick<ApiSqlQueryResults, 'rows' | 'fields'>,
@@ -238,24 +232,19 @@ export class CsvService extends BaseService {
         });
     }
 
-    static sanitizeFileName(name: string): string {
-        return name
-            .toLowerCase()
-            .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
-            .replace(/_{2,}/g, '_'); // Replace multiple underscores with a single one
-    }
+    static sanitizeFileName = sanitizeGenericFileName;
 
     static generateFileId(
         fileName: string,
         truncated: boolean = false,
         time: moment.Moment = moment(),
     ): string {
-        const timestamp = time.format('YYYY-MM-DD-HH-mm-ss-SSSS');
-        const sanitizedFileName = CsvService.sanitizeFileName(fileName);
-        const fileId = `csv-${
-            truncated ? 'incomplete_results-' : ''
-        }${sanitizedFileName}-${timestamp}.csv`;
-        return fileId;
+        return generateGenericFileId({
+            fileName,
+            fileExtension: DownloadFileType.CSV,
+            truncated,
+            time,
+        });
     }
 
     static isValidCsvFileId(fileId: string): boolean {
@@ -264,7 +253,7 @@ export class CsvService extends BaseService {
         );
     }
 
-    static async streamRowsToFile(
+    static async streamObjectRowsToFile(
         onlyRaw: boolean,
         itemMap: ItemsMap,
         sortedFieldIds: string[],
@@ -316,6 +305,84 @@ export class CsvService extends BaseService {
                     resolve();
                 },
             );
+        });
+    }
+
+    /**
+     * Stream S3 JSONL data to CSV file
+     * This method is specifically designed to handle JSONL data from S3 storage
+     * and convert it to CSV format.
+     * Unlike streamRowsToFile, this method expects the readStream to be in string format,
+     * not in object mode.
+     */
+    static async streamJsonlRowsToFile(
+        onlyRaw: boolean,
+        itemMap: ItemsMap,
+        sortedFieldIds: string[],
+        csvHeader: string[],
+        {
+            readStream,
+            writeStream,
+        }: {
+            readStream: Readable;
+            writeStream: Writable;
+        },
+    ): Promise<{ truncated: boolean }> {
+        const stringifier = stringify({
+            delimiter: ',',
+            header: true,
+            columns: csvHeader,
+        });
+
+        return new Promise((resolve, reject) => {
+            // Process the readStream line by line
+            const lineReader = createInterface({
+                input: readStream,
+                crlfDelay: Infinity,
+            });
+
+            let lineCount = 0;
+            const MAX_LINES = 100000; // Configurable limit
+            let truncated = false;
+
+            lineReader.on('line', (line: string) => {
+                if (!line.trim()) return;
+
+                // eslint-disable-next-line no-plusplus
+                lineCount++;
+                if (lineCount > MAX_LINES) {
+                    truncated = true;
+                    lineReader.close();
+                    return;
+                }
+
+                try {
+                    const parsedRow = JSON.parse(line);
+                    const csvRow = CsvService.convertRowToCsv(
+                        parsedRow,
+                        itemMap,
+                        onlyRaw,
+                        sortedFieldIds,
+                    );
+                    stringifier.write(csvRow);
+                } catch (error) {
+                    Logger.error(
+                        `Error processing line ${lineCount}: ${error}`,
+                    );
+                }
+            });
+
+            lineReader.on('close', () => {
+                stringifier.end();
+            });
+
+            pipeline(stringifier, writeStream, (err) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                resolve({ truncated });
+            });
         });
     }
 
@@ -372,7 +439,7 @@ export class CsvService extends BaseService {
             highWaterMark: CHUNK_SIZE,
         });
 
-        await CsvService.streamRowsToFile(
+        await CsvService.streamObjectRowsToFile(
             onlyRaw,
             itemMap,
             sortedFieldIds,

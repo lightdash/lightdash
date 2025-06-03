@@ -23,7 +23,7 @@ export const AiSlackThreadTableName = 'ai_slack_thread';
 
 export const AiWebAppThreadTableName = 'ai_web_app_thread';
 
-type DbAiSlackThread = {
+export type DbAiSlackThread = {
     ai_slack_thread_uuid: string;
     ai_thread_uuid: string;
     slack_user_id: string;

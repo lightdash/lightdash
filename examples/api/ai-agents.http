@@ -1,4 +1,5 @@
 ### Login
+// @no-log
 POST http://localhost:8080/api/v1/login
 Content-Type: application/json
 
@@ -7,18 +8,90 @@ Content-Type: application/json
     "password": "demo_password!"
 }
 
-### List agents
+### =============================================================================
+### AI AGENTS
+### =============================================================================
+
+### List all AI Agents
 GET http://localhost:8080/api/v1/aiAgents
 Content-Type: application/json
 
-### Get agent
-GET http://localhost:8080/api/v1/aiAgents/a4a584ce-0370-4bbe-943b-3c67fcb7ef76
+### Get specific AI Agent
+GET http://localhost:8080/api/v1/aiAgents/AGENT_UUID
 Content-Type: application/json
 
-### Get agent threads
-GET http://localhost:8080/api/v1/aiAgents/a4a584ce-0370-4bbe-943b-3c67fcb7ef76/threads
+### Create AI Agent
+POST http://localhost:8080/api/v1/aiAgents
 Content-Type: application/json
 
-### Get agent thread
-GET http://localhost:8080/api/v1/aiAgents/a4a584ce-0370-4bbe-943b-3c67fcb7ef76/threads/91ea006f-bce1-4193-9099-13dddaddfcfc
+{
+    "name": "My Analytics Assistant",
+    "projectUuid": PROJECT_UUID,
+    "instruction": "You are a helpful analytics assistant that helps users understand their data and create meaningful insights.",
+    "integrations": [
+        {
+            "type": "slack",
+            "channelId": "CHANNEL_ID"
+        }
+    ],
+    "tags": ["analytics", "assistant", "data"]
+}
+
+### Update AI Agent
+PATCH http://localhost:8080/api/v1/aiAgents/AI_AGENT_UUID
 Content-Type: application/json
+
+{
+    "uuid": "AI_AGENT_UUID",
+    "name": "Updated Analytics Assistant",
+    "instruction": "You are an advanced analytics assistant specialized in business intelligence and data visualization.",
+    "tags": ["analytics", "bi", "advanced"]
+}
+
+### Delete AI Agent
+DELETE http://localhost:8080/api/v1/aiAgents/AI_AGENT_UUID
+Content-Type: application/json
+
+### =============================================================================
+### AI AGENT THREADS
+### =============================================================================
+
+### List Agent Threads
+GET http://localhost:8080/api/v1/aiAgents/AI_AGENT_UUID/threads
+Content-Type: application/json
+
+### Get specific Agent Thread
+GET http://localhost:8080/api/v1/aiAgents/AI_AGENT_UUID/threads/THREAD_UUID
+Content-Type: application/json
+
+### Start new Agent Thread (create thread with first message)
+POST http://localhost:8080/api/v1/aiAgents/AI_AGENT_UUID/generate
+Content-Type: application/json
+
+{
+    "prompt": "Can you help me analyze the sales data for the last quarter?"
+}
+
+### Generate response in existing Agent Thread
+POST http://localhost:8080/api/v1/aiAgents/AI_AGENT_UUID/threads/THREAD_UUID/generate
+Content-Type: application/json
+
+{
+    "prompt": "Can you create a chart showing the trend over time?"
+}
+
+### Get Agent Thread Message Visualization
+GET http://localhost:8080/api/v1/aiAgents/AI_AGENT_UUID/threads/THREAD_UUID/message/MESSAGE_UUID/viz
+Content-Type: application/json
+
+### =============================================================================
+### LEGACY AI ENDPOINTS (for reference)
+### =============================================================================
+
+### Dashboard summary
+POST http://localhost:8080/api/v1/ai/PROJECT_UUID/dashboard/DASHBOARD_UUID/summary
+Content-Type: application/json
+
+{
+    "context": "say something interesting"
+}

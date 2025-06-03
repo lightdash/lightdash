@@ -3,6 +3,7 @@ import { type SlackChannelProjectMapping } from './slack';
 export type SlackSettings = {
     organizationUuid: string;
     slackTeamName: string;
+    appName?: string;
     createdAt: Date;
     token?: string;
     scopes: string[];

@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import type { AnyType, CacheMetadata, ItemsMap, MetricQuery } from '../..';
+
+export type AiMetricQuery = Pick<
+    MetricQuery,
+    'metrics' | 'dimensions' | 'sorts' | 'limit' | 'exploreName' | 'filters'
+>;
 
 export const baseAgentSchema = z.object({
     uuid: z.string(),
@@ -24,7 +30,13 @@ export const baseAgentSchema = z.object({
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
 
-    instructions: z.string().nullable(),
+    instruction: z
+        .string()
+        .max(
+            4096,
+            'Custom instruction is too long. Maximum allowed is 4,000 characters.',
+        )
+        .nullable(),
     provider: z.string(),
     model: z.string(),
 });
@@ -41,6 +53,7 @@ export type AiAgent = Pick<
     | 'name'
     | 'createdAt'
     | 'updatedAt'
+    | 'instruction'
 >;
 
 export type AiAgentSummary = Pick<
@@ -53,49 +66,54 @@ export type AiAgentSummary = Pick<
     | 'organizationUuid'
     | 'createdAt'
     | 'updatedAt'
+    | 'instruction'
 >;
 
-export type AiAgentMessage =
-    | {
-          role: 'user';
-          uuid: string;
-          threadUuid: string;
-          message: string; // ai_prompt.prompt
-          createdAt: string;
+export type AiAgentUser = {
+    uuid: string;
+    name: string;
+};
 
-          user: {
-              uuid: string;
-              name: string;
-          };
-      }
-    | {
-          role: 'assistant';
-          uuid: string;
-          threadUuid: string;
-          message: string; // ai_prompt.response
-          createdAt: string; // ai_prompt.responded_at
+export type AiAgentMessageUser<TUser extends AiAgentUser = AiAgentUser> = {
+    role: 'user';
+    uuid: string;
+    threadUuid: string;
+    message: string; // ai_prompt.prompt
+    createdAt: string;
 
-          vizConfigOutput?: object;
-          filtersOutput?: object;
-          metricQuery?: object;
-          humanScore?: number;
-      };
+    user: TUser;
+};
 
-export type AiAgentThreadSummary = {
+export type AiAgentMessageAssistant = {
+    role: 'assistant';
+    uuid: string;
+    threadUuid: string;
+    message: string; // ai_prompt.response
+    createdAt: string; // ai_prompt.responded_at
+
+    vizConfigOutput?: object;
+    filtersOutput?: object;
+    metricQuery?: object;
+    humanScore?: number;
+};
+
+export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
+    | AiAgentMessageUser<TUser>
+    | AiAgentMessageAssistant;
+
+export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     uuid: string;
     agentUuid: string;
     createdAt: string;
     createdFrom: string;
     firstMessage: string;
-    user: {
-        uuid: string;
-        name: string;
-    };
+    user: TUser;
 };
 
-export type AiAgentThread = AiAgentThreadSummary & {
-    messages: AiAgentMessage[];
-};
+export type AiAgentThread<TUser extends AiAgentUser = AiAgentUser> =
+    AiAgentThreadSummary<TUser> & {
+        messages: AiAgentMessage<TUser>[];
+    };
 
 export type ApiAiAgentResponse = {
     status: 'ok';
@@ -109,15 +127,16 @@ export type ApiAiAgentSummaryResponse = {
 
 export type ApiCreateAiAgent = Pick<
     AiAgent,
-    'projectUuid' | 'integrations' | 'tags' | 'name'
+    'projectUuid' | 'integrations' | 'tags' | 'name' | 'instruction'
 >;
 
-export type ApiUpdateAiAgent = {
-    uuid: AiAgent['uuid'];
-    projectUuid?: AiAgent['projectUuid'];
-    name?: AiAgent['name'];
-    tags?: AiAgent['tags'];
-    integrations?: AiAgent['integrations'];
+export type ApiUpdateAiAgent = Partial<
+    Pick<
+        AiAgent,
+        'projectUuid' | 'integrations' | 'tags' | 'name' | 'instruction'
+    >
+> & {
+    uuid: string;
 };
 
 export type ApiCreateAiAgentResponse = {
@@ -134,3 +153,40 @@ export type ApiAiAgentThreadResponse = {
     status: 'ok';
     results: AiAgentThread;
 };
+
+export type ApiAiAgentThreadGenerateRequest = {
+    prompt: string;
+};
+
+export type ApiAiAgentThreadGenerateResponse = {
+    status: 'ok';
+    results: {
+        jobId: string;
+    };
+};
+
+export type ApiAiAgentStartThreadResponse = {
+    status: 'ok';
+    results: {
+        jobId: string;
+        threadUuid: string;
+    };
+};
+
+export type ApiAiAgentThreadMessageViz = {
+    type: 'vertical_bar_chart' | 'time_series_chart' | 'csv';
+    metricQuery: AiMetricQuery;
+    chartOptions?: object;
+    results: {
+        rows: Record<string, AnyType>[];
+        cacheMetadata: CacheMetadata;
+        fields: ItemsMap;
+    };
+};
+
+export type ApiAiAgentThreadMessageVizResponse = {
+    status: 'ok';
+    results: ApiAiAgentThreadMessageViz;
+};
+
+export * from './filterExploreByTags';

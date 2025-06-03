@@ -48,6 +48,7 @@ import {
     type TimeBasedOverrideMap,
 } from '../types/filter';
 import { type MetricQuery } from '../types/metricQuery';
+import { type ResultColumn } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
@@ -112,8 +113,9 @@ export const getFilterGroupItemsPropertyName = (
     return 'and';
 };
 
-export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
-    const type = getItemType(item);
+export const getFilterTypeFromItemType = (
+    type: DimensionType | MetricType | TableCalculationType,
+): FilterType => {
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
@@ -149,6 +151,11 @@ export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
             );
         }
     }
+};
+
+export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
+    const type = getItemType(item);
+    return getFilterTypeFromItemType(type);
 };
 
 export const timeframeToUnitOfTime = (timeframe: TimeFrames) => {
@@ -195,11 +202,11 @@ export const isWithValueFilter = (filterOperator: FilterOperator) =>
     filterOperator !== FilterOperator.NOT_NULL;
 
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
-    field: FilterableField,
+    filterType: FilterType,
+    field: FilterableField | undefined,
     filterRule: T,
     values?: AnyType[] | null,
 ): T => {
-    const filterType = getFilterTypeFromItem(field);
     const filterRuleDefaults: Partial<FilterRule> = {};
 
     if (
@@ -213,6 +220,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                 const value = values ? values[0] : undefined;
 
                 const isTimestamp =
+                    !field ||
                     (isCustomSqlDimension(field)
                         ? field.dimensionType
                         : field.type) === DimensionType.TIMESTAMP;
@@ -313,11 +321,23 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     };
 };
 
+export const getFilterRuleFromFieldWithDefaultValue = <T extends FilterRule>(
+    field: FilterableField,
+    filterRule: T,
+    values?: AnyType[] | null,
+): T =>
+    getFilterRuleWithDefaultValue(
+        getFilterTypeFromItem(field),
+        field,
+        filterRule,
+        values,
+    );
+
 export const createFilterRuleFromField = (
     field: FilterableField,
     value?: AnyType,
 ): FilterRule =>
-    getFilterRuleWithDefaultValue(
+    getFilterRuleFromFieldWithDefaultValue(
         field,
         {
             id: uuidv4(),
@@ -394,7 +414,7 @@ export const createDashboardFilterRuleFromField = ({
     isTemporary: boolean;
     value?: unknown;
 }): FilterDashboardToRule =>
-    getFilterRuleWithDefaultValue(
+    getFilterRuleFromFieldWithDefaultValue(
         field,
         {
             id: uuidv4(),
@@ -406,6 +426,60 @@ export const createDashboardFilterRuleFromField = ({
                 fieldName: field.name,
             },
             tileTargets: getDefaultTileTargets(field, availableTileFilters),
+            disabled: !isTemporary,
+            label: undefined,
+        },
+        !isNil(value) ? [value] : null, // When `null`, don't set default value if no value is provided
+    );
+
+const getDefaultTileSqlTargets = (
+    column: ResultColumn,
+    availableTileColumns: Record<string, ResultColumn[] | undefined>,
+) =>
+    Object.entries(availableTileColumns).reduce<
+        Record<string, DashboardFieldTarget>
+    >((acc, [tileUuid, availableColumns]) => {
+        if (!availableColumns) return acc;
+
+        const filterableField = availableColumns.find(
+            (target) => target.reference === column.reference,
+        );
+        if (!filterableField) return acc;
+
+        return {
+            ...acc,
+            [tileUuid]: {
+                fieldId: filterableField.reference,
+                tableName: `sql_chart`,
+                isSqlColumn: true,
+            },
+        };
+    }, {});
+
+export const createDashboardFilterRuleFromSqlColumn = ({
+    column,
+    availableTileColumns,
+    isTemporary,
+    value,
+}: {
+    column: ResultColumn;
+    availableTileColumns: Record<string, ResultColumn[]>;
+    isTemporary: boolean;
+    value?: unknown;
+}): DashboardFilterRule =>
+    getFilterRuleWithDefaultValue(
+        getFilterTypeFromItemType(column.type),
+        undefined,
+        {
+            id: uuidv4(),
+            operator:
+                value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
+            target: {
+                fieldId: column.reference,
+                tableName: 'sql_chart',
+                isSqlColumn: true,
+            },
+            tileTargets: getDefaultTileSqlTargets(column, availableTileColumns),
             disabled: !isTemporary,
             label: undefined,
         },
@@ -707,8 +781,8 @@ export const getDashboardFilterRulesForTileAndReferences = (
     references: string[],
     rules: DashboardFilterRule[],
 ): DashboardFilterRule[] =>
-    getDashboardFilterRulesForTile(tileUuid, rules, true).filter((f) =>
-        references.includes(f.target.fieldId),
+    getDashboardFilterRulesForTile(tileUuid, rules, true).filter(
+        (f) => f.target.isSqlColumn && references.includes(f.target.fieldId),
     );
 
 export const getDashboardFilterRulesForTables = (
@@ -1077,7 +1151,7 @@ export const createFilterRuleFromModelRequiredFilterRule = (
             unitOfTime: filter.settings.unitOfTime,
         },
     }),
-    required: true,
+    required: filter.required === undefined ? true : filter.required,
 });
 
 export const isFilterRuleInQuery = (

@@ -10,6 +10,7 @@ import * as Sentry from '@sentry/node';
 import { z } from 'zod';
 import { SlackClient } from '../../../../clients/Slack/SlackClient';
 import Logger from '../../../../logging/logger';
+import { renderEcharts } from '../charts/renderEcharts';
 import {
     generateBarVizConfigToolSchema,
     renderVerticalBarMetricChart,
@@ -49,12 +50,14 @@ Rules for generating the bar chart visualization:
                 const prompt = await getPrompt();
 
                 await updateProgress('📊 Generating your bar chart...');
-                const { file, metricQuery } =
+                const { chartOptions, metricQuery } =
                     await renderVerticalBarMetricChart({
                         runMetricQuery: runMiniMetricQuery,
                         vizConfig,
                         filters,
                     });
+
+                const file = await renderEcharts(chartOptions);
 
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,

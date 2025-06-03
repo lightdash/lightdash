@@ -84,8 +84,15 @@ export class SlackClient {
     async getChannels(
         organizationUuid: string,
         search?: string,
-        filter: { excludeArchived?: boolean; forceRefresh?: boolean } = {
+        filter: {
+            excludeArchived?: boolean;
+            excludeDms?: boolean;
+            excludeGroups?: boolean;
+            forceRefresh?: boolean;
+        } = {
             excludeArchived: true,
+            excludeDms: false,
+            excludeGroups: false,
         },
     ): Promise<SlackChannel[] | undefined> {
         const getCachedChannels = () => {
@@ -96,6 +103,18 @@ export class SlackClient {
             if (search) {
                 finalResults = finalResults.filter((channel) =>
                     channel.name.includes(search),
+                );
+            }
+            if (filter.excludeDms) {
+                finalResults = finalResults.filter(
+                    (channel) =>
+                        !channel.id.startsWith('D') &&
+                        !channel.id.startsWith('U'),
+                );
+            }
+            if (filter.excludeGroups) {
+                finalResults = finalResults.filter(
+                    (channel) => !channel.id.startsWith('G'),
                 );
             }
             return finalResults.slice(0, MAX_CHANNELS_LIMIT);
@@ -408,8 +427,8 @@ export class SlackClient {
         }
     }
 
-    /* 
-    This method will try to upload an image to slack, so it can be used in blocks, 
+    /*
+    This method will try to upload an image to slack, so it can be used in blocks,
     instead of sharing the file directly on a channel or a thread
     It returns a promise that resolves to the file url, but it takes a while for the file to be uploaded
     Note: method sharedPublicURL will not work here because it requires a user token, and we only use bot tokens
@@ -469,6 +488,70 @@ export class SlackClient {
         const fileUrl = await waitForFileReady(uploadedFile?.id);
 
         return fileUrl;
+    }
+
+    async getUserInfo(
+        organizationUuid: string,
+        userId: string,
+    ): Promise<{
+        id: string;
+        name?: string;
+        image?: string;
+    }> {
+        const webClient = await this.getWebClient(organizationUuid);
+        const response = await webClient.users.info({ user: userId });
+
+        if (!response.ok) {
+            throw new UnexpectedServerError(
+                `Failed to get user info for ${userId}: ${response.error}`,
+            );
+        }
+        if (!response.user?.profile) {
+            throw new UnexpectedServerError(
+                `Failed to get user info for ${userId}: No profile found`,
+            );
+        }
+
+        return {
+            id: userId,
+            name: response.user.profile.real_name,
+            image: response.user.profile.image_512,
+        };
+    }
+
+    async getAppName(organizationUuid: string): Promise<string | undefined> {
+        const webClient = await this.getWebClient(organizationUuid);
+
+        // Get the raw installation data from the database which includes bot.id
+        const installation =
+            await this.slackAuthenticationModel.getRawInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        if (!installation) {
+            throw new SlackInstallationNotFoundError();
+        }
+
+        try {
+            // Try to get bot info using the bot ID from the installation
+            const botId = installation?.bot?.id;
+            if (botId) {
+                const botResponse = await webClient.bots.info({
+                    bot: botId,
+                });
+
+                if (botResponse.ok && botResponse.bot) {
+                    return botResponse.bot.name;
+                }
+            }
+
+            return undefined;
+        } catch (error) {
+            Logger.warn(
+                `Failed to get app info for organization ${organizationUuid}: ${error}`,
+            );
+            return undefined;
+        }
     }
 
     /**

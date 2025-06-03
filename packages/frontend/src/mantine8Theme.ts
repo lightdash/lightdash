@@ -1,0 +1,165 @@
+import {
+    Button,
+    Card,
+    Pill,
+    ScrollArea,
+    type ButtonVariant,
+    type MantineTheme,
+    type MantineThemeOverride,
+} from '@mantine-8/core';
+import { getMantineThemeOverride as getLegacyTheme } from './mantineTheme';
+
+const { colors, components, ...legacyTheme } = getLegacyTheme();
+const {
+    Button: _Button,
+    ScrollArea: _ScrollArea,
+    ...legacyComponentsTheme
+} = components;
+
+declare module '@mantine-8/core' {
+    export interface ButtonProps {
+        variant?: ButtonVariant | 'compact-outline' | 'dark';
+    }
+}
+
+export const getMantine8ThemeOverride = (
+    overrides?: Partial<MantineThemeOverride>,
+) =>
+    ({
+        ...legacyTheme,
+        ...overrides,
+        fontFamily: `Inter, ${legacyTheme.fontFamily}`,
+        headings: {
+            fontFamily: `Inter, ${legacyTheme.fontFamily}`,
+            fontWeight: `600`,
+        },
+        components: {
+            ...legacyComponentsTheme,
+            Card: Card.extend({
+                styles: (theme) => ({
+                    root: {
+                        borderColor: theme.colors.gray[2],
+                    },
+                }),
+            }),
+            Pill: Pill.extend({
+                styles: (theme, props) =>
+                    props.variant === 'outline'
+                        ? {
+                              root: {
+                                  border: `1px solid ${theme.colors.gray[2]}`,
+                                  color: theme.colors.gray[7],
+                                  '&:hover': {
+                                      backgroundColor: theme.colors.gray[1],
+                                  },
+                              },
+                          }
+                        : {},
+            }),
+            Button: Button.extend({
+                vars: (theme, props) => {
+                    if (props.variant === 'compact-outline') {
+                        return {
+                            root: {
+                                '--button-bd': `1px solid ${theme.colors.gray[2]}`,
+                            },
+                        };
+                    }
+                    if (props.variant === 'subtle') {
+                        return {
+                            root: {
+                                '--button-color': theme.colors.gray[7],
+                                '--button-hover': theme.colors.gray[1],
+                            },
+                        };
+                    }
+                    if (props.variant === 'dark') {
+                        return {
+                            root: {
+                                '--button-bg': theme.colors.dark[9],
+                                '--button-hover': theme.colors.dark[5],
+                                '--button-color': theme.colors.gray[0],
+                                '--button-bd': `none`,
+                            },
+                        };
+                    }
+                    return { root: {} };
+                },
+                styles: (theme) => ({
+                    root: {
+                        fontFamily: theme.fontFamily,
+                        fontWeight: 500,
+                        borderRadius: theme.radius.md,
+                    },
+                }),
+                defaultProps: {
+                    radius: 'md',
+                },
+            }),
+            ScrollArea: ScrollArea.extend({
+                defaultProps: {
+                    variant: 'primary',
+                    style: (theme) => ({
+                        scrollbar: {
+                            '&, &:hover': {
+                                background: 'transparent',
+                            },
+                            '&[data-orientation="vertical"] .mantine-ScrollArea-thumb':
+                                {
+                                    backgroundColor: theme.colors.gray['5'],
+                                },
+                            '&[data-orientation="vertical"][data-state="visible"] .mantine-ScrollArea-thumb':
+                                {
+                                    // When visible, fade in
+                                    animation: 'fadeIn 0.3s ease-in forwards',
+                                },
+
+                            // Missing hover state for vertical scrollbar thumb
+                            // '&[data-orientation="vertical"] .mantine-ScrollArea-thumb:hover':
+                            //     {
+                            //         backgroundColor: theme.fn.darken(
+                            //             theme.colors.gray['5'],
+                            //             0.1,
+                            //         ),
+                            //     },
+                        },
+                        viewport: {
+                            '.only-vertical & > div': {
+                                display: 'block !important', // Only way to override the display value (from `table`) of the Viewport's child element
+                            },
+                        },
+                    }),
+                },
+            }),
+            Tooltip: {
+                defaultProps: {
+                    openDelay: 200,
+                    withinPortal: true,
+                    withArrow: true,
+                    multiline: true,
+                    maw: 250,
+                    fz: 'xs',
+                },
+            },
+            Popover: {
+                defaultProps: {
+                    withinPortal: true,
+                    radius: 'md',
+                    shadow: 'sm',
+                },
+            },
+            Paper: {
+                defaultProps: {
+                    radius: 'md',
+                    shadow: 'subtle',
+                    withBorder: true,
+                    sx: (theme: MantineTheme) => ({
+                        '&[data-with-border]': {
+                            border: `1px solid ${theme.colors.gray[2]}`,
+                        },
+                    }),
+                },
+            },
+            ...overrides?.components,
+        },
+    } satisfies MantineThemeOverride);

@@ -109,6 +109,10 @@ export const isExecuteAsyncDashboardSqlChartByUuidParams = (
 ): params is ExecuteAsyncDashboardSqlChartByUuidRequestParams =>
     'savedSqlUuid' in params;
 
+export type DownloadAsyncQueryResultsRequestParams = {
+    queryUuid: string;
+};
+
 export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncMetricQueryRequestParams
     | ExecuteAsyncSqlQueryRequestParams

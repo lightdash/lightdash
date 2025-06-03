@@ -16,7 +16,7 @@ import { ItemDetailMarkdown, ItemDetailPreview } from '../ItemDetailPreview';
 import { useItemDetail } from '../useItemDetails';
 import TreeNodes from './TreeNodes';
 import { type GroupNode, type Node } from './types';
-import { useTableTreeContext } from './useTableTree';
+import useTableTree from './useTableTree';
 
 const getAllChildrenKeys = (nodes: Node[]): string[] => {
     return nodes.flatMap(function loop(node): string[] {
@@ -30,8 +30,10 @@ type Props = {
 };
 
 const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
-    const { selectedItems, isSearching, searchQuery, searchResults } =
-        useTableTreeContext();
+    const selectedItems = useTableTree((ctx) => ctx.selectedItems);
+    const isSearching = useTableTree((ctx) => ctx.isSearching);
+    const searchQuery = useTableTree((ctx) => ctx.searchQuery);
+    const searchResults = useTableTree((ctx) => ctx.searchResults);
     const [isOpen, toggleOpen] = useToggle(false);
     const [isHover, toggleHover] = useToggle(false);
     const { showItemDetail } = useItemDetail();
@@ -175,7 +177,7 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                 </Group>
             }
         >
-            <TreeNodes nodeMap={node.children} />
+            {isNavLinkOpen && <TreeNodes nodeMap={node.children} />}
         </NavLink>
     );
 };

@@ -78,7 +78,19 @@ export async function seed(knex: Knex): Promise<void> {
             throw new Error('User was not created');
         }
 
-        await knex('emails').insert({ ...seedEmail, user_id: user.user_id });
+        await knex('emails').insert({
+            ...seedEmail,
+            user_id: user.user_id,
+        });
+
+        await knex('emails')
+            .update({
+                is_verified: true,
+            })
+            .where({
+                user_id: user.user_id,
+                email: seedEmail.email,
+            });
 
         await knex('password_logins').insert({
             user_id: user.user_id,

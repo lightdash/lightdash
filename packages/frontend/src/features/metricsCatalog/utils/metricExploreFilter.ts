@@ -1,7 +1,7 @@
 import {
     DimensionType,
     FilterOperator,
-    getFilterRuleWithDefaultValue,
+    getFilterRuleFromFieldWithDefaultValue,
     getItemId,
     type CompiledDimension,
     type FilterRule,
@@ -50,7 +50,7 @@ export const createFilterRule = (
     values?: string[],
 ): FilterRule => {
     const isBooleanDimension = dimension.type === DimensionType.BOOLEAN;
-    return getFilterRuleWithDefaultValue(
+    return getFilterRuleFromFieldWithDefaultValue(
         dimension,
         {
             id: uuidv4(),

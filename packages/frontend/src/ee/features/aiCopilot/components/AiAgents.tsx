@@ -1,5 +1,4 @@
 import {
-    Box,
     Button,
     Group,
     Loader,
@@ -7,11 +6,11 @@ import {
     Stack,
     Table,
     Text,
-    Title,
 } from '@mantine-8/core';
 import { IconHelpHexagon, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import { LightdashUserAvatar } from '../../../../components/Avatar';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import {
     useGetSlack,
@@ -19,7 +18,6 @@ import {
 } from '../../../../hooks/slack/useSlack';
 import { useProjects } from '../../../../hooks/useProjects';
 import { useAiAgents } from '../hooks/useAiAgents';
-import { AgentAvatar } from './AgentAvatar';
 
 export const AiAgents: FC = () => {
     const navigate = useNavigate();
@@ -29,19 +27,19 @@ export const AiAgents: FC = () => {
 
     const agentsListQuery = useAiAgents();
     const projectsListQuery = useProjects();
-    const slackChannelsQuery = useSlackChannels('', true, {
-        enabled: organizationHasSlack,
-    });
+    const slackChannelsQuery = useSlackChannels(
+        '',
+        {
+            excludeArchived: true,
+            excludeDms: true,
+            excludeGroups: true,
+        },
+        { enabled: organizationHasSlack },
+    );
 
-    const isLoading =
-        agentsListQuery.isLoading ||
-        projectsListQuery.isLoading ||
-        slackChannelsQuery.isLoading;
+    const isLoading = agentsListQuery.isLoading || projectsListQuery.isLoading;
 
-    const isLoaded =
-        agentsListQuery.isSuccess &&
-        projectsListQuery.isSuccess &&
-        slackChannelsQuery.isSuccess;
+    const isLoaded = agentsListQuery.isSuccess && projectsListQuery.isSuccess;
 
     const agentList = useMemo(() => {
         if (!isLoaded) return undefined;
@@ -87,20 +85,6 @@ export const AiAgents: FC = () => {
     const handleAddClick = useCallback(() => {
         void navigate('/generalSettings/aiAgents/new');
     }, [navigate]);
-
-    if (!organizationHasSlack) {
-        return (
-            <Stack gap="md">
-                <Box>
-                    <Title order={5}>AI Agent Configuration</Title>
-                    <Text size="sm" c="dimmed">
-                        You need to connect Slack first in the Integrations
-                        settings before you can configure AI agents.
-                    </Text>
-                </Box>
-            </Stack>
-        );
-    }
 
     return (
         <Stack gap="sm">
@@ -151,7 +135,11 @@ export const AiAgents: FC = () => {
                             >
                                 <Table.Td>
                                     <Group gap="sm">
-                                        <AgentAvatar name={agent.name} />
+                                        <LightdashUserAvatar
+                                            size="sm"
+                                            name={agent.name}
+                                            variant="filled"
+                                        />
 
                                         <Text size="sm" fw={500}>
                                             {agent.name || 'AI Agent'}

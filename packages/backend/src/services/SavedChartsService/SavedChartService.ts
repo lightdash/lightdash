@@ -285,7 +285,14 @@ export class SavedChartService
                           size: JSON.stringify(
                               savedChart.chartConfig.config?.spec || {},
                           ).length,
-                          type: `${savedChart.chartConfig.config?.spec?.mark}`,
+                          type:
+                              typeof savedChart.chartConfig.config?.spec
+                                  ?.mark === 'object'
+                                  ? JSON.stringify(
+                                        savedChart.chartConfig.config?.spec
+                                            ?.mark,
+                                    )
+                                  : `${savedChart.chartConfig.config?.spec?.mark}`,
                       }
                     : undefined,
             ...countCustomDimensionsInMetricQuery(savedChart.metricQuery),

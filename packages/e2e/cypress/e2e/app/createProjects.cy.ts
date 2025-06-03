@@ -88,6 +88,9 @@ const configureBigqueryWarehouse = (
     cy.get('input[name="warehouse.location"]').type(config.location, {
         log: false,
     });
+
+    cy.selectMantine('warehouse.authenticationType', 'Private Key');
+
     cy.get('[type="file"]').attachFile(warehouseConfig.bigQuery.keyFile);
 
     // DBT

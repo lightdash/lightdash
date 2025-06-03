@@ -1,4 +1,4 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
 
 import type {
     CreateBigqueryCredentials,
@@ -17,8 +17,9 @@ export const BigQueryDefaultValues: CreateBigqueryCredentials = {
     dataset: '',
     project: '',
     location: '',
+    authenticationType: BigqueryAuthenticationType.SSO,
     // @ts-expect-error we need to set it as empty string to avoid overwritting saved value
-    keyfileContents: '',
+    keyfileContents: '', // Not needed for sso, we will load the refresh token from the user in the backend
     executionProject: '',
     timeoutSeconds: 300,
     priority: 'interactive',

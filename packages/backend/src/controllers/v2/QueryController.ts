@@ -7,11 +7,15 @@ import {
     ApiGetAsyncQueryResults,
     ApiSuccess,
     ApiSuccessEmpty,
+    assertUnreachable,
+    DownloadFileType,
     ExecuteAsyncSqlQueryRequestParams,
     isExecuteAsyncDashboardSqlChartByUuidParams,
     isExecuteAsyncSqlChartByUuidParams,
     QueryExecutionContext,
     type ApiDownloadAsyncQueryResults,
+    type ApiDownloadAsyncQueryResultsAsCsv,
+    type ApiDownloadAsyncQueryResultsAsXlsx,
     type ApiExecuteAsyncMetricQueryResults,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
@@ -402,7 +406,14 @@ export class QueryController extends BaseController {
         @Path() projectUuid: string,
         @Path() queryUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiDownloadAsyncQueryResults>> {
+        @Query() type: DownloadFileType = DownloadFileType.CSV,
+    ): Promise<
+        ApiSuccess<
+            | ApiDownloadAsyncQueryResults
+            | ApiDownloadAsyncQueryResultsAsCsv
+            | ApiDownloadAsyncQueryResultsAsXlsx
+        >
+    > {
         this.setStatus(200);
 
         const results = await this.services
@@ -411,6 +422,7 @@ export class QueryController extends BaseController {
                 user: req.user!,
                 projectUuid,
                 queryUuid,
+                type,
             });
 
         return {

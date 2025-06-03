@@ -1,5 +1,6 @@
 import {
     applyDefaultTileTargets,
+    getFilterTypeFromItemType,
     type DashboardFilterRule,
     type FilterableDimension,
 } from '@lightdash/common';
@@ -19,6 +20,7 @@ import { useCallback, useMemo, type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     getConditionalRuleLabel,
+    getConditionalRuleLabelFromItem,
     getFilterRuleTables,
 } from '../common/Filters/FilterInputs/utils';
 import MantineIcon from '../common/MantineIcon';
@@ -81,6 +83,15 @@ const Filter: FC<Props> = ({
     const allFilterableFields = useDashboardContext(
         (c) => c.allFilterableFields,
     );
+    const sqlChartTilesMetadata = useDashboardContext(
+        (c) => c.sqlChartTilesMetadata,
+    );
+    const disabled = useMemo(() => {
+        return (
+            !allFilterableFields &&
+            Object.keys(sqlChartTilesMetadata).length === 0
+        );
+    }, [allFilterableFields, sqlChartTilesMetadata]);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -99,13 +110,17 @@ const Filter: FC<Props> = ({
     const isDraggable = isEditMode && !isTemporary;
 
     const defaultFilterRule = useMemo(() => {
-        if (!filterableFieldsByTileUuid || !field || !filterRule) return;
+        if (!filterRule) return;
 
-        return applyDefaultTileTargets(
-            filterRule,
-            field,
-            filterableFieldsByTileUuid,
-        );
+        if (filterableFieldsByTileUuid && field) {
+            return applyDefaultTileTargets(
+                filterRule,
+                field,
+                filterableFieldsByTileUuid,
+            );
+        } else {
+            return filterRule;
+        }
     }, [filterableFieldsByTileUuid, field, filterRule]);
 
     // Only used by active filters
@@ -118,10 +133,25 @@ const Filter: FC<Props> = ({
     }, [dashboard, filterRule]);
 
     const filterRuleLabels = useMemo(() => {
-        if (!filterRule || !field) return;
-
-        return getConditionalRuleLabel(filterRule, field);
-    }, [filterRule, field]);
+        if (!filterRule) return;
+        if (field) {
+            return getConditionalRuleLabelFromItem(filterRule, field);
+        } else {
+            const column = Object.values(sqlChartTilesMetadata)
+                .flatMap((tileMetadata) => tileMetadata.columns)
+                .find(
+                    ({ reference }) => reference === filterRule.target.fieldId,
+                );
+            if (column) {
+                return getConditionalRuleLabel(
+                    filterRule,
+                    getFilterTypeFromItemType(column.type),
+                    column.reference,
+                );
+            }
+            return;
+        }
+    }, [filterRule, field, sqlChartTilesMetadata]);
 
     const filterRuleTables = useMemo(() => {
         if (!filterRule || !field || !allFilterableFields) return;
@@ -158,7 +188,7 @@ const Filter: FC<Props> = ({
         closeSubPopover();
     }, [isPopoverOpen, onPopoverClose, closeSubPopover]);
 
-    const handelSaveChanges = useCallback(
+    const handleSaveChanges = useCallback(
         (newRule: DashboardFilterRule) => {
             if (isCreatingNew && onSave) {
                 onSave(newRule);
@@ -170,9 +200,6 @@ const Filter: FC<Props> = ({
         [isCreatingNew, onSave, onUpdate, handleClose],
     );
 
-    const isPopoverDisabled =
-        !filterableFieldsByTileUuid || !allFilterableFields;
-
     return (
         <>
             <Popover
@@ -182,7 +209,7 @@ const Filter: FC<Props> = ({
                 closeOnEscape={!isSubPopoverOpen}
                 closeOnClickOutside={!isSubPopoverOpen}
                 onClose={handleClose}
-                disabled={isPopoverDisabled}
+                disabled={disabled}
                 transitionProps={{ transition: 'pop-top-left' }}
                 withArrow
                 shadow="md"
@@ -217,7 +244,7 @@ const Filter: FC<Props> = ({
                                         icon={IconFilter}
                                     />
                                 }
-                                disabled={!allFilterableFields}
+                                disabled={disabled}
                                 loading={
                                     isLoadingDashboardFilters ||
                                     isFetchingDashboardFilters
@@ -389,7 +416,7 @@ const Filter: FC<Props> = ({
                 </Popover.Target>
 
                 <Popover.Dropdown>
-                    {filterableFieldsByTileUuid && dashboardTiles && (
+                    {dashboardTiles && (
                         <FilterConfiguration
                             isCreatingNew={isCreatingNew}
                             isEditMode={isEditMode}
@@ -400,9 +427,11 @@ const Filter: FC<Props> = ({
                             tabs={dashboardTabs}
                             activeTabUuid={activeTabUuid}
                             originalFilterRule={originalFilterRule}
-                            availableTileFilters={filterableFieldsByTileUuid}
+                            availableTileFilters={
+                                filterableFieldsByTileUuid ?? {}
+                            }
                             defaultFilterRule={defaultFilterRule}
-                            onSave={handelSaveChanges}
+                            onSave={handleSaveChanges}
                             popoverProps={{
                                 onOpen: openSubPopover,
                                 onClose: closeSubPopover,

@@ -174,10 +174,6 @@ import {
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
 import {
-    ResultsCacheTable,
-    ResultsCacheTableName,
-} from '../database/entities/resultsFile';
-import {
     SavedSemanticViewerChartsTable,
     SavedSemanticViewerChartsTableName,
     SavedSemanticViewerChartVersionsTable,
@@ -243,6 +239,8 @@ import {
     AiThreadTableName,
 } from '../ee/database/entities/ai';
 import {
+    AiAgentInstructionVersionsTable,
+    AiAgentInstructionVersionsTableName,
     AiAgentIntegrationTableName,
     AiAgentSlackIntegrationTable,
     AiAgentSlackIntegrationTableName,
@@ -341,6 +339,7 @@ declare module 'knex/types/tables' {
         [AiAgentTableName]: AiAgentTable;
         [AiAgentIntegrationTableName]: AiAgentIntegrationTable;
         [AiAgentSlackIntegrationTableName]: AiAgentSlackIntegrationTable;
+        [AiAgentInstructionVersionsTableName]: AiAgentInstructionVersionsTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
         [DashboardSummariesTableName]: DashboardSummariesTable;
@@ -354,6 +353,5 @@ declare module 'knex/types/tables' {
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
         [QueryHistoryTableName]: QueryHistoryTable;
-        [ResultsCacheTableName]: ResultsCacheTable;
     }
 }

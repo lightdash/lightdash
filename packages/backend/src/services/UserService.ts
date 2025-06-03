@@ -5,6 +5,7 @@ import {
     ArgumentsOf,
     assertUnreachable,
     AuthorizationError,
+    BigqueryAuthenticationType,
     CompleteUserArgs,
     CreateInviteLink,
     CreatePasswordResetLink,
@@ -41,6 +42,7 @@ import {
     UserAllowedOrganization,
     validateOrganizationEmailDomains,
     validateOrganizationNameOrThrow,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
 import { uniq } from 'lodash';
@@ -1517,8 +1519,9 @@ export class UserService extends BaseService {
         );
     }
 
-    private static async generateGoogleAccessToken(
+    static async generateGoogleAccessToken(
         refreshToken: string,
+        type: 'gdrive' | 'bigquery' = 'gdrive',
     ): Promise<string> {
         return new Promise((resolve, reject) => {
             refresh.requestNewAccessToken(
@@ -1537,21 +1540,36 @@ export class UserService extends BaseService {
                         ? result.scope.split(' ')
                         : [];
 
-                    if (
-                        scopes.includes(
-                            'https://www.googleapis.com/auth/drive.file',
-                        ) &&
-                        scopes.includes(
-                            'https://www.googleapis.com/auth/spreadsheets',
-                        )
-                    ) {
-                        resolve(accessToken);
+                    if (type === 'gdrive') {
+                        if (
+                            scopes.includes(
+                                'https://www.googleapis.com/auth/drive.file',
+                            ) &&
+                            scopes.includes(
+                                'https://www.googleapis.com/auth/spreadsheets',
+                            )
+                        ) {
+                            resolve(accessToken);
+                        }
+                        reject(
+                            new AuthorizationError(
+                                'Missing authorization to access Google Drive',
+                            ),
+                        );
+                    } else if (type === 'bigquery') {
+                        if (
+                            scopes.includes(
+                                'https://www.googleapis.com/auth/bigquery',
+                            )
+                        ) {
+                            resolve(accessToken);
+                        }
+                        reject(
+                            new AuthorizationError(
+                                'Missing authorization to access BigQuery',
+                            ),
+                        );
                     }
-                    reject(
-                        new AuthorizationError(
-                            'Missing authorization to access Google Drive',
-                        ),
-                    );
                 },
             );
         });
@@ -1562,12 +1580,16 @@ export class UserService extends BaseService {
      * @param user
      * @returns accessToken
      */
-    async getAccessToken(user: SessionUser): Promise<string> {
+    async getAccessToken(
+        user: SessionUser,
+        type: 'gdrive' | 'bigquery' = 'gdrive',
+    ): Promise<string> {
         const refreshToken: string = await this.userModel.getRefreshToken(
             user.userUuid,
         );
         const accessToken = await UserService.generateGoogleAccessToken(
             refreshToken,
+            type,
         );
         return accessToken;
     }
@@ -1605,6 +1627,27 @@ export class UserService extends BaseService {
         return this.userWarehouseCredentialsModel.getAllByUserUuid(
             user.userUuid,
         );
+    }
+
+    async createBigqueryWarehouseCredentials(
+        user: SessionUser,
+        refreshToken: string,
+    ) {
+        const bigqueryCredentials: UpsertUserWarehouseCredentials = {
+            name: 'Default',
+            credentials: {
+                type: WarehouseTypes.BIGQUERY,
+                authenticationType: BigqueryAuthenticationType.SSO,
+                keyfileContents: {
+                    type: 'authorized_user',
+                    client_id: this.lightdashConfig.auth.google.oauth2ClientId!,
+                    client_secret:
+                        this.lightdashConfig.auth.google.oauth2ClientSecret!,
+                    refresh_token: refreshToken,
+                },
+            },
+        };
+        await this.createWarehouseCredentials(user, bigqueryCredentials);
     }
 
     async createWarehouseCredentials(

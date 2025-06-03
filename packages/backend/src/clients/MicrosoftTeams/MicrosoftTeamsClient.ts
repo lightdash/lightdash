@@ -65,6 +65,7 @@ export class MicrosoftTeamsClient {
         ctaUrl,
         image,
         footer,
+        pdfUrl,
         thresholds = [],
     }: {
         webhookUrl: string;
@@ -74,6 +75,8 @@ export class MicrosoftTeamsClient {
         ctaUrl: string;
         image: string;
         footer: string;
+        pdfUrl?: string;
+
         thresholds?: ThresholdOptions[];
     }): Promise<void> {
         if (!this.lightdashConfig.microsoftTeams.enabled) {
@@ -164,6 +167,15 @@ export class MicrosoftTeamsClient {
                                 title: 'Open in Lightdash',
                                 url: ctaUrl,
                             },
+                            ...(pdfUrl
+                                ? [
+                                      {
+                                          type: 'Action.OpenUrl',
+                                          title: 'Download PDF',
+                                          url: pdfUrl,
+                                      },
+                                  ]
+                                : []),
                         ],
                     },
                 },

@@ -1,13 +1,18 @@
-import {
-    type ApiAiAgentResponse,
-    type ApiAiAgentSummaryResponse,
-    type ApiAiAgentThreadResponse,
-    type ApiAiAgentThreadSummaryListResponse,
-    type ApiCreateAiAgent,
-    type ApiCreateAiAgentResponse,
-    type ApiError,
-    type ApiSuccessEmpty,
-    type ApiUpdateAiAgent,
+import type {
+    AiAgent,
+    ApiAiAgentResponse,
+    ApiAiAgentStartThreadResponse,
+    ApiAiAgentSummaryResponse,
+    ApiAiAgentThreadGenerateRequest,
+    ApiAiAgentThreadGenerateResponse,
+    ApiAiAgentThreadMessageViz,
+    ApiAiAgentThreadResponse,
+    ApiAiAgentThreadSummaryListResponse,
+    ApiCreateAiAgent,
+    ApiCreateAiAgentResponse,
+    ApiError,
+    ApiSuccessEmpty,
+    ApiUpdateAiAgent,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -18,7 +23,10 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../../api';
+import { pollJobStatus } from '../../../../features/scheduler/hooks/useScheduler';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { type UserWithAbility } from '../../../../hooks/user/useUser';
+import useApp from '../../../../providers/App/useApp';
 
 const AI_AGENTS_KEY = 'aiAgents';
 
@@ -67,6 +75,17 @@ const listAgentThreads = async (agentUuid: string) =>
 const getAgentThread = async (agentUuid: string, threadUuid: string) =>
     lightdashApi<ApiAiAgentThreadResponse['results']>({
         url: `/aiAgents/${agentUuid}/threads/${threadUuid}`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const getAgentThreadMessageViz = async (args: {
+    agentUuid: string;
+    threadUuid: string;
+    messageUuid: string;
+}) =>
+    lightdashApi<ApiAiAgentThreadMessageViz>({
+        url: `/aiAgents/${args.agentUuid}/threads/${args.threadUuid}/message/${args.messageUuid}/viz`,
         method: 'GET',
         body: undefined,
     });
@@ -259,5 +278,269 @@ export const useAiAgentThread = (
             });
         },
         ...useQueryOptions,
+    });
+};
+
+const createOptimisticMessages = (
+    threadUuid: string,
+    prompt: string,
+    user: UserWithAbility,
+    agent: AiAgent,
+) => {
+    return [
+        {
+            role: 'user' as const,
+            uuid: Math.random().toString(36),
+            threadUuid,
+            message: prompt,
+            createdAt: new Date().toISOString(),
+            user: {
+                name: `${user?.firstName} ${user?.lastName}`,
+                uuid: user?.userUuid ?? 'unknown',
+            },
+        },
+        {
+            role: 'assistant' as const,
+            uuid: Math.random().toString(36),
+            threadUuid,
+            message: 'Thinking...',
+            createdAt: new Date().toISOString(),
+            user: {
+                name: agent?.name ?? 'Unknown',
+                uuid: agent?.uuid ?? 'unknown',
+            },
+        },
+    ];
+};
+
+const startAgentThread = async (
+    agentUuid: string,
+    data: ApiAiAgentThreadGenerateRequest,
+) =>
+    lightdashApi<ApiAiAgentStartThreadResponse['results']>({
+        url: `/aiAgents/${agentUuid}/generate`,
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+export const useStartAgentThreadMutation = (
+    agentUuid: string,
+    options?: UseMutationOptions<
+        ApiAiAgentStartThreadResponse['results'],
+        ApiError,
+        ApiAiAgentThreadGenerateRequest
+    >,
+) => {
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+    const { user } = useApp();
+    const { data: agent } = useAiAgent(agentUuid);
+
+    return useMutation<
+        ApiAiAgentStartThreadResponse['results'],
+        ApiError,
+        ApiAiAgentThreadGenerateRequest
+    >({
+        mutationFn: (data) => startAgentThread(agentUuid, data),
+        onSuccess: async (data, variables) => {
+            await queryClient.invalidateQueries({
+                queryKey: [AI_AGENTS_KEY, agentUuid, 'threads'],
+            });
+
+            queryClient.setQueryData(
+                [AI_AGENTS_KEY, agentUuid, 'threads', data.threadUuid],
+                () => {
+                    return {
+                        createdFrom: 'web_app',
+                        firstMessage: variables.prompt,
+                        agentUuid: agentUuid,
+                        uuid: data.threadUuid,
+                        messages: createOptimisticMessages(
+                            data.threadUuid,
+                            variables.prompt,
+                            user!.data!,
+                            agent!,
+                        ),
+                        createdAt: new Date().toISOString(),
+                        user: {
+                            name: `${user?.data?.firstName} ${user?.data?.lastName}`,
+                            uuid: user?.data?.userUuid ?? 'unknown',
+                        },
+                    } satisfies ApiAiAgentThreadResponse['results'];
+                },
+            );
+
+            void pollJobStatus(data.jobId).then(() =>
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        AI_AGENTS_KEY,
+                        agentUuid,
+                        'threads',
+                        data.threadUuid,
+                    ],
+                }),
+            );
+
+            void navigate(`/aiAgents/${agentUuid}/threads/${data.threadUuid}`, {
+                viewTransition: true,
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to create AI agent',
+                apiError: error,
+            });
+        },
+        ...options,
+    });
+};
+
+const generateAgentThreadResponse = async (
+    agentUuid: string,
+    threadUuid: string,
+    data: ApiAiAgentThreadGenerateRequest,
+) =>
+    lightdashApi<ApiAiAgentThreadGenerateResponse['results']>({
+        url: `/aiAgents/${agentUuid}/threads/${threadUuid}/generate`,
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+export const useGenerateAgentThreadResponseMutation = (
+    agentUuid: string,
+    threadUuid: string,
+    options?: UseMutationOptions<
+        ApiAiAgentThreadGenerateResponse['results'],
+        ApiError,
+        ApiAiAgentThreadGenerateRequest
+    >,
+) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+    const { user } = useApp();
+    const { data: agent } = useAiAgent(agentUuid);
+
+    return useMutation<
+        ApiAiAgentThreadGenerateResponse['results'],
+        ApiError,
+        ApiAiAgentThreadGenerateRequest
+    >({
+        mutationFn: (data) =>
+            generateAgentThreadResponse(agentUuid, threadUuid, data),
+        onMutate: (data) => {
+            queryClient.setQueryData(
+                [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
+                (
+                    currentData:
+                        | ApiAiAgentThreadResponse['results']
+                        | undefined,
+                ) => {
+                    if (!currentData) return currentData;
+
+                    return {
+                        ...currentData,
+                        messages: [
+                            ...currentData.messages,
+                            ...createOptimisticMessages(
+                                threadUuid,
+                                data.prompt,
+                                user!.data!,
+                                agent!,
+                            ),
+                        ],
+                    };
+                },
+            );
+        },
+        onSuccess: async (data) => {
+            await pollJobStatus(data.jobId);
+            await queryClient.invalidateQueries([
+                AI_AGENTS_KEY,
+                agentUuid,
+                'threads',
+                threadUuid,
+            ]);
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to generate AI agent thread response',
+                apiError: error,
+            });
+        },
+        ...options,
+    });
+};
+
+export const useAiAgentThreadMessageViz = (
+    args: {
+        agentUuid: string;
+        threadUuid: string;
+        messageUuid: string;
+    },
+    useQueryOptions?: UseQueryOptions<ApiAiAgentThreadMessageViz, ApiError>,
+) => {
+    const { showToastApiError } = useToaster();
+
+    return useQuery<ApiAiAgentThreadMessageViz, ApiError>({
+        queryKey: [
+            AI_AGENTS_KEY,
+            args.agentUuid,
+            'threads',
+            args.threadUuid,
+            'message',
+            args.messageUuid,
+            'viz',
+        ],
+        queryFn: () => getAgentThreadMessageViz(args),
+        onError: (error) => {
+            showToastApiError({
+                title: 'Failed to fetch visualization',
+                apiError: error.error,
+            });
+        },
+        ...useQueryOptions,
+    });
+};
+
+const updatePromptFeedback = async (messageUuid: string, humanScore: number) =>
+    lightdashApi<ApiSuccessEmpty>({
+        url: `/aiAgents/messages/${messageUuid}/feedback`,
+        method: 'PATCH',
+        body: JSON.stringify({ humanScore }),
+    });
+
+export const useUpdatePromptFeedbackMutation = (
+    agentUuid: string | undefined,
+    threadUuid: string,
+    options?: UseMutationOptions<
+        ApiSuccessEmpty,
+        ApiError,
+        { messageUuid: string; humanScore: number }
+    >,
+) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { messageUuid: string; humanScore: number }
+    >({
+        mutationFn: ({ messageUuid, humanScore }) =>
+            updatePromptFeedback(messageUuid, humanScore),
+        onSuccess: () => {
+            // Invalidate relevant queries to refresh the data
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to submit feedback',
+                apiError: error,
+            });
+        },
+        ...options,
     });
 };

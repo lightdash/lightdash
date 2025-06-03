@@ -103,13 +103,20 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     organizationModel: models.getOrganizationModel(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    aiAgentService: repository.getAiAgentService(),
                 }),
-            aiAgentService: ({ models, repository }) =>
+            aiAgentService: ({ models, repository, clients, context }) =>
                 new AiAgentService({
+                    analytics: context.lightdashAnalytics,
                     aiAgentModel: models.getAiAgentModel(),
                     slackAuthenticationModel:
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
                     featureFlagService: repository.getFeatureFlagService(),
+                    slackClient: clients.getSlackClient(),
+                    aiModel: models.getAiModel(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
+                    projectService: repository.getProjectService(),
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({
@@ -125,11 +132,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     commercialFeatureFlagModel:
                         models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                 }),
-            slackIntegrationService: ({ models, context }) =>
+            slackIntegrationService: ({ models, context, clients }) =>
                 new CommercialSlackIntegrationService({
                     slackAuthenticationModel:
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
                     analytics: context.lightdashAnalytics,
+                    slackClient: clients.getSlackClient(),
+                    aiAgentModel: models.getAiAgentModel(),
                 }),
             supportService: ({ models, context, repository, clients }) =>
                 new SupportService({
@@ -212,12 +221,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     queryHistoryModel: models.getQueryHistoryModel(),
                     cacheService: repository.getCacheService(),
                     savedSqlModel: models.getSavedSqlModel(),
-                    resultsFileModel: models.getResultsFileModel(),
                     storageClient: clients.getResultsFileStorageClient(),
                 }),
             cacheService: ({ models, context, clients }) =>
                 new CommercialCacheService({
-                    resultsFileModel: models.getResultsFileModel(),
+                    queryHistoryModel: models.getQueryHistoryModel(),
                     lightdashConfig: context.lightdashConfig,
                     storageClient: clients.getResultsFileStorageClient(),
                 }),

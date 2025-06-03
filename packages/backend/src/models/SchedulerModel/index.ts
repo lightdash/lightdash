@@ -763,6 +763,12 @@ export class SchedulerModel {
         return job;
     }
 
+    async setJobStatus(jobId: string, status: SchedulerJobStatus) {
+        await this.database(SchedulerLogTableName)
+            .update({ status })
+            .where('job_id', jobId);
+    }
+
     async bulkUpdateSchedulersCron(
         schedulerCronUpdates: SchedulerCronUpdate[],
     ) {

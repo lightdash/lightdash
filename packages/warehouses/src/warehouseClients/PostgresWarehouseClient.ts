@@ -177,6 +177,8 @@ export class PostgresClient<
         },
     ): Promise<void> {
         let pool: pg.Pool | undefined;
+        let closeClient: (() => void) | undefined;
+
         return new Promise<void>((resolve, reject) => {
             pool = new pg.Pool({
                 ...this.config,
@@ -200,15 +202,17 @@ export class PostgresClient<
                     reject(err);
                 });
             });
+
             pool.connect((err, client, done) => {
+                // Store references so we can clean up properly
+                closeClient = done;
+
                 if (err) {
                     reject(err);
-                    done();
                     return;
                 }
                 if (!client) {
                     reject(new Error('client undefined'));
-                    done();
                     return;
                 }
 
@@ -217,7 +221,6 @@ export class PostgresClient<
                         `Postgres client error ${getErrorMessage(e)}`,
                     );
                     reject(e);
-                    done();
                 });
 
                 const runQuery = () => {
@@ -258,16 +261,13 @@ export class PostgresClient<
 
                     // release the client when the stream is finished
                     stream.on('end', () => {
-                        done();
                         resolve();
                     });
                     stream.on('error', (err2) => {
                         reject(err2);
-                        done();
                     });
                     stream.pipe(writable).on('error', (err2) => {
                         reject(err2);
-                        done();
                     });
                 };
 
@@ -290,10 +290,23 @@ export class PostgresClient<
                 const error = e as pg.DatabaseError;
                 throw this.parseError(error, sql);
             })
-            .finally(() => {
-                pool?.end().catch(() => {
-                    console.info('Failed to end postgres pool');
-                });
+            .finally(async () => {
+                // Release the client first, then end the pool
+                if (closeClient) {
+                    try {
+                        closeClient();
+                    } catch (releaseError) {
+                        console.warn('Error releasing client:', releaseError);
+                    }
+                }
+
+                if (pool) {
+                    try {
+                        await pool.end();
+                    } catch (poolError) {
+                        console.info('Failed to end postgres pool:', poolError);
+                    }
+                }
             });
     }
 

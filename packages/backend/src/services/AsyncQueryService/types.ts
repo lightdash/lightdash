@@ -1,4 +1,5 @@
 import {
+    DownloadFileType,
     GroupByColumn,
     ItemsMap,
     MetricQuery,
@@ -36,6 +37,7 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     'invalidateCache' | 'context'
 > & {
     queryUuid: string;
+    type?: DownloadFileType;
 };
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {

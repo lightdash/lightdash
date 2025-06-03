@@ -6,7 +6,7 @@ import { Link } from 'react-router';
 
 import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
 import useApp from '../../providers/App/useApp';
-import { UserAvatar } from '../Avatar';
+import { UserAvatar } from '../UserAvatar';
 import MantineIcon from '../common/MantineIcon';
 
 const UserMenu: FC = () => {
