@@ -165,8 +165,6 @@ export const AssistantBubble: FC<{
     return (
         <Stack
             pos="relative"
-            py="xs"
-            px="sm"
             w="100%"
             gap="xs"
             style={{

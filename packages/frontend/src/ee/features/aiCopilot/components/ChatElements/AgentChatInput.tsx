@@ -30,6 +30,7 @@ export const AgentChatInput = ({
     const name = user.data
         ? `${user.data.firstName} ${user.data.lastName}`
         : 'You';
+
     useLayoutEffect(() => {
         if (!inputRef.current) return;
         const elem = inputRef.current;

@@ -2,6 +2,7 @@ import { Image, Stack, Title } from '@mantine-8/core';
 import { useParams } from 'react-router';
 import { FadeTransition } from '../../../components/FadeTransition';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
+import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { useStartAgentThreadMutation } from '../../features/aiCopilot/hooks/useAiAgents';
 
 const AiAgentNewThreadPage = () => {
@@ -11,11 +12,10 @@ const AiAgentNewThreadPage = () => {
 
     return (
         <Stack
-            h="100%"
-            mah="100%"
             justify="space-between"
             gap={0}
             pos="relative"
+            {...ChatElementsUtils.centeredElementProps}
         >
             <FadeTransition>
                 {(styles) => (
@@ -34,12 +34,7 @@ const AiAgentNewThreadPage = () => {
                     />
                 )}
             </FadeTransition>
-            <Stack
-                flex={1}
-                style={{ overflowY: 'auto' }}
-                py="xl"
-                justify="flex-end"
-            >
+            <Stack flex={1} py="xl" justify="flex-end">
                 <Title order={3} ta="center" c="dimmed">
                     How can I help you?
                 </Title>
