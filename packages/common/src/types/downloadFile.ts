@@ -20,12 +20,10 @@ export type DownloadFile = {
  */
 export type DownloadOptions = {
     fileType?: DownloadFileType;
-    csvLimit?: number | null;
     onlyRaw?: boolean;
     showTableNames?: boolean;
     customLabels?: Record<string, string>;
     columnOrder?: string[];
     hiddenFields?: string[];
-    chartName?: string;
     pivotConfig?: PivotConfig;
 };

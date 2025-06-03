@@ -423,13 +423,11 @@ export class QueryController extends BaseController {
                 projectUuid,
                 queryUuid,
                 type: body.type,
-                csvLimit: body.csvLimit,
                 onlyRaw: body.onlyRaw,
                 showTableNames: body.showTableNames,
                 customLabels: body.customLabels,
                 columnOrder: body.columnOrder,
                 hiddenFields: body.hiddenFields,
-                chartName: body.chartName,
                 pivotConfig: body.pivotConfig,
             });
 

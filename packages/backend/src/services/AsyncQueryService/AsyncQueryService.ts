@@ -591,13 +591,11 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         queryUuid,
         type,
-        csvLimit,
         onlyRaw = false,
         showTableNames = false,
         customLabels = {},
         columnOrder = [],
         hiddenFields = [],
-        chartName,
         pivotConfig,
     }: DownloadAsyncQueryResultsArgs): Promise<
         | ApiDownloadAsyncQueryResults
@@ -670,8 +668,6 @@ export class AsyncQueryService extends ProjectService {
                         customLabels,
                         columnOrder,
                         hiddenFields,
-                        chartName,
-                        csvLimit,
                         pivotConfig,
                     },
                 );
@@ -690,8 +686,6 @@ export class AsyncQueryService extends ProjectService {
                         customLabels,
                         columnOrder,
                         hiddenFields,
-                        chartName,
-                        csvLimit,
                         pivotConfig,
                     },
                 );
@@ -731,8 +725,6 @@ export class AsyncQueryService extends ProjectService {
             customLabels?: Record<string, string>;
             columnOrder?: string[];
             hiddenFields?: string[];
-            chartName?: string;
-            csvLimit?: number | null;
             pivotConfig?: PivotConfig;
         },
     ): Promise<{ fileUrl: string; truncated: boolean }> {

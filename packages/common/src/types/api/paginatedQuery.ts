@@ -122,13 +122,11 @@ export const isExecuteAsyncDashboardSqlChartByUuidParams = (
 export type DownloadAsyncQueryResultsRequestParams = {
     queryUuid: string;
     type?: DownloadFileType;
-    csvLimit?: number | null;
     onlyRaw?: boolean;
     showTableNames?: boolean;
     customLabels?: Record<string, string>;
     columnOrder?: string[];
     hiddenFields?: string[];
-    chartName?: string;
     pivotConfig?: PivotConfig;
 };
 

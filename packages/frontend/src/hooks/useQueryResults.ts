@@ -84,13 +84,11 @@ export const downloadQuery = async (
         method: 'POST',
         body: JSON.stringify({
             type: options.fileType || DownloadFileType.CSV,
-            csvLimit: options.csvLimit,
             onlyRaw: options.onlyRaw,
             showTableNames: options.showTableNames,
             customLabels: options.customLabels,
             columnOrder: options.columnOrder,
             hiddenFields: options.hiddenFields,
-            chartName: options.chartName,
             pivotConfig: options.pivotConfig,
         }),
         version: 'v2',
