@@ -6,6 +6,7 @@ import {
     ApiAiGenerateCustomVizResponse,
     ApiAiGetDashboardSummaryResponse,
     ApiErrorPayload,
+    ApiSuccessEmpty,
     DashboardSummary,
     ItemsMap,
 } from '@lightdash/common';
@@ -15,6 +16,7 @@ import {
     Hidden,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Request,

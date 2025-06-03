@@ -1,9 +1,9 @@
 import {
+    assertUnreachable,
     type AiAgentMessageAssistant,
     type AiAgentMessageUser,
     type AiAgentUser,
     type ApiAiAgentThreadMessageViz,
-    assertUnreachable,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -21,16 +21,22 @@ import {
     IconCheck,
     IconCopy,
     IconThumbDown,
+    IconThumbDownFilled,
     IconThumbUp,
+    IconThumbUpFilled,
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
 import dayjs from 'dayjs';
 import EChartsReact, { type EChartsOption } from 'echarts-for-react';
-import { type FC } from 'react';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
-import { useAiAgentThreadMessageViz } from '../../hooks/useAiAgents';
+import {
+    useAiAgentThreadMessageViz,
+    useUpdatePromptFeedbackMutation,
+} from '../../hooks/useAiAgents';
 import AiTableViz from './AiTableViz';
 
 export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
@@ -91,7 +97,7 @@ export const AssistantBubble: FC<{
     message: AiAgentMessageAssistant;
     vizQuery?: VizQuery;
     AiTableViz?: FC<{ results: any }>;
-}> = ({ message }) => {
+}> = memo(({ message }) => {
     const { agentUuid } = useParams();
     const { activeProjectUuid } = useActiveProjectUuid();
 
@@ -108,13 +114,54 @@ export const AssistantBubble: FC<{
                 !!activeProjectUuid,
         },
     );
-    const upVoted =
-        typeof message.humanScore === 'number' && message.humanScore === 1;
-    const downVoted =
-        typeof message.humanScore === 'number' && message.humanScore === -1;
+
+    const updateFeedbackMutation = useUpdatePromptFeedbackMutation(
+        agentUuid,
+        message.threadUuid,
+    );
+
+    const upVoted = useMemo(
+        () =>
+            typeof message.humanScore === 'number' && message.humanScore === 1,
+        [message.humanScore],
+    );
+    const downVoted = useMemo(
+        () =>
+            typeof message.humanScore === 'number' && message.humanScore === -1,
+        [message.humanScore],
+    );
+
+    const handleUpvote = useCallback(() => {
+        if (!activeProjectUuid || message.humanScore !== null) return; // Prevent changes if already rated
+        updateFeedbackMutation.mutate({
+            messageUuid: message.uuid,
+            humanScore: 1,
+        });
+    }, [
+        activeProjectUuid,
+        message.uuid,
+        message.humanScore,
+        updateFeedbackMutation,
+    ]);
+
+    const handleDownvote = useCallback(() => {
+        if (!activeProjectUuid || message.humanScore !== null) return; // Prevent changes if already rated
+        updateFeedbackMutation.mutate({
+            messageUuid: message.uuid,
+            humanScore: -1,
+        });
+    }, [
+        activeProjectUuid,
+        message.uuid,
+        message.humanScore,
+        updateFeedbackMutation,
+    ]);
 
     // TODO: Do not use hardcoded string for loading state
     const isLoading = message.message === 'Thinking...';
+    const hasRating =
+        message.humanScore !== undefined && message.humanScore !== null;
+
     return (
         <Stack
             pos="relative"
@@ -137,7 +184,7 @@ export const AssistantBubble: FC<{
             )}
 
             {message.vizConfigOutput && message.metricQuery && (
-                <Paper withBorder radius="sm" p="md" shadow="none">
+                <Paper withBorder radius="md" p="md" shadow="none">
                     {vizQuery.isLoading ? (
                         <Loader />
                     ) : vizQuery.isError ? (
@@ -156,7 +203,7 @@ export const AssistantBubble: FC<{
                     )}
                 </Paper>
             )}
-            <Group gap={0}>
+            <Group gap={0} justify="space-between">
                 <CopyButton value={message.message}>
                     {({ copied, copy }) => (
                         <ActionIcon
@@ -174,25 +221,41 @@ export const AssistantBubble: FC<{
                         </ActionIcon>
                     )}
                 </CopyButton>
-                {/* TODO: Add up/down vote to Web UI */}
-                <Group style={{ display: 'none' }}>
-                    <ActionIcon
-                        variant="subtle"
-                        color={upVoted ? 'green' : 'gray'}
-                        aria-label="upvote"
-                    >
-                        <IconThumbUp size={16} />
-                    </ActionIcon>
 
-                    <ActionIcon
-                        variant="subtle"
-                        color={downVoted ? 'red' : 'gray'}
-                        aria-label="downvote"
-                    >
-                        <IconThumbDown size={16} />
-                    </ActionIcon>
+                <Group gap={2}>
+                    {(!hasRating || upVoted) && (
+                        <ActionIcon
+                            variant={'transparent'}
+                            color="gray"
+                            aria-label="upvote"
+                            onClick={handleUpvote}
+                            display={isLoading ? 'none' : 'block'}
+                        >
+                            <MantineIcon
+                                icon={upVoted ? IconThumbUpFilled : IconThumbUp}
+                            />
+                        </ActionIcon>
+                    )}
+
+                    {(!hasRating || downVoted) && (
+                        <ActionIcon
+                            variant={'transparent'}
+                            color="gray"
+                            aria-label="downvote"
+                            onClick={handleDownvote}
+                            display={isLoading ? 'none' : 'block'}
+                        >
+                            <MantineIcon
+                                icon={
+                                    downVoted
+                                        ? IconThumbDownFilled
+                                        : IconThumbDown
+                                }
+                            />
+                        </ActionIcon>
+                    )}
                 </Group>
             </Group>
         </Stack>
     );
-};
+});

@@ -712,14 +712,14 @@ export class AiService {
         const generateQueryFilters = getGenerateQueryFiltersTool({
             getExplore,
             promptUuid: slackOrWebAppPrompt.promptUuid,
-            updatePrompt: this.aiModel.updateSlackResponse.bind(this.aiModel),
+            updatePrompt: this.aiModel.updateModelResponse.bind(this.aiModel),
         });
 
         const generateBarVizConfigTool = getGenerateBarVizConfigTool({
             updateProgress: updateProgress.bind(this),
             runMiniMetricQuery,
             getPrompt,
-            updatePrompt: this.aiModel.updateSlackResponse.bind(this.aiModel),
+            updatePrompt: this.aiModel.updateModelResponse.bind(this.aiModel),
             sendFile,
         });
 
@@ -728,7 +728,7 @@ export class AiService {
                 updateProgress: updateProgress.bind(this),
                 runMiniMetricQuery,
                 getPrompt,
-                updatePrompt: this.aiModel.updateSlackResponse.bind(
+                updatePrompt: this.aiModel.updateModelResponse.bind(
                     this.aiModel,
                 ),
                 sendFile,
@@ -738,7 +738,7 @@ export class AiService {
             updateProgress: updateProgress.bind(this),
             runMiniMetricQuery,
             getPrompt,
-            updatePrompt: this.aiModel.updateSlackResponse.bind(this.aiModel),
+            updatePrompt: this.aiModel.updateModelResponse.bind(this.aiModel),
             sendFile,
             maxLimit: this.lightdashConfig.query.maxLimit,
         });
@@ -747,7 +747,7 @@ export class AiService {
             updateProgress: updateProgress.bind(this),
             runMiniMetricQuery,
             getPrompt,
-            updatePrompt: this.aiModel.updateSlackResponse.bind(this.aiModel),
+            updatePrompt: this.aiModel.updateModelResponse.bind(this.aiModel),
         });
 
         const tools = [
@@ -858,7 +858,7 @@ ${e.llmOutput}
 
     // TODO: user permissions
     async updateHumanScoreForPrompt(promptUuid: string, humanScore: number) {
-        await this.aiModel.updateSlackResponse({
+        await this.aiModel.updateModelResponse({
             promptUuid,
             humanScore,
         });
@@ -1113,7 +1113,7 @@ ${
             ],
         });
 
-        await this.aiModel.updateSlackResponse({
+        await this.aiModel.updateModelResponse({
             promptUuid: slackPrompt.promptUuid,
             response,
         });

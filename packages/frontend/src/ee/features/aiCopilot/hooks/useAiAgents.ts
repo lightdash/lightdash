@@ -502,3 +502,45 @@ export const useAiAgentThreadMessageViz = (
         ...useQueryOptions,
     });
 };
+
+const updatePromptFeedback = async (messageUuid: string, humanScore: number) =>
+    lightdashApi<ApiSuccessEmpty>({
+        url: `/aiAgents/messages/${messageUuid}/feedback`,
+        method: 'PATCH',
+        body: JSON.stringify({ humanScore }),
+    });
+
+export const useUpdatePromptFeedbackMutation = (
+    agentUuid: string | undefined,
+    threadUuid: string,
+    options?: UseMutationOptions<
+        ApiSuccessEmpty,
+        ApiError,
+        { messageUuid: string; humanScore: number }
+    >,
+) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { messageUuid: string; humanScore: number }
+    >({
+        mutationFn: ({ messageUuid, humanScore }) =>
+            updatePromptFeedback(messageUuid, humanScore),
+        onSuccess: () => {
+            // Invalidate relevant queries to refresh the data
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to submit feedback',
+                apiError: error,
+            });
+        },
+        ...options,
+    });
+};
