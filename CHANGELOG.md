@@ -1,3 +1,10 @@
+# [0.1680.0](https://github.com/lightdash/lightdash/compare/0.1679.0...0.1680.0) (2025-06-03)
+
+
+### Features
+
+* get slack app name for agent instructions ([#15145](https://github.com/lightdash/lightdash/issues/15145)) ([8dfe1c6](https://github.com/lightdash/lightdash/commit/8dfe1c689b2c31b122e5af7173679a77c8078e09))
+
 # [0.1679.0](https://github.com/lightdash/lightdash/compare/0.1678.0...0.1679.0) (2025-06-03)
 
 
