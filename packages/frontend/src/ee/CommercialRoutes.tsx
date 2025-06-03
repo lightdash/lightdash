@@ -1,6 +1,7 @@
 import { MantineProvider } from '@mantine-8/core';
 import { Navigate, Outlet, type RouteObject } from 'react-router';
 import NavBar from '../components/NavBar';
+import PrivateRoute from '../components/PrivateRoute';
 import { getMantine8ThemeOverride } from '../mantine8Theme';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
@@ -36,7 +37,11 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
 const COMMERCIAL_AI_ROUTES: RouteObject[] = [
     {
         path: '/projects/:projectUuid/ai',
-        element: <Outlet />,
+        element: (
+            <PrivateRoute>
+                <Outlet />
+            </PrivateRoute>
+        ),
         children: [
             ...[
                 '/projects/:projectUuid/ai/conversations/:threadUuid/:promptUuid',
@@ -65,12 +70,12 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
     {
         path: '/aiAgents',
         element: (
-            <>
+            <PrivateRoute>
                 <NavBar />
                 <MantineProvider theme={getMantine8ThemeOverride()}>
                     <Outlet />
                 </MantineProvider>
-            </>
+            </PrivateRoute>
         ),
         children: [
             {
