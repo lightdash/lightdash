@@ -1,3 +1,10 @@
+# [0.1678.0](https://github.com/lightdash/lightdash/compare/0.1677.0...0.1678.0) (2025-06-03)
+
+
+### Features
+
+* user warehouse authentication on bigquery ([#15101](https://github.com/lightdash/lightdash/issues/15101)) ([b75bbb4](https://github.com/lightdash/lightdash/commit/b75bbb49ddbe207cd0b07610502004afcfe60fe7))
+
 # [0.1677.0](https://github.com/lightdash/lightdash/compare/0.1676.2...0.1677.0) (2025-06-03)
 
 
