@@ -181,6 +181,7 @@ const SnowflakeForm: FC<{
                         defaultValue={defaultAuthType}
                         label="Authentication Type"
                         description={
+                            isSsoEnabled &&
                             isLoadingAuth ? null : isAuthenticated ? (
                                 <Text mt="0" color="gray" fs="xs">
                                     You are connected to Snowflake,{' '}
