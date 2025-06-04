@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { DownloadFileType } from '@lightdash/common';
+import {
+    DownloadFileType,
+    formatDate,
+    type PivotConfig,
+} from '@lightdash/common';
 import {
     Alert,
     Box,
@@ -40,6 +44,7 @@ export type ExportResultsProps = {
     hiddenFields?: string[];
     showTableNames?: boolean;
     chartName?: string;
+    pivotConfig?: PivotConfig;
 };
 
 const TOAST_KEY = 'exporting-results';
@@ -54,6 +59,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         hiddenFields,
         showTableNames,
         chartName,
+        pivotConfig,
     }) => {
         const { showToastError, showToastInfo, showToastWarning } =
             useToaster();
@@ -85,7 +91,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         customLabels,
                         hiddenFields,
                         showTableNames,
-                        chartName,
+                        pivotConfig,
                     });
                 },
                 {
@@ -102,7 +108,13 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         // Download file
                         const link = document.createElement('a');
                         link.href = response.fileUrl;
-                        link.setAttribute('download', ''); // empty value so browser picks the file name.
+                        console.log({ chartName });
+                        link.setAttribute(
+                            'download',
+                            `${chartName || 'results'}_${formatDate(
+                                new Date(),
+                            )}.${fileType}`,
+                        );
                         document.body.appendChild(link);
                         link.click();
                         link.remove(); // Remove the link from the DOM

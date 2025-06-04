@@ -1,7 +1,8 @@
 import { subject } from '@casl/ability';
 import {
-    getCustomLabelsFromColumnProperties,
+    ChartType,
     type ApiScheduledDownloadCsv,
+    type PivotConfig,
 } from '@lightdash/common';
 import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
@@ -10,12 +11,7 @@ import useEchartsCartesianConfig from '../../../hooks/echarts/useEchartsCartesia
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import ExportSelector from '../../ExportSelector';
-import {
-    isBigNumberVisualizationConfig,
-    isCartesianVisualizationConfig,
-    isCustomVisualizationConfig,
-    isTableVisualizationConfig,
-} from '../../LightdashVisualization/types';
+import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import {
     COLLAPSABLE_CARD_ACTION_ICON_PROPS,
@@ -23,33 +19,28 @@ import {
 } from '../CollapsableCard/constants';
 import MantineIcon from '../MantineIcon';
 import ChartDownloadOptions from './ChartDownloadOptions';
+import { createPivotConfigFromVisualization } from './chartDownloadUtils';
 
-interface ChartDownloadMenuProps {
+export type ChartDownloadMenuProps = {
+    getDownloadQueryUuid: (limit: number | null) => Promise<string>;
     projectUuid: string;
-    getDownloadQueryUuid?: (limit: number | null) => Promise<string>;
     getGsheetLink?: (
-        columnOrder: string[],
-        showTableNames: boolean,
-        customLabels?: Record<string, string>,
+        pivotConfig?: PivotConfig,
     ) => Promise<ApiScheduledDownloadCsv>;
-}
+};
 
 const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
     ({ getDownloadQueryUuid, getGsheetLink, projectUuid }) => {
-        const { chartRef, visualizationConfig, resultsData } =
+        const { chartRef, visualizationConfig, resultsData, pivotDimensions } =
             useVisualizationContext();
 
         const eChartsOptions = useEchartsCartesianConfig();
 
         const disabled =
             (isTableVisualizationConfig(visualizationConfig) &&
-                resultsData?.rows &&
-                resultsData.rows.length <= 0) ||
-            !resultsData?.metricQuery ||
-            isBigNumberVisualizationConfig(visualizationConfig) ||
-            (isCartesianVisualizationConfig(visualizationConfig) &&
-                !eChartsOptions) ||
-            isCustomVisualizationConfig(visualizationConfig);
+                !resultsData?.totalResults) ||
+            (visualizationConfig.chartType === ChartType.CARTESIAN &&
+                !eChartsOptions);
 
         const { user } = useApp();
 
@@ -57,6 +48,17 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             () => chartRef.current?.getEchartsInstance(),
             [chartRef],
         );
+
+        // Build pivot config for table visualizations with pivot dimensions
+        const pivotConfig: PivotConfig | undefined =
+            isTableVisualizationConfig(visualizationConfig) &&
+            pivotDimensions &&
+            pivotDimensions.length > 0
+                ? createPivotConfigFromVisualization(
+                      visualizationConfig,
+                      pivotDimensions,
+                  )
+                : undefined;
 
         return isTableVisualizationConfig(visualizationConfig) &&
             getDownloadQueryUuid ? (
@@ -87,21 +89,17 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                             projectUuid={projectUuid}
                             totalResults={resultsData?.totalResults}
                             getDownloadQueryUuid={getDownloadQueryUuid}
+                            columnOrder={
+                                visualizationConfig.chartConfig.columnOrder
+                            }
+                            showTableNames={
+                                visualizationConfig.chartConfig.showTableNames
+                            }
+                            pivotConfig={pivotConfig}
                             getGsheetLink={
                                 getGsheetLink === undefined
                                     ? undefined
-                                    : () =>
-                                          getGsheetLink(
-                                              visualizationConfig.chartConfig
-                                                  .columnOrder,
-                                              visualizationConfig.chartConfig
-                                                  .showTableNames,
-                                              getCustomLabelsFromColumnProperties(
-                                                  visualizationConfig
-                                                      .chartConfig
-                                                      .columnProperties,
-                                              ),
-                                          )
+                                    : () => getGsheetLink(pivotConfig)
                             }
                         />
                     </Popover.Dropdown>

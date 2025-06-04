@@ -79,6 +79,7 @@ import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -652,7 +653,26 @@ export class AsyncQueryService extends ProjectService {
             throw new Error('Results file name not found for query');
         }
 
-        // Handle file type in a separate switch
+        // Handle pivot table downloads when pivotConfig is provided
+        if (pivotConfig && queryHistory.metricQuery) {
+            return this.downloadAsyncQueryResultsAsPivotTable(
+                resultsFileName,
+                fields,
+                queryHistory.metricQuery,
+                projectUuid,
+                {
+                    type: type || DownloadFileType.CSV,
+                    onlyRaw,
+                    showTableNames,
+                    customLabels,
+                    columnOrder,
+                    hiddenFields,
+                    pivotConfig,
+                },
+            );
+        }
+
+        // Handle file type in a separate switch for regular (non-pivot) downloads
         switch (type) {
             case DownloadFileType.CSV:
                 return this.downloadAsyncQueryResultsAsFormattedFile(
@@ -799,6 +819,173 @@ export class AsyncQueryService extends ProjectService {
         return {
             fileUrl: await this.storageClient.getFileUrl(resultsFileName),
         };
+    }
+
+    private async downloadAsyncQueryResultsAsPivotTable(
+        resultsFileName: string,
+        fields: ItemsMap,
+        metricQuery: MetricQuery,
+        projectUuid: string,
+        options: {
+            type: DownloadFileType;
+            onlyRaw: boolean;
+            showTableNames: boolean;
+            customLabels: Record<string, string>;
+            columnOrder: string[];
+            hiddenFields: string[];
+            pivotConfig: PivotConfig;
+        },
+    ): Promise<
+        ApiDownloadAsyncQueryResultsAsCsv | ApiDownloadAsyncQueryResultsAsXlsx
+    > {
+        const {
+            type,
+            onlyRaw,
+            showTableNames,
+            customLabels,
+            columnOrder,
+            hiddenFields,
+            pivotConfig,
+        } = options;
+
+        // Load all rows from the results file
+        const rows: Record<string, unknown>[] = [];
+        const fileUrl = await this.storageClient.getFileUrl(resultsFileName);
+
+        // Stream and collect all rows from JSONL file
+        await new Promise<void>((resolve, reject) => {
+            this.storageClient
+                .getDowloadStream(resultsFileName)
+                .then((readStream) => {
+                    const lineReader = createInterface({
+                        input: readStream,
+                        crlfDelay: Infinity,
+                    });
+
+                    lineReader.on('line', (line: string) => {
+                        if (!line.trim()) return;
+                        try {
+                            const parsedRow = JSON.parse(line);
+                            rows.push(parsedRow);
+                        } catch (error) {
+                            Logger.error(
+                                `Error parsing line: ${getErrorMessage(error)}`,
+                            );
+                        }
+                    });
+
+                    lineReader.on('close', () => resolve());
+                    lineReader.on('error', (error) => reject(error));
+                })
+                .catch(reject);
+        });
+
+        if (rows.length === 0) {
+            throw new Error('No data found in results file');
+        }
+
+        const truncated = rows.length >= 100000;
+        const fileName = `pivot-${resultsFileName}`;
+
+        // Use the appropriate pivot table download method based on file type
+        switch (type) {
+            case DownloadFileType.CSV: {
+                const csvService = new CsvService({
+                    lightdashConfig: this.lightdashConfig,
+                    analytics: this.analytics,
+                    projectService: this,
+                    s3Client: this.s3Client,
+                    savedChartModel: this.savedChartModel,
+                    savedSqlModel: this.savedSqlModel,
+                    dashboardModel: this.dashboardModel,
+                    userModel: this.userModel,
+                    downloadFileModel: this.downloadFileModel,
+                    schedulerClient: this.schedulerClient,
+                    projectModel: this.projectModel,
+                });
+
+                const attachmentUrl = await csvService.downloadPivotTableCsv({
+                    name: fileName,
+                    projectUuid,
+                    rows,
+                    itemMap: fields,
+                    metricQuery,
+                    pivotConfig,
+                    exploreId: metricQuery.exploreName || 'explore',
+                    onlyRaw,
+                    truncated,
+                    customLabels,
+                });
+
+                return {
+                    fileUrl: attachmentUrl.path,
+                    truncated,
+                };
+            }
+            case DownloadFileType.XLSX: {
+                // For XLSX, we'll create the Excel file and upload it using the storage client
+                const formattedFileName = ExcelService.generateFileId(
+                    fileName,
+                    truncated,
+                );
+
+                // Use transformResultsIntoNewFile pattern for consistency
+                return this.storageClient.transformResultsIntoNewFile(
+                    resultsFileName,
+                    formattedFileName,
+                    async (readStream, writeStream) => {
+                        // Read all rows into memory for pivot processing
+                        const rowsForPivot: Record<string, unknown>[] = [];
+                        const lineReader = createInterface({
+                            input: readStream,
+                            crlfDelay: Infinity,
+                        });
+
+                        await new Promise<void>((resolve, reject) => {
+                            lineReader.on('line', (line: string) => {
+                                if (!line.trim()) return;
+                                try {
+                                    const parsedRow = JSON.parse(line);
+                                    rowsForPivot.push(parsedRow);
+                                } catch (error) {
+                                    Logger.error(
+                                        `Error parsing line: ${getErrorMessage(
+                                            error,
+                                        )}`,
+                                    );
+                                }
+                            });
+
+                            lineReader.on('close', () => resolve());
+                            lineReader.on('error', (error) => reject(error));
+                        });
+
+                        // Generate Excel buffer
+                        const excelBuffer =
+                            await ExcelService.downloadPivotTableXlsx({
+                                rows: rowsForPivot,
+                                itemMap: fields,
+                                metricQuery,
+                                pivotConfig,
+                                onlyRaw,
+                                customLabels,
+                                fileName,
+                                maxColumnLimit:
+                                    this.lightdashConfig.pivotTable
+                                        .maxColumnLimit,
+                            });
+
+                        // Write buffer to stream
+                        writeStream.write(Buffer.from(excelBuffer));
+                        writeStream.end();
+
+                        return { truncated };
+                    },
+                );
+            }
+            default:
+                throw new Error(`Unsupported pivot table file type: ${type}`);
+        }
     }
 
     /**

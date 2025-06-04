@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { getPivotConfig, type PivotConfig } from '@lightdash/common';
 import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
@@ -50,9 +51,18 @@ const ResultsCard: FC = memo(() => {
         (context) => context.actions.getDownloadQueryUuid,
     );
 
+    const unsavedChartVersion = useExplorerContext(
+        (context) => context.state.unsavedChartVersion,
+    );
+
     const disabled = useMemo(() => (totalResults ?? 0) <= 0, [totalResults]);
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    // Build pivot config from unsavedChartVersion data
+    const pivotConfig: PivotConfig | undefined = useMemo(() => {
+        return getPivotConfig(unsavedChartVersion);
+    }, [unsavedChartVersion]);
 
     const getGsheetLink = async () => {
         if (projectUuid) {
@@ -62,6 +72,7 @@ const ResultsCard: FC = memo(() => {
                 metricQuery,
                 columnOrder,
                 showTableNames: true,
+                pivotConfig,
             });
         } else {
             throw new Error('Project UUID is missing');
@@ -131,7 +142,8 @@ const ResultsCard: FC = memo(() => {
                                         }
                                         getGsheetLink={getGsheetLink}
                                         columnOrder={columnOrder}
-                                        showTableNames={false}
+                                        showTableNames
+                                        pivotConfig={pivotConfig}
                                     />
                                 </Popover.Dropdown>
                             </Popover>

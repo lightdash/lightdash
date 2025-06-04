@@ -3,6 +3,7 @@ import {
     type ApiDownloadCsv,
     type ApiError,
     type ApiScheduledDownloadCsv,
+    type PivotConfig,
 } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import { IconArrowLeft, IconFileTypeCsv } from '@tabler/icons-react';
@@ -16,6 +17,7 @@ import MantineIcon from '../common/MantineIcon';
 const ExportSelector: FC<
     ExportResultsProps & {
         getGsheetLink?: () => Promise<ApiScheduledDownloadCsv>;
+        pivotConfig?: PivotConfig;
     }
 > = memo(
     ({
@@ -28,6 +30,7 @@ const ExportSelector: FC<
         hiddenFields,
         showTableNames,
         chartName,
+        pivotConfig,
     }) => {
         const health = useHealth();
         const hasGoogleDrive =
@@ -66,6 +69,7 @@ const ExportSelector: FC<
                         hiddenFields={hiddenFields}
                         showTableNames={showTableNames}
                         chartName={chartName}
+                        pivotConfig={pivotConfig}
                     />
                 </>
             );
@@ -97,6 +101,7 @@ const ExportSelector: FC<
                 hiddenFields={hiddenFields}
                 showTableNames={showTableNames}
                 chartName={chartName}
+                pivotConfig={pivotConfig}
             />
         );
     },
