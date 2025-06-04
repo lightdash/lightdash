@@ -1,4 +1,5 @@
 import {
+    AiChartType,
     AiMetricQuery,
     FilterSchema,
     MetricQuery,
@@ -190,7 +191,7 @@ export const renderVerticalBarMetricChart = async ({
     vizConfig,
     filters,
 }: RenderVerticalBarMetricChartArgs): Promise<{
-    type: 'vertical_bar_chart';
+    type: AiChartType.VERTICAL_BAR_CHART;
     results: Awaited<
         ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
     >;
@@ -207,7 +208,7 @@ export const renderVerticalBarMetricChart = async ({
     );
 
     return {
-        type: 'vertical_bar_chart',
+        type: AiChartType.VERTICAL_BAR_CHART,
         metricQuery,
         results,
         chartOptions,

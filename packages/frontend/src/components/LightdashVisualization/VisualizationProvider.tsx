@@ -43,7 +43,7 @@ import VisualizationCustomConfig from './VisualizationCustomConfig';
 import Context from './context';
 import { type useVisualizationContext } from './useVisualizationContext';
 
-type Props = {
+export type VisualizationProviderProps = {
     minimal?: boolean;
     chartConfig: ChartConfig;
     initialPivotDimensions: string[] | undefined;
@@ -70,7 +70,9 @@ type Props = {
     computedSeries?: Series[];
 };
 
-const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
+const VisualizationProvider: FC<
+    React.PropsWithChildren<VisualizationProviderProps>
+> = ({
     minimal = false,
     initialPivotDimensions,
     resultsData,
