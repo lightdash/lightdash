@@ -1,3 +1,15 @@
+# [0.1685.0](https://github.com/lightdash/lightdash/compare/0.1684.1...0.1685.0) (2025-06-04)
+
+
+### Bug Fixes
+
+* use minimal avatar on convo debugger ([#15177](https://github.com/lightdash/lightdash/issues/15177)) ([f4c0f21](https://github.com/lightdash/lightdash/commit/f4c0f2142ba6294e9d6e790d2cae2a93a8a70bd7))
+
+
+### Features
+
+* allow changing agents avatar ([#15176](https://github.com/lightdash/lightdash/issues/15176)) ([a62adf5](https://github.com/lightdash/lightdash/commit/a62adf52f2b2f8c3a5b48e104d534ca1f53453c6))
+
 ## [0.1684.1](https://github.com/lightdash/lightdash/compare/0.1684.0...0.1684.1) (2025-06-04)
 
 
