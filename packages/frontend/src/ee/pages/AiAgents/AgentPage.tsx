@@ -49,7 +49,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({ thread, isActive }) => (
         color="gray"
         component={Link}
         key={thread.uuid}
-        to={`/aiAgents/${thread.agentUuid}/threads/${thread.uuid}`}
+        to={`/ai-agents/${thread.agentUuid}/threads/${thread.uuid}`}
         px="xs"
         py={4}
         mx={-8}
@@ -69,6 +69,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({ thread, isActive }) => (
                 </Tooltip>
             )
         }
+        viewTransition
     />
 );
 const AgentPage = () => {
@@ -89,14 +90,11 @@ const AgentPage = () => {
     }
 
     if (!agent) {
-        return <Navigate to={`/aiAgents`} />;
+        return <Navigate to={`/ai-agents`} />;
     }
 
     return (
         <Page
-            withCenteredContent
-            withXLargePaddedContent
-            withCenteredRoot
             sidebar={
                 <Stack gap="xl" align="stretch">
                     <Stack align="flex-start" gap="xs">
@@ -104,7 +102,7 @@ const AgentPage = () => {
                             size="compact-xs"
                             variant="subtle"
                             component={Link}
-                            to="/aiAgents"
+                            to="/ai-agents"
                             leftSection={<MantineIcon icon={IconArrowLeft} />}
                             style={{
                                 root: {
@@ -119,6 +117,7 @@ const AgentPage = () => {
                                 size="md"
                                 variant="filled"
                                 name={agent.name || 'AI'}
+                                src={agent.imageUrl}
                             />
                             <Title order={3}>{agent.name}</Title>
                         </Group>
@@ -143,7 +142,7 @@ const AgentPage = () => {
                             leftSection={<IconPlus size={16} />}
                             component={Link}
                             size="xs"
-                            to={`/aiAgents/${agent.uuid}/threads`}
+                            to={`/ai-agents/${agent.uuid}/threads`}
                         >
                             New thread
                         </Button>
@@ -237,9 +236,7 @@ const AgentPage = () => {
                 </Stack>
             }
         >
-            <Box w="100%" maw="62rem" mx="auto" mt="xl" h="100%">
-                <Outlet />
-            </Box>
+            <Outlet />
         </Page>
     );
 };

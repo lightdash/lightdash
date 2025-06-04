@@ -6,12 +6,15 @@ import { defineConfig } from 'vitest/config';
 process.env.NODE_ENV = 'production';
 
 export default defineConfig({
+    mode: 'production',
     publicDir: false,
     define: {
         __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
     },
     plugins: [svgrPlugin(), dts({ rollupTypes: true })],
-    mode: 'production',
+    css: {
+        transformer: 'lightningcss',
+    },
     build: {
         outDir: 'sdk/dist',
         emptyOutDir: true,

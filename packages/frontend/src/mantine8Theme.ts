@@ -97,39 +97,14 @@ export const getMantine8ThemeOverride = (
                 },
             }),
             ScrollArea: ScrollArea.extend({
-                defaultProps: {
-                    variant: 'primary',
-                    style: (theme) => ({
-                        scrollbar: {
-                            '&, &:hover': {
-                                background: 'transparent',
-                            },
-                            '&[data-orientation="vertical"] .mantine-ScrollArea-thumb':
-                                {
-                                    backgroundColor: theme.colors.gray['5'],
-                                },
-                            '&[data-orientation="vertical"][data-state="visible"] .mantine-ScrollArea-thumb':
-                                {
-                                    // When visible, fade in
-                                    animation: 'fadeIn 0.3s ease-in forwards',
-                                },
-
-                            // Missing hover state for vertical scrollbar thumb
-                            // '&[data-orientation="vertical"] .mantine-ScrollArea-thumb:hover':
-                            //     {
-                            //         backgroundColor: theme.fn.darken(
-                            //             theme.colors.gray['5'],
-                            //             0.1,
-                            //         ),
-                            //     },
-                        },
-                        viewport: {
-                            '.only-vertical & > div': {
-                                display: 'block !important', // Only way to override the display value (from `table`) of the Viewport's child element
-                            },
-                        },
-                    }),
-                },
+                styles: (theme) => ({
+                    thumb: {
+                        backgroundColor: theme.colors.gray[3],
+                    },
+                    scrollbar: {
+                        backgroundColor: `transparent`,
+                    },
+                }),
             }),
             Tooltip: {
                 defaultProps: {

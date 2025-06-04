@@ -1,5 +1,5 @@
 import { type AiAgentMessage } from '@lightdash/common';
-import { Divider, Loader, Stack } from '@mantine-8/core';
+import { Box, Divider, Loader, ScrollArea, Stack } from '@mantine-8/core';
 import { Fragment, useLayoutEffect, useRef, type FC } from 'react';
 import { useParams } from 'react-router';
 import {
@@ -43,16 +43,26 @@ const AiAgentThreadPage = () => {
         isLoading: isGenerating,
     } = useGenerateAgentThreadResponseMutation(agentUuid!, threadUuid!);
 
-    const scrollRef = useRef<HTMLDivElement>(null);
+    const viewport = useRef<HTMLDivElement>(null);
 
     useLayoutEffect(() => {
-        if (!scrollRef.current) return;
+        if (!viewport.current) return;
 
-        // TODO :: debounce scrollTo
-        scrollRef.current.scrollTo({
-            top: scrollRef.current.scrollHeight,
-            behavior: 'smooth',
-        });
+        const scrollToBottom = () => {
+            const element = viewport.current!;
+            element.scrollTo({
+                top: element.scrollHeight,
+                behavior: 'smooth',
+            });
+        };
+
+        const raf = requestAnimationFrame(scrollToBottom);
+        const timeout = setTimeout(scrollToBottom, 300);
+
+        return () => {
+            cancelAnimationFrame(raf);
+            clearTimeout(timeout);
+        };
     }, [thread?.messages]);
 
     if (isLoadingThread || !thread || agentQuery.isLoading) {
@@ -60,47 +70,63 @@ const AiAgentThreadPage = () => {
     }
 
     return (
-        <Stack h="100%" mah="100%" justify="space-between" gap="lg" pb="xl">
-            <Stack
-                flex={1}
-                style={{ overflowY: 'auto' }}
-                py={30}
-                ref={scrollRef}
-                gap="xl"
-            >
-                {thread.messages.map((message, i, xs) => {
-                    return (
-                        <Fragment key={`${message.role}-${message.uuid}`}>
-                            {ChatElementsUtils.shouldRenderDivider(
-                                message,
-                                i,
-                                xs,
-                            ) && (
-                                <Divider
-                                    label={ChatElementsUtils.getDividerLabel(
-                                        message.createdAt,
-                                    )}
-                                    labelPosition="center"
-                                    my="sm"
-                                />
-                            )}
-                            <AiThreadMessage
-                                message={message}
-                                agentName={agentQuery.data?.name ?? 'AI'}
-                            />
-                        </Fragment>
-                    );
-                })}
-            </Stack>
-
-            <AgentChatInput
-                disabled={thread.createdFrom === 'slack'}
-                disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
-                loading={isGenerating}
-                onSubmit={(prompt) => {
-                    void generateAgentThreadResponse({ prompt });
+        <Stack h="100%" justify="space-between" py="xl">
+            <ScrollArea
+                type="hover"
+                offsetScrollbars="y"
+                styles={{
+                    content: {
+                        flex: 1,
+                    },
                 }}
-            />
+                viewportRef={viewport}
+            >
+                {/* Padding left to make up space from the scrollbar */}
+                <Stack
+                    {...ChatElementsUtils.centeredElementProps}
+                    gap="xl"
+                    pl="xl"
+                >
+                    {thread.messages.map((message, i, xs) => {
+                        return (
+                            <Fragment key={`${message.role}-${message.uuid}`}>
+                                {ChatElementsUtils.shouldRenderDivider(
+                                    message,
+                                    i,
+                                    xs,
+                                ) && (
+                                    <Divider
+                                        label={ChatElementsUtils.getDividerLabel(
+                                            message.createdAt,
+                                        )}
+                                        labelPosition="center"
+                                        my="sm"
+                                    />
+                                )}
+                                <AiThreadMessage
+                                    message={message}
+                                    agentName={agentQuery.data?.name ?? 'AI'}
+                                />
+                            </Fragment>
+                        );
+                    })}
+                </Stack>
+            </ScrollArea>
+            <Box
+                {...ChatElementsUtils.centeredElementProps}
+                pos="sticky"
+                bottom={0}
+                h="auto"
+            >
+                <AgentChatInput
+                    disabled={thread.createdFrom === 'slack'}
+                    disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
+                    loading={isGenerating}
+                    onSubmit={(prompt) => {
+                        void generateAgentThreadResponse({ prompt });
+                    }}
+                />
+            </Box>
         </Stack>
     );
 };

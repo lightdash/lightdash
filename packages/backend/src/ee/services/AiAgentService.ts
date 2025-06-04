@@ -419,6 +419,7 @@ export class AiAgentService {
             tags: body.tags,
             integrations: body.integrations,
             instruction: body.instruction,
+            imageUrl: body.imageUrl,
         });
 
         return updatedAgent;

@@ -79,6 +79,7 @@ export class AiAgentModel {
                      WHERE ${AiAgentInstructionVersionsTableName}.ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid
                      ORDER BY created_at DESC LIMIT 1)
                     `),
+                imageUrl: `${AiAgentTableName}.image_url`,
             } satisfies Record<keyof AiAgent, unknown>)
             .leftJoin(
                 AiAgentIntegrationTableName,
@@ -137,6 +138,7 @@ export class AiAgentModel {
                      WHERE ${AiAgentInstructionVersionsTableName}.ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid
                      ORDER BY created_at DESC LIMIT 1)
                     `),
+                imageUrl: `${AiAgentTableName}.image_url`,
             } satisfies Record<keyof AiAgentSummary, unknown>)
             .leftJoin(
                 AiAgentIntegrationTableName,
@@ -267,6 +269,7 @@ export class AiAgentModel {
                 createdAt: agent.created_at,
                 updatedAt: agent.updated_at,
                 instruction: args.instruction,
+                imageUrl: agent.image_url,
             };
         });
     }
@@ -290,6 +293,7 @@ export class AiAgentModel {
                     project_uuid: args.projectUuid,
                     tags: args.tags,
                     updated_at: updatedAt,
+                    image_url: args.imageUrl,
                 })
                 .returning('*');
 
@@ -360,6 +364,7 @@ export class AiAgentModel {
                 createdAt: agent.created_at,
                 updatedAt: agent.updated_at,
                 instruction,
+                imageUrl: agent.image_url,
             };
         });
     }

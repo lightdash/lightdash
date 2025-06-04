@@ -1,3 +1,44 @@
+# [0.1685.0](https://github.com/lightdash/lightdash/compare/0.1684.1...0.1685.0) (2025-06-04)
+
+
+### Bug Fixes
+
+* use minimal avatar on convo debugger ([#15177](https://github.com/lightdash/lightdash/issues/15177)) ([f4c0f21](https://github.com/lightdash/lightdash/commit/f4c0f2142ba6294e9d6e790d2cae2a93a8a70bd7))
+
+
+### Features
+
+* allow changing agents avatar ([#15176](https://github.com/lightdash/lightdash/issues/15176)) ([a62adf5](https://github.com/lightdash/lightdash/commit/a62adf52f2b2f8c3a5b48e104d534ca1f53453c6))
+
+## [0.1684.1](https://github.com/lightdash/lightdash/compare/0.1684.0...0.1684.1) (2025-06-04)
+
+
+### Bug Fixes
+
+* copy on bigquery form ([#15159](https://github.com/lightdash/lightdash/issues/15159)) ([186adb7](https://github.com/lightdash/lightdash/commit/186adb7bba65d4a5d59f69756cd9c6f9ebf1babc))
+
+# [0.1684.0](https://github.com/lightdash/lightdash/compare/0.1683.3...0.1684.0) (2025-06-04)
+
+
+### Features
+
+* Improve ai agent chat scrollbars ([#15160](https://github.com/lightdash/lightdash/issues/15160)) ([2ab17b3](https://github.com/lightdash/lightdash/commit/2ab17b30ff8e3aeef283e5ea4781e8439c5d6925)), closes [#15142](https://github.com/lightdash/lightdash/issues/15142)
+
+## [0.1683.3](https://github.com/lightdash/lightdash/compare/0.1683.2...0.1683.3) (2025-06-04)
+
+
+### Bug Fixes
+
+* increase resultsExpiresAt ([#15163](https://github.com/lightdash/lightdash/issues/15163)) ([8a1804a](https://github.com/lightdash/lightdash/commit/8a1804af65d8d0d0e00f0fbb095e3ddd922d5e8b))
+* use lightningcss transformer in SDK build ([#15154](https://github.com/lightdash/lightdash/issues/15154)) ([9641aac](https://github.com/lightdash/lightdash/commit/9641aac449d147ce8ee6c4758c55c9813babc45f))
+
+## [0.1683.2](https://github.com/lightdash/lightdash/compare/0.1683.1...0.1683.2) (2025-06-04)
+
+
+### Bug Fixes
+
+* embed feature flag check ([#15164](https://github.com/lightdash/lightdash/issues/15164)) ([154a3d0](https://github.com/lightdash/lightdash/commit/154a3d0d573f64b85b5428f991d831a1450912f5))
+
 ## [0.1683.1](https://github.com/lightdash/lightdash/compare/0.1683.0...0.1683.1) (2025-06-03)
 
 

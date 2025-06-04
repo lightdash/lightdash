@@ -13,7 +13,7 @@ export const baseAgentSchema = z.object({
 
     name: z.string(),
     description: z.string(),
-    imageUrl: z.string(),
+    imageUrl: z.string().url().nullable(),
 
     tags: z.array(z.string()).nullable(),
 
@@ -54,6 +54,7 @@ export type AiAgent = Pick<
     | 'createdAt'
     | 'updatedAt'
     | 'instruction'
+    | 'imageUrl'
 >;
 
 export type AiAgentSummary = Pick<
@@ -67,6 +68,7 @@ export type AiAgentSummary = Pick<
     | 'createdAt'
     | 'updatedAt'
     | 'instruction'
+    | 'imageUrl'
 >;
 
 export type AiAgentUser = {
@@ -127,13 +129,23 @@ export type ApiAiAgentSummaryResponse = {
 
 export type ApiCreateAiAgent = Pick<
     AiAgent,
-    'projectUuid' | 'integrations' | 'tags' | 'name' | 'instruction'
+    | 'projectUuid'
+    | 'integrations'
+    | 'tags'
+    | 'name'
+    | 'instruction'
+    | 'imageUrl'
 >;
 
 export type ApiUpdateAiAgent = Partial<
     Pick<
         AiAgent,
-        'projectUuid' | 'integrations' | 'tags' | 'name' | 'instruction'
+        | 'projectUuid'
+        | 'integrations'
+        | 'tags'
+        | 'name'
+        | 'instruction'
+        | 'imageUrl'
     >
 > & {
     uuid: string;

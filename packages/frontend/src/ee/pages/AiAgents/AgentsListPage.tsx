@@ -41,7 +41,7 @@ const AgentCard = ({ agent }: AgentCardProps) => {
                 root: { height: '100%' },
             }}
             component={Link}
-            to={`/aiAgents/${agent.uuid}/threads`}
+            to={`/ai-agents/${agent.uuid}/threads`}
         >
             <Stack gap="sm" p="lg" style={{ flex: 1 }}>
                 <Group gap="sm" wrap="nowrap" align="flex-start">
@@ -51,6 +51,7 @@ const AgentCard = ({ agent }: AgentCardProps) => {
                         w={54}
                         variant="filled"
                         style={{ flexShrink: 0 }}
+                        src={agent.imageUrl}
                     />
                     <Stack gap="xs">
                         <Title order={5}>{agent.name}</Title>

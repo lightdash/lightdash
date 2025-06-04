@@ -21,6 +21,7 @@ import {
     IconArrowLeft,
     IconCheck,
     IconDatabase,
+    IconInfoCircle,
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
@@ -48,7 +49,12 @@ import { SlackIntegrationSteps } from './SlackIntegrationSteps';
 const formSchema: z.ZodType<
     Pick<
         BaseAiAgent,
-        'name' | 'projectUuid' | 'integrations' | 'tags' | 'instruction'
+        | 'name'
+        | 'projectUuid'
+        | 'integrations'
+        | 'tags'
+        | 'instruction'
+        | 'imageUrl'
     >
 > = z.object({
     name: z.string().min(1),
@@ -63,6 +69,7 @@ const formSchema: z.ZodType<
     ),
     tags: z.array(z.string()).nullable(),
     instruction: z.string().nullable(),
+    imageUrl: z.string().url().nullable(),
 });
 
 export const AgentDetails: FC = () => {
@@ -124,6 +131,7 @@ export const AgentDetails: FC = () => {
             integrations: [],
             tags: null,
             instruction: null,
+            imageUrl: null,
         },
         validate: zodResolver(formSchema),
     });
@@ -140,6 +148,7 @@ export const AgentDetails: FC = () => {
                 integrations: agent.integrations,
                 tags: agent.tags && agent.tags.length > 0 ? agent.tags : null,
                 instruction: agent.instruction,
+                imageUrl: agent.imageUrl,
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -227,6 +236,11 @@ export const AgentDetails: FC = () => {
                             <LightdashUserAvatar
                                 name={isCreateMode ? '+' : form.values.name}
                                 variant="filled"
+                                src={
+                                    !isCreateMode
+                                        ? form.values.imageUrl
+                                        : undefined
+                                }
                             />
 
                             <Title order={3}>
@@ -266,11 +280,56 @@ export const AgentDetails: FC = () => {
                                         {/* Basic Agent Info */}
                                         <Stack gap="sm">
                                             <Title order={5}>Details</Title>
-                                            <TextInput
-                                                label="Agent Name"
-                                                placeholder="Enter a name for this agent"
-                                                {...form.getInputProps('name')}
-                                            />
+                                            <Group gap="sm">
+                                                <TextInput
+                                                    label="Agent Name"
+                                                    placeholder="Enter a name for this agent"
+                                                    {...form.getInputProps(
+                                                        'name',
+                                                    )}
+                                                    style={{ flexGrow: 1 }}
+                                                />
+
+                                                <TextInput
+                                                    style={{ flexGrow: 1 }}
+                                                    label={
+                                                        <Group gap="xs">
+                                                            <Text>
+                                                                Avatar image URL
+                                                            </Text>
+                                                            <Tooltip
+                                                                label="Please provide an image url like https://example.com/avatar.jpg. If not provided, a default avatar will be used."
+                                                                withArrow
+                                                                withinPortal
+                                                                multiline
+                                                                maw="250px"
+                                                            >
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconInfoCircle
+                                                                    }
+                                                                />
+                                                            </Tooltip>
+                                                        </Group>
+                                                    }
+                                                    placeholder="https://example.com/avatar.jpg"
+                                                    type="url"
+                                                    {...form.getInputProps(
+                                                        'imageUrl',
+                                                    )}
+                                                    onChange={(e) => {
+                                                        const value =
+                                                            e.target.value;
+
+                                                        form.setFieldValue(
+                                                            'imageUrl',
+                                                            value
+                                                                ? value
+                                                                : null,
+                                                        );
+                                                    }}
+                                                />
+                                            </Group>
 
                                             <Select
                                                 label="Project"
