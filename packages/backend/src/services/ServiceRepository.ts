@@ -514,6 +514,7 @@ export class ServiceRepository
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
                     storageClient: this.clients.getResultsFileStorageClient(),
+                    csvService: this.getCsvService(),
                 }),
         );
     }

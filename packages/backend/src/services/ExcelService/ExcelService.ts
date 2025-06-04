@@ -4,6 +4,7 @@ import {
     DownloadFileType,
     formatItemValue,
     formatRows,
+    getErrorMessage,
     ItemsMap,
     MetricQuery,
     PivotConfig,
@@ -13,12 +14,10 @@ import * as Excel from 'exceljs';
 import moment from 'moment';
 import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
+import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import {
-    generateGenericFileId,
-    isRowValueDate,
-    isRowValueTimestamp,
-} from '../../utils/FileDownloadUtils';
+import { generateGenericFileId } from '../../utils/FileDownloadUtils';
 
 export class ExcelService {
     static generateFileId(
@@ -44,18 +43,28 @@ export class ExcelService {
             const item = itemMap[fieldId];
             const rawValue = row[fieldId];
 
-            if (!onlyRaw && item) {
-                return formatItemValue(item, rawValue);
+            if (rawValue === null || rawValue === undefined) {
+                return rawValue;
             }
 
-            // Handle date/timestamp conversion for Excel
-            if (
-                isRowValueTimestamp(rawValue, { type: DimensionType.TIMESTAMP })
-            ) {
-                return moment(rawValue).toDate();
+            // If we have item metadata and it's a date/timestamp field, convert for Excel
+            if (item && 'type' in item) {
+                if (item.type === DimensionType.TIMESTAMP) {
+                    return moment(rawValue).toDate();
+                }
+                if (item.type === DimensionType.DATE) {
+                    return moment(rawValue).toDate();
+                }
             }
-            if (isRowValueDate(rawValue, { type: DimensionType.DATE })) {
-                return moment(rawValue).toDate();
+
+            // Return raw value if onlyRaw is true
+            if (onlyRaw) {
+                return rawValue;
+            }
+
+            // Use standard Lightdash formatting if not onlyRaw and we have item metadata
+            if (item) {
+                return formatItemValue(item, rawValue);
             }
 
             return rawValue;
@@ -90,66 +99,21 @@ export class ExcelService {
             fgColor: { argb: 'FFE0E0E0' },
         };
 
-        return new Promise((resolve, reject) => {
-            // Process the readStream line by line
-            const lineReader = createInterface({
-                input: readStream,
-                crlfDelay: Infinity,
-            });
+        // Use shared streaming utility
+        const { truncated } = await ExcelService.streamJsonlData({
+            readStream,
+            onRow: (parsedRow, lineCount) => {
+                const excelRow = ExcelService.convertRowToExcel(
+                    parsedRow,
+                    itemMap,
+                    onlyRaw,
+                    sortedFieldIds,
+                );
+                worksheet.addRow(excelRow);
 
-            let lineCount = 0;
-            const MAX_LINES = 100000; // Configurable limit - Excel has ~1M row limit
-            let truncated = false;
-            let rowIndex = 2; // Start after header
-
-            lineReader.on('line', (line: string) => {
-                if (!line.trim()) return;
-
-                // eslint-disable-next-line no-plusplus
-                lineCount++;
-                if (lineCount > MAX_LINES) {
-                    truncated = true;
-                    lineReader.close();
-                    return;
-                }
-
-                try {
-                    const parsedRow = JSON.parse(line);
-                    const excelRow = ExcelService.convertRowToExcel(
-                        parsedRow,
-                        itemMap,
-                        onlyRaw,
-                        sortedFieldIds,
-                    );
-                    worksheet.addRow(excelRow);
-
-                    // Auto-adjust column widths every 1000 rows for performance
-                    if (rowIndex % 1000 === 0) {
-                        worksheet.columns.forEach((column, index) => {
-                            if (column && excelHeaders[index]) {
-                                const headerLength = excelHeaders[index].length;
-                                // eslint-disable-next-line no-param-reassign
-                                column.width = Math.max(
-                                    column.width || 0,
-                                    headerLength + 2,
-                                    15,
-                                );
-                            }
-                        });
-                    }
-
-                    // eslint-disable-next-line no-plusplus
-                    rowIndex++;
-                } catch (error) {
-                    Logger.error(
-                        `Error processing line ${lineCount}: ${error}`,
-                    );
-                }
-            });
-
-            lineReader.on('close', async () => {
-                try {
-                    // Final column width adjustment
+                // Auto-adjust column widths every 1000 rows for performance
+                const rowIndex = lineCount + 1; // +1 because headers are row 1
+                if (rowIndex % 1000 === 0) {
                     worksheet.columns.forEach((column, index) => {
                         if (column && excelHeaders[index]) {
                             const headerLength = excelHeaders[index].length;
@@ -161,20 +125,29 @@ export class ExcelService {
                             );
                         }
                     });
-
-                    // Write to stream
-                    await workbook.xlsx.write(writeStream);
-                    writeStream.end();
-                    resolve({ truncated });
-                } catch (error) {
-                    reject(error);
                 }
-            });
+            },
+            onComplete: async () => {
+                // Final column width adjustment
+                worksheet.columns.forEach((column, index) => {
+                    if (column && excelHeaders[index]) {
+                        const headerLength = excelHeaders[index].length;
+                        // eslint-disable-next-line no-param-reassign
+                        column.width = Math.max(
+                            column.width || 0,
+                            headerLength + 2,
+                            15,
+                        );
+                    }
+                });
 
-            lineReader.on('error', (error) => {
-                reject(error);
-            });
+                // Write to stream
+                await workbook.xlsx.write(writeStream);
+                writeStream.end();
+            },
         });
+
+        return { truncated };
     }
 
     static async downloadPivotTableXlsx({
@@ -184,7 +157,6 @@ export class ExcelService {
         pivotConfig,
         onlyRaw,
         customLabels,
-        fileName,
         maxColumnLimit,
     }: {
         rows: Record<string, AnyType>[];
@@ -193,7 +165,6 @@ export class ExcelService {
         pivotConfig: PivotConfig;
         onlyRaw: boolean;
         customLabels: Record<string, string> | undefined;
-        fileName: string;
         maxColumnLimit: number;
     }): Promise<Excel.Buffer> {
         // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
@@ -259,5 +230,142 @@ export class ExcelService {
 
         // Write to buffer
         return workbook.xlsx.writeBuffer();
+    }
+
+    /**
+     * Downloads pivot table XLSX from async query results file
+     * Handles loading data from JSONL storage file and generating pivot Excel file
+     */
+    static async downloadAsyncPivotTableXlsx({
+        resultsFileName,
+        fields,
+        metricQuery,
+        storageClient,
+        lightdashConfig,
+        options,
+    }: {
+        resultsFileName: string;
+        fields: ItemsMap;
+        metricQuery: MetricQuery;
+        storageClient: S3ResultsFileStorageClient; // S3ResultsFileStorageClient type
+        lightdashConfig: LightdashConfig;
+        options: {
+            onlyRaw: boolean;
+            showTableNames: boolean;
+            customLabels: Record<string, string>;
+            columnOrder: string[];
+            hiddenFields: string[];
+            pivotConfig: PivotConfig;
+        };
+    }): Promise<{ fileUrl: string; truncated: boolean }> {
+        const { onlyRaw, customLabels, pivotConfig } = options;
+
+        // Load all rows from the results file using shared streaming utility
+        const readStream = await storageClient.getDowloadStream(
+            resultsFileName,
+        );
+        const { results: rows, truncated } = await ExcelService.streamJsonlData<
+            Record<string, unknown>
+        >({
+            readStream,
+            onRow: (parsedRow) => parsedRow, // Just collect all rows
+        });
+
+        if (rows.length === 0) {
+            throw new Error('No data found in results file');
+        }
+
+        const fileName = `pivot-${resultsFileName}`;
+        const formattedFileName = ExcelService.generateFileId(fileName);
+
+        const excelBuffer = await ExcelService.downloadPivotTableXlsx({
+            rows,
+            itemMap: fields,
+            metricQuery,
+            pivotConfig,
+            onlyRaw,
+            customLabels,
+            maxColumnLimit: lightdashConfig.pivotTable.maxColumnLimit,
+        });
+
+        // Upload the Excel buffer to storage using the storage client pattern
+        return storageClient.transformResultsIntoNewFile(
+            resultsFileName,
+            formattedFileName,
+            async (_, writeStream: Writable) => {
+                // We already have the buffer, so just write it directly
+                writeStream.write(Buffer.from(excelBuffer));
+                writeStream.end();
+                return { truncated };
+            },
+        );
+    }
+
+    /**
+     * Shared utility for streaming JSONL data from storage
+     * Can be used for both row-by-row processing and collecting all rows
+     */
+    static async streamJsonlData<T>({
+        readStream,
+        onRow,
+        onComplete,
+        maxLines = 100000,
+    }: {
+        readStream: Readable;
+        onRow?: (
+            parsedRow: Record<string, unknown>,
+            lineCount: number,
+        ) => T | void;
+        onComplete?: (results: T[], truncated: boolean) => void;
+        maxLines?: number;
+    }): Promise<{ results: T[]; truncated: boolean }> {
+        return new Promise((resolve, reject) => {
+            const lineReader = createInterface({
+                input: readStream,
+                crlfDelay: Infinity,
+            });
+
+            let lineCount = 0;
+            let truncated = false;
+            const results: T[] = [];
+
+            lineReader.on('line', (line: string) => {
+                if (!line.trim()) return;
+
+                lineCount += 1;
+                if (lineCount > maxLines) {
+                    truncated = true;
+                    lineReader.close();
+                    return;
+                }
+
+                try {
+                    const parsedRow = JSON.parse(line);
+                    if (onRow) {
+                        const result = onRow(parsedRow, lineCount);
+                        if (result !== undefined) {
+                            results.push(result);
+                        }
+                    }
+                } catch (error) {
+                    Logger.error(
+                        `Error parsing line ${lineCount}: ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                }
+            });
+
+            lineReader.on('close', async () => {
+                if (onComplete) {
+                    await onComplete(results, truncated);
+                }
+                resolve({ results, truncated });
+            });
+
+            lineReader.on('error', (error) => {
+                reject(error);
+            });
+        });
     }
 }

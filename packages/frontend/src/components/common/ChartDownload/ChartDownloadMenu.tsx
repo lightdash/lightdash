@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ChartType,
+    getCustomLabelsFromColumnProperties,
     type ApiScheduledDownloadCsv,
     type PivotConfig,
 } from '@lightdash/common';
@@ -25,7 +26,9 @@ export type ChartDownloadMenuProps = {
     getDownloadQueryUuid: (limit: number | null) => Promise<string>;
     projectUuid: string;
     getGsheetLink?: (
-        pivotConfig?: PivotConfig,
+        columnOrder: string[],
+        showTableNames: boolean,
+        customLabels?: Record<string, string>,
     ) => Promise<ApiScheduledDownloadCsv>;
 };
 
@@ -99,7 +102,18 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                             getGsheetLink={
                                 getGsheetLink === undefined
                                     ? undefined
-                                    : () => getGsheetLink(pivotConfig)
+                                    : () =>
+                                          getGsheetLink(
+                                              visualizationConfig.chartConfig
+                                                  .columnOrder,
+                                              visualizationConfig.chartConfig
+                                                  .showTableNames,
+                                              getCustomLabelsFromColumnProperties(
+                                                  visualizationConfig
+                                                      .chartConfig
+                                                      .columnProperties,
+                                              ),
+                                          )
                             }
                         />
                     </Popover.Dropdown>

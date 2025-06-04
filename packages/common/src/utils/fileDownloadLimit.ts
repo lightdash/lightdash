@@ -2,8 +2,9 @@
  * Constants for query limit handling
  */
 export const QUERY_LIMITS = {
-    // Use a very high number to represent "unlimited" since MetricQuery requires a limit field
-    UNLIMITED: Number.MAX_SAFE_INTEGER,
+    // Use a high but safe number to represent "unlimited" since MetricQuery requires a limit field
+    // This value is chosen to be high enough for practical unlimited use but low enough to avoid backend maxLimit issues
+    UNLIMITED: 50000,
 } as const;
 
 /**

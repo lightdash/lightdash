@@ -122,10 +122,27 @@ const executeAsyncQuery = (
         );
     } else if (data?.query) {
         // For metric queries, apply the limit override to the query itself
-        const query =
-            limitOverride !== undefined
-                ? applyLimitOverrideToQuery(data.query, limitOverride)
-                : data.query;
+        let query = data.query;
+
+        if (limitOverride === null) {
+            // For unlimited requests, apply CSV cell limits like the old CSV endpoint
+            const numberColumns =
+                data.query.dimensions.length +
+                data.query.metrics.length +
+                data.query.tableCalculations.length;
+
+            if (numberColumns > 0) {
+                // Use the same CSV cell limiting logic as the backend
+                const cellsLimit = 100000; // Default CSV cells limit
+                const maxRows = Math.floor(cellsLimit / numberColumns);
+                query = { ...data.query, limit: maxRows };
+            }
+            // If numberColumns === 0, just use the original query
+        } else if (limitOverride !== undefined) {
+            // Apply specific limit override
+            query = applyLimitOverrideToQuery(data.query, limitOverride);
+        }
+        // If limitOverride === undefined, use original query as-is
 
         return executeAsyncMetricQuery(
             data.projectUuid,

@@ -108,7 +108,6 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         // Download file
                         const link = document.createElement('a');
                         link.href = response.fileUrl;
-                        console.log({ chartName });
                         link.setAttribute(
                             'download',
                             `${chartName || 'results'}_${formatDate(

@@ -1,11 +1,8 @@
 import {
     ECHARTS_DEFAULT_COLORS,
-    getCustomLabelsFromTableConfig,
     getHiddenTableFields,
     getPivotConfig,
-    isTableChartConfig,
     NotFoundError,
-    type PivotConfig,
 } from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
 import { type FC, memo, useCallback, useMemo, useState } from 'react';
@@ -122,26 +119,23 @@ const VisualizationCard: FC<{
         return <CollapsableCard title="Charts" disabled />;
     }
 
-    const getGsheetLink = async (pivotConfig?: PivotConfig) => {
+    const getGsheetLink = async (
+        columnOrder: string[],
+        showTableNames: boolean,
+        customLabels?: Record<string, string>,
+    ) => {
         if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
             const gsheetResponse = await uploadGsheet({
                 projectUuid,
                 exploreId: explore?.name,
                 metricQuery: unsavedChartVersion?.metricQuery,
-                columnOrder: unsavedChartVersion.tableConfig.columnOrder,
-                showTableNames: isTableChartConfig(
-                    unsavedChartVersion.chartConfig.config,
-                )
-                    ? unsavedChartVersion.chartConfig.config.showTableNames ??
-                      true
-                    : true,
-                customLabels: getCustomLabelsFromTableConfig(
-                    unsavedChartVersion.chartConfig.config,
-                ),
+                columnOrder,
+                showTableNames,
+                customLabels,
                 hiddenFields: getHiddenTableFields(
                     unsavedChartVersion.chartConfig,
                 ),
-                pivotConfig: pivotConfig || getPivotConfig(unsavedChartVersion),
+                pivotConfig: getPivotConfig(unsavedChartVersion),
             });
             return gsheetResponse;
         }

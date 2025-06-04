@@ -1297,7 +1297,13 @@ const ExplorerProvider: FC<
     const getDownloadQueryUuid = useCallback(
         async (limit: number | null) => {
             let queryUuid = queryResults.queryUuid;
-            if (limit !== null && limit !== queryResults.totalResults) {
+            // Always execute a new query if:
+            // 1. limit is null (meaning "all results" - should ignore existing query limits)
+            // 2. limit is different from current totalResults
+            if (
+                limit === null ||
+                (limit !== null && limit !== queryResults.totalResults)
+            ) {
                 const downloadQuery = await executeQueryAndWaitForResults(
                     validQueryArgs,
                     limit,
