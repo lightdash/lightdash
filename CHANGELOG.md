@@ -1,3 +1,10 @@
+## [0.1683.2](https://github.com/lightdash/lightdash/compare/0.1683.1...0.1683.2) (2025-06-04)
+
+
+### Bug Fixes
+
+* embed feature flag check ([#15164](https://github.com/lightdash/lightdash/issues/15164)) ([154a3d0](https://github.com/lightdash/lightdash/commit/154a3d0d573f64b85b5428f991d831a1450912f5))
+
 ## [0.1683.1](https://github.com/lightdash/lightdash/compare/0.1683.0...0.1683.1) (2025-06-03)
 
 
