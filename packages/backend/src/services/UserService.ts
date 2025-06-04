@@ -1530,10 +1530,20 @@ export class UserService extends BaseService {
                 refreshToken,
                 (err: AnyType, accessToken: string, _refreshToken, result) => {
                     if (err || !accessToken) {
-                        reject(err);
+                        // Make sure you are passing a google's refresh token, and not a snowflake refresh token by mistake
+                        // othwerise this will throw a `invalid_grant` error
+                        console.error(
+                            `Unable to get google ${type} access token ${JSON.stringify(
+                                err,
+                            )}`,
+                        );
+                        reject(
+                            new AuthorizationError(
+                                `Authentication failed with Google ${err.data?.error}`,
+                            ),
+                        );
                         return;
                     }
-
                     const scopes: string[] = hasProperty<string>(
                         result,
                         'scope',
@@ -1586,10 +1596,6 @@ export class UserService extends BaseService {
         user: SessionUser,
         type: 'gdrive' | 'bigquery' | 'snowflake' = 'gdrive',
     ): Promise<string> {
-        const refreshToken: string = await this.userModel.getRefreshToken(
-            user.userUuid,
-        );
-
         if (type === 'snowflake') {
             if (this.lightdashConfig.auth.snowflake.clientId === undefined) {
                 // If snowflake oauth is not configured, refresh strategy will not be loaded
@@ -1597,12 +1603,19 @@ export class UserService extends BaseService {
                     'Snowflake client is not configured',
                 );
             }
+            const refreshToken: string = await this.userModel.getRefreshToken(
+                user.userUuid,
+                OpenIdIdentityIssuerType.SNOWFLAKE,
+            );
             const accessToken = await UserService.generateSnowflakeAccessToken(
                 refreshToken,
             );
             return accessToken;
         }
-
+        const refreshToken: string = await this.userModel.getRefreshToken(
+            user.userUuid,
+            OpenIdIdentityIssuerType.GOOGLE,
+        );
         const accessToken = await UserService.generateGoogleAccessToken(
             refreshToken,
             type,

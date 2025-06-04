@@ -126,7 +126,7 @@ const SnowflakeForm: FC<{
         ? SnowflakeAuthenticationType.PRIVATE_KEY
         : SnowflakeAuthenticationType.PASSWORD;
 
-    if (!form.isDirty()) {
+    if (!form.isTouched()) {
         form.setFieldValue('warehouse.authenticationType', defaultAuthType);
     }
     const authenticationType: SnowflakeAuthenticationType =
