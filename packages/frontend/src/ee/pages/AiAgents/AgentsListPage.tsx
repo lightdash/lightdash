@@ -51,6 +51,7 @@ const AgentCard = ({ agent }: AgentCardProps) => {
                         w={54}
                         variant="filled"
                         style={{ flexShrink: 0 }}
+                        src={agent.imageUrl}
                     />
                     <Stack gap="xs">
                         <Title order={5}>{agent.name}</Title>

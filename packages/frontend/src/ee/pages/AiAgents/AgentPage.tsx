@@ -117,6 +117,7 @@ const AgentPage = () => {
                                 size="md"
                                 variant="filled"
                                 name={agent.name || 'AI'}
+                                src={agent.imageUrl}
                             />
                             <Title order={3}>{agent.name}</Title>
                         </Group>

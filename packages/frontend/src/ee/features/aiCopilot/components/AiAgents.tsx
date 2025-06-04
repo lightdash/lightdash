@@ -66,6 +66,7 @@ export const AiAgents: FC = () => {
                 projectName: project.name,
                 channelName: channel?.name,
                 updatedAt: agent.updatedAt,
+                imageUrl: agent.imageUrl,
             };
         });
     }, [
@@ -139,6 +140,7 @@ export const AiAgents: FC = () => {
                                             size="sm"
                                             name={agent.name}
                                             variant="filled"
+                                            src={agent.imageUrl}
                                         />
 
                                         <Text size="sm" fw={500}>
