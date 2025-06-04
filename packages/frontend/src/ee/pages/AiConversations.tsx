@@ -25,7 +25,6 @@ import dayjs from 'dayjs';
 import type { FC } from 'react';
 import { Link, useNavigate, useParams, type LinkProps } from 'react-router';
 import { lightdashApi } from '../../api';
-import { LightdashUserAvatar } from '../../components/Avatar';
 import Page from '../../components/common/Page/Page';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
@@ -110,8 +109,13 @@ const AiThreadMessage: FC<AiThreadMessageProps> = ({
                 flexDirection: actor === 'human' ? 'row-reverse' : 'row',
             }}
         >
-            <LightdashUserAvatar name={initials} />
-
+            <Avatar
+                color={actor === 'human' ? 'violet' : 'cyan'}
+                radius="xl"
+                variant="filled"
+            >
+                {actor === 'human' ? initials[0] : 'AI'}
+            </Avatar>
             <Stack
                 spacing="xs"
                 align={actor === 'human' ? 'flex-end' : 'flex-start'}
@@ -216,13 +220,8 @@ const AiThread: FC<AiThreadProps> = ({
         >
             <Group align="flex-start" noWrap>
                 <div style={{ position: 'relative' }}>
-                    <Avatar
-                        color="violet"
-                        radius="xl"
-                        variant="filled"
-                        // style={{ overflow: 'unset' }}
-                    >
-                        {conversation.user.name}
+                    <Avatar color="violet" radius="xl" variant="filled">
+                        {conversation.user.name[0]}
                     </Avatar>
 
                     {conversation.createdFrom === 'slack' && (
