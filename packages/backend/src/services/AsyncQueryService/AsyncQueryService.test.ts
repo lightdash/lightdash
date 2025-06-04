@@ -742,7 +742,7 @@ describe('AsyncQueryService', () => {
                 resultsFileName: 'file-name',
                 resultsCreatedAt: new Date(),
                 resultsUpdatedAt: new Date(),
-                resultsExpiresAt: new Date(),
+                resultsExpiresAt: new Date(Date.now() + 60_000), // so it doesn't get stuck on resultsExpiresAt < new Date()
                 columns: expectedColumns,
                 originalColumns: mockOriginalColumns,
             };
