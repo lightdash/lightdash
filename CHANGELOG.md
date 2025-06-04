@@ -1,3 +1,10 @@
+# [0.1684.0](https://github.com/lightdash/lightdash/compare/0.1683.3...0.1684.0) (2025-06-04)
+
+
+### Features
+
+* Improve ai agent chat scrollbars ([#15160](https://github.com/lightdash/lightdash/issues/15160)) ([2ab17b3](https://github.com/lightdash/lightdash/commit/2ab17b30ff8e3aeef283e5ea4781e8439c5d6925)), closes [#15142](https://github.com/lightdash/lightdash/issues/15142)
+
 ## [0.1683.3](https://github.com/lightdash/lightdash/compare/0.1683.2...0.1683.3) (2025-06-04)
 
 
