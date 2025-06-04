@@ -1,3 +1,11 @@
+## [0.1683.3](https://github.com/lightdash/lightdash/compare/0.1683.2...0.1683.3) (2025-06-04)
+
+
+### Bug Fixes
+
+* increase resultsExpiresAt ([#15163](https://github.com/lightdash/lightdash/issues/15163)) ([8a1804a](https://github.com/lightdash/lightdash/commit/8a1804af65d8d0d0e00f0fbb095e3ddd922d5e8b))
+* use lightningcss transformer in SDK build ([#15154](https://github.com/lightdash/lightdash/issues/15154)) ([9641aac](https://github.com/lightdash/lightdash/commit/9641aac449d147ce8ee6c4758c55c9813babc45f))
+
 ## [0.1683.2](https://github.com/lightdash/lightdash/compare/0.1683.1...0.1683.2) (2025-06-04)
 
 
