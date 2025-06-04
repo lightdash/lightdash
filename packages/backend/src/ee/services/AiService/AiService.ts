@@ -1,16 +1,6 @@
 import { subject } from '@casl/ability';
 import { type TokenUsage } from '@langchain/core/language_models/base';
 import {
-    AIMessage,
-    HumanMessage,
-    SystemMessage,
-} from '@langchain/core/messages';
-import { OutputParserException } from '@langchain/core/output_parsers';
-import {
-    ChatPromptTemplate,
-    MessagesPlaceholder,
-} from '@langchain/core/prompts';
-import {
     AiChatAgents,
     AiChatMessage,
     AiConversation,
@@ -30,7 +20,6 @@ import {
     SessionUser,
     SlackPrompt,
     UnexpectedServerError,
-    assertUnreachable,
     filterExploreByTags,
     getErrorMessage,
     getItemId,
@@ -38,13 +27,10 @@ import {
     isField,
     isSlackPrompt,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
-import { AgentExecutor } from 'langchain/agents';
 import { pick } from 'lodash';
-import moment from 'moment';
 import slackifyMarkdown from 'slackify-markdown';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
-import { PostSlackFile, SlackClient } from '../../../clients/Slack/SlackClient';
+import { SlackClient } from '../../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
@@ -63,24 +49,26 @@ import OpenAi from '../../clients/OpenAi';
 import { AiAgentModel } from '../../models/AiAgentModel';
 import { AiModel } from '../../models/AiModel';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
+import { runAgent } from '../ai/agent';
+import type {
+    GetExploreFn,
+    GetPromptFn,
+    RunMiniMetricQueryFn,
+    SendFileFn,
+    UpdateProgressFn,
+} from '../ai/types/aiAgentDependencies';
+import { SearchFieldsFn } from '../ai/types/aiAgentDependencies';
+import { AiAgentExploreSummary } from '../ai/types/aiAgentExploreSummary';
 import { AiAgentService } from '../AiAgentService';
 import { CommercialCatalogService } from '../CommercialCatalogService';
-import { getFindFieldsTool } from './tools/findFieldsTool';
-import { getGenerateBarVizConfigTool } from './tools/generateBarVizConfigTool';
-import { getGenerateCsvTool } from './tools/generateCsvTool';
-import { getGenerateQueryFiltersTool } from './tools/generateQueryFilters';
-import { getGenerateTimeSeriesVizConfigTool } from './tools/generateTimeSeriesVizConfigTool';
-import { getGetOneLineResultTool } from './tools/getOneLineResult';
 import {
     getDeepLinkBlocks,
     getExploreBlocks,
     getFeedbackBlocks,
     getFollowUpToolBlocks,
 } from './utils/aiCopilot/getSlackBlocks';
-import { aiCopilotSystemPrompt } from './utils/aiCopilot/prompts';
 import { validateSelectedFieldsExistence } from './utils/aiCopilot/validators';
 import { AiDuplicateSlackPromptError } from './utils/errors';
-import { createOpenAIToolsAgent } from './utils/langchainUtils';
 import {
     fieldDesc,
     formatSummaryArray,
@@ -490,7 +478,7 @@ export class AiService {
         user: SessionUser,
         projectUuid: string,
         availableTags: string[] | null,
-    ) {
+    ): Promise<AiAgentExploreSummary[]> {
         const exploreSummaries =
             await this.projectService.getAllExploresSummary(
                 user,
@@ -530,14 +518,14 @@ export class AiService {
 
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack
     // This is scoped to the project, user and prompt (closure)
-    public getToolUtilities(
+    public getAiAgentDependencies(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
         availableTags: string[] | null,
     ) {
         const { projectUuid, organizationUuid, agentUuid } = prompt;
 
-        const getExplore = async ({ exploreName }: { exploreName: string }) => {
+        const getExplore: GetExploreFn = async ({ exploreName }) => {
             const explore = await this.projectService.getExplore(
                 user,
                 projectUuid,
@@ -556,47 +544,43 @@ export class AiService {
             return filteredExplore;
         };
 
-        const searchFields = this.lightdashConfig.ai.copilot
-            .embeddingSearchEnabled
-            ? async ({
-                  exploreName,
-                  embeddingSearchQueries,
-              }: {
-                  exploreName: string;
-                  embeddingSearchQueries: Array<{
-                      name: string;
-                      description: string;
-                  }>;
-              }) => {
-                  if (!this.openAi.embedder) {
-                      throw new UnexpectedServerError(
-                          'OpenAi embedder is not initialized',
-                      );
-                  }
-                  const embedQueries =
-                      await this.openAi.embedder.embedDocuments(
-                          embeddingSearchQueries.map((q) => JSON.stringify(q)),
-                      );
+        const searchFields: SearchFieldsFn = async ({
+            exploreName,
+            embeddingSearchQueries,
+        }: {
+            exploreName: string;
+            embeddingSearchQueries: Array<{
+                name: string;
+                description: string;
+            }>;
+        }) => {
+            if (!this.openAi.embedder) {
+                throw new UnexpectedServerError(
+                    'OpenAi embedder is not initialized',
+                );
+            }
+            const embedQueries = await this.openAi.embedder.embedDocuments(
+                embeddingSearchQueries.map((q) => JSON.stringify(q)),
+            );
 
-                  const catalogItems = await this.catalogService.hybridSearch({
-                      user,
-                      projectUuid,
-                      embedQueries,
-                      exploreName,
-                      type: CatalogType.Field,
-                      limit: 30,
-                  });
+            const catalogItems = await this.catalogService.hybridSearch({
+                user,
+                projectUuid,
+                embedQueries,
+                exploreName,
+                type: CatalogType.Field,
+                limit: 30,
+            });
 
-                  return catalogItems.data.map((item) => item.name);
-              }
-            : undefined;
+            return catalogItems.data.map((item) => item.name);
+        };
 
-        const updateProgress = (progress: string) =>
+        const updateProgress: UpdateProgressFn = (progress) =>
             isSlackPrompt(prompt)
                 ? this.updateSlackResponseWithProgress(prompt, progress)
                 : Promise.resolve();
 
-        const getPrompt = async () => {
+        const getPrompt: GetPromptFn = async () => {
             const webOrSlackPrompt = isSlackPrompt(prompt)
                 ? await this.aiModel.findSlackPrompt(prompt.promptUuid)
                 : await this.aiModel.findWebAppPrompt(prompt.promptUuid);
@@ -607,7 +591,9 @@ export class AiService {
             return webOrSlackPrompt;
         };
 
-        const runMiniMetricQuery = async (metricQuery: AiMetricQuery) => {
+        const runMiniMetricQuery: RunMiniMetricQueryFn = async (
+            metricQuery,
+        ) => {
             const explore = await getExplore({
                 exploreName: metricQuery.exploreName,
             });
@@ -638,7 +624,7 @@ export class AiService {
             });
         };
 
-        const sendFile = async (args: PostSlackFile) => {
+        const sendFile: SendFileFn = async (args) => {
             //
             // TODO: https://api.slack.com/methods/files.upload does not support setting custom usernames
             // support this in the future
@@ -657,7 +643,9 @@ export class AiService {
 
         return {
             getExplore,
-            searchFields,
+            searchFields: this.lightdashConfig.ai.copilot.embeddingSearchEnabled
+                ? searchFields
+                : undefined,
             updateProgress,
             getPrompt,
             runMiniMetricQuery,
@@ -667,7 +655,7 @@ export class AiService {
 
     async generateExploreResult(
         user: SessionUser,
-        prevMessages: AiChatMessage[],
+        messageHistory: AiChatMessage[],
         slackOrWebAppPrompt: SlackPrompt | AiWebAppPrompt,
     ): Promise<string> {
         if (!user.organizationUuid) {
@@ -676,6 +664,11 @@ export class AiService {
 
         if (!(await this.getIsCopilotEnabled(user))) {
             throw new Error('AI Copilot is not enabled');
+        }
+
+        // TODO: add to lightdash config
+        if (!process.env.OPENAI_API_KEY) {
+            throw new Error('OpenAI API key not found');
         }
 
         const { projectUuid } = slackOrWebAppPrompt;
@@ -698,162 +691,39 @@ export class AiService {
             getPrompt,
             runMiniMetricQuery,
             sendFile,
-        } = this.getToolUtilities(
+        } = this.getAiAgentDependencies(
             user,
             slackOrWebAppPrompt,
             agentSettings?.tags ?? null,
         );
 
-        const findFieldsTool = getFindFieldsTool({
-            getExplore,
-            searchFields,
-        });
-
-        const generateQueryFilters = getGenerateQueryFiltersTool({
-            getExplore,
-            promptUuid: slackOrWebAppPrompt.promptUuid,
-            updatePrompt: this.aiModel.updateModelResponse.bind(this.aiModel),
-        });
-
-        const generateBarVizConfigTool = getGenerateBarVizConfigTool({
-            updateProgress: updateProgress.bind(this),
-            runMiniMetricQuery,
-            getPrompt,
-            updatePrompt: this.aiModel.updateModelResponse.bind(this.aiModel),
-            sendFile,
-        });
-
-        const generateTimeSeriesVizConfigTool =
-            getGenerateTimeSeriesVizConfigTool({
-                updateProgress: updateProgress.bind(this),
-                runMiniMetricQuery,
-                getPrompt,
-                updatePrompt: this.aiModel.updateModelResponse.bind(
-                    this.aiModel,
-                ),
-                sendFile,
-            });
-
-        const generateCsvTool = getGenerateCsvTool({
-            updateProgress: updateProgress.bind(this),
-            runMiniMetricQuery,
-            getPrompt,
-            updatePrompt: this.aiModel.updateModelResponse.bind(this.aiModel),
-            sendFile,
-            maxLimit: this.lightdashConfig.query.maxLimit,
-        });
-
-        const getOneLineResultTool = getGetOneLineResultTool({
-            updateProgress: updateProgress.bind(this),
-            runMiniMetricQuery,
-            getPrompt,
-            updatePrompt: this.aiModel.updateModelResponse.bind(this.aiModel),
-        });
-
-        const tools = [
-            findFieldsTool,
-            generateQueryFilters,
-            generateBarVizConfigTool,
-            generateCsvTool,
-            generateTimeSeriesVizConfigTool,
-            getOneLineResultTool,
-        ];
-
-        const llm = this.openAi.model;
-        if (llm === undefined) {
-            throw new UnexpectedServerError('OpenAi model is not initialized');
-        }
-
-        const prompt = ChatPromptTemplate.fromMessages([
-            aiCopilotSystemPrompt,
-            new MessagesPlaceholder('metadata'),
-            new MessagesPlaceholder('chat_history'),
-            new MessagesPlaceholder('agent_scratchpad'),
-        ]);
-
-        const agent = await createOpenAIToolsAgent({
-            llm,
-            prompt,
-            tools,
-            streamRunnable: false,
-            // TODO: enable this when we have a way to have openai compliant zod/json schemas
-            // strict: true,
-        });
-
-        const agentExecutor = new AgentExecutor({
-            agent,
-            tools,
-            returnIntermediateSteps: true,
-            handleParsingErrors(e) {
-                Logger.debug('Failed to parse the output:', e);
-                Sentry.captureException(e);
-                const isOutputParserException =
-                    e instanceof OutputParserException;
-                const parseItem = isOutputParserException
-                    ? 'output'
-                    : `tool input`;
-
-                return `Failed to parse the ${parseItem}.
-
-Here's the original error message: ${e.message}
-
-${
-    isOutputParserException && e.llmOutput
-        ? `Here's the output that caused the error:
-
-\`\`\`
-${e.llmOutput}
-\`\`\``
-        : ''
-}
-`;
-            },
-            // make sure to set the maxIterations to a reasonable number based on the tool's complexity
-            maxIterations: 10,
-        });
-
-        const chatHistory = prevMessages.map(
-            ({ agent: agentType, message }) => {
-                switch (agentType) {
-                    case AiChatAgents.AI:
-                        return new AIMessage(message);
-                    case AiChatAgents.HUMAN:
-                        return new HumanMessage(message);
-                    default:
-                        return assertUnreachable(
-                            agentType,
-                            `unknown agent: ${agent}`,
-                        );
-                }
-            },
+        const aiAgentExploreSummaries = await this.getMinimalExploreInformation(
+            user,
+            projectUuid,
+            agentSettings?.tags ?? null,
         );
 
-        const minimalExploreInformation =
-            await this.getMinimalExploreInformation(
-                user,
-                projectUuid,
-                agentSettings?.tags ?? null,
-            );
-
-        const results = await agentExecutor.invoke({
-            chat_history: chatHistory,
-            metadata: [
-                new HumanMessage({
-                    content: JSON.stringify(minimalExploreInformation, null, 2),
-                    name: 'available_explores_json',
-                }),
-            ],
-            agent_name: agentSettings.name || 'Lightdash AI Analyst',
-            instructions: agentSettings.instruction || '',
-            date: moment().utc().format('YYYY-MM-DD'),
-            time: moment().utc().format('HH:mm'),
+        return runAgent({
+            args: {
+                openaiApiKey: process.env.OPENAI_API_KEY,
+                agentName: agentSettings.name,
+                instruction: agentSettings.instruction,
+                messageHistory,
+                aiAgentExploreSummaries,
+                promptUuid: slackOrWebAppPrompt.promptUuid,
+                maxLimit: this.lightdashConfig.query.maxLimit,
+            },
+            dependencies: {
+                getExplore,
+                searchFields,
+                runMiniMetricQuery,
+                getPrompt,
+                sendFile,
+                // avoid binding
+                updateProgress: (args) => updateProgress(args),
+                updatePrompt: (args) => this.aiModel.updateModelResponse(args),
+            },
         });
-
-        // console.debug('~~~~~~~~~~~~~~~');
-        // console.debug(util.inspect(results, { depth: null, colors: true }));
-        // console.debug('~~~~~~~~~~~~~~~');
-
-        return results.output;
     }
 
     // TODO: user permissions
@@ -1380,7 +1250,7 @@ ${
         }
 
         // TODO: this can receive project settings/available tags - like we have for slack
-        const utils = this.getToolUtilities(user, finalPrompt, null);
+        const utils = this.getAiAgentDependencies(user, finalPrompt, null);
 
         const rows = finalPrompt.metricQuery
             ? (

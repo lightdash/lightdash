@@ -1,48 +1,44 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
-import {
-    AiWebAppPrompt,
-    getErrorMessage,
-    isSlackPrompt,
-    SlackPrompt,
-    UpdateSlackResponse,
-} from '@lightdash/common';
-import * as Sentry from '@sentry/node';
-import { z } from 'zod';
-import { SlackClient } from '../../../../clients/Slack/SlackClient';
-import Logger from '../../../../logging/logger';
-import { renderEcharts } from '../charts/renderEcharts';
+import { isSlackPrompt } from '@lightdash/common';
+import { tool } from 'ai';
+import { renderEcharts } from '../../AiService/charts/renderEcharts';
 import {
     generateBarVizConfigToolSchema,
     renderVerticalBarMetricChart,
-} from '../charts/verticalBarChart';
-import { RunMiniMetricQuery } from '../runMiniMetricQuery/runMiniMetricQuery';
+} from '../../AiService/charts/verticalBarChart';
+import type {
+    GetPromptFn,
+    RunMiniMetricQueryFn,
+    SendFileFn,
+    UpdateProgressFn,
+    UpdatePromptFn,
+} from '../types/aiAgentDependencies';
+import { toolErrorHandler } from '../utils/toolErrorHandler';
 
-type GetGenerateBarVizConfigToolArgs = {
-    updateProgress: (progress: string) => Promise<void>;
-    runMiniMetricQuery: RunMiniMetricQuery;
-    getPrompt: () => Promise<SlackPrompt | AiWebAppPrompt>;
-    updatePrompt: (prompt: UpdateSlackResponse) => Promise<void>;
-    sendFile: InstanceType<typeof SlackClient>['postFileToThread'];
+type Dependencies = {
+    updateProgress: UpdateProgressFn;
+    runMiniMetricQuery: RunMiniMetricQueryFn;
+    getPrompt: GetPromptFn;
+    updatePrompt: UpdatePromptFn;
+    sendFile: SendFileFn;
 };
 
-export const getGenerateBarVizConfigTool = ({
+export const getGenerateBarVizConfig = ({
     updateProgress,
     runMiniMetricQuery,
     getPrompt,
     sendFile,
     updatePrompt,
-}: GetGenerateBarVizConfigToolArgs) => {
+}: Dependencies) => {
     const schema = generateBarVizConfigToolSchema;
 
-    return new DynamicStructuredTool({
-        name: 'generateBarVizConfig',
+    return tool({
         description: `Generate Bar Chart Visualization and show it to the user.
 
 Rules for generating the bar chart visualization:
 - The dimension and metric "fieldIds" must come from an explore. If you haven't used "findFieldsInExplore" tool, please do so before using this tool.
 - If the data needs to be filtered, generate the filters using the "generateQueryFilters" tool before using this tool.`,
-        schema,
-        func: async ({ filters, vizConfig }: z.infer<typeof schema>) => {
+        parameters: schema,
+        execute: async ({ filters, vizConfig }) => {
             try {
                 await updateProgress(
                     '🔍 Running a query for your bar chart...',
@@ -82,17 +78,7 @@ Rules for generating the bar chart visualization:
 
                 return `A bar chart has been successfully generated and shown to the user.`;
             } catch (e) {
-                Logger.debug('Error generating bar chart visualization', e);
-                Sentry.captureException(e);
-
-                return `There was an error generating the bar chart.
-
-Here's the original error message:
-\`\`\`
-${getErrorMessage(e)}
-\`\`\`
-
-Please try again.`;
+                return toolErrorHandler(e, `Error generating bar chart.`);
             }
         },
     });
