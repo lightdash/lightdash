@@ -49,7 +49,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({ thread, isActive }) => (
         color="gray"
         component={Link}
         key={thread.uuid}
-        to={`/aiAgents/${thread.agentUuid}/threads/${thread.uuid}`}
+        to={`/ai-agents/${thread.agentUuid}/threads/${thread.uuid}`}
         px="xs"
         py={4}
         mx={-8}
@@ -90,7 +90,7 @@ const AgentPage = () => {
     }
 
     if (!agent) {
-        return <Navigate to={`/aiAgents`} />;
+        return <Navigate to={`/ai-agents`} />;
     }
 
     return (
@@ -102,7 +102,7 @@ const AgentPage = () => {
                             size="compact-xs"
                             variant="subtle"
                             component={Link}
-                            to="/aiAgents"
+                            to="/ai-agents"
                             leftSection={<MantineIcon icon={IconArrowLeft} />}
                             style={{
                                 root: {
@@ -142,7 +142,7 @@ const AgentPage = () => {
                             leftSection={<IconPlus size={16} />}
                             component={Link}
                             size="xs"
-                            to={`/aiAgents/${agent.uuid}/threads`}
+                            to={`/ai-agents/${agent.uuid}/threads`}
                         >
                             New thread
                         </Button>
