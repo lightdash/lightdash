@@ -73,6 +73,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userModel: models.getUserModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
+                    organizationModel: models.getOrganizationModel(),
                 }),
             catalogService: ({ context, models }) =>
                 new CommercialCatalogService({

@@ -56,6 +56,7 @@ import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
@@ -79,6 +80,7 @@ type Dependencies = {
     userAttributesModel: UserAttributesModel;
     projectService: ProjectService;
     featureFlagModel: FeatureFlagModel;
+    organizationModel: OrganizationModel;
 };
 
 export class EmbedService extends BaseService {
@@ -104,6 +106,8 @@ export class EmbedService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly organizationModel: OrganizationModel;
+
     constructor(dependencies: Dependencies) {
         super();
         this.analytics = dependencies.analytics;
@@ -117,6 +121,7 @@ export class EmbedService extends BaseService {
         this.userAttributesModel = dependencies.userAttributesModel;
         this.projectService = dependencies.projectService;
         this.featureFlagModel = dependencies.featureFlagModel;
+        this.organizationModel = dependencies.organizationModel;
     }
 
     async getEmbedUrl(
@@ -325,13 +330,27 @@ export class EmbedService extends BaseService {
         }
     }
 
-    private async isFeatureEnabled(
-        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
-    ) {
+    private async isFeatureEnabled(user: {
+        userUuid: string;
+        organizationUuid: string;
+    }) {
+        const organization = await this.organizationModel.get(
+            user.organizationUuid,
+        );
+
+        if (!organization) {
+            throw new ForbiddenError('Organization not found');
+        }
+
         const isEnabled = await this.featureFlagModel.get({
-            user,
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                organizationName: organization.name,
+            },
             featureFlagId: CommercialFeatureFlags.Embedding,
         });
+
         if (!isEnabled.enabled) throw new ForbiddenError('Feature not enabled');
     }
 
