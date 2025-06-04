@@ -212,7 +212,10 @@ export const CustomMetricModal = () => {
                     setFieldValue('percentile', item.percentile);
 
                 if (item.formatOptions) {
-                    setFieldValue('format', item.formatOptions);
+                    setFieldValue('format', {
+                        // This spread is intentional to avoid @mantine/form mutating the enum object `item.formatOptions.type`
+                        ...item.formatOptions,
+                    });
                 }
             }
         },
