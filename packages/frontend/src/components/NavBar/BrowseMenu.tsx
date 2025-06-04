@@ -90,7 +90,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 {!isAiCopilotLoading && aiCopilotFlag?.enabled ? (
                     <Menu.Item
                         component={Link}
-                        to={`/aiAgents`}
+                        to={`/ai-agents`}
                         icon={<MantineIcon icon={IconRobot} />}
                     >
                         AI Agents (Alpha)
