@@ -69,6 +69,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({ thread, isActive }) => (
                 </Tooltip>
             )
         }
+        viewTransition
     />
 );
 const AgentPage = () => {
@@ -94,9 +95,6 @@ const AgentPage = () => {
 
     return (
         <Page
-            withCenteredContent
-            withXLargePaddedContent
-            withCenteredRoot
             sidebar={
                 <Stack gap="xl" align="stretch">
                     <Stack align="flex-start" gap="xs">
@@ -237,9 +235,7 @@ const AgentPage = () => {
                 </Stack>
             }
         >
-            <Box w="100%" maw="62rem" mx="auto" mt="xl" h="100%">
-                <Outlet />
-            </Box>
+            <Outlet />
         </Page>
     );
 };
