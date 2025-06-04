@@ -197,7 +197,7 @@ const SnowflakeForm: FC<{
                         w={isAuthenticated ? '90%' : '100%'}
                     />
                     {isAuthenticated && (
-                        <Tooltip label="You are connected to BigQuery">
+                        <Tooltip label="You are connected to Snowflake">
                             <Group mt="40px">
                                 <MantineIcon icon={IconCheck} color="green" />
                             </Group>
