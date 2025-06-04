@@ -22,6 +22,7 @@ import {
     ProjectSummary,
     ProjectType,
     SemanticLayerType,
+    SnowflakeAuthenticationType,
     SnowflakeCredentials,
     SpaceSummary,
     SupportedDbtVersions,
@@ -793,13 +794,14 @@ export class ProjectModel {
                 if (rawCredentials.privateKey === undefined) {
                     return {
                         ...nonSensitiveCredentials,
-                        authenticationType: 'password',
+                        authenticationType:
+                            SnowflakeAuthenticationType.PASSWORD,
                     };
                 }
 
                 return {
                     ...nonSensitiveCredentials,
-                    authenticationType: 'private_key',
+                    authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
                 };
             }
             default:

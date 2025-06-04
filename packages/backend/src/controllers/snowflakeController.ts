@@ -1,8 +1,4 @@
-import {
-    ApiBigqueryDatasets,
-    ApiErrorPayload,
-    ApiSuccessEmpty,
-} from '@lightdash/common';
+import { ApiErrorPayload, ApiSuccessEmpty } from '@lightdash/common';
 import {
     Get,
     Middlewares,
@@ -30,7 +26,7 @@ export class SnowflakeController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        // This will throw an error if the user is not authenticated with bigquery scopes
+        // This will throw an error if the user is not authenticated with snowflake scopes
         const accessToken = await this.services
             .getUserService()
             .getAccessToken(req.user!, 'snowflake');
