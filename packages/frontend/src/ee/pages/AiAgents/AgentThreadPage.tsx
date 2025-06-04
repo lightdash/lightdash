@@ -63,7 +63,11 @@ const AiAgentThreadPage = () => {
             cancelAnimationFrame(raf);
             clearTimeout(timeout);
         };
-    }, [thread?.messages]);
+    }, [isGenerating, thread?.messages.length]);
+
+    const handleSubmit = (prompt: string) => {
+        void generateAgentThreadResponse({ prompt });
+    };
 
     if (isLoadingThread || !thread || agentQuery.isLoading) {
         return <Loader />;
@@ -122,9 +126,7 @@ const AiAgentThreadPage = () => {
                     disabled={thread.createdFrom === 'slack'}
                     disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
                     loading={isGenerating}
-                    onSubmit={(prompt) => {
-                        void generateAgentThreadResponse({ prompt });
-                    }}
+                    onSubmit={handleSubmit}
                 />
             </Box>
         </Stack>
