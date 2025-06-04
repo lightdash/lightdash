@@ -187,17 +187,17 @@ const BigQueryForm: FC<{
                                     </Anchor>
                                 </Text>
                             ) : (
-                                'Choose between password or key pair authentication'
+                                'Choose whether to authenticate with a service account or a user account'
                             )
                         }
                         data={[
                             {
                                 value: BigqueryAuthenticationType.PRIVATE_KEY,
-                                label: 'Private Key',
+                                label: 'Service Account (JSON key file)',
                             },
                             {
                                 value: BigqueryAuthenticationType.SSO,
-                                label: 'Google SSO (recommended)',
+                                label: 'User Account (Sign in with Google)',
                             },
                         ]}
                         required
