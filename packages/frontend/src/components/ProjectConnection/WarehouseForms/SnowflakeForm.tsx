@@ -33,6 +33,7 @@ import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
 import { useProjectFormContext } from '../useProjectFormContext';
 import { SnowflakeDefaultValues } from './defaultValues';
+import { getSsoLabel, PASSWORD_LABEL, PRIVATE_KEY_LABEL } from './util';
 
 export const SnowflakeSchemaInput: FC<{
     disabled: boolean;
@@ -79,15 +80,16 @@ const SnowflakeForm: FC<{
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const form = useFormContext();
-    // TODO: These are stubs for the actual hooks
     const {
         data,
+        isLoading: isLoadingAuth,
         error: snowflakeAuthError,
         refetch: refetchAuth,
     } = useIsSnowflakeAuthenticated();
     const isSso =
         form.values.warehouse?.type === WarehouseTypes.SNOWFLAKE &&
-        form.values.warehouse.authenticationType === 'sso';
+        form.values.warehouse.authenticationType ===
+            SnowflakeAuthenticationType.SSO;
     const isAuthenticated =
         data !== undefined && snowflakeAuthError === null && isSso;
     const { refetch: refetchDatasets } = useSnowflakeDatasets();
@@ -108,17 +110,27 @@ const SnowflakeForm: FC<{
         throw new Error('Snowflake form is not used for this warehouse type');
     }
 
+    const savedAuthType =
+        savedProject?.warehouseConnection?.type === WarehouseTypes.SNOWFLAKE
+            ? savedProject?.warehouseConnection?.authenticationType
+            : undefined;
     const hasPrivateKey =
         savedProject !== undefined
-            ? savedProject?.warehouseConnection?.type ===
-                  WarehouseTypes.SNOWFLAKE &&
-              savedProject?.warehouseConnection?.authenticationType ===
-                  'private_key'
+            ? savedAuthType === SnowflakeAuthenticationType.PRIVATE_KEY
             : true;
+    const defaultAuthType = savedAuthType
+        ? savedAuthType
+        : isSsoEnabled
+        ? SnowflakeAuthenticationType.SSO
+        : hasPrivateKey
+        ? SnowflakeAuthenticationType.PRIVATE_KEY
+        : SnowflakeAuthenticationType.PASSWORD;
 
-    const authenticationType: string =
-        form.values.warehouse.authenticationType ??
-        (hasPrivateKey ? 'private_key' : 'password');
+    if (!form.isDirty()) {
+        form.setFieldValue('warehouse.authenticationType', defaultAuthType);
+    }
+    const authenticationType: SnowflakeAuthenticationType =
+        form.values.warehouse.authenticationType ?? defaultAuthType;
 
     const [temporaryFile, setTemporaryFile] = useState<File>();
 
@@ -126,25 +138,25 @@ const SnowflakeForm: FC<{
         ? [
               {
                   value: SnowflakeAuthenticationType.SSO,
-                  label: 'Snowflake SSO (recommended)',
+                  label: getSsoLabel(WarehouseTypes.SNOWFLAKE),
               },
               {
                   value: SnowflakeAuthenticationType.PRIVATE_KEY,
-                  label: 'Private Key',
+                  label: PRIVATE_KEY_LABEL,
               },
               {
                   value: SnowflakeAuthenticationType.PASSWORD,
-                  label: 'Password',
+                  label: PASSWORD_LABEL,
               },
           ]
         : [
               {
                   value: SnowflakeAuthenticationType.PRIVATE_KEY,
-                  label: 'Private Key (recommended)',
+                  label: PRIVATE_KEY_LABEL,
               },
               {
                   value: SnowflakeAuthenticationType.PASSWORD,
-                  label: 'Password',
+                  label: PASSWORD_LABEL,
               },
           ];
 
@@ -166,16 +178,10 @@ const SnowflakeForm: FC<{
                         name="warehouse.authenticationType"
                         {...form.getInputProps('warehouse.authenticationType')}
                         // TODO: default value is not being recognized. private key is always being selected
-                        defaultValue={
-                            isSsoEnabled
-                                ? SnowflakeAuthenticationType.SSO
-                                : hasPrivateKey
-                                ? SnowflakeAuthenticationType.PRIVATE_KEY
-                                : SnowflakeAuthenticationType.PASSWORD
-                        }
+                        defaultValue={defaultAuthType}
                         label="Authentication Type"
                         description={
-                            isAuthenticated ? (
+                            isLoadingAuth ? null : isAuthenticated ? (
                                 <Text mt="0" color="gray" fs="xs">
                                     You are connected to Snowflake,{' '}
                                     <Anchor
@@ -305,11 +311,13 @@ const SnowflakeForm: FC<{
                         />
                     </>
                 ) : authenticationType === SnowflakeAuthenticationType.SSO ? (
-                    <SnowflakeSSOInput
-                        isAuthenticated={isAuthenticated}
-                        disabled={disabled}
-                        openLoginPopup={openLoginPopup}
-                    />
+                    !isLoadingAuth && (
+                        <SnowflakeSSOInput
+                            isAuthenticated={isAuthenticated}
+                            disabled={disabled}
+                            openLoginPopup={openLoginPopup}
+                        />
+                    )
                 ) : (
                     <>
                         <PasswordInput

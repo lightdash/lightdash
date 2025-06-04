@@ -180,7 +180,7 @@ export type CreateSnowflakeCredentials = {
     requireUserCredentials?: boolean;
     privateKey?: string;
     privateKeyPass?: string;
-    authenticationType?: 'password' | 'private_key' | 'sso';
+    authenticationType?: SnowflakeAuthenticationType;
     token?: string; // oauth token for sso
     role?: string;
     database: string;
