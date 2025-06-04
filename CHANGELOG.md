@@ -1,3 +1,10 @@
+## [0.1685.1](https://github.com/lightdash/lightdash/compare/0.1685.0...0.1685.1) (2025-06-04)
+
+
+### Bug Fixes
+
+* scroll on submit or thread change ([#15179](https://github.com/lightdash/lightdash/issues/15179)) ([e0bd955](https://github.com/lightdash/lightdash/commit/e0bd955cac87779d400ddd063eea04b20146a109))
+
 # [0.1685.0](https://github.com/lightdash/lightdash/compare/0.1684.1...0.1685.0) (2025-06-04)
 
 
