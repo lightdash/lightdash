@@ -1,3 +1,10 @@
+## [0.1684.1](https://github.com/lightdash/lightdash/compare/0.1684.0...0.1684.1) (2025-06-04)
+
+
+### Bug Fixes
+
+* copy on bigquery form ([#15159](https://github.com/lightdash/lightdash/issues/15159)) ([186adb7](https://github.com/lightdash/lightdash/commit/186adb7bba65d4a5d59f69756cd9c6f9ebf1babc))
+
 # [0.1684.0](https://github.com/lightdash/lightdash/compare/0.1683.3...0.1684.0) (2025-06-04)
 
 
