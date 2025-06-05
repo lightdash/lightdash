@@ -7,11 +7,11 @@ import {
     ActionIcon,
     Button,
     Card,
+    Center,
     CopyButton,
     Group,
     Loader,
     Paper,
-    Skeleton,
     Stack,
     Text,
     Tooltip,
@@ -19,6 +19,7 @@ import {
 import {
     IconCheck,
     IconCopy,
+    IconExclamationCircle,
     IconExternalLink,
     IconThumbDown,
     IconThumbDownFilled,
@@ -150,7 +151,11 @@ export const AssistantBubble: FC<{
             }}
         >
             {isLoading ? (
-                <Skeleton h={20} w={100} />
+                <Loader
+                    type="dots"
+                    color="gray"
+                    delayedMessage="Processing your request, this may take a moment"
+                />
             ) : (
                 <MDEditor.Markdown
                     source={message.message}
@@ -159,17 +164,39 @@ export const AssistantBubble: FC<{
             )}
 
             {message.vizConfigOutput && message.metricQuery && (
-                <Paper withBorder radius="md" p="md" shadow="none">
+                <Paper
+                    withBorder
+                    radius="md"
+                    p="md"
+                    shadow="none"
+                    {...((vizQuery.isError || vizQuery.isLoading) && {
+                        bg: 'gray.0',
+                        style: {
+                            borderStyle: 'dashed',
+                        },
+                    })}
+                >
                     {vizQuery.isLoading ? (
-                        <Loader />
+                        <Center>
+                            <Loader type="dots" color="gray" />
+                        </Center>
                     ) : vizQuery.isError ? (
-                        <Text>Error fetching viz</Text>
+                        <Stack gap="xs" align="center">
+                            <MantineIcon
+                                icon={IconExclamationCircle}
+                                color="gray"
+                            />
+                            <Text size="xs" c="dimmed" ta="center">
+                                Something went wrong generating the
+                                visualization, please try again
+                            </Text>
+                        </Stack>
                     ) : (
                         <AiChartVisualization vizData={vizQuery.data} />
                     )}
                 </Paper>
             )}
-            <Group gap={0} justify="space-between">
+            <Group gap={0}>
                 <CopyButton value={message.message}>
                     {({ copied, copy }) => (
                         <ActionIcon
@@ -184,54 +211,52 @@ export const AssistantBubble: FC<{
                     )}
                 </CopyButton>
 
-                <Group gap={2}>
-                    {!!vizQuery.data?.openInExploreUrl && (
-                        <Button
-                            variant="subtle"
-                            color="gray"
-                            aria-label="open in explore"
-                            leftSection={
-                                <MantineIcon icon={IconExternalLink} />
-                            }
-                            component={Link}
-                            to={vizQuery.data.openInExploreUrl}
-                            target="_blank"
-                        >
-                            Continue exploring
-                        </Button>
-                    )}
-                    {(!hasRating || upVoted) && (
-                        <ActionIcon
-                            variant={'transparent'}
-                            color="gray"
-                            aria-label="upvote"
-                            onClick={handleUpvote}
-                            display={isLoading ? 'none' : 'block'}
-                        >
-                            <MantineIcon
-                                icon={upVoted ? IconThumbUpFilled : IconThumbUp}
-                            />
-                        </ActionIcon>
-                    )}
+                {(!hasRating || upVoted) && (
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        aria-label="upvote"
+                        onClick={handleUpvote}
+                        display={isLoading ? 'none' : 'block'}
+                    >
+                        <MantineIcon
+                            icon={upVoted ? IconThumbUpFilled : IconThumbUp}
+                        />
+                    </ActionIcon>
+                )}
 
-                    {(!hasRating || downVoted) && (
-                        <ActionIcon
-                            variant={'transparent'}
-                            color="gray"
-                            aria-label="downvote"
-                            onClick={handleDownvote}
-                            display={isLoading ? 'none' : 'block'}
-                        >
-                            <MantineIcon
-                                icon={
-                                    downVoted
-                                        ? IconThumbDownFilled
-                                        : IconThumbDown
-                                }
-                            />
-                        </ActionIcon>
-                    )}
-                </Group>
+                {(!hasRating || downVoted) && (
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        aria-label="downvote"
+                        onClick={handleDownvote}
+                        display={isLoading ? 'none' : 'block'}
+                    >
+                        <MantineIcon
+                            icon={
+                                downVoted ? IconThumbDownFilled : IconThumbDown
+                            }
+                        />
+                    </ActionIcon>
+                )}
+                {!!vizQuery.data?.openInExploreUrl && (
+                    <Button
+                        variant="subtle"
+                        color="gray"
+                        size="xs"
+                        aria-label="open in explore"
+                        leftSection={<MantineIcon icon={IconExternalLink} />}
+                        component={Link}
+                        to={vizQuery.data.openInExploreUrl}
+                        target="_blank"
+                        style={{
+                            color: '#868e96',
+                        }}
+                    >
+                        Continue exploring
+                    </Button>
+                )}
             </Group>
         </Stack>
     );

@@ -2,9 +2,11 @@ import { type AiAgentThreadSummary } from '@lightdash/common';
 import {
     Box,
     Button,
+    Center,
     Divider,
     Group,
     List,
+    Loader,
     NavLink,
     Paper,
     Pill,
@@ -27,7 +29,6 @@ import { Link, Navigate, Outlet, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import Page from '../../../components/common/Page/Page';
-import PageSpinner from '../../../components/PageSpinner';
 import { useProject } from '../../../hooks/useProject';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import useApp from '../../../providers/App/useApp';
@@ -86,7 +87,13 @@ const AgentPage = () => {
     const [showMaxItems, setShowMaxItems] = useState(INITIAL_MAX_THREADS);
 
     if (isLoadingAgent) {
-        return <PageSpinner />;
+        return (
+            <Page withFullHeight>
+                <Center h="100%">
+                    <Loader color="gray" />
+                </Center>
+            </Page>
+        );
     }
 
     if (!agent) {
