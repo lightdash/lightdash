@@ -89,7 +89,10 @@ const configureBigqueryWarehouse = (
         log: false,
     });
 
-    cy.selectMantine('warehouse.authenticationType', 'Private Key');
+    cy.selectMantine(
+        'warehouse.authenticationType',
+        'Service Account (JSON key file)',
+    );
 
     cy.get('[type="file"]').attachFile(warehouseConfig.bigQuery.keyFile);
 
