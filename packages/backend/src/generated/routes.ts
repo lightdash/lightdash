@@ -5035,6 +5035,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiChartType: {
+        dataType: 'refEnum',
+        enums: ['time_series_chart', 'vertical_bar_chart', 'csv'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName-or-filters_':
         {
             dataType: 'refAlias',
@@ -5095,15 +5100,7 @@ const models: TsoaRoute.Models = {
                 },
                 chartOptions: { dataType: 'object' },
                 metricQuery: { ref: 'AiMetricQuery', required: true },
-                type: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['vertical_bar_chart'] },
-                        { dataType: 'enum', enums: ['time_series_chart'] },
-                        { dataType: 'enum', enums: ['csv'] },
-                    ],
-                    required: true,
-                },
+                type: { ref: 'AiChartType', required: true },
             },
             validators: {},
         },
@@ -9356,6 +9353,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SnowflakeAuthenticationType: {
+        dataType: 'refEnum',
+        enums: ['password', 'private_key', 'sso'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     WeekDay: {
         dataType: 'refEnum',
         enums: [0, 1, 2, 3, 4, 5, 6],
@@ -9371,9 +9373,7 @@ const models: TsoaRoute.Models = {
                     authenticationType: {
                         dataType: 'union',
                         subSchemas: [
-                            { dataType: 'enum', enums: ['password'] },
-                            { dataType: 'enum', enums: ['private_key'] },
-                            { dataType: 'enum', enums: ['sso'] },
+                            { ref: 'SnowflakeAuthenticationType' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -15777,6 +15777,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LimitOverride: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'double' },
+                { dataType: 'enum', enums: [null] },
+                { dataType: 'undefined' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExecuteAsyncSavedChartRequestParams: {
         dataType: 'refAlias',
         type: {
@@ -15786,6 +15799,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        limit: { ref: 'LimitOverride' },
                         versionUuid: { dataType: 'string' },
                         chartUuid: { dataType: 'string', required: true },
                     },
@@ -16183,6 +16197,80 @@ const models: TsoaRoute.Models = {
     DownloadFileType: {
         dataType: 'refEnum',
         enums: ['csv', 'image', 'jsonl', 's3_jsonl', 'xlsx'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DownloadAsyncQueryResultsRequestParams.Exclude_keyofDownloadAsyncQueryResultsRequestParams.queryUuid__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    type: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'DownloadFileType' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    pivotConfig: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'PivotConfig' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    onlyRaw: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    showTableNames: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    customLabels: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'Record_string.string_' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    columnOrder: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    hiddenFields: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_DownloadAsyncQueryResultsRequestParams.queryUuid_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_DownloadAsyncQueryResultsRequestParams.Exclude_keyofDownloadAsyncQueryResultsRequestParams.queryUuid__',
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FeatureFlag: {
@@ -33410,14 +33498,14 @@ export function RegisterRoutes(app: Router) {
             dataType: 'string',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        type: {
-            default: 'csv',
-            in: 'query',
-            name: 'type',
-            ref: 'DownloadFileType',
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'Omit_DownloadAsyncQueryResultsRequestParams.queryUuid_',
         },
     };
-    app.get(
+    app.post(
         '/api/v2/projects/:projectUuid/query/:queryUuid/download',
         ...fetchMiddlewares<RequestHandler>(QueryController),
         ...fetchMiddlewares<RequestHandler>(

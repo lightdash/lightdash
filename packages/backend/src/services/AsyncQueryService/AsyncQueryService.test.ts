@@ -44,6 +44,7 @@ import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
+import type { CsvService } from '../CsvService/CsvService';
 import {
     allExplores,
     expectedColumns,
@@ -150,6 +151,7 @@ const getMockedAsyncQueryService = (lightdashConfig: LightdashConfig) =>
         userModel: {} as UserModel,
         savedSqlModel: {} as SavedSqlModel,
         storageClient: {} as S3ResultsFileStorageClient,
+        csvService: {} as CsvService,
     });
 
 describe('AsyncQueryService', () => {

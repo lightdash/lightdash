@@ -1562,3 +1562,12 @@ export const SPACE_TREE_2: TreeCreateSpace[] = [
         ],
     },
 ] as const;
+
+// Export limit utilities
+export {
+    applyLimitOverrideToQuery,
+    isUnlimitedResults,
+    processLimitOverride,
+    QUERY_LIMITS,
+    type LimitOverride,
+} from './utils/fileDownloadLimit';
