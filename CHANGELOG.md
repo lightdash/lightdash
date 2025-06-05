@@ -1,3 +1,10 @@
+# [0.1686.0](https://github.com/lightdash/lightdash/compare/0.1685.1...0.1686.0) (2025-06-05)
+
+
+### Features
+
+* snowflake project creation SSO ([#15126](https://github.com/lightdash/lightdash/issues/15126)) ([ff6be62](https://github.com/lightdash/lightdash/commit/ff6be628d5f06d4b020a955c77ee4f58a60c47cb))
+
 ## [0.1685.1](https://github.com/lightdash/lightdash/compare/0.1685.0...0.1685.1) (2025-06-04)
 
 
