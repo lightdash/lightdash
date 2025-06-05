@@ -1,3 +1,10 @@
+## [0.1689.2](https://github.com/lightdash/lightdash/compare/0.1689.1...0.1689.2) (2025-06-05)
+
+
+### Bug Fixes
+
+* update BigQuery authentication type label ([#15188](https://github.com/lightdash/lightdash/issues/15188)) ([1d1549e](https://github.com/lightdash/lightdash/commit/1d1549e12d04a16242eb32a5dbc5eee3902ac5e4))
+
 ## [0.1689.1](https://github.com/lightdash/lightdash/compare/0.1689.0...0.1689.1) (2025-06-05)
 
 
