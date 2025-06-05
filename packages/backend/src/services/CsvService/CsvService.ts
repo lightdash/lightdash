@@ -67,6 +67,7 @@ import {
 } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/S3Client';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
+import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -328,61 +329,95 @@ export class CsvService extends BaseService {
             writeStream: Writable;
         },
     ): Promise<{ truncated: boolean }> {
-        const stringifier = stringify({
-            delimiter: ',',
-            header: true,
-            columns: csvHeader,
-        });
-
         return new Promise((resolve, reject) => {
-            // Process the readStream line by line
+            let lineCount = 0;
+            const MAX_LINES = 100000; // Configurable limit
+            let truncated = false;
+
             const lineReader = createInterface({
                 input: readStream,
                 crlfDelay: Infinity,
             });
 
-            let lineCount = 0;
-            const MAX_LINES = 100000; // Configurable limit
-            let truncated = false;
+            const jsonlToRowTransform = new Transform({
+                objectMode: true,
+                transform(
+                    chunk: string,
+                    encoding: BufferEncoding,
+                    callback: TransformCallback,
+                ) {
+                    if (!chunk.trim()) {
+                        callback(null, null);
+                        return;
+                    }
+
+                    try {
+                        const parsedRow = JSON.parse(chunk);
+                        callback(null, parsedRow);
+                    } catch (error) {
+                        Logger.error(
+                            `Error parsing line: ${getErrorMessage(error)}`,
+                        );
+                        callback(null, null);
+                    }
+                },
+            });
+
+            const rowToCsvTransform = new Transform({
+                objectMode: true,
+                transform(
+                    chunk: Record<string, AnyType>,
+                    encoding: BufferEncoding,
+                    callback: TransformCallback,
+                ) {
+                    const csvRow = CsvService.convertRowToCsv(
+                        chunk,
+                        itemMap,
+                        onlyRaw,
+                        sortedFieldIds,
+                    );
+                    callback(null, csvRow);
+                },
+            });
+
+            const stringifier = stringify({
+                delimiter: ',',
+                header: true,
+                columns: csvHeader,
+            });
 
             lineReader.on('line', (line: string) => {
-                if (!line.trim()) return;
-
-                // eslint-disable-next-line no-plusplus
-                lineCount++;
+                lineCount += 1;
                 if (lineCount > MAX_LINES) {
                     truncated = true;
                     lineReader.close();
                     return;
                 }
-
-                try {
-                    const parsedRow = JSON.parse(line);
-                    const csvRow = CsvService.convertRowToCsv(
-                        parsedRow,
-                        itemMap,
-                        onlyRaw,
-                        sortedFieldIds,
-                    );
-                    stringifier.write(csvRow);
-                } catch (error) {
-                    Logger.error(
-                        `Error processing line ${lineCount}: ${error}`,
-                    );
-                }
+                jsonlToRowTransform.write(line);
             });
 
             lineReader.on('close', () => {
-                stringifier.end();
+                jsonlToRowTransform.end();
             });
 
-            pipeline(stringifier, writeStream, (err) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                resolve({ truncated });
+            lineReader.on('error', (error) => {
+                reject(error);
             });
+
+            // Use pipeline to handle all the transforms properly
+            pipeline(
+                jsonlToRowTransform,
+                rowToCsvTransform,
+                stringifier,
+                writeStream,
+                (err) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+                    resolve({ truncated });
+                },
+            );
         });
     }
 
@@ -1421,5 +1456,144 @@ This method can be memory intensive
             fs.createReadStream(zipFile),
             zipFileName,
         );
+    }
+
+    /**
+     * Downloads pivot table CSV from async query results file
+     * Handles loading data from JSONL storage file and generating pivot CSV
+     */
+    async downloadAsyncPivotTableCsv({
+        resultsFileName,
+        fields,
+        metricQuery,
+        projectUuid,
+        storageClient,
+        options,
+    }: {
+        resultsFileName: string;
+        fields: ItemsMap;
+        metricQuery: MetricQuery;
+        projectUuid: string;
+        storageClient: S3ResultsFileStorageClient;
+        options: {
+            onlyRaw: boolean;
+            showTableNames: boolean;
+            customLabels: Record<string, string>;
+            columnOrder: string[];
+            hiddenFields: string[];
+            pivotConfig: PivotConfig;
+        };
+    }): Promise<{ fileUrl: string; truncated: boolean }> {
+        const {
+            onlyRaw,
+            showTableNames,
+            customLabels,
+            columnOrder,
+            hiddenFields,
+            pivotConfig,
+        } = options;
+
+        // Load all rows from the results file using shared streaming utility
+        const readStream = await storageClient.getDowloadStream(
+            resultsFileName,
+        );
+        const { results: rows, truncated } = await CsvService.streamJsonlData<
+            Record<string, unknown>
+        >({
+            readStream,
+            onRow: (parsedRow) => parsedRow, // Just collect all rows
+        });
+
+        if (rows.length === 0) {
+            throw new Error('No data found in results file');
+        }
+
+        const fileName = `pivot-${resultsFileName}`;
+
+        const attachmentUrl = await this.downloadPivotTableCsv({
+            name: fileName,
+            projectUuid,
+            rows,
+            itemMap: fields,
+            metricQuery,
+            pivotConfig,
+            exploreId: metricQuery.exploreName || 'explore',
+            onlyRaw,
+            truncated,
+            customLabels,
+        });
+
+        return {
+            fileUrl: attachmentUrl.path,
+            truncated,
+        };
+    }
+
+    /**
+     * Shared utility for streaming JSONL data from storage
+     * Can be used for both row-by-row processing and collecting all rows
+     */
+    static async streamJsonlData<T>({
+        readStream,
+        onRow,
+        onComplete,
+        maxLines = 100000,
+    }: {
+        readStream: Readable;
+        onRow?: (
+            parsedRow: Record<string, unknown>,
+            lineCount: number,
+        ) => T | void;
+        onComplete?: (results: T[], truncated: boolean) => void;
+        maxLines?: number;
+    }): Promise<{ results: T[]; truncated: boolean }> {
+        return new Promise((resolve, reject) => {
+            const lineReader = createInterface({
+                input: readStream,
+                crlfDelay: Infinity,
+            });
+
+            let lineCount = 0;
+            let truncated = false;
+            const results: T[] = [];
+
+            lineReader.on('line', (line: string) => {
+                if (!line.trim()) return;
+
+                lineCount += 1;
+                if (lineCount > maxLines) {
+                    truncated = true;
+                    lineReader.close();
+                    return;
+                }
+
+                try {
+                    const parsedRow = JSON.parse(line);
+                    if (onRow) {
+                        const result = onRow(parsedRow, lineCount);
+                        if (result !== undefined) {
+                            results.push(result);
+                        }
+                    }
+                } catch (error) {
+                    Logger.error(
+                        `Error parsing line ${lineCount}: ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                }
+            });
+
+            lineReader.on('close', async () => {
+                if (onComplete) {
+                    await onComplete(results, truncated);
+                }
+                resolve({ results, truncated });
+            });
+
+            lineReader.on('error', (error) => {
+                reject(error);
+            });
+        });
     }
 }

@@ -4,9 +4,12 @@ import {
     type SortBy,
     type ValuesColumn,
 } from '../..';
+import type { LimitOverride } from '../../utils/fileDownloadLimit';
 import type { QueryExecutionContext } from '../analytics';
+import type { DownloadFileType } from '../downloadFile';
 import type { DashboardFilters, Filters } from '../filter';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
+import type { PivotConfig } from '../pivot';
 import type { DateGranularity } from '../timeFrames';
 
 type CommonPaginatedQueryRequestParams = {
@@ -29,6 +32,13 @@ export type ExecuteAsyncSavedChartRequestParams =
     CommonPaginatedQueryRequestParams & {
         chartUuid: string;
         versionUuid?: string;
+        /**
+         * Limit override for query execution:
+         * - undefined: use saved chart's original limit
+         * - null: no limit (unlimited results)
+         * - number: apply specific limit
+         */
+        limit?: LimitOverride;
     };
 
 export type ExecuteAsyncDashboardChartRequestParams =
@@ -111,6 +121,13 @@ export const isExecuteAsyncDashboardSqlChartByUuidParams = (
 
 export type DownloadAsyncQueryResultsRequestParams = {
     queryUuid: string;
+    type?: DownloadFileType;
+    onlyRaw?: boolean;
+    showTableNames?: boolean;
+    customLabels?: Record<string, string>;
+    columnOrder?: string[];
+    hiddenFields?: string[];
+    pivotConfig?: PivotConfig;
 };
 
 export type ExecuteAsyncQueryRequestParams =

@@ -9,6 +9,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     ApiExecuteAsyncSqlQueryResults,
     type ApiGetAsyncQueryResults,
+    applyLimitOverrideToQuery,
     assertUnreachable,
     CompiledDimension,
     convertCustomFormatToFormatExpression,
@@ -37,6 +38,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getItemLabel,
+    getItemLabelWithoutTableName,
     getItemMap,
     GroupByColumn,
     isCartesianChartConfig,
@@ -52,6 +54,7 @@ import {
     MetricQuery,
     NotFoundError,
     type Organization,
+    PivotConfig,
     PivotIndexColum,
     type PivotValuesColumn,
     type Project,
@@ -76,6 +79,7 @@ import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -119,6 +123,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     cacheService?: ICacheService;
     savedSqlModel: SavedSqlModel;
     storageClient: S3ResultsFileStorageClient;
+    csvService: CsvService;
 };
 
 export class AsyncQueryService extends ProjectService {
@@ -130,11 +135,14 @@ export class AsyncQueryService extends ProjectService {
 
     storageClient: S3ResultsFileStorageClient;
 
+    csvService: CsvService;
+
     constructor({
         queryHistoryModel,
         cacheService,
         savedSqlModel,
         storageClient,
+        csvService,
         ...projectServiceArgs
     }: AsyncQueryServiceArguments) {
         super(projectServiceArgs);
@@ -142,6 +150,7 @@ export class AsyncQueryService extends ProjectService {
         this.cacheService = cacheService;
         this.savedSqlModel = savedSqlModel;
         this.storageClient = storageClient;
+        this.csvService = csvService;
     }
 
     // ! Duplicate of SavedSqlService.hasAccess
@@ -588,6 +597,12 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         queryUuid,
         type,
+        onlyRaw = false,
+        showTableNames = false,
+        customLabels = {},
+        columnOrder = [],
+        hiddenFields = [],
+        pivotConfig,
     }: DownloadAsyncQueryResultsArgs): Promise<
         | ApiDownloadAsyncQueryResults
         | ApiDownloadAsyncQueryResultsAsCsv
@@ -643,9 +658,26 @@ export class AsyncQueryService extends ProjectService {
             throw new Error('Results file name not found for query');
         }
 
-        // Handle file type in a separate switch
         switch (type) {
             case DownloadFileType.CSV:
+                // Check if this is a pivot table download
+                if (pivotConfig && queryHistory.metricQuery) {
+                    return this.csvService.downloadAsyncPivotTableCsv({
+                        resultsFileName,
+                        fields,
+                        metricQuery: queryHistory.metricQuery,
+                        projectUuid,
+                        storageClient: this.storageClient,
+                        options: {
+                            onlyRaw,
+                            showTableNames,
+                            customLabels,
+                            columnOrder,
+                            hiddenFields,
+                            pivotConfig,
+                        },
+                    });
+                }
                 return this.downloadAsyncQueryResultsAsFormattedFile(
                     resultsFileName,
                     fields,
@@ -653,8 +685,34 @@ export class AsyncQueryService extends ProjectService {
                         generateFileId: CsvService.generateFileId,
                         streamJsonlRowsToFile: CsvService.streamJsonlRowsToFile,
                     },
+                    {
+                        onlyRaw,
+                        showTableNames,
+                        customLabels,
+                        columnOrder,
+                        hiddenFields,
+                        pivotConfig,
+                    },
                 );
             case DownloadFileType.XLSX:
+                // Check if this is a pivot table download
+                if (pivotConfig && queryHistory.metricQuery) {
+                    return ExcelService.downloadAsyncPivotTableXlsx({
+                        resultsFileName,
+                        fields,
+                        metricQuery: queryHistory.metricQuery,
+                        storageClient: this.storageClient,
+                        lightdashConfig: this.lightdashConfig,
+                        options: {
+                            onlyRaw,
+                            showTableNames,
+                            customLabels,
+                            columnOrder,
+                            hiddenFields,
+                            pivotConfig,
+                        },
+                    });
+                }
                 return this.downloadAsyncQueryResultsAsFormattedFile(
                     resultsFileName,
                     fields,
@@ -662,6 +720,14 @@ export class AsyncQueryService extends ProjectService {
                         generateFileId: ExcelService.generateFileId,
                         streamJsonlRowsToFile:
                             ExcelService.streamJsonlRowsToFile,
+                    },
+                    {
+                        onlyRaw,
+                        showTableNames,
+                        customLabels,
+                        columnOrder,
+                        hiddenFields,
+                        pivotConfig,
                     },
                 );
             case undefined:
@@ -694,13 +760,55 @@ export class AsyncQueryService extends ProjectService {
                 streams: { readStream: Readable; writeStream: Writable },
             ) => Promise<{ truncated: boolean }>;
         },
+        options?: {
+            onlyRaw?: boolean;
+            showTableNames?: boolean;
+            customLabels?: Record<string, string>;
+            columnOrder?: string[];
+            hiddenFields?: string[];
+            pivotConfig?: PivotConfig;
+        },
     ): Promise<{ fileUrl: string; truncated: boolean }> {
         // Generate a unique filename
         const formattedFileName = service.generateFileId(resultsFileName);
 
-        const headers = Object.keys(fields).map((field) =>
-            getItemLabel(fields[field]),
+        // Handle column ordering and filtering
+        const {
+            onlyRaw = false,
+            showTableNames = false,
+            customLabels = {},
+            columnOrder = [],
+            hiddenFields = [],
+        } = options || {};
+
+        // Filter out hidden fields and apply column ordering
+        const availableFieldIds = Object.keys(fields).filter(
+            (id) => !hiddenFields.includes(id),
         );
+        const sortedFieldIds =
+            columnOrder.length > 0
+                ? [
+                      ...columnOrder.filter((id) =>
+                          availableFieldIds.includes(id),
+                      ),
+                      ...availableFieldIds.filter(
+                          (id) => !columnOrder.includes(id),
+                      ),
+                  ]
+                : availableFieldIds;
+
+        const headers = sortedFieldIds.map((fieldId) => {
+            if (customLabels[fieldId]) {
+                return customLabels[fieldId];
+            }
+            const item = fields[fieldId];
+            if (!item) {
+                return fieldId;
+            }
+            return showTableNames
+                ? getItemLabel(item)
+                : getItemLabelWithoutTableName(item);
+        });
 
         // Transform and upload the results
         return this.storageClient.transformResultsIntoNewFile(
@@ -709,9 +817,9 @@ export class AsyncQueryService extends ProjectService {
             async (readStream, writeStream) => {
                 // Use streamJsonlRowsToFile which handles JSONL data from S3
                 const { truncated } = await service.streamJsonlRowsToFile(
-                    false,
+                    onlyRaw,
                     fields,
-                    Object.keys(fields), // TODO: sorted field ids
+                    sortedFieldIds,
                     headers,
                     {
                         readStream,
@@ -1449,6 +1557,7 @@ export class AsyncQueryService extends ProjectService {
         versionUuid,
         context,
         invalidateCache,
+        limit,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Check user is in organization
         if (!isUserWithOrg(user)) {
@@ -1508,7 +1617,14 @@ export class AsyncQueryService extends ProjectService {
             context,
             chartUuid,
             versionUuid,
+            limit,
         };
+
+        // Apply limit override if provided in the request
+        const metricQueryWithLimit = applyLimitOverrideToQuery(
+            metricQuery,
+            limit,
+        );
 
         const queryTags: RunQueryTags = {
             organization_uuid: savedChartOrganizationUuid,
@@ -1537,7 +1653,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { sql, fields } = await this.prepareMetricQueryAsyncQueryArgs({
             user,
-            metricQuery,
+            metricQuery: metricQueryWithLimit,
             explore,
             warehouseClient: warehouseConnection.warehouseClient,
         });
@@ -1550,7 +1666,7 @@ export class AsyncQueryService extends ProjectService {
                 context,
                 queryTags,
                 invalidateCache,
-                metricQuery,
+                metricQuery: metricQueryWithLimit,
                 fields,
                 sql,
                 originalColumns: undefined,
@@ -1562,7 +1678,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata,
-            metricQuery,
+            metricQuery: metricQueryWithLimit,
             fields,
         };
     }

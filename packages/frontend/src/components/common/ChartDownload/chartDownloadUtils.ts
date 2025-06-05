@@ -1,4 +1,11 @@
+import {
+    type PivotConfig,
+    isField,
+    isMetric,
+    isTableCalculation,
+} from '@lightdash/common';
 import JsPDF from 'jspdf';
+import { type VisualizationConfigTable } from '../../LightdashVisualization/types';
 
 const FILE_NAME = 'lightdash_chart';
 
@@ -86,3 +93,36 @@ export function downloadPdf(base64: string, width: number, height: number) {
     });
     doc.save(FILE_NAME);
 }
+
+/**
+ * Creates a PivotConfig from table visualization context data.
+ * This is similar to the `getPivotConfig` function in common, but works with
+ * visualization config instead of saved chart version data.
+ *
+ * @param visualizationConfig - The table visualization configuration
+ * @param pivotDimensions - Array of dimension field IDs to pivot by
+ * @returns PivotConfig object for use with pivot table downloads
+ */
+export const createPivotConfigFromVisualization = (
+    visualizationConfig: VisualizationConfigTable,
+    pivotDimensions: string[],
+): PivotConfig => ({
+    pivotDimensions,
+    metricsAsRows: visualizationConfig.chartConfig.metricsAsRows ?? false,
+    hiddenMetricFieldIds:
+        visualizationConfig.chartConfig.selectedItemIds?.filter(
+            (fieldId: string) => {
+                const field = visualizationConfig.chartConfig.getField(fieldId);
+                return (
+                    !visualizationConfig.chartConfig.isColumnVisible(fieldId) &&
+                    field &&
+                    ((isField(field) && isMetric(field)) ||
+                        isTableCalculation(field))
+                );
+            },
+        ),
+    columnOrder: visualizationConfig.chartConfig.columnOrder,
+    rowTotals: visualizationConfig.chartConfig.showRowCalculation ?? false,
+    columnTotals:
+        visualizationConfig.chartConfig.showColumnCalculation ?? false,
+});

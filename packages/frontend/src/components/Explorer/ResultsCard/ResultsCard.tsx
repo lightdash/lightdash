@@ -1,9 +1,12 @@
 import { subject } from '@casl/ability';
+import {
+    getCustomLabelsFromTableConfig,
+    getHiddenTableFields,
+} from '@lightdash/common';
 import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
-import { downloadCsv } from '../../../api/csv';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -47,40 +50,23 @@ const ResultsCard: FC = memo(() => {
     const columnOrder = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
     );
+    const getDownloadQueryUuid = useExplorerContext(
+        (context) => context.actions.getDownloadQueryUuid,
+    );
+
+    const unsavedChartVersion = useExplorerContext(
+        (context) => context.state.unsavedChartVersion,
+    );
+
+    const customLabels = getCustomLabelsFromTableConfig(
+        unsavedChartVersion.chartConfig.config,
+    );
+
+    const hiddenFields = getHiddenTableFields(unsavedChartVersion.chartConfig);
 
     const disabled = useMemo(() => (totalResults ?? 0) <= 0, [totalResults]);
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
-        if (projectUuid) {
-            return downloadCsv({
-                projectUuid,
-                tableId: tableName,
-                query: metricQuery,
-                csvLimit,
-                onlyRaw,
-                columnOrder,
-                showTableNames: true,
-                pivotConfig: undefined, // results are always unpivoted
-            });
-        } else {
-            throw new Error('Project UUID is missing');
-        }
-    };
-
-    const getGsheetLink = async () => {
-        if (projectUuid) {
-            return uploadGsheet({
-                projectUuid,
-                exploreId: tableName,
-                metricQuery,
-                columnOrder,
-                showTableNames: true,
-            });
-        } else {
-            throw new Error('Project UUID is missing');
-        }
-    };
 
     const resultsIsOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.RESULTS),
@@ -91,6 +77,22 @@ const ResultsCard: FC = memo(() => {
         [toggleExpandedSection],
     );
     const { user } = useApp();
+
+    const getGsheetLink = async () => {
+        if (projectUuid) {
+            return uploadGsheet({
+                projectUuid,
+                exploreId: tableName,
+                metricQuery,
+                columnOrder,
+                showTableNames: true,
+                // No pivotConfig - ResultsCard only shows raw table data
+            });
+        } else {
+            throw new Error('Project UUID is missing');
+        }
+    };
+
     return (
         <CollapsableCard
             title="Results"
@@ -140,8 +142,14 @@ const ResultsCard: FC = memo(() => {
                                     <ExportSelector
                                         projectUuid={projectUuid}
                                         totalResults={totalResults}
-                                        getCsvLink={getCsvLink}
+                                        getDownloadQueryUuid={
+                                            getDownloadQueryUuid
+                                        }
                                         getGsheetLink={getGsheetLink}
+                                        columnOrder={columnOrder}
+                                        customLabels={customLabels}
+                                        hiddenFields={hiddenFields}
+                                        showTableNames
                                     />
                                 </Popover.Dropdown>
                             </Popover>

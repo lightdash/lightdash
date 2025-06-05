@@ -99,6 +99,7 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                                     flexDirection: 'column',
                                     overflowY: 'auto',
                                 }}
+                                data-testid="common-sidebar"
                             >
                                 {children}
                             </Paper>
