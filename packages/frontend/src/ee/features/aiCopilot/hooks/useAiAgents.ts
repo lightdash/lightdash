@@ -1,5 +1,6 @@
 import type {
     AiAgent,
+    AiAgentMessageAssistant,
     ApiAiAgentResponse,
     ApiAiAgentStartThreadResponse,
     ApiAiAgentSummaryResponse,
@@ -24,9 +25,12 @@ import {
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../../api';
 import { pollJobStatus } from '../../../../features/scheduler/hooks/useScheduler';
+import useHealth from '../../../../hooks/health/useHealth';
+import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
+import { getChartVisualizationFromAiQuery } from '../utils/getChartVisualizationFromAiQuery';
 
 const AI_AGENTS_KEY = 'aiAgents';
 
@@ -475,34 +479,54 @@ export const useGenerateAgentThreadResponseMutation = (
     });
 };
 
-export const useAiAgentThreadMessageViz = (
-    args: {
-        agentUuid: string;
-        threadUuid: string;
-        messageUuid: string;
-    },
-    useQueryOptions?: UseQueryOptions<ApiAiAgentThreadMessageViz, ApiError>,
-) => {
+export const useAiAgentThreadMessageViz = (args: {
+    activeProjectUuid: string | undefined;
+    message: AiAgentMessageAssistant;
+    agentUuid: string;
+}) => {
+    const health = useHealth();
+    const org = useOrganization();
     const { showToastApiError } = useToaster();
 
-    return useQuery<ApiAiAgentThreadMessageViz, ApiError>({
+    return useQuery<
+        ApiAiAgentThreadMessageViz,
+        ApiError,
+        ReturnType<typeof getChartVisualizationFromAiQuery>
+    >({
         queryKey: [
             AI_AGENTS_KEY,
             args.agentUuid,
             'threads',
-            args.threadUuid,
+            args.message.threadUuid,
             'message',
-            args.messageUuid,
+            args.message.uuid,
             'viz',
         ],
-        queryFn: () => getAgentThreadMessageViz(args),
-        onError: (error) => {
+        queryFn: () =>
+            getAgentThreadMessageViz({
+                agentUuid: args.agentUuid,
+                threadUuid: args.message.threadUuid,
+                messageUuid: args.message.uuid,
+            }),
+        onError: (error: ApiError) => {
             showToastApiError({
                 title: 'Failed to fetch visualization',
                 apiError: error.error,
             });
         },
-        ...useQueryOptions,
+        enabled:
+            !!args.message.metricQuery &&
+            !!args.message.vizConfigOutput &&
+            !!args.activeProjectUuid &&
+            !!health.data &&
+            !!org.data,
+        select: (data: ApiAiAgentThreadMessageViz) =>
+            getChartVisualizationFromAiQuery(
+                data,
+                health.data!,
+                org.data!,
+                args.activeProjectUuid,
+            ),
     });
 };
 

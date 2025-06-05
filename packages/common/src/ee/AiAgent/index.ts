@@ -1,6 +1,16 @@
 import { z } from 'zod';
 import type { AnyType, CacheMetadata, ItemsMap, MetricQuery } from '../..';
 
+/**
+ * Supported AI visualization chart types
+ */
+// TODO: Think better naming for this or sharing similar names with explorer
+export enum AiChartType {
+    TIME_SERIES_CHART = 'time_series_chart',
+    VERTICAL_BAR_CHART = 'vertical_bar_chart',
+    CSV = 'csv', // TABLE -  this is also table
+}
+
 export type AiMetricQuery = Pick<
     MetricQuery,
     'metrics' | 'dimensions' | 'sorts' | 'limit' | 'exploreName' | 'filters'
@@ -186,7 +196,7 @@ export type ApiAiAgentStartThreadResponse = {
 };
 
 export type ApiAiAgentThreadMessageViz = {
-    type: 'vertical_bar_chart' | 'time_series_chart' | 'csv';
+    type: AiChartType;
     metricQuery: AiMetricQuery;
     chartOptions?: object;
     results: {

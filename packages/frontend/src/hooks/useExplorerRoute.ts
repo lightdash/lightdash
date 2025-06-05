@@ -19,6 +19,7 @@ import {
 } from '../providers/Explorer/types';
 import useExplorerContext from '../providers/Explorer/useExplorerContext';
 import useToaster from './toaster/useToaster';
+
 export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
     tableName: '',
     metricQuery: {

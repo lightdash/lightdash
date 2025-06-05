@@ -1,4 +1,5 @@
 import {
+    AiChartType,
     AiMetricQuery,
     FilterSchema,
     SortFieldSchema,
@@ -86,7 +87,7 @@ export const renderCsvFile = async ({
     filters,
     maxLimit,
 }: RenderCsvFileArgs): Promise<{
-    type: 'csv';
+    type: AiChartType.CSV;
     metricQuery: AiMetricQuery;
     results: Awaited<
         ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
@@ -103,7 +104,7 @@ export const renderCsvFile = async ({
     const csv = stringify(rows, { header: true, columns: fields });
 
     return {
-        type: 'csv',
+        type: AiChartType.CSV,
         metricQuery: query,
         results,
         csv,
