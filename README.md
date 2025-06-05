@@ -409,6 +409,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Divyansh200102"><img src="https://avatars.githubusercontent.com/u/146909065?v=4?s=100" width="100px;" alt="Divyansh200102"/><br /><sub><b>Divyansh200102</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=Divyansh200102" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/manhnguyen1998"><img src="https://avatars.githubusercontent.com/u/37845948?v=4?s=100" width="100px;" alt="グエン・ヒュー・マイン"/><br /><sub><b>グエン・ヒュー・マイン</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=manhnguyen1998" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

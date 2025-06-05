@@ -1,9 +1,12 @@
+import { CommercialFeatureFlags } from '@lightdash/common';
 import { ActionIcon, Box, Button, Group } from '@mantine/core';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
+import { useFeatureFlag } from '../../hooks/useFeatureFlagEnabled';
 import Logo from '../../svgs/logo-icon.svg?react';
+import { AiAgentsButton } from './AiAgentsButton';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
 import HeadwayMenuItem from './HeadwayMenuItem';
@@ -30,6 +33,8 @@ export const MainNavBarContent: FC<Props> = ({
     const { data: hasMetrics } = useHasMetricsInCatalog({
         projectUuid: activeProjectUuid,
     });
+    const { data: aiCopilotFlag, isLoading: isAiCopilotLoading } =
+        useFeatureFlag(CommercialFeatureFlags.AiCopilot);
 
     return (
         <>
@@ -50,6 +55,9 @@ export const MainNavBarContent: FC<Props> = ({
                             <BrowseMenu projectUuid={activeProjectUuid} />
                             {hasMetrics && (
                                 <MetricsLink projectUuid={activeProjectUuid} />
+                            )}
+                            {!isAiCopilotLoading && aiCopilotFlag?.enabled && (
+                                <AiAgentsButton />
                             )}
                         </Button.Group>
                         <Omnibar projectUuid={activeProjectUuid} />

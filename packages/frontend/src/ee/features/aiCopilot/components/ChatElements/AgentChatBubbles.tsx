@@ -1,12 +1,11 @@
 import {
-    assertUnreachable,
     type AiAgentMessageAssistant,
     type AiAgentMessageUser,
     type AiAgentUser,
-    type ApiAiAgentThreadMessageViz,
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Button,
     Card,
     CopyButton,
     Group,
@@ -20,6 +19,7 @@ import {
 import {
     IconCheck,
     IconCopy,
+    IconExternalLink,
     IconThumbDown,
     IconThumbDownFilled,
     IconThumbUp,
@@ -27,9 +27,8 @@ import {
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
 import dayjs from 'dayjs';
-import EChartsReact, { type EChartsOption } from 'echarts-for-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
@@ -37,7 +36,7 @@ import {
     useAiAgentThreadMessageViz,
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useAiAgents';
-import AiTableViz from './AiTableViz';
+import { AiChartVisualization } from './AiChartVisualization';
 
 export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
     message,
@@ -81,39 +80,17 @@ export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
     );
 };
 
-type VizQueryData = {
-    type: 'time_series_chart' | 'vertical_bar_chart' | 'csv';
-    chartOptions?: EChartsOption;
-    results?: ApiAiAgentThreadMessageViz['results'];
-};
-
-type VizQuery = {
-    data?: VizQueryData;
-    isLoading: boolean;
-    isError: boolean;
-};
-
 export const AssistantBubble: FC<{
     message: AiAgentMessageAssistant;
-    vizQuery?: VizQuery;
-    AiTableViz?: FC<{ results: any }>;
 }> = memo(({ message }) => {
     const { agentUuid } = useParams();
     const { activeProjectUuid } = useActiveProjectUuid();
 
-    const vizQuery = useAiAgentThreadMessageViz(
-        {
-            agentUuid: agentUuid!,
-            threadUuid: message.threadUuid,
-            messageUuid: message.uuid,
-        },
-        {
-            enabled:
-                !!message.metricQuery &&
-                !!message.vizConfigOutput &&
-                !!activeProjectUuid,
-        },
-    );
+    const vizQuery = useAiAgentThreadMessageViz({
+        agentUuid: agentUuid!,
+        message,
+        activeProjectUuid,
+    });
 
     const updateFeedbackMutation = useUpdatePromptFeedbackMutation(
         agentUuid,
@@ -187,17 +164,8 @@ export const AssistantBubble: FC<{
                         <Loader />
                     ) : vizQuery.isError ? (
                         <Text>Error fetching viz</Text>
-                    ) : vizQuery.data.type === 'vertical_bar_chart' ? (
-                        <EChartsReact option={vizQuery.data.chartOptions} />
-                    ) : vizQuery.data.type === 'time_series_chart' ? (
-                        <EChartsReact option={vizQuery.data.chartOptions} />
-                    ) : vizQuery.data.type === 'csv' ? (
-                        <AiTableViz results={vizQuery.data.results} />
                     ) : (
-                        assertUnreachable(
-                            vizQuery.data.type,
-                            'Unknown viz type',
-                        )
+                        <AiChartVisualization vizData={vizQuery.data} />
                     )}
                 </Paper>
             )}
@@ -211,16 +179,27 @@ export const AssistantBubble: FC<{
                             onClick={copy}
                             style={{ display: isLoading ? 'none' : 'block' }}
                         >
-                            {copied ? (
-                                <IconCheck size={16} />
-                            ) : (
-                                <IconCopy size={16} />
-                            )}
+                            <MantineIcon icon={copied ? IconCheck : IconCopy} />
                         </ActionIcon>
                     )}
                 </CopyButton>
 
                 <Group gap={2}>
+                    {!!vizQuery.data?.openInExploreUrl && (
+                        <Button
+                            variant="subtle"
+                            color="gray"
+                            aria-label="open in explore"
+                            leftSection={
+                                <MantineIcon icon={IconExternalLink} />
+                            }
+                            component={Link}
+                            to={vizQuery.data.openInExploreUrl}
+                            target="_blank"
+                        >
+                            Continue exploring
+                        </Button>
+                    )}
                     {(!hasRating || upVoted) && (
                         <ActionIcon
                             variant={'transparent'}

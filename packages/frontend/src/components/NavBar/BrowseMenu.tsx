@@ -1,4 +1,3 @@
-import { CommercialFeatureFlags } from '@lightdash/common';
 import { Box, Button, Center, Loader, Menu, ScrollArea } from '@mantine/core';
 import {
     IconCategory,
@@ -6,12 +5,10 @@ import {
     IconFolder,
     IconFolders,
     IconLayoutDashboard,
-    IconRobot,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
-import { useFeatureFlag } from '../../hooks/useFeatureFlagEnabled';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import MantineIcon from '../common/MantineIcon';
 import { MetricsLink } from './MetricsLink';
@@ -31,9 +28,6 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     const { data: hasMetrics } = useHasMetricsInCatalog({
         projectUuid,
     });
-
-    const { data: aiCopilotFlag, isLoading: isAiCopilotLoading } =
-        useFeatureFlag(CommercialFeatureFlags.AiCopilot);
 
     return (
         <Menu
@@ -85,17 +79,6 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 {!hasMetrics && (
                     <MetricsLink projectUuid={projectUuid} asMenu />
                 )}
-
-                {/* Temporary button for quick access */}
-                {!isAiCopilotLoading && aiCopilotFlag?.enabled ? (
-                    <Menu.Item
-                        component={Link}
-                        to={`/ai-agents`}
-                        icon={<MantineIcon icon={IconRobot} />}
-                    >
-                        AI Agents (Alpha)
-                    </Menu.Item>
-                ) : null}
 
                 {isInitialLoading || (spaces && spaces.length > 0) ? (
                     <>

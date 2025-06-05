@@ -104,7 +104,7 @@ export const SnowflakeDefaultValues: CreateSnowflakeCredentials = {
     queryTag: '',
     accessUrl: '',
     startOfWeek: undefined,
-    authenticationType: 'private_key',
+    authenticationType: undefined,
     privateKey: '',
     privateKeyPass: '',
 };

@@ -1,3 +1,52 @@
+## [0.1689.2](https://github.com/lightdash/lightdash/compare/0.1689.1...0.1689.2) (2025-06-05)
+
+
+### Bug Fixes
+
+* update BigQuery authentication type label ([#15188](https://github.com/lightdash/lightdash/issues/15188)) ([1d1549e](https://github.com/lightdash/lightdash/commit/1d1549e12d04a16242eb32a5dbc5eee3902ac5e4))
+
+## [0.1689.1](https://github.com/lightdash/lightdash/compare/0.1689.0...0.1689.1) (2025-06-05)
+
+
+### Bug Fixes
+
+* clone formatOptions when setting field value ([#15174](https://github.com/lightdash/lightdash/issues/15174)) ([6427e6a](https://github.com/lightdash/lightdash/commit/6427e6a1174fe60c9ecb56929c3c92e2fdc5538d)), closes [#15097](https://github.com/lightdash/lightdash/issues/15097)
+
+# [0.1689.0](https://github.com/lightdash/lightdash/compare/0.1688.1...0.1689.0) (2025-06-05)
+
+
+### Features
+
+* replace LangChain with AI SDK for agent implementation ([#15178](https://github.com/lightdash/lightdash/issues/15178)) ([97277d4](https://github.com/lightdash/lightdash/commit/97277d464b88881e3995fe673bc3997f7a90908e)), closes [#15070](https://github.com/lightdash/lightdash/issues/15070)
+
+## [0.1688.1](https://github.com/lightdash/lightdash/compare/0.1688.0...0.1688.1) (2025-06-05)
+
+
+### Bug Fixes
+
+* Ask AI icon color ([#15185](https://github.com/lightdash/lightdash/issues/15185)) ([a24999d](https://github.com/lightdash/lightdash/commit/a24999d8a167bcba5c1a73966d6d807712f969c9))
+
+# [0.1688.0](https://github.com/lightdash/lightdash/compare/0.1687.0...0.1688.0) (2025-06-05)
+
+
+### Features
+
+* explore from here on ai viz ([#15170](https://github.com/lightdash/lightdash/issues/15170)) ([011e02e](https://github.com/lightdash/lightdash/commit/011e02ed2f9d1e6a7faab268e13adc5a158ce52a))
+
+# [0.1687.0](https://github.com/lightdash/lightdash/compare/0.1686.0...0.1687.0) (2025-06-05)
+
+
+### Features
+
+* Make analyst top level navigation ([#15184](https://github.com/lightdash/lightdash/issues/15184)) ([c3f9e32](https://github.com/lightdash/lightdash/commit/c3f9e3208c4497a72d924c5b2f36e2b6ddd61ea0)), closes [#15141](https://github.com/lightdash/lightdash/issues/15141)
+
+# [0.1686.0](https://github.com/lightdash/lightdash/compare/0.1685.1...0.1686.0) (2025-06-05)
+
+
+### Features
+
+* snowflake project creation SSO ([#15126](https://github.com/lightdash/lightdash/issues/15126)) ([ff6be62](https://github.com/lightdash/lightdash/commit/ff6be628d5f06d4b020a955c77ee4f58a60c47cb))
+
 ## [0.1685.1](https://github.com/lightdash/lightdash/compare/0.1685.0...0.1685.1) (2025-06-04)
 
 

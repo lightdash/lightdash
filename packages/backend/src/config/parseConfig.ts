@@ -585,6 +585,7 @@ export type HeadlessBrowserConfig = {
     host?: string;
     port?: string;
     internalLightdashHost: string;
+    browserEndpoint: string;
 };
 export type S3Config = {
     region: string;
@@ -687,6 +688,15 @@ type AuthOidcConfig = {
     scopes: string | undefined;
 } & JwtKeySetConfig;
 
+type AuthSnowflakeConfig = {
+    clientId: string | undefined;
+    clientSecret: string | undefined;
+    authorizationEndpoint: string | undefined;
+    tokenEndpoint: string | undefined;
+    callbackPath: string;
+    loginPath: string;
+};
+
 export type AuthConfig = {
     disablePasswordAuthentication: boolean;
     /**
@@ -700,6 +710,7 @@ export type AuthConfig = {
     oneLogin: AuthOneLoginConfig;
     azuread: AuthAzureADConfig;
     oidc: AuthOidcConfig;
+    snowflake: AuthSnowflakeConfig;
     pat: {
         enabled: boolean;
         allowedOrgRoles: OrganizationMemberRole[];
@@ -765,6 +776,11 @@ export const parseConfig = (): LightdashConfig => {
     const iframeEmbeddingEnabled = iframeAllowedDomains.length > 0;
     const corsEnabled = process.env.LIGHTDASH_CORS_ENABLED === 'true';
     const secureCookies = process.env.SECURE_COOKIES === 'true';
+    const useSecureBrowser = process.env.USE_SECURE_BROWSER === 'true';
+    const browserProtocol = useSecureBrowser ? 'wss' : 'ws';
+    const browserEndpoint = useSecureBrowser
+        ? `${browserProtocol}://${process.env.HEADLESS_BROWSER_HOST}`
+        : `${browserProtocol}://${process.env.HEADLESS_BROWSER_HOST}:${process.env.HEADLESS_BROWSER_PORT}`;
 
     if (iframeEmbeddingEnabled && !secureCookies) {
         throw new ParameterError(
@@ -964,6 +980,15 @@ export const parseConfig = (): LightdashConfig => {
                     'client_secret_basic',
                 scopes: process.env.AUTH_OIDC_SCOPES,
             },
+            snowflake: {
+                clientId: process.env.SNOWFLAKE_OAUTH_CLIENT_ID,
+                clientSecret: process.env.SNOWFLAKE_OAUTH_CLIENT_SECRET,
+                authorizationEndpoint:
+                    process.env.SNOWFLAKE_OAUTH_AUTHORIZATION_ENDPOINT,
+                tokenEndpoint: process.env.SNOWFLAKE_OAUTH_TOKEN_ENDPOINT,
+                loginPath: '/login/snowflake',
+                callbackPath: '/oauth/redirect/snowflake',
+            },
         },
         intercom: {
             appId:
@@ -1044,6 +1069,7 @@ export const parseConfig = (): LightdashConfig => {
             host: process.env.HEADLESS_BROWSER_HOST,
             internalLightdashHost:
                 process.env.INTERNAL_LIGHTDASH_HOST || siteUrl,
+            browserEndpoint,
         },
         s3: parseBaseS3Config(),
         results: {

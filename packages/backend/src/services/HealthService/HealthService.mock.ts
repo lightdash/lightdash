@@ -47,6 +47,9 @@ export const BaseResponse: HealthState = {
         pat: {
             maxExpirationTimeInDays: undefined,
         },
+        snowflake: {
+            enabled: false,
+        },
     },
     intercom: {
         apiBase: '',

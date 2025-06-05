@@ -96,6 +96,7 @@ import {
     MostPopularAndRecentlyUpdated,
     NotExistsError,
     NotFoundError,
+    OpenIdIdentityIssuerType,
     ParameterError,
     PivotChartData,
     PivotValuesColumn,
@@ -566,6 +567,40 @@ export class ProjectService extends BaseService {
         return { userAttributes, intrinsicUserAttributes };
     }
 
+    /* 
+    This method is used to refresh the credentials for the warehouse client
+    This runs on every request to the warehouse, to refresh the token if needed when an accessToken is requested
+    Bigquery uses the refresh token directly on the warehouse connection, so there is no need to refresh it
+    */
+    private async refreshCredentials<T extends CreateWarehouseCredentials>(
+        args: T,
+        userUuid: string,
+    ): Promise<T> {
+        if (
+            args.type === WarehouseTypes.SNOWFLAKE &&
+            args.authenticationType === 'sso'
+        ) {
+            const token = await this.userModel.getRefreshToken(
+                userUuid,
+                OpenIdIdentityIssuerType.SNOWFLAKE,
+            );
+            const accessToken = await UserService.generateSnowflakeAccessToken(
+                token,
+            );
+            return {
+                ...args,
+                authenticationType: 'sso',
+                token: accessToken,
+            };
+        }
+        return args;
+    }
+
+    /*
+    This method is used when the user is creating a project 
+    This does not depend on `requireUserCredentials` flag (check getWarehouseCredentials for more details about that)
+    In here, we will load on runtime SSH credentials or refresh tokens for SSO
+    */
     private async _resolveWarehouseClientCredentials<
         T extends { warehouseConnection: CreateWarehouseCredentials },
     >(args: T, userUuid: string): Promise<T> {
@@ -614,10 +649,33 @@ export class ProjectService extends BaseService {
             };
         }
 
+        if (
+            args.warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
+            args.warehouseConnection.authenticationType === 'sso'
+        ) {
+            const credentials = await this.refreshCredentials(
+                args.warehouseConnection,
+                userUuid,
+            );
+            return {
+                ...args,
+                warehouseConnection: {
+                    ...args.warehouseConnection,
+                    ...credentials,
+                },
+            };
+        }
+
         return args;
     }
 
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. Perhaps this information can be passed as a prop to the client so that other services can use the warehouse client credentials logic?
+    /* 
+        This method is used when the user is making requests to the warehouse 
+        and . 
+        Then if `requireUserCredentials` flag is enabled, we load the tokens from `userWarehouseCredentials` and replace them with the credentials from the project.
+        If `requireUserCredentials` flag is disabled, we just get access token if needed for the warehouse (like nowflake on SSO).
+    */
     protected async getWarehouseCredentials(
         projectUuid: string,
         userUuid: string,
@@ -627,6 +685,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
             );
         let userWarehouseCredentialsUuid: string | undefined;
+
         if (credentials.requireUserCredentials) {
             const userWarehouseCredentials =
                 await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
@@ -634,6 +693,7 @@ export class ProjectService extends BaseService {
                     userUuid,
                     credentials.type,
                 );
+            // TODO for snowflake user specific credentials, we need to refresh the token
             if (userWarehouseCredentials === undefined) {
                 throw new NotFoundError('User warehouse credentials not found');
             }
@@ -651,7 +711,10 @@ export class ProjectService extends BaseService {
                 );
             }
             userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
+        } else {
+            credentials = await this.refreshCredentials(credentials, userUuid);
         }
+
         return {
             ...credentials,
             userWarehouseCredentialsUuid,

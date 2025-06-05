@@ -370,4 +370,25 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
             'https://example.com,https://example.org';
         expect(() => parseConfig()).toThrowError(ParameterError);
     });
+
+    describe('headlessBrowser configuration', () => {
+        beforeEach(() => {
+            process.env.HEADLESS_BROWSER_HOST = 'headless-browser-host';
+            process.env.HEADLESS_BROWSER_PORT = '3000';
+        });
+        test('should use ws and port when USE_SECURE_BROWSER is not set', () => {
+            const config = parseConfig();
+            expect(config.headlessBrowser.browserEndpoint).toEqual(
+                'ws://headless-browser-host:3000',
+            );
+        });
+
+        test('should use wss and omit the port when USE_SECURE_BROWSER is true', () => {
+            process.env.USE_SECURE_BROWSER = 'true';
+            const config = parseConfig();
+            expect(config.headlessBrowser.browserEndpoint).toEqual(
+                'wss://headless-browser-host',
+            );
+        });
+    });
 });

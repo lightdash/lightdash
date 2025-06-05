@@ -27,6 +27,7 @@ import {
     LocalIssuerTypes,
     LoginOptions,
     LoginOptionTypes,
+    MissingConfigError,
     NotExistsError,
     NotFoundError,
     OpenIdIdentityIssuerType,
@@ -1529,10 +1530,20 @@ export class UserService extends BaseService {
                 refreshToken,
                 (err: AnyType, accessToken: string, _refreshToken, result) => {
                     if (err || !accessToken) {
-                        reject(err);
+                        // Make sure you are passing a google's refresh token, and not a snowflake refresh token by mistake
+                        // othwerise this will throw a `invalid_grant` error
+                        console.error(
+                            `Unable to get google ${type} access token ${JSON.stringify(
+                                err,
+                            )}`,
+                        );
+                        reject(
+                            new AuthorizationError(
+                                `Authentication failed with Google ${err.data?.error}`,
+                            ),
+                        );
                         return;
                     }
-
                     const scopes: string[] = hasProperty<string>(
                         result,
                         'scope',
@@ -1576,22 +1587,58 @@ export class UserService extends BaseService {
     }
 
     /**
-     * This method is used on the gdrive API to get the accessToken for listing files on the user's drive
+     * This method returns an access token for different sso providers, like snowflake or google
+     * this is used on the gdrive API to get the accessToken for listing files on the user's drive
      * @param user
      * @returns accessToken
      */
     async getAccessToken(
         user: SessionUser,
-        type: 'gdrive' | 'bigquery' = 'gdrive',
+        type: 'gdrive' | 'bigquery' | 'snowflake' = 'gdrive',
     ): Promise<string> {
+        if (type === 'snowflake') {
+            if (this.lightdashConfig.auth.snowflake.clientId === undefined) {
+                // If snowflake oauth is not configured, refresh strategy will not be loaded
+                throw new MissingConfigError(
+                    'Snowflake client is not configured',
+                );
+            }
+            const refreshToken: string = await this.userModel.getRefreshToken(
+                user.userUuid,
+                OpenIdIdentityIssuerType.SNOWFLAKE,
+            );
+            const accessToken = await UserService.generateSnowflakeAccessToken(
+                refreshToken,
+            );
+            return accessToken;
+        }
         const refreshToken: string = await this.userModel.getRefreshToken(
             user.userUuid,
+            OpenIdIdentityIssuerType.GOOGLE,
         );
         const accessToken = await UserService.generateGoogleAccessToken(
             refreshToken,
             type,
         );
         return accessToken;
+    }
+
+    static async generateSnowflakeAccessToken(
+        refreshToken: string,
+    ): Promise<string> {
+        return new Promise((resolve, reject) => {
+            refresh.requestNewAccessToken(
+                'snowflake',
+                refreshToken,
+                (err: AnyType, accessToken: string, _refreshToken, result) => {
+                    if (err || !accessToken) {
+                        reject(err);
+                        return;
+                    }
+                    resolve(accessToken);
+                },
+            );
+        });
     }
 
     async isLoginMethodAllowed(_email: string, loginMethod: LoginOptionTypes) {
@@ -1604,6 +1651,7 @@ export class UserService extends BaseService {
             case OpenIdIdentityIssuerType.ONELOGIN:
             case OpenIdIdentityIssuerType.AZUREAD:
             case OpenIdIdentityIssuerType.GENERIC_OIDC:
+            case OpenIdIdentityIssuerType.SNOWFLAKE:
                 return true;
             default:
                 assertUnreachable(
@@ -1724,6 +1772,8 @@ export class UserService extends BaseService {
                 return this.lightdashConfig.auth.oneLogin.loginPath;
             case OpenIdIdentityIssuerType.GENERIC_OIDC:
                 return this.lightdashConfig.auth.oidc.loginPath;
+            case OpenIdIdentityIssuerType.SNOWFLAKE:
+                return this.lightdashConfig.auth.snowflake.loginPath;
             default:
                 assertUnreachable(
                     issuer,

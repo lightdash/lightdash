@@ -1,15 +1,13 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
-import {
-    AiWebAppPrompt,
-    getErrorMessage,
-    lighterMetricQuerySchema,
-    SlackPrompt,
-    UpdateSlackResponse,
-} from '@lightdash/common';
-import * as Sentry from '@sentry/node';
+import { lighterMetricQuerySchema } from '@lightdash/common';
+import { tool } from 'ai';
 import { z } from 'zod';
-import Logger from '../../../../logging/logger';
-import { RunMiniMetricQuery } from '../runMiniMetricQuery/runMiniMetricQuery';
+import type {
+    GetPromptFn,
+    RunMiniMetricQueryFn,
+    UpdateProgressFn,
+    UpdatePromptFn,
+} from '../types/aiAgentDependencies';
+import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 export const aiGetOneLineResultToolSchema = z.object({
     metricQuery: lighterMetricQuerySchema.describe(
@@ -17,23 +15,22 @@ export const aiGetOneLineResultToolSchema = z.object({
     ), // ! DO NOT USE AIMETRICQUERY HERE, ZOD CANNOT GET THE TYPE CORRECTLY
 });
 
-type AiGetOneLineResultToolArgs = {
-    runMiniMetricQuery: RunMiniMetricQuery;
-    getPrompt: () => Promise<SlackPrompt | AiWebAppPrompt>;
-    updatePrompt: (prompt: UpdateSlackResponse) => Promise<void>;
-    updateProgress: (progress: string) => Promise<void>;
+type Dependencies = {
+    runMiniMetricQuery: RunMiniMetricQueryFn;
+    getPrompt: GetPromptFn;
+    updatePrompt: UpdatePromptFn;
+    updateProgress: UpdateProgressFn;
 };
 
-export const getGetOneLineResultTool = ({
+export const getGetOneLineResult = ({
     getPrompt,
     updateProgress,
     runMiniMetricQuery,
     updatePrompt,
-}: AiGetOneLineResultToolArgs) => {
+}: Dependencies) => {
     const schema = aiGetOneLineResultToolSchema;
 
-    return new DynamicStructuredTool({
-        name: 'getOneLineResult',
+    return tool({
         description: `Get a single line result from the database. E.g. how many users signed up today?
 
 This tool is meant to return a single value result.
@@ -44,8 +41,8 @@ Rules for fetching the result:
 - If the data needs to be filtered, generate the filters using the "generateQueryFilters" tool before using this tool.
 - Only apply sort if needed and make sure sort "fieldId"s are from the selected "Metric" and "Dimension" "fieldId"s.
 `,
-        schema,
-        func: async ({ metricQuery }: z.infer<typeof schema>) => {
+        parameters: schema,
+        execute: async ({ metricQuery }) => {
             try {
                 const prompt = await getPrompt();
 
@@ -71,16 +68,7 @@ Rules for fetching the result:
 ${JSON.stringify(result.rows, null, 4)}
 \`\`\``;
             } catch (e) {
-                Logger.debug('Error fetching the results', e);
-                Sentry.captureException(e);
-                return `There was an error fetching the result.
-
-Here's the original error message:
-\`\`\`
-${getErrorMessage(e)}
-\`\`\`
-
-Please try again.`;
+                return toolErrorHandler(e, `Error getting one line result.`);
             }
         },
     });
