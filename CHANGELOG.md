@@ -1,3 +1,10 @@
+# [0.1689.0](https://github.com/lightdash/lightdash/compare/0.1688.1...0.1689.0) (2025-06-05)
+
+
+### Features
+
+* replace LangChain with AI SDK for agent implementation ([#15178](https://github.com/lightdash/lightdash/issues/15178)) ([97277d4](https://github.com/lightdash/lightdash/commit/97277d464b88881e3995fe673bc3997f7a90908e)), closes [#15070](https://github.com/lightdash/lightdash/issues/15070)
+
 ## [0.1688.1](https://github.com/lightdash/lightdash/compare/0.1688.0...0.1688.1) (2025-06-05)
 
 
