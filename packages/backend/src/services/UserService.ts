@@ -38,6 +38,7 @@ import {
     PasswordReset,
     RegisterOrActivateUser,
     SessionUser,
+    SnowflakeAuthenticationType,
     UpdateUserArgs,
     UpsertUserWarehouseCredentials,
     UserAllowedOrganization,
@@ -1693,6 +1694,21 @@ export class UserService extends BaseService {
                         this.lightdashConfig.auth.google.oauth2ClientSecret!,
                     refresh_token: refreshToken,
                 },
+            },
+        };
+        await this.createWarehouseCredentials(user, bigqueryCredentials);
+    }
+
+    async createSnowflakeWarehouseCredentials(
+        user: SessionUser,
+        refreshToken: string,
+    ) {
+        const bigqueryCredentials: UpsertUserWarehouseCredentials = {
+            name: 'Default',
+            credentials: {
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                token: refreshToken,
             },
         };
         await this.createWarehouseCredentials(user, bigqueryCredentials);
