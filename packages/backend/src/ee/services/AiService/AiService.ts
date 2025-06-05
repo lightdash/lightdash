@@ -1,8 +1,6 @@
 import { subject } from '@casl/ability';
 import { type TokenUsage } from '@langchain/core/language_models/base';
 import {
-    AiChatAgents,
-    AiChatMessage,
     AiConversation,
     AiConversationMessage,
     AiMetricQuery,
@@ -27,6 +25,7 @@ import {
     isField,
     isSlackPrompt,
 } from '@lightdash/common';
+import { CoreMessage, ToolContent } from 'ai';
 import { pick } from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -59,6 +58,7 @@ import type {
 } from '../ai/types/aiAgentDependencies';
 import { SearchFieldsFn } from '../ai/types/aiAgentDependencies';
 import { AiAgentExploreSummary } from '../ai/types/aiAgentExploreSummary';
+import { getChatHistoryFromThreadMessages } from '../ai/utils/getChatHistoryFromThreadMessages';
 import { AiAgentService } from '../AiAgentService';
 import { CommercialCatalogService } from '../CommercialCatalogService';
 import {
@@ -655,7 +655,7 @@ export class AiService {
 
     async generateExploreResult(
         user: SessionUser,
-        messageHistory: AiChatMessage[],
+        messageHistory: CoreMessage[],
         slackOrWebAppPrompt: SlackPrompt | AiWebAppPrompt,
     ): Promise<string> {
         if (!user.organizationUuid) {
@@ -803,71 +803,6 @@ export class AiService {
         return [uuid, createdThread];
     }
 
-    private getChatHistoryFromThreadMessages(
-        threadMessages: Awaited<
-            ReturnType<typeof this.aiModel.getThreadMessages>
-        >,
-    ) {
-        return threadMessages.flatMap<AiChatMessage>((message) => {
-            const hasExtraContext =
-                message.viz_config_output ||
-                message.filters_output ||
-                message.filters_output ||
-                message.metric_query;
-
-            return [
-                { agent: AiChatAgents.HUMAN, message: message.prompt },
-                ...(hasExtraContext
-                    ? [
-                          {
-                              agent: AiChatAgents.HUMAN,
-                              message: `Here's some context for your response:
-
-${
-    message.viz_config_output
-        ? `Viz Config: ${JSON.stringify(message.viz_config_output)}`
-        : ''
-}
-
-${
-    message.filters_output
-        ? `Filters: ${JSON.stringify(message.filters_output)}`
-        : ''
-}
-
-${
-    message.metric_query
-        ? `Metric Query: ${JSON.stringify(message.metric_query)}`
-        : ''
-}
-
-${
-    message.human_score
-        ? `Human Score: ${
-              // eslint-disable-next-line no-nested-ternary
-              message.human_score === 1
-                  ? 'Positive'
-                  : message.human_score === -1
-                  ? 'Negative'
-                  : 'Neutral'
-          }`
-        : ''
-}`,
-                          },
-                      ]
-                    : []),
-                ...(message.response
-                    ? [
-                          {
-                              agent: AiChatAgents.AI,
-                              message: message.response,
-                          },
-                      ]
-                    : []),
-            ];
-        });
-    }
-
     // TODO: user permissions
     async replyToSlackPrompt(promptUuid: string): Promise<void> {
         let slackPrompt = await this.aiModel.findSlackPrompt(promptUuid);
@@ -909,7 +844,7 @@ ${
         let response: string | undefined;
         try {
             const chatHistoryMessages =
-                this.getChatHistoryFromThreadMessages(threadMessages);
+                getChatHistoryFromThreadMessages(threadMessages);
 
             response = await this.generateExploreResult(
                 user,
@@ -1032,7 +967,7 @@ ${
 
         try {
             const chatHistoryMessages =
-                this.getChatHistoryFromThreadMessages(threadMessages);
+                getChatHistoryFromThreadMessages(threadMessages);
 
             // TODO: when we move this method to `aiAgentService` we can move the `generateAgentThreadResponse` too
             const response = await this.generateExploreResult(
@@ -1229,12 +1164,7 @@ ${
 
         const response = await this.generateExploreResult(
             user,
-            [
-                {
-                    agent: AiChatAgents.HUMAN,
-                    message: question,
-                },
-            ],
+            [{ role: 'user', content: question }],
             webAppPrompt,
         );
 

@@ -1,4 +1,4 @@
-import { AiChatMessage } from '@lightdash/common';
+import { CoreMessage } from 'ai';
 import {
     GetExploreFn,
     GetPromptFn,
@@ -15,7 +15,7 @@ export type AiAgentArgs = {
     promptUuid: string;
     agentName: string;
     instruction: string | null;
-    messageHistory: AiChatMessage[];
+    messageHistory: CoreMessage[];
     aiAgentExploreSummaries: AiAgentExploreSummary[];
     maxLimit: number;
 };
