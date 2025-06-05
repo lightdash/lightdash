@@ -1,3 +1,10 @@
+# [0.1688.0](https://github.com/lightdash/lightdash/compare/0.1687.0...0.1688.0) (2025-06-05)
+
+
+### Features
+
+* explore from here on ai viz ([#15170](https://github.com/lightdash/lightdash/issues/15170)) ([011e02e](https://github.com/lightdash/lightdash/commit/011e02ed2f9d1e6a7faab268e13adc5a158ce52a))
+
 # [0.1687.0](https://github.com/lightdash/lightdash/compare/0.1686.0...0.1687.0) (2025-06-05)
 
 
