@@ -1,3 +1,10 @@
+## [0.1688.1](https://github.com/lightdash/lightdash/compare/0.1688.0...0.1688.1) (2025-06-05)
+
+
+### Bug Fixes
+
+* Ask AI icon color ([#15185](https://github.com/lightdash/lightdash/issues/15185)) ([a24999d](https://github.com/lightdash/lightdash/commit/a24999d8a167bcba5c1a73966d6d807712f969c9))
+
 # [0.1688.0](https://github.com/lightdash/lightdash/compare/0.1687.0...0.1688.0) (2025-06-05)
 
 
