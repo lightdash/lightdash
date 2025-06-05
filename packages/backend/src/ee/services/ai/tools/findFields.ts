@@ -1,27 +1,23 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
 import {
     Explore,
     aiFindFieldsToolSchema,
     getItemId,
     type CompiledField,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
+import { tool } from 'ai';
 import { mapValues, pick } from 'lodash';
-import { z } from 'zod';
-import Logger from '../../../../logging/logger';
+import type {
+    GetExploreFn,
+    SearchFieldsFn,
+} from '../types/aiAgentDependencies';
+import { toolErrorHandler } from '../utils/toolErrorHandler';
 
-type GetFindFieldsToolArgs = {
-    getExplore: (args: { exploreName: string }) => Promise<Explore>;
-    searchFields?: (args: {
-        exploreName: string;
-        embeddingSearchQueries: Array<{ name: string; description: string }>;
-    }) => Promise<string[]>;
+type Dependencies = {
+    getExplore: GetExploreFn;
+    searchFields?: SearchFieldsFn;
 };
 
-export const getFindFieldsTool = ({
-    getExplore,
-    searchFields,
-}: GetFindFieldsToolArgs) => {
+export const getFindFields = ({ getExplore, searchFields }: Dependencies) => {
     const getMinimalTableInformation = async ({
         explore,
         embeddingSearchQueries,
@@ -61,17 +57,13 @@ export const getFindFieldsTool = ({
         return mappedValues;
     };
 
-    return new DynamicStructuredTool({
-        name: 'findFieldsInExplore',
+    return tool({
         description: `Pick an explore and generate embedded search queries by breaking down user input into questions, ensuring each part of the input is addressed.
 Include all relevant information without omitting any names, companies, dates, or other pertinent details.
 Assume all potential fields, including company names and personal names, exist in the explore.
 It is important to find fields for the filters as well.`,
-        schema: aiFindFieldsToolSchema,
-        func: async ({
-            exploreName,
-            embeddingSearchQueries,
-        }: z.infer<typeof aiFindFieldsToolSchema>) => {
+        parameters: aiFindFieldsToolSchema,
+        execute: async ({ exploreName, embeddingSearchQueries }) => {
             try {
                 const explore = await getExplore({ exploreName });
                 const tables = await getMinimalTableInformation({
@@ -87,9 +79,10 @@ It is important to find fields for the filters as well.`,
 ${JSON.stringify(tables, null, 4)}
 \`\`\``;
             } catch (error) {
-                Logger.debug({ error });
-                Sentry.captureException(error);
-                return `Error fetching fields for explore with name "${exploreName}".`;
+                return toolErrorHandler(
+                    error,
+                    `Error finding fields for explore "${exploreName}".`,
+                );
             }
         },
     });

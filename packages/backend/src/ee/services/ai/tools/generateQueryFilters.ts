@@ -1,33 +1,31 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
 import {
-    Explore,
     GenerateQueryFiltersToolSchema,
-    getErrorMessage,
     getFields,
     getFiltersFromGroup,
     getTotalFilterRules,
-    UpdateSlackResponse,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
-import { z } from 'zod';
-import Logger from '../../../../logging/logger';
-import { validateFilterRules } from '../utils/aiCopilot/validators';
+import { tool } from 'ai';
+import { validateFilterRules } from '../../AiService/utils/aiCopilot/validators';
+import type {
+    GetExploreFn,
+    UpdatePromptFn,
+} from '../types/aiAgentDependencies';
+import { toolErrorHandler } from '../utils/toolErrorHandler';
 
-type GetGenerateQueryFiltersToolArgs = {
+type Dependencies = {
     promptUuid: string;
-    updatePrompt: (prompt: UpdateSlackResponse) => Promise<void>;
-    getExplore: (args: { exploreName: string }) => Promise<Explore>;
+    updatePrompt: UpdatePromptFn;
+    getExplore: GetExploreFn;
 };
 
-export const getGenerateQueryFiltersTool = ({
+export const getGenerateQueryFilters = ({
     getExplore,
     promptUuid,
     updatePrompt,
-}: GetGenerateQueryFiltersToolArgs) => {
+}: Dependencies) => {
     const schema = GenerateQueryFiltersToolSchema;
 
-    return new DynamicStructuredTool({
-        name: 'generateQueryFilters',
+    return tool({
         description: `Generate the filters necessary to fetch the correct data from the database.
 
 Rules for generating filters:
@@ -36,8 +34,8 @@ Rules for generating filters:
 - Make sure you generate the right filters depending on the user's request.
 - If the field you are filtering is a timestamp/date field, ensure the values are JavaScript Date-compatible strings.
 `,
-        schema,
-        func: async ({ exploreName, filterGroup }: z.infer<typeof schema>) => {
+        parameters: schema,
+        execute: async ({ exploreName, filterGroup }) => {
             try {
                 const explore = await getExplore({ exploreName });
 
@@ -60,17 +58,7 @@ Filters:
 ${JSON.stringify(filters, null, 4)}
 \`\`\``;
             } catch (e) {
-                Sentry.captureException(e);
-                Logger.debug('Error generating filters', e);
-
-                return `There was an error generating the filters.
-
-Here's the original error message:
-\`\`\`
-${getErrorMessage(e)}
-\`\`\`
-
-Please try again.`;
+                return toolErrorHandler(e, `Error generating filters.`);
             }
         },
     });
