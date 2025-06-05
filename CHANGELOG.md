@@ -1,3 +1,10 @@
+# [0.1687.0](https://github.com/lightdash/lightdash/compare/0.1686.0...0.1687.0) (2025-06-05)
+
+
+### Features
+
+* Make analyst top level navigation ([#15184](https://github.com/lightdash/lightdash/issues/15184)) ([c3f9e32](https://github.com/lightdash/lightdash/commit/c3f9e3208c4497a72d924c5b2f36e2b6ddd61ea0)), closes [#15141](https://github.com/lightdash/lightdash/issues/15141)
+
 # [0.1686.0](https://github.com/lightdash/lightdash/compare/0.1685.1...0.1686.0) (2025-06-05)
 
 
