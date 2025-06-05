@@ -25,7 +25,7 @@ import {
     isField,
     isSlackPrompt,
 } from '@lightdash/common';
-import { CoreMessage, ToolContent } from 'ai';
+import { CoreMessage } from 'ai';
 import { pick } from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -49,6 +49,7 @@ import { AiAgentModel } from '../../models/AiAgentModel';
 import { AiModel } from '../../models/AiModel';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
 import { runAgent } from '../ai/agent';
+import { getChatHistoryFromThreadMessages } from '../ai/prompts/conversationHistory';
 import type {
     GetExploreFn,
     GetPromptFn,
@@ -58,7 +59,6 @@ import type {
 } from '../ai/types/aiAgentDependencies';
 import { SearchFieldsFn } from '../ai/types/aiAgentDependencies';
 import { AiAgentExploreSummary } from '../ai/types/aiAgentExploreSummary';
-import { getChatHistoryFromThreadMessages } from '../ai/utils/getChatHistoryFromThreadMessages';
 import { AiAgentService } from '../AiAgentService';
 import { CommercialCatalogService } from '../CommercialCatalogService';
 import {

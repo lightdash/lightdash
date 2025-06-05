@@ -4,7 +4,6 @@ import {
     CoreMessage,
     CoreUserMessage,
     TextPart,
-    ToolCallPart,
 } from 'ai';
 import { AiModel } from '../../../models/AiModel';
 
