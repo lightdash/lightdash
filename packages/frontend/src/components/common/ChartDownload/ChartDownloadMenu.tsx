@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ChartType,
     getCustomLabelsFromColumnProperties,
+    getHiddenTableFields,
     type ApiScheduledDownloadCsv,
     type PivotConfig,
 } from '@lightdash/common';
@@ -95,6 +96,15 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                             columnOrder={
                                 visualizationConfig.chartConfig.columnOrder
                             }
+                            customLabels={getCustomLabelsFromColumnProperties(
+                                visualizationConfig.chartConfig
+                                    .columnProperties,
+                            )}
+                            hiddenFields={getHiddenTableFields({
+                                type: ChartType.TABLE,
+                                config: visualizationConfig.chartConfig
+                                    .validConfig,
+                            })}
                             showTableNames={
                                 visualizationConfig.chartConfig.showTableNames
                             }

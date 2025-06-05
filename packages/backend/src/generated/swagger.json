@@ -5694,6 +5694,11 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AiChartType": {
+                "description": "Supported AI visualization chart types",
+                "enum": ["time_series_chart", "vertical_bar_chart", "csv"],
+                "type": "string"
+            },
             "Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName-or-filters_": {
                 "properties": {
                     "metrics": {
@@ -5767,12 +5772,7 @@
                         "$ref": "#/components/schemas/AiMetricQuery"
                     },
                     "type": {
-                        "type": "string",
-                        "enum": [
-                            "vertical_bar_chart",
-                            "time_series_chart",
-                            "csv"
-                        ]
+                        "$ref": "#/components/schemas/AiChartType"
                     }
                 },
                 "required": ["results", "metricQuery", "type"],
@@ -10477,6 +10477,10 @@
                     }
                 ]
             },
+            "SnowflakeAuthenticationType": {
+                "enum": ["password", "private_key", "sso"],
+                "type": "string"
+            },
             "WeekDay": {
                 "enum": [0, 1, 2, 3, 4, 5, 6],
                 "type": "number"
@@ -10487,8 +10491,7 @@
                         "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
                     },
                     "authenticationType": {
-                        "type": "string",
-                        "enum": ["password", "private_key", "sso"]
+                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
                     },
                     "role": {
                         "type": "string"
@@ -16605,6 +16608,12 @@
                     }
                 ]
             },
+            "LimitOverride": {
+                "type": "number",
+                "format": "double",
+                "nullable": true,
+                "description": "Represents different limit override behaviors\n- undefined: use original limit from saved chart/query\n- null: no limit (unlimited results)\n- number: apply specific limit"
+            },
             "ExecuteAsyncSavedChartRequestParams": {
                 "allOf": [
                     {
@@ -16613,9 +16622,8 @@
                     {
                         "properties": {
                             "limit": {
-                                "type": "number",
-                                "format": "double",
-                                "nullable": true
+                                "$ref": "#/components/schemas/LimitOverride",
+                                "description": "Limit override for query execution:\n- undefined: use saved chart's original limit\n- null: no limit (unlimited results)\n- number: apply specific limit"
                             },
                             "versionUuid": {
                                 "type": "string"
@@ -17030,11 +17038,6 @@
                     "pivotConfig": {
                         "$ref": "#/components/schemas/PivotConfig"
                     },
-                    "csvLimit": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
                     "onlyRaw": {
                         "type": "boolean"
                     },
@@ -17055,9 +17058,6 @@
                             "type": "string"
                         },
                         "type": "array"
-                    },
-                    "chartName": {
-                        "type": "string"
                     }
                 },
                 "type": "object",
@@ -17722,7 +17722,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1685.1",
+        "version": "0.1689.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -5035,6 +5035,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiChartType: {
+        dataType: 'refEnum',
+        enums: ['time_series_chart', 'vertical_bar_chart', 'csv'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName-or-filters_':
         {
             dataType: 'refAlias',
@@ -5095,15 +5100,7 @@ const models: TsoaRoute.Models = {
                 },
                 chartOptions: { dataType: 'object' },
                 metricQuery: { ref: 'AiMetricQuery', required: true },
-                type: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['vertical_bar_chart'] },
-                        { dataType: 'enum', enums: ['time_series_chart'] },
-                        { dataType: 'enum', enums: ['csv'] },
-                    ],
-                    required: true,
-                },
+                type: { ref: 'AiChartType', required: true },
             },
             validators: {},
         },
@@ -9356,6 +9353,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SnowflakeAuthenticationType: {
+        dataType: 'refEnum',
+        enums: ['password', 'private_key', 'sso'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     WeekDay: {
         dataType: 'refEnum',
         enums: [0, 1, 2, 3, 4, 5, 6],
@@ -9371,9 +9373,7 @@ const models: TsoaRoute.Models = {
                     authenticationType: {
                         dataType: 'union',
                         subSchemas: [
-                            { dataType: 'enum', enums: ['password'] },
-                            { dataType: 'enum', enums: ['private_key'] },
-                            { dataType: 'enum', enums: ['sso'] },
+                            { ref: 'SnowflakeAuthenticationType' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -15777,6 +15777,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LimitOverride: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'double' },
+                { dataType: 'enum', enums: [null] },
+                { dataType: 'undefined' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExecuteAsyncSavedChartRequestParams: {
         dataType: 'refAlias',
         type: {
@@ -15786,13 +15799,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        limit: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'double' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                        },
+                        limit: { ref: 'LimitOverride' },
                         versionUuid: { dataType: 'string' },
                         chartUuid: { dataType: 'string', required: true },
                     },
@@ -16212,14 +16219,6 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
-                    csvLimit: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'double' },
-                            { dataType: 'enum', enums: [null] },
-                            { dataType: 'undefined' },
-                        ],
-                    },
                     onlyRaw: {
                         dataType: 'union',
                         subSchemas: [
@@ -16258,13 +16257,6 @@ const models: TsoaRoute.Models = {
                                 dataType: 'array',
                                 array: { dataType: 'string' },
                             },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    chartName: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
                             { dataType: 'undefined' },
                         ],
                     },

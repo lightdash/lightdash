@@ -1,4 +1,8 @@
 import { subject } from '@casl/ability';
+import {
+    getCustomLabelsFromTableConfig,
+    getHiddenTableFields,
+} from '@lightdash/common';
 import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
@@ -49,6 +53,16 @@ const ResultsCard: FC = memo(() => {
     const getDownloadQueryUuid = useExplorerContext(
         (context) => context.actions.getDownloadQueryUuid,
     );
+
+    const unsavedChartVersion = useExplorerContext(
+        (context) => context.state.unsavedChartVersion,
+    );
+
+    const customLabels = getCustomLabelsFromTableConfig(
+        unsavedChartVersion.chartConfig.config,
+    );
+
+    const hiddenFields = getHiddenTableFields(unsavedChartVersion.chartConfig);
 
     const disabled = useMemo(() => (totalResults ?? 0) <= 0, [totalResults]);
 
@@ -133,6 +147,8 @@ const ResultsCard: FC = memo(() => {
                                         }
                                         getGsheetLink={getGsheetLink}
                                         columnOrder={columnOrder}
+                                        customLabels={customLabels}
+                                        hiddenFields={hiddenFields}
                                         showTableNames
                                     />
                                 </Popover.Dropdown>
