@@ -695,7 +695,7 @@ export class AiAgentService {
 
     // TODO: user permissions
     async updateHumanScoreForMessage(messageUuid: string, humanScore: number) {
-        await this.aiModel.updateModelResponse({
+        await this.aiModel.updateHumanScore({
             promptUuid: messageUuid,
             humanScore,
         });
