@@ -585,6 +585,7 @@ export type HeadlessBrowserConfig = {
     host?: string;
     port?: string;
     internalLightdashHost: string;
+    browserEndpoint: string;
 };
 export type S3Config = {
     region: string;
@@ -775,6 +776,11 @@ export const parseConfig = (): LightdashConfig => {
     const iframeEmbeddingEnabled = iframeAllowedDomains.length > 0;
     const corsEnabled = process.env.LIGHTDASH_CORS_ENABLED === 'true';
     const secureCookies = process.env.SECURE_COOKIES === 'true';
+    const useSecureBrowser = process.env.USE_SECURE_BROWSER === 'true';
+    const browserProtocol = useSecureBrowser ? 'wss' : 'ws';
+    const browserEndpoint = useSecureBrowser
+        ? `${browserProtocol}://${process.env.HEADLESS_BROWSER_HOST}`
+        : `${browserProtocol}://${process.env.HEADLESS_BROWSER_HOST}:${process.env.HEADLESS_BROWSER_PORT}`;
 
     if (iframeEmbeddingEnabled && !secureCookies) {
         throw new ParameterError(
@@ -1063,6 +1069,7 @@ export const parseConfig = (): LightdashConfig => {
             host: process.env.HEADLESS_BROWSER_HOST,
             internalLightdashHost:
                 process.env.INTERNAL_LIGHTDASH_HOST || siteUrl,
+            browserEndpoint,
         },
         s3: parseBaseS3Config(),
         results: {
