@@ -91,12 +91,10 @@ describe('Download CSV on Explore', () => {
             // wait for the chart to finish loading
             cy.findByText('Loading chart').should('not.exist');
             cy.findByText('Loading results').should('not.exist');
-
-            cy.get('[data-testid=export-csv-button]').click();
-            cy.get('[data-testid=chart-export-csv-button]').should(
-                'be.visible',
-            );
-            cy.get('[data-testid=chart-export-csv-button]').click();
+            // Close chart cart
+            cy.findByTestId('Chart-card-expand').click();
+            // Export results
+            cy.get('[data-testid=export-csv-button]').first().click();
             cy.get('[data-testid=chart-export-results-button]').click();
 
             cy.wait('@apiDownload', { timeout: 3000 }).then((interception) => {
@@ -139,17 +137,13 @@ describe('Download CSV on Explore', () => {
             cy.get('[data-testid=Results-card-expand]').click();
 
             // wait for chart to be expanded and configure button to be available, then change chart type to Table
-            cy.findByText('Configure').should('be.visible');
+            cy.get('[data-testid=Chart-card-expand]').click();
             cy.findByText('Configure').click();
             cy.get('button').contains('Bar chart').click();
             cy.get('[role="menuitem"]').contains('Table').click();
 
             // find by role and text
-            cy.get('[data-testid=export-csv-button]').click();
-            cy.get('[data-testid=chart-export-csv-button]').should(
-                'be.visible',
-            );
-            cy.get('[data-testid=chart-export-csv-button]').click();
+            cy.get('[data-testid=export-csv-button]').first().click();
             cy.get('[data-testid=chart-export-results-button]').click();
 
             cy.wait('@apiDownload').then((interception) => {
