@@ -10,10 +10,11 @@ export const AiAgentsButton = () => {
     return (
         <Button
             size="xs"
-            color="gray"
             variant="default"
             fz="sm"
-            leftIcon={<MantineIcon icon={IconMessageCircleStar} />}
+            leftIcon={
+                <MantineIcon icon={IconMessageCircleStar} color="#adb5bd" />
+            }
             onClick={() => navigate('/ai-agents')}
         >
             Ask AI
