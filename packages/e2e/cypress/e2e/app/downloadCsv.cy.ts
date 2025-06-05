@@ -71,7 +71,7 @@ describe('Download CSV on Explore', () => {
 
     it(
         'Should download CSV from results on Explore',
-        { retries: 3, pageLoadTimeout: 1000 },
+        { retries: 1, pageLoadTimeout: 1000 },
         () => {
             const downloadUrl = `/api/v2/projects/${SEED_PROJECT.project_uuid}/query/*/download`;
             cy.intercept({
@@ -80,6 +80,7 @@ describe('Download CSV on Explore', () => {
             }).as('apiDownloadCsv');
             // choose table and select fields
             cy.findByText('Orders').click();
+            cy.findByText('Order date').should('be.visible'); // Wait for Orders table columns to appear
             cy.findByText('Customers').click();
             cy.findByText('First name').click();
             cy.findByText('Unique order count').click();
@@ -119,6 +120,7 @@ describe('Download CSV on Explore', () => {
 
             // choose table and select fields
             cy.findByText('Orders').click();
+            cy.findByText('Order date').should('be.visible'); // Wait for Orders table columns to appear
             cy.findByText('Customers').click();
             cy.findByText('First name').click();
             cy.findByText('Unique order count').click();
