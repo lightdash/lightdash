@@ -9,3 +9,5 @@ dbt run --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles
 pnpm -F backend rollback-all-production
 pnpm -F backend migrate-production
 pnpm -F backend seed-production
+
+exec "$@"
