@@ -1,3 +1,10 @@
+## [0.1689.1](https://github.com/lightdash/lightdash/compare/0.1689.0...0.1689.1) (2025-06-05)
+
+
+### Bug Fixes
+
+* clone formatOptions when setting field value ([#15174](https://github.com/lightdash/lightdash/issues/15174)) ([6427e6a](https://github.com/lightdash/lightdash/commit/6427e6a1174fe60c9ecb56929c3c92e2fdc5538d)), closes [#15097](https://github.com/lightdash/lightdash/issues/15097)
+
 # [0.1689.0](https://github.com/lightdash/lightdash/compare/0.1688.1...0.1689.0) (2025-06-05)
 
 
