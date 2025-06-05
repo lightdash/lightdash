@@ -4,6 +4,7 @@ export enum OpenIdIdentityIssuerType {
     ONELOGIN = 'oneLogin',
     AZUREAD = 'azuread',
     GENERIC_OIDC = 'oidc',
+    SNOWFLAKE = 'snowflake',
 }
 
 export const isOpenIdIdentityIssuerType = (

@@ -687,6 +687,15 @@ type AuthOidcConfig = {
     scopes: string | undefined;
 } & JwtKeySetConfig;
 
+type AuthSnowflakeConfig = {
+    clientId: string | undefined;
+    clientSecret: string | undefined;
+    authorizationEndpoint: string | undefined;
+    tokenEndpoint: string | undefined;
+    callbackPath: string;
+    loginPath: string;
+};
+
 export type AuthConfig = {
     disablePasswordAuthentication: boolean;
     /**
@@ -700,6 +709,7 @@ export type AuthConfig = {
     oneLogin: AuthOneLoginConfig;
     azuread: AuthAzureADConfig;
     oidc: AuthOidcConfig;
+    snowflake: AuthSnowflakeConfig;
     pat: {
         enabled: boolean;
         allowedOrgRoles: OrganizationMemberRole[];
@@ -963,6 +973,15 @@ export const parseConfig = (): LightdashConfig => {
                     (process.env.AUTH_OIDC_AUTH_METHOD as ClientAuthMethod) ||
                     'client_secret_basic',
                 scopes: process.env.AUTH_OIDC_SCOPES,
+            },
+            snowflake: {
+                clientId: process.env.SNOWFLAKE_OAUTH_CLIENT_ID,
+                clientSecret: process.env.SNOWFLAKE_OAUTH_CLIENT_SECRET,
+                authorizationEndpoint:
+                    process.env.SNOWFLAKE_OAUTH_AUTHORIZATION_ENDPOINT,
+                tokenEndpoint: process.env.SNOWFLAKE_OAUTH_TOKEN_ENDPOINT,
+                loginPath: '/login/snowflake',
+                callbackPath: '/oauth/redirect/snowflake',
             },
         },
         intercom: {

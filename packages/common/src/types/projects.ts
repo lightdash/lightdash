@@ -164,6 +164,14 @@ export type RedshiftCredentials = Omit<
     CreateRedshiftCredentials,
     SensitiveCredentialsFieldNames
 >;
+
+// TODO use enum instead
+export enum SnowflakeAuthenticationType {
+    PASSWORD = 'password',
+    PRIVATE_KEY = 'private_key',
+    SSO = 'sso',
+}
+
 export type CreateSnowflakeCredentials = {
     type: WarehouseTypes.SNOWFLAKE;
     account: string;
@@ -172,7 +180,8 @@ export type CreateSnowflakeCredentials = {
     requireUserCredentials?: boolean;
     privateKey?: string;
     privateKeyPass?: string;
-    authenticationType?: 'password' | 'private_key';
+    authenticationType?: SnowflakeAuthenticationType;
+    token?: string; // oauth token for sso
     role?: string;
     database: string;
     warehouse: string;

@@ -175,6 +175,22 @@ apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
     })(req, res, next);
 });
 
+apiV1Router.get(
+    lightdashConfig.auth.snowflake.loginPath,
+    storeOIDCRedirect,
+    passport.authenticate('snowflake'),
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.snowflake.callbackPath,
+    (req, res, next) => {
+        passport.authenticate('snowflake', {
+            failureRedirect: getOidcRedirectURL(false)(req),
+            successRedirect: getOidcRedirectURL(true)(req),
+        })(req, res, next);
+    },
+);
+
 apiV1Router.get('/logout', (req, res, next) => {
     req.logout((err) => {
         if (err) {
