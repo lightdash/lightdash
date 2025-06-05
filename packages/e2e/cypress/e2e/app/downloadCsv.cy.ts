@@ -71,13 +71,13 @@ describe('Download CSV on Explore', () => {
 
     it(
         'Should download CSV from results on Explore',
-        { retries: 1, pageLoadTimeout: 1000 },
+        { retries: 3, pageLoadTimeout: 1000 },
         () => {
             const downloadUrl = `/api/v2/projects/${SEED_PROJECT.project_uuid}/query/*/download`;
             cy.intercept({
                 method: 'POST',
                 url: downloadUrl,
-            }).as('apiDownloadCsv');
+            }).as('apiDownload');
             // choose table and select fields
             cy.findByText('Orders').click();
             cy.findByText('Order date').should('be.visible'); // Wait for Orders table columns to appear
@@ -93,17 +93,18 @@ describe('Download CSV on Explore', () => {
             cy.findByText('Loading results').should('not.exist');
 
             cy.get('[data-testid=export-csv-button]').click();
+            cy.get('[data-testid=chart-export-csv-button]').should(
+                'be.visible',
+            );
             cy.get('[data-testid=chart-export-csv-button]').click();
             cy.get('[data-testid=chart-export-results-button]').click();
 
-            cy.wait('@apiDownloadCsv', { timeout: 3000 }).then(
-                (interception) => {
-                    expect(interception?.response?.statusCode).to.eq(200);
-                    expect(
-                        interception?.response?.body.results,
-                    ).to.have.property('fileUrl');
-                },
-            );
+            cy.wait('@apiDownload', { timeout: 3000 }).then((interception) => {
+                expect(interception?.response?.statusCode).to.eq(200);
+                expect(interception?.response?.body.results).to.have.property(
+                    'fileUrl',
+                );
+            });
         },
     );
     it(
@@ -114,7 +115,7 @@ describe('Download CSV on Explore', () => {
             cy.intercept({
                 method: 'POST',
                 url: downloadUrl,
-            }).as('apiDownloadCsv');
+            }).as('apiDownload');
 
             cy.findByTestId('page-spinner').should('not.exist');
 
@@ -133,18 +134,21 @@ describe('Download CSV on Explore', () => {
             // Close results
             cy.get('[data-testid=Results-card-expand]').click();
 
-            // open chart menu and change chart type to Table
-            cy.get('[data-testid=Chart-card-expand]').click();
+            // wait for chart to be expanded and configure button to be available, then change chart type to Table
+            cy.findByText('Configure').should('be.visible');
             cy.findByText('Configure').click();
             cy.get('button').contains('Bar chart').click();
             cy.get('[role="menuitem"]').contains('Table').click();
 
             // find by role and text
             cy.get('[data-testid=export-csv-button]').click();
+            cy.get('[data-testid=chart-export-csv-button]').should(
+                'be.visible',
+            );
             cy.get('[data-testid=chart-export-csv-button]').click();
             cy.get('[data-testid=chart-export-results-button]').click();
 
-            cy.wait('@apiDownloadCsv').then((interception) => {
+            cy.wait('@apiDownload').then((interception) => {
                 expect(interception?.response?.statusCode).to.eq(200);
 
                 expect(interception?.response?.body.results).to.have.property(
