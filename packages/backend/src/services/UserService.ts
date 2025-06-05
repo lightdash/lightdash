@@ -1703,15 +1703,16 @@ export class UserService extends BaseService {
         user: SessionUser,
         refreshToken: string,
     ) {
-        const bigqueryCredentials: UpsertUserWarehouseCredentials = {
+        const snowflakeCredentials: UpsertUserWarehouseCredentials = {
             name: 'Default',
             credentials: {
+                user: user.userUuid,
                 type: WarehouseTypes.SNOWFLAKE,
                 authenticationType: SnowflakeAuthenticationType.SSO,
                 token: refreshToken,
             },
         };
-        await this.createWarehouseCredentials(user, bigqueryCredentials);
+        await this.createWarehouseCredentials(user, snowflakeCredentials);
     }
 
     async createWarehouseCredentials(
