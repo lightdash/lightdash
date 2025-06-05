@@ -120,11 +120,15 @@ describe('Download CSV on Explore', () => {
             cy.findByTestId('page-spinner').should('not.exist');
 
             // choose table and select fields
-            cy.findByText('Orders').click();
+            cy.get('[data-testid="common-sidebar"]').within(() => {
+                cy.findByText('Orders').click();
+            });
             cy.findByText('Order date').should('be.visible'); // Wait for Orders table columns to appear
-            cy.findByText('Customers').click();
-            cy.findByText('First name').click();
-            cy.findByText('Unique order count').click();
+            cy.get('[data-testid="common-sidebar"]').within(() => {
+                cy.findByText('Customers').click();
+                cy.findByText('First name').click();
+                cy.findByText('Unique order count').click();
+            });
 
             // run query
             cy.get('button').contains('Run query').click();
