@@ -79,7 +79,7 @@ const AgentCard = ({ agent }: AgentCardProps) => {
                     </Stack>
                 </Group>
 
-                <Text size="sm" c="dimmed">
+                <Text size="sm" c="dimmed" lineClamp={2}>
                     {agent.instruction}
                 </Text>
             </Stack>
