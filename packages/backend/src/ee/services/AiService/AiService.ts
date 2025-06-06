@@ -25,6 +25,7 @@ import {
     isField,
     isSlackPrompt,
 } from '@lightdash/common';
+import { type MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
 import { CoreMessage } from 'ai';
 import { pick } from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
@@ -734,6 +735,55 @@ export class AiService {
         });
     }
 
+    private async storeThreadContextMessages(
+        threadUuid: string,
+        threadMessages: Array<
+            Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
+        >,
+        slackChannelId: string,
+        fallbackUserUuid: string,
+    ): Promise<void> {
+        if (threadMessages.length === 0) return;
+
+        // Get timestamps to check for existing prompts
+        const timestamps = threadMessages.map((msg) => msg.ts);
+        const existingTimestamps =
+            await this.aiModel.existsSlackPromptsByChannelAndTimestamps(
+                slackChannelId,
+                timestamps,
+            );
+
+        // Filter out messages that already exist
+        const newMessages = threadMessages.filter(
+            (msg) => !existingTimestamps.includes(msg.ts),
+        );
+
+        if (newMessages.length === 0) return;
+
+        // Convert Slack timestamp to Date (Slack ts is Unix timestamp with microseconds)
+        const convertSlackTsToDate = (ts: string): Date =>
+            new Date(parseFloat(ts) * 1000); // Convert to milliseconds
+
+        // Prepare data for bulk insert
+        const promptsData = newMessages
+            .map((msg) => ({
+                createdByUserUuid: fallbackUserUuid, // TODO: use the user uuid from the message
+                prompt: msg.text,
+                slackUserId: msg.user,
+                slackChannelId,
+                promptSlackTs: msg.ts,
+                createdAt: convertSlackTsToDate(msg.ts),
+            }))
+            .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+        try {
+            await this.aiModel.bulkCreateSlackPrompts(threadUuid, promptsData);
+        } catch (error) {
+            Logger.error('Failed to store thread context messages:', error);
+            // TODO: handle this error?
+        }
+    }
+
     async createSlackPrompt(data: {
         userUuid: string;
         projectUuid: string;
@@ -743,6 +793,9 @@ export class AiService {
         prompt: string;
         promptSlackTs: string;
         agentUuid: string | null;
+        threadMessages?: Array<
+            Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
+        >;
     }): Promise<[string, boolean]> {
         let createdThread = false;
         let threadUuid: string | undefined;
@@ -787,6 +840,16 @@ export class AiService {
 
         if (threadUuid === undefined) {
             throw new Error('Failed to find slack thread');
+        }
+
+        // Store thread context messages if provided
+        if (data.threadMessages && data.threadMessages.length > 0) {
+            await this.storeThreadContextMessages(
+                threadUuid,
+                data.threadMessages,
+                data.slackChannelId,
+                data.userUuid,
+            );
         }
 
         const slackTagRegex = /^.*?(<@U\d+\w*?>)/g;
