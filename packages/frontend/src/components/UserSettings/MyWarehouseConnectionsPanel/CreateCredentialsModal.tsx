@@ -152,14 +152,20 @@ export const CreateCredentialsModal: FC<Props> = ({
                         >
                             Cancel
                         </Button>
-                        {warehouseType !== WarehouseTypes.BIGQUERY && (
-                            /* On bigquery, we login using google oauth, 
+                        {warehouseType !== WarehouseTypes.BIGQUERY &&
+                            warehouseType !== WarehouseTypes.SNOWFLAKE && (
+                                /* On bigquery, we login using google oauth, 
+                            on snowflake, we also use oauth
                             those warehouse credentials will be saved during the oauth process (googleStratey.ts)
                             so we don't need the save button */
-                            <Button size="xs" type="submit" disabled={isSaving}>
-                                Save
-                            </Button>
-                        )}
+                                <Button
+                                    size="xs"
+                                    type="submit"
+                                    disabled={isSaving}
+                                >
+                                    Save
+                                </Button>
+                            )}
                     </Group>
                 </Stack>
             </form>

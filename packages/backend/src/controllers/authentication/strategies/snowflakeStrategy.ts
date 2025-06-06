@@ -9,6 +9,7 @@ import {
 import { Strategy as OAuth2Strategy, VerifyCallback } from 'passport-oauth2';
 import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';
+import Logger from '../../../logging/logger';
 
 export const snowflakePassportStrategy = !(
     lightdashConfig.auth.snowflake.clientId &&
@@ -57,6 +58,18 @@ export const snowflakePassportStrategy = !(
                           lastName: loggedUser.lastName,
                       },
                   };
+                  // we'll also be adding the token to the warehouse credentials
+                  // so they can use it to query snowflake
+                  Logger.info(
+                      `Creating user warehouse credentials for snowflake`,
+                  );
+                  await req.services
+                      .getUserService()
+                      .createSnowflakeWarehouseCredentials(
+                          req.user!,
+                          refreshToken,
+                      );
+
                   const user = await req.services
                       .getUserService()
                       .loginWithOpenId(
