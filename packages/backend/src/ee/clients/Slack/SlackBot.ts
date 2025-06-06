@@ -5,6 +5,7 @@ import {
     KnownBlock,
     SlackEventMiddlewareArgs,
 } from '@slack/bolt';
+import { type MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
 import { SlackBot, SlackBotArguments } from '../../../clients/Slack/Slackbot';
 import Logger from '../../../logging/logger';
 import { AiAgentModel } from '../../models/AiAgentModel';
@@ -276,10 +277,12 @@ export class CommercialSlackBot extends SlackBot {
         });
     }
 
+    // WARNING: Needs - channels:history scope for all slack apps
     private async handleAppMention({
         event,
         context,
         say,
+        client,
     }: SlackEventMiddlewareArgs<'app_mention'> & AllMiddlewareArgs) {
         Logger.info(`Got app_mention event ${event.text}`);
 
@@ -309,6 +312,44 @@ export class CommercialSlackBot extends SlackBot {
 
             name = agentConfig.name;
 
+            let threadMessages:
+                | Array<Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>>
+                | undefined;
+            if (event.thread_ts) {
+                try {
+                    const threadHistory = await client.conversations.replies({
+                        channel: event.channel,
+                        ts: event.thread_ts,
+                        limit: 100, // TODO: What should be the limit?
+                    });
+
+                    if (
+                        threadHistory.messages &&
+                        threadHistory.messages.length > 1
+                    ) {
+                        // Extract previous messages (excluding the current mention) for database storage
+                        threadMessages = threadHistory.messages
+                            .filter((msg) => msg.ts !== event.ts)
+                            .map((msg) => ({
+                                text: msg.text || '[message]',
+                                user: msg.user || 'unknown', // TODO: use the user uuid from the message?
+                                ts: msg.ts || '',
+                            }))
+                            .filter((msg) => msg.ts); // Only include messages with valid timestamps
+
+                        Logger.info(
+                            `Found thread context with ${threadMessages.length} previous messages`,
+                        );
+                    }
+                } catch (error) {
+                    Logger.warn(
+                        'Failed to fetch thread history, using original message only:',
+                        error,
+                    );
+                    // Fall back to original behavior if thread fetch fails
+                }
+            }
+
             [slackPromptUuid, createdThread] =
                 await this.aiService.createSlackPrompt({
                     userUuid,
@@ -319,6 +360,7 @@ export class CommercialSlackBot extends SlackBot {
                     prompt: event.text,
                     promptSlackTs: event.ts,
                     agentUuid: agentConfig.uuid ?? null,
+                    threadMessages,
                 });
         } catch (e) {
             if (e instanceof AiDuplicateSlackPromptError) {
