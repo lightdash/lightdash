@@ -1,3 +1,10 @@
+# [0.1691.0](https://github.com/lightdash/lightdash/compare/0.1690.0...0.1691.0) (2025-06-06)
+
+
+### Features
+
+* Improve AI Agent loading states ([#15192](https://github.com/lightdash/lightdash/issues/15192)) ([1be2d0c](https://github.com/lightdash/lightdash/commit/1be2d0c7f9fb7d682c18e6d39e2edc50b90bec51)), closes [#15133](https://github.com/lightdash/lightdash/issues/15133)
+
 # [0.1690.0](https://github.com/lightdash/lightdash/compare/0.1689.2...0.1690.0) (2025-06-06)
 
 
