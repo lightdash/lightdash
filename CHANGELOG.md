@@ -1,3 +1,10 @@
+## [0.1693.1](https://github.com/lightdash/lightdash/compare/0.1693.0...0.1693.1) (2025-06-06)
+
+
+### Bug Fixes
+
+* add USE_SECURE_BROWSER to production docker env ([#15202](https://github.com/lightdash/lightdash/issues/15202)) ([0f54566](https://github.com/lightdash/lightdash/commit/0f54566eafe5b7e5d3a2bc432ecb1d3b2c3c7ad2))
+
 # [0.1693.0](https://github.com/lightdash/lightdash/compare/0.1692.0...0.1693.0) (2025-06-06)
 
 
