@@ -267,17 +267,12 @@ export class CsvService extends BaseService {
             writeStream: Writable;
         },
     ): Promise<void> {
-        // Create csv-stringify stringifier - let it handle headers and escaping
+        // Create csv-stringify stringifier with clean configuration
         const stringifier = stringify({
             delimiter: ',',
+            header: true,
             columns: csvHeader,
-            header: true, // Let csv-stringify handle the header
-            eof: true,
-            record_delimiter: '\n',
         });
-
-        // Connect stringifier to writeStream
-        stringifier.pipe(writeStream);
 
         const rowTransformer = new Transform({
             objectMode: true,
@@ -293,26 +288,31 @@ export class CsvService extends BaseService {
                     sortedFieldIds,
                 );
 
-                // csv-stringify handles all escaping automatically
-                stringifier.write(csvRow);
-                callback(); // No data to pass down, csv-stringify handles output
+                // Pass data to next stream in pipeline (csv-stringify)
+                callback(null, csvRow);
             },
         });
 
+        // Full pipeline - all streams connected with automatic backpressure
         return new Promise((resolve, reject) => {
-            pipeline(readStream, rowTransformer, (err) => {
-                if (err) {
-                    Logger.error(
-                        `streamObjectRowsToFile: Pipeline error: ${getErrorMessage(
-                            err,
-                        )}`,
-                    );
-                    reject(err);
-                    return;
-                }
-                stringifier.end();
-                resolve();
-            });
+            pipeline(
+                readStream,
+                rowTransformer,
+                stringifier,
+                writeStream,
+                (err) => {
+                    if (err) {
+                        Logger.error(
+                            `streamObjectRowsToFile: Pipeline error: ${getErrorMessage(
+                                err,
+                            )}`,
+                        );
+                        reject(err);
+                        return;
+                    }
+                    resolve();
+                },
+            );
         });
     }
 
@@ -335,16 +335,14 @@ export class CsvService extends BaseService {
             writeStream: Writable;
         },
     ): Promise<{ truncated: boolean }> {
-        // Create csv-stringify stringifier - let it handle headers and escaping
+        // Create csv-stringify stringifier with clean configuration
         const stringifier = stringify({
             delimiter: ',',
+            header: true,
             columns: csvHeader,
-            header: true, // Let csv-stringify handle the header
-            eof: true,
-            record_delimiter: '\n',
         });
 
-        // Connect stringifier to writeStream
+        // Full pipeline for the CSV generation part
         stringifier.pipe(writeStream);
 
         // Use the proven streamJsonlData utility (same as ExcelService)
@@ -358,7 +356,7 @@ export class CsvService extends BaseService {
                     sortedFieldIds,
                 );
 
-                // csv-stringify handles all escaping automatically
+                // Write to stringifier, which is piped to writeStream
                 stringifier.write(csvRow);
             },
             onComplete: async () => {
