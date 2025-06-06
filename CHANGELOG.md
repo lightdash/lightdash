@@ -1,3 +1,15 @@
+# [0.1694.0](https://github.com/lightdash/lightdash/compare/0.1693.1...0.1694.0) (2025-06-06)
+
+
+### Bug Fixes
+
+* remove admin override for AI agent thread visibility ([#15214](https://github.com/lightdash/lightdash/issues/15214)) ([639912c](https://github.com/lightdash/lightdash/commit/639912c66c02f71fda93331c73e01af2e12a0465))
+
+
+### Features
+
+* remove `Conversations` tab and redudant headings from agent details page ([#15215](https://github.com/lightdash/lightdash/issues/15215)) ([92359db](https://github.com/lightdash/lightdash/commit/92359db35dfd8a506f59325f09fdd9c5afa94a85))
+
 ## [0.1693.1](https://github.com/lightdash/lightdash/compare/0.1693.0...0.1693.1) (2025-06-06)
 
 
