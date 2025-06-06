@@ -1,5 +1,3 @@
-import moment from 'moment';
-
 import { createOpenAI } from '@ai-sdk/openai';
 import { CoreMessage, generateText } from 'ai';
 
@@ -12,6 +10,7 @@ import { getGetOneLineResult } from './tools/getOneLineResult';
 
 import { getExploreInformationPrompt } from './prompts/exploreInformation';
 import { getSystemPrompt } from './prompts/system';
+
 import type { AiAgentArgs, AiAgentDependencies } from './types/aiAgent';
 
 export const runAgent = async ({
@@ -75,10 +74,8 @@ export const runAgent = async ({
 
     const messages: CoreMessage[] = [
         getSystemPrompt({
-            agentName: args.agentName || 'Lightdash AI Analyst',
-            instructions: args.instruction || 'No instructions provided',
-            date: moment().utc().format('YYYY-MM-DD'),
-            time: moment().utc().format('HH:mm'),
+            agentName: args.agentName,
+            instructions: args.instruction || undefined,
         }),
         getExploreInformationPrompt({
             exploreInformation: args.aiAgentExploreSummaries,
