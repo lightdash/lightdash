@@ -6,12 +6,15 @@ import {
     ApiAiAgentThreadMessageViz,
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
+    assertUnreachable,
     CommercialFeatureFlags,
     filterExploreByTags,
+    FilterSchemaType,
     ForbiddenError,
     LightdashUser,
     NotFoundError,
     QueryExecutionContext,
+    UnexpectedServerError,
     type SessionUser,
 } from '@lightdash/common';
 import _ from 'lodash';
@@ -23,14 +26,15 @@ import { AiAgentModel } from '../models/AiAgentModel';
 import { AiModel } from '../models/AiModel';
 import type { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
-import { csvFileConfigSchema, renderCsvFile } from './AiService/charts/csvFile';
+import { isCsvFileConfig, renderCsvFile } from './AiService/charts/csvFile';
 import {
+    isTimeSeriesMetricChartConfig,
     renderTimeseriesChart,
-    timeSeriesMetricChartConfigSchema,
 } from './AiService/charts/timeSeriesChart';
+import { AiAgentVizConfig } from './AiService/charts/types';
 import {
+    isVerticalBarMetricChartConfig,
     renderVerticalBarMetricChart,
-    verticalBarMetricChartConfigSchema,
 } from './AiService/charts/verticalBarChart';
 import {
     AI_DEFAULT_MAX_QUERY_LIMIT,
@@ -611,30 +615,25 @@ export class AiAgentService {
             );
         }
 
-        const verticalBarMetricChartConfig =
-            verticalBarMetricChartConfigSchema.safeParse(
-                message.vizConfigOutput,
-            );
-        const timeSeriesMetricChartConfig =
-            timeSeriesMetricChartConfigSchema.safeParse(
-                message.vizConfigOutput,
-            );
-        const csvFileConfig = csvFileConfigSchema.safeParse(
-            message.vizConfigOutput,
-        );
-
-        const getVizType = () => {
-            if (verticalBarMetricChartConfig.success) {
-                return 'vertical_bar_chart';
-            }
-            if (timeSeriesMetricChartConfig.success) {
-                return 'time_series_chart';
-            }
-            if (csvFileConfig.success) {
-                return 'csv';
-            }
-            return 'unknown';
-        };
+        let vizConfig: AiAgentVizConfig;
+        if (isVerticalBarMetricChartConfig(message.vizConfigOutput)) {
+            vizConfig = {
+                type: 'vertical_bar_chart',
+                config: message.vizConfigOutput,
+            };
+        } else if (isTimeSeriesMetricChartConfig(message.vizConfigOutput)) {
+            vizConfig = {
+                type: 'time_series_chart',
+                config: message.vizConfigOutput,
+            };
+        } else if (isCsvFileConfig(message.vizConfigOutput)) {
+            vizConfig = {
+                type: 'csv',
+                config: message.vizConfigOutput,
+            };
+        } else {
+            throw new UnexpectedServerError('Invalid viz config');
+        }
 
         this.analytics.track({
             event: 'ai_agent.web_viz_query',
@@ -644,40 +643,45 @@ export class AiAgentService {
                 organizationId: organizationUuid,
                 agentId: agent.uuid,
                 agentName: agent.name,
-                vizType: getVizType(),
+                vizType: vizConfig.type,
             },
         });
 
-        // FIXME: viz config should have a type so we can use an exhaustive switch
-        if (verticalBarMetricChartConfig.success) {
-            return renderVerticalBarMetricChart({
-                runMetricQuery: (q) =>
-                    this.runAiMetricQuery(user, projectUuid, q),
-                vizConfig: verticalBarMetricChartConfig.data,
-                filters: message.filtersOutput ?? undefined,
-            });
+        switch (vizConfig.type) {
+            case 'vertical_bar_chart':
+                return renderVerticalBarMetricChart({
+                    runMetricQuery: (q) =>
+                        this.runAiMetricQuery(user, projectUuid, q),
+                    vizConfig: vizConfig.config,
+                    // TODO: validate before casting
+                    filters: message.filtersOutput
+                        ? (message.filtersOutput as FilterSchemaType)
+                        : null,
+                });
+            case 'time_series_chart':
+                return renderTimeseriesChart({
+                    runMetricQuery: (q) =>
+                        this.runAiMetricQuery(user, projectUuid, q),
+                    vizConfig: vizConfig.config,
+                    // TODO: validate before casting
+                    filters: message.filtersOutput
+                        ? (message.filtersOutput as FilterSchemaType)
+                        : null,
+                });
+            case 'csv':
+                return renderCsvFile({
+                    runMetricQuery: (q) =>
+                        this.runAiMetricQuery(user, projectUuid, q),
+                    config: vizConfig.config,
+                    // TODO: validate before casting
+                    filters: message.filtersOutput
+                        ? (message.filtersOutput as FilterSchemaType)
+                        : null,
+                    maxLimit: AI_DEFAULT_MAX_QUERY_LIMIT,
+                });
+            default:
+                return assertUnreachable(vizConfig, 'Invalid viz config');
         }
-
-        if (timeSeriesMetricChartConfig.success) {
-            return renderTimeseriesChart({
-                runMetricQuery: (q) =>
-                    this.runAiMetricQuery(user, projectUuid, q),
-                vizConfig: timeSeriesMetricChartConfig.data,
-                filters: message.filtersOutput ?? undefined,
-            });
-        }
-
-        if (csvFileConfig.success) {
-            return renderCsvFile({
-                runMetricQuery: (q) =>
-                    this.runAiMetricQuery(user, projectUuid, q),
-                config: csvFileConfig.data,
-                filters: message.filtersOutput ?? undefined,
-                maxLimit: AI_DEFAULT_MAX_QUERY_LIMIT,
-            });
-        }
-
-        throw new ForbiddenError('Invalid viz config');
     }
 
     // TODO: user permissions
