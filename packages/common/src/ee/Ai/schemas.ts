@@ -150,10 +150,15 @@ export const FilterGroupSchema = z.union([
     OrFilterGroupSchema,
 ]);
 
-export const FilterSchema = z.object({
-    dimensions: FilterGroupSchema.optional(),
-    metrics: FilterGroupSchema.optional(),
+// TODO: This schema was designed to closely match the existing filter types,
+// but LLM providers require that all fields be explicitly defined and present.
+// https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses#all-fields-must-be-required
+export const filterSchema = z.object({
+    dimensions: FilterGroupSchema.nullable(),
+    metrics: FilterGroupSchema.nullable(),
 });
+
+export type FilterSchemaType = z.infer<typeof filterSchema>;
 
 export const GenerateQueryFiltersToolSchema = z.object({
     exploreName: z.string().describe('Name of the selected explore'),
@@ -168,10 +173,8 @@ export const SortFieldSchema = z.object({
     ),
     descending: z
         .boolean()
-        .optional()
-        .default(true)
         .describe(
-            '(optional, default true). If true sorts in descending order, if false sorts in ascending order',
+            'If true sorts in descending order, if false sorts in ascending order',
         ),
 });
 
@@ -183,29 +186,29 @@ export const SortFieldSchema = z.object({
 //     type: z.nativeEnum(CustomFormatType).describe('Type of custom format'),
 //     round: z
 //         .number()
-//         .optional()
+//         .nullable()
 //         .describe('Number of decimal places to round to'),
 //     separator: z
 //         .nativeEnum(NumberSeparator)
-//         .optional()
+//         .nullable()
 //         .describe('Separator for thousands'),
 //     // TODO: this should be enum but currencies is loosely typed
-//     currency: z.string().optional().describe('Three-letter currency code'),
-//     compact: CompactOrAliasSchema.optional().describe('Compact number format'),
-//     prefix: z.string().optional().describe('Prefix to add to the number'),
-//     suffix: z.string().optional().describe('Suffix to add to the number'),
+//     currency: z.string().nullable().describe('Three-letter currency code'),
+//     compact: CompactOrAliasSchema.nullable().describe('Compact number format'),
+//     prefix: z.string().nullable().describe('Prefix to add to the number'),
+//     suffix: z.string().nullable().describe('Suffix to add to the number'),
 // });
 
 // export const TableCalculationSchema = z.object({
 //   // TODO: I don't know what this is
-//   index: z.number().optional().describe('Index of the table calculation'),
+//   index: z.number().nullable().describe('Index of the table calculation'),
 //   name: z.string().min(1).describe('Name of the table calculation'),
 //   displayName: z
 //       .string()
 //       .min(1)
 //       .describe('Display name of the table calculation'),
 //   sql: z.string().min(1).describe('SQL for the table calculation'),
-//   format: CustomFormatSchema.optional().describe(
+//   format: CustomFormatSchema.nullable().describe(
 //       'Format of the table calculation',
 //   ),
 // });
@@ -225,7 +228,7 @@ export const lighterMetricQuerySchema = z.object({
         .describe(
             'Dimensions to break down the metric into groups. @example: ["orders_status", "customers_first_name"]',
         ),
-    filters: FilterSchema.describe('Filters to apply to the query'),
+    filters: filterSchema.describe('Filters to apply to the query'),
     sorts: z
         .array(SortFieldSchema)
         .describe(
@@ -245,7 +248,7 @@ export const lighterMetricQuerySchema = z.object({
     // additionalMetrics: z
     //     .array(z.unknown())
     //     .max(0)
-    //     .optional()
+    //     .nullable()
     //     .describe(
     //         'Additional metrics to compute in the explore - not supported yet',
     //     ),
@@ -253,7 +256,7 @@ export const lighterMetricQuerySchema = z.object({
     // customDimensions: z
     //     .array(z.unknown())
     //     .max(0)
-    //     .optional()
+    //     .nullable()
     //     .describe('Custom dimensions to group by in the explore'),
     // metadata: z
     //     .object({
@@ -263,7 +266,7 @@ export const lighterMetricQuerySchema = z.object({
     //             name: z.string().describe('Name of the date dimension'),
     //         }),
     //     })
-    //     .optional()
+    //     .nullable()
     //     .describe('Metadata about the query'),
 });
 
