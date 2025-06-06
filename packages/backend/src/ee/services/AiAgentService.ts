@@ -8,6 +8,7 @@ import {
     ApiUpdateAiAgent,
     CommercialFeatureFlags,
     filterExploreByTags,
+    FilterSchemaType,
     ForbiddenError,
     LightdashUser,
     NotFoundError,
@@ -667,7 +668,8 @@ export class AiAgentService {
                 runMetricQuery: (q) =>
                     this.runAiMetricQuery(user, projectUuid, q),
                 vizConfig: verticalBarMetricChartConfig.data,
-                filters: message.filtersOutput ?? undefined,
+                // TODO: validate before casting
+                filters: message.filtersOutput as FilterSchemaType | null,
             });
         }
 
@@ -676,7 +678,8 @@ export class AiAgentService {
                 runMetricQuery: (q) =>
                     this.runAiMetricQuery(user, projectUuid, q),
                 vizConfig: timeSeriesMetricChartConfig.data,
-                filters: message.filtersOutput ?? undefined,
+                // TODO: validate before casting
+                filters: (message.filtersOutput as FilterSchemaType) ?? null,
             });
         }
 
@@ -685,7 +688,8 @@ export class AiAgentService {
                 runMetricQuery: (q) =>
                     this.runAiMetricQuery(user, projectUuid, q),
                 config: csvFileConfig.data,
-                filters: message.filtersOutput ?? undefined,
+                // TODO: validate before casting
+                filters: (message.filtersOutput as FilterSchemaType) ?? null,
                 maxLimit: AI_DEFAULT_MAX_QUERY_LIMIT,
             });
         }
