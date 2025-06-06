@@ -267,11 +267,17 @@ export class CsvService extends BaseService {
             writeStream: Writable;
         },
     ): Promise<void> {
+        // Create csv-stringify stringifier - let it handle headers and escaping
         const stringifier = stringify({
             delimiter: ',',
-            header: true,
             columns: csvHeader,
+            header: true, // Let csv-stringify handle the header
+            eof: true,
+            record_delimiter: '\n',
         });
+
+        // Connect stringifier to writeStream
+        stringifier.pipe(writeStream);
 
         const rowTransformer = new Transform({
             objectMode: true,
@@ -280,32 +286,33 @@ export class CsvService extends BaseService {
                 encoding: BufferEncoding,
                 callback: TransformCallback,
             ) {
-                callback(
-                    null,
-                    CsvService.convertRowToCsv(
-                        chunk,
-                        itemMap,
-                        onlyRaw,
-                        sortedFieldIds,
-                    ),
+                const csvRow = CsvService.convertRowToCsv(
+                    chunk,
+                    itemMap,
+                    onlyRaw,
+                    sortedFieldIds,
                 );
+
+                // csv-stringify handles all escaping automatically
+                stringifier.write(csvRow);
+                callback(); // No data to pass down, csv-stringify handles output
             },
         });
 
         return new Promise((resolve, reject) => {
-            pipeline(
-                readStream,
-                rowTransformer,
-                stringifier,
-                writeStream,
-                (err) => {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-                    resolve();
-                },
-            );
+            pipeline(readStream, rowTransformer, (err) => {
+                if (err) {
+                    Logger.error(
+                        `streamObjectRowsToFile: Pipeline error: ${getErrorMessage(
+                            err,
+                        )}`,
+                    );
+                    reject(err);
+                    return;
+                }
+                stringifier.end();
+                resolve();
+            });
         });
     }
 
@@ -313,8 +320,7 @@ export class CsvService extends BaseService {
      * Stream S3 JSONL data to CSV file
      * This method is specifically designed to handle JSONL data from S3 storage
      * and convert it to CSV format.
-     * Unlike streamRowsToFile, this method expects the readStream to be in string format,
-     * not in object mode.
+     * Uses the proven ExcelService streaming pattern with shared streamJsonlData utility.
      */
     static async streamJsonlRowsToFile(
         onlyRaw: boolean,
@@ -329,96 +335,38 @@ export class CsvService extends BaseService {
             writeStream: Writable;
         },
     ): Promise<{ truncated: boolean }> {
-        return new Promise((resolve, reject) => {
-            let lineCount = 0;
-            const MAX_LINES = 100000; // Configurable limit
-            let truncated = false;
-
-            const lineReader = createInterface({
-                input: readStream,
-                crlfDelay: Infinity,
-            });
-
-            const jsonlToRowTransform = new Transform({
-                objectMode: true,
-                transform(
-                    chunk: string,
-                    encoding: BufferEncoding,
-                    callback: TransformCallback,
-                ) {
-                    if (!chunk.trim()) {
-                        callback(null, null);
-                        return;
-                    }
-
-                    try {
-                        const parsedRow = JSON.parse(chunk);
-                        callback(null, parsedRow);
-                    } catch (error) {
-                        Logger.error(
-                            `Error parsing line: ${getErrorMessage(error)}`,
-                        );
-                        callback(null, null);
-                    }
-                },
-            });
-
-            const rowToCsvTransform = new Transform({
-                objectMode: true,
-                transform(
-                    chunk: Record<string, AnyType>,
-                    encoding: BufferEncoding,
-                    callback: TransformCallback,
-                ) {
-                    const csvRow = CsvService.convertRowToCsv(
-                        chunk,
-                        itemMap,
-                        onlyRaw,
-                        sortedFieldIds,
-                    );
-                    callback(null, csvRow);
-                },
-            });
-
-            const stringifier = stringify({
-                delimiter: ',',
-                header: true,
-                columns: csvHeader,
-            });
-
-            lineReader.on('line', (line: string) => {
-                lineCount += 1;
-                if (lineCount > MAX_LINES) {
-                    truncated = true;
-                    lineReader.close();
-                    return;
-                }
-                jsonlToRowTransform.write(line);
-            });
-
-            lineReader.on('close', () => {
-                jsonlToRowTransform.end();
-            });
-
-            lineReader.on('error', (error) => {
-                reject(error);
-            });
-
-            // Use pipeline to handle all the transforms properly
-            pipeline(
-                jsonlToRowTransform,
-                rowToCsvTransform,
-                stringifier,
-                writeStream,
-                (err) => {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-                    resolve({ truncated });
-                },
-            );
+        // Create csv-stringify stringifier - let it handle headers and escaping
+        const stringifier = stringify({
+            delimiter: ',',
+            columns: csvHeader,
+            header: true, // Let csv-stringify handle the header
+            eof: true,
+            record_delimiter: '\n',
         });
+
+        // Connect stringifier to writeStream
+        stringifier.pipe(writeStream);
+
+        // Use the proven streamJsonlData utility (same as ExcelService)
+        const { truncated } = await CsvService.streamJsonlData({
+            readStream,
+            onRow: (parsedRow) => {
+                const csvRow = CsvService.convertRowToCsv(
+                    parsedRow,
+                    itemMap,
+                    onlyRaw,
+                    sortedFieldIds,
+                );
+
+                // csv-stringify handles all escaping automatically
+                stringifier.write(csvRow);
+            },
+            onComplete: async () => {
+                stringifier.end();
+            },
+        });
+
+        return { truncated };
     }
 
     static async writeRowsToFile(
