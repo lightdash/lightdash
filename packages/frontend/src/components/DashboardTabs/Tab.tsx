@@ -104,7 +104,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                 color="red"
                                                 icon={<IconTrash size={14} />}
                                             >
-                                                Remove Tab
+                                                Safely Remove Tab
                                             </Menu.Item>
                                         )}
                                     </Menu.Dropdown>
