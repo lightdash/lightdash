@@ -1,17 +1,20 @@
+import { AnyType } from '@lightdash/common';
+import type { ZodAny, ZodType } from 'zod';
+
 import { createOpenAI } from '@ai-sdk/openai';
-import { CoreMessage, generateText } from 'ai';
+import { CoreMessage, generateObject, generateText, NoSuchToolError } from 'ai';
 
-import { getFindFields } from './tools/findFields';
-import { getGenerateBarVizConfig } from './tools/generateBarVizConfig';
-import { getGenerateCsv } from './tools/generateCsv';
-import { getGenerateQueryFilters } from './tools/generateQueryFilters';
-import { getGenerateTimeSeriesVizConfig } from './tools/generateTimeSeriesVizConfigTool';
-import { getGetOneLineResult } from './tools/getOneLineResult';
+import { getFindFields } from '../tools/findFields';
+import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
+import { getGenerateCsv } from '../tools/generateCsv';
+import { getGenerateQueryFilters } from '../tools/generateQueryFilters';
+import { getGenerateTimeSeriesVizConfig } from '../tools/generateTimeSeriesVizConfigTool';
+import { getGetOneLineResult } from '../tools/getOneLineResult';
 
-import { getExploreInformationPrompt } from './prompts/exploreInformation';
-import { getSystemPrompt } from './prompts/system';
+import { getExploreInformationPrompt } from '../prompts/exploreInformation';
+import { getSystemPrompt } from '../prompts/system';
 
-import type { AiAgentArgs, AiAgentDependencies } from './types/aiAgent';
+import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
 
 export const runAgent = async ({
     args,
@@ -97,6 +100,35 @@ export const runAgent = async ({
         maxSteps: 10,
         maxRetries: 3,
         temperature: 0.2,
+        experimental_repairToolCall: async ({
+            messages: conversationHistory,
+            error,
+            toolCall,
+            parameterSchema,
+        }) => {
+            if (NoSuchToolError.isInstance(error)) {
+                return null;
+            }
+
+            const tool = tools[toolCall.toolName as keyof typeof tools];
+
+            // TODO: extract this as separate agent
+            const { object: repairedArgs } = await generateObject({
+                model,
+                schema: tool.parameters as ZodType<AnyType>,
+                messages: conversationHistory,
+                prompt: [
+                    `The model tried to call the tool "${toolCall.toolName}"` +
+                        ` with the following arguments:`,
+                    JSON.stringify(toolCall.args),
+                    `The tool accepts the following schema:`,
+                    JSON.stringify(parameterSchema(toolCall)),
+                    'Please fix the arguments.',
+                ].join('\n'),
+            });
+
+            return { ...toolCall, args: JSON.stringify(repairedArgs) };
+        },
     });
 
     return result.text;

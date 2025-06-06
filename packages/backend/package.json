@@ -24,9 +24,9 @@
         "@types/passport": "^1.0.12",
         "@types/passport-google-oauth20": "^2.0.11",
         "@types/passport-local": "^1.0.34",
+        "@types/passport-oauth2": "^1.4.17",
         "@types/passport-oauth2-refresh": "^1.1.1",
         "@types/passport-strategy": "^0.2.35",
-        "@types/passport-oauth2": "^1.4.17",
         "@types/pg": "^8.10.7",
         "@types/uuid": "^8.3.4",
         "chokidar-cli": "^3.0.0",
@@ -136,8 +136,7 @@
         "uuid": "^8.3.2",
         "winston": "^3.3.3",
         "yaml": "^2.7.0",
-        "zod": "^3.22.4",
-        "zod-to-json-schema": "^3.22.4"
+        "zod": "^3.25.55"
     },
     "scripts": {
         "generate-api": "tsoa spec-and-routes --configuration tsoa.yml",

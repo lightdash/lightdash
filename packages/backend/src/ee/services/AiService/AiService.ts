@@ -48,7 +48,7 @@ import OpenAi from '../../clients/OpenAi';
 import { AiAgentModel } from '../../models/AiAgentModel';
 import { AiModel } from '../../models/AiModel';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
-import { runAgent } from '../ai/agent';
+import { runAgent } from '../ai/agents/agent';
 import { getChatHistoryFromThreadMessages } from '../ai/prompts/conversationHistory';
 import type {
     GetExploreFn,
