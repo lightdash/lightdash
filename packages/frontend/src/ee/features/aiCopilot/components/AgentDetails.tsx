@@ -265,21 +265,20 @@ export const AgentDetails: FC = () => {
                                 },
                             }}
                         >
-                            <Tabs.List>
+                            {/* <Tabs.List>
                                 <Tabs.Tab value="general">General</Tabs.Tab>
                                 {!isCreateMode && (
                                     <Tabs.Tab value="conversations">
                                         Conversations
                                     </Tabs.Tab>
                                 )}
-                            </Tabs.List>
+                            </Tabs.List> */}
 
                             <Tabs.Panel value="general" pt="xs">
                                 <form onSubmit={handleSubmit}>
                                     <Stack gap="lg">
                                         {/* Basic Agent Info */}
                                         <Stack gap="sm">
-                                            <Title order={5}>Details</Title>
                                             <Group gap="sm">
                                                 <TextInput
                                                     label="Agent Name"
@@ -370,10 +369,6 @@ export const AgentDetails: FC = () => {
                                         </Stack>
 
                                         <Stack gap="sm">
-                                            <Title order={5}>
-                                                Configuration
-                                            </Title>
-
                                             <Textarea
                                                 label="Instructions"
                                                 description="Instructions set the
@@ -392,10 +387,6 @@ export const AgentDetails: FC = () => {
                                         {/* Integrations Section */}
 
                                         <Stack gap="sm">
-                                            <Title order={5}>
-                                                Integrations
-                                            </Title>
-
                                             <Stack gap="md">
                                                 <Title order={6}>Slack</Title>
 
