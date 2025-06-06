@@ -216,15 +216,7 @@ export class AiAgentService {
         const threads = await this.aiAgentModel.findThreads({
             organizationUuid,
             agentUuid,
-            // Admins can view all threads
-            userUuid: user.ability.can(
-                'view',
-                subject('AiAgentThread', {
-                    organizationUuid,
-                }),
-            )
-                ? undefined
-                : user.userUuid,
+            userUuid: user.userUuid,
         });
 
         const slackUserIds = _.uniq(
