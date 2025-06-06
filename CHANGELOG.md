@@ -1,3 +1,10 @@
+# [0.1692.0](https://github.com/lightdash/lightdash/compare/0.1691.0...0.1692.0) (2025-06-06)
+
+
+### Features
+
+* add experimental tool call repair to AI agent ([#15207](https://github.com/lightdash/lightdash/issues/15207)) ([ee9be44](https://github.com/lightdash/lightdash/commit/ee9be4417e1a2f3de720364f9e0cc28a48acc2df))
+
 # [0.1691.0](https://github.com/lightdash/lightdash/compare/0.1690.0...0.1691.0) (2025-06-06)
 
 
