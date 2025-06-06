@@ -107,16 +107,6 @@ export type AiAgentThreadGenerateJobPayload = TraceTaskBase & {
     promptUuid: string;
 };
 
-export enum AiChatAgents {
-    HUMAN = 'human',
-    AI = 'ai',
-}
-
-export type AiChatMessage = {
-    agent: AiChatAgents;
-    message: string;
-};
-
 export type AiConversation = {
     threadUuid: string;
     createdAt: string | Date;

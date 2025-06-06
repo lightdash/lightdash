@@ -3,8 +3,6 @@ import moment from 'moment';
 import { createOpenAI } from '@ai-sdk/openai';
 import { CoreMessage, generateText } from 'ai';
 
-import { AiChatAgents, assertUnreachable } from '@lightdash/common';
-
 import { getFindFields } from './tools/findFields';
 import { getGenerateBarVizConfig } from './tools/generateBarVizConfig';
 import { getGenerateCsv } from './tools/generateCsv';
@@ -75,22 +73,6 @@ export const runAgent = async ({
         getOneLineResult,
     };
 
-    const messageHistory = args.messageHistory.map<CoreMessage>(
-        ({ agent: agentType, message }) => {
-            switch (agentType) {
-                case AiChatAgents.AI:
-                    return { role: 'assistant', content: message };
-                case AiChatAgents.HUMAN:
-                    return { role: 'user', content: message };
-                default:
-                    return assertUnreachable(
-                        agentType,
-                        `unknown agent: ${agentType}`,
-                    );
-            }
-        },
-    );
-
     const messages: CoreMessage[] = [
         getSystemPrompt({
             agentName: args.agentName || 'Lightdash AI Analyst',
@@ -101,7 +83,7 @@ export const runAgent = async ({
         getExploreInformationPrompt({
             exploreInformation: args.aiAgentExploreSummaries,
         }),
-        ...messageHistory,
+        ...args.messageHistory,
     ];
 
     const openai = createOpenAI({
