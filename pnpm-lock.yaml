@@ -886,7 +886,7 @@ importers:
         version: 4.17.21
       mantine-form-zod-resolver:
         specifier: ^1.1.0
-        version: 1.1.0(@mantine/form@7.5.2(react@19.0.0))(zod@3.23.3)
+        version: 1.1.0(@mantine/form@7.5.2(react@19.0.0))(zod@3.25.55)
       mantine-react-table:
         specifier: ^1.3.4
         version: 1.3.4(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/hooks@6.0.22(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(@mantine/dates@6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/hooks@6.0.22(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(@mantine/hooks@6.0.22(react@19.0.0))(dayjs@1.11.10)(react@19.0.0))(@mantine/hooks@6.0.22(react@19.0.0))(@tabler/icons-react@2.47.0(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -993,8 +993,8 @@ importers:
         specifier: ^5.16.1
         version: 5.16.1(vega@5.32.0(encoding@0.1.13))
       zod:
-        specifier: ^3.22.4
-        version: 3.23.3
+        specifier: ^3.25.55
+        version: 3.25.55
     devDependencies:
       '@chromatic-com/storybook':
         specifier: ^3
@@ -13994,9 +13994,6 @@ packages:
     peerDependencies:
       zod: ^3.24.1
 
-  zod@3.23.3:
-    resolution: {integrity: sha512-tPvq1B/2Yu/dh2uAIH2/BhUlUeLIUvAjr6dpL/75I0pCYefHgjhXk1o1Kob3kTU8C7yU1j396jFHlsVWFi9ogg==}
-
   zod@3.25.55:
     resolution: {integrity: sha512-219huNnkSLQnLsQ3uaRjXsxMrVm5C9W3OOpEVt2k5tvMKuA8nBSu38e0B//a+he9Iq2dvmk2VyYVlHqiHa4YBA==}
 
@@ -25472,10 +25469,10 @@ snapshots:
     dependencies:
       tmpl: 1.0.5
 
-  mantine-form-zod-resolver@1.1.0(@mantine/form@7.5.2(react@19.0.0))(zod@3.23.3):
+  mantine-form-zod-resolver@1.1.0(@mantine/form@7.5.2(react@19.0.0))(zod@3.25.55):
     dependencies:
       '@mantine/form': 7.5.2(react@19.0.0)
-      zod: 3.23.3
+      zod: 3.25.55
 
   mantine-react-table@1.3.4(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/hooks@6.0.22(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(@mantine/dates@6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.0.2)(react@19.0.0))(@mantine/hooks@6.0.22(react@19.0.0))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(@mantine/hooks@6.0.22(react@19.0.0))(dayjs@1.11.10)(react@19.0.0))(@mantine/hooks@6.0.22(react@19.0.0))(@tabler/icons-react@2.47.0(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
     dependencies:
@@ -30290,8 +30287,6 @@ snapshots:
   zod-to-json-schema@3.24.1(zod@3.25.55):
     dependencies:
       zod: 3.25.55
-
-  zod@3.23.3: {}
 
   zod@3.25.55: {}
 
