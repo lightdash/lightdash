@@ -1,3 +1,10 @@
+# [0.1696.0](https://github.com/lightdash/lightdash/compare/0.1695.0...0.1696.0) (2025-06-06)
+
+
+### Features
+
+* exit tab mode if we're down to a single tab ([#15204](https://github.com/lightdash/lightdash/issues/15204)) ([5b74ba8](https://github.com/lightdash/lightdash/commit/5b74ba81831d971e7756f886c82300292c1f1af6))
+
 # [0.1695.0](https://github.com/lightdash/lightdash/compare/0.1694.0...0.1695.0) (2025-06-06)
 
 
