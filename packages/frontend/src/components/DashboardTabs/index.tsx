@@ -87,9 +87,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [isDeletingTab, setDeletingTab] = useState<boolean>(false);
 
     const defaultTab = dashboardTabs?.[0];
-    const sortedTabs = dashboardTabs?.sort((a, b) => a.order - b.order);
+    // Context: We don't want to show the "tabs mode" if there is only one tab in state
+    // This is because the tabs mode is only useful when there are multiple tabs
+    const sortedTabs =
+        dashboardTabs.length > 1
+            ? dashboardTabs?.sort((a, b) => a.order - b.order)
+            : [];
     const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
-    const tabsEnabled = dashboardTabs && dashboardTabs.length > 0;
+    const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
 
     const sortedTiles = dashboardTiles?.sort((a, b) => {
         if (a.y === b.y) {
@@ -183,7 +188,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             dashboardTiles?.forEach((tile) => {
                 tile.tabUuid = undefined; // set tab uuid back to null to avoid foreign key constraint error
             });
-            return; // keep all tiles if its the last tab
+            // If this is the last tab, navigate to the non-tab URL.
+            // See `const = sortedTabs` for more context.
+            void navigate(
+                `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                { replace: true },
+            );
+
+            return;
         }
 
         const tilesToDelete = dashboardTiles?.filter(

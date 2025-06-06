@@ -1,3 +1,36 @@
+# [0.1696.0](https://github.com/lightdash/lightdash/compare/0.1695.0...0.1696.0) (2025-06-06)
+
+
+### Features
+
+* exit tab mode if we're down to a single tab ([#15204](https://github.com/lightdash/lightdash/issues/15204)) ([5b74ba8](https://github.com/lightdash/lightdash/commit/5b74ba81831d971e7756f886c82300292c1f1af6))
+
+# [0.1695.0](https://github.com/lightdash/lightdash/compare/0.1694.0...0.1695.0) (2025-06-06)
+
+
+### Features
+
+* Improve instructions display ([#15213](https://github.com/lightdash/lightdash/issues/15213)) ([c5546ea](https://github.com/lightdash/lightdash/commit/c5546eaa94a9dcebaeeedf27fcf4b630d45d014b)), closes [#15155](https://github.com/lightdash/lightdash/issues/15155)
+
+# [0.1694.0](https://github.com/lightdash/lightdash/compare/0.1693.1...0.1694.0) (2025-06-06)
+
+
+### Bug Fixes
+
+* remove admin override for AI agent thread visibility ([#15214](https://github.com/lightdash/lightdash/issues/15214)) ([639912c](https://github.com/lightdash/lightdash/commit/639912c66c02f71fda93331c73e01af2e12a0465))
+
+
+### Features
+
+* remove `Conversations` tab and redudant headings from agent details page ([#15215](https://github.com/lightdash/lightdash/issues/15215)) ([92359db](https://github.com/lightdash/lightdash/commit/92359db35dfd8a506f59325f09fdd9c5afa94a85))
+
+## [0.1693.1](https://github.com/lightdash/lightdash/compare/0.1693.0...0.1693.1) (2025-06-06)
+
+
+### Bug Fixes
+
+* add USE_SECURE_BROWSER to production docker env ([#15202](https://github.com/lightdash/lightdash/issues/15202)) ([0f54566](https://github.com/lightdash/lightdash/commit/0f54566eafe5b7e5d3a2bc432ecb1d3b2c3c7ad2))
+
 # [0.1693.0](https://github.com/lightdash/lightdash/compare/0.1692.0...0.1693.0) (2025-06-06)
 
 

@@ -251,7 +251,7 @@ const Dashboard: FC = () => {
                 tableCalculations: [],
             });
             reset();
-            if (dashboardTabs.length > 0) {
+            if (dashboardTabs.length > 1) {
                 void navigate(
                     `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${activeTab?.uuid}`,
                     { replace: true },

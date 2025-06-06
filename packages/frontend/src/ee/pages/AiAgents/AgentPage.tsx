@@ -32,6 +32,7 @@ import Page from '../../../components/common/Page/Page';
 import { useProject } from '../../../hooks/useProject';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import useApp from '../../../providers/App/useApp';
+import ClampedTextWithPopover from '../../features/aiCopilot/components/ClampedTextWithPopover';
 import {
     useAiAgent,
     useAiAgentThreads,
@@ -169,7 +170,9 @@ const AgentPage = () => {
                         <Stack gap="xs">
                             <Title order={6}>Instructions</Title>
                             <Paper p="xs" bg="gray.0" c="gray.7">
-                                {agent.instruction}
+                                <ClampedTextWithPopover>
+                                    {agent.instruction}
+                                </ClampedTextWithPopover>
                             </Paper>
                         </Stack>
                     )}
