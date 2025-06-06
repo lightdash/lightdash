@@ -8,7 +8,6 @@ import {
     type ChartConfig,
     type CreateSavedChartVersion,
     type MetricQuery,
-    type ResultRow,
 } from '@lightdash/common';
 import { type Axis } from 'echarts';
 import { type VisualizationProviderProps } from '../../../../components/LightdashVisualization/VisualizationProvider';
@@ -16,6 +15,7 @@ import { type EChartSeries } from '../../../../hooks/echarts/useEchartsCartesian
 import type useHealth from '../../../../hooks/health/useHealth';
 import { type useOrganization } from '../../../../hooks/organization/useOrganization';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../../hooks/useExplorerRoute';
+import { defaultState } from '../../../../providers/Explorer/defaultState';
 
 export const getChartVisualizationFromAiQuery = (
     data: ApiAiAgentThreadMessageViz,
@@ -25,6 +25,11 @@ export const getChartVisualizationFromAiQuery = (
 ): VisualizationProviderProps & {
     openInExploreUrl: { pathname: string; search: string } | null;
 } => {
+    const metricQuery: MetricQuery = {
+        ...defaultState.unsavedChartVersion.metricQuery,
+        ...data.metricQuery,
+    };
+
     const getChartConfig = (): ChartConfig => {
         // Convert AI chart type to Lightdash chart type
         let chartType: ChartType;
@@ -46,16 +51,10 @@ export const getChartVisualizationFromAiQuery = (
         if (
             chartType === ChartType.CARTESIAN &&
             data.chartOptions &&
-            data.metricQuery
+            !!metricQuery
         ) {
             // Extract configuration from AI data and convert to Lightdash format
             const echartsConfig = data.chartOptions;
-            const metricQuery: MetricQuery = {
-                ...data.metricQuery,
-                tableCalculations: [],
-                additionalMetrics: [],
-                customDimensions: [],
-            };
 
             // Create proper Lightdash Series objects
             const lightdashSeries =
@@ -121,35 +120,10 @@ export const getChartVisualizationFromAiQuery = (
     };
 
     const getResultsData = () => {
-        const metricQuery: MetricQuery = {
-            ...data.metricQuery,
-            tableCalculations: [],
-            additionalMetrics: [],
-            customDimensions: [],
-        };
-
-        // Transform rows to expected format in hooks in VisualizationProvider
-        const transformedRows: ResultRow[] = (data.results?.rows || []).map(
-            (row: Record<string, any>) => {
-                const transformedRow: Record<string, any> = {};
-
-                Object.entries(row).forEach(([key, value]) => {
-                    transformedRow[key] = {
-                        value: {
-                            raw: value,
-                            formatted: value,
-                        },
-                    };
-                });
-
-                return transformedRow;
-            },
-        );
-
         return {
-            rows: transformedRows,
+            rows: data.results.rows,
             metricQuery,
-            fields: data.results.fields || {},
+            fields: data.results.fields,
             cacheMetadata: data.results.cacheMetadata,
 
             // Add required properties for InfiniteQueryResults
@@ -173,19 +147,15 @@ export const getChartVisualizationFromAiQuery = (
         };
     };
 
-    const columnOrder = [
-        ...data.metricQuery.dimensions,
-        ...data.metricQuery.metrics,
-    ];
+    const columnOrder = [...metricQuery.dimensions, ...metricQuery.metrics];
 
     const getOpenInExploreUrl = () => {
         const resultsData = getResultsData();
-        if (!data.metricQuery || !activeProjectUuid || !resultsData)
-            return null;
+        if (!metricQuery || !activeProjectUuid || !resultsData) return null;
 
         const createSavedChart: CreateSavedChartVersion = {
-            tableName: data.metricQuery.exploreName,
-            metricQuery: resultsData.metricQuery,
+            tableName: metricQuery.exploreName,
+            metricQuery,
             chartConfig: getChartConfig(),
             tableConfig: {
                 columnOrder,
@@ -203,7 +173,7 @@ export const getChartVisualizationFromAiQuery = (
         return url;
     };
 
-    return {
+    const props = {
         chartConfig: getChartConfig(),
         resultsData: getResultsData(),
         columnOrder,
@@ -215,5 +185,8 @@ export const getChartVisualizationFromAiQuery = (
         onChartTypeChange: undefined,
         onChartConfigChange: undefined,
         onPivotDimensionsChange: undefined,
+        itemsMap: data.results.fields,
     };
+
+    return props;
 };
