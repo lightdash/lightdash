@@ -1,3 +1,30 @@
+# [0.1692.0](https://github.com/lightdash/lightdash/compare/0.1691.0...0.1692.0) (2025-06-06)
+
+
+### Features
+
+* add experimental tool call repair to AI agent ([#15207](https://github.com/lightdash/lightdash/issues/15207)) ([ee9be44](https://github.com/lightdash/lightdash/commit/ee9be4417e1a2f3de720364f9e0cc28a48acc2df))
+
+# [0.1691.0](https://github.com/lightdash/lightdash/compare/0.1690.0...0.1691.0) (2025-06-06)
+
+
+### Features
+
+* Improve AI Agent loading states ([#15192](https://github.com/lightdash/lightdash/issues/15192)) ([1be2d0c](https://github.com/lightdash/lightdash/commit/1be2d0c7f9fb7d682c18e6d39e2edc50b90bec51)), closes [#15133](https://github.com/lightdash/lightdash/issues/15133)
+
+# [0.1690.0](https://github.com/lightdash/lightdash/compare/0.1689.2...0.1690.0) (2025-06-06)
+
+
+### Bug Fixes
+
+* Giving feedback updates the response time ([#15197](https://github.com/lightdash/lightdash/issues/15197)) ([df67a8a](https://github.com/lightdash/lightdash/commit/df67a8a8392280f7df1fcdfdb177ccd44e6e737f)), closes [#15190](https://github.com/lightdash/lightdash/issues/15190)
+
+
+### Features
+
+* add support for https headless browser ([#15118](https://github.com/lightdash/lightdash/issues/15118)) ([2243b2c](https://github.com/lightdash/lightdash/commit/2243b2c972724eae28998323dd672665ec23b0b9))
+* add XLSX download option in explores page ([#15095](https://github.com/lightdash/lightdash/issues/15095)) ([092f7e9](https://github.com/lightdash/lightdash/commit/092f7e986997c2a6a414f0b3df66ccb60d28f1b6))
+
 ## [0.1689.2](https://github.com/lightdash/lightdash/compare/0.1689.1...0.1689.2) (2025-06-05)
 
 

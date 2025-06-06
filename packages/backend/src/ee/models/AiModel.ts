@@ -280,6 +280,19 @@ export class AiModel {
             .returning('ai_prompt_uuid');
     }
 
+    async updateHumanScore(data: {
+        promptUuid: string;
+        humanScore: number | null;
+    }) {
+        await this.database(AiPromptTableName)
+            .update({
+                human_score: data.humanScore,
+            })
+            .where({
+                ai_prompt_uuid: data.promptUuid,
+            });
+    }
+
     async updateSlackResponseTs(data: UpdateSlackResponseTs) {
         await this.database(AiSlackPromptTableName)
             .update({
