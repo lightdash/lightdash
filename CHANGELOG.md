@@ -1,3 +1,10 @@
+# [0.1693.0](https://github.com/lightdash/lightdash/compare/0.1692.0...0.1693.0) (2025-06-06)
+
+
+### Features
+
+* improve dashboard tab styling (spacing and colors) ([#15208](https://github.com/lightdash/lightdash/issues/15208)) ([8acad46](https://github.com/lightdash/lightdash/commit/8acad46e57d4470f18060542a8a57a48bd9eaed9))
+
 # [0.1692.0](https://github.com/lightdash/lightdash/compare/0.1691.0...0.1692.0) (2025-06-06)
 
 

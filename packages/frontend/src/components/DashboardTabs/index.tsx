@@ -193,6 +193,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             handleBatchDeleteTiles(tilesToDelete);
         }
     };
+    const MAGIC_SCROLL_AREA_HEIGHT = 40;
 
     return (
         <DragDropContext
@@ -240,23 +241,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     }
                                 }}
                                 mt={tabsEnabled ? 'sm' : 'xs'}
-                                styles={
-                                    tabsEnabled
-                                        ? {
-                                              root: {
-                                                  backgroundColor: 'white',
-                                                  flexGrow: 1,
-                                              },
-                                              tabsList: {
-                                                  flexWrap: 'nowrap',
-                                              },
-                                              tab: {
-                                                  borderBottom:
-                                                      '1px solid var(--mantine-color-gray-3)',
-                                              },
-                                          }
-                                        : undefined
-                                }
+                                styles={{
+                                    tabsList: {
+                                        flexWrap: 'nowrap',
+                                        height: MAGIC_SCROLL_AREA_HEIGHT - 1,
+                                    },
+                                }}
                                 variant="outline"
                             >
                                 {sortedTabs && sortedTabs?.length > 0 && (
@@ -267,13 +257,21 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                             scrollHideDelay={200}
                                             variant="primary"
                                             scrollbarSize={6}
+                                            h={MAGIC_SCROLL_AREA_HEIGHT}
                                             styles={{
                                                 viewport: {
                                                     paddingBottom: 0,
                                                 },
                                             }}
                                         >
-                                            <Group noWrap spacing={0}>
+                                            <Group
+                                                noWrap
+                                                styles={(theme) => ({
+                                                    root: {
+                                                        gap: theme.spacing.xl,
+                                                    },
+                                                })}
+                                            >
                                                 {sortedTabs?.map((tab, idx) => {
                                                     return (
                                                         <DraggableTab
@@ -328,7 +326,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 )}
                                 <Group
                                     grow
-                                    pt={tabsEnabled ? 'lg' : undefined}
+                                    pt={tabsEnabled ? 'sm' : undefined}
                                     pb="lg"
                                     px="xs"
                                 >
