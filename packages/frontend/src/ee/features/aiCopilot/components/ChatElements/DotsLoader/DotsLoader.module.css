@@ -1,0 +1,44 @@
+@keyframes bounce {
+    0%,
+    80%,
+    100% {
+        transform: scale3d(0, 0, 1);
+    }
+    40% {
+        transform: scale3d(1, 1, 1);
+    }
+}
+
+.container {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: var(--loader-spacing, 0.25rem);
+}
+
+.dot {
+    border-radius: 50%;
+    width: var(--loader-size, 0.5rem);
+    height: var(--loader-size, 0.5rem);
+    background: var(--loader-color, #868e96);
+    animation: bounce 1.4s ease-in-out infinite both;
+    will-change: transform;
+    transform: translateZ(0);
+}
+
+.delayedMessage {
+    margin-left: 0.25rem;
+    opacity: 0;
+    font-size: 0.85em;
+    color: var(--loader-color, #868e96);
+    transition: opacity 0.3s;
+    pointer-events: none;
+    will-change: transform;
+    animation: fadeInLoaderMessage 0.4s 8s forwards;
+}
+
+@keyframes fadeInLoaderMessage {
+    to {
+        opacity: 0.8;
+    }
+}

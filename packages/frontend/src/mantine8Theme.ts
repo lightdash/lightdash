@@ -1,12 +1,14 @@
 import {
     Button,
     Card,
+    Loader,
     Pill,
     ScrollArea,
     type ButtonVariant,
     type MantineTheme,
     type MantineThemeOverride,
 } from '@mantine-8/core';
+import { DotsLoader } from './ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
 import { getMantineThemeOverride as getLegacyTheme } from './mantineTheme';
 
 const { colors, components, ...legacyTheme } = getLegacyTheme();
@@ -19,6 +21,12 @@ const {
 declare module '@mantine-8/core' {
     export interface ButtonProps {
         variant?: ButtonVariant | 'compact-outline' | 'dark';
+    }
+    export interface LoaderProps {
+        /**
+         * Displays a message after 8s. Only available when type='dots'
+         */
+        delayedMessage?: string;
     }
 }
 
@@ -135,6 +143,11 @@ export const getMantine8ThemeOverride = (
                     }),
                 },
             },
+            Loader: Loader.extend({
+                defaultProps: {
+                    loaders: { ...Loader.defaultLoaders, dots: DotsLoader },
+                },
+            }),
             ...overrides?.components,
         },
     } satisfies MantineThemeOverride);

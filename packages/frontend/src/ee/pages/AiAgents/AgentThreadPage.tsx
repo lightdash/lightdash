@@ -1,5 +1,12 @@
 import { type AiAgentMessage } from '@lightdash/common';
-import { Box, Divider, Loader, ScrollArea, Stack } from '@mantine-8/core';
+import {
+    Box,
+    Center,
+    Divider,
+    Loader,
+    ScrollArea,
+    Stack,
+} from '@mantine-8/core';
 import { Fragment, useLayoutEffect, useRef, type FC } from 'react';
 import { useParams } from 'react-router';
 import {
@@ -70,7 +77,11 @@ const AiAgentThreadPage = () => {
     };
 
     if (isLoadingThread || !thread || agentQuery.isLoading) {
-        return <Loader />;
+        return (
+            <Center h="100%">
+                <Loader color="gray" />
+            </Center>
+        );
     }
 
     return (
