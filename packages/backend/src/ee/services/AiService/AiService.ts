@@ -728,7 +728,7 @@ export class AiService {
 
     // TODO: user permissions
     async updateHumanScoreForPrompt(promptUuid: string, humanScore: number) {
-        await this.aiModel.updateModelResponse({
+        await this.aiModel.updateHumanScore({
             promptUuid,
             humanScore,
         });
