@@ -1,3 +1,10 @@
+# [0.1695.0](https://github.com/lightdash/lightdash/compare/0.1694.0...0.1695.0) (2025-06-06)
+
+
+### Features
+
+* Improve instructions display ([#15213](https://github.com/lightdash/lightdash/issues/15213)) ([c5546ea](https://github.com/lightdash/lightdash/commit/c5546eaa94a9dcebaeeedf27fcf4b630d45d014b)), closes [#15155](https://github.com/lightdash/lightdash/issues/15155)
+
 # [0.1694.0](https://github.com/lightdash/lightdash/compare/0.1693.1...0.1694.0) (2025-06-06)
 
 
