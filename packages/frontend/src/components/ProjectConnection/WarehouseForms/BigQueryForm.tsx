@@ -132,8 +132,11 @@ const BigQueryForm: FC<{
     const [isOpen, toggleOpen] = useToggle(false);
     const [temporaryFile, setTemporaryFile] = useState<File | null>(null);
     const { savedProject } = useProjectFormContext();
-    const requireSecrets: boolean =
-        savedProject?.warehouseConnection?.type !== WarehouseTypes.BIGQUERY;
+    const requireSecrets: boolean = !(
+        savedProject?.warehouseConnection?.type === WarehouseTypes.BIGQUERY &&
+        savedProject?.warehouseConnection?.authenticationType ===
+            BigqueryAuthenticationType.PRIVATE_KEY
+    );
     const hasDatasets = datasets && datasets.length > 0;
     const executionProjectField = form.getInputProps(
         'warehouse.executionProject',
@@ -199,7 +202,23 @@ const BigQueryForm: FC<{
                                 value: BigqueryAuthenticationType.SSO,
                                 label: 'User Account (Sign in with Google)',
                             },
+                            {
+                                value: BigqueryAuthenticationType.ADC,
+                                label: 'Application Default Credentials (gcloud)',
+                            },
                         ]}
+                        onChange={(value) => {
+                            form.setFieldValue(
+                                'warehouse.authenticationType',
+                                value,
+                            );
+                            if (value === BigqueryAuthenticationType.SSO) {
+                                form.setFieldValue(
+                                    'warehouse.keyfileContents',
+                                    null,
+                                );
+                            }
+                        }}
                         required
                         disabled={disabled}
                         w={isAuthenticated ? '90%' : '100%'}
@@ -317,7 +336,8 @@ const BigQueryForm: FC<{
                         }}
                 />         */}
                     </>
-                ) : (
+                ) : authenticationType ===
+                  BigqueryAuthenticationType.PRIVATE_KEY ? (
                     <>
                         <FileInput
                             name="warehouse.keyfileContents"
@@ -398,6 +418,9 @@ const BigQueryForm: FC<{
                             disabled={disabled}
                         />
                     </>
+                ) : (
+                    /* BigqueryAuthenticationType.ADC */
+                    <></>
                 )}
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>

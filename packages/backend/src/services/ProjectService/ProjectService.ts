@@ -1215,6 +1215,13 @@ export class ProjectService extends BaseService {
                             );
                         }
                         break;
+                    case BigqueryAuthenticationType.ADC:
+                        if (keyFileContents) {
+                            throw new ParameterError(
+                                'Bigquery ADC authentication should not have any sensitive fields set',
+                            );
+                        }
+                        break;
                     default:
                         assertUnreachable(
                             authenticationType,
@@ -2825,8 +2832,8 @@ export class ProjectService extends BaseService {
 
             // Generate filtered rows and total columns so that we can apply a max column limit but also count the total number of columns if we exceed the MAX_PIVOT_COLUMN_LIMIT
             let pivotedSql = `
-            WITH original_query AS (${userSql}), 
-                 group_by_query AS (${groupByQuery}), 
+            WITH original_query AS (${userSql}),
+                 group_by_query AS (${groupByQuery}),
                  pivot_query AS (${pivotQuery}),
                  filtered_rows AS (
                     SELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${
