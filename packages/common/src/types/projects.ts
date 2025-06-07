@@ -42,6 +42,7 @@ export type SshTunnelConfiguration = {
 export enum BigqueryAuthenticationType {
     SSO = 'sso',
     PRIVATE_KEY = 'private_key',
+    ADC = 'adc', // Application Default Credentials
 }
 export type CreateBigqueryCredentials = {
     type: WarehouseTypes.BIGQUERY;

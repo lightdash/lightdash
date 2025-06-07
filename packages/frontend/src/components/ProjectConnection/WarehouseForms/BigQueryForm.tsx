@@ -136,8 +136,11 @@ const BigQueryForm: FC<{
     const [isOpen, toggleOpen] = useToggle(false);
     const [temporaryFile, setTemporaryFile] = useState<File | null>(null);
     const { savedProject } = useProjectFormContext();
-    const requireSecrets: boolean =
-        savedProject?.warehouseConnection?.type !== WarehouseTypes.BIGQUERY;
+    const requireSecrets: boolean = !(
+        savedProject?.warehouseConnection?.type === WarehouseTypes.BIGQUERY &&
+        savedProject?.warehouseConnection?.authenticationType ===
+            BigqueryAuthenticationType.PRIVATE_KEY
+    );
     const hasDatasets = datasets && datasets.length > 0;
     const executionProjectField = form.getInputProps(
         'warehouse.executionProject',
@@ -173,6 +176,7 @@ const BigQueryForm: FC<{
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
+                {/* TODO: Display this when ADC enabled */}
                 {isSsoEnabled && (
                     <Group spacing="sm">
                         <Select
@@ -332,7 +336,8 @@ const BigQueryForm: FC<{
                         }}
                 />         */}
                     </>
-                ) : (
+                ) : authenticationType ===
+                  BigqueryAuthenticationType.PRIVATE_KEY ? (
                     <>
                         <FileInput
                             name="warehouse.keyfileContents"
@@ -413,6 +418,9 @@ const BigQueryForm: FC<{
                             disabled={disabled}
                         />
                     </>
+                ) : (
+                    /* BigqueryAuthenticationType.ADC */
+                    <></>
                 )}
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>

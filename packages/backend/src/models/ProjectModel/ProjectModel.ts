@@ -150,7 +150,13 @@ export class ProjectModel {
     static mergeMissingWarehouseSecrets<
         T extends CreateWarehouseCredentials = CreateWarehouseCredentials,
     >(incompleteConfig: T, completeConfig: CreateWarehouseCredentials): T {
-        if (incompleteConfig.type !== completeConfig.type) {
+        if (
+            incompleteConfig.type !== completeConfig.type ||
+            // BigQuery ADC authentication does not require credentials to be set
+            (incompleteConfig.type === WarehouseTypes.BIGQUERY &&
+                incompleteConfig.authenticationType ===
+                    BigqueryAuthenticationType.ADC)
+        ) {
             return incompleteConfig;
         }
         return {

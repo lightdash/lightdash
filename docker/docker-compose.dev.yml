@@ -82,6 +82,7 @@ services:
             - '../:/usr/app'
             - '../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt'
             - 'node_modules:/usr/app/node_modules/' # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
+            # - ${HOME}/.config/gcloud:/root/.config/gcloud # Uncomment this line if you want to use your credential as gcloud ADC in dev container
         ports:
             - '8080:8080'
             - '9090:9090'
