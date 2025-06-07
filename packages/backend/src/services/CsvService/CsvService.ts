@@ -515,7 +515,8 @@ export class CsvService extends BaseService {
     }): Promise<AttachmentUrl> {
         const fileId = CsvService.generateFileId(fileName, truncated);
         const filePath = `/tmp/${fileId}`;
-        await fsPromise.writeFile(filePath, csvContent, 'utf-8');
+        const csvWithBOM = `\uFEFF${csvContent}`;
+        await fsPromise.writeFile(filePath, csvWithBOM, 'utf-8');
 
         if (this.s3Client.isEnabled()) {
             const s3Url = await this.s3Client.uploadCsv(csvContent, fileId);
