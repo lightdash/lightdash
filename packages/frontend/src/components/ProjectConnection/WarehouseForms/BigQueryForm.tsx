@@ -207,18 +207,6 @@ const BigQueryForm: FC<{
                                 label: 'Application Default Credentials (gcloud)',
                             },
                         ]}
-                        onChange={(value) => {
-                            form.setFieldValue(
-                                'warehouse.authenticationType',
-                                value,
-                            );
-                            if (value === BigqueryAuthenticationType.SSO) {
-                                form.setFieldValue(
-                                    'warehouse.keyfileContents',
-                                    null,
-                                );
-                            }
-                        }}
                         required
                         disabled={disabled}
                         w={isAuthenticated ? '90%' : '100%'}

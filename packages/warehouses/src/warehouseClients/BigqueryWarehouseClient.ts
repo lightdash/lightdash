@@ -528,7 +528,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             )}`,
         );
         return new WarehouseQueryError(
-            `Bigquery warehouse error: ${error?.reason}`,
+            `Bigquery warehouse error: ${error?.reason} - ${error?.message}`,
         );
     }
 
