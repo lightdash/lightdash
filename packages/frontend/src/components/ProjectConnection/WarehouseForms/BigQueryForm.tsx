@@ -190,7 +190,7 @@ const BigQueryForm: FC<{
                                     </Anchor>
                                 </Text>
                             ) : (
-                                'Choose whether to authenticate with a service account or a user account'
+                                'Choose the way to authenticate to BigQuery. '
                             )
                         }
                         data={[
@@ -204,7 +204,7 @@ const BigQueryForm: FC<{
                             },
                             {
                                 value: BigqueryAuthenticationType.ADC,
-                                label: 'Application Default Credentials (gcloud)',
+                                label: 'Application Default Credentials (SA attached to the server)',
                             },
                         ]}
                         required

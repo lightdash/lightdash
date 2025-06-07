@@ -60,8 +60,8 @@ const credentialsTarget = (
                 credentials.authenticationType ===
                 BigqueryAuthenticationType.ADC
             ) {
-                // if no keyfile is provided, we assume oauth authentication
-                // by which case we can use Application Default Credentials(ADC).
+                // With oauth method and no keyfile contents, dbt will use the
+                // application default credentials (ADC) to authenticate
                 bqResult.target.method = 'oauth';
                 return bqResult;
             }
