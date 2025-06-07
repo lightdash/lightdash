@@ -41,12 +41,7 @@ const credentialsTarget = (
                 },
                 environment: {},
             };
-            if (
-                credentials.authenticationType ===
-                    BigqueryAuthenticationType.PRIVATE_KEY ||
-                credentials.authenticationType ===
-                    BigqueryAuthenticationType.SSO
-            ) {
+            if (credentials.keyfileContents) {
                 bqResult.target.method = 'service-account-json';
                 bqResult.target.keyfile_json = Object.fromEntries(
                     Object.keys(credentials.keyfileContents).map((key) => [
@@ -59,15 +54,20 @@ const credentialsTarget = (
                         ([key, value]) => [envVar(key), value],
                     ),
                 );
-            } else if (
+                return bqResult;
+            }
+            if (
                 credentials.authenticationType ===
                 BigqueryAuthenticationType.ADC
             ) {
                 // if no keyfile is provided, we assume oauth authentication
                 // by which case we can use Application Default Credentials(ADC).
                 bqResult.target.method = 'oauth';
+                return bqResult;
             }
-            return bqResult;
+            throw new Error(
+                `Incorrect BigQuery profile. Profile should have keyfileContents or authenticationType set to ADC`,
+            );
         case WarehouseTypes.REDSHIFT:
             return {
                 target: {

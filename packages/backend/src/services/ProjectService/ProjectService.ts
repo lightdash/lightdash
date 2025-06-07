@@ -624,7 +624,7 @@ export class ProjectService extends BaseService {
             args.warehouseConnection.type === WarehouseTypes.BIGQUERY &&
             args.warehouseConnection.authenticationType ===
                 BigqueryAuthenticationType.SSO &&
-            args.warehouseConnection.keyfileContents.type !== 'authorized_user'
+            args.warehouseConnection.keyfileContents?.type !== 'authorized_user'
         ) {
             const refreshToken = await this.userModel.getRefreshToken(userUuid);
 
@@ -1202,14 +1202,14 @@ export class ProjectService extends BaseService {
                 switch (authenticationType) {
                     case undefined: // Default, for backwards compatibility
                     case BigqueryAuthenticationType.PRIVATE_KEY:
-                        if (keyFileContents.private_key === undefined) {
+                        if (keyFileContents?.private_key === undefined) {
                             throw new ParameterError(
                                 'Bigquery key file is required for private key authentication',
                             );
                         }
                         break;
                     case BigqueryAuthenticationType.SSO:
-                        if (keyFileContents.refresh_token === undefined) {
+                        if (keyFileContents?.refresh_token === undefined) {
                             throw new ParameterError(
                                 'Bigquery refresh token is required for SSO authentication',
                             );

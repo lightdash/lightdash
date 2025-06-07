@@ -52,7 +52,7 @@ export type CreateBigqueryCredentials = {
     timeoutSeconds: number | undefined;
     priority: 'interactive' | 'batch' | undefined;
     authenticationType?: BigqueryAuthenticationType;
-    keyfileContents: Record<string, string>; // used for both sso and private key
+    keyfileContents?: Record<string, string>; // used for both sso and private key
     requireUserCredentials?: boolean;
     retries: number | undefined;
     location: string | undefined;
