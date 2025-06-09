@@ -19,6 +19,7 @@ import {
     type CustomDimension,
     DashboardFilters,
     DEFAULT_RESULTS_PAGE_SIZE,
+    Dimension,
     DimensionType,
     DownloadFileType,
     type ExecuteAsyncDashboardChartRequestParams,
@@ -28,6 +29,7 @@ import {
     type ExecuteAsyncUnderlyingDataRequestParams,
     ExpiredError,
     Explore,
+    FieldType,
     ForbiddenError,
     formatRow,
     getDashboardFilterRulesForTables,
@@ -636,7 +638,7 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const { status, resultsFileName, fields } = queryHistory;
+        const { status, resultsFileName, fields, columns } = queryHistory;
 
         // First check the query status
         switch (status) {
@@ -657,6 +659,31 @@ export class AsyncQueryService extends ProjectService {
         if (!resultsFileName) {
             throw new Error('Results file name not found for query');
         }
+
+        if (!columns) {
+            throw new UnexpectedServerError('No columns found for query');
+        }
+
+        // Generate pivot fields if results are pivoted
+        const resultFields = queryHistory.pivotConfiguration
+            ? Object.fromEntries(
+                  Object.entries(columns).map<[string, Dimension]>(
+                      ([key, column]) => [
+                          key,
+                          {
+                              name: column.reference,
+                              label: column.reference,
+                              type: column.type ?? DimensionType.STRING,
+                              table: '',
+                              fieldType: FieldType.DIMENSION,
+                              sql: '',
+                              tableLabel: '',
+                              hidden: false,
+                          },
+                      ],
+                  ),
+              )
+            : fields;
 
         switch (type) {
             case DownloadFileType.CSV:
@@ -680,7 +707,7 @@ export class AsyncQueryService extends ProjectService {
                 }
                 return this.downloadAsyncQueryResultsAsFormattedFile(
                     resultsFileName,
-                    fields,
+                    resultFields,
                     {
                         generateFileId: CsvService.generateFileId,
                         streamJsonlRowsToFile: CsvService.streamJsonlRowsToFile,
@@ -715,7 +742,7 @@ export class AsyncQueryService extends ProjectService {
                 }
                 return this.downloadAsyncQueryResultsAsFormattedFile(
                     resultsFileName,
-                    fields,
+                    resultFields,
                     {
                         generateFileId: ExcelService.generateFileId,
                         streamJsonlRowsToFile:
