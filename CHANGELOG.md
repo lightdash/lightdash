@@ -1,3 +1,10 @@
+## [0.1698.3](https://github.com/lightdash/lightdash/compare/0.1698.2...0.1698.3) (2025-06-09)
+
+
+### Bug Fixes
+
+* manually handle backpressure drain ([#15237](https://github.com/lightdash/lightdash/issues/15237)) ([23ca1ec](https://github.com/lightdash/lightdash/commit/23ca1ec77d0eaad931964cc273eb22e0ae512ac3))
+
 ## [0.1698.2](https://github.com/lightdash/lightdash/compare/0.1698.1...0.1698.2) (2025-06-09)
 
 
