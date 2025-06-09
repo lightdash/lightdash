@@ -176,7 +176,7 @@ export const DashboardMinimalDownloadCsv: FC<{
                 await handleDownload();
             }}
         >
-            Export CSV
+            Download data
         </Menu.Item>
     );
 };
