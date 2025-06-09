@@ -1001,7 +1001,10 @@ export class UserModel {
         return this.getUserDetailsByUuid(userUuid);
     }
 
-    async getRefreshToken(userUuid: string): Promise<string> {
+    async getRefreshToken(
+        userUuid: string,
+        issuerType: OpenIdIdentityIssuerType = OpenIdIdentityIssuerType.GOOGLE,
+    ): Promise<string> {
         const [row] = await this.database(UserTableName)
             .leftJoin(
                 'openid_identities',
@@ -1010,6 +1013,7 @@ export class UserModel {
             )
             .where('user_uuid', userUuid)
             .whereNotNull('refresh_token')
+            .where('issuer_type', issuerType)
             .select('refresh_token');
 
         if (!row) {

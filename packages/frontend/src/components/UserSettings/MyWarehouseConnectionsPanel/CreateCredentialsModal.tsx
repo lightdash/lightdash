@@ -117,7 +117,6 @@ export const CreateCredentialsModal: FC<Props> = ({
                             disabled={isSaving}
                             data={Object.values(WarehouseTypes).map((type) => {
                                 const isNotSupportedYet = [
-                                    WarehouseTypes.BIGQUERY,
                                     WarehouseTypes.DATABRICKS,
                                 ].includes(type);
                                 return {
@@ -137,7 +136,11 @@ export const CreateCredentialsModal: FC<Props> = ({
                         />
                     )}
 
-                    <WarehouseFormInputs form={form} disabled={isSaving} />
+                    <WarehouseFormInputs
+                        form={form}
+                        disabled={isSaving}
+                        onClose={onClose}
+                    />
 
                     <Group position="right" spacing="xs" mt="sm">
                         <Button
@@ -149,10 +152,20 @@ export const CreateCredentialsModal: FC<Props> = ({
                         >
                             Cancel
                         </Button>
-
-                        <Button size="xs" type="submit" disabled={isSaving}>
-                            Save
-                        </Button>
+                        {warehouseType !== WarehouseTypes.BIGQUERY &&
+                            warehouseType !== WarehouseTypes.SNOWFLAKE && (
+                                /* On bigquery, we login using google oauth, 
+                            on snowflake, we also use oauth
+                            those warehouse credentials will be saved during the oauth process (googleStratey.ts)
+                            so we don't need the save button */
+                                <Button
+                                    size="xs"
+                                    type="submit"
+                                    disabled={isSaving}
+                                >
+                                    Save
+                                </Button>
+                            )}
                     </Group>
                 </Stack>
             </form>

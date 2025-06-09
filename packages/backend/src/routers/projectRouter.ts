@@ -129,30 +129,6 @@ projectRouter.post(
 );
 
 projectRouter.post(
-    '/refresh',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        try {
-            const results = await req.services
-                .getProjectService()
-                .scheduleCompileProject(
-                    req.user!,
-                    getObjectValue(req.params, 'projectUuid'),
-                    getRequestMethod(req.header(LightdashRequestMethodHeader)),
-                );
-            res.json({
-                status: 'ok',
-                results,
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
-
-projectRouter.post(
     '/saved',
     allowApiKeyAuthentication,
     isAuthenticated,

@@ -81,7 +81,11 @@ export const EditCredentialsModal: FC<
                         {...form.getInputProps('name')}
                     />
 
-                    <WarehouseFormInputs form={form} disabled={isSaving} />
+                    <WarehouseFormInputs
+                        onClose={onClose}
+                        form={form}
+                        disabled={isSaving}
+                    />
 
                     <Group position="right" spacing="xs" mt="sm">
                         <Button

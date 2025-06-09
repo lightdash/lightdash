@@ -1,65 +1,84 @@
 import {
-    Avatar,
-    Box,
     Button,
     Group,
+    Loader,
     Paper,
     Stack,
     Table,
     Text,
-    Title,
 } from '@mantine-8/core';
 import { IconHelpHexagon, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import { LightdashUserAvatar } from '../../../../components/Avatar';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import {
     useGetSlack,
     useSlackChannels,
 } from '../../../../hooks/slack/useSlack';
 import { useProjects } from '../../../../hooks/useProjects';
+import { useAiAgents } from '../hooks/useAiAgents';
 
 export const AiAgents: FC = () => {
     const navigate = useNavigate();
+
     const { data: slackInstallation } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
 
-    const { data: slackChannels } = useSlackChannels('', true, {
-        enabled: organizationHasSlack,
-    });
+    const agentsListQuery = useAiAgents();
+    const projectsListQuery = useProjects();
+    const slackChannelsQuery = useSlackChannels(
+        '',
+        {
+            excludeArchived: true,
+            excludeDms: true,
+            excludeGroups: true,
+        },
+        { enabled: organizationHasSlack },
+    );
 
-    const { data: projects } = useProjects();
+    const isLoading = agentsListQuery.isLoading || projectsListQuery.isLoading;
+
+    const isLoaded = agentsListQuery.isSuccess && projectsListQuery.isSuccess;
 
     const agentList = useMemo(() => {
-        if (!slackInstallation?.slackChannelProjectMappings?.length) {
-            return null;
-        }
+        if (!isLoaded) return undefined;
 
-        // Map agents from project mappings
-        // TODO: Use different hook for agents after API is done
-        return slackInstallation.slackChannelProjectMappings.map((mapping) => {
-            const project = projects?.find(
-                (p) => p.projectUuid === mapping.projectUuid,
+        return agentsListQuery.data.map((agent) => {
+            const project = projectsListQuery.data.find(
+                (p) => p.projectUuid === agent.projectUuid,
             );
-            const channel = slackChannels?.find(
-                (c) => c.id === mapping.slackChannelId,
+
+            if (!project) {
+                throw new Error(`Project not found for agent`);
+            }
+
+            // TODO: handle multiple integrations
+            const channel = slackChannelsQuery.data?.find(
+                (c) =>
+                    agent.integrations.length > 0 &&
+                    c.id === agent.integrations[0].channelId,
             );
 
             return {
-                name: `Agent`,
-                projectName: project?.name,
+                uuid: agent.uuid,
+                name: agent.name,
+                projectName: project.name,
                 channelName: channel?.name,
+                updatedAt: agent.updatedAt,
+                imageUrl: agent.imageUrl,
             };
         });
     }, [
-        slackInstallation?.slackChannelProjectMappings,
-        projects,
-        slackChannels,
+        isLoaded,
+        agentsListQuery.data,
+        projectsListQuery.data,
+        slackChannelsQuery.data,
     ]);
 
     const handleAgentClick = useCallback(
-        (index: number) => {
-            void navigate(`/generalSettings/aiAgents/${index + 1}`);
+        (agentUuid: string) => {
+            void navigate(`/generalSettings/aiAgents/${agentUuid}`);
         },
         [navigate],
     );
@@ -67,20 +86,6 @@ export const AiAgents: FC = () => {
     const handleAddClick = useCallback(() => {
         void navigate('/generalSettings/aiAgents/new');
     }, [navigate]);
-
-    if (!organizationHasSlack) {
-        return (
-            <Stack gap="md">
-                <Box>
-                    <Title order={5}>AI Agent Configuration</Title>
-                    <Text size="sm" c="dimmed">
-                        You need to connect Slack first in the Integrations
-                        settings before you can configure AI agents.
-                    </Text>
-                </Box>
-            </Stack>
-        );
-    }
 
     return (
         <Stack gap="sm">
@@ -94,7 +99,15 @@ export const AiAgents: FC = () => {
                     Add
                 </Button>
             </Group>
-            {!agentList ? (
+
+            {isLoading ? (
+                // TODO: add a nicer loading state
+                <Paper withBorder p="md" radius="md" bg="gray.0">
+                    <Stack gap="xs" align="center">
+                        <Loader />
+                    </Stack>
+                </Paper>
+            ) : agentList && agentList.length === 0 ? (
                 <Paper withBorder p="md" radius="md" bg="gray.0">
                     <Stack gap="xs" align="center">
                         <Paper withBorder p="xs" radius="md">
@@ -105,46 +118,50 @@ export const AiAgents: FC = () => {
                         </Text>
                     </Stack>
                 </Paper>
-            ) : (
+            ) : agentList && agentList.length > 0 ? (
                 <Table highlightOnHover withTableBorder>
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th>Name</Table.Th>
-                            <Table.Th>Description</Table.Th>
+
+                            <Table.Th>Last modified</Table.Th>
                         </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
-                        {agentList.map((agent, index) => (
+                        {agentList.map((agent) => (
                             <Table.Tr
-                                key={index}
-                                onClick={() => handleAgentClick(index)}
+                                key={agent.uuid}
+                                onClick={() => handleAgentClick(agent.uuid)}
                                 style={{ cursor: 'pointer' }}
                             >
                                 <Table.Td>
                                     <Group gap="sm">
-                                        <Avatar
-                                            size={30}
-                                            radius="sm"
-                                            color="blue.6"
-                                        >
-                                            {index + 1}
-                                        </Avatar>
-                                        <Text fw={500}>{agent.name}</Text>
+                                        <LightdashUserAvatar
+                                            size="sm"
+                                            name={agent.name}
+                                            variant="filled"
+                                            src={agent.imageUrl}
+                                        />
+
+                                        <Text size="sm" fw={500}>
+                                            {agent.name || 'AI Agent'}
+                                        </Text>
                                     </Group>
                                 </Table.Td>
                                 <Table.Td>
-                                    {agent.projectName && agent.channelName && (
-                                        <Text size="xs" c="dimmed">
-                                            Answers questions about{' '}
-                                            <b>{agent.projectName}</b> data in{' '}
-                                            <b>{agent.channelName}</b>
-                                        </Text>
-                                    )}
+                                    <Text size="sm" c="dimmed">
+                                        {new Date(
+                                            agent.updatedAt,
+                                        ).toLocaleString()}
+                                    </Text>
                                 </Table.Td>
                             </Table.Tr>
                         ))}
                     </Table.Tbody>
                 </Table>
+            ) : (
+                // TODO: add a nicer error state
+                <Text>Something went wrong</Text>
             )}
         </Stack>
     );

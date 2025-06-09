@@ -148,7 +148,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         let authenticationOptions: Partial<ConnectionOptions> = {};
 
         // if authenticationType is undefined, we assume it is a password authentication, for backwards compatibility
-        if (
+        if (credentials.authenticationType === 'sso') {
+            authenticationOptions = {
+                token: credentials.token,
+                authenticator: 'OAUTH',
+            };
+        } else if (
             credentials.privateKey &&
             credentials.authenticationType === 'private_key'
         ) {
@@ -187,12 +192,17 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
         this.connectionOptions = {
             account: credentials.account,
-            username: credentials.user,
+            // When using SSO, username and role can cause conflict
+            ...(credentials.authenticationType !== 'sso'
+                ? {
+                      username: credentials.user,
+                      role: credentials.role,
+                  }
+                : {}),
             ...authenticationOptions,
             database: credentials.database,
             schema: credentials.schema,
             warehouse: credentials.warehouse,
-            role: credentials.role,
             ...(credentials.accessUrl?.length
                 ? { accessUrl: credentials.accessUrl }
                 : {}),

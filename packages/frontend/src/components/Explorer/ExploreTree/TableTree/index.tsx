@@ -6,6 +6,7 @@ import {
 import { MantineProvider, NavLink, Text } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import type { FC } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useToggle } from 'react-use';
 
 import { getMantineThemeOverride } from '../../../../mantineTheme';
@@ -29,35 +30,58 @@ const TableTreeWrapper: FC<React.PropsWithChildren<TableTreeWrapperProps>> = ({
 }) => {
     const [isHover, toggleHover] = useToggle(false);
 
+    const handleMouseEnter = useCallback(
+        () => toggleHover(true),
+        [toggleHover],
+    );
+    const handleMouseLeave = useCallback(
+        () => toggleHover(false),
+        [toggleHover],
+    );
+    const handleClosePreview = useCallback(
+        () => toggleHover(false),
+        [toggleHover],
+    );
+
+    const label = useMemo(
+        () => (
+            <TableItemDetailPreview
+                label={table.label}
+                description={table.description}
+                showPreview={isHover}
+                closePreview={handleClosePreview}
+            >
+                <Text truncate fw={600}>
+                    {table.label}
+                </Text>
+            </TableItemDetailPreview>
+        ),
+        [table.label, table.description, isHover, handleClosePreview],
+    );
+
     return (
         <NavLink
             opened={isOpen}
             onChange={toggle}
-            onMouseEnter={() => toggleHover(true)}
-            onMouseLeave={() => toggleHover(false)}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             icon={<MantineIcon icon={IconTable} size="lg" color="gray.7" />}
-            label={
-                <TableItemDetailPreview
-                    label={table.label}
-                    description={table.description}
-                    showPreview={isHover}
-                    closePreview={() => toggleHover(false)}
-                >
-                    <Text truncate fw={600}>
-                        {table.label}
-                    </Text>
-                </TableItemDetailPreview>
-            }
+            label={label}
             styles={{
                 root: {
                     top: 0,
-                    position: 'sticky',
+                    position: 'sticky' as const,
                     backgroundColor: 'white',
                     zIndex: 1,
                 },
             }}
         >
-            {children}
+            {/* Don't render children if the table is not open. 
+                NOTE: when it is closed, we return a fragment, otherwise 
+                it thinks it has no children and doesn't render the button to open.
+                This is and issue with mantine 6. 
+            */}
+            {isOpen ? children : <></>}
         </NavLink>
     );
 };
@@ -118,6 +142,7 @@ const TableTree: FC<Props> = ({
     const Wrapper = showTableLabel ? TableTreeWrapper : EmptyWrapper;
     const [isOpen, toggle] = useToggle(isOpenByDefault);
     const isSearching = !!searchQuery && searchQuery !== '';
+
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <MantineProvider inherit theme={themeOverride}>

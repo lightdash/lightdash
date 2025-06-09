@@ -154,6 +154,18 @@ apiV1Router.get(
     }),
 );
 
+apiV1Router.get(
+    '/login/bigquery',
+    storeOIDCRedirect,
+    passport.authenticate('google', {
+        scope: ['profile', 'email', 'https://www.googleapis.com/auth/bigquery'],
+        accessType: 'offline',
+        prompt: 'consent',
+        session: false,
+        includeGrantedScopes: true,
+    }),
+);
+
 apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
     passport.authenticate('google', {
         failureRedirect: getOidcRedirectURL(false)(req),
@@ -162,6 +174,22 @@ apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
         includeGrantedScopes: true,
     })(req, res, next);
 });
+
+apiV1Router.get(
+    lightdashConfig.auth.snowflake.loginPath,
+    storeOIDCRedirect,
+    passport.authenticate('snowflake'),
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.snowflake.callbackPath,
+    (req, res, next) => {
+        passport.authenticate('snowflake', {
+            failureRedirect: getOidcRedirectURL(false)(req),
+            successRedirect: getOidcRedirectURL(true)(req),
+        })(req, res, next);
+    },
+);
 
 apiV1Router.get('/logout', (req, res, next) => {
     req.logout((err) => {

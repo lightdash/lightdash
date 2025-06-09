@@ -314,10 +314,7 @@ const Settings: FC = () => {
             });
         }
 
-        if (
-            user?.ability.can('manage', 'Organization') &&
-            aiCopilotFlag?.enabled
-        ) {
+        if (user?.ability.can('manage', 'AiAgent') && aiCopilotFlag?.enabled) {
             allowedRoutes.push({
                 path: '/aiAgents',
                 element: <AiAgentsPanel />,

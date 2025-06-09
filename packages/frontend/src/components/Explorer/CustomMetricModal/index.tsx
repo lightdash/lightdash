@@ -53,11 +53,15 @@ export const CustomMetricModal = () => {
     const toggleModal = useExplorerContext(
         (context) => context.actions.toggleAdditionalMetricModal,
     );
+    const additionalMetrics = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
 
-    const { showToastSuccess } = useToaster();
     const addAdditionalMetric = useExplorerContext(
         (context) => context.actions.addAdditionalMetric,
     );
+
     const editAdditionalMetric = useExplorerContext(
         (context) => context.actions.editAdditionalMetric,
     );
@@ -67,7 +71,16 @@ export const CustomMetricModal = () => {
 
     const { data: exploreData } = useExplore(tableName);
 
+    const { showToastSuccess } = useToaster();
+
     let dimensionToCheck: Dimension | undefined;
+
+    const { projectUuid, fieldsMap, startOfWeek } = useDataForFiltersProvider();
+
+    const dimensionsMap = useMemo(
+        () => getFilterableDimensionsFromItemsMap(fieldsMap),
+        [fieldsMap],
+    );
 
     if (isDimension(item)) {
         dimensionToCheck = item;
@@ -77,19 +90,16 @@ export const CustomMetricModal = () => {
             exploreData?.tables[item.table]?.dimensions[item.baseDimensionName];
     }
 
-    const canApplyFormatting =
-        dimensionToCheck &&
-        customMetricType &&
-        canApplyFormattingToCustomMetric(dimensionToCheck, customMetricType);
-
-    const additionalMetrics = useExplorerContext(
-        (context) =>
-            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    const canApplyFormatting = useMemo(
+        () =>
+            dimensionToCheck &&
+            customMetricType &&
+            canApplyFormattingToCustomMetric(
+                dimensionToCheck,
+                customMetricType,
+            ),
+        [dimensionToCheck, customMetricType],
     );
-
-    const { projectUuid, fieldsMap, startOfWeek } = useDataForFiltersProvider();
-
-    const dimensionsMap = getFilterableDimensionsFromItemsMap(fieldsMap);
 
     const form = useForm<
         Pick<AdditionalMetric, 'percentile'> & {
@@ -202,7 +212,10 @@ export const CustomMetricModal = () => {
                     setFieldValue('percentile', item.percentile);
 
                 if (item.formatOptions) {
-                    setFieldValue('format', item.formatOptions);
+                    setFieldValue('format', {
+                        // This spread is intentional to avoid @mantine/form mutating the enum object `item.formatOptions.type`
+                        ...item.formatOptions,
+                    });
                 }
             }
         },

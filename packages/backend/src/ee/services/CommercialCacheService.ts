@@ -1,68 +1,72 @@
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { LightdashConfig } from '../../config/parseConfig';
-import { ResultsFileModel } from '../../models/ResultsFileModel/ResultsFileModel';
+import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { ICacheService } from '../../services/CacheService/ICacheService';
 import { type CacheHitCacheResult } from '../../services/CacheService/types';
 
 type CacheServiceDependencies = {
-    resultsFileModel: ResultsFileModel;
+    queryHistoryModel: QueryHistoryModel;
     lightdashConfig: LightdashConfig;
     storageClient: S3ResultsFileStorageClient;
 };
 
 export class CommercialCacheService implements ICacheService {
-    private readonly resultsFileModel: ResultsFileModel;
+    private readonly queryHistoryModel: QueryHistoryModel;
 
     private readonly lightdashConfig: LightdashConfig;
 
     storageClient: S3ResultsFileStorageClient;
 
     constructor({
-        resultsFileModel,
+        queryHistoryModel,
         lightdashConfig,
         storageClient,
     }: CacheServiceDependencies) {
-        this.resultsFileModel = resultsFileModel;
+        this.queryHistoryModel = queryHistoryModel;
         this.lightdashConfig = lightdashConfig;
         this.storageClient = storageClient;
     }
 
     async findCachedResultsFile(
         projectUuid: string,
-        cacheIdentifiers: {
-            sql: string;
-            timezone?: string;
-        },
+        cacheKey: string,
     ): Promise<CacheHitCacheResult | null> {
         // If caching is disabled, return null
         if (!this.lightdashConfig.results.cacheEnabled) {
             return null;
         }
 
-        // Generate cache key from project and query identifiers
-        const cacheKey = ResultsFileModel.getCacheKey(
-            projectUuid,
-            cacheIdentifiers,
-        );
-
-        // Check if cache already exists
-        const existingCache = await this.resultsFileModel.find(
-            cacheKey,
-            projectUuid,
-        );
+        // Find recent query with matching cache key
+        const latestMatchingQuery =
+            await this.queryHistoryModel.findMostRecentByCacheKey(
+                cacheKey,
+                projectUuid,
+            );
 
         // Case 1: Valid cache exists
-        if (existingCache && existingCache.expires_at > new Date()) {
+        if (
+            latestMatchingQuery &&
+            latestMatchingQuery.resultsFileName &&
+            latestMatchingQuery.columns &&
+            latestMatchingQuery.resultsCreatedAt &&
+            latestMatchingQuery.resultsExpiresAt &&
+            latestMatchingQuery.resultsUpdatedAt &&
+            latestMatchingQuery.totalRowCount !== null &&
+            latestMatchingQuery.resultsExpiresAt > new Date()
+        ) {
             return {
-                cacheKey: existingCache.cache_key,
-                createdAt: existingCache.created_at,
-                updatedAt: existingCache.updated_at,
-                expiresAt: existingCache.expires_at,
                 cacheHit: true,
-                write: undefined,
-                close: undefined,
-                totalRowCount: existingCache.total_row_count ?? 0,
-                status: existingCache.status,
+                cacheKey: latestMatchingQuery.cacheKey,
+                fileName: latestMatchingQuery.resultsFileName,
+                createdAt: latestMatchingQuery.resultsCreatedAt,
+                updatedAt: latestMatchingQuery.resultsUpdatedAt,
+                expiresAt: latestMatchingQuery.resultsExpiresAt,
+                totalRowCount: latestMatchingQuery.totalRowCount,
+                columns: latestMatchingQuery.columns,
+                originalColumns: latestMatchingQuery.originalColumns,
+                pivotValuesColumns: latestMatchingQuery.pivotValuesColumns,
+                pivotTotalColumnCount:
+                    latestMatchingQuery.pivotTotalColumnCount,
             };
         }
 

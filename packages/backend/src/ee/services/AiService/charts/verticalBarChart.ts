@@ -1,7 +1,12 @@
-import { FilterSchema, MetricQuery, SortFieldSchema } from '@lightdash/common';
+import {
+    AiChartType,
+    AiMetricQuery,
+    FilterSchema,
+    MetricQuery,
+    SortFieldSchema,
+} from '@lightdash/common';
 import { z } from 'zod';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
-import { MiniMetricQuery } from '../runMiniMetricQuery/runMiniMetricQuery';
 import {
     FollowUpTools,
     followUpToolsSchema,
@@ -11,7 +16,6 @@ import {
     getValidAiQueryLimit,
 } from '../utils/aiCopilot/validators';
 import { getPivotedResults } from './getPivotedResults';
-import { renderEcharts } from './renderEcharts';
 
 export const verticalBarMetricChartConfigSchema = z.object({
     exploreName: z
@@ -93,7 +97,7 @@ type VerticalBarMetricChartConfig = z.infer<
 export const metricQueryVerticalBarChartMetric = (
     config: VerticalBarMetricChartConfig,
     filters: z.infer<typeof FilterSchema> = {},
-): MiniMetricQuery => {
+): AiMetricQuery => {
     const metrics = config.yMetrics;
     const dimensions = [
         config.xDimension,
@@ -110,7 +114,7 @@ export const metricQueryVerticalBarChartMetric = (
     };
 };
 
-export const echartsConfigVerticalBarMetric = async (
+const echartsConfigVerticalBarMetric = async (
     config: VerticalBarMetricChartConfig,
     rows: Record<string, unknown>[],
     fieldsMap: Record<string, unknown>,
@@ -176,18 +180,23 @@ export const echartsConfigVerticalBarMetric = async (
 
 type RenderVerticalBarMetricChartArgs = {
     runMetricQuery: (
-        metricQuery: MiniMetricQuery,
+        metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
     vizConfig: VerticalBarMetricChartConfig;
     filters?: z.infer<typeof FilterSchema>;
 };
+
 export const renderVerticalBarMetricChart = async ({
     runMetricQuery,
     vizConfig,
     filters,
 }: RenderVerticalBarMetricChartArgs): Promise<{
-    file: Buffer;
-    metricQuery: MiniMetricQuery;
+    type: AiChartType.VERTICAL_BAR_CHART;
+    results: Awaited<
+        ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
+    >;
+    metricQuery: AiMetricQuery;
+    chartOptions: object;
 }> => {
     const metricQuery = metricQueryVerticalBarChartMetric(vizConfig, filters);
     const results = await runMetricQuery(metricQuery);
@@ -199,7 +208,9 @@ export const renderVerticalBarMetricChart = async ({
     );
 
     return {
-        file: await renderEcharts(chartOptions),
+        type: AiChartType.VERTICAL_BAR_CHART,
         metricQuery,
+        results,
+        chartOptions,
     };
 };

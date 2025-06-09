@@ -573,7 +573,10 @@ export const convertTable = (
                 : OrderFieldsByStrategy.LABEL,
         groupLabel: meta.group_label,
         sqlWhere: meta.sql_filter || meta.sql_where,
-        requiredFilters: parseModelRequiredFilters(meta.required_filters),
+        requiredFilters: parseModelRequiredFilters({
+            requiredFilters: meta.required_filters,
+            defaultFilters: meta.default_filters,
+        }),
         requiredAttributes: meta.required_attributes,
         groupDetails,
         ...(meta.default_time_dimension

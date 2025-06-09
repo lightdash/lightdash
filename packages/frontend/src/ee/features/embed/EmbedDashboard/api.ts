@@ -4,6 +4,7 @@ import type {
     DashboardFilters,
     DateGranularity,
     InteractivityOptions,
+    SortField,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../../api';
 
@@ -24,6 +25,7 @@ export const postEmbedChartAndResults = (
     tileUuid: string,
     dashboardFilters: DashboardFilters,
     dateZoomGranularity: DateGranularity | undefined,
+    dashboardSorts: SortField[],
 ) => {
     return lightdashApi<ApiChartAndResults>({
         url: `/embed/${projectUuid}/chart-and-results`,
@@ -35,6 +37,7 @@ export const postEmbedChartAndResults = (
             tileUuid,
             dashboardFilters,
             dateZoomGranularity,
+            dashboardSorts,
         }),
     });
 };

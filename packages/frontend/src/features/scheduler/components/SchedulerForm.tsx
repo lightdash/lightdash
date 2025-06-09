@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     NotificationFrequency,
     SchedulerFormat,
     ThresholdOperator,
@@ -69,7 +68,6 @@ import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useHealth from '../../../hooks/health/useHealth';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
 import MsTeamsSvg from '../../../svgs/msteams.svg?react';
 import SlackSvg from '../../../svgs/slack.svg?react';
@@ -325,9 +323,6 @@ const SchedulerForm: FC<Props> = ({
     itemsMap,
 }) => {
     const isDashboard = resource && resource.type === 'dashboard';
-    const isDashboardTabsEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardTabs,
-    );
     const { data: dashboard } = useDashboardQuery(resource?.uuid, {
         enabled: isDashboard,
     });
@@ -479,9 +474,11 @@ const SchedulerForm: FC<Props> = ({
         return SlackStates.SUCCESS;
     }, [isInitialLoading, organizationHasSlack, slackInstallation]);
 
-    const slackChannelsQuery = useSlackChannels(search, true, {
-        enabled: organizationHasSlack,
-    });
+    const slackChannelsQuery = useSlackChannels(
+        search,
+        { excludeArchived: true },
+        { enabled: organizationHasSlack },
+    );
 
     const slackChannels = useMemo(() => {
         return (slackChannelsQuery?.data || [])
@@ -926,68 +923,66 @@ const SchedulerForm: FC<Props> = ({
                             </Stack>
                         )}
 
-                        {isDashboardTabsEnabled &&
-                            isDashboardTabsAvailable &&
-                            !isThresholdAlert && (
-                                <Stack spacing={10}>
-                                    <Input.Label>
-                                        Tabs
-                                        <Tooltip
-                                            withinPortal={true}
-                                            maw={400}
-                                            multiline
-                                            label="Select all tabs to include all tabs in the delivery. If you don't select this option, only selected tab will be included in the delivery."
-                                        >
-                                            <MantineIcon
-                                                icon={IconHelpCircle}
-                                                size="md"
-                                                display="inline"
-                                                color="gray"
-                                                style={{
-                                                    marginLeft: '4px',
-                                                    marginBottom: '-4px',
-                                                }}
-                                            />
-                                        </Tooltip>
-                                    </Input.Label>
-                                    <Checkbox
-                                        size="xs"
-                                        label="Include all tabs"
-                                        labelPosition="right"
-                                        checked={allTabsSelected}
-                                        onChange={(e) => {
-                                            setAllTabsSelected((old) => !old);
+                        {isDashboardTabsAvailable && !isThresholdAlert && (
+                            <Stack spacing={10}>
+                                <Input.Label>
+                                    Tabs
+                                    <Tooltip
+                                        withinPortal={true}
+                                        maw={400}
+                                        multiline
+                                        label="Select all tabs to include all tabs in the delivery. If you don't select this option, only selected tab will be included in the delivery."
+                                    >
+                                        <MantineIcon
+                                            icon={IconHelpCircle}
+                                            size="md"
+                                            display="inline"
+                                            color="gray"
+                                            style={{
+                                                marginLeft: '4px',
+                                                marginBottom: '-4px',
+                                            }}
+                                        />
+                                    </Tooltip>
+                                </Input.Label>
+                                <Checkbox
+                                    size="xs"
+                                    label="Include all tabs"
+                                    labelPosition="right"
+                                    checked={allTabsSelected}
+                                    onChange={(e) => {
+                                        setAllTabsSelected((old) => !old);
+                                        form.setFieldValue(
+                                            'selectedTabs',
+                                            e.target.checked
+                                                ? dashboard?.tabs.map(
+                                                      (tab) => tab.uuid,
+                                                  )
+                                                : [],
+                                        );
+                                    }}
+                                />
+                                {!allTabsSelected && (
+                                    <MultiSelect
+                                        placeholder="Select tabs to include in the delivery"
+                                        value={form.values.selectedTabs}
+                                        data={(dashboard?.tabs || []).map(
+                                            (tab) => ({
+                                                value: tab.uuid,
+                                                label: tab.name,
+                                            }),
+                                        )}
+                                        searchable
+                                        onChange={(val) => {
                                             form.setFieldValue(
                                                 'selectedTabs',
-                                                e.target.checked
-                                                    ? dashboard?.tabs.map(
-                                                          (tab) => tab.uuid,
-                                                      )
-                                                    : [],
+                                                val,
                                             );
                                         }}
                                     />
-                                    {!allTabsSelected && (
-                                        <MultiSelect
-                                            placeholder="Select tabs to include in the delivery"
-                                            value={form.values.selectedTabs}
-                                            data={(dashboard?.tabs || []).map(
-                                                (tab) => ({
-                                                    value: tab.uuid,
-                                                    label: tab.name,
-                                                }),
-                                            )}
-                                            searchable
-                                            onChange={(val) => {
-                                                form.setFieldValue(
-                                                    'selectedTabs',
-                                                    val,
-                                                );
-                                            }}
-                                        />
-                                    )}
-                                </Stack>
-                            )}
+                                )}
+                            </Stack>
+                        )}
 
                         <Input.Wrapper label="Destinations">
                             <Stack mt="sm">

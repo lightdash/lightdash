@@ -12,6 +12,7 @@ import {
     addDashboardFiltersToMetricQuery,
     addFilterRule,
     createFilterRuleFromModelRequiredFilterRule,
+    getDashboardFilterRulesForTileAndReferences,
     isFilterRuleInQuery,
     overrideChartFilter,
     reduceRequiredDimensionFiltersToFilterRules,
@@ -396,5 +397,114 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
         );
 
         expect(result.overrideData?.fieldsToChange).toBeUndefined();
+    });
+});
+
+describe('getDashboardFilterRulesForTileAndReferences', () => {
+    test('should return filter rules when there is a match (isSqlColumn is true and fieldId is in references)', () => {
+        const mockTileUuid = 'tile-123';
+        const mockReferences = ['field-1', 'field-2'];
+
+        const mockDashboardFilterRules: DashboardFilterRule[] = [
+            {
+                id: 'filter-1',
+                label: 'Filter 1',
+                target: {
+                    fieldId: 'field-1',
+                    tableName: 'table-1',
+                    isSqlColumn: true,
+                },
+                operator: ConditionalOperator.EQUALS,
+                values: ['value-1'],
+                tileTargets: {
+                    [mockTileUuid]: {
+                        fieldId: 'field-1',
+                        tableName: 'table-1',
+                        isSqlColumn: true,
+                    },
+                },
+            },
+        ];
+
+        const result = getDashboardFilterRulesForTileAndReferences(
+            mockTileUuid,
+            mockReferences,
+            mockDashboardFilterRules,
+        );
+
+        expect(result).toHaveLength(1);
+        expect(result[0].id).toBe('filter-1');
+        expect(result[0].target.fieldId).toBe('field-1');
+        expect(result[0].target.isSqlColumn).toBe(true);
+    });
+
+    test('should not return filter rules when isSqlColumn is false even though fieldId is a match', () => {
+        const mockTileUuid = 'tile-123';
+        const mockReferences = ['field-1', 'field-2'];
+
+        const mockDashboardFilterRules: DashboardFilterRule[] = [
+            {
+                id: 'filter-2',
+                label: 'Filter 2',
+                target: {
+                    fieldId: 'field-2',
+                    tableName: 'table-1',
+                    isSqlColumn: false,
+                },
+                operator: ConditionalOperator.EQUALS,
+                values: ['value-2'],
+                tileTargets: {
+                    [mockTileUuid]: {
+                        fieldId: 'field-2',
+                        tableName: 'table-1',
+                        isSqlColumn: false,
+                    },
+                },
+            },
+        ];
+
+        const result = getDashboardFilterRulesForTileAndReferences(
+            mockTileUuid,
+            mockReferences,
+            mockDashboardFilterRules,
+        );
+
+        // Verify filter-2 is not included (isSqlColumn is false but fieldId is a match)
+        expect(result).toHaveLength(0);
+    });
+
+    test('should not return filter rules when isSqlColumn is true but fieldId does not match', () => {
+        const mockTileUuid = 'tile-123';
+        const mockReferences = ['field-1', 'field-2'];
+
+        const mockDashboardFilterRules: DashboardFilterRule[] = [
+            {
+                id: 'filter-3',
+                label: 'Filter 3',
+                target: {
+                    fieldId: 'field-3',
+                    tableName: 'table-1',
+                    isSqlColumn: true,
+                },
+                operator: ConditionalOperator.EQUALS,
+                values: ['value-3'],
+                tileTargets: {
+                    [mockTileUuid]: {
+                        fieldId: 'field-3',
+                        tableName: 'table-1',
+                        isSqlColumn: true,
+                    },
+                },
+            },
+        ];
+
+        const result = getDashboardFilterRulesForTileAndReferences(
+            mockTileUuid,
+            mockReferences,
+            mockDashboardFilterRules,
+        );
+
+        // Verify filter-3 is not included (isSqlColumn is true but fieldId doesn't match)
+        expect(result).toHaveLength(0);
     });
 });

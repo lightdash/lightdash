@@ -1,7 +1,12 @@
-import { FilterSchema, MetricQuery, SortFieldSchema } from '@lightdash/common';
+import {
+    AiChartType,
+    AiMetricQuery,
+    FilterSchema,
+    MetricQuery,
+    SortFieldSchema,
+} from '@lightdash/common';
 import { z } from 'zod';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
-import { MiniMetricQuery } from '../runMiniMetricQuery/runMiniMetricQuery';
 import {
     FollowUpTools,
     followUpToolsSchema,
@@ -11,7 +16,6 @@ import {
     getValidAiQueryLimit,
 } from '../utils/aiCopilot/validators';
 import { getPivotedResults } from './getPivotedResults';
-import { renderEcharts } from './renderEcharts';
 
 export const timeSeriesMetricChartConfigSchema = z.object({
     title: z
@@ -80,7 +84,7 @@ type TimeSeriesMetricChartConfig = z.infer<
 export const metricQueryTimeSeriesChartMetric = (
     config: TimeSeriesMetricChartConfig,
     filters: z.infer<typeof FilterSchema> = {},
-): MiniMetricQuery => {
+): AiMetricQuery => {
     const metrics = config.yMetrics;
     const dimensions = [
         config.xDimension,
@@ -163,7 +167,7 @@ export const echartsConfigTimeSeriesMetric = async (
 
 type RenderTimeseriesChartArgs = {
     runMetricQuery: (
-        metricQuery: MiniMetricQuery,
+        metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
     vizConfig: TimeSeriesMetricChartConfig;
     filters?: z.infer<typeof FilterSchema>;
@@ -174,8 +178,12 @@ export const renderTimeseriesChart = async ({
     vizConfig,
     filters,
 }: RenderTimeseriesChartArgs): Promise<{
-    file: Buffer;
-    metricQuery: MiniMetricQuery;
+    type: AiChartType.TIME_SERIES_CHART;
+    metricQuery: AiMetricQuery;
+    results: Awaited<
+        ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
+    >;
+    chartOptions: object;
 }> => {
     const metricQuery = metricQueryTimeSeriesChartMetric(vizConfig, filters);
     const results = await runMetricQuery(metricQuery);
@@ -187,7 +195,9 @@ export const renderTimeseriesChart = async ({
     );
 
     return {
-        file: await renderEcharts(chartOptions),
+        type: AiChartType.TIME_SERIES_CHART,
         metricQuery,
+        results,
+        chartOptions,
     };
 };

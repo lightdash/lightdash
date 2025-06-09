@@ -1,7 +1,9 @@
 import {
     AlreadyExistsError,
     AnyType,
+    BigqueryAuthenticationType,
     CreateProject,
+    CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     DbtProjectConfig,
@@ -20,6 +22,8 @@ import {
     ProjectSummary,
     ProjectType,
     SemanticLayerType,
+    SnowflakeAuthenticationType,
+    SnowflakeCredentials,
     SpaceSummary,
     SupportedDbtVersions,
     TablesConfiguration,
@@ -335,6 +339,7 @@ export class ProjectModel {
         } catch (e) {
             throw new UnexpectedServerError('Could not save credentials.');
         }
+
         await trx('warehouse_credentials')
             .insert({
                 project_id: projectId,
@@ -758,6 +763,52 @@ export class ProjectModel {
         }
     }
 
+    /* 
+    This method will load default values for backwards compatibility
+    For example, when we introduce a new authentication type, we need to set the default value for the existing projects
+    */
+    static getConnectionWithDefaults(
+        sensitiveCredentials?: CreateWarehouseCredentials,
+        nonSensitiveCredentials?: WarehouseCredentials,
+    ): WarehouseCredentials | undefined {
+        if (!sensitiveCredentials || !nonSensitiveCredentials) {
+            return nonSensitiveCredentials;
+        }
+
+        switch (nonSensitiveCredentials.type) {
+            case WarehouseTypes.BIGQUERY:
+                return {
+                    ...nonSensitiveCredentials,
+                    authenticationType:
+                        nonSensitiveCredentials.authenticationType ??
+                        BigqueryAuthenticationType.PRIVATE_KEY,
+                };
+            case WarehouseTypes.SNOWFLAKE: {
+                const rawCredentials =
+                    sensitiveCredentials as CreateSnowflakeCredentials;
+
+                if (nonSensitiveCredentials.authenticationType !== undefined) {
+                    return nonSensitiveCredentials;
+                }
+
+                if (rawCredentials.privateKey === undefined) {
+                    return {
+                        ...nonSensitiveCredentials,
+                        authenticationType:
+                            SnowflakeAuthenticationType.PASSWORD,
+                    };
+                }
+
+                return {
+                    ...nonSensitiveCredentials,
+                    authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+                };
+            }
+            default:
+                return nonSensitiveCredentials;
+        }
+    }
+
     async get(projectUuid: string): Promise<Project> {
         const project = await this.getWithSensitiveFields(projectUuid);
         const sensitiveCredentials = project.warehouseConnection;
@@ -781,7 +832,6 @@ export class ProjectModel {
                   ),
               ) as WarehouseCredentials)
             : undefined;
-
         const nonSensitiveSemanticLayerCredentials =
             sensitiveSemanticLayerCredentials
                 ? ProjectModel.getSemanticLayerNonSensitiveCredentials(
@@ -789,13 +839,19 @@ export class ProjectModel {
                   )
                 : undefined;
 
+        const nonSensitiveCredentialsWithDefaults =
+            ProjectModel.getConnectionWithDefaults(
+                sensitiveCredentials,
+                nonSensitiveCredentials,
+            );
+
         return {
             organizationUuid: project.organizationUuid,
             projectUuid,
             name: project.name,
             type: project.type,
             dbtConnection: nonSensitiveDbtCredentials,
-            warehouseConnection: nonSensitiveCredentials,
+            warehouseConnection: nonSensitiveCredentialsWithDefaults,
             pinnedListUuid: project.pinnedListUuid,
             dbtVersion: project.dbtVersion,
             upstreamProjectUuid: project.upstreamProjectUuid || undefined,
@@ -1323,6 +1379,7 @@ export class ProjectModel {
 
     async getWarehouseCredentialsForProject(
         projectUuid: string,
+        refreshToken?: string, // TODO make this a fucntion to get the refresh token for the user, and use it if bigquery
     ): Promise<CreateWarehouseCredentials> {
         const [row] = await this.database('warehouse_credentials')
             .innerJoin(

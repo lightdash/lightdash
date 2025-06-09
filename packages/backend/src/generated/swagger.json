@@ -1155,6 +1155,9 @@
             },
             "DashboardFieldTarget": {
                 "properties": {
+                    "isSqlColumn": {
+                        "type": "boolean"
+                    },
                     "tableName": {
                         "type": "string"
                     },
@@ -3633,6 +3636,59 @@
                 "enum": ["LABEL", "INDEX"],
                 "type": "string"
             },
+            "JoinModelRequiredFilterTarget": {
+                "properties": {
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "fieldRef": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "fieldRef"],
+                "type": "object"
+            },
+            "JoinModelRequiredFilterRule": {
+                "properties": {
+                    "values": {
+                        "items": {
+                            "$ref": "#/components/schemas/AnyType"
+                        },
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/JoinModelRequiredFilterTarget"
+                    },
+                    "settings": {
+                        "$ref": "#/components/schemas/AnyType"
+                    },
+                    "disabled": {
+                        "type": "boolean"
+                    },
+                    "required": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ModelRequiredFilterRule": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/MetricFilterRule"
+                    },
+                    {
+                        "$ref": "#/components/schemas/JoinModelRequiredFilterRule"
+                    }
+                ]
+            },
             "GroupType": {
                 "properties": {
                     "description": {
@@ -3681,7 +3737,7 @@
                     },
                     "requiredFilters": {
                         "items": {
-                            "$ref": "#/components/schemas/MetricFilterRule"
+                            "$ref": "#/components/schemas/ModelRequiredFilterRule"
                         },
                         "type": "array"
                     },
@@ -4954,6 +5010,10 @@
                     "promptUuid": {
                         "type": "string"
                     },
+                    "agentUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "projectUuid": {
                         "type": "string"
                     },
@@ -4972,6 +5032,7 @@
                     "createdByUserUuid",
                     "threadUuid",
                     "promptUuid",
+                    "agentUuid",
                     "projectUuid",
                     "organizationUuid"
                 ],
@@ -5063,14 +5124,17 @@
             "ItemsMap": {
                 "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
-            "AiAgentIntegrationType": {
-                "enum": ["slack"],
-                "type": "string"
-            },
-            "Pick_AiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-dataSources_": {
+            "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl_": {
                 "properties": {
+                    "name": {
+                        "type": "string"
+                    },
                     "projectUuid": {
                         "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "uuid": {
                         "type": "string"
@@ -5085,7 +5149,9 @@
                                     "type": "string"
                                 },
                                 "type": {
-                                    "$ref": "#/components/schemas/AiAgentIntegrationType"
+                                    "type": "string",
+                                    "enum": ["slack"],
+                                    "nullable": false
                                 }
                             },
                             "required": ["channelId", "type"],
@@ -5093,32 +5159,43 @@
                         },
                         "type": "array"
                     },
-                    "dataSources": {
-                        "properties": {
-                            "fieldNameTags": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array",
-                                "nullable": true
-                            }
+                    "tags": {
+                        "items": {
+                            "type": "string"
                         },
-                        "required": ["fieldNameTags"],
-                        "type": "object"
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "instruction": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": [
+                    "name",
                     "projectUuid",
+                    "createdAt",
                     "uuid",
                     "organizationUuid",
                     "integrations",
-                    "dataSources"
+                    "tags",
+                    "updatedAt",
+                    "instruction",
+                    "imageUrl"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-dataSources_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -5137,10 +5214,17 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-dataSources_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl_": {
                 "properties": {
+                    "name": {
+                        "type": "string"
+                    },
                     "projectUuid": {
                         "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "uuid": {
                         "type": "string"
@@ -5155,7 +5239,9 @@
                                     "type": "string"
                                 },
                                 "type": {
-                                    "$ref": "#/components/schemas/AiAgentIntegrationType"
+                                    "type": "string",
+                                    "enum": ["slack"],
+                                    "nullable": false
                                 }
                             },
                             "required": ["channelId", "type"],
@@ -5163,32 +5249,43 @@
                         },
                         "type": "array"
                     },
-                    "dataSources": {
-                        "properties": {
-                            "fieldNameTags": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array",
-                                "nullable": true
-                            }
+                    "tags": {
+                        "items": {
+                            "type": "string"
                         },
-                        "required": ["fieldNameTags"],
-                        "type": "object"
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "instruction": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": [
+                    "name",
                     "projectUuid",
+                    "createdAt",
                     "uuid",
                     "organizationUuid",
                     "integrations",
-                    "dataSources"
+                    "tags",
+                    "updatedAt",
+                    "instruction",
+                    "imageUrl"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-dataSources_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-createdAt-or-updatedAt-or-instruction-or-imageUrl_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -5218,8 +5315,11 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.projectUuid-or-integrations-or-dataSources_": {
+            "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl_": {
                 "properties": {
+                    "name": {
+                        "type": "string"
+                    },
                     "projectUuid": {
                         "type": "string"
                     },
@@ -5230,7 +5330,9 @@
                                     "type": "string"
                                 },
                                 "type": {
-                                    "$ref": "#/components/schemas/AiAgentIntegrationType"
+                                    "type": "string",
+                                    "enum": ["slack"],
+                                    "nullable": false
                                 }
                             },
                             "required": ["channelId", "type"],
@@ -5238,29 +5340,44 @@
                         },
                         "type": "array"
                     },
-                    "dataSources": {
-                        "properties": {
-                            "fieldNameTags": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array",
-                                "nullable": true
-                            }
+                    "tags": {
+                        "items": {
+                            "type": "string"
                         },
-                        "required": ["fieldNameTags"],
-                        "type": "object"
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "instruction": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
-                "required": ["projectUuid", "integrations", "dataSources"],
+                "required": [
+                    "name",
+                    "projectUuid",
+                    "integrations",
+                    "tags",
+                    "instruction",
+                    "imageUrl"
+                ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ApiCreateAiAgent": {
-                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-dataSources_"
+                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl_"
             },
-            "ApiUpdateAiAgent": {
+            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl__": {
                 "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
                     "integrations": {
                         "items": {
                             "properties": {
@@ -5268,7 +5385,9 @@
                                     "type": "string"
                                 },
                                 "type": {
-                                    "$ref": "#/components/schemas/AiAgentIntegrationType"
+                                    "type": "string",
+                                    "enum": ["slack"],
+                                    "nullable": false
                                 }
                             },
                             "required": ["channelId", "type"],
@@ -5276,39 +5395,57 @@
                         },
                         "type": "array"
                     },
-                    "dataSources": {
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "instruction": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "ApiUpdateAiAgent": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-instruction-or-imageUrl__"
+                    },
+                    {
                         "properties": {
-                            "fieldNameTags": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array",
-                                "nullable": true
+                            "uuid": {
+                                "type": "string"
                             }
                         },
-                        "required": ["fieldNameTags"],
+                        "required": ["uuid"],
                         "type": "object"
+                    }
+                ]
+            },
+            "AiAgentUser": {
+                "properties": {
+                    "name": {
+                        "type": "string"
                     },
                     "uuid": {
                         "type": "string"
                     }
                 },
-                "required": ["uuid"],
+                "required": ["name", "uuid"],
                 "type": "object"
             },
             "AiAgentThreadSummary": {
                 "properties": {
                     "user": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/AiAgentUser"
                     },
                     "firstMessage": {
                         "type": "string"
@@ -5353,107 +5490,135 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "AiAgentMessage": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "user": {
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    },
-                                    "uuid": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": ["name", "uuid"],
-                                "type": "object"
-                            },
-                            "createdAt": {
-                                "type": "string"
-                            },
-                            "message": {
-                                "type": "string"
-                            },
-                            "threadUuid": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "role": {
-                                "type": "string",
-                                "enum": ["user"],
-                                "nullable": false
-                            }
-                        },
-                        "required": [
-                            "user",
-                            "createdAt",
-                            "message",
-                            "threadUuid",
-                            "uuid",
-                            "role"
-                        ],
+            "AiAgentThreadSummary_AiAgentUser_": {
+                "properties": {
+                    "user": {
+                        "$ref": "#/components/schemas/AiAgentUser"
+                    },
+                    "firstMessage": {
+                        "type": "string"
+                    },
+                    "createdFrom": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user",
+                    "firstMessage",
+                    "createdFrom",
+                    "createdAt",
+                    "agentUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "AiAgentMessageUser_AiAgentUser_": {
+                "properties": {
+                    "user": {
+                        "$ref": "#/components/schemas/AiAgentUser"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": ["user"],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "user",
+                    "createdAt",
+                    "message",
+                    "threadUuid",
+                    "uuid",
+                    "role"
+                ],
+                "type": "object"
+            },
+            "AiAgentMessageAssistant": {
+                "properties": {
+                    "humanScore": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "metricQuery": {
+                        "additionalProperties": true,
                         "type": "object"
                     },
-                    {
-                        "properties": {
-                            "humanScore": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "metricQuery": {
-                                "additionalProperties": true,
-                                "type": "object"
-                            },
-                            "filtersOutput": {
-                                "additionalProperties": true,
-                                "type": "object"
-                            },
-                            "vizConfigOutput": {
-                                "additionalProperties": true,
-                                "type": "object"
-                            },
-                            "createdAt": {
-                                "type": "string"
-                            },
-                            "message": {
-                                "type": "string"
-                            },
-                            "threadUuid": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "role": {
-                                "type": "string",
-                                "enum": ["assistant"],
-                                "nullable": false
-                            }
-                        },
-                        "required": [
-                            "createdAt",
-                            "message",
-                            "threadUuid",
-                            "uuid",
-                            "role"
-                        ],
+                    "filtersOutput": {
+                        "additionalProperties": true,
                         "type": "object"
+                    },
+                    "vizConfigOutput": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": ["assistant"],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "message",
+                    "threadUuid",
+                    "uuid",
+                    "role"
+                ],
+                "type": "object"
+            },
+            "AiAgentMessage_AiAgentUser_": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/AiAgentMessageUser_AiAgentUser_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AiAgentMessageAssistant"
                     }
                 ]
             },
             "AiAgentThread": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/AiAgentThreadSummary"
+                        "$ref": "#/components/schemas/AiAgentThreadSummary_AiAgentUser_"
                     },
                     {
                         "properties": {
                             "messages": {
                                 "items": {
-                                    "$ref": "#/components/schemas/AiAgentMessage"
+                                    "$ref": "#/components/schemas/AiAgentMessage_AiAgentUser_"
                                 },
                                 "type": "array"
                             }
@@ -5467,6 +5632,156 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/AiAgentThread"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentStartThreadResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "threadUuid": {
+                                "type": "string"
+                            },
+                            "jobId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["threadUuid", "jobId"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadGenerateRequest": {
+                "properties": {
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prompt"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadGenerateResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "jobId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["jobId"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AiChartType": {
+                "description": "Supported AI visualization chart types",
+                "enum": ["time_series_chart", "vertical_bar_chart", "csv"],
+                "type": "string"
+            },
+            "Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName-or-filters_": {
+                "properties": {
+                    "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    },
+                    "filters": {
+                        "$ref": "#/components/schemas/Filters"
+                    }
+                },
+                "required": [
+                    "metrics",
+                    "dimensions",
+                    "sorts",
+                    "limit",
+                    "exploreName",
+                    "filters"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiMetricQuery": {
+                "$ref": "#/components/schemas/Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName-or-filters_"
+            },
+            "ApiAiAgentThreadMessageViz": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "fields": {
+                                "$ref": "#/components/schemas/ItemsMap"
+                            },
+                            "cacheMetadata": {
+                                "$ref": "#/components/schemas/CacheMetadata"
+                            },
+                            "rows": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Record_string.AnyType_"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["fields", "cacheMetadata", "rows"],
+                        "type": "object"
+                    },
+                    "chartOptions": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/AiMetricQuery"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/AiChartType"
+                    }
+                },
+                "required": ["results", "metricQuery", "type"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadMessageVizResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiAiAgentThreadMessageViz"
                     },
                     "status": {
                         "type": "string",
@@ -6177,13 +6492,20 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_CreateBigqueryCredentials.type-or-keyfileContents_": {
+            "BigqueryAuthenticationType": {
+                "enum": ["sso", "private_key"],
+                "type": "string"
+            },
+            "Pick_CreateBigqueryCredentials.type-or-keyfileContents-or-authenticationType_": {
                 "properties": {
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
                     },
                     "keyfileContents": {
                         "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/BigqueryAuthenticationType"
                     }
                 },
                 "required": ["type", "keyfileContents"],
@@ -6220,7 +6542,7 @@
                                 "$ref": "#/components/schemas/Pick_CreateTrinoCredentials.type-or-user-or-password_"
                             },
                             {
-                                "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type-or-keyfileContents_"
+                                "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type-or-keyfileContents-or-authenticationType_"
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type-or-personalAccessToken_"
@@ -6235,7 +6557,14 @@
                 "type": "object"
             },
             "OpenIdIdentityIssuerType": {
-                "enum": ["google", "okta", "oneLogin", "azuread", "oidc"],
+                "enum": [
+                    "google",
+                    "okta",
+                    "oneLogin",
+                    "azuread",
+                    "oidc",
+                    "snowflake"
+                ],
                 "type": "string"
             },
             "LocalIssuerTypes": {
@@ -7881,20 +8210,20 @@
             },
             "Pick_SavedChart.updatedAt-or-updatedByUser-or-pinnedListOrder_": {
                 "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "pinnedListOrder": {
                         "type": "number",
                         "format": "double",
                         "nullable": true
                     },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
                     }
                 },
-                "required": ["pinnedListOrder", "updatedAt"],
+                "required": ["updatedAt", "pinnedListOrder"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -7982,6 +8311,10 @@
                     "organizationUuid": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -7993,10 +8326,6 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -8023,10 +8352,10 @@
                     "projectUuid",
                     "uuid",
                     "organizationUuid",
+                    "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
-                    "updatedAt",
                     "views",
                     "firstViewedAt"
                 ],
@@ -8850,6 +9179,7 @@
                 "type": "string",
                 "enum": [
                     "slackAiPrompt",
+                    "aiAgentThreadGenerate",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
                     "sendEmailNotification",
@@ -9373,6 +9703,10 @@
                     "organizationUuid": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -9398,10 +9732,6 @@
                     "dashboardName": {
                         "type": "string",
                         "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -9451,6 +9781,7 @@
                     "projectUuid",
                     "uuid",
                     "organizationUuid",
+                    "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -9458,7 +9789,6 @@
                     "spaceName",
                     "dashboardUuid",
                     "dashboardName",
-                    "updatedAt",
                     "tableName",
                     "metricQuery",
                     "chartConfig",
@@ -9513,6 +9843,13 @@
                     "organizationUuid": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "filters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -9530,10 +9867,6 @@
                     },
                     "spaceName": {
                         "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -9564,9 +9897,6 @@
                         },
                         "type": "array"
                     },
-                    "filters": {
-                        "$ref": "#/components/schemas/DashboardFilters"
-                    },
                     "tabs": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardTab"
@@ -9582,17 +9912,17 @@
                     "projectUuid",
                     "uuid",
                     "organizationUuid",
+                    "updatedAt",
+                    "filters",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
                     "spaceName",
-                    "updatedAt",
                     "views",
                     "firstViewedAt",
                     "dashboardVersionId",
                     "tiles",
-                    "filters",
                     "tabs"
                 ],
                 "type": "object",
@@ -10147,6 +10477,10 @@
                     }
                 ]
             },
+            "SnowflakeAuthenticationType": {
+                "enum": ["password", "private_key", "sso"],
+                "type": "string"
+            },
             "WeekDay": {
                 "enum": [0, 1, 2, 3, 4, 5, 6],
                 "type": "number"
@@ -10155,6 +10489,9 @@
                 "properties": {
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
                     },
                     "role": {
                         "type": "string"
@@ -10165,9 +10502,8 @@
                     "requireUserCredentials": {
                         "type": "boolean"
                     },
-                    "authenticationType": {
-                        "type": "string",
-                        "enum": ["password", "private_key"]
+                    "token": {
+                        "type": "string"
                     },
                     "database": {
                         "type": "string"
@@ -10389,6 +10725,9 @@
                 "properties": {
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/BigqueryAuthenticationType"
                     },
                     "requireUserCredentials": {
                         "type": "boolean"
@@ -11560,12 +11899,12 @@
                     "description": {
                         "type": "string"
                     },
-                    "slug": {
-                        "type": "string"
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "slug": {
+                        "type": "string"
                     },
                     "tableName": {
                         "type": "string"
@@ -11603,8 +11942,8 @@
                 },
                 "required": [
                     "name",
-                    "slug",
                     "updatedAt",
+                    "slug",
                     "tableName",
                     "metricQuery",
                     "chartConfig",
@@ -11709,12 +12048,12 @@
                     "description": {
                         "type": "string"
                     },
-                    "slug": {
-                        "type": "string"
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "slug": {
+                        "type": "string"
                     },
                     "tabs": {
                         "items": {
@@ -11723,7 +12062,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["name", "slug", "updatedAt", "tabs"],
+                "required": ["name", "updatedAt", "slug", "tabs"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -11990,22 +12329,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -12075,12 +12414,12 @@
                     "name": {
                         "type": "string"
                     },
-                    "slug": {
-                        "type": "string"
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "slug": {
+                        "type": "string"
                     },
                     "tableName": {
                         "type": "string"
@@ -12126,8 +12465,8 @@
                 },
                 "required": [
                     "name",
-                    "slug",
                     "updatedAt",
+                    "slug",
                     "tableName",
                     "tableConfig",
                     "version",
@@ -12159,12 +12498,12 @@
                     "name": {
                         "type": "string"
                     },
-                    "slug": {
-                        "type": "string"
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "slug": {
+                        "type": "string"
                     },
                     "tabs": {
                         "items": {
@@ -12186,8 +12525,8 @@
                 },
                 "required": [
                     "name",
-                    "slug",
                     "updatedAt",
+                    "slug",
                     "tabs",
                     "version",
                     "spaceSlug"
@@ -12198,6 +12537,29 @@
             "Omit_DashboardAsCode.filters-or-tiles-or-description_": {
                 "$ref": "#/components/schemas/Pick_DashboardAsCode.Exclude_keyofDashboardAsCode.filters-or-tiles-or-description__",
                 "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "ApiRefreshResults": {
+                "properties": {
+                    "jobUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["jobUuid"],
+                "type": "object"
+            },
+            "ApiSuccess_ApiRefreshResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiRefreshResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "ResourceViewItemType.DASHBOARD": {
                 "enum": ["dashboard"],
@@ -12214,6 +12576,10 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -12225,10 +12591,6 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -12259,10 +12621,10 @@
                 "required": [
                     "name",
                     "uuid",
+                    "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
-                    "updatedAt",
                     "views",
                     "firstViewedAt"
                 ],
@@ -12303,6 +12665,10 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -12317,10 +12683,6 @@
                     },
                     "slug": {
                         "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
@@ -12357,11 +12719,11 @@
                 "required": [
                     "name",
                     "uuid",
+                    "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
-                    "updatedAt",
                     "views",
                     "firstViewedAt"
                 ],
@@ -14239,14 +14601,14 @@
                         "required": ["visibility"],
                         "type": "object"
                     },
-                    "warehouse": {
-                        "type": "string"
-                    },
                     "tags": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "warehouse": {
+                        "type": "string"
                     },
                     "groupLabel": {
                         "type": "string"
@@ -15013,6 +15375,38 @@
                 ],
                 "type": "object"
             },
+            "BigqueryDataset": {
+                "properties": {
+                    "datasetId": {
+                        "type": "string"
+                    },
+                    "location": {
+                        "type": "string"
+                    },
+                    "projectId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["datasetId", "projectId"],
+                "type": "object"
+            },
+            "ApiBigqueryDatasets": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/BigqueryDataset"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "SemanticLayerClientInfo": {
                 "properties": {
                     "name": {
@@ -15163,13 +15557,13 @@
             },
             "Pick_SemanticLayerQuery.dimensions-or-timeDimensions-or-metrics_": {
                 "properties": {
-                    "dimensions": {
+                    "metrics": {
                         "items": {
                             "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
                         },
                         "type": "array"
                     },
-                    "metrics": {
+                    "dimensions": {
                         "items": {
                             "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
                         },
@@ -15182,7 +15576,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["dimensions", "metrics", "timeDimensions"],
+                "required": ["metrics", "dimensions", "timeDimensions"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -15875,7 +16269,7 @@
                         "properties": {
                             "pivotDetails": {
                                 "properties": {
-                                    "unpivotedColumns": {
+                                    "originalColumns": {
                                         "$ref": "#/components/schemas/ResultColumns"
                                     },
                                     "sortBy": {
@@ -15903,6 +16297,7 @@
                                     }
                                 },
                                 "required": [
+                                    "originalColumns",
                                     "valuesColumns",
                                     "indexColumn",
                                     "totalColumnCount"
@@ -16108,34 +16503,17 @@
             },
             "Pick_MetricQueryRequest.Exclude_keyofMetricQueryRequest.csvLimit__": {
                 "properties": {
-                    "filters": {
-                        "properties": {
-                            "tableCalculations": {},
-                            "metrics": {},
-                            "dimensions": {}
-                        },
-                        "type": "object"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
                     "metrics": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
                     },
-                    "tableCalculations": {
+                    "dimensions": {
                         "items": {
-                            "$ref": "#/components/schemas/TableCalculation"
+                            "type": "string"
                         },
                         "type": "array"
-                    },
-                    "exploreName": {
-                        "type": "string"
                     },
                     "sorts": {
                         "items": {
@@ -16146,6 +16524,23 @@
                     "limit": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    },
+                    "filters": {
+                        "properties": {
+                            "tableCalculations": {},
+                            "metrics": {},
+                            "dimensions": {}
+                        },
+                        "type": "object"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        "type": "array"
                     },
                     "additionalMetrics": {
                         "items": {
@@ -16179,13 +16574,13 @@
                     }
                 },
                 "required": [
-                    "filters",
-                    "dimensions",
                     "metrics",
-                    "tableCalculations",
-                    "exploreName",
+                    "dimensions",
                     "sorts",
-                    "limit"
+                    "limit",
+                    "exploreName",
+                    "filters",
+                    "tableCalculations"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -16213,6 +16608,12 @@
                     }
                 ]
             },
+            "LimitOverride": {
+                "type": "number",
+                "format": "double",
+                "nullable": true,
+                "description": "Represents different limit override behaviors\n- undefined: use original limit from saved chart/query\n- null: no limit (unlimited results)\n- number: apply specific limit"
+            },
             "ExecuteAsyncSavedChartRequestParams": {
                 "allOf": [
                     {
@@ -16220,6 +16621,10 @@
                     },
                     {
                         "properties": {
+                            "limit": {
+                                "$ref": "#/components/schemas/LimitOverride",
+                                "description": "Limit override for query execution:\n- undefined: use saved chart's original limit\n- null: no limit (unlimited results)\n- number: apply specific limit"
+                            },
                             "versionUuid": {
                                 "type": "string"
                             },
@@ -16573,10 +16978,44 @@
                 "required": ["fileUrl"],
                 "type": "object"
             },
-            "ApiSuccess_ApiDownloadAsyncQueryResults_": {
+            "ApiDownloadAsyncQueryResultsAsCsv": {
+                "properties": {
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "fileUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": ["truncated", "fileUrl"],
+                "type": "object"
+            },
+            "ApiDownloadAsyncQueryResultsAsXlsx": {
+                "properties": {
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "fileUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": ["truncated", "fileUrl"],
+                "type": "object"
+            },
+            "ApiSuccess_ApiDownloadAsyncQueryResults-or-ApiDownloadAsyncQueryResultsAsCsv-or-ApiDownloadAsyncQueryResultsAsXlsx_": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/ApiDownloadAsyncQueryResults"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiDownloadAsyncQueryResults"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ApiDownloadAsyncQueryResultsAsCsv"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ApiDownloadAsyncQueryResultsAsXlsx"
+                            }
+                        ]
                     },
                     "status": {
                         "type": "string",
@@ -16586,6 +17025,47 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "DownloadFileType": {
+                "enum": ["csv", "image", "jsonl", "s3_jsonl", "xlsx"],
+                "type": "string"
+            },
+            "Pick_DownloadAsyncQueryResultsRequestParams.Exclude_keyofDownloadAsyncQueryResultsRequestParams.queryUuid__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DownloadFileType"
+                    },
+                    "pivotConfig": {
+                        "$ref": "#/components/schemas/PivotConfig"
+                    },
+                    "onlyRaw": {
+                        "type": "boolean"
+                    },
+                    "showTableNames": {
+                        "type": "boolean"
+                    },
+                    "customLabels": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "columnOrder": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "hiddenFields": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_DownloadAsyncQueryResultsRequestParams.queryUuid_": {
+                "$ref": "#/components/schemas/Pick_DownloadAsyncQueryResultsRequestParams.Exclude_keyofDownloadAsyncQueryResultsRequestParams.queryUuid__",
+                "description": "Construct a type with the properties of T except for those in type K."
             },
             "FeatureFlag": {
                 "properties": {
@@ -17242,7 +17722,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1632.1",
+        "version": "0.1689.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -18988,6 +19468,36 @@
                 ]
             }
         },
+        "/api/v1/snowflake/sso/is-authenticated": {
+            "get": {
+                "operationId": "ssoIsAuthenticated",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": []
+            }
+        },
         "/api/v1/slack/channels": {
             "get": {
                 "operationId": "getSlackChannels",
@@ -19028,6 +19538,22 @@
                     {
                         "in": "query",
                         "name": "excludeArchived",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "excludeDms",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "excludeGroups",
                         "required": false,
                         "schema": {
                             "type": "boolean"
@@ -22137,6 +22663,45 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/refresh": {
+            "post": {
+                "operationId": "refresh",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiRefreshResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/pinned-lists/{pinnedListUuid}/items": {
@@ -25717,6 +26282,75 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/bigquery/sso/datasets": {
+            "get": {
+                "operationId": "GetBigQueryDatasets",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiBigqueryDatasets"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/bigquery/sso/is-authenticated": {
+            "get": {
+                "operationId": "getAccessToken",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v2/feature-flag/{featureFlagId}": {

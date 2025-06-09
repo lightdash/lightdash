@@ -14,9 +14,6 @@ export enum FeatureFlags {
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 
-    /** Enable dashboard tabs */
-    DashboardTabs = 'dashboard_tabs',
-
     /* Send local timezone to the warehouse session */
     EnableUserTimezones = 'enable-user-timezones',
 
@@ -61,11 +58,6 @@ export enum FeatureFlags {
      * Enable the ability to create custom visualizations with AI
      */
     AiCustomViz = 'ai-custom-viz',
-
-    /**
-     * Enable the ability for dashboard filters to be applied to SQL charts
-     */
-    SqlChartDashboardFilters = 'sql-chart-dashboard-filters',
 }
 
 export type FeatureFlag = {

@@ -31,4 +31,5 @@ export * from './strategies/oidcStrategy';
 export * from './strategies/oktaStrategy';
 export * from './strategies/oneLoginStrategy';
 export * from './strategies/passwordStrategy';
+export * from './strategies/snowflakeStrategy';
 export * from './utils';

@@ -62,17 +62,39 @@ test('Should default results S3 config to S3 config', () => {
 });
 
 test('Should use explicit results S3 config when set', () => {
-    process.env.RESULTS_CACHE_S3_BUCKET = 'explicit_bucket';
-    process.env.RESULTS_CACHE_S3_REGION = 'explicit_region';
-    process.env.RESULTS_CACHE_S3_ACCESS_KEY = 'explicit_access_key';
-    process.env.RESULTS_CACHE_S3_SECRET_KEY = 'explicit_secret_key';
+    process.env.RESULTS_S3_BUCKET = 'new_bucket';
+    process.env.RESULTS_S3_REGION = 'new_region';
+    process.env.RESULTS_S3_ACCESS_KEY = 'new_access_key';
+    process.env.RESULTS_S3_SECRET_KEY = 'new_secret_key';
     const config = parseConfig();
     expect(config.results.s3).toEqual({
-        endpoint: 'mock_endpoint', // ! Endpoint is not overriden
-        bucket: 'explicit_bucket',
-        region: 'explicit_region',
-        accessKey: 'explicit_access_key',
-        secretKey: 'explicit_secret_key',
+        endpoint: 'mock_endpoint',
+        bucket: 'new_bucket',
+        region: 'new_region',
+        accessKey: 'new_access_key',
+        secretKey: 'new_secret_key',
+        forcePathStyle: false,
+    });
+});
+
+test('Should prioritize new results S3 config over deprecated config when both are set', () => {
+    // Set both new and deprecated environment variables
+    process.env.RESULTS_S3_BUCKET = 'new_bucket';
+    process.env.RESULTS_S3_REGION = 'new_region';
+    process.env.RESULTS_S3_ACCESS_KEY = 'new_access_key';
+    process.env.RESULTS_S3_SECRET_KEY = 'new_secret_key';
+    process.env.RESULTS_CACHE_S3_BUCKET = 'deprecated_bucket';
+    process.env.RESULTS_CACHE_S3_REGION = 'deprecated_region';
+    process.env.RESULTS_CACHE_S3_ACCESS_KEY = 'deprecated_access_key';
+    process.env.RESULTS_CACHE_S3_SECRET_KEY = 'deprecated_secret_key';
+
+    const config = parseConfig();
+    expect(config.results.s3).toEqual({
+        endpoint: 'mock_endpoint',
+        bucket: 'new_bucket',
+        region: 'new_region',
+        accessKey: 'new_access_key',
+        secretKey: 'new_secret_key',
         forcePathStyle: false,
     });
 });
@@ -347,5 +369,26 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
         process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS =
             'https://example.com,https://example.org';
         expect(() => parseConfig()).toThrowError(ParameterError);
+    });
+
+    describe('headlessBrowser configuration', () => {
+        beforeEach(() => {
+            process.env.HEADLESS_BROWSER_HOST = 'headless-browser-host';
+            process.env.HEADLESS_BROWSER_PORT = '3000';
+        });
+        test('should use ws and port when USE_SECURE_BROWSER is not set', () => {
+            const config = parseConfig();
+            expect(config.headlessBrowser.browserEndpoint).toEqual(
+                'ws://headless-browser-host:3000',
+            );
+        });
+
+        test('should use wss and omit the port when USE_SECURE_BROWSER is true', () => {
+            process.env.USE_SECURE_BROWSER = 'true';
+            const config = parseConfig();
+            expect(config.headlessBrowser.browserEndpoint).toEqual(
+                'wss://headless-browser-host',
+            );
+        });
     });
 });

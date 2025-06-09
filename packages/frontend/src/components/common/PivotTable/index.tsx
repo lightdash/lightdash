@@ -40,7 +40,7 @@ import {
     getFormattedValueCell,
 } from '../../../hooks/useColumns';
 import { getColorFromRange } from '../../../utils/colorUtils';
-import { getConditionalRuleLabel } from '../Filters/FilterInputs/utils';
+import { getConditionalRuleLabelFromItem } from '../Filters/FilterInputs/utils';
 import Table from '../LightTable';
 import { CELL_HEIGHT } from '../LightTable/constants';
 import MantineIcon from '../MantineIcon';
@@ -588,7 +588,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             item,
                                             conditionalFormattingConfig,
                                             rowFields,
-                                            getConditionalRuleLabel,
+                                            getConditionalRuleLabelFromItem,
                                         );
 
                                     if (

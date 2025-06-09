@@ -1,6 +1,15 @@
 version: 2
 models:
   - name: tracks
+    meta: 
+      required_filters: 
+        - timestamp: 'inThePast 5 years'
+        - context_app_version: '0.1000.1'
+          required: false
+      default_filters: 
+        - event: 'lightdash_server_saved_chart_created'
+        - event_text:  'lightdash_%'
+          required: true 
     columns:
       - name: user_id
         description: ""

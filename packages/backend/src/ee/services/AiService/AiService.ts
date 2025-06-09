@@ -1,16 +1,9 @@
 import { subject } from '@casl/ability';
 import { type TokenUsage } from '@langchain/core/language_models/base';
-import { AIMessage, HumanMessage } from '@langchain/core/messages';
-import { OutputParserException } from '@langchain/core/output_parsers';
 import {
-    ChatPromptTemplate,
-    MessagesPlaceholder,
-} from '@langchain/core/prompts';
-import {
-    AiChatAgents,
-    AiChatMessage,
     AiConversation,
     AiConversationMessage,
+    AiMetricQuery,
     AiWebAppPrompt,
     AnyType,
     CatalogType,
@@ -20,26 +13,23 @@ import {
     FeatureFlags,
     ItemsMap,
     LightdashUser,
+    NotFoundError,
     QueryExecutionContext,
-    ResultRow,
     SessionUser,
     SlackPrompt,
     UnexpectedServerError,
-    assertUnreachable,
+    filterExploreByTags,
     getErrorMessage,
     getItemId,
     isDashboardChartTileType,
     isField,
     isSlackPrompt,
-    isTableCalculation,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
-import { AgentExecutor } from 'langchain/agents';
-import { /* intersection, */ pick } from 'lodash';
-import moment from 'moment';
+import { CoreMessage } from 'ai';
+import { pick } from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
-import { PostSlackFile, SlackClient } from '../../../clients/Slack/SlackClient';
+import { SlackClient } from '../../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
@@ -55,27 +45,30 @@ import {
     DashboardSummaryViewed,
 } from '../../analytics';
 import OpenAi from '../../clients/OpenAi';
+import { AiAgentModel } from '../../models/AiAgentModel';
 import { AiModel } from '../../models/AiModel';
-import type { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
+import { runAgent } from '../ai/agents/agent';
+import { getChatHistoryFromThreadMessages } from '../ai/prompts/conversationHistory';
+import type {
+    GetExploreFn,
+    GetPromptFn,
+    RunMiniMetricQueryFn,
+    SendFileFn,
+    UpdateProgressFn,
+} from '../ai/types/aiAgentDependencies';
+import { SearchFieldsFn } from '../ai/types/aiAgentDependencies';
+import { AiAgentExploreSummary } from '../ai/types/aiAgentExploreSummary';
+import { AiAgentService } from '../AiAgentService';
 import { CommercialCatalogService } from '../CommercialCatalogService';
-import { MiniMetricQuery } from './runMiniMetricQuery/runMiniMetricQuery';
-import { getFindFieldsTool } from './tools/findFieldsTool';
-import { getGenerateBarVizConfigTool } from './tools/generateBarVizConfigTool';
-import { getGenerateCsvTool } from './tools/generateCsvTool';
-import { getGenerateQueryFiltersTool } from './tools/generateQueryFilters';
-import { getGenerateTimeSeriesVizConfigTool } from './tools/generateTimeSeriesVizConfigTool';
-import { getGetOneLineResultTool } from './tools/getOneLineResult';
 import {
     getDeepLinkBlocks,
     getExploreBlocks,
     getFeedbackBlocks,
     getFollowUpToolBlocks,
 } from './utils/aiCopilot/getSlackBlocks';
-import { aiCopilotSystemPrompt } from './utils/aiCopilot/prompts';
 import { validateSelectedFieldsExistence } from './utils/aiCopilot/validators';
 import { AiDuplicateSlackPromptError } from './utils/errors';
-import { createOpenAIToolsAgent } from './utils/langchainUtils';
 import {
     fieldDesc,
     formatSummaryArray,
@@ -101,6 +94,7 @@ type Dependencies = {
     dashboardModel: DashboardModel;
     dashboardSummaryModel: DashboardSummaryModel;
     aiModel: AiModel;
+    aiAgentModel: AiAgentModel;
     userModel: UserModel;
     projectModel: ProjectModel;
     organizationModel: OrganizationModel;
@@ -109,8 +103,8 @@ type Dependencies = {
     openAi: OpenAi;
     slackClient: SlackClient;
     lightdashConfig: LightdashConfig;
-    slackAuthenticationModel: CommercialSlackAuthenticationModel;
     featureFlagService: FeatureFlagService;
+    aiAgentService: AiAgentService;
 };
 
 export class AiService {
@@ -119,6 +113,8 @@ export class AiService {
     private readonly dashboardModel: DashboardModel;
 
     private readonly aiModel: AiModel;
+
+    private readonly aiAgentModel: AiAgentModel;
 
     private readonly userModel: UserModel;
 
@@ -132,8 +128,6 @@ export class AiService {
 
     private readonly catalogService: CommercialCatalogService;
 
-    private readonly slackAuthenticationModel: CommercialSlackAuthenticationModel;
-
     private readonly openAi: OpenAi;
 
     private readonly slackClient: SlackClient;
@@ -142,6 +136,8 @@ export class AiService {
 
     private readonly featureFlagService: FeatureFlagService;
 
+    private readonly aiAgentService: AiAgentService;
+
     constructor(dependencies: Dependencies) {
         this.analytics = dependencies.analytics;
         this.dashboardModel = dependencies.dashboardModel;
@@ -149,14 +145,15 @@ export class AiService {
         this.projectService = dependencies.projectService;
         this.openAi = dependencies.openAi;
         this.aiModel = dependencies.aiModel;
+        this.aiAgentModel = dependencies.aiAgentModel;
         this.userModel = dependencies.userModel;
         this.slackClient = dependencies.slackClient;
         this.projectModel = dependencies.projectModel;
         this.catalogService = dependencies.catalogService;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.organizationModel = dependencies.organizationModel;
-        this.slackAuthenticationModel = dependencies.slackAuthenticationModel;
         this.featureFlagService = dependencies.featureFlagService;
+        this.aiAgentService = dependencies.aiAgentService;
     }
 
     private async getIsCopilotEnabled(
@@ -481,7 +478,7 @@ export class AiService {
         user: SessionUser,
         projectUuid: string,
         availableTags: string[] | null,
-    ) {
+    ): Promise<AiAgentExploreSummary[]> {
         const exploreSummaries =
             await this.projectService.getAllExploresSummary(
                 user,
@@ -496,96 +493,94 @@ export class AiService {
             ),
         );
 
-        const exploresWithDescriptions = explores.map((explore, index) => ({
-            ...explore,
-            description: exploreSummaries[index]?.description,
-        }));
-
-        const minimalExploreInformation = exploresWithDescriptions
-            // TODO: enable this to allow filtering by tags
-            // .filter(
-            //     (explore) =>
-            //         !availableTags ||
-            //         /* (explore. */tags, availableTags).length > 0,
-            // )
-            .map((s) => ({
-                ...pick(s, ['name', 'label', 'description', 'baseTable']),
-                joinedTables: Object.keys(s.tables).filter(
-                    (table) => table !== s.baseTable,
-                ),
+        const exploresWithDescriptions = explores
+            .map((explore) =>
+                filterExploreByTags({
+                    explore,
+                    availableTags,
+                }),
+            )
+            .filter((explore) => explore !== undefined)
+            .map((explore, index) => ({
+                ...explore,
+                description: exploreSummaries[index]?.description,
             }));
+
+        const minimalExploreInformation = exploresWithDescriptions.map((s) => ({
+            ...pick(s, ['name', 'label', 'description', 'baseTable']),
+            joinedTables: Object.keys(s.tables).filter(
+                (table) => table !== s.baseTable,
+            ),
+        }));
 
         return minimalExploreInformation;
     }
 
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack
     // This is scoped to the project, user and prompt (closure)
-    private getToolUtilities(
+    public getAiAgentDependencies(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
-        _availableTags: string[] | null,
+        availableTags: string[] | null,
     ) {
-        const { projectUuid, organizationUuid } = prompt;
+        const { projectUuid, organizationUuid, agentUuid } = prompt;
 
-        const getExplore = async ({ exploreName }: { exploreName: string }) => {
+        const getExplore: GetExploreFn = async ({ exploreName }) => {
             const explore = await this.projectService.getExplore(
                 user,
                 projectUuid,
                 exploreName,
             );
 
-            // TODO: enable this to allow filtering by tags
-            // if (
-            //     availableTags &&
-            //     /* (explore. */tags, availableTags).length === 0
-            // ) {
-            //     throw new Error('Explore is not available');
-            // }
+            const filteredExplore = filterExploreByTags({
+                explore,
+                availableTags,
+            });
 
-            return explore;
+            if (!filteredExplore) {
+                throw new NotFoundError('Explore not found');
+            }
+
+            return filteredExplore;
         };
 
-        const searchFields = this.lightdashConfig.ai.copilot
-            .embeddingSearchEnabled
-            ? async ({
-                  exploreName,
-                  embeddingSearchQueries,
-              }: {
-                  exploreName: string;
-                  embeddingSearchQueries: Array<{
-                      name: string;
-                      description: string;
-                  }>;
-              }) => {
-                  if (!this.openAi.embedder) {
-                      throw new UnexpectedServerError(
-                          'OpenAi embedder is not initialized',
-                      );
-                  }
-                  const embedQueries =
-                      await this.openAi.embedder.embedDocuments(
-                          embeddingSearchQueries.map((q) => JSON.stringify(q)),
-                      );
+        const searchFields: SearchFieldsFn = async ({
+            exploreName,
+            embeddingSearchQueries,
+        }: {
+            exploreName: string;
+            embeddingSearchQueries: Array<{
+                name: string;
+                description: string;
+            }>;
+        }) => {
+            if (!this.openAi.embedder) {
+                throw new UnexpectedServerError(
+                    'OpenAi embedder is not initialized',
+                );
+            }
+            const embedQueries = await this.openAi.embedder.embedDocuments(
+                embeddingSearchQueries.map((q) => JSON.stringify(q)),
+            );
 
-                  const catalogItems = await this.catalogService.hybridSearch({
-                      user,
-                      projectUuid,
-                      embedQueries,
-                      exploreName,
-                      type: CatalogType.Field,
-                      limit: 30,
-                  });
+            const catalogItems = await this.catalogService.hybridSearch({
+                user,
+                projectUuid,
+                embedQueries,
+                exploreName,
+                type: CatalogType.Field,
+                limit: 30,
+            });
 
-                  return catalogItems.data.map((item) => item.name);
-              }
-            : undefined;
+            return catalogItems.data.map((item) => item.name);
+        };
 
-        const updateProgress = (progress: string) =>
+        const updateProgress: UpdateProgressFn = (progress) =>
             isSlackPrompt(prompt)
                 ? this.updateSlackResponseWithProgress(prompt, progress)
                 : Promise.resolve();
 
-        const getPrompt = async () => {
+        const getPrompt: GetPromptFn = async () => {
             const webOrSlackPrompt = isSlackPrompt(prompt)
                 ? await this.aiModel.findSlackPrompt(prompt.promptUuid)
                 : await this.aiModel.findWebAppPrompt(prompt.promptUuid);
@@ -596,7 +591,9 @@ export class AiService {
             return webOrSlackPrompt;
         };
 
-        const runMiniMetricQuery = async (metricQuery: MiniMetricQuery) => {
+        const runMiniMetricQuery: RunMiniMetricQueryFn = async (
+            metricQuery,
+        ) => {
             const explore = await getExplore({
                 exploreName: metricQuery.exploreName,
             });
@@ -627,13 +624,28 @@ export class AiService {
             });
         };
 
-        const sendFile = async (args: PostSlackFile) => {
+        const sendFile: SendFileFn = async (args) => {
+            //
+            // TODO: https://api.slack.com/methods/files.upload does not support setting custom usernames
+            // support this in the future
+            //
+            // const agent = agentUuid
+            //     ? await this.aiAgentService.getAgent(user, agentUuid)
+            //     : undefined;
+            // let username: string | undefined;
+            // if (agent) {
+            //     username = agent.name;
+            // }
+            //
+
             await this.slackClient.postFileToThread(args);
         };
 
         return {
             getExplore,
-            searchFields,
+            searchFields: this.lightdashConfig.ai.copilot.embeddingSearchEnabled
+                ? searchFields
+                : undefined,
             updateProgress,
             getPrompt,
             runMiniMetricQuery,
@@ -643,7 +655,7 @@ export class AiService {
 
     async generateExploreResult(
         user: SessionUser,
-        prevMessages: AiChatMessage[],
+        messageHistory: CoreMessage[],
         slackOrWebAppPrompt: SlackPrompt | AiWebAppPrompt,
     ): Promise<string> {
         if (!user.organizationUuid) {
@@ -654,15 +666,23 @@ export class AiService {
             throw new Error('AI Copilot is not enabled');
         }
 
+        // TODO: add to lightdash config
+        if (!process.env.OPENAI_API_KEY) {
+            throw new Error('OpenAI API key not found');
+        }
+
         const { projectUuid } = slackOrWebAppPrompt;
 
-        const projectSettings =
+        const agentSettings =
             'slackChannelId' in slackOrWebAppPrompt
-                ? await this.slackAuthenticationModel.getProjectSettingsForSlackChannelId(
-                      user.organizationUuid,
-                      slackOrWebAppPrompt.slackChannelId,
-                  )
-                : undefined;
+                ? await this.aiAgentModel.getAgentBySlackChannelId({
+                      organizationUuid: user.organizationUuid,
+                      slackChannelId: slackOrWebAppPrompt.slackChannelId,
+                  })
+                : await this.aiAgentModel.getAgent({
+                      organizationUuid: slackOrWebAppPrompt.organizationUuid,
+                      agentUuid: slackOrWebAppPrompt.agentUuid!,
+                  });
 
         const {
             getExplore,
@@ -671,166 +691,44 @@ export class AiService {
             getPrompt,
             runMiniMetricQuery,
             sendFile,
-        } = this.getToolUtilities(
+        } = this.getAiAgentDependencies(
             user,
             slackOrWebAppPrompt,
-            projectSettings?.availableTags ?? null,
+            agentSettings?.tags ?? null,
         );
 
-        const findFieldsTool = getFindFieldsTool({
-            getExplore,
-            searchFields,
-            availableTags: projectSettings?.availableTags ?? null,
-        });
+        const aiAgentExploreSummaries = await this.getMinimalExploreInformation(
+            user,
+            projectUuid,
+            agentSettings?.tags ?? null,
+        );
 
-        const generateQueryFilters = getGenerateQueryFiltersTool({
-            getExplore,
-            promptUuid: slackOrWebAppPrompt.promptUuid,
-            updatePrompt: this.aiModel.updateSlackResponse.bind(this.aiModel),
-            availableTags: projectSettings?.availableTags ?? null,
-        });
-
-        const generateBarVizConfigTool = getGenerateBarVizConfigTool({
-            updateProgress: updateProgress.bind(this),
-            runMiniMetricQuery,
-            getPrompt,
-            updatePrompt: this.aiModel.updateSlackResponse.bind(this.aiModel),
-            sendFile,
-        });
-
-        const generateTimeSeriesVizConfigTool =
-            getGenerateTimeSeriesVizConfigTool({
-                updateProgress: updateProgress.bind(this),
+        return runAgent({
+            args: {
+                openaiApiKey: process.env.OPENAI_API_KEY,
+                agentName: agentSettings.name,
+                instruction: agentSettings.instruction,
+                messageHistory,
+                aiAgentExploreSummaries,
+                promptUuid: slackOrWebAppPrompt.promptUuid,
+                maxLimit: this.lightdashConfig.query.maxLimit,
+            },
+            dependencies: {
+                getExplore,
+                searchFields,
                 runMiniMetricQuery,
                 getPrompt,
-                updatePrompt: this.aiModel.updateSlackResponse.bind(
-                    this.aiModel,
-                ),
                 sendFile,
-            });
-
-        const generateCsvTool = getGenerateCsvTool({
-            updateProgress: updateProgress.bind(this),
-            runMiniMetricQuery,
-            getPrompt,
-            updatePrompt: this.aiModel.updateSlackResponse.bind(this.aiModel),
-            sendFile,
-            maxLimit: this.lightdashConfig.query.maxLimit,
-        });
-
-        const getOneLineResultTool = getGetOneLineResultTool({
-            updateProgress: updateProgress.bind(this),
-            runMiniMetricQuery,
-            getPrompt,
-            updatePrompt: this.aiModel.updateSlackResponse.bind(this.aiModel),
-        });
-
-        const tools = [
-            findFieldsTool,
-            generateQueryFilters,
-            generateBarVizConfigTool,
-            generateCsvTool,
-            generateTimeSeriesVizConfigTool,
-            getOneLineResultTool,
-        ];
-
-        const llm = this.openAi.model;
-        if (llm === undefined) {
-            throw new UnexpectedServerError('OpenAi model is not initialized');
-        }
-        const prompt = ChatPromptTemplate.fromMessages([
-            aiCopilotSystemPrompt,
-            new MessagesPlaceholder('metadata'),
-            new MessagesPlaceholder('chat_history'),
-            new MessagesPlaceholder('agent_scratchpad'),
-        ]);
-
-        const agent = await createOpenAIToolsAgent({
-            llm,
-            prompt,
-            tools,
-            streamRunnable: false,
-            // TODO: enable this when we have a way to have openai compliant zod/json schemas
-            // strict: true,
-        });
-
-        const agentExecutor = new AgentExecutor({
-            agent,
-            tools,
-            returnIntermediateSteps: true,
-            handleParsingErrors(e) {
-                Logger.debug('Failed to parse the output:', e);
-                Sentry.captureException(e);
-                const isOutputParserException =
-                    e instanceof OutputParserException;
-                const parseItem = isOutputParserException
-                    ? 'output'
-                    : `tool input`;
-
-                return `Failed to parse the ${parseItem}.
-
-Here's the original error message: ${e.message}
-
-${
-    isOutputParserException && e.llmOutput
-        ? `Here's the output that caused the error:
-
-\`\`\`
-${e.llmOutput}
-\`\`\``
-        : ''
-}
-`;
+                // avoid binding
+                updateProgress: (args) => updateProgress(args),
+                updatePrompt: (args) => this.aiModel.updateModelResponse(args),
             },
-            // make sure to set the maxIterations to a reasonable number based on the tool's complexity
-            maxIterations: 10,
         });
-
-        const chatHistory = prevMessages.map(
-            ({ agent: agentType, message }) => {
-                switch (agentType) {
-                    case AiChatAgents.AI:
-                        return new AIMessage(message);
-                    case AiChatAgents.HUMAN:
-                        return new HumanMessage(message);
-                    default:
-                        return assertUnreachable(
-                            agentType,
-                            `unknown agent: ${agent}`,
-                        );
-                }
-            },
-        );
-
-        const minimalExploreInformation =
-            await this.getMinimalExploreInformation(
-                user,
-                projectUuid,
-                projectSettings?.availableTags ?? null,
-            );
-
-        const results = await agentExecutor.invoke({
-            chat_history: chatHistory,
-            metadata: [
-                new HumanMessage({
-                    content: JSON.stringify(minimalExploreInformation, null, 2),
-                    name: 'available_explores_json',
-                }),
-            ],
-            date: moment().utc().format('YYYY-MM-DD'),
-            time: moment().utc().format('HH:mm'),
-        });
-
-        // console.debug('~~~~~~~~~~~~~~~');
-        // console.debug(util.inspect(results, { depth: null, colors: true }));
-        // console.debug('~~~~~~~~~~~~~~~');
-
-        return results.output;
     }
 
     // TODO: user permissions
     async updateHumanScoreForPrompt(promptUuid: string, humanScore: number) {
-        await this.aiModel.updateSlackResponse({
+        await this.aiModel.updateHumanScore({
             promptUuid,
             humanScore,
         });
@@ -844,6 +742,7 @@ ${e.llmOutput}
         slackThreadTs: string | undefined;
         prompt: string;
         promptSlackTs: string;
+        agentUuid: string | null;
     }): Promise<[string, boolean]> {
         let createdThread = false;
         let threadUuid: string | undefined;
@@ -882,6 +781,7 @@ ${e.llmOutput}
                 slackUserId: data.slackUserId,
                 slackChannelId: data.slackChannelId,
                 slackThreadTs: data.slackThreadTs || data.promptSlackTs,
+                agentUuid: data.agentUuid,
             });
         }
 
@@ -903,71 +803,6 @@ ${e.llmOutput}
         return [uuid, createdThread];
     }
 
-    private getChatHistoryFromThreadMessages(
-        threadMessages: Awaited<
-            ReturnType<typeof this.aiModel.getThreadMessages>
-        >,
-    ) {
-        return threadMessages.flatMap<AiChatMessage>((message) => {
-            const hasExtraContext =
-                message.viz_config_output ||
-                message.filters_output ||
-                message.filters_output ||
-                message.metric_query;
-
-            return [
-                { agent: AiChatAgents.HUMAN, message: message.prompt },
-                ...(hasExtraContext
-                    ? [
-                          {
-                              agent: AiChatAgents.HUMAN,
-                              message: `Here's some context for your response:
-
-${
-    message.viz_config_output
-        ? `Viz Config: ${JSON.stringify(message.viz_config_output)}`
-        : ''
-}
-
-${
-    message.filters_output
-        ? `Filters: ${JSON.stringify(message.filters_output)}`
-        : ''
-}
-
-${
-    message.metric_query
-        ? `Metric Query: ${JSON.stringify(message.metric_query)}`
-        : ''
-}
-
-${
-    message.human_score
-        ? `Human Score: ${
-              // eslint-disable-next-line no-nested-ternary
-              message.human_score === 1
-                  ? 'Positive'
-                  : message.human_score === -1
-                  ? 'Negative'
-                  : 'Neutral'
-          }`
-        : ''
-}`,
-                          },
-                      ]
-                    : []),
-                ...(message.response
-                    ? [
-                          {
-                              agent: AiChatAgents.AI,
-                              message: message.response,
-                          },
-                      ]
-                    : []),
-            ];
-        });
-    }
-
     // TODO: user permissions
     async replyToSlackPrompt(promptUuid: string): Promise<void> {
         let slackPrompt = await this.aiModel.findSlackPrompt(promptUuid);
@@ -985,16 +820,31 @@ ${
             slackPrompt.organizationUuid,
         );
 
-        let response: string | undefined;
-        try {
-            const threadMessages = await this.aiModel.getThreadMessages(
-                slackPrompt.organizationUuid,
-                slackPrompt.projectUuid,
-                slackPrompt.threadUuid,
+        const threadMessages = await this.aiModel.getThreadMessages(
+            slackPrompt.organizationUuid,
+            slackPrompt.projectUuid,
+            slackPrompt.threadUuid,
+        );
+
+        const thread = await this.aiModel.findThread(slackPrompt.threadUuid);
+        if (!thread) {
+            throw new Error('Thread not found');
+        }
+
+        let name: string | undefined;
+        if (thread.agentUuid) {
+            const agent = await this.aiAgentService.getAgent(
+                user,
+                thread.agentUuid,
             );
 
+            name = agent.name;
+        }
+
+        let response: string | undefined;
+        try {
             const chatHistoryMessages =
-                this.getChatHistoryFromThreadMessages(threadMessages);
+                getChatHistoryFromThreadMessages(threadMessages);
 
             response = await this.generateExploreResult(
                 user,
@@ -1007,6 +857,7 @@ ${
                 text: `🔴 Co-pilot failed to generate a response 😥 Please try again.`,
                 channel: slackPrompt.slackChannelId,
                 thread_ts: slackPrompt.slackThreadTs,
+                username: name,
             });
 
             Logger.error('Failed to generate response:', e);
@@ -1048,6 +899,7 @@ ${
         const newResponse = await this.slackClient.postMessage({
             organizationUuid: slackPrompt.organizationUuid,
             text: slackifiedMarkdown,
+            username: name,
             channel: slackPrompt.slackChannelId,
             thread_ts: slackPrompt.slackThreadTs,
             unfurl_links: false,
@@ -1066,7 +918,7 @@ ${
             ],
         });
 
-        await this.aiModel.updateSlackResponse({
+        await this.aiModel.updateModelResponse({
             promptUuid: slackPrompt.promptUuid,
             response,
         });
@@ -1076,6 +928,61 @@ ${
                 promptUuid: slackPrompt.promptUuid,
                 responseSlackTs: newResponse.ts,
             });
+        }
+    }
+
+    async generateAgentThreadResponse(
+        agentUuid: string,
+        threadUuid: string,
+        promptUuid: string,
+    ): Promise<void> {
+        const thread = await this.aiModel.findThread(threadUuid);
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const prompt = await this.aiModel.findWebAppPrompt(promptUuid);
+        if (!prompt) {
+            throw new NotFoundError(`Prompt not found: ${promptUuid}`);
+        }
+
+        const { organizationUuid, projectUuid } = thread;
+
+        const threadMessages = await this.aiModel.getThreadMessages(
+            organizationUuid,
+            projectUuid,
+            threadUuid,
+        );
+
+        if (threadMessages.length === 0) {
+            throw new Error(
+                `No messages found in thread: ${threadUuid}. ${agentUuid} ${promptUuid}`,
+            );
+        }
+
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            prompt.createdByUserUuid,
+            organizationUuid,
+        );
+
+        try {
+            const chatHistoryMessages =
+                getChatHistoryFromThreadMessages(threadMessages);
+
+            // TODO: when we move this method to `aiAgentService` we can move the `generateAgentThreadResponse` too
+            const response = await this.generateExploreResult(
+                user,
+                chatHistoryMessages,
+                prompt,
+            );
+
+            await this.aiModel.updateWebAppResponse({
+                promptUuid,
+                response,
+            });
+        } catch (e) {
+            Logger.error('Failed to generate agent thread response:', e);
+            throw new Error('Failed to generate agent thread response');
         }
     }
 
@@ -1186,6 +1093,7 @@ ${
             projectUuid,
             userUuid: user.userUuid,
             createdFrom: 'web_app',
+            agentUuid: null,
         });
 
         if (threadUuid === undefined) {
@@ -1239,6 +1147,7 @@ ${
             projectUuid,
             createdFrom: 'web_app',
             userUuid: user.userUuid,
+            agentUuid: null,
         });
 
         const promptUuid = await this._createWebAppPrompt(
@@ -1255,12 +1164,7 @@ ${
 
         const response = await this.generateExploreResult(
             user,
-            [
-                {
-                    agent: AiChatAgents.HUMAN,
-                    message: question,
-                },
-            ],
+            [{ role: 'user', content: question }],
             webAppPrompt,
         );
 
@@ -1276,12 +1180,12 @@ ${
         }
 
         // TODO: this can receive project settings/available tags - like we have for slack
-        const utils = this.getToolUtilities(user, finalPrompt, null);
+        const utils = this.getAiAgentDependencies(user, finalPrompt, null);
 
         const rows = finalPrompt.metricQuery
             ? (
                   await utils.runMiniMetricQuery(
-                      finalPrompt.metricQuery as MiniMetricQuery,
+                      finalPrompt.metricQuery as AiMetricQuery,
                   )
               ).rows
             : undefined;

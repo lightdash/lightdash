@@ -1,4 +1,4 @@
-import { FeatureFlags, type Dashboard } from '@lightdash/common';
+import { type Dashboard } from '@lightdash/common';
 import {
     Alert,
     Box,
@@ -30,7 +30,6 @@ import {
     useExportCsvDashboard,
     useExportDashboard,
 } from '../../../hooks/dashboard/useDashboard';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../MantineIcon';
 
@@ -103,9 +102,6 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
     const location = useLocation();
     const exportDashboardMutation = useExportDashboard();
 
-    const isDashboardTabsEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardTabs,
-    );
     const isDashboardTabsAvailable =
         dashboard?.tabs !== undefined && dashboard.tabs.length > 0;
 
@@ -152,9 +148,7 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
             gridWidth: undefined,
             queryFilters: `?${queryParams.toString()}`,
             selectedTabs:
-                isDashboardTabsEnabled &&
-                isDashboardTabsAvailable &&
-                !allTabsSelected
+                isDashboardTabsAvailable && !allTabsSelected
                     ? selectedTabs
                     : undefined,
         });
@@ -165,7 +159,6 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
         exportDashboardMutation,
         location.search,
         dashboard,
-        isDashboardTabsEnabled,
         isDashboardTabsAvailable,
         allTabsSelected,
         selectedTabs,
@@ -180,9 +173,7 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
             queryFilters: `?${queryParams.toString()}`,
             isPreview: true,
             selectedTabs:
-                isDashboardTabsEnabled &&
-                isDashboardTabsAvailable &&
-                !allTabsSelected
+                isDashboardTabsAvailable && !allTabsSelected
                     ? selectedTabs
                     : undefined,
         });
@@ -200,7 +191,6 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
         exportDashboardMutation,
         dashboard,
         previewChoice,
-        isDashboardTabsEnabled,
         isDashboardTabsAvailable,
         allTabsSelected,
         selectedTabs,
@@ -210,7 +200,7 @@ const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
     return (
         <Stack>
             <Stack spacing="xs" px="md">
-                {isDashboardTabsEnabled && isDashboardTabsAvailable && (
+                {isDashboardTabsAvailable && (
                     <Stack spacing="xs">
                         <Input.Label>
                             <Group spacing="xs">

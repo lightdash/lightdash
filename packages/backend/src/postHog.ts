@@ -26,7 +26,10 @@ postHogClient?.on('error', (err) => {
  */
 export async function isFeatureFlagEnabled(
     flag: FeatureFlags,
-    user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    user: Pick<
+        SessionUser,
+        'userUuid' | 'organizationUuid' | 'organizationName'
+    >,
     {
         throwOnTimeout = false, // New option added here
         timeoutMilliseconds = FLAG_CHECK_TIMEOUT,
@@ -78,6 +81,18 @@ export async function isFeatureFlagEnabled(
      * If the check resolves before the timeout, we clear the timeout.
      */
     const featureFlagPromise = async () => {
+        const groupProperties =
+            user.organizationName != null && user.organizationUuid != null
+                ? {
+                      groupProperties: {
+                          organization: {
+                              uuid: user.organizationUuid,
+                              name: user.organizationName,
+                          },
+                      },
+                  }
+                : {};
+
         const result = await postHogClient.isFeatureEnabled(
             flag,
             user.userUuid,
@@ -86,6 +101,7 @@ export async function isFeatureFlagEnabled(
                       groups: {
                           organization: user.organizationUuid,
                       },
+                      ...groupProperties,
                   }
                 : {},
         );

@@ -22,16 +22,20 @@ import {
     DashboardAsCode,
     DbtExposure,
     DbtProjectEnvironmentVariable,
+    LightdashRequestMethodHeader,
     ParameterError,
     RequestMethod,
     UpdateMetadata,
     UpdateProjectMember,
     UserWarehouseCredentials,
+    getRequestMethod,
     isDuplicateDashboardParams,
     type ApiCalculateSubtotalsResponse,
     type ApiCreateDashboardResponse,
     type ApiGetDashboardsResponse,
     type ApiGetTagsResponse,
+    type ApiRefreshResults,
+    type ApiSuccess,
     type ApiUpdateDashboardsResponse,
     type CalculateSubtotalsFromQuery,
     type CreateDashboard,
@@ -1003,6 +1007,31 @@ export class ProjectController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/refresh')
+    @OperationId('refresh')
+    async refresh(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiRefreshResults>> {
+        this.setStatus(200);
+        const context = getRequestMethod(
+            req.header(LightdashRequestMethodHeader),
+        );
+        const results = await this.services
+            .getProjectService()
+            .scheduleCompileProject(req.user!, projectUuid, context);
+        return {
+            status: 'ok',
+            results,
         };
     }
 }

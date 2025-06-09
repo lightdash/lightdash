@@ -1,4 +1,4 @@
-import type { PivotIndexColum } from '..';
+import type { PivotIndexColum, ResultColumns } from '..';
 import type { PivotValuesColumn } from '../visualizations/types';
 import type { QueryExecutionContext } from './analytics';
 import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
@@ -50,7 +50,7 @@ export type QueryHistory = {
     totalRowCount: number | null;
     warehouseExecutionTimeMs: number | null;
     error: string | null;
-    cacheKey: string | null;
+    cacheKey: string;
     pivotConfiguration: {
         indexColumn: PivotIndexColum;
         valuesColumns: ValuesColumn[];
@@ -59,4 +59,10 @@ export type QueryHistory = {
     } | null;
     pivotValuesColumns: PivotValuesColumn[] | null;
     pivotTotalColumnCount: number | null;
+    resultsFileName: string | null; // S3 file name
+    resultsCreatedAt: Date | null;
+    resultsUpdatedAt: Date | null;
+    resultsExpiresAt: Date | null;
+    columns: ResultColumns | null; // result columns with or without pivoting
+    originalColumns: ResultColumns | null; // columns from original SQL, before pivoting
 };

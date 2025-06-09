@@ -1,7 +1,7 @@
 import {
     DimensionType,
     FilterOperator,
-    getFilterRuleWithDefaultValue,
+    getFilterRuleFromFieldWithDefaultValue,
     getItemId,
     type CompiledDimension,
     type FilterRule,
@@ -40,20 +40,25 @@ export const getOperatorOptions = (
 export const doesDimensionRequireValues = (dimension: CompiledDimension) =>
     dimension.type !== DimensionType.BOOLEAN;
 
+function getBooleanValueFromOperator(operator: FilterOperator) {
+    return operator === FilterOperator.EQUALS ? true : false;
+}
+
 export const createFilterRule = (
     dimension: CompiledDimension,
     operator: FilterOperator,
     values?: string[],
 ): FilterRule => {
-    return getFilterRuleWithDefaultValue(
+    const isBooleanDimension = dimension.type === DimensionType.BOOLEAN;
+    return getFilterRuleFromFieldWithDefaultValue(
         dimension,
         {
             id: uuidv4(),
             target: {
                 fieldId: getItemId(dimension),
             },
-            operator,
+            operator: isBooleanDimension ? FilterOperator.EQUALS : operator,
         },
-        doesDimensionRequireValues(dimension) ? values : [],
+        isBooleanDimension ? [getBooleanValueFromOperator(operator)] : values,
     );
 };

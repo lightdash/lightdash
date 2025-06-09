@@ -87,9 +87,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [isDeletingTab, setDeletingTab] = useState<boolean>(false);
 
     const defaultTab = dashboardTabs?.[0];
-    const sortedTabs = dashboardTabs?.sort((a, b) => a.order - b.order);
+    // Context: We don't want to show the "tabs mode" if there is only one tab in state
+    // This is because the tabs mode is only useful when there are multiple tabs
+    const sortedTabs =
+        dashboardTabs.length > 1
+            ? dashboardTabs?.sort((a, b) => a.order - b.order)
+            : [];
     const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
-    const tabsEnabled = dashboardTabs && dashboardTabs.length > 0;
+    const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
 
     const sortedTiles = dashboardTiles?.sort((a, b) => {
         if (a.y === b.y) {
@@ -183,7 +188,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             dashboardTiles?.forEach((tile) => {
                 tile.tabUuid = undefined; // set tab uuid back to null to avoid foreign key constraint error
             });
-            return; // keep all tiles if its the last tab
+            // If this is the last tab, navigate to the non-tab URL.
+            // See `const = sortedTabs` for more context.
+            void navigate(
+                `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                { replace: true },
+            );
+
+            return;
         }
 
         const tilesToDelete = dashboardTiles?.filter(
@@ -193,6 +205,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             handleBatchDeleteTiles(tilesToDelete);
         }
     };
+    const MAGIC_SCROLL_AREA_HEIGHT = 40;
 
     return (
         <DragDropContext
@@ -240,23 +253,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     }
                                 }}
                                 mt={tabsEnabled ? 'sm' : 'xs'}
-                                styles={
-                                    tabsEnabled
-                                        ? {
-                                              root: {
-                                                  backgroundColor: 'white',
-                                                  flexGrow: 1,
-                                              },
-                                              tabsList: {
-                                                  flexWrap: 'nowrap',
-                                              },
-                                              tab: {
-                                                  borderBottom:
-                                                      '1px solid var(--mantine-color-gray-3)',
-                                              },
-                                          }
-                                        : undefined
-                                }
+                                styles={{
+                                    tabsList: {
+                                        flexWrap: 'nowrap',
+                                        height: MAGIC_SCROLL_AREA_HEIGHT - 1,
+                                    },
+                                }}
                                 variant="outline"
                             >
                                 {sortedTabs && sortedTabs?.length > 0 && (
@@ -267,13 +269,21 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                             scrollHideDelay={200}
                                             variant="primary"
                                             scrollbarSize={6}
+                                            h={MAGIC_SCROLL_AREA_HEIGHT}
                                             styles={{
                                                 viewport: {
                                                     paddingBottom: 0,
                                                 },
                                             }}
                                         >
-                                            <Group noWrap spacing={0}>
+                                            <Group
+                                                noWrap
+                                                styles={(theme) => ({
+                                                    root: {
+                                                        gap: theme.spacing.xl,
+                                                    },
+                                                })}
+                                            >
                                                 {sortedTabs?.map((tab, idx) => {
                                                     return (
                                                         <DraggableTab
@@ -328,7 +338,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 )}
                                 <Group
                                     grow
-                                    pt={tabsEnabled ? 'lg' : undefined}
+                                    pt={tabsEnabled ? 'sm' : undefined}
                                     pb="lg"
                                     px="xs"
                                 >

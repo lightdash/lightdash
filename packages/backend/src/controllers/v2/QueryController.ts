@@ -7,11 +7,14 @@ import {
     ApiGetAsyncQueryResults,
     ApiSuccess,
     ApiSuccessEmpty,
+    DownloadAsyncQueryResultsRequestParams,
     ExecuteAsyncSqlQueryRequestParams,
     isExecuteAsyncDashboardSqlChartByUuidParams,
     isExecuteAsyncSqlChartByUuidParams,
     QueryExecutionContext,
     type ApiDownloadAsyncQueryResults,
+    type ApiDownloadAsyncQueryResultsAsCsv,
+    type ApiDownloadAsyncQueryResultsAsXlsx,
     type ApiExecuteAsyncMetricQueryResults,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
@@ -177,6 +180,7 @@ export class QueryController extends BaseController {
                 chartUuid: body.chartUuid,
                 versionUuid: body.versionUuid,
                 context: context ?? QueryExecutionContext.API,
+                limit: body.limit,
             });
 
         return {
@@ -396,13 +400,20 @@ export class QueryController extends BaseController {
     @Hidden()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{queryUuid}/download')
+    @Post('/{queryUuid}/download')
     @OperationId('downloadResults')
     async downloadResults(
         @Path() projectUuid: string,
         @Path() queryUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiDownloadAsyncQueryResults>> {
+        @Body() body: Omit<DownloadAsyncQueryResultsRequestParams, 'queryUuid'>,
+    ): Promise<
+        ApiSuccess<
+            | ApiDownloadAsyncQueryResults
+            | ApiDownloadAsyncQueryResultsAsCsv
+            | ApiDownloadAsyncQueryResultsAsXlsx
+        >
+    > {
         this.setStatus(200);
 
         const results = await this.services
@@ -411,6 +422,13 @@ export class QueryController extends BaseController {
                 user: req.user!,
                 projectUuid,
                 queryUuid,
+                type: body.type,
+                onlyRaw: body.onlyRaw,
+                showTableNames: body.showTableNames,
+                customLabels: body.customLabels,
+                columnOrder: body.columnOrder,
+                hiddenFields: body.hiddenFields,
+                pivotConfig: body.pivotConfig,
             });
 
         return {

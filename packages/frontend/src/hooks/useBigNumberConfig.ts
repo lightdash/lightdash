@@ -67,34 +67,33 @@ const formatComparisonValue = (
             if (item !== undefined && isTableCalculation(item)) {
                 return `${prefix}${formatItemValue(item, value)}`;
             }
-            return `${prefix}${applyCustomFormat(
-                value,
-                getCustomFormatFromLegacy({
-                    format: isField(item) ? item.format : undefined,
-                    round: bigNumberComparisonStyle
-                        ? 2
-                        : isField(item)
-                        ? item.round
-                        : undefined,
-                    compact: bigNumberComparisonStyle,
-                }),
-            )}`;
+
+            const formattedValue = bigNumberComparisonStyle
+                ? applyCustomFormat(
+                      value,
+                      getCustomFormatFromLegacy({
+                          format: isField(item) ? item.format : undefined,
+                          round: 2,
+                          compact: bigNumberComparisonStyle,
+                      }),
+                  )
+                : formatItemValue(item, value);
+
+            return `${prefix}${formattedValue}`;
         default:
             if (item !== undefined && isTableCalculation(item)) {
                 return formatItemValue(item, value);
             }
-            return applyCustomFormat(
-                value,
-                getCustomFormatFromLegacy({
-                    format: isField(item) ? item.format : undefined,
-                    round: bigNumberComparisonStyle
-                        ? 2
-                        : isField(item)
-                        ? item.round
-                        : undefined,
-                    compact: bigNumberComparisonStyle,
-                }),
-            );
+            return bigNumberComparisonStyle
+                ? applyCustomFormat(
+                      value,
+                      getCustomFormatFromLegacy({
+                          format: isField(item) ? item.format : undefined,
+                          round: 2,
+                          compact: bigNumberComparisonStyle,
+                      }),
+                  )
+                : formatItemValue(item, value);
     }
 };
 
@@ -254,7 +253,11 @@ const useBigNumberConfig = (
             );
         } else if (item !== undefined && isTableCalculation(item)) {
             return formatItemValue(item, firstRowValueRaw);
-        } else if (item !== undefined && hasValidFormatExpression(item)) {
+        } else if (
+            item !== undefined &&
+            hasValidFormatExpression(item) &&
+            !bigNumberStyle // If the big number has a comparison style, don't use the format expression returned by the backend
+        ) {
             return formatValueWithExpression(item.format, firstRowValueRaw);
         } else if (item !== undefined && hasFormatOptions(item)) {
             // Custom metrics case

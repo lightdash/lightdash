@@ -27,7 +27,6 @@ import { Link, useNavigate, useParams, type LinkProps } from 'react-router';
 import { lightdashApi } from '../../api';
 import Page from '../../components/common/Page/Page';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
-import { getNameInitials } from '../../features/comments/utils';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import slackSvg from '../../svgs/slack.svg';
 
@@ -111,13 +110,12 @@ const AiThreadMessage: FC<AiThreadMessageProps> = ({
             }}
         >
             <Avatar
-                color={actor === 'human' ? 'violet' : 'gray.3'}
+                color={actor === 'human' ? 'violet' : 'cyan'}
                 radius="xl"
                 variant="filled"
             >
-                {initials}
+                {actor === 'human' ? initials[0] : 'AI'}
             </Avatar>
-
             <Stack
                 spacing="xs"
                 align={actor === 'human' ? 'flex-end' : 'flex-start'}
@@ -222,13 +220,8 @@ const AiThread: FC<AiThreadProps> = ({
         >
             <Group align="flex-start" noWrap>
                 <div style={{ position: 'relative' }}>
-                    <Avatar
-                        color="violet"
-                        radius="xl"
-                        variant="filled"
-                        // style={{ overflow: 'unset' }}
-                    >
-                        {getNameInitials(conversation.user.name)}
+                    <Avatar color="violet" radius="xl" variant="filled">
+                        {conversation.user.name[0]}
                     </Avatar>
 
                     {conversation.createdFrom === 'slack' && (
@@ -402,9 +395,7 @@ const AiConversationsPage: FC = () => {
                             >
                                 <AiThreadMessage
                                     actor="human"
-                                    initials={getNameInitials(
-                                        message.user.name,
-                                    )}
+                                    initials={message.user.name}
                                     message={message.message}
                                     messagedAt={new Date(message.createdAt)}
                                 />
@@ -412,7 +403,7 @@ const AiConversationsPage: FC = () => {
                                 {isAiConversationMessageComplete(message) && (
                                     <AiThreadMessage
                                         actor="ai"
-                                        initials="🤖"
+                                        initials="AI"
                                         message={message.response}
                                         messagedAt={
                                             new Date(message.respondedAt)

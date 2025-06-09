@@ -7,11 +7,11 @@ import {
     type Dimension,
     type Metric,
 } from '@lightdash/common';
-import { useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import TreeGroupNode from './TreeGroupNode';
 import TreeSingleNode from './TreeSingleNode';
 import { isGroupNode, type Node, type NodeMap } from './types';
-import { useTableTreeContext } from './useTableTree';
+import useTableTree from './useTableTree';
 
 const sortNodes =
     (
@@ -42,7 +42,8 @@ const sortNodes =
     };
 
 const TreeNodes: FC<{ nodeMap: NodeMap }> = ({ nodeMap }) => {
-    const { itemsMap, orderFieldsBy } = useTableTreeContext();
+    const itemsMap = useTableTree((context) => context.itemsMap);
+    const orderFieldsBy = useTableTree((context) => context.orderFieldsBy);
     const sortedItems = useMemo(() => {
         return Object.values(nodeMap).sort(
             sortNodes(orderFieldsBy ?? OrderFieldsByStrategy.LABEL, itemsMap),
@@ -62,4 +63,6 @@ const TreeNodes: FC<{ nodeMap: NodeMap }> = ({ nodeMap }) => {
     );
 };
 
-export default TreeNodes;
+const MemoizedTreeNodes = memo(TreeNodes);
+MemoizedTreeNodes.displayName = 'TreeNodes';
+export default MemoizedTreeNodes;

@@ -11,7 +11,7 @@ import { lightdashApi } from '../../api';
 import { getResultsFromStream } from '../../utils/request';
 import type { ResultsAndColumns } from '../sqlRunner/hooks/useSqlQueryRun';
 
-const pollForResults = async (
+export const pollForResults = async (
     projectUuid: string,
     queryUuid: string,
     backoffMs: number = 250,
@@ -88,6 +88,9 @@ const getPivotQueryResults = async (projectUuid: string, queryUuid: string) => {
         columnCount: query.pivotDetails?.totalColumnCount ?? undefined,
         fileUrl,
         columns: query.columns,
+        originalColumns: query.pivotDetails
+            ? query.pivotDetails.originalColumns
+            : query.columns,
     };
 };
 

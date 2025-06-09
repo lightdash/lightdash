@@ -10,6 +10,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     assertUnreachable,
+    BigqueryAuthenticationType,
     CacheMetadata,
     type CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
@@ -21,11 +22,13 @@ import {
     convertExplores,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
+    CreateBigqueryCredentials,
     type CreateDatabricksCredentials,
     createDimensionWithGranularity,
     CreateJob,
     CreateProject,
     CreateProjectMember,
+    CreateProjectTableConfiguration,
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
@@ -93,6 +96,7 @@ import {
     MostPopularAndRecentlyUpdated,
     NotExistsError,
     NotFoundError,
+    OpenIdIdentityIssuerType,
     ParameterError,
     PivotChartData,
     PivotValuesColumn,
@@ -134,12 +138,13 @@ import {
     UserWarehouseCredentials,
     VizColumn,
     WarehouseClient,
+    WarehouseConnectionError,
     WarehouseCredentials,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
 } from '@lightdash/common';
-import { SshTunnel } from '@lightdash/warehouses';
+import { BigqueryWarehouseClient, SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
@@ -202,6 +207,7 @@ import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
+import { UserService } from '../UserService';
 import { ValidationService } from '../ValidationService/ValidationService';
 
 export type ProjectServiceArguments = {
@@ -561,9 +567,46 @@ export class ProjectService extends BaseService {
         return { userAttributes, intrinsicUserAttributes };
     }
 
-    private async _resolveWarehouseClientSshKeys<
+    /* 
+    This method is used to refresh the credentials for the warehouse client
+    This runs on every request to the warehouse, to refresh the token if needed when an accessToken is requested
+    Bigquery uses the refresh token directly on the warehouse connection, so there is no need to refresh it
+    */
+    private async refreshCredentials<T extends CreateWarehouseCredentials>(
+        args: T,
+        userUuid: string,
+    ): Promise<T> {
+        if (
+            args.type === WarehouseTypes.SNOWFLAKE &&
+            args.authenticationType === 'sso'
+        ) {
+            const token = await this.userModel.getRefreshToken(
+                userUuid,
+                OpenIdIdentityIssuerType.SNOWFLAKE,
+            );
+            this.logger.debug(
+                `Refreshing snowflake token for user ${userUuid}`,
+            );
+            const accessToken = await UserService.generateSnowflakeAccessToken(
+                token,
+            );
+            return {
+                ...args,
+                authenticationType: 'sso',
+                token: accessToken,
+            };
+        }
+        return args;
+    }
+
+    /*
+    This method is used when the user is creating a project 
+    This does not depend on `requireUserCredentials` flag (check getWarehouseCredentials for more details about that)
+    In here, we will load on runtime SSH credentials or refresh tokens for SSO
+    */
+    private async _resolveWarehouseClientCredentials<
         T extends { warehouseConnection: CreateWarehouseCredentials },
-    >(args: T): Promise<T> {
+    >(args: T, userUuid: string): Promise<T> {
         if (
             (args.warehouseConnection.type === WarehouseTypes.REDSHIFT ||
                 args.warehouseConnection.type === WarehouseTypes.POSTGRES) &&
@@ -579,10 +622,63 @@ export class ProjectService extends BaseService {
                 },
             };
         }
+
+        if (
+            args.warehouseConnection.type === WarehouseTypes.BIGQUERY &&
+            args.warehouseConnection.authenticationType ===
+                BigqueryAuthenticationType.SSO &&
+            args.warehouseConnection.keyfileContents.type !== 'authorized_user'
+        ) {
+            const refreshToken = await this.userModel.getRefreshToken(userUuid);
+
+            // Validate refresh token has the right bigquery scopes
+            await UserService.generateGoogleAccessToken(
+                refreshToken,
+                'bigquery',
+            );
+            return {
+                ...args,
+                warehouseConnection: {
+                    ...args.warehouseConnection,
+                    keyfileContents: {
+                        type: 'authorized_user',
+                        client_id:
+                            this.lightdashConfig.auth.google.oauth2ClientId,
+                        client_secret:
+                            this.lightdashConfig.auth.google.oauth2ClientSecret,
+                        refresh_token: refreshToken,
+                    },
+                },
+            };
+        }
+
+        if (
+            args.warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
+            args.warehouseConnection.authenticationType === 'sso'
+        ) {
+            const credentials = await this.refreshCredentials(
+                args.warehouseConnection,
+                userUuid,
+            );
+            return {
+                ...args,
+                warehouseConnection: {
+                    ...args.warehouseConnection,
+                    ...credentials,
+                },
+            };
+        }
+
         return args;
     }
 
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. Perhaps this information can be passed as a prop to the client so that other services can use the warehouse client credentials logic?
+    /* 
+        This method is used when the user is making requests to the warehouse 
+        and . 
+        Then if `requireUserCredentials` flag is enabled, we load the tokens from `userWarehouseCredentials` and replace them with the credentials from the project.
+        If `requireUserCredentials` flag is disabled, we just get access token if needed for the warehouse (like nowflake on SSO).
+    */
     protected async getWarehouseCredentials(
         projectUuid: string,
         userUuid: string,
@@ -592,6 +688,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
             );
         let userWarehouseCredentialsUuid: string | undefined;
+
         if (credentials.requireUserCredentials) {
             const userWarehouseCredentials =
                 await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
@@ -615,8 +712,13 @@ export class ProjectService extends BaseService {
                     'User warehouse credentials are not compatible',
                 );
             }
+            credentials = await this.refreshCredentials(credentials, userUuid);
+
             userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
+        } else {
+            credentials = await this.refreshCredentials(credentials, userUuid);
         }
+
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
@@ -795,8 +897,9 @@ export class ProjectService extends BaseService {
                 );
         }
 
-        const createProject = await this._resolveWarehouseClientSshKeys(
+        const createProject = await this._resolveWarehouseClientCredentials(
             newProjectData,
+            user.userUuid,
         );
         const projectUuid = await this.projectModel.create(
             user.userUuid,
@@ -842,6 +945,32 @@ export class ProjectService extends BaseService {
             } catch (e) {
                 Sentry.captureException(e);
                 this.logger.error(`Unable to copy content on preview ${e}`);
+            }
+        }
+
+        if (
+            data.tableConfiguration === CreateProjectTableConfiguration.PROD &&
+            data.upstreamProjectUuid
+        ) {
+            try {
+                const prodTablesConfiguration =
+                    await this.projectModel.getTablesConfiguration(
+                        data.upstreamProjectUuid,
+                    );
+                this.logger.info(
+                    `Copying table configuration to preview project ${projectUuid} from prod: ${JSON.stringify(
+                        data.upstreamProjectUuid,
+                    )}`,
+                );
+                await this.projectModel.updateTablesConfiguration(
+                    projectUuid,
+                    prodTablesConfiguration,
+                );
+            } catch (e) {
+                Sentry.captureException(e);
+                this.logger.error(
+                    `Unable to copy table configuration on preview ${e}`,
+                );
             }
         }
 
@@ -912,9 +1041,11 @@ export class ProjectService extends BaseService {
             if (!isUserWithOrg(user)) {
                 throw new ForbiddenError('User is not part of an organization');
             }
-            const createProject = await this._resolveWarehouseClientSshKeys(
+            const createProject = await this._resolveWarehouseClientCredentials(
                 data,
+                user.userUuid,
             );
+
             await this.jobModel.update(jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
             });
@@ -1062,6 +1193,44 @@ export class ProjectService extends BaseService {
         });
     }
 
+    /* When editing a project, most fields are optional
+    but if the user switches from one authentication type to another, 
+    we need to validate the secrets are present */
+    static validateConfigSecrets(project: UpdateProject) {
+        switch (project.warehouseConnection?.type) {
+            case WarehouseTypes.BIGQUERY:
+                const keyFileContents =
+                    project.warehouseConnection?.keyfileContents;
+                const authenticationType =
+                    project.warehouseConnection?.authenticationType;
+                switch (authenticationType) {
+                    case undefined: // Default, for backwards compatibility
+                    case BigqueryAuthenticationType.PRIVATE_KEY:
+                        if (keyFileContents.private_key === undefined) {
+                            throw new ParameterError(
+                                'Bigquery key file is required for private key authentication',
+                            );
+                        }
+                        break;
+                    case BigqueryAuthenticationType.SSO:
+                        if (keyFileContents.refresh_token === undefined) {
+                            throw new ParameterError(
+                                'Bigquery refresh token is required for SSO authentication',
+                            );
+                        }
+                        break;
+                    default:
+                        assertUnreachable(
+                            authenticationType,
+                            `Unknown authentication type: ${authenticationType}`,
+                        );
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
     async updateAndScheduleAsyncWork(
         projectUuid: string,
         user: SessionUser,
@@ -1099,11 +1268,16 @@ export class ProjectService extends BaseService {
                     : [{ stepType: JobStepType.COMPILING }]),
             ],
         };
-        const createProject = await this._resolveWarehouseClientSshKeys(data);
+        const createProject = await this._resolveWarehouseClientCredentials(
+            data,
+            user.userUuid,
+        );
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             createProject,
             savedProject,
         );
+
+        ProjectService.validateConfigSecrets(updatedProject);
 
         await this.projectModel.update(projectUuid, updatedProject);
         await this.jobModel.create(job);
@@ -6048,5 +6222,46 @@ export class ProjectService extends BaseService {
             organizationUuid: project.organizationUuid,
         });
         return projectToSetExplores;
+    }
+
+    async getBigqueryDatasets(user: SessionUser, projectId: string) {
+        // At this point, there might not be any projects
+        // so we can't check any permissions here.
+        // Bigquery will handle the permissions
+        const refreshToken = await this.userModel.getRefreshToken(
+            user.userUuid,
+        );
+
+        if (projectId.length === 0) {
+            // Need to provide a projectId to get datasets
+            return [];
+        }
+        // Validate refresh token has the right bigquery scopes
+        await UserService.generateGoogleAccessToken(refreshToken, 'bigquery');
+        try {
+            const datasets = await BigqueryWarehouseClient.getDatabases(
+                projectId,
+                refreshToken,
+            );
+            return datasets;
+        } catch (error) {
+            this.logger.error(
+                `getBigqueryDatasets error: ${JSON.stringify(error)}`,
+            );
+
+            if (BigqueryWarehouseClient.isBigqueryError(error)) {
+                // This can throw other errors, like for example, if you use a projectId you don't have access
+                // Or this projectId does not have bigquery enabled
+                if (error.errors[0].reason === 'notFound') {
+                    throw new NotFoundError(
+                        `Project ${projectId} not found on BigQuery`,
+                    );
+                }
+                throw new WarehouseConnectionError(
+                    `Failed to get datasets from BigQuery`,
+                );
+            }
+            throw new UnexpectedServerError('Failed to get datasets');
+        }
     }
 }

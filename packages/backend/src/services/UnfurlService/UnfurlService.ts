@@ -615,12 +615,11 @@ export class UnfurlService extends BaseService {
                 let page: playwright.Page | undefined;
 
                 try {
-                    const browserWSEndpoint = `ws://${
-                        this.lightdashConfig.headlessBrowser?.host
-                    }:${this.lightdashConfig.headlessBrowser?.port || 3001}`;
+                    const { browserEndpoint } =
+                        this.lightdashConfig.headlessBrowser;
 
                     browser = await playwright.chromium.connectOverCDP(
-                        browserWSEndpoint,
+                        browserEndpoint,
                         {
                             timeout: 1000 * 60 * 30, // 30 minutes
                             logger: {

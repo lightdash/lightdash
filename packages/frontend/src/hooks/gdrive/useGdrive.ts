@@ -18,11 +18,81 @@ const getGdriveAccessToken = async () =>
         body: undefined,
     });
 
-export const useGdriveAccessToken = () => {
+const triggerGdriveLogin = async (
+    loginPath: 'gdrive' | 'bigquery',
+    siteUrl: string,
+) => {
+    return new Promise<void>((resolve, reject) => {
+        const channel = new BroadcastChannel('lightdash-oauth-popup');
+        const loginUrl = `${siteUrl}/api/v1/login/${loginPath}?isPopup=true`;
+        console.info(`Opening popup with url: ${loginUrl}`);
+
+        const popupWindow = window.open(
+            loginUrl,
+            'login-popup',
+            'width=600,height=600',
+        );
+
+        if (!popupWindow) {
+            reject(new Error('Failed to open popup window'));
+            return;
+        }
+
+        const handleMessage = (event: MessageEvent) => {
+            if (event.origin !== siteUrl) return;
+
+            if (event.data === 'success') {
+                resolve();
+            } else {
+                reject(new Error('Authentication failed'));
+            }
+
+            channel.removeEventListener('message', handleMessage);
+            channel.close();
+            popupWindow.close();
+        };
+
+        channel.addEventListener('message', handleMessage);
+
+        // Handle popup being closed manually
+        // TODO this doesn't work now on this mutation
+        /*const checkClosed = setInterval(() => {
+            if (popupWindow.closed) {
+                clearInterval(checkClosed);
+                channel.removeEventListener('message', handleMessage);
+                channel.close();
+                reject(new Error('Popup was closed'));
+            }
+        }, 1000);*/
+    });
+};
+
+export const useGoogleLoginPopup = (
+    loginPath: 'gdrive' | 'bigquery',
+    onLogin?: () => void,
+) => {
     const { showToastError } = useToaster();
     const health = useHealth();
-    const popupRef = useRef<Window | null>(null);
+
+    return useMutation({
+        mutationFn: () =>
+            triggerGdriveLogin(loginPath, health.data?.siteUrl || ''),
+        onSuccess: () => {
+            onLogin?.();
+        },
+        onError: (error: Error) => {
+            showToastError({
+                title: 'Authentication failed',
+                subtitle: error.message || 'Please try again',
+            });
+        },
+    });
+};
+
+export const useGdriveAccessToken = () => {
+    const { showToastError } = useToaster();
     const isAuthConcludedWithSuccess = useRef(false);
+    const health = useHealth();
 
     const { error, data, mutate } = useMutation<
         ApiGdriveAccessTokenResponse['results'],
@@ -30,44 +100,29 @@ export const useGdriveAccessToken = () => {
     >({
         mutationFn: getGdriveAccessToken,
     });
+    const { mutate: openLoginPopup } = useGoogleLoginPopup('gdrive', () => {
+        isAuthConcludedWithSuccess.current = true;
+
+        mutate();
+    });
 
     useEffect(() => {
-        const channel = new BroadcastChannel('lightdash-oauth-popup');
         if (error) {
             // show error if they concluded the auth flow without the necessary scopes
-            if (isAuthConcludedWithSuccess.current) {
+            if (isAuthConcludedWithSuccess.current && error) {
                 showToastError({
                     title: 'Authentication failed',
-                    subtitle: error.error.message,
+                    subtitle: error?.error?.message || 'Please try again',
                 });
                 isAuthConcludedWithSuccess.current = false;
-            }
-            const popupWindow = window.open(
-                `${health?.data?.siteUrl}/api/v1/login/gdrive?isPopup=true`,
-                'login-popup',
-                'width=600,height=600',
-            );
-            if (popupWindow) {
-                popupRef.current = popupWindow;
-                channel.addEventListener('message', (event) => {
-                    if (event.origin !== health.data?.siteUrl) return;
-                    if (event.data === 'success') {
-                        isAuthConcludedWithSuccess.current = true;
-                        mutate();
-                    } else {
-                        showToastError({
-                            title: 'Authentication failed',
-                            subtitle: 'Please try again',
-                        });
-                    }
-                    popupRef.current = null;
-                });
+            } else {
+                // Auto-trigger login on error (existing behavior)
+                if (health.data?.siteUrl) {
+                    openLoginPopup();
+                }
             }
         }
-        return () => {
-            channel.close();
-        };
-    }, [error, popupRef, mutate, health.data, showToastError]);
+    }, [error, health.data?.siteUrl, openLoginPopup, showToastError]);
 
     return {
         mutate,

@@ -5,14 +5,16 @@ import {
     SlackSettings,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { SlackClient } from '../../clients/Slack/SlackClient';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { BaseService } from '../BaseService';
 
-type SlackIntegrationServiceArguments<
+export type SlackIntegrationServiceArguments<
     T extends SlackAuthenticationModel = SlackAuthenticationModel,
 > = {
     analytics: LightdashAnalytics;
     slackAuthenticationModel: T;
+    slackClient: SlackClient;
 };
 
 export class SlackIntegrationService<
@@ -22,15 +24,22 @@ export class SlackIntegrationService<
 
     protected readonly slackAuthenticationModel: T;
 
+    protected readonly slackClient: SlackClient;
+
     constructor(args: SlackIntegrationServiceArguments<T>) {
         super();
         this.analytics = args.analytics;
         this.slackAuthenticationModel = args.slackAuthenticationModel;
+        this.slackClient = args.slackClient;
     }
 
     async getInstallationFromOrganizationUuid(user: SessionUser) {
         const organizationUuid = user?.organizationUuid;
         if (!organizationUuid) throw new ForbiddenError();
+
+        if (user.ability.cannot('view', 'Organization')) {
+            throw new ForbiddenError();
+        }
 
         const installation =
             await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
@@ -39,9 +48,12 @@ export class SlackIntegrationService<
 
         if (installation === undefined) return undefined;
 
+        const appName = await this.slackClient.getAppName(organizationUuid);
+
         const response: SlackSettings = {
             organizationUuid,
             slackTeamName: installation.slackTeamName,
+            appName,
             createdAt: installation.createdAt,
             scopes: installation.scopes,
             notificationChannel: installation.notificationChannel,
@@ -53,6 +65,11 @@ export class SlackIntegrationService<
     async deleteInstallationFromOrganizationUuid(user: SessionUser) {
         const organizationUuid = user?.organizationUuid;
         if (!organizationUuid) throw new ForbiddenError();
+
+        if (user.ability.cannot('manage', 'Organization')) {
+            throw new ForbiddenError();
+        }
+
         await this.slackAuthenticationModel.deleteInstallationFromOrganizationUuid(
             organizationUuid,
         );

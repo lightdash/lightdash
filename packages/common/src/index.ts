@@ -116,6 +116,8 @@ import { type UserWarehouseCredentials } from './types/userWarehouseCredentials'
 import { type ValidationResponse } from './types/validation';
 
 import type {
+    ApiAiAgentThreadMessageVizResponse,
+    ApiAiAgentThreadResponse,
     ApiAiConversationMessages,
     ApiAiConversationResponse,
     ApiAiConversations,
@@ -203,6 +205,7 @@ export * from './types/api/sort';
 export * from './types/api/spotlight';
 export * from './types/api/success';
 export * from './types/api/uuid';
+export * from './types/bigQuerySSO';
 export * from './types/catalog';
 export * from './types/coder';
 export * from './types/comments';
@@ -572,6 +575,7 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
         valuesColumns: PivotValuesColumn[];
         groupByColumns: GroupByColumn[] | undefined;
         sortBy: SortBy | undefined;
+        originalColumns: ResultColumns;
     } | null;
 };
 
@@ -589,6 +593,16 @@ export type ApiGetAsyncQueryResults =
 
 export type ApiDownloadAsyncQueryResults = {
     fileUrl: string;
+};
+
+export type ApiDownloadAsyncQueryResultsAsCsv = {
+    fileUrl: string;
+    truncated: boolean;
+};
+
+export type ApiDownloadAsyncQueryResultsAsXlsx = {
+    fileUrl: string;
+    truncated: boolean;
 };
 
 export type ApiChartAndResults = {
@@ -895,7 +909,10 @@ type ApiResults =
     | ApiGetAsyncQueryResults
     | ApiUserActivityDownloadCsv['results']
     | ApiRenameFieldsResponse['results']
-    | ApiDownloadAsyncQueryResults;
+    | ApiDownloadAsyncQueryResults
+    | ApiDownloadAsyncQueryResultsAsXlsx
+    | ApiAiAgentThreadResponse['results']
+    | ApiAiAgentThreadMessageVizResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -1010,6 +1027,9 @@ export type HealthState = {
         pat: {
             maxExpirationTimeInDays: number | undefined;
         };
+        snowflake: {
+            enabled: boolean;
+        };
     };
     posthog:
         | {
@@ -1068,6 +1088,11 @@ export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
     [DbtProjectType.NONE]: 'CLI',
 };
 
+export enum CreateProjectTableConfiguration {
+    PROD = 'prod',
+    ALL = 'all',
+}
+
 export type CreateProject = Omit<
     Project,
     | 'projectUuid'
@@ -1077,6 +1102,7 @@ export type CreateProject = Omit<
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
+    tableConfiguration?: CreateProjectTableConfiguration;
 };
 
 export type UpdateProject = Omit<
@@ -1536,3 +1562,12 @@ export const SPACE_TREE_2: TreeCreateSpace[] = [
         ],
     },
 ] as const;
+
+// Export limit utilities
+export {
+    applyLimitOverrideToQuery,
+    isUnlimitedResults,
+    processLimitOverride,
+    QUERY_LIMITS,
+    type LimitOverride,
+} from './utils/fileDownloadLimit';
