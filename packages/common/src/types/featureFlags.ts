@@ -14,9 +14,6 @@ export enum FeatureFlags {
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 
-    /** Enable dashboard tabs */
-    DashboardTabs = 'dashboard_tabs',
-
     /* Send local timezone to the warehouse session */
     EnableUserTimezones = 'enable-user-timezones',
 

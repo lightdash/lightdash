@@ -1,3 +1,38 @@
+## [0.1698.2](https://github.com/lightdash/lightdash/compare/0.1698.1...0.1698.2) (2025-06-09)
+
+
+### Bug Fixes
+
+* custom range breaking custom dimension form ([#15233](https://github.com/lightdash/lightdash/issues/15233)) ([3712b38](https://github.com/lightdash/lightdash/commit/3712b38489ce7a671c4907121f27fec158dc6150)), closes [#15232](https://github.com/lightdash/lightdash/issues/15232)
+
+## [0.1698.1](https://github.com/lightdash/lightdash/compare/0.1698.0...0.1698.1) (2025-06-09)
+
+
+### Bug Fixes
+
+* csv streaming pipeline simplification ([#15225](https://github.com/lightdash/lightdash/issues/15225)) ([7642c8f](https://github.com/lightdash/lightdash/commit/7642c8f33d10b0750cb45876c90b84d876e2f773))
+
+# [0.1698.0](https://github.com/lightdash/lightdash/compare/0.1697.1...0.1698.0) (2025-06-09)
+
+
+### Features
+
+* productize dashboard for general availability ([#15211](https://github.com/lightdash/lightdash/issues/15211)) ([9e8ff9a](https://github.com/lightdash/lightdash/commit/9e8ff9a627161bfd5b540a3d2010beffa2957a1d))
+
+## [0.1697.1](https://github.com/lightdash/lightdash/compare/0.1697.0...0.1697.1) (2025-06-09)
+
+
+### Bug Fixes
+
+* Show `Ask AI` button only to users who can manage Agents ([#15230](https://github.com/lightdash/lightdash/issues/15230)) ([3988064](https://github.com/lightdash/lightdash/commit/39880649a5aece7997ff9f4eb7c032460b51d0a2))
+
+# [0.1697.0](https://github.com/lightdash/lightdash/compare/0.1696.0...0.1697.0) (2025-06-09)
+
+
+### Features
+
+* snowflake user specific credentials ([#15189](https://github.com/lightdash/lightdash/issues/15189)) ([3806e73](https://github.com/lightdash/lightdash/commit/3806e73e2e5b19b8fbf1f9ff641ce728b3b2b7c9))
+
 # [0.1696.0](https://github.com/lightdash/lightdash/compare/0.1695.0...0.1696.0) (2025-06-06)
 
 

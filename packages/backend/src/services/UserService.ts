@@ -38,6 +38,7 @@ import {
     PasswordReset,
     RegisterOrActivateUser,
     SessionUser,
+    SnowflakeAuthenticationType,
     UpdateUserArgs,
     UpsertUserWarehouseCredentials,
     UserAllowedOrganization,
@@ -1696,6 +1697,22 @@ export class UserService extends BaseService {
             },
         };
         await this.createWarehouseCredentials(user, bigqueryCredentials);
+    }
+
+    async createSnowflakeWarehouseCredentials(
+        user: SessionUser,
+        refreshToken: string,
+    ) {
+        const snowflakeCredentials: UpsertUserWarehouseCredentials = {
+            name: 'Default',
+            credentials: {
+                user: user.userUuid,
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                token: refreshToken,
+            },
+        };
+        await this.createWarehouseCredentials(user, snowflakeCredentials);
     }
 
     async createWarehouseCredentials(
