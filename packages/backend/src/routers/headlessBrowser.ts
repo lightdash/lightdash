@@ -76,7 +76,7 @@ headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
 
 // Extra endpoints for headless-chrome testing on Render
 if (
-    process.env.NODE_ENV === 'development' ||
+    process.env.LIGHTDASH_MODE === 'pr' ||
     process.env.IS_PULL_REQUEST === 'true'
 ) {
     headlessBrowserRouter.get('/callback/:flag', async (req, res, next) => {

@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 
 import App from './App';
 
+// Trigger FE tests
 scan({
     enabled: import.meta.env.DEV,
 });

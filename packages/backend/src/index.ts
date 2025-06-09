@@ -5,6 +5,8 @@ import { getEnterpriseAppArguments } from './ee';
 import knexConfig from './knexfile';
 import Logger from './logging/logger';
 
+// trigger BE tests
+
 process.on('unhandledRejection', (reason, p) => {
     Logger.error('Unhandled Rejection at Promise', reason, p);
 });

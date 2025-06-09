@@ -1,10 +1,17 @@
 {
-    "typescript.tsdk": "node_modules/typescript/lib",
-    "cssVariables.lookupFiles": [
-        "**/*.css",
-        "**/*.scss",
-        "**/*.sass",
-        "**/*.less",
-        "packages/frontend/node_modules/@mantine-8/core/styles.css"
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "cssVariables.lookupFiles": [
+    "**/*.css",
+    "**/*.scss",
+    "**/*.sass",
+    "**/*.less",
+    "packages/frontend/node_modules/@mantine-8/core/styles.css"
+  ],
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/okteto/okteto/master/schema.json": [
+      "okteto.yaml",
+      "okteto.preview.yaml",
+      "okteto.dev.yaml"
     ]
+  }
 }

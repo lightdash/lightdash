@@ -1,7 +1,10 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# version control
+.git
+
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.js
 
@@ -61,6 +64,7 @@ credentials.json
 /target
 packages/backend/target/
 venv/
+.venv/
 dbt_modules/
 logs/
 /.envrc
@@ -75,3 +79,6 @@ lightdash
 # Prometheus
 prometheus.yml
 data/
+
+# environment
+.env*

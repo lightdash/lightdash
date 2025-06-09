@@ -1,5 +1,9 @@
 name: End-to-end tests
-on: [deployment_status]
+on: 
+  deployment_status:
+    environments:
+      - pr-*
+
 jobs:
     files-changed:
         if: github.ref != 'refs/heads/main'
@@ -38,10 +42,10 @@ jobs:
         outputs:
             url: ${{ github.event.deployment_status.environment_url }}
         steps:
-            - name: is render ready
+            - name: Check Okteto deployment status
               if: ${{ !(github.event.deployment_status.state == 'success' && github.event.deployment_status.environment_url != null) }}
               run: |
-                  echo "Render environment ${{ github.event.deployment.environment }} is not ready: ${{ github.event.deployment_status.state }} ${{ github.event.deployment_status.environment_url }}"
+                  echo "Okteto environment ${{ github.event.deployment.environment }} is not ready: ${{ github.event.deployment_status.state }} ${{ github.event.deployment_status.environment_url }}"
                   exit 1
 
     api-tests:
