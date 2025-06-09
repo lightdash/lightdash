@@ -1,3 +1,10 @@
+# [0.1697.0](https://github.com/lightdash/lightdash/compare/0.1696.0...0.1697.0) (2025-06-09)
+
+
+### Features
+
+* snowflake user specific credentials ([#15189](https://github.com/lightdash/lightdash/issues/15189)) ([3806e73](https://github.com/lightdash/lightdash/commit/3806e73e2e5b19b8fbf1f9ff641ce728b3b2b7c9))
+
 # [0.1696.0](https://github.com/lightdash/lightdash/compare/0.1695.0...0.1696.0) (2025-06-06)
 
 
