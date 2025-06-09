@@ -345,6 +345,14 @@ export class CsvService extends BaseService {
                 let chunk;
                 // eslint-disable-next-line no-cond-assign
                 while ((chunk = stringifier.read()) !== null) {
+                    /*
+                     * CRITICAL BACKPRESSURE HANDLING:
+                     * writeStream.write() returns false when the internal buffer is full.
+                     * This means the destination (file/S3) can't keep up with data production.
+                     *
+                     * This implements proper stream backpressure - essential for
+                     * handling large CSV files without memory issues.
+                     */
                     if (!writeStream.write(chunk)) {
                         stringifier.pause();
                         writeStream.once('drain', () => {
