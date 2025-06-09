@@ -1,3 +1,10 @@
+## [0.1698.2](https://github.com/lightdash/lightdash/compare/0.1698.1...0.1698.2) (2025-06-09)
+
+
+### Bug Fixes
+
+* custom range breaking custom dimension form ([#15233](https://github.com/lightdash/lightdash/issues/15233)) ([3712b38](https://github.com/lightdash/lightdash/commit/3712b38489ce7a671c4907121f27fec158dc6150)), closes [#15232](https://github.com/lightdash/lightdash/issues/15232)
+
 ## [0.1698.1](https://github.com/lightdash/lightdash/compare/0.1698.0...0.1698.1) (2025-06-09)
 
 
