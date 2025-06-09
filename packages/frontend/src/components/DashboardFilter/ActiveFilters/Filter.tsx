@@ -1,5 +1,6 @@
 import {
     applyDefaultTileTargets,
+    DimensionType,
     getFilterTypeFromItemType,
     type DashboardFilterRule,
     type FilterableDimension,
@@ -83,11 +84,9 @@ const Filter: FC<Props> = ({
         (c) => c.sqlChartTilesMetadata,
     );
     const disabled = useMemo(() => {
-        return (
-            !allFilterableFields &&
-            Object.keys(sqlChartTilesMetadata).length === 0
-        );
-    }, [allFilterableFields, sqlChartTilesMetadata]);
+        // Wait for fields to be loaded unless is SQL column
+        return !allFilterableFields && !filterRule.target.isSqlColumn;
+    }, [allFilterableFields, filterRule]);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -136,7 +135,13 @@ const Filter: FC<Props> = ({
                     column.reference,
                 );
             }
-            return;
+            return getConditionalRuleLabel(
+                filterRule,
+                getFilterTypeFromItemType(
+                    filterRule.target.fallbackType ?? DimensionType.STRING,
+                ),
+                filterRule.target.fieldId,
+            );
         }
     }, [filterRule, field, sqlChartTilesMetadata]);
 

@@ -452,6 +452,7 @@ const getDefaultTileSqlTargets = (
                 fieldId: filterableField.reference,
                 tableName: `sql_chart`,
                 isSqlColumn: true,
+                fallbackType: filterableField.type,
             },
         };
     }, {});
@@ -478,6 +479,7 @@ export const createDashboardFilterRuleFromSqlColumn = ({
                 fieldId: column.reference,
                 tableName: 'sql_chart',
                 isSqlColumn: true,
+                fallbackType: column.type,
             },
             tileTargets: getDefaultTileSqlTargets(column, availableTileColumns),
             disabled: !isTemporary,

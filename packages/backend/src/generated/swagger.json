@@ -1153,8 +1153,15 @@
                     }
                 ]
             },
+            "DimensionType": {
+                "enum": ["string", "number", "timestamp", "date", "boolean"],
+                "type": "string"
+            },
             "DashboardFieldTarget": {
                 "properties": {
+                    "fallbackType": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
                     "isSqlColumn": {
                         "type": "boolean"
                     },
@@ -1605,10 +1612,6 @@
             },
             "FieldType.DIMENSION": {
                 "enum": ["dimension"],
-                "type": "string"
-            },
-            "DimensionType": {
-                "enum": ["string", "number", "timestamp", "date", "boolean"],
                 "type": "string"
             },
             "Record_string.string-or-string-Array_": {
@@ -16615,12 +16618,6 @@
                     }
                 ]
             },
-            "LimitOverride": {
-                "type": "number",
-                "format": "double",
-                "nullable": true,
-                "description": "Represents different limit override behaviors\n- undefined: use original limit from saved chart/query\n- null: no limit (unlimited results)\n- number: apply specific limit"
-            },
             "ExecuteAsyncSavedChartRequestParams": {
                 "allOf": [
                     {
@@ -16629,7 +16626,9 @@
                     {
                         "properties": {
                             "limit": {
-                                "$ref": "#/components/schemas/LimitOverride",
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true,
                                 "description": "Limit override for query execution:\n- undefined: use saved chart's original limit\n- null: no limit (unlimited results)\n- number: apply specific limit"
                             },
                             "versionUuid": {
@@ -17729,7 +17728,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1701.0",
+        "version": "0.1703.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
