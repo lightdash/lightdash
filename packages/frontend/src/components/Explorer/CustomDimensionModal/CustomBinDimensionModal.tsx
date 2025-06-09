@@ -24,6 +24,7 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconX } from '@tabler/icons-react';
+import { cloneDeep } from 'lodash';
 import { useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -144,7 +145,9 @@ export const CustomBinDimensionModal: FC<{
 
             setFieldValue(
                 'binConfig.customRange',
-                item.customRange ? item.customRange : DEFAULT_CUSTOM_RANGE,
+                item.customRange
+                    ? cloneDeep(item.customRange)
+                    : DEFAULT_CUSTOM_RANGE,
             );
         }
     }, [setFieldValue, item, isEditing]);
