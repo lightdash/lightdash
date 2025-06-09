@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
 import { useFeatureFlag } from '../../hooks/useFeatureFlagEnabled';
+import useApp from '../../providers/App/useApp';
 import Logo from '../../svgs/logo-icon.svg?react';
 import { AiAgentsButton } from './AiAgentsButton';
 import BrowseMenu from './BrowseMenu';
@@ -36,6 +37,9 @@ export const MainNavBarContent: FC<Props> = ({
     const { data: aiCopilotFlag, isLoading: isAiCopilotLoading } =
         useFeatureFlag(CommercialFeatureFlags.AiCopilot);
 
+    const { user } = useApp();
+    const canManageAiAgents = user?.data?.ability?.can('manage', 'AiAgent');
+
     return (
         <>
             <Group align="center" sx={{ flexShrink: 0 }}>
@@ -56,9 +60,9 @@ export const MainNavBarContent: FC<Props> = ({
                             {hasMetrics && (
                                 <MetricsLink projectUuid={activeProjectUuid} />
                             )}
-                            {!isAiCopilotLoading && aiCopilotFlag?.enabled && (
-                                <AiAgentsButton />
-                            )}
+                            {canManageAiAgents &&
+                                !isAiCopilotLoading &&
+                                aiCopilotFlag?.enabled && <AiAgentsButton />}
                         </Button.Group>
                         <Omnibar projectUuid={activeProjectUuid} />
                     </>
