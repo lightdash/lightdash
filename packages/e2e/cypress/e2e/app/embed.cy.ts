@@ -18,7 +18,7 @@ const getJaffleDashboard = () =>
     );
 
 describe('Embedded dashboard', () => {
-    before(() => {
+    beforeEach(() => {
         cy.login();
     });
     it('I can view embedded dashboard and all interactivity options', () => {

@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# version control
+.git
+
 # dependencies
 node_modules/
 /.pnp
@@ -41,8 +44,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-.idea/
-node_modules/
+.idea
+node_modules
 package-lock.json
 
 # typescript
