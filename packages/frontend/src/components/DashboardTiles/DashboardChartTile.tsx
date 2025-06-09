@@ -19,6 +19,7 @@ import {
     isDashboardChartTileType,
     isFilterableField,
     isTableChartConfig,
+    QueryExecutionContext,
     type ApiChartAndResults,
     type ApiError,
     type Dashboard,
@@ -69,7 +70,7 @@ import React, {
 } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
-import { downloadCsvFromSavedChart } from '../../api/csv';
+
 import { DashboardTileComments } from '../../features/comments';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
@@ -78,6 +79,7 @@ import {
     mergeExistingAndExpectedSeries,
 } from '../../hooks/cartesianChartConfig/utils';
 import {
+    executeAsyncDashboardChartQuery,
     useDashboardChartReadyQuery,
     type DashboardChartReadyQuery,
 } from '../../hooks/dashboard/useDashboardChartReadyQuery';
@@ -829,16 +831,39 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     const getDownloadQueryUuid = useCallback(
         async (csvLimit: number | null) => {
-            const result = await downloadCsvFromSavedChart({
-                chartUuid: chart.uuid,
-                dashboardFilters: appliedDashboardFilters ?? undefined,
-                tileUuid,
-                onlyRaw: false,
-                csvLimit,
-            });
-            return result.jobId;
+            const currentQueryUuid =
+                dashboardChartReadyQuery.executeQueryResponse.queryUuid;
+            const currentResultsTotal = rows.length;
+
+            if (
+                dashboardUuid &&
+                (csvLimit === null || csvLimit !== currentResultsTotal)
+            ) {
+                const response = await executeAsyncDashboardChartQuery(
+                    projectUuid!,
+                    {
+                        chartUuid: chart.uuid,
+                        dashboardUuid: dashboardUuid!,
+                        dashboardFilters: appliedDashboardFilters,
+                        dashboardSorts: [],
+                        context: QueryExecutionContext.DASHBOARD,
+                        invalidateCache: false,
+                        ...(csvLimit !== null && { limit: csvLimit }),
+                    },
+                );
+                return response.queryUuid;
+            }
+
+            return currentQueryUuid;
         },
-        [chart.uuid, appliedDashboardFilters, tileUuid],
+        [
+            dashboardChartReadyQuery.executeQueryResponse.queryUuid,
+            rows.length,
+            chart.uuid,
+            appliedDashboardFilters,
+            projectUuid,
+            dashboardUuid,
+        ],
     );
 
     return (
@@ -1287,6 +1312,14 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         projectUuid={projectUuid!}
                         totalResults={rows.length}
                         getDownloadQueryUuid={getDownloadQueryUuid}
+                        showTableNames
+                        chartName={title || chart.name}
+                        columnOrder={chart.tableConfig.columnOrder}
+                        customLabels={getCustomLabelsFromTableConfig(
+                            chart.chartConfig.config,
+                        )}
+                        hiddenFields={getHiddenTableFields(chart.chartConfig)}
+                        pivotConfig={getPivotConfig(chart)}
                     />
                 </Modal>
             ) : null}
