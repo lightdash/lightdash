@@ -51,7 +51,8 @@ services:
                 port: 8080
         environment:
             # these were set in the dockerfile-prs container
-            NODE_ENV: production
+            NODE_ENV: development
+            IS_PULL_REQUEST: true
             LIGHTDASH_MODE: pr
             DBT_DEMO_DIR: /usr/app
             INTERNAL_LIGHTDASH_HOST: http://lightdash-preview:8080
