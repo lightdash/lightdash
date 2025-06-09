@@ -330,41 +330,58 @@ export class CsvService extends BaseService {
         {
             readStream,
             writeStream,
-        }: {
-            readStream: Readable;
-            writeStream: Writable;
-        },
+        }: { readStream: Readable; writeStream: Writable },
     ): Promise<{ truncated: boolean }> {
-        // Create csv-stringify stringifier with clean configuration
-        const stringifier = stringify({
-            delimiter: ',',
-            header: true,
-            columns: csvHeader,
+        return new Promise((resolve, reject) => {
+            const stringifier = stringify({
+                delimiter: ',',
+                header: true,
+                columns: csvHeader,
+            });
+
+            let truncated = false;
+
+            stringifier.on('readable', () => {
+                let chunk;
+                // eslint-disable-next-line no-cond-assign
+                while ((chunk = stringifier.read()) !== null) {
+                    if (!writeStream.write(chunk)) {
+                        stringifier.pause();
+                        writeStream.once('drain', () => {
+                            stringifier.resume();
+                        });
+                        break;
+                    }
+                }
+            });
+
+            stringifier.on('error', (err) => {
+                Logger.error(`Stringifier failed ${err}`);
+                reject(err);
+            });
+
+            stringifier.on('finish', () => {
+                writeStream.end();
+                resolve({ truncated });
+            });
+
+            CsvService.streamJsonlData({
+                readStream,
+                onRow: (parsedRow) => {
+                    const csvRow = CsvService.convertRowToCsv(
+                        parsedRow,
+                        itemMap,
+                        onlyRaw,
+                        sortedFieldIds,
+                    );
+                    stringifier.write(csvRow);
+                },
+                onComplete: (_, isTruncated) => {
+                    truncated = isTruncated;
+                    stringifier.end();
+                },
+            }).catch(reject);
         });
-
-        // Full pipeline for the CSV generation part
-        stringifier.pipe(writeStream);
-
-        // Use the proven streamJsonlData utility (same as ExcelService)
-        const { truncated } = await CsvService.streamJsonlData({
-            readStream,
-            onRow: (parsedRow) => {
-                const csvRow = CsvService.convertRowToCsv(
-                    parsedRow,
-                    itemMap,
-                    onlyRaw,
-                    sortedFieldIds,
-                );
-
-                // Write to stringifier, which is piped to writeStream
-                stringifier.write(csvRow);
-            },
-            onComplete: async () => {
-                stringifier.end();
-            },
-        });
-
-        return { truncated };
     }
 
     static async writeRowsToFile(
