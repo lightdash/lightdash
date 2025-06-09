@@ -1,3 +1,10 @@
+## [0.1697.1](https://github.com/lightdash/lightdash/compare/0.1697.0...0.1697.1) (2025-06-09)
+
+
+### Bug Fixes
+
+* Show `Ask AI` button only to users who can manage Agents ([#15230](https://github.com/lightdash/lightdash/issues/15230)) ([3988064](https://github.com/lightdash/lightdash/commit/39880649a5aece7997ff9f4eb7c032460b51d0a2))
+
 # [0.1697.0](https://github.com/lightdash/lightdash/compare/0.1696.0...0.1697.0) (2025-06-09)
 
 
