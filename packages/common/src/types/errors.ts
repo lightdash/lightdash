@@ -491,3 +491,36 @@ export class TimeoutError extends LightdashError {
         });
     }
 }
+
+export class AiDuplicateSlackPromptError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'AiDuplicateSlackPromptError',
+            statusCode: 400,
+            data: {},
+        });
+    }
+}
+
+export class AiSlackMappingNotFoundError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'AiSlackMappingNotFoundError',
+            statusCode: 400,
+            data: {},
+        });
+    }
+}
+
+export class AiAgentNotFoundError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'AiAgentNotFoundError',
+            statusCode: 400,
+            data: {},
+        });
+    }
+}

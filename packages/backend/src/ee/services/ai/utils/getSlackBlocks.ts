@@ -1,6 +1,6 @@
 import { MetricQuery, SlackPrompt } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
-import { followUpToolsSchema, followUpToolsText } from './followUpTools';
+import { followUpToolsSchema, followUpToolsText } from '../types/followUpTools';
 
 export function getFollowUpToolBlocks(slackPrompt: SlackPrompt): KnownBlock[] {
     const { vizConfigOutput } = slackPrompt;

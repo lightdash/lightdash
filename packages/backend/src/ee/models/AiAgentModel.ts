@@ -3,9 +3,11 @@ import {
     AiAgentMessage,
     AiAgentMessageAssistant,
     AiAgentMessageUser,
+    AiAgentNotFoundError,
     AiAgentSummary,
     AiAgentThreadSummary,
     AiAgentUser,
+    AiPrompt,
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
     assertUnreachable,
@@ -27,11 +29,9 @@ import {
     AiAgentIntegrationTableName,
     AiAgentSlackIntegrationTableName,
     AiAgentTableName,
-    DbAiAgent,
     DbAiAgentIntegration,
     DbAiAgentSlackIntegration,
 } from '../database/entities/aiAgent';
-import { AiAgentNotFoundError } from '../services/AiService/utils/errors';
 
 type Dependencies = {
     database: Knex;

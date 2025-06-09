@@ -9,11 +9,8 @@ import { stringify } from 'csv-stringify/sync';
 import { z } from 'zod';
 import { CsvService } from '../../../../services/CsvService/CsvService';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
-import {
-    FollowUpTools,
-    followUpToolsSchema,
-} from '../utils/aiCopilot/followUpTools';
-import { getValidAiQueryLimit } from '../utils/aiCopilot/validators';
+import { FollowUpTools, followUpToolsSchema } from '../types/followUpTools';
+import { getValidAiQueryLimit } from '../utils/validators';
 
 export const csvFileConfigSchema = z
     .object({

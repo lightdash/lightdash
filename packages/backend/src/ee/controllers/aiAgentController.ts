@@ -7,6 +7,9 @@ import {
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
+    ApiAiConversationMessages,
+    ApiAiConversationResponse,
+    ApiAiConversations,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
     ApiErrorPayload,
@@ -180,10 +183,11 @@ export class AiAgentController extends BaseController {
     ): Promise<ApiAiAgentStartThreadResponse> {
         this.setStatus(200);
         const { jobId, threadUuid } =
-            await this.getAiAgentService().generateAgentThreadResponse(
+            await this.getAiAgentService().scheduleGenerateAgentThreadResponse(
                 req.user!,
                 {
                     agentUuid,
+                    threadUuid: undefined,
                     prompt: body.prompt,
                 },
             );
@@ -205,7 +209,7 @@ export class AiAgentController extends BaseController {
     ): Promise<ApiAiAgentThreadGenerateResponse> {
         this.setStatus(200);
         const { jobId } =
-            await this.getAiAgentService().generateAgentThreadResponse(
+            await this.getAiAgentService().scheduleGenerateAgentThreadResponse(
                 req.user!,
                 {
                     agentUuid,
@@ -262,6 +266,64 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/projects/{projectUuid}/conversations')
+    @OperationId('getAiAgentConversations')
+    async getAiAgentConversations(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiAiConversations> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getConversations(
+                req.user!,
+                projectUuid,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/projects/{projectUuid}/conversations/:aiThreadUuid/messages')
+    @OperationId('getAiAgentConversationMessages')
+    async getAiAgentConversationMessages(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() aiThreadUuid: string,
+    ): Promise<ApiAiConversationMessages> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getConversationMessages(
+                req.user!,
+                projectUuid,
+                aiThreadUuid,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/projects/{projectUuid}/conversations')
+    @OperationId('createAiAgentConversation')
+    async createAiAgentConversation(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: { question: string },
+    ): Promise<ApiAiConversationResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().createWebAppConversation(
+                req.user!,
+                projectUuid,
+                body.question,
+            ),
         };
     }
 
