@@ -1,8 +1,4 @@
-import {
-    DashboardTileTypes,
-    FeatureFlags,
-    type Dashboard,
-} from '@lightdash/common';
+import { DashboardTileTypes, type Dashboard } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -22,7 +18,6 @@ import {
 import { useCallback, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
-import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
@@ -47,9 +42,6 @@ const AddTileButton: FC<Props> = ({
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
-    const isDashboardTabsEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardTabs,
-    );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
@@ -142,14 +134,13 @@ const AddTileButton: FC<Props> = ({
                     >
                         Loom video
                     </Menu.Item>
-                    {isDashboardTabsEnabled && (
-                        <Menu.Item
-                            onClick={() => setAddingTab(true)}
-                            icon={<MantineIcon icon={IconNewSection} />}
-                        >
-                            Add tab
-                        </Menu.Item>
-                    )}
+
+                    <Menu.Item
+                        onClick={() => setAddingTab(true)}
+                        icon={<MantineIcon icon={IconNewSection} />}
+                    >
+                        Add tab
+                    </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
 
