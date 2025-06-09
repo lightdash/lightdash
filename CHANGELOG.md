@@ -1,3 +1,10 @@
+# [0.1698.0](https://github.com/lightdash/lightdash/compare/0.1697.1...0.1698.0) (2025-06-09)
+
+
+### Features
+
+* productize dashboard for general availability ([#15211](https://github.com/lightdash/lightdash/issues/15211)) ([9e8ff9a](https://github.com/lightdash/lightdash/commit/9e8ff9a627161bfd5b540a3d2010beffa2957a1d))
+
 ## [0.1697.1](https://github.com/lightdash/lightdash/compare/0.1697.0...0.1697.1) (2025-06-09)
 
 
