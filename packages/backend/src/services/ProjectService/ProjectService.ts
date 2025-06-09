@@ -584,6 +584,9 @@ export class ProjectService extends BaseService {
                 userUuid,
                 OpenIdIdentityIssuerType.SNOWFLAKE,
             );
+            this.logger.debug(
+                `Refreshing snowflake token for user ${userUuid}`,
+            );
             const accessToken = await UserService.generateSnowflakeAccessToken(
                 token,
             );
@@ -693,7 +696,6 @@ export class ProjectService extends BaseService {
                     userUuid,
                     credentials.type,
                 );
-            // TODO for snowflake user specific credentials, we need to refresh the token
             if (userWarehouseCredentials === undefined) {
                 throw new NotFoundError('User warehouse credentials not found');
             }
@@ -710,6 +712,8 @@ export class ProjectService extends BaseService {
                     'User warehouse credentials are not compatible',
                 );
             }
+            credentials = await this.refreshCredentials(credentials, userUuid);
+
             userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
         } else {
             credentials = await this.refreshCredentials(credentials, userUuid);

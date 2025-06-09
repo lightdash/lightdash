@@ -51,7 +51,7 @@ export const SnowflakeSchemaInput: FC<{
     );
 };
 
-const SnowflakeSSOInput: FC<{
+export const SnowflakeSSOInput: FC<{
     isAuthenticated: boolean;
     disabled: boolean;
     openLoginPopup: () => void;
