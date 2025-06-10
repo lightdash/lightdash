@@ -183,6 +183,13 @@ export class AiAgentService {
         return aiCopilotFlag.enabled;
     }
 
+    private getOpenAiApiKey() {
+        if (!this.lightdashConfig.ai.copilot.providers?.openai?.apiKey) {
+            throw new Error('OpenAI API key not found');
+        }
+        return this.lightdashConfig.ai.copilot.providers.openai.apiKey;
+    }
+
     public async getAgent(user: SessionUser, agentUuid: string) {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -877,13 +884,8 @@ export class AiAgentService {
                 description: string;
             }>;
         }) => {
-            // TODO: add to lightdash config
-            if (!process.env.OPENAI_API_KEY) {
-                throw new Error('OpenAI API key not found');
-            }
-
             const embedQueries = await generateEmbeddingsNameAndDescription({
-                apiKey: process.env.OPENAI_API_KEY,
+                apiKey: this.getOpenAiApiKey(),
                 values: embeddingSearchQueries,
             });
 
@@ -990,11 +992,6 @@ export class AiAgentService {
             throw new Error('AI Copilot is not enabled');
         }
 
-        // TODO: add to lightdash config
-        if (!process.env.OPENAI_API_KEY) {
-            throw new Error('OpenAI API key not found');
-        }
-
         const { projectUuid } = slackOrWebAppPrompt;
 
         const agentSettings =
@@ -1029,7 +1026,7 @@ export class AiAgentService {
 
         return runAgent({
             args: {
-                openaiApiKey: process.env.OPENAI_API_KEY,
+                openaiApiKey: this.getOpenAiApiKey(),
                 agentName: agentSettings.name,
                 instruction: agentSettings.instruction,
                 messageHistory,

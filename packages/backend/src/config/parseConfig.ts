@@ -526,6 +526,11 @@ export type LightdashConfig = {
             enabled: boolean;
             requiresFeatureFlag: boolean;
             embeddingSearchEnabled?: boolean;
+            providers?: {
+                openai?: {
+                    apiKey: string;
+                };
+            };
         };
     };
     embedding: {
@@ -1151,6 +1156,16 @@ export const parseConfig = (): LightdashConfig => {
         ai: {
             copilot: {
                 enabled: process.env.AI_COPILOT_ENABLED === 'true',
+
+                ...(process.env.OPENAI_API_KEY
+                    ? {
+                          providers: {
+                              openai: {
+                                  apiKey: process.env.OPENAI_API_KEY,
+                              },
+                          },
+                      }
+                    : {}),
                 requiresFeatureFlag:
                     process.env.AI_COPILOT_REQUIRES_FEATURE_FLAG === 'true',
                 embeddingSearchEnabled:
