@@ -19,7 +19,7 @@ import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
-export const executeAsyncDashboardChartQuery = async (
+const executeAsyncDashboardChartQuery = async (
     projectUuid: string,
     data: ExecuteAsyncDashboardChartRequestParams,
 ): Promise<ApiExecuteAsyncDashboardChartQueryResults> =>

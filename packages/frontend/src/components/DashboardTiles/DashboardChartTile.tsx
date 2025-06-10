@@ -19,7 +19,6 @@ import {
     isDashboardChartTileType,
     isFilterableField,
     isTableChartConfig,
-    QueryExecutionContext,
     type ApiChartAndResults,
     type ApiError,
     type Dashboard,
@@ -79,7 +78,6 @@ import {
     mergeExistingAndExpectedSeries,
 } from '../../hooks/cartesianChartConfig/utils';
 import {
-    executeAsyncDashboardChartQuery,
     useDashboardChartReadyQuery,
     type DashboardChartReadyQuery,
 } from '../../hooks/dashboard/useDashboardChartReadyQuery';
@@ -829,42 +827,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         user.data?.ability,
     ]);
 
-    const getDownloadQueryUuid = useCallback(
-        async (csvLimit: number | null) => {
-            const currentQueryUuid =
-                dashboardChartReadyQuery.executeQueryResponse.queryUuid;
-            const currentResultsTotal = rows.length;
-
-            if (
-                dashboardUuid &&
-                (csvLimit === null || csvLimit !== currentResultsTotal)
-            ) {
-                const response = await executeAsyncDashboardChartQuery(
-                    projectUuid!,
-                    {
-                        chartUuid: chart.uuid,
-                        dashboardUuid: dashboardUuid!,
-                        dashboardFilters: appliedDashboardFilters,
-                        dashboardSorts: [],
-                        context: QueryExecutionContext.DASHBOARD,
-                        invalidateCache: false,
-                        ...(csvLimit !== null && { limit: csvLimit }),
-                    },
-                );
-                return response.queryUuid;
-            }
-
-            return currentQueryUuid;
-        },
-        [
-            dashboardChartReadyQuery.executeQueryResponse.queryUuid,
-            rows.length,
-            chart.uuid,
-            appliedDashboardFilters,
-            projectUuid,
-            dashboardUuid,
-        ],
-    );
+    const getDownloadQueryUuid = useCallback(async () => {
+        return dashboardChartReadyQuery.executeQueryResponse.queryUuid;
+    }, [dashboardChartReadyQuery.executeQueryResponse.queryUuid]);
 
     return (
         <>
@@ -1320,6 +1285,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         )}
                         hiddenFields={getHiddenTableFields(chart.chartConfig)}
                         pivotConfig={getPivotConfig(chart)}
+                        hideLimitSelection
                     />
                 </Modal>
             ) : null}
