@@ -44,7 +44,7 @@ export const snowflakePassportStrategy = !(
                   // No need to validate license here, it will be checked in the /ee/index.ts on startup
                   if (!lightdashConfig.license.licenseKey) {
                       throw new ForbiddenError(
-                          `Enterprise license required for snowlfake authentication`,
+                          `Enterprise license required for snowflake authentication`,
                       );
                   }
 
