@@ -37,7 +37,7 @@ export class SnowflakeController extends BaseController {
 
         if (!lightdashConfig.license.licenseKey) {
             throw new ForbiddenError(
-                `Enterprise license required for snowlfake authentication`,
+                `Enterprise license required for snowflake authentication`,
             );
         }
 
