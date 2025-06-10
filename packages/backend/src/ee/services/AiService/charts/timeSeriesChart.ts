@@ -1,7 +1,8 @@
 import {
     AiChartType,
     AiMetricQuery,
-    FilterSchema,
+    filterSchema,
+    FilterSchemaType,
     MetricQuery,
     SortFieldSchema,
 } from '@lightdash/common';
@@ -21,9 +22,9 @@ export const timeSeriesMetricChartConfigSchema = z.object({
     title: z
         .string()
         .describe(
-            '(optional) The title of the chart. If not provided the chart will have no title.',
+            'The title of the chart. If not provided the chart will have no title.',
         )
-        .optional(),
+        .nullable(),
     exploreName: z
         .string()
         .describe(
@@ -47,24 +48,20 @@ export const timeSeriesMetricChartConfigSchema = z.object({
         ),
     breakdownByDimension: z
         .string()
-        .optional()
         .nullable()
         .describe(
-            '(optional) The field id of the dimension used to split the metrics into series for each dimension value. For example if you wanted to split a metric into multiple series based on City you would use the City dimension field id here. If this is not provided then the metric will be displayed as a single series.',
+            'The field id of the dimension used to split the metrics into series for each dimension value. For example if you wanted to split a metric into multiple series based on City you would use the City dimension field id here. If this is not provided then the metric will be displayed as a single series.',
         ),
     lineType: z
         .union([z.literal('line'), z.literal('area')])
         .describe(
-            '(optional) default line. The type of line to display. If area then the area under the line will be filled in.',
-        )
-        .default('line'),
+            'default line. The type of line to display. If area then the area under the line will be filled in.',
+        ),
     limit: z
         .number()
         .max(AI_DEFAULT_MAX_QUERY_LIMIT)
-        .optional()
-        .describe(
-            `(optional, max: ${AI_DEFAULT_MAX_QUERY_LIMIT}) The total number of data points allowed on the chart.`,
-        ),
+        .nullable()
+        .describe(`The total number of data points allowed on the chart.`),
     followUpTools: followUpToolsSchema.describe(
         `The actions the User can ask for after the AI has generated the chart. NEVER include ${FollowUpTools.GENERATE_TIME_SERIES_VIZ} in this list.`,
     ),
@@ -72,18 +69,25 @@ export const timeSeriesMetricChartConfigSchema = z.object({
 
 export const generateTimeSeriesVizConfigToolSchema = z.object({
     vizConfig: timeSeriesMetricChartConfigSchema,
-    filters: FilterSchema.optional().describe(
-        'Filters to apply to the query. Filtered fields must exist in the selected explore.',
-    ),
+    filters: filterSchema
+        .nullable()
+        .describe(
+            'Filters to apply to the query. Filtered fields must exist in the selected explore.',
+        ),
 });
 
-type TimeSeriesMetricChartConfig = z.infer<
+export type TimeSeriesMetricChartConfig = z.infer<
     typeof timeSeriesMetricChartConfigSchema
 >;
 
+export const isTimeSeriesMetricChartConfig = (
+    config: unknown,
+): config is TimeSeriesMetricChartConfig =>
+    typeof config === 'object' && config !== null && 'lineType' in config;
+
 export const metricQueryTimeSeriesChartMetric = (
     config: TimeSeriesMetricChartConfig,
-    filters: z.infer<typeof FilterSchema> = {},
+    filters: FilterSchemaType | null,
 ): AiMetricQuery => {
     const metrics = config.yMetrics;
     const dimensions = [
@@ -98,7 +102,11 @@ export const metricQueryTimeSeriesChartMetric = (
         limit: getValidAiQueryLimit(limit),
         sorts,
         exploreName: config.exploreName,
-        filters,
+        // TODO: fix types
+        filters: {
+            metrics: filters?.metrics ?? undefined,
+            dimensions: filters?.dimensions ?? undefined,
+        },
     };
 };
 
@@ -170,7 +178,7 @@ type RenderTimeseriesChartArgs = {
         metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
     vizConfig: TimeSeriesMetricChartConfig;
-    filters?: z.infer<typeof FilterSchema>;
+    filters: FilterSchemaType | null;
 };
 
 export const renderTimeseriesChart = async ({

@@ -1,7 +1,8 @@
 import {
     AiChartType,
     AiMetricQuery,
-    FilterSchema,
+    filterSchema,
+    FilterSchemaType,
     SortFieldSchema,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
@@ -29,9 +30,9 @@ export const csvFileConfigSchema = z
             ),
         dimensions: z
             .array(z.string())
-            .optional()
+            .nullable()
             .describe(
-                '(optional) The field id for the dimensions to group the metrics by',
+                'The field id for the dimensions to group the metrics by',
             ),
         sorts: z
             .array(SortFieldSchema)
@@ -40,8 +41,8 @@ export const csvFileConfigSchema = z
             ),
         limit: z
             .number()
-            .optional()
-            .describe('(optional) The maximum number of rows in the CSV.'),
+            .nullable()
+            .describe('The maximum number of rows in the CSV.'),
         followUpTools: followUpToolsSchema.describe(
             `The actions the User can ask for after the AI has generated the CSV. NEVER include ${FollowUpTools.GENERATE_CSV} in this list.`,
         ),
@@ -52,24 +53,36 @@ export const csvFileConfigSchema = z
 
 export const generateCsvToolSchema = z.object({
     vizConfig: csvFileConfigSchema,
-    filters: FilterSchema.optional().describe(
-        'Filters to apply to the query. Filtered fields must exist in the selected explore.',
-    ),
+    filters: filterSchema
+        .nullable()
+        .describe(
+            'Filters to apply to the query. Filtered fields must exist in the selected explore.',
+        ),
 });
 
-type CsvFileConfig = z.infer<typeof csvFileConfigSchema>;
+export type CsvFileConfig = z.infer<typeof csvFileConfigSchema>;
+
+export const isCsvFileConfig = (config: unknown): config is CsvFileConfig =>
+    typeof config === 'object' &&
+    config !== null &&
+    !('yMetrics' in config) &&
+    'metrics' in config;
 
 export const metricQueryCsv = async (
     config: CsvFileConfig,
     maxLimit: number,
-    filters: z.infer<typeof FilterSchema> = {},
+    filters: FilterSchemaType | null,
 ): Promise<AiMetricQuery> => ({
     exploreName: config.exploreName,
     metrics: config.metrics,
     dimensions: config.dimensions || [],
     sorts: config.sorts,
     limit: getValidAiQueryLimit(config.limit, maxLimit),
-    filters,
+    // TODO: fix types
+    filters: {
+        metrics: filters?.metrics ?? undefined,
+        dimensions: filters?.dimensions ?? undefined,
+    },
 });
 
 type RenderCsvFileArgs = {
@@ -77,7 +90,7 @@ type RenderCsvFileArgs = {
         metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
     config: CsvFileConfig;
-    filters?: z.infer<typeof FilterSchema>;
+    filters: FilterSchemaType | null;
     maxLimit: number;
 };
 

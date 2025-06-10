@@ -9,11 +9,9 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
-export const aiGetOneLineResultToolSchema = z.object({
-    metricQuery: lighterMetricQuerySchema.describe(
-        'Metric query to run to get the result',
-    ), // ! DO NOT USE AIMETRICQUERY HERE, ZOD CANNOT GET THE TYPE CORRECTLY
-});
+export const aiGetOneLineResultToolSchema = lighterMetricQuerySchema.describe(
+    'Metric query to run to get the result',
+);
 
 type Dependencies = {
     runMiniMetricQuery: RunMiniMetricQueryFn;
@@ -42,7 +40,7 @@ Rules for fetching the result:
 - Only apply sort if needed and make sure sort "fieldId"s are from the selected "Metric" and "Dimension" "fieldId"s.
 `,
         parameters: schema,
-        execute: async ({ metricQuery }) => {
+        execute: async (metricQuery) => {
             try {
                 const prompt = await getPrompt();
 
@@ -52,7 +50,14 @@ Rules for fetching the result:
                 });
 
                 await updateProgress('🔍 Fetching the results...');
-                const result = await runMiniMetricQuery(metricQuery);
+                const result = await runMiniMetricQuery({
+                    ...metricQuery,
+                    filters: {
+                        metrics: metricQuery.filters?.metrics ?? undefined,
+                        dimensions:
+                            metricQuery.filters?.dimensions ?? undefined,
+                    },
+                });
 
                 if (result.rows.length > 1) {
                     throw new Error(

@@ -91,11 +91,14 @@ export const runAgent = async ({
         compatibility: 'strict',
     });
 
-    const model = openai('gpt-4.1');
+    const model = openai('gpt-4.1', {
+        structuredOutputs: true,
+    });
 
     const result = await generateText({
         model,
         tools,
+        toolChoice: 'auto',
         messages,
         maxSteps: 10,
         maxRetries: 3,
