@@ -40,6 +40,14 @@ export const snowflakePassportStrategy = !(
               done: VerifyCallback,
           ) => {
               try {
+                  // TODO move to new /ee service
+                  // No need to validate license here, it will be checked in the /ee/index.ts on startup
+                  if (!lightdashConfig.license.licenseKey) {
+                      throw new ForbiddenError(
+                          `Enterprise license required for snowlfake authentication`,
+                      );
+                  }
+
                   // TODO should we check also before we trigger the oauth flow ?
                   const loggedUser = req.user;
                   if (loggedUser === undefined) {
