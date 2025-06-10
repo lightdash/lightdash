@@ -41,6 +41,11 @@ export const getMantine8ThemeOverride = (
             fontFamily: `Inter, ${legacyTheme.fontFamily}`,
             fontWeight: `600`,
         },
+        spacing: {
+            ...legacyTheme.spacing,
+            xxs: `0.125rem`,
+        },
+
         components: {
             ...legacyComponentsTheme,
             Card: Card.extend({
