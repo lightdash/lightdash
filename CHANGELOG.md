@@ -1,3 +1,10 @@
+# [0.1699.0](https://github.com/lightdash/lightdash/compare/0.1698.6...0.1699.0) (2025-06-10)
+
+
+### Features
+
+* update filter schema to support structured outputs in AI tools ([#15220](https://github.com/lightdash/lightdash/issues/15220)) ([850eb26](https://github.com/lightdash/lightdash/commit/850eb26e37885b1bbcfa891055b1330eee2022cf))
+
 ## [0.1698.6](https://github.com/lightdash/lightdash/compare/0.1698.5...0.1698.6) (2025-06-10)
 
 
