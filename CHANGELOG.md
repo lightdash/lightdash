@@ -1,3 +1,10 @@
+## [0.1698.4](https://github.com/lightdash/lightdash/compare/0.1698.3...0.1698.4) (2025-06-10)
+
+
+### Bug Fixes
+
+* get explore query rows on ai agent service ([#15224](https://github.com/lightdash/lightdash/issues/15224)) ([9e0cc33](https://github.com/lightdash/lightdash/commit/9e0cc33bf7617a1603daf9907b8e057c4d979872))
+
 ## [0.1698.3](https://github.com/lightdash/lightdash/compare/0.1698.2...0.1698.3) (2025-06-09)
 
 
