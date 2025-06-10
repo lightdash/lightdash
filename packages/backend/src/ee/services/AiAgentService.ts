@@ -36,7 +36,6 @@ import { UserModel } from '../../models/UserModel';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
 import { AiAgentModel } from '../models/AiAgentModel';
-import { AiModel } from '../models/AiModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import { runAgent } from './ai/agents/agent';
 import { generateEmbeddingsNameAndDescription } from './ai/embeds/embed';
@@ -77,7 +76,6 @@ type AiAgentServiceDependencies = {
     analytics: LightdashAnalytics;
     userModel: UserModel;
     aiAgentModel: AiAgentModel;
-    aiModel: AiModel;
     featureFlagService: FeatureFlagService;
     projectService: ProjectService;
     catalogService: CommercialCatalogService;
@@ -94,8 +92,6 @@ export class AiAgentService {
 
     private readonly aiAgentModel: AiAgentModel;
 
-    private readonly aiModel: AiModel;
-
     private readonly featureFlagService: FeatureFlagService;
 
     private readonly projectService: ProjectService;
@@ -111,7 +107,6 @@ export class AiAgentService {
         this.analytics = dependencies.analytics;
         this.userModel = dependencies.userModel;
         this.aiAgentModel = dependencies.aiAgentModel;
-        this.aiModel = dependencies.aiModel;
         this.featureFlagService = dependencies.featureFlagService;
         this.catalogService = dependencies.catalogService;
         this.projectService = dependencies.projectService;
@@ -555,7 +550,7 @@ export class AiAgentService {
             ) {
                 throw new ForbiddenError();
             }
-            threadUuid = await this.aiModel.createWebAppThread({
+            threadUuid = await this.aiAgentModel.createWebAppThread({
                 organizationUuid,
                 projectUuid: agent.projectUuid,
                 userUuid: user.userUuid,
@@ -568,7 +563,7 @@ export class AiAgentService {
             throw new Error('Failed to create agent thread');
         }
 
-        const webAppPromptUuid = await this.aiModel.createWebAppPrompt({
+        const webAppPromptUuid = await this.aiAgentModel.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: user.userUuid,
             prompt,
@@ -612,19 +607,19 @@ export class AiAgentService {
         threadUuid: string;
         promptUuid: string;
     }): Promise<void> {
-        const thread = await this.aiModel.findThread(threadUuid);
+        const thread = await this.aiAgentModel.findThread(threadUuid);
         if (!thread) {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
 
-        const prompt = await this.aiModel.findWebAppPrompt(promptUuid);
+        const prompt = await this.aiAgentModel.findWebAppPrompt(promptUuid);
         if (!prompt) {
             throw new NotFoundError(`Prompt not found: ${promptUuid}`);
         }
 
         const { organizationUuid, projectUuid } = thread;
 
-        const threadMessages = await this.aiModel.getThreadMessages(
+        const threadMessages = await this.aiAgentModel.getThreadMessages(
             organizationUuid,
             projectUuid,
             threadUuid,
@@ -651,7 +646,7 @@ export class AiAgentService {
                 prompt,
             );
 
-            await this.aiModel.updateWebAppResponse({
+            await this.aiAgentModel.updateWebAppResponse({
                 promptUuid,
                 response,
             });
@@ -783,7 +778,7 @@ export class AiAgentService {
 
     // TODO: user permissions
     async updateHumanScoreForMessage(messageUuid: string, humanScore: number) {
-        await this.aiModel.updateHumanScore({
+        await this.aiAgentModel.updateHumanScore({
             promptUuid: messageUuid,
             humanScore,
         });
@@ -911,8 +906,8 @@ export class AiAgentService {
 
         const getPrompt: GetPromptFn = async () => {
             const webOrSlackPrompt = isSlackPrompt(prompt)
-                ? await this.aiModel.findSlackPrompt(prompt.promptUuid)
-                : await this.aiModel.findWebAppPrompt(prompt.promptUuid);
+                ? await this.aiAgentModel.findSlackPrompt(prompt.promptUuid)
+                : await this.aiAgentModel.findWebAppPrompt(prompt.promptUuid);
 
             if (!webOrSlackPrompt) {
                 throw new Error('Prompt not found');
@@ -1050,14 +1045,15 @@ export class AiAgentService {
                 sendFile,
                 // avoid binding
                 updateProgress: (args) => updateProgress(args),
-                updatePrompt: (args) => this.aiModel.updateModelResponse(args),
+                updatePrompt: (args) =>
+                    this.aiAgentModel.updateModelResponse(args),
             },
         });
     }
 
     // TODO: user permissions
     async updateHumanScoreForPrompt(promptUuid: string, humanScore: number) {
-        await this.aiModel.updateHumanScore({
+        await this.aiAgentModel.updateHumanScore({
             promptUuid,
             humanScore,
         });
@@ -1077,7 +1073,7 @@ export class AiAgentService {
         let threadUuid: string | undefined;
 
         const slackPromptExists =
-            await this.aiModel.existsSlackPromptByChannelIdAndPromptTs(
+            await this.aiAgentModel.existsSlackPromptByChannelIdAndPromptTs(
                 data.slackChannelId,
                 data.promptSlackTs,
             );
@@ -1089,7 +1085,7 @@ export class AiAgentService {
 
         if (data.slackThreadTs) {
             threadUuid =
-                await this.aiModel.findThreadUuidBySlackChannelIdAndThreadTs(
+                await this.aiAgentModel.findThreadUuidBySlackChannelIdAndThreadTs(
                     data.slackChannelId,
                     data.slackThreadTs,
                 );
@@ -1103,7 +1099,7 @@ export class AiAgentService {
                 throw new Error('Organization not found');
             }
             createdThread = true;
-            threadUuid = await this.aiModel.createSlackThread({
+            threadUuid = await this.aiAgentModel.createSlackThread({
                 organizationUuid: user.organizationUuid,
                 projectUuid: data.projectUuid,
                 createdFrom: 'slack',
@@ -1120,7 +1116,7 @@ export class AiAgentService {
 
         const slackTagRegex = /^.*?(<@U\d+\w*?>)/g;
 
-        const uuid = await this.aiModel.createSlackPrompt({
+        const uuid = await this.aiAgentModel.createSlackPrompt({
             threadUuid,
             createdByUserUuid: data.userUuid,
             prompt: data.prompt.replaceAll(slackTagRegex, '').trim(),
@@ -1134,7 +1130,7 @@ export class AiAgentService {
 
     // TODO: user permissions
     async replyToSlackPrompt(promptUuid: string): Promise<void> {
-        let slackPrompt = await this.aiModel.findSlackPrompt(promptUuid);
+        let slackPrompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
         if (slackPrompt === undefined) {
             throw new Error('Prompt not found');
         }
@@ -1149,13 +1145,15 @@ export class AiAgentService {
             slackPrompt.organizationUuid,
         );
 
-        const threadMessages = await this.aiModel.getThreadMessages(
+        const threadMessages = await this.aiAgentModel.getThreadMessages(
             slackPrompt.organizationUuid,
             slackPrompt.projectUuid,
             slackPrompt.threadUuid,
         );
 
-        const thread = await this.aiModel.findThread(slackPrompt.threadUuid);
+        const thread = await this.aiAgentModel.findThread(
+            slackPrompt.threadUuid,
+        );
         if (!thread) {
             throw new Error('Thread not found');
         }
@@ -1194,7 +1192,7 @@ export class AiAgentService {
         }
 
         // reload the slack prompt in case it was updated
-        slackPrompt = await this.aiModel.findSlackPrompt(promptUuid);
+        slackPrompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
 
         if (slackPrompt === undefined) {
             throw new Error('Could not reload slack prompt.');
@@ -1243,13 +1241,13 @@ export class AiAgentService {
             ],
         });
 
-        await this.aiModel.updateModelResponse({
+        await this.aiAgentModel.updateModelResponse({
             promptUuid: slackPrompt.promptUuid,
             response,
         });
 
         if (newResponse.ts) {
-            await this.aiModel.updateSlackResponseTs({
+            await this.aiAgentModel.updateSlackResponseTs({
                 promptUuid: slackPrompt.promptUuid,
                 responseSlackTs: newResponse.ts,
             });
@@ -1274,7 +1272,7 @@ export class AiAgentService {
             user,
         );
 
-        const threads = await this.aiModel.getThreads(
+        const threads = await this.aiAgentModel.getThreads(
             user.organizationUuid,
             projectUuid,
         );
@@ -1318,7 +1316,7 @@ export class AiAgentService {
             throw new Error('User does not have access to the project!');
         }
 
-        const messages = await this.aiModel.getThreadMessages(
+        const messages = await this.aiAgentModel.getThreadMessages(
             organizationUuid,
             projectUuid,
             aiThreadUuid,
@@ -1350,7 +1348,7 @@ export class AiAgentService {
             throw new Error('Organization not found');
         }
 
-        const threadUuid = await this.aiModel.createWebAppThread({
+        const threadUuid = await this.aiAgentModel.createWebAppThread({
             organizationUuid: user.organizationUuid,
             projectUuid,
             userUuid: user.userUuid,
@@ -1362,7 +1360,7 @@ export class AiAgentService {
             throw new Error('Failed to create web app thread');
         }
 
-        const promptUuid = await this.aiModel.createWebAppPrompt({
+        const promptUuid = await this.aiAgentModel.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: user.userUuid,
             prompt,
@@ -1404,7 +1402,7 @@ export class AiAgentService {
             throw new Error('User does not have access to the project!');
         }
 
-        await this.aiModel.createWebAppThread({
+        await this.aiAgentModel.createWebAppThread({
             organizationUuid: userDetails.organizationUuid,
             projectUuid,
             createdFrom: 'web_app',
@@ -1418,7 +1416,9 @@ export class AiAgentService {
             question,
         );
 
-        const webAppPrompt = await this.aiModel.findWebAppPrompt(promptUuid);
+        const webAppPrompt = await this.aiAgentModel.findWebAppPrompt(
+            promptUuid,
+        );
 
         if (!webAppPrompt) {
             throw new Error('Prompt not found');
@@ -1430,12 +1430,14 @@ export class AiAgentService {
             webAppPrompt,
         );
 
-        await this.aiModel.updateWebAppResponse({
+        await this.aiAgentModel.updateWebAppResponse({
             promptUuid: webAppPrompt.promptUuid,
             response,
         });
 
-        const finalPrompt = await this.aiModel.findWebAppPrompt(promptUuid);
+        const finalPrompt = await this.aiAgentModel.findWebAppPrompt(
+            promptUuid,
+        );
 
         if (!finalPrompt) {
             throw new Error('Prompt not found');

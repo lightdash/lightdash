@@ -12,7 +12,6 @@ import {
 import { SlackBot, SlackBotArguments } from '../../../clients/Slack/Slackbot';
 import Logger from '../../../logging/logger';
 import { AiAgentModel } from '../../models/AiAgentModel';
-import { AiModel } from '../../models/AiModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import {
@@ -24,7 +23,6 @@ import { AiAgentService } from '../../services/AiAgentService';
 type CommercialSlackBotArguments = SlackBotArguments & {
     schedulerClient: CommercialSchedulerClient;
     aiAgentService: AiAgentService;
-    aiModel: AiModel;
     aiAgentModel: AiAgentModel;
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
 };
@@ -34,8 +32,6 @@ export class CommercialSlackBot extends SlackBot {
 
     private readonly aiAgentService: AiAgentService;
 
-    private readonly aiModel: AiModel;
-
     private readonly aiAgentModel: AiAgentModel;
 
     slackAuthenticationModel: CommercialSlackAuthenticationModel;
@@ -44,7 +40,6 @@ export class CommercialSlackBot extends SlackBot {
         super(args);
         this.schedulerClient = args.schedulerClient;
         this.aiAgentService = args.aiAgentService;
-        this.aiModel = args.aiModel;
         this.aiAgentModel = args.aiAgentModel;
         this.slackAuthenticationModel = args.slackAuthenticationModel;
     }
@@ -200,7 +195,7 @@ export class CommercialSlackBot extends SlackBot {
                                 return;
                             }
                             const prevSlackPrompt =
-                                await this.aiModel.findSlackPrompt(
+                                await this.aiAgentModel.findSlackPrompt(
                                     prevSlackPromptUuid,
                                 );
                             if (!prevSlackPrompt) return;
@@ -259,7 +254,7 @@ export class CommercialSlackBot extends SlackBot {
                             }
 
                             if (response.ts) {
-                                await this.aiModel.updateSlackResponseTs({
+                                await this.aiAgentModel.updateSlackResponseTs({
                                     promptUuid: slackPromptUuid,
                                     responseSlackTs: response.ts,
                                 });
@@ -370,7 +365,7 @@ export class CommercialSlackBot extends SlackBot {
         });
 
         if (postedMessage.ts) {
-            await this.aiModel.updateSlackResponseTs({
+            await this.aiAgentModel.updateSlackResponseTs({
                 promptUuid: slackPromptUuid,
                 responseSlackTs: postedMessage.ts,
             });

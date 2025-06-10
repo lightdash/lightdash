@@ -10,7 +10,6 @@ import LicenseClient from './clients/License/LicenseClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackBot } from './clients/Slack/SlackBot';
 import { AiAgentModel } from './models/AiAgentModel';
-import { AiModel } from './models/AiModel';
 import { CommercialCatalogModel } from './models/CommercialCatalogModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
@@ -104,7 +103,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     slackClient: clients.getSlackClient(),
-                    aiModel: models.getAiModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     projectService: repository.getProjectService(),
@@ -225,7 +223,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
         },
         modelProviders: {
-            aiModel: ({ database }) => new AiModel({ database }),
             aiAgentModel: ({ database }) => new AiAgentModel({ database }),
             embedModel: ({ database }) => new EmbedModel({ database }),
             dashboardSummaryModel: ({ database }) =>
@@ -290,7 +287,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 aiAgentService: context.serviceRepository.getAiAgentService(),
                 schedulerClient:
                     context.clients.getSchedulerClient() as CommercialSchedulerClient,
-                aiModel: context.models.getAiModel(),
                 aiAgentModel: context.models.getAiAgentModel(),
             }),
         clientProviders: {
