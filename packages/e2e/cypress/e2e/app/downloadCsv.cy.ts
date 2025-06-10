@@ -19,11 +19,12 @@ describe('Download CSV on Dashboards', () => {
         'Should download a CSV from dashboard',
         { retries: 3, pageLoadTimeout: 1000 },
         () => {
-            const downloadUrl = `/api/v1/saved/*/downloadCsv`;
+            const downloadUrl = `/api/v2/projects/${SEED_PROJECT.project_uuid}/query/*/download`;
+
             cy.intercept({
                 method: 'POST',
                 url: downloadUrl,
-            }).as('apiDownloadCsv');
+            }).as('apiDownload');
 
             // wait for the dashboard to load
             cy.findByText('Loading dashboards').should('not.exist');
@@ -39,14 +40,17 @@ describe('Download CSV on Dashboards', () => {
             cy.contains('Days since').trigger('mouseenter');
 
             cy.findByTestId('tile-icon-more').click();
-            cy.findByText('Export CSV').click();
-            cy.get('button').contains('Export CSV').click();
+            cy.get('button').contains('Download data').click();
 
-            cy.wait('@apiDownloadCsv').then((interception) => {
+            cy.get('[data-testid=chart-export-results-button]').should(
+                'be.visible',
+            );
+            cy.get('[data-testid=chart-export-results-button]').click();
+
+            cy.wait('@apiDownload', { timeout: 3000 }).then((interception) => {
                 expect(interception?.response?.statusCode).to.eq(200);
-
                 expect(interception?.response?.body.results).to.have.property(
-                    'jobId',
+                    'fileUrl',
                 );
             });
         },

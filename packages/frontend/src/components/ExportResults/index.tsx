@@ -45,6 +45,7 @@ export type ExportResultsProps = {
     showTableNames?: boolean;
     chartName?: string;
     pivotConfig?: PivotConfig;
+    hideLimitSelection?: boolean;
 };
 
 const TOAST_KEY = 'exporting-results';
@@ -60,6 +61,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         showTableNames,
         chartName,
         pivotConfig,
+        hideLimitSelection = false,
     }) => {
         const { showToastError, showToastInfo, showToastWarning } =
             useToaster();
@@ -177,22 +179,30 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             projectUuid: projectUuid,
                         })}
                     >
-                        <Stack spacing="xs">
-                            <Box>Limit</Box>
-                            <SegmentedControl
-                                size={'xs'}
-                                value={limit}
-                                onChange={(value) => setLimit(value)}
-                                data={[
-                                    {
-                                        label: 'Results in Table',
-                                        value: Limit.TABLE,
-                                    },
-                                    { label: 'All Results', value: Limit.ALL },
-                                    { label: 'Custom...', value: Limit.CUSTOM },
-                                ]}
-                            />
-                        </Stack>
+                        {!hideLimitSelection ? (
+                            <Stack spacing="xs">
+                                <Box>Limit</Box>
+                                <SegmentedControl
+                                    size={'xs'}
+                                    value={limit}
+                                    onChange={(value) => setLimit(value)}
+                                    data={[
+                                        {
+                                            label: 'Results in Table',
+                                            value: Limit.TABLE,
+                                        },
+                                        {
+                                            label: 'All Results',
+                                            value: Limit.ALL,
+                                        },
+                                        {
+                                            label: 'Custom...',
+                                            value: Limit.CUSTOM,
+                                        },
+                                    ]}
+                                />
+                            </Stack>
+                        ) : null}
                     </Can>
 
                     {limit === Limit.CUSTOM && (
