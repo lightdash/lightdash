@@ -119,6 +119,8 @@ import {
     isExecuteAsyncSqlChartByUuid,
 } from './types';
 
+const SQL_QUERY_MOCK_EXPLORER_NAME = 'sql_query_explorer';
+
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
     queryHistoryModel: QueryHistoryModel;
     cacheService?: ICacheService;
@@ -663,26 +665,29 @@ export class AsyncQueryService extends ProjectService {
             throw new UnexpectedServerError('No columns found for query');
         }
 
-        // Generate pivot fields if results are pivoted
-        const resultFields = queryHistory.pivotConfiguration
-            ? Object.fromEntries(
-                  Object.entries(columns).map<[string, Dimension]>(
-                      ([key, column]) => [
-                          key,
-                          {
-                              name: column.reference,
-                              label: column.reference,
-                              type: column.type ?? DimensionType.STRING,
-                              table: '',
-                              fieldType: FieldType.DIMENSION,
-                              sql: '',
-                              tableLabel: '',
-                              hidden: false,
-                          },
-                      ],
-                  ),
-              )
-            : fields;
+        // TODO: We should use the columns data instead of fields. We need to: add format expression to columns type and refactor csv service, etc to use columns instead of fields
+        // Note: Generate fields for SQL queries. As a workaround, we check the explore name to identify SQL queries and generate fields from columns.
+        const resultFields =
+            queryHistory.metricQuery.exploreName ===
+            SQL_QUERY_MOCK_EXPLORER_NAME
+                ? Object.fromEntries(
+                      Object.entries(columns).map<[string, Dimension]>(
+                          ([key, column]) => [
+                              key,
+                              {
+                                  name: column.reference,
+                                  label: column.reference,
+                                  type: column.type ?? DimensionType.STRING,
+                                  table: '',
+                                  fieldType: FieldType.DIMENSION,
+                                  sql: '',
+                                  tableLabel: '',
+                                  hidden: false,
+                              },
+                          ],
+                      ),
+                  )
+                : fields;
 
         switch (type) {
             case DownloadFileType.CSV:
@@ -2214,7 +2219,7 @@ export class AsyncQueryService extends ProjectService {
         }));
 
         const virtualView = createVirtualViewObject(
-            'virtual_view',
+            SQL_QUERY_MOCK_EXPLORER_NAME,
             sqlWithLimit,
             vizColumns,
             warehouseConnection.warehouseClient,
