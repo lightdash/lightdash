@@ -121,23 +121,18 @@ export class AiAgentService {
 
         validateSelectedFieldsExistence(explore, metricQueryFields);
 
-        return this.projectService.runMetricQuery({
+        return this.projectService.runExploreQuery(
             user,
-            projectUuid,
-            metricQuery: {
+            {
                 ...metricQuery,
                 tableCalculations: [],
             },
-            exploreName: metricQuery.exploreName,
-            csvLimit: metricQuery.limit,
-            context: QueryExecutionContext.AI,
-            chartUuid: undefined,
-            queryTags: {
-                project_uuid: projectUuid,
-                user_uuid: user.userUuid,
-                organization_uuid: user.organizationUuid,
-            },
-        });
+            projectUuid,
+            metricQuery.exploreName,
+            metricQuery.limit,
+            undefined,
+            QueryExecutionContext.AI,
+        );
     }
 
     private async getIsCopilotEnabled(
