@@ -8,17 +8,20 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
-import {
-    FollowUpTools,
-    followUpToolsSchema,
-} from '../utils/aiCopilot/followUpTools';
+import { FollowUpTools, followUpToolsSchema } from '../types/followUpTools';
 import {
     AI_DEFAULT_MAX_QUERY_LIMIT,
     getValidAiQueryLimit,
-} from '../utils/aiCopilot/validators';
+} from '../utils/validators';
 import { getPivotedResults } from './getPivotedResults';
 
-export const verticalBarMetricChartConfigSchema = z.object({
+export const timeSeriesMetricChartConfigSchema = z.object({
+    title: z
+        .string()
+        .describe(
+            'The title of the chart. If not provided the chart will have no title.',
+        )
+        .nullable(),
     exploreName: z
         .string()
         .describe(
@@ -27,13 +30,13 @@ export const verticalBarMetricChartConfigSchema = z.object({
     xDimension: z
         .string()
         .describe(
-            'The field id of the dimension to be displayed on the x-axis.',
+            'The field id of the time dimension to be displayed on the x-axis.',
         ),
     yMetrics: z
         .array(z.string())
         .min(1)
         .describe(
-            'At least one metric is required. The field ids of the metrics to be displayed on the y-axis. The height of the bars',
+            'At least one metric is required. The field ids of the metrics to be displayed on the y-axis. If there are multiple metrics there will be one line per metric',
         ),
     sorts: z
         .array(SortFieldSchema)
@@ -44,42 +47,25 @@ export const verticalBarMetricChartConfigSchema = z.object({
         .string()
         .nullable()
         .describe(
-            'The field id of the dimension used to split the metrics into groups along the x-axis. If stacking is false then this will create multiple bars around each x value, if stacking is true then this will create multiple bars for each metric stacked on top of each other',
+            'The field id of the dimension used to split the metrics into series for each dimension value. For example if you wanted to split a metric into multiple series based on City you would use the City dimension field id here. If this is not provided then the metric will be displayed as a single series.',
         ),
-    stackBars: z
-        .boolean()
-        .nullable()
+    lineType: z
+        .union([z.literal('line'), z.literal('area')])
         .describe(
-            'If using breakdownByDimension then this will stack the bars on top of each other instead of side by side.',
-        ),
-    xAxisType: z
-        .union([z.literal('category'), z.literal('time')])
-        .describe(
-            'The x-axis type can be categorical for string value or time if the dimension is a date or timestamp.',
+            'default line. The type of line to display. If area then the area under the line will be filled in.',
         ),
     limit: z
         .number()
         .max(AI_DEFAULT_MAX_QUERY_LIMIT)
         .nullable()
-        .describe(
-            `The total number of data points / bars allowed on the chart.`,
-        ),
-    xAxisLabel: z
-        .string()
-        .nullable()
-        .describe('A helpful label to explain the x-axis'),
-    yAxisLabel: z
-        .string()
-        .nullable()
-        .describe('A helpful label to explain the y-axis'),
-    title: z.string().nullable().describe('a descriptive title for the chart'),
+        .describe(`The total number of data points allowed on the chart.`),
     followUpTools: followUpToolsSchema.describe(
-        `The actions the User can ask for after the AI has generated the chart. NEVER include ${FollowUpTools.GENERATE_BAR_VIZ} in this list.`,
+        `The actions the User can ask for after the AI has generated the chart. NEVER include ${FollowUpTools.GENERATE_TIME_SERIES_VIZ} in this list.`,
     ),
 });
 
-export const generateBarVizConfigToolSchema = z.object({
-    vizConfig: verticalBarMetricChartConfigSchema,
+export const generateTimeSeriesVizConfigToolSchema = z.object({
+    vizConfig: timeSeriesMetricChartConfigSchema,
     filters: filterSchema
         .nullable()
         .describe(
@@ -87,17 +73,17 @@ export const generateBarVizConfigToolSchema = z.object({
         ),
 });
 
-export type VerticalBarMetricChartConfig = z.infer<
-    typeof verticalBarMetricChartConfigSchema
+export type TimeSeriesMetricChartConfig = z.infer<
+    typeof timeSeriesMetricChartConfigSchema
 >;
 
-export const isVerticalBarMetricChartConfig = (
+export const isTimeSeriesMetricChartConfig = (
     config: unknown,
-): config is VerticalBarMetricChartConfig =>
-    typeof config === 'object' && config !== null && 'xAxisType' in config;
+): config is TimeSeriesMetricChartConfig =>
+    typeof config === 'object' && config !== null && 'lineType' in config;
 
-export const metricQueryVerticalBarChartMetric = (
-    config: VerticalBarMetricChartConfig,
+export const metricQueryTimeSeriesChartMetric = (
+    config: TimeSeriesMetricChartConfig,
     filters: FilterSchemaType | null,
 ): AiMetricQuery => {
     const metrics = config.yMetrics;
@@ -106,6 +92,7 @@ export const metricQueryVerticalBarChartMetric = (
         ...(config.breakdownByDimension ? [config.breakdownByDimension] : []),
     ];
     const { limit, sorts } = config;
+
     return {
         metrics,
         dimensions,
@@ -120,8 +107,8 @@ export const metricQueryVerticalBarChartMetric = (
     };
 };
 
-const echartsConfigVerticalBarMetric = async (
-    config: VerticalBarMetricChartConfig,
+export const echartsConfigTimeSeriesMetric = async (
+    config: TimeSeriesMetricChartConfig,
     rows: Record<string, unknown>[],
     fieldsMap: Record<string, unknown>,
     sorts: MetricQuery['sorts'],
@@ -129,6 +116,7 @@ const echartsConfigVerticalBarMetric = async (
     let chartData = rows;
     let metrics = config.yMetrics;
     if (config.breakdownByDimension) {
+        // Sort the pivoted data
         const pivoted = await getPivotedResults(
             rows,
             fieldsMap,
@@ -139,15 +127,9 @@ const echartsConfigVerticalBarMetric = async (
         chartData = pivoted.results;
         metrics = pivoted.metrics;
     }
-    const fields = Object.keys(chartData[0] || {});
+
     return {
-        dataset: {
-            source: chartData,
-            dimensions: fields,
-        },
         ...(config.title ? { title: { text: config.title } } : {}),
-        animation: false,
-        backgroundColor: '#fff',
         ...(metrics.length > 1
             ? {
                   // This is needed so we don't have overlapping legend and grid
@@ -160,53 +142,57 @@ const echartsConfigVerticalBarMetric = async (
                   },
               }
             : {}),
+        dataset: {
+            source: chartData,
+            dimensions: Object.keys(chartData[0] || {}),
+        },
+        animation: false,
+        backgroundColor: '#fff',
         xAxis: [
             {
-                type: config.xAxisType,
-                ...(config.xAxisLabel ? { name: config.xAxisLabel } : {}),
+                type: 'time',
             },
         ],
         yAxis: [
             {
                 type: 'value',
-                ...(config.yAxisLabel ? { name: config.yAxisLabel } : {}),
             },
         ],
         series: metrics.map((metric) => ({
-            type: 'bar',
+            type: 'line',
             name: metric,
             encode: {
                 x: config.xDimension,
                 y: metric,
             },
-            ...(config.stackBars ? { stack: 'stack' } : {}),
+            ...(config.lineType === 'area' && { areaStyle: {} }),
         })),
     };
 };
 
-type RenderVerticalBarMetricChartArgs = {
+type RenderTimeseriesChartArgs = {
     runMetricQuery: (
         metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
-    vizConfig: VerticalBarMetricChartConfig;
+    vizConfig: TimeSeriesMetricChartConfig;
     filters: FilterSchemaType | null;
 };
 
-export const renderVerticalBarMetricChart = async ({
+export const renderTimeseriesChart = async ({
     runMetricQuery,
     vizConfig,
     filters,
-}: RenderVerticalBarMetricChartArgs): Promise<{
-    type: AiChartType.VERTICAL_BAR_CHART;
+}: RenderTimeseriesChartArgs): Promise<{
+    type: AiChartType.TIME_SERIES_CHART;
+    metricQuery: AiMetricQuery;
     results: Awaited<
         ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
     >;
-    metricQuery: AiMetricQuery;
     chartOptions: object;
 }> => {
-    const metricQuery = metricQueryVerticalBarChartMetric(vizConfig, filters);
+    const metricQuery = metricQueryTimeSeriesChartMetric(vizConfig, filters);
     const results = await runMetricQuery(metricQuery);
-    const chartOptions = await echartsConfigVerticalBarMetric(
+    const chartOptions = await echartsConfigTimeSeriesMetric(
         vizConfig,
         results.rows,
         results.fields,
@@ -214,7 +200,7 @@ export const renderVerticalBarMetricChart = async ({
     );
 
     return {
-        type: AiChartType.VERTICAL_BAR_CHART,
+        type: AiChartType.TIME_SERIES_CHART,
         metricQuery,
         results,
         chartOptions,

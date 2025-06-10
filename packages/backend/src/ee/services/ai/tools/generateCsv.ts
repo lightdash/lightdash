@@ -1,9 +1,5 @@
 import { isSlackPrompt } from '@lightdash/common';
 import { tool } from 'ai';
-import {
-    generateCsvToolSchema,
-    renderCsvFile,
-} from '../../AiService/charts/csvFile';
 import type {
     GetPromptFn,
     RunMiniMetricQueryFn,
@@ -12,6 +8,10 @@ import type {
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import {
+    generateCsvToolSchema,
+    renderCsvFile,
+} from '../visualizations/csvFile';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;

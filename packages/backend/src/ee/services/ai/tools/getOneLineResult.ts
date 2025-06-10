@@ -1,6 +1,5 @@
 import { lighterMetricQuerySchema } from '@lightdash/common';
 import { tool } from 'ai';
-import { z } from 'zod';
 import type {
     GetPromptFn,
     RunMiniMetricQueryFn,
@@ -8,10 +7,6 @@ import type {
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-
-export const aiGetOneLineResultToolSchema = lighterMetricQuerySchema.describe(
-    'Metric query to run to get the result',
-);
 
 type Dependencies = {
     runMiniMetricQuery: RunMiniMetricQueryFn;
@@ -26,7 +21,7 @@ export const getGetOneLineResult = ({
     runMiniMetricQuery,
     updatePrompt,
 }: Dependencies) => {
-    const schema = aiGetOneLineResultToolSchema;
+    const schema = lighterMetricQuerySchema;
 
     return tool({
         description: `Get a single line result from the database. E.g. how many users signed up today?

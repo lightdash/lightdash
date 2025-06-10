@@ -30,9 +30,9 @@ import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalS
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import slackSvg from '../../svgs/slack.svg';
 
-const getAiConversations = async (projectUuid: string) => {
+const getAiAgentConversations = async (projectUuid: string) => {
     const data = await lightdashApi<AiConversation[]>({
-        url: `/ai/${projectUuid}/conversations`,
+        url: `/aiAgents/projects/${projectUuid}/conversations`,
         method: 'GET',
         body: null,
     });
@@ -45,16 +45,19 @@ const useAiConversation = (projectUuid?: string) => {
         queryKey: ['ai-conversations', projectUuid],
         queryFn: async () => {
             return projectUuid
-                ? getAiConversations(projectUuid)
+                ? getAiAgentConversations(projectUuid)
                 : Promise.reject();
         },
         enabled: !!projectUuid,
     });
 };
 
-const getMessages = async (projectUuid: string, aiThreadUuid: string) => {
+const getAiAgentConversationMessages = async (
+    projectUuid: string,
+    aiThreadUuid: string,
+) => {
     const data = await lightdashApi<AiConversationMessage[]>({
-        url: `/ai/${projectUuid}/conversations/${aiThreadUuid}/messages`,
+        url: `/aiAgents/projects/${projectUuid}/conversations/${aiThreadUuid}/messages`,
         method: 'GET',
         body: null,
     });
@@ -62,13 +65,16 @@ const getMessages = async (projectUuid: string, aiThreadUuid: string) => {
     return data;
 };
 
-const useAiMessages = (projectUuid?: string, aiThreadUuid?: string) => {
+const useAiAgentConversationMessages = (
+    projectUuid?: string,
+    aiThreadUuid?: string,
+) => {
     return useQuery({
-        queryKey: ['ai-messages', projectUuid, aiThreadUuid],
+        queryKey: ['ai-agent-messages', projectUuid, aiThreadUuid],
         queryFn: async () => {
             await new Promise((resolve) => setTimeout(resolve, 1000));
             return projectUuid
-                ? getMessages(projectUuid, aiThreadUuid!)
+                ? getAiAgentConversationMessages(projectUuid, aiThreadUuid!)
                 : Promise.reject();
         },
         enabled: !!aiThreadUuid && !!projectUuid,
@@ -281,10 +287,8 @@ const AiConversationsPage: FC = () => {
     const { data: aiConversations, isLoading: isAiConversationsLoading } =
         useAiConversation(projectUuid);
 
-    const { data: aiMessages, isFetching: isAiMessagesLoading } = useAiMessages(
-        projectUuid,
-        threadUuid,
-    );
+    const { data: aiMessages, isFetching: isAiMessagesLoading } =
+        useAiAgentConversationMessages(projectUuid, threadUuid);
 
     const selectedConversation = aiConversations?.find(
         (conversation) => conversation.threadUuid === threadUuid,

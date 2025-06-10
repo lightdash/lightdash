@@ -1,8 +1,10 @@
-import { SlackAppCustomSettings } from '@lightdash/common';
+import {
+    AiSlackMappingNotFoundError,
+    SlackAppCustomSettings,
+} from '@lightdash/common';
 import { SlackAuthTokensTableName } from '../../database/entities/slackAuthentication';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { SlackChannelProjectMappingsTableName } from '../database/entities/slackChannelProjectMappings';
-import { AiSlackMappingNotFoundError } from '../services/AiService/utils/errors';
 
 export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel {
     async getOrganizationUuidFromTeamId(teamId: string) {

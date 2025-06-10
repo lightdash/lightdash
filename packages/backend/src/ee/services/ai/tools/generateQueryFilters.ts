@@ -5,12 +5,12 @@ import {
     getTotalFilterRules,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { validateFilterRules } from '../../AiService/utils/aiCopilot/validators';
 import type {
     GetExploreFn,
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { validateFilterRules } from '../utils/validators';
 
 type Dependencies = {
     promptUuid: string;

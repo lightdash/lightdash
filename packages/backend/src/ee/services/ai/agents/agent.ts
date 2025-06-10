@@ -1,8 +1,8 @@
 import { AnyType } from '@lightdash/common';
-import type { ZodAny, ZodType } from 'zod';
-
-import { createOpenAI } from '@ai-sdk/openai';
 import { CoreMessage, generateObject, generateText, NoSuchToolError } from 'ai';
+import type { ZodType } from 'zod';
+
+import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
 
 import { getFindFields } from '../tools/findFields';
 import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
@@ -14,7 +14,7 @@ import { getGetOneLineResult } from '../tools/getOneLineResult';
 import { getExploreInformationPrompt } from '../prompts/exploreInformation';
 import { getSystemPrompt } from '../prompts/system';
 
-import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
+import { getOpenaiGpt41model } from '../models/openai-gpt-4.1';
 
 export const runAgent = async ({
     args,
@@ -86,14 +86,7 @@ export const runAgent = async ({
         ...args.messageHistory,
     ];
 
-    const openai = createOpenAI({
-        apiKey: args.openaiApiKey,
-        compatibility: 'strict',
-    });
-
-    const model = openai('gpt-4.1', {
-        structuredOutputs: true,
-    });
+    const model = getOpenaiGpt41model(args.openaiApiKey);
 
     const result = await generateText({
         model,
