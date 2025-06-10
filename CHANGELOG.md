@@ -1,3 +1,10 @@
+## [0.1698.6](https://github.com/lightdash/lightdash/compare/0.1698.5...0.1698.6) (2025-06-10)
+
+
+### Bug Fixes
+
+* generate pivot fields for async query downloads ([#15241](https://github.com/lightdash/lightdash/issues/15241)) ([d6a91f8](https://github.com/lightdash/lightdash/commit/d6a91f8c146df9bb41465076c71a5893f91f08e2))
+
 ## [0.1698.5](https://github.com/lightdash/lightdash/compare/0.1698.4...0.1698.5) (2025-06-10)
 
 
