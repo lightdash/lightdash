@@ -33,6 +33,7 @@ import { Link, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
+import useApp from '../../../../../providers/App/useApp';
 import {
     useAiAgentThreadMessageViz,
     useUpdatePromptFeedbackMutation,
@@ -44,16 +45,18 @@ export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
 }) => {
     const timeAgo = useTimeAgo(new Date(message.createdAt));
     const name = message.user.name;
+    const app = useApp();
+    const showUserName = app.user?.data?.userUuid !== message.user.uuid;
+
     return (
         <Stack gap="sm" style={{ alignSelf: 'flex-end' }}>
             <Stack gap={0} align="flex-end">
-                <Text size="sm" c="gray.7" fw={600}>
-                    {name}
-                </Text>
-                <Tooltip
-                    label={dayjs(message.createdAt).toString()}
-                    withinPortal
-                >
+                {showUserName ? (
+                    <Text size="sm" c="gray.7" fw={600}>
+                        {name}
+                    </Text>
+                ) : null}
+                <Tooltip label={dayjs(message.createdAt).format()} withinPortal>
                     <Text size="xs" c="dimmed">
                         {timeAgo}
                     </Text>
@@ -219,9 +222,18 @@ export const AssistantBubble: FC<{
                         onClick={handleUpvote}
                         display={isLoading ? 'none' : 'block'}
                     >
-                        <MantineIcon
-                            icon={upVoted ? IconThumbUpFilled : IconThumbUp}
-                        />
+                        <Tooltip
+                            label="Feedback sent"
+                            position="top"
+                            withinPortal
+                            withArrow
+                            // Hack to only render tooltip (on hover) when `hasRating` is false
+                            opened={hasRating ? undefined : false}
+                        >
+                            <MantineIcon
+                                icon={upVoted ? IconThumbUpFilled : IconThumbUp}
+                            />
+                        </Tooltip>
                     </ActionIcon>
                 )}
 

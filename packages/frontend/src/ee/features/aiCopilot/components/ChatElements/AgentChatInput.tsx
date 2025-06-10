@@ -1,6 +1,5 @@
 import {
     ActionIcon,
-    Avatar,
     Group,
     Paper,
     Stack,
@@ -9,7 +8,6 @@ import {
 } from '@mantine-8/core';
 import { IconArrowUp } from '@tabler/icons-react';
 import { useLayoutEffect, useRef, useState } from 'react';
-import useApp from '../../../../../providers/App/useApp';
 
 interface AgentChatInputProps {
     onSubmit: (message: string) => void;
@@ -26,11 +24,6 @@ export const AgentChatInput = ({
 }: AgentChatInputProps) => {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const [value, setValue] = useState('');
-    const { user } = useApp();
-    const name = user.data
-        ? `${user.data.firstName} ${user.data.lastName}`
-        : 'You';
-
     useLayoutEffect(() => {
         if (!inputRef.current) return;
         const elem = inputRef.current;
@@ -105,10 +98,11 @@ export const AgentChatInput = ({
                 }
             />
             <Group px="sm" py="xs" gap="xs">
-                <Avatar c="gray" name={name} size={18} />
-                <Text size="xs" c="gray.7">
-                    {name}
-                </Text>
+                {!disabled && (
+                    <Text size="xs" c="dimmed">
+                        Agent can make mistakes. Please double-check responses.
+                    </Text>
+                )}
                 {disabled && disabledReason && (
                     <Text size="xs" c="dimmed" style={{ flex: 1 }} ta="right">
                         {disabledReason}
