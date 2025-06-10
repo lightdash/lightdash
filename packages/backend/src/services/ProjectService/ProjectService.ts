@@ -627,7 +627,7 @@ export class ProjectService extends BaseService {
             args.warehouseConnection.type === WarehouseTypes.BIGQUERY &&
             args.warehouseConnection.authenticationType ===
                 BigqueryAuthenticationType.SSO &&
-            args.warehouseConnection.keyfileContents.type !== 'authorized_user'
+            args.warehouseConnection.keyfileContents?.type !== 'authorized_user'
         ) {
             const refreshToken = await this.userModel.getRefreshToken(userUuid);
 
@@ -1206,16 +1206,23 @@ export class ProjectService extends BaseService {
                 switch (authenticationType) {
                     case undefined: // Default, for backwards compatibility
                     case BigqueryAuthenticationType.PRIVATE_KEY:
-                        if (keyFileContents.private_key === undefined) {
+                        if (keyFileContents?.private_key === undefined) {
                             throw new ParameterError(
                                 'Bigquery key file is required for private key authentication',
                             );
                         }
                         break;
                     case BigqueryAuthenticationType.SSO:
-                        if (keyFileContents.refresh_token === undefined) {
+                        if (keyFileContents?.refresh_token === undefined) {
                             throw new ParameterError(
                                 'Bigquery refresh token is required for SSO authentication',
+                            );
+                        }
+                        break;
+                    case BigqueryAuthenticationType.ADC:
+                        if (keyFileContents) {
+                            throw new ParameterError(
+                                'Bigquery ADC authentication should not have any sensitive fields set',
                             );
                         }
                         break;
@@ -2829,8 +2836,8 @@ export class ProjectService extends BaseService {
 
             // Generate filtered rows and total columns so that we can apply a max column limit but also count the total number of columns if we exceed the MAX_PIVOT_COLUMN_LIMIT
             let pivotedSql = `
-            WITH original_query AS (${userSql}), 
-                 group_by_query AS (${groupByQuery}), 
+            WITH original_query AS (${userSql}),
+                 group_by_query AS (${groupByQuery}),
                  pivot_query AS (${pivotQuery}),
                  filtered_rows AS (
                     SELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${
