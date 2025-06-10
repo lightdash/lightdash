@@ -15,6 +15,7 @@ import {
     Loader,
     Select,
     Stack,
+    Switch,
     Text,
     TextInput,
     Title,
@@ -110,6 +111,8 @@ const SlackSettingsPanel: FC = () => {
             appProfilePhotoUrl: slackInstallation.appProfilePhotoUrl ?? null,
             slackChannelProjectMappings:
                 slackInstallation.slackChannelProjectMappings ?? [],
+            aiThreadAccessConsent:
+                slackInstallation.aiThreadAccessConsent ?? false,
         };
 
         if (form.initialized) {
@@ -248,20 +251,62 @@ const SlackSettingsPanel: FC = () => {
                                 />
                             </Group>
                             {aiCopilotFlag?.enabled && (
-                                <Alert
-                                    color="blue"
-                                    fz="xs"
-                                    icon={<MantineIcon icon={IconHelpCircle} />}
-                                >
-                                    Configure Slack channel project mappings{' '}
-                                    <Anchor
-                                        component={Link}
-                                        to="/generalSettings/aiAgents"
+                                <Stack spacing="sm">
+                                    <Group spacing="two">
+                                        <Title order={6} fw={500}>
+                                            AI Agents thread access consent
+                                        </Title>
+
+                                        <Tooltip
+                                            multiline
+                                            variant="xs"
+                                            maw={250}
+                                            label="The longer the thread, the more context the AI Agents will have to work with."
+                                        >
+                                            <MantineIcon
+                                                icon={IconHelpCircle}
+                                            />
+                                        </Tooltip>
+                                    </Group>
+
+                                    <Text c="dimmed" fz="xs">
+                                        Allow the AI Agents to access thread
+                                        messages when a user mentions the bot in
+                                        a thread.
+                                    </Text>
+
+                                    <Switch
+                                        label="Allow AI to access thread messages"
+                                        checked={
+                                            form.values.aiThreadAccessConsent ??
+                                            false
+                                        }
+                                        onChange={(event) => {
+                                            setFieldValue(
+                                                'aiThreadAccessConsent',
+                                                event.currentTarget.checked,
+                                            );
+                                        }}
+                                    />
+                                    <Alert
+                                        color="blue"
+                                        fz="xs"
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconHelpCircle}
+                                            />
+                                        }
                                     >
-                                        here
-                                    </Anchor>
-                                    .
-                                </Alert>
+                                        Configure Slack channel project mappings{' '}
+                                        <Anchor
+                                            component={Link}
+                                            to="/generalSettings/aiAgents"
+                                        >
+                                            here
+                                        </Anchor>
+                                        .
+                                    </Alert>
+                                </Stack>
                             )}
                         </Stack>
                         <Stack align="end" mt="xl">
