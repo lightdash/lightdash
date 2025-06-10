@@ -1,3 +1,10 @@
+## [0.1698.5](https://github.com/lightdash/lightdash/compare/0.1698.4...0.1698.5) (2025-06-10)
+
+
+### Bug Fixes
+
+* disable bigquery sso using feature flag ([#15238](https://github.com/lightdash/lightdash/issues/15238)) ([f9f3793](https://github.com/lightdash/lightdash/commit/f9f37938c91c5367c972d842fedde369b2f2e230))
+
 ## [0.1698.4](https://github.com/lightdash/lightdash/compare/0.1698.3...0.1698.4) (2025-06-10)
 
 
