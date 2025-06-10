@@ -8,7 +8,7 @@ import {
     Stack,
 } from '@mantine-8/core';
 import { Fragment, useLayoutEffect, useRef, type FC } from 'react';
-import { useParams } from 'react-router';
+import { useOutletContext, useParams } from 'react-router';
 import {
     AssistantBubble,
     UserBubble,
@@ -20,6 +20,7 @@ import {
     useAiAgentThread,
     useGenerateAgentThreadResponseMutation,
 } from '../../features/aiCopilot/hooks/useAiAgents';
+import { type AgentContext } from './AgentPage';
 
 type AiThreadMessageProps = {
     message: AiAgentMessage;
@@ -44,6 +45,7 @@ const AiAgentThreadPage = () => {
     );
 
     const agentQuery = useAiAgent(agentUuid!);
+    const { agent } = useOutletContext<AgentContext>();
 
     const {
         mutateAsync: generateAgentThreadResponse,
@@ -138,6 +140,7 @@ const AiAgentThreadPage = () => {
                     disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
                     loading={isGenerating}
                     onSubmit={handleSubmit}
+                    placeholder={`Ask ${agent.name} anything about your data...`}
                 />
             </Box>
         </Stack>
