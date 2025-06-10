@@ -331,3 +331,52 @@ export class AiAgentController extends BaseController {
         return this.services.getAiAgentService<AiAgentService>();
     }
 }
+
+@Route('/api/v1/projects/{projectUuid}/aiAgents')
+@Hidden()
+@Response<ApiErrorPayload>('default', 'Error')
+export class ProjectAiAgentController extends BaseController {
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/')
+    @OperationId('listProjectAgents')
+    async listProjectAgents(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiAiAgentSummaryResponse> {
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().listAgents(
+                req.user!,
+                projectUuid,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}')
+    @OperationId('getProjectAgent')
+    async getProjectAgent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+    ): Promise<ApiAiAgentResponse> {
+        this.setStatus(200);
+        const agent = await this.getAiAgentService().getAgent(
+            req.user!,
+            agentUuid,
+            projectUuid,
+        );
+        return {
+            status: 'ok',
+            results: agent,
+        };
+    }
+
+    protected getAiAgentService() {
+        return this.services.getAiAgentService<AiAgentService>();
+    }
+}

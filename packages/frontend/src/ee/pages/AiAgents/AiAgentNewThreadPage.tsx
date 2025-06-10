@@ -15,13 +15,13 @@ import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
-import { useStartAgentThreadMutation } from '../../features/aiCopilot/hooks/useAiAgents';
+import { useStartAgentThreadMutation } from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentNewThreadPage = () => {
-    const { agentUuid } = useParams();
+    const { agentUuid, projectUuid } = useParams();
     const { mutateAsync: startAgentThread, isLoading } =
-        useStartAgentThreadMutation(agentUuid!);
+        useStartAgentThreadMutation(agentUuid, projectUuid);
     const { agent } = useOutletContext<AgentContext>();
 
     return (

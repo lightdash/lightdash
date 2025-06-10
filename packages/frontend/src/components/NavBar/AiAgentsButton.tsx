@@ -2,6 +2,7 @@ import { CommercialFeatureFlags } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconMessageCircleStar } from '@tabler/icons-react';
 import { useNavigate } from 'react-router';
+import { useActiveProject } from '../../hooks/useActiveProject';
 import { useFeatureFlag } from '../../hooks/useFeatureFlagEnabled';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
@@ -10,6 +11,7 @@ export const AiAgentsButton = () => {
     // Using `navigate` instead of the `Link` component to ensure round corners within a button group
     const navigate = useNavigate();
 
+    const { data: project } = useActiveProject();
     const appQuery = useApp();
     const aiCopilotFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiCopilot);
     const aiAgentFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiAgent);
@@ -26,7 +28,12 @@ export const AiAgentsButton = () => {
     const isAiCopilotEnabled = aiCopilotFlagQuery.data.enabled;
     const isAiAgentEnabled = aiAgentFlagQuery.data.enabled;
 
-    if (!canViewAiAgents || !isAiCopilotEnabled || !isAiAgentEnabled) {
+    if (
+        !canViewAiAgents ||
+        !isAiCopilotEnabled ||
+        !isAiAgentEnabled ||
+        !project
+    ) {
         return null;
     }
 
@@ -38,7 +45,7 @@ export const AiAgentsButton = () => {
             leftIcon={
                 <MantineIcon icon={IconMessageCircleStar} color="#adb5bd" />
             }
-            onClick={() => navigate('/ai-agents')}
+            onClick={() => navigate(`/projects/${project}/ai-agents`)}
         >
             Ask AI
         </Button>

@@ -190,7 +190,11 @@ export class AiAgentService {
         return this.lightdashConfig.ai.copilot.providers.openai.apiKey;
     }
 
-    public async getAgent(user: SessionUser, agentUuid: string) {
+    public async getAgent(
+        user: SessionUser,
+        agentUuid: string,
+        projectUuid?: string,
+    ) {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -207,12 +211,13 @@ export class AiAgentService {
         const agent = await this.aiAgentModel.getAgent({
             organizationUuid,
             agentUuid,
+            projectUuid,
         });
 
         return agent;
     }
 
-    public async listAgents(user: SessionUser) {
+    public async listAgents(user: SessionUser, projectUuid?: string) {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -225,6 +230,7 @@ export class AiAgentService {
 
         const agents = await this.aiAgentModel.findAllAgents({
             organizationUuid,
+            projectUuid,
         });
 
         return agents;

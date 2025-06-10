@@ -19,7 +19,7 @@ import {
     useAiAgent,
     useAiAgentThread,
     useGenerateAgentThreadResponseMutation,
-} from '../../features/aiCopilot/hooks/useAiAgents';
+} from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
 import { type AgentContext } from './AgentPage';
 
 type AiThreadMessageProps = {
@@ -38,19 +38,23 @@ const AiThreadMessage: FC<AiThreadMessageProps> = ({ message }) => {
 };
 
 const AiAgentThreadPage = () => {
-    const { agentUuid, threadUuid } = useParams();
+    const { agentUuid, threadUuid, projectUuid } = useParams();
     const { data: thread, isLoading: isLoadingThread } = useAiAgentThread(
-        agentUuid!,
-        threadUuid!,
+        agentUuid,
+        threadUuid,
     );
 
-    const agentQuery = useAiAgent(agentUuid!);
+    const agentQuery = useAiAgent(agentUuid);
     const { agent } = useOutletContext<AgentContext>();
 
     const {
         mutateAsync: generateAgentThreadResponse,
         isLoading: isGenerating,
-    } = useGenerateAgentThreadResponseMutation(agentUuid!, threadUuid!);
+    } = useGenerateAgentThreadResponseMutation(
+        projectUuid,
+        agentUuid,
+        threadUuid,
+    );
 
     const viewport = useRef<HTMLDivElement>(null);
 

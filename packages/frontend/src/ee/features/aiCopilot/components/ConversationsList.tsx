@@ -1,6 +1,6 @@
 import { Badge, Loader, Stack, Table, Text, Title } from '@mantine-8/core';
 import { useState, type FC } from 'react';
-import { useAiAgentThreads } from '../hooks/useAiAgents';
+import { useAiAgentThreads } from '../hooks/useOrganizationAiAgents';
 import { ThreadDetailsModal } from './ThreadDetailsModal';
 
 type ConversationsListProps = {

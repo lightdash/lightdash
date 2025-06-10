@@ -10,7 +10,7 @@ import {
 } from '@mantine-8/core';
 import { type FC } from 'react';
 import { LightdashUserAvatar } from '../../../../components/Avatar';
-import { useAiAgentThread } from '../hooks/useAiAgents';
+import { useAiAgentThread } from '../hooks/useOrganizationAiAgents';
 
 type ThreadDetailsModalProps = {
     agentName: string;
@@ -25,13 +25,7 @@ export const ThreadDetailsModal: FC<ThreadDetailsModalProps> = ({
     threadUuid,
     onClose,
 }) => {
-    const { data: thread, isLoading } = useAiAgentThread(
-        agentUuid,
-        threadUuid || '',
-        {
-            enabled: !!threadUuid,
-        },
-    );
+    const { data: thread, isLoading } = useAiAgentThread(agentUuid, threadUuid);
 
     // Format date function since date-fns is not available
     const formatDate = (dateString: string) => {

@@ -36,7 +36,7 @@ import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import {
     useAiAgentThreadMessageViz,
     useUpdatePromptFeedbackMutation,
-} from '../../hooks/useAiAgents';
+} from '../../hooks/useOrganizationAiAgents';
 import { AiChartVisualization } from './AiChartVisualization';
 
 export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({

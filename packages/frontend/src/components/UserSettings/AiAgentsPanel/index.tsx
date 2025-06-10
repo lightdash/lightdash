@@ -9,7 +9,7 @@ import {
     Title,
 } from '@mantine-8/core';
 import { type FC } from 'react';
-import { AiAgents } from '../../../ee/features/aiCopilot/components/AiAgents';
+import { OrganizationAiAgents } from '../../../ee/features/aiCopilot/components/OrganizationAiAgents';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 
@@ -51,7 +51,7 @@ const AiAgentsPanel: FC = () => {
                     </Text>
                 </Stack>
 
-                <AiAgents />
+                <OrganizationAiAgents />
             </Card>
         </MantineProvider>
     );
