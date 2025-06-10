@@ -1,3 +1,10 @@
+# [0.1700.0](https://github.com/lightdash/lightdash/compare/0.1699.0...0.1700.0) (2025-06-10)
+
+
+### Features
+
+* Improve agent information on a new thread ([#15256](https://github.com/lightdash/lightdash/issues/15256)) ([17ebc43](https://github.com/lightdash/lightdash/commit/17ebc43d6e87da64b7a4515ef9abe90c39a6bd4d)), closes [#15248](https://github.com/lightdash/lightdash/issues/15248)
+
 # [0.1699.0](https://github.com/lightdash/lightdash/compare/0.1698.6...0.1699.0) (2025-06-10)
 
 
