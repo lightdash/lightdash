@@ -1,3 +1,10 @@
+# [0.1702.0](https://github.com/lightdash/lightdash/compare/0.1701.0...0.1702.0) (2025-06-10)
+
+
+### Features
+
+* dashboard chart tile data download ([#15242](https://github.com/lightdash/lightdash/issues/15242)) ([9a2e7e7](https://github.com/lightdash/lightdash/commit/9a2e7e71430c3fd4883c524e9f614c4c5ac66706))
+
 # [0.1701.0](https://github.com/lightdash/lightdash/compare/0.1700.0...0.1701.0) (2025-06-10)
 
 

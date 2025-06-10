@@ -68,7 +68,7 @@ describe('Embedded dashboard', () => {
                     'mouseenter',
                 );
                 cy.findByTestId('tile-icon-more').click();
-                cy.contains('Export CSV');
+                cy.contains('Download data');
                 cy.contains('Export image');
 
                 // Check date zoom
