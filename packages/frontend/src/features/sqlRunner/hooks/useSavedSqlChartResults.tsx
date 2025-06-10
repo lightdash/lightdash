@@ -10,6 +10,7 @@ import {
     type SqlChart,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import {
@@ -66,6 +67,7 @@ export const useSavedSqlChartResults = (
     // Step 2: Get the results
     const chartResultsQuery = useQuery<
         {
+            queryUuid: string;
             chartSpec: Record<string, any>;
             resultsRunner: IResultsRunner;
             fileUrl: string;
@@ -81,7 +83,7 @@ export const useSavedSqlChartResults = (
             // Safe to assume these are defined because of the enabled flag
             const chart = chartQuery.data!;
 
-            let { originalColumns, ...pivotChartData } =
+            let { originalColumns, queryUuid, ...pivotChartData } =
                 isDashboardArgs(args) && savedSqlUuid
                     ? await getDashboardSqlChartPivotChartData({
                           projectUuid: projectUuid!,
@@ -120,6 +122,7 @@ export const useSavedSqlChartResults = (
             });
             const chartUnderlyingData = vizDataModel.getPivotedTableData();
             return {
+                queryUuid,
                 chartSpec: vizDataModel.getSpec(
                     chart.config.display,
                     organization?.chartColors,
@@ -137,8 +140,53 @@ export const useSavedSqlChartResults = (
                 (!!savedSqlUuid || !!slug),
         },
     );
+
+    // Get query uuid for download
+    const getDownloadQueryUuid = useCallback(
+        async (limit: number | null) => {
+            if (!chartResultsQuery.data || !chartQuery.data) {
+                throw new Error('Chart results query or chart query not found');
+            }
+
+            // By default use current queryUuid
+            let queryUuidToDownload = chartResultsQuery.data.queryUuid;
+            // Create a new query with new args
+            if (limit && limit !== chartQuery.data.limit) {
+                const queryForDownload =
+                    isDashboardArgs(args) && savedSqlUuid
+                        ? await getDashboardSqlChartPivotChartData({
+                              projectUuid: projectUuid!,
+                              dashboardUuid: args.dashboardUuid,
+                              tileUuid: args.tileUuid,
+                              dashboardFilters: args.dashboardFilters,
+                              dashboardSorts: args.dashboardSorts,
+                              savedSqlUuid,
+                              context: args.context as QueryExecutionContext,
+                              limit,
+                          })
+                        : await getSqlChartPivotChartData({
+                              projectUuid: projectUuid!,
+                              savedSqlUuid: chartQuery.data.savedSqlUuid,
+                              context: context as QueryExecutionContext,
+                              limit,
+                          });
+                queryUuidToDownload = queryForDownload.queryUuid;
+            }
+            return queryUuidToDownload;
+        },
+        [
+            args,
+            chartQuery.data,
+            chartResultsQuery.data,
+            context,
+            projectUuid,
+            savedSqlUuid,
+        ],
+    );
+
     return {
         chartQuery,
         chartResultsQuery,
+        getDownloadQueryUuid,
     };
 };

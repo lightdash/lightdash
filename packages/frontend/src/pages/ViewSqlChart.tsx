@@ -1,27 +1,33 @@
-import { isVizTableConfig } from '@lightdash/common';
+import { isVizTableConfig, type VizTableConfig } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Group,
     Paper,
+    Popover,
     SegmentedControl,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine/core';
-import { IconChartHistogram, IconTable } from '@tabler/icons-react';
+import {
+    IconChartHistogram,
+    IconDownload,
+    IconTable,
+} from '@tabler/icons-react';
 import type { EChartsInstance } from 'echarts-for-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import { ChartDataTable } from '../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
+import ExportResults from '../components/ExportResults';
 import { ConditionalVisibility } from '../components/common/ConditionalVisibility';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import { ChartDownload } from '../features/sqlRunner/components/Download/ChartDownload';
-import { ResultsDownloadFromData } from '../features/sqlRunner/components/Download/ResultsDownloadFromData';
-import { ResultsDownloadFromUrl } from '../features/sqlRunner/components/Download/ResultsDownloadFromUrl';
 import { Header } from '../features/sqlRunner/components/Header';
 import { useSavedSqlChartResults } from '../features/sqlRunner/hooks/useSavedSqlChartResults';
 import { store } from '../features/sqlRunner/store';
@@ -56,6 +62,7 @@ const ViewSqlChart = () => {
             error: chartResultsError,
             isFetching: isChartResultsFetching,
         },
+        getDownloadQueryUuid,
     } = useSavedSqlChartResults({
         projectUuid: params.projectUuid,
         slug: params.slug,
@@ -70,6 +77,45 @@ const ViewSqlChart = () => {
             dispatch(setProjectUuid(params.projectUuid));
         }
     }, [dispatch, chartData, params.projectUuid]);
+
+    const [downloadCustomLabels, downloadHiddenColumns, downloadColumnsOrder] =
+        useMemo(() => {
+            let customLabels: Record<string, string> = {};
+            try {
+                if (chartResultsData?.chartSpec.spec?.columns) {
+                    customLabels = Object.fromEntries(
+                        Object.entries(
+                            chartResultsData?.chartSpec.spec
+                                ?.columns as VizTableConfig['columns'],
+                        ).map(([key, config]) => [key, config.label]),
+                    );
+                }
+            } catch (error) {
+                console.warn('Failed to get custom labels for download', error);
+            }
+            let hiddenColumns: string[] = [];
+            try {
+                if (chartResultsData?.chartSpec.spec?.visibleColumns) {
+                    hiddenColumns = Object.entries(
+                        chartResultsData?.chartSpec.spec
+                            ?.columns as VizTableConfig['columns'],
+                    ).reduce<string[]>((acc, [key, config]) => {
+                        if (!config.visible) {
+                            acc.push(key);
+                        }
+                        return acc;
+                    }, []);
+                }
+            } catch (error) {
+                console.warn(
+                    'Failed to get hidden columns for download',
+                    error,
+                );
+            }
+            let columnOrder: string[] =
+                chartResultsData?.chartUnderlyingData?.columns ?? [];
+            return [customLabels, hiddenColumns, columnOrder];
+        }, [chartResultsData]);
 
     return (
         <Page
@@ -129,36 +175,42 @@ const ViewSqlChart = () => {
                         {(activeTab === TabOption.RESULTS ||
                             (activeTab === TabOption.CHART &&
                                 isVizTableConfig(chartData?.config))) &&
-                            chartResultsData &&
-                            // Table charts don't have a fileUrl,
-                            // So we will download the file directly from the resultsData
-                            (chartResultsData?.fileUrl ? (
-                                <ResultsDownloadFromUrl
-                                    fileUrl={chartResultsData.fileUrl}
-                                    columnNames={
-                                        chartResultsData.chartUnderlyingData
-                                            ?.columns ?? []
-                                    }
-                                    chartName={chartData?.name}
-                                />
-                            ) : (
-                                <ResultsDownloadFromData
-                                    rows={
-                                        chartResultsData.chartUnderlyingData
-                                            ?.rows ?? []
-                                    }
-                                    columns={
-                                        // visible columns are sorted and filtered, we need to respect this order
-                                        chartResultsData.chartSpec.spec
-                                            ?.visibleColumns ?? []
-                                    }
-                                    columnsConfig={
-                                        chartResultsData.chartSpec.spec
-                                            ?.columns ?? []
-                                    }
-                                    chartName={chartData?.name}
-                                />
-                            ))}
+                            params.projectUuid && (
+                                <Popover withArrow disabled={!chartResultsData}>
+                                    <Popover.Target>
+                                        <Tooltip
+                                            variant="xs"
+                                            label="Download results as .csv"
+                                        >
+                                            <ActionIcon
+                                                variant="default"
+                                                disabled={!chartResultsData}
+                                            >
+                                                <MantineIcon
+                                                    icon={IconDownload}
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    </Popover.Target>
+                                    <Popover.Dropdown>
+                                        <ExportResults
+                                            projectUuid={params.projectUuid}
+                                            totalResults={
+                                                chartResultsData
+                                                    ?.chartUnderlyingData?.rows
+                                                    .length ?? 0
+                                            }
+                                            getDownloadQueryUuid={
+                                                getDownloadQueryUuid
+                                            }
+                                            hiddenFields={downloadHiddenColumns}
+                                            chartName={chartData?.name}
+                                            customLabels={downloadCustomLabels}
+                                            columnOrder={downloadColumnsOrder}
+                                        />
+                                    </Popover.Dropdown>
+                                </Popover>
+                            )}
                         {activeTab === TabOption.CHART && echartsInstance && (
                             <ChartDownload
                                 echartsInstance={echartsInstance}

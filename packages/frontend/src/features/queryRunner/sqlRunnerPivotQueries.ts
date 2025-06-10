@@ -141,7 +141,9 @@ export const getSqlChartPivotChartData = async ({
     savedSqlUuid: string;
     limit?: number;
     context?: QueryExecutionContext;
-}): Promise<PivotChartData & { originalColumns: ResultColumns }> => {
+}): Promise<
+    PivotChartData & { queryUuid: string; originalColumns: ResultColumns }
+> => {
     const pivotResults = await executeSqlChartPivotQuery(projectUuid, {
         savedSqlUuid,
         context,
@@ -178,7 +180,9 @@ export const getDashboardSqlChartPivotChartData = async ({
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[]; // TODO: check if dashboardSorts is needed, seems to be unused
     context?: QueryExecutionContext;
-}): Promise<PivotChartData & { originalColumns: ResultColumns }> => {
+}): Promise<
+    PivotChartData & { queryUuid: string; originalColumns: ResultColumns }
+> => {
     const pivotResults = await executeDashboardSqlChartPivotQuery(projectUuid, {
         dashboardUuid,
         tileUuid,
