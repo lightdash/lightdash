@@ -1,3 +1,10 @@
+# [0.1701.0](https://github.com/lightdash/lightdash/compare/0.1700.0...0.1701.0) (2025-06-10)
+
+
+### Features
+
+* add OpenAI API key to config for AI Copilot ([#15244](https://github.com/lightdash/lightdash/issues/15244)) ([5c9b9e1](https://github.com/lightdash/lightdash/commit/5c9b9e1347b451082ecc213b7d186edf04c5fdfd))
+
 # [0.1700.0](https://github.com/lightdash/lightdash/compare/0.1699.0...0.1700.0) (2025-06-10)
 
 
