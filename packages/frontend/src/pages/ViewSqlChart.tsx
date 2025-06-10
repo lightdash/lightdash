@@ -180,7 +180,7 @@ const ViewSqlChart = () => {
                                     <Popover.Target>
                                         <Tooltip
                                             variant="xs"
-                                            label="Download results as .csv"
+                                            label="Download results"
                                         >
                                             <ActionIcon
                                                 variant="default"
