@@ -58,6 +58,8 @@ export enum FeatureFlags {
      * Enable the ability to create custom visualizations with AI
      */
     AiCustomViz = 'ai-custom-viz',
+
+    BigquerySSO = 'bigquery-sso',
 }
 
 export type FeatureFlag = {
