@@ -5,13 +5,13 @@ import {
     CoreUserMessage,
     TextPart,
 } from 'ai';
-import { AiModel } from '../../../models/AiModel';
+import { AiAgentModel } from '../../../models/AiAgentModel';
 
 export const getChatHistoryFromThreadMessages = (
     // TODO: move getThreadMessages to AiAgentModel and improve types
     // also, it should be called through a service method...
     threadMessages: Awaited<
-        ReturnType<typeof AiModel.prototype.getThreadMessages>
+        ReturnType<typeof AiAgentModel.prototype.getThreadMessages>
     >,
 ) =>
     threadMessages.flatMap<CoreMessage>((message) => {
