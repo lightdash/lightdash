@@ -1508,7 +1508,6 @@ This method can be memory intensive
         readStream,
         onRow,
         onComplete,
-        maxLines = 100000,
     }: {
         readStream: Readable;
         onRow?: (
@@ -1516,7 +1515,6 @@ This method can be memory intensive
             lineCount: number,
         ) => T | void;
         onComplete?: (results: T[], truncated: boolean) => void;
-        maxLines?: number;
     }): Promise<{ results: T[]; truncated: boolean }> {
         return new Promise((resolve, reject) => {
             const lineReader = createInterface({
@@ -1525,18 +1523,12 @@ This method can be memory intensive
             });
 
             let lineCount = 0;
-            let truncated = false;
+            const truncated = false; // CSVs can contain millions of rows, no need to truncate
             const results: T[] = [];
 
             lineReader.on('line', (line: string) => {
                 if (!line.trim()) return;
-
                 lineCount += 1;
-                if (lineCount > maxLines) {
-                    truncated = true;
-                    lineReader.close();
-                    return;
-                }
 
                 try {
                     const parsedRow = JSON.parse(line);

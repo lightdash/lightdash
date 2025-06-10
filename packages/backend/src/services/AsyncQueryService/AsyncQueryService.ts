@@ -9,7 +9,6 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     ApiExecuteAsyncSqlQueryResults,
     type ApiGetAsyncQueryResults,
-    applyLimitOverrideToQuery,
     assertUnreachable,
     CompiledDimension,
     convertCustomFormatToFormatExpression,
@@ -1648,10 +1647,16 @@ export class AsyncQueryService extends ProjectService {
         };
 
         // Apply limit override if provided in the request
-        const metricQueryWithLimit = applyLimitOverrideToQuery(
-            metricQuery,
-            limit,
-        );
+        // For unlimited results (null), use 1000x the configured maxLimit to provide
+        // a very high limit suitable for analytics workloads while still being configurable
+        const metricQueryWithLimit =
+            limit !== undefined
+                ? {
+                      ...metricQuery,
+                      limit:
+                          limit ?? this.lightdashConfig.query.maxLimit * 1000,
+                  }
+                : metricQuery;
 
         const queryTags: RunQueryTags = {
             organization_uuid: savedChartOrganizationUuid,

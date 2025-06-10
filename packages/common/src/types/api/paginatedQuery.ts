@@ -4,7 +4,7 @@ import {
     type SortBy,
     type ValuesColumn,
 } from '../..';
-import type { LimitOverride } from '../../utils/fileDownloadLimit';
+
 import type { QueryExecutionContext } from '../analytics';
 import type { DownloadFileType } from '../downloadFile';
 import type { DashboardFilters, Filters } from '../filter';
@@ -38,7 +38,7 @@ export type ExecuteAsyncSavedChartRequestParams =
          * - null: no limit (unlimited results)
          * - number: apply specific limit
          */
-        limit?: LimitOverride;
+        limit?: number | null | undefined;
     };
 
 export type ExecuteAsyncDashboardChartRequestParams =

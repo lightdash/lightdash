@@ -1300,13 +1300,16 @@ const ExplorerProvider: FC<
             // Always execute a new query if:
             // 1. limit is null (meaning "all results" - should ignore existing query limits)
             // 2. limit is different from current totalResults
-            if (
-                limit === null ||
-                (limit !== null && limit !== queryResults.totalResults)
-            ) {
+            if (limit === null || limit !== queryResults.totalResults) {
+                // Create query args with the specified limit
+                const queryArgsWithLimit = validQueryArgs
+                    ? {
+                          ...validQueryArgs,
+                          csvLimit: limit,
+                      }
+                    : null;
                 const downloadQuery = await executeQueryAndWaitForResults(
-                    validQueryArgs,
-                    limit,
+                    queryArgsWithLimit,
                 );
                 queryUuid = downloadQuery.queryUuid;
             }

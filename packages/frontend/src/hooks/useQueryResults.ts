@@ -4,7 +4,6 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
     type ApiSuccessEmpty,
-    applyLimitOverrideToQuery,
     assertUnreachable,
     type DateGranularity,
     DEFAULT_RESULTS_PAGE_SIZE,
@@ -12,7 +11,6 @@ import {
     type DownloadOptions,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
-    type LimitOverride,
     type MetricQuery,
     ParameterError,
     QueryExecutionContext,
@@ -97,7 +95,6 @@ export const downloadQuery = async (
 const executeAsyncQuery = (
     data?: QueryResultsProps | null,
     signal?: AbortSignal,
-    limitOverride?: LimitOverride,
 ) => {
     if (data?.chartUuid && data?.chartVersionUuid) {
         return executeAsyncSavedChartQuery(
@@ -106,7 +103,7 @@ const executeAsyncQuery = (
                 context: QueryExecutionContext.CHART_HISTORY,
                 chartUuid: data.chartUuid,
                 versionUuid: data.chartVersionUuid,
-                limit: limitOverride,
+                limit: data.csvLimit,
             },
             { signal },
         );
@@ -116,42 +113,32 @@ const executeAsyncQuery = (
             {
                 context: QueryExecutionContext.CHART,
                 chartUuid: data.chartUuid,
-                limit: limitOverride,
+                limit: data.csvLimit,
             },
             { signal },
         );
     } else if (data?.query) {
-        // For metric queries, apply the limit override to the query itself
-        let query = data.query;
-
-        if (limitOverride === null) {
-            // For unlimited requests, apply CSV cell limits like the old CSV endpoint
-            const numberColumns =
-                data.query.dimensions.length +
-                data.query.metrics.length +
-                data.query.tableCalculations.length;
-
-            if (numberColumns > 0) {
-                // Use the same CSV cell limiting logic as the backend
-                const cellsLimit = 100000; // Default CSV cells limit
-                const maxRows = Math.floor(cellsLimit / numberColumns);
-                query = { ...data.query, limit: maxRows };
-            }
-            // If numberColumns === 0, just use the original query
-        } else if (limitOverride !== undefined) {
-            // Apply specific limit override
-            query = applyLimitOverrideToQuery(data.query, limitOverride);
+        // For metric queries, we need to handle the limit properly:
+        // - undefined: use the original query limit
+        // - null: unlimited results (use a very high limit suitable for analytics)
+        // - number: use the specific limit
+        let queryLimit = data.query.limit;
+        if (data.csvLimit !== undefined) {
+            // For unlimited exports (null), use 10 million which should be sufficient
+            // for most analytics use cases. The backend will use maxLimit * 1000 for
+            // better configurability, but we use a fixed high number here.
+            queryLimit = data.csvLimit ?? 10_000_000;
         }
-        // If limitOverride === undefined, use original query as-is
 
         return executeAsyncMetricQuery(
             data.projectUuid,
             {
                 context: QueryExecutionContext.EXPLORE,
                 query: {
-                    ...query,
-                    filters: convertDateFilters(query.filters),
-                    timezone: query.timezone ?? undefined,
+                    ...data.query,
+                    limit: queryLimit,
+                    filters: convertDateFilters(data.query.filters),
+                    timezone: data.query.timezone ?? undefined,
                     exploreName: data.tableId,
                     dateZoom: data.dateZoomGranularity
                         ? {
@@ -169,11 +156,10 @@ const executeAsyncQuery = (
 
 export const executeQueryAndWaitForResults = async (
     data?: QueryResultsProps | null,
-    limitOverride?: LimitOverride,
 ) => {
     if (!data) throw new Error('Missing data');
 
-    const query = await executeAsyncQuery(data, undefined, limitOverride);
+    const query = await executeAsyncQuery(data, undefined);
 
     const results = await pollForResults(data.projectUuid, query.queryUuid);
 
