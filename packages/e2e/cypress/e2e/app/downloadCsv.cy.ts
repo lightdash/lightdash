@@ -42,6 +42,9 @@ describe('Download CSV on Dashboards', () => {
             cy.findByTestId('tile-icon-more').click();
             cy.get('button').contains('Download data').click();
 
+            cy.get('[data-testid=chart-export-results-button]').should(
+                'be.visible',
+            );
             cy.get('[data-testid=chart-export-results-button]').click();
 
             cy.wait('@apiDownload', { timeout: 3000 }).then((interception) => {
