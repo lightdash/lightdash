@@ -150,8 +150,10 @@ export const useSavedSqlChartResults = (
 
             // By default use current queryUuid
             let queryUuidToDownload = chartResultsQuery.data.queryUuid;
-            // Create a new query with new args
-            if (limit && limit !== chartQuery.data.limit) {
+            // Always execute a new query if:
+            // 1. limit is null (meaning "all results" - should ignore existing query limits)
+            // 2. limit is different from current query
+            if (limit === null || limit !== chartQuery.data.limit) {
                 const queryForDownload =
                     isDashboardArgs(args) && savedSqlUuid
                         ? await getDashboardSqlChartPivotChartData({
