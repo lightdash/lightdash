@@ -75,9 +75,9 @@ import {
 } from '../store/sqlRunnerSlice';
 import { runSqlQuery } from '../store/thunks';
 import { ChartDownload } from './Download/ChartDownload';
-import { ResultsDownloadFromUrl } from './Download/ResultsDownloadFromUrl';
 import { SqlEditor } from './SqlEditor';
 import { SqlQueryHistory } from './SqlQueryHistory';
+// import ResultsDownloadButton from './Download/ResultsDownloadButton';
 
 export const ContentPanel: FC = () => {
     // State we need from redux
@@ -251,8 +251,6 @@ export const ContentPanel: FC = () => {
         [pivotedChartInfo],
     );
 
-    const resultsFileUrl = useMemo(() => queryResults?.fileUrl, [queryResults]);
-
     useEffect(() => {
         if (queryResults && panelSizes[1] === 0) {
             resultsPanelRef.current?.resize(50);
@@ -321,6 +319,13 @@ export const ContentPanel: FC = () => {
             {},
         );
     }, [currentVizConfig, pivotedChartInfo]);
+
+    console.log(
+        'pivotedChartInfo',
+        pivotedChartInfo,
+        queryResults,
+        currentVizConfig,
+    );
 
     return (
         <Stack spacing="none" style={{ flex: 1, overflow: 'hidden' }}>
@@ -457,16 +462,21 @@ export const ContentPanel: FC = () => {
                                 />
                             ) : (
                                 mode === 'default' && (
-                                    <ResultsDownloadFromUrl
-                                        fileUrl={resultsFileUrl}
-                                        columnNames={
-                                            queryResults?.columns.map(
-                                                (c) => c.reference,
-                                            ) ?? []
-                                        }
-                                        chartName={savedSqlChart?.name}
-                                        defaultQueryLimit={defaultQueryLimit}
-                                    />
+                                    <p>hello</p>
+                                    // <ResultsDownloadButton
+                                    //     projectUuid={params.projectUuid}
+                                    //     chartResultsData={chartResultsData}
+                                    //     chartName={savedSqlChart?.name}
+                                    //     getDownloadQueryUuid={getDownloadQueryUuid}
+                                    // />
+                                    // <ResultsDownloadFromUrl
+                                    //     columnNames={
+                                    //         queryResults?.columns.map(
+                                    //             (c) => c.reference,
+                                    //         ) ?? []
+                                    //     }
+                                    //     defaultQueryLimit={defaultQueryLimit}
+                                    // />
                                 )
                             )}
                         </Group>
