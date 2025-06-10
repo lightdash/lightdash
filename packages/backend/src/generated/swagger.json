@@ -45,6 +45,18 @@
                 "type": "object",
                 "description": "The Error object is returned from the api any time there is an error.\nThe message contains"
             },
+            "ApiSuccessEmpty": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
             "ScimSchemaType.LIST_RESPONSE": {
                 "enum": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
                 "type": "string"
@@ -674,18 +686,6 @@
                     }
                 },
                 "required": ["dashboardUuids"],
-                "type": "object"
-            },
-            "ApiSuccessEmpty": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
                 "type": "object"
             },
             "UpdateEmbed": {
@@ -4803,289 +4803,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "AiConversation": {
-                "properties": {
-                    "user": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "firstMessage": {
-                        "type": "string"
-                    },
-                    "createdFrom": {
-                        "type": "string"
-                    },
-                    "createdAt": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            }
-                        ]
-                    },
-                    "threadUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "user",
-                    "firstMessage",
-                    "createdFrom",
-                    "createdAt",
-                    "threadUuid"
-                ],
-                "type": "object"
-            },
-            "ApiAiConversations": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiConversation"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "AiConversationMessageIncomplete": {
-                "properties": {
-                    "user": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "createdAt": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            }
-                        ]
-                    },
-                    "message": {
-                        "type": "string"
-                    },
-                    "promptUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["user", "createdAt", "message", "promptUuid"],
-                "type": "object"
-            },
-            "AiConversationComplete": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/AiConversationMessageIncomplete"
-                    },
-                    {
-                        "properties": {
-                            "humanScore": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "metricQuery": {
-                                "additionalProperties": true,
-                                "type": "object"
-                            },
-                            "filtersOutput": {
-                                "additionalProperties": true,
-                                "type": "object"
-                            },
-                            "vizConfigOutput": {
-                                "additionalProperties": true,
-                                "type": "object"
-                            },
-                            "respondedAt": {
-                                "anyOf": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "type": "string",
-                                        "format": "date-time"
-                                    }
-                                ]
-                            },
-                            "response": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["respondedAt", "response"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "AiConversationMessage": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/AiConversationMessageIncomplete"
-                    },
-                    {
-                        "$ref": "#/components/schemas/AiConversationComplete"
-                    }
-                ]
-            },
-            "ApiAiConversationMessages": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiConversationMessage"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "AiPrompt": {
-                "properties": {
-                    "metricQuery": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "humanScore": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "vizConfigOutput": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "filtersOutput": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "response": {
-                        "type": "string"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "prompt": {
-                        "type": "string"
-                    },
-                    "createdByUserUuid": {
-                        "type": "string"
-                    },
-                    "threadUuid": {
-                        "type": "string"
-                    },
-                    "promptUuid": {
-                        "type": "string"
-                    },
-                    "agentUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "metricQuery",
-                    "humanScore",
-                    "vizConfigOutput",
-                    "filtersOutput",
-                    "response",
-                    "createdAt",
-                    "prompt",
-                    "createdByUserUuid",
-                    "threadUuid",
-                    "promptUuid",
-                    "agentUuid",
-                    "projectUuid",
-                    "organizationUuid"
-                ],
-                "type": "object"
-            },
-            "AiWebAppPrompt": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/AiPrompt"
-                    },
-                    {
-                        "properties": {
-                            "userUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["userUuid"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "Record_string.AnyType_": {
-                "properties": {},
-                "additionalProperties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ApiAiConversationResponse": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "rows": {
-                                "items": {
-                                    "$ref": "#/components/schemas/Record_string.AnyType_"
-                                },
-                                "type": "array"
-                            },
-                            "prompt": {
-                                "$ref": "#/components/schemas/AiWebAppPrompt"
-                            }
-                        },
-                        "required": ["prompt"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "ApiAiGenerateCustomVizResponse": {
                 "properties": {
                     "results": {
@@ -5744,6 +5461,12 @@
             "AiMetricQuery": {
                 "$ref": "#/components/schemas/Pick_MetricQuery.metrics-or-dimensions-or-sorts-or-limit-or-exploreName-or-filters_"
             },
+            "Record_string.AnyType_": {
+                "properties": {},
+                "additionalProperties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "ApiAiAgentThreadMessageViz": {
                 "properties": {
                     "results": {
@@ -5782,6 +5505,284 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/ApiAiAgentThreadMessageViz"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AiConversation": {
+                "properties": {
+                    "user": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "firstMessage": {
+                        "type": "string"
+                    },
+                    "createdFrom": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        ]
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user",
+                    "firstMessage",
+                    "createdFrom",
+                    "createdAt",
+                    "threadUuid"
+                ],
+                "type": "object"
+            },
+            "ApiAiConversations": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiConversation"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AiConversationMessageIncomplete": {
+                "properties": {
+                    "user": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "createdAt": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        ]
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["user", "createdAt", "message", "promptUuid"],
+                "type": "object"
+            },
+            "AiConversationComplete": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiConversationMessageIncomplete"
+                    },
+                    {
+                        "properties": {
+                            "humanScore": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "metricQuery": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "filtersOutput": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "vizConfigOutput": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "respondedAt": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    }
+                                ]
+                            },
+                            "response": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["respondedAt", "response"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiConversationMessage": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/AiConversationMessageIncomplete"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AiConversationComplete"
+                    }
+                ]
+            },
+            "ApiAiConversationMessages": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiConversationMessage"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AiPrompt": {
+                "properties": {
+                    "metricQuery": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "humanScore": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "vizConfigOutput": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "filtersOutput": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "response": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "metricQuery",
+                    "humanScore",
+                    "vizConfigOutput",
+                    "filtersOutput",
+                    "response",
+                    "createdAt",
+                    "prompt",
+                    "createdByUserUuid",
+                    "threadUuid",
+                    "promptUuid",
+                    "agentUuid",
+                    "projectUuid",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "AiWebAppPrompt": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiPrompt"
+                    },
+                    {
+                        "properties": {
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["userUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiAiConversationResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "rows": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Record_string.AnyType_"
+                                },
+                                "type": "array"
+                            },
+                            "prompt": {
+                                "$ref": "#/components/schemas/AiWebAppPrompt"
+                            }
+                        },
+                        "required": ["prompt"],
+                        "type": "object"
                     },
                     "status": {
                         "type": "string",
@@ -6460,7 +6461,11 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_CreateSnowflakeCredentials.type-or-user-or-password_": {
+            "SnowflakeAuthenticationType": {
+                "enum": ["password", "private_key", "sso"],
+                "type": "string"
+            },
+            "Pick_CreateSnowflakeCredentials.type-or-user-or-password-or-authenticationType-or-token_": {
                 "properties": {
                     "user": {
                         "type": "string"
@@ -6469,6 +6474,12 @@
                         "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
                     },
                     "password": {
+                        "type": "string"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
+                    },
+                    "token": {
                         "type": "string"
                     }
                 },
@@ -6501,11 +6512,11 @@
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
                     },
-                    "keyfileContents": {
-                        "$ref": "#/components/schemas/Record_string.string_"
-                    },
                     "authenticationType": {
                         "$ref": "#/components/schemas/BigqueryAuthenticationType"
+                    },
+                    "keyfileContents": {
+                        "$ref": "#/components/schemas/Record_string.string_"
                     }
                 },
                 "required": ["type", "keyfileContents"],
@@ -6536,7 +6547,7 @@
                                 "$ref": "#/components/schemas/Pick_CreatePostgresCredentials.type-or-user-or-password_"
                             },
                             {
-                                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.type-or-user-or-password_"
+                                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.type-or-user-or-password-or-authenticationType-or-token_"
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateTrinoCredentials.type-or-user-or-password_"
@@ -10477,10 +10488,6 @@
                     }
                 ]
             },
-            "SnowflakeAuthenticationType": {
-                "enum": ["password", "private_key", "sso"],
-                "type": "string"
-            },
             "WeekDay": {
                 "enum": [0, 1, 2, 3, 4, 5, 6],
                 "type": "number"
@@ -10493,6 +10500,9 @@
                     "authenticationType": {
                         "$ref": "#/components/schemas/SnowflakeAuthenticationType"
                     },
+                    "token": {
+                        "type": "string"
+                    },
                     "role": {
                         "type": "string"
                     },
@@ -10501,9 +10511,6 @@
                     },
                     "requireUserCredentials": {
                         "type": "boolean"
-                    },
-                    "token": {
-                        "type": "string"
                     },
                     "database": {
                         "type": "string"
@@ -12329,22 +12336,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -17722,7 +17729,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1689.2",
+        "version": "0.1699.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -17734,6 +17741,36 @@
         }
     },
     "paths": {
+        "/api/v1/snowflake/sso/is-authenticated": {
+            "get": {
+                "operationId": "ssoIsAuthenticated",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": []
+            }
+        },
         "/api/v1/projects/{projectUuid}/validate": {
             "post": {
                 "operationId": "ValidateProject",
@@ -19466,36 +19503,6 @@
                         }
                     }
                 ]
-            }
-        },
-        "/api/v1/snowflake/sso/is-authenticated": {
-            "get": {
-                "operationId": "ssoIsAuthenticated",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": ["Projects"],
-                "security": [],
-                "parameters": []
             }
         },
         "/api/v1/slack/channels": {

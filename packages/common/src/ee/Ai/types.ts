@@ -37,7 +37,7 @@ export type AiPrompt = {
     createdByUserUuid: string;
     prompt: string;
     createdAt: Date;
-    response: string;
+    response: string | null;
     filtersOutput: object | null;
     vizConfigOutput: object | null;
     humanScore: number | null;

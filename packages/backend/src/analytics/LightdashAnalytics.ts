@@ -551,7 +551,7 @@ export type ConditionalFormattingRuleSavedEvent = BaseTrack & {
     };
 };
 
-type ProjectEvent = BaseTrack & {
+export type ProjectEvent = BaseTrack & {
     event: 'project.updated' | 'project.created';
     userId: string;
     properties: {
@@ -564,6 +564,8 @@ type ProjectEvent = BaseTrack & {
         isPreview: boolean;
         method: RequestMethod;
         copiedFromProjectUuid?: string;
+        authenticationType?: string;
+        requireUserCredentials?: boolean;
     };
 };
 

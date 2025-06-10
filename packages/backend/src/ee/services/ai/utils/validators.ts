@@ -75,7 +75,7 @@ export function validateFilterRules(
 Error: the field with id "${
                     rule.target.fieldId
                 }" does not exist in the selected explore.
-FilterRule: 
+FilterRule:
 
 \`\`\`json
 ${JSON.stringify(rule, null, 2)}
@@ -106,7 +106,7 @@ ${filterRuleErrorStrings}`);
 
 export const AI_DEFAULT_MAX_QUERY_LIMIT = 1000;
 export function getValidAiQueryLimit(
-    limit: number | undefined,
+    limit: number | null,
     maxLimit: number = AI_DEFAULT_MAX_QUERY_LIMIT, // ! Allow limit override
 ) {
     if (!limit) {

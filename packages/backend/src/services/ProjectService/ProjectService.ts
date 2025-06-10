@@ -158,6 +158,7 @@ import { Worker } from 'worker_threads';
 import {
     LightdashAnalytics,
     MetricQueryExecutionProperties,
+    ProjectEvent,
 } from '../../analytics/LightdashAnalytics';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { S3Client } from '../../clients/Aws/S3Client';
@@ -910,21 +911,15 @@ export class ProjectService extends BaseService {
         // Do not give this user admin permissions on this new project,
         // as it could be an interactive viewer creating a preview
         // and we don't want to allow users to acces sql runner or leak admin data
-
         this.analytics.track({
             event: 'project.created',
             userId: user.userUuid,
-            properties: {
-                projectName: createProject.name,
-                projectId: projectUuid,
-                projectType: createProject.dbtConnection.type,
-                warehouseConnectionType: createProject.warehouseConnection.type,
-                organizationId: user.organizationUuid,
-                dbtConnectionType: createProject.dbtConnection.type,
-                isPreview: createProject.type === ProjectType.PREVIEW,
+            properties: ProjectService.getAnalyticProperties(
+                createProject,
+                projectUuid,
+                user,
                 method,
-                copiedFromProjectUuid: data.upstreamProjectUuid,
-            },
+            ),
         });
 
         let hasContentCopy = false;
@@ -1031,6 +1026,33 @@ export class ProjectService extends BaseService {
         return { jobUuid: job.jobUuid };
     }
 
+    static getAnalyticProperties(
+        createProject: CreateProject,
+        projectUuid: string,
+        user: SessionUser,
+        method: RequestMethod,
+    ): ProjectEvent['properties'] {
+        const warehouseType = createProject.warehouseConnection.type;
+        const authenticationType =
+            warehouseType === WarehouseTypes.BIGQUERY ||
+            warehouseType === WarehouseTypes.SNOWFLAKE
+                ? createProject.warehouseConnection.authenticationType
+                : undefined;
+        return {
+            projectName: createProject.name,
+            projectId: projectUuid,
+            projectType: createProject.dbtConnection.type,
+            warehouseConnectionType: createProject.warehouseConnection.type,
+            organizationId: user.organizationUuid!,
+            dbtConnectionType: createProject.dbtConnection.type,
+            isPreview: createProject.type === ProjectType.PREVIEW,
+            method,
+            authenticationType,
+            requireUserCredentials:
+                createProject.warehouseConnection.requireUserCredentials,
+        };
+    }
+
     async _create(
         user: SessionUser,
         data: CreateProject,
@@ -1127,17 +1149,12 @@ export class ProjectService extends BaseService {
             this.analytics.track({
                 event: 'project.created',
                 userId: user.userUuid,
-                properties: {
-                    projectName: createProject.name,
-                    projectId: projectUuid,
-                    projectType: createProject.dbtConnection.type,
-                    warehouseConnectionType:
-                        createProject.warehouseConnection.type,
-                    organizationId: user.organizationUuid,
-                    dbtConnectionType: createProject.dbtConnection.type,
-                    isPreview: createProject.type === ProjectType.PREVIEW,
+                properties: ProjectService.getAnalyticProperties(
+                    createProject,
+                    projectUuid,
+                    user,
                     method,
-                },
+                ),
             });
 
             return { projectUuid };
@@ -1411,20 +1428,19 @@ export class ProjectService extends BaseService {
                     projectUuid,
                 },
             });
+            const projectWithWarehouse = {
+                ...updatedProject,
+                warehouseConnection: updatedProject.warehouseConnection,
+            };
             this.analytics.track({
                 event: 'project.updated',
                 userId: user.userUuid,
-                properties: {
-                    projectName: updatedProject.name,
-                    projectId: projectUuid,
-                    projectType: updatedProject.dbtConnection.type,
-                    warehouseConnectionType:
-                        updatedProject.warehouseConnection!.type,
-                    organizationId: user.organizationUuid,
-                    dbtConnectionType: updatedProject.dbtConnection.type,
-                    isPreview: updatedProject.type === ProjectType.PREVIEW,
+                properties: ProjectService.getAnalyticProperties(
+                    projectWithWarehouse,
+                    projectUuid,
+                    user,
                     method,
-                },
+                ),
             });
         } catch (error) {
             await this.jobModel.setPendingJobsToSkipped(job.jobUuid);

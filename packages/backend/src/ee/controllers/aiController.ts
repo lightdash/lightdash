@@ -1,12 +1,8 @@
 import {
-    ApiAiConversationMessages,
-    ApiAiConversationResponse,
-    ApiAiConversations,
     ApiAiDashboardSummaryResponse,
     ApiAiGenerateCustomVizResponse,
     ApiAiGetDashboardSummaryResponse,
     ApiErrorPayload,
-    ApiSuccessEmpty,
     DashboardSummary,
     ItemsMap,
 } from '@lightdash/common';
@@ -16,7 +12,6 @@ import {
     Hidden,
     Middlewares,
     OperationId,
-    Patch,
     Path,
     Post,
     Request,
@@ -74,64 +69,6 @@ export class AiController extends BaseController {
                 req.user!,
                 projectUuid,
                 dashboardUuid,
-            ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/conversations')
-    @OperationId('getConversations')
-    async getConversations(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-    ): Promise<ApiAiConversations> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiService().getConversations(
-                req.user!,
-                projectUuid,
-            ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/conversations/:aiThreadUuid/messages')
-    @OperationId('getMessages')
-    async getMessages(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() aiThreadUuid: string,
-    ): Promise<ApiAiConversationMessages> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiService().getConversationMessages(
-                req.user!,
-                projectUuid,
-                aiThreadUuid,
-            ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('/conversations')
-    @OperationId('createConversation')
-    async createConversation(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Body() body: { question: string },
-    ): Promise<ApiAiConversationResponse> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiService().createWebAppConversation(
-                req.user!,
-                projectUuid,
-                body.question,
             ),
         };
     }

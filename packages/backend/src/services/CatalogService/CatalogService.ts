@@ -315,7 +315,16 @@ export class CatalogService<
         return filteredExplores;
     }
 
-    async indexCatalog(projectUuid: string, userUuid: string | undefined) {
+    async indexCatalog(
+        projectUuid: string,
+        userUuid: string | undefined,
+        embedderFn?: (
+            documents: {
+                name: string;
+                description: string;
+            }[],
+        ) => Promise<Array<Array<number>>>,
+    ) {
         const cachedExploresMap =
             await this.projectModel.getAllExploresFromCache(projectUuid);
 
@@ -330,6 +339,7 @@ export class CatalogService<
             cachedExploresMap,
             projectYamlTags,
             userUuid,
+            embedderFn,
         );
 
         if (

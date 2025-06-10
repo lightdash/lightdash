@@ -1,3 +1,45 @@
+# [0.1701.0](https://github.com/lightdash/lightdash/compare/0.1700.0...0.1701.0) (2025-06-10)
+
+
+### Features
+
+* add OpenAI API key to config for AI Copilot ([#15244](https://github.com/lightdash/lightdash/issues/15244)) ([5c9b9e1](https://github.com/lightdash/lightdash/commit/5c9b9e1347b451082ecc213b7d186edf04c5fdfd))
+
+# [0.1700.0](https://github.com/lightdash/lightdash/compare/0.1699.0...0.1700.0) (2025-06-10)
+
+
+### Features
+
+* Improve agent information on a new thread ([#15256](https://github.com/lightdash/lightdash/issues/15256)) ([17ebc43](https://github.com/lightdash/lightdash/commit/17ebc43d6e87da64b7a4515ef9abe90c39a6bd4d)), closes [#15248](https://github.com/lightdash/lightdash/issues/15248)
+
+# [0.1699.0](https://github.com/lightdash/lightdash/compare/0.1698.6...0.1699.0) (2025-06-10)
+
+
+### Features
+
+* update filter schema to support structured outputs in AI tools ([#15220](https://github.com/lightdash/lightdash/issues/15220)) ([850eb26](https://github.com/lightdash/lightdash/commit/850eb26e37885b1bbcfa891055b1330eee2022cf))
+
+## [0.1698.6](https://github.com/lightdash/lightdash/compare/0.1698.5...0.1698.6) (2025-06-10)
+
+
+### Bug Fixes
+
+* generate pivot fields for async query downloads ([#15241](https://github.com/lightdash/lightdash/issues/15241)) ([d6a91f8](https://github.com/lightdash/lightdash/commit/d6a91f8c146df9bb41465076c71a5893f91f08e2))
+
+## [0.1698.5](https://github.com/lightdash/lightdash/compare/0.1698.4...0.1698.5) (2025-06-10)
+
+
+### Bug Fixes
+
+* disable bigquery sso using feature flag ([#15238](https://github.com/lightdash/lightdash/issues/15238)) ([f9f3793](https://github.com/lightdash/lightdash/commit/f9f37938c91c5367c972d842fedde369b2f2e230))
+
+## [0.1698.4](https://github.com/lightdash/lightdash/compare/0.1698.3...0.1698.4) (2025-06-10)
+
+
+### Bug Fixes
+
+* get explore query rows on ai agent service ([#15224](https://github.com/lightdash/lightdash/issues/15224)) ([9e0cc33](https://github.com/lightdash/lightdash/commit/9e0cc33bf7617a1603daf9907b8e057c4d979872))
+
 ## [0.1698.3](https://github.com/lightdash/lightdash/compare/0.1698.2...0.1698.3) (2025-06-09)
 
 

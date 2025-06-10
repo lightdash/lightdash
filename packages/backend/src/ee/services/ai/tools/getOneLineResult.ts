@@ -1,6 +1,5 @@
 import { lighterMetricQuerySchema } from '@lightdash/common';
 import { tool } from 'ai';
-import { z } from 'zod';
 import type {
     GetPromptFn,
     RunMiniMetricQueryFn,
@@ -8,12 +7,6 @@ import type {
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-
-export const aiGetOneLineResultToolSchema = z.object({
-    metricQuery: lighterMetricQuerySchema.describe(
-        'Metric query to run to get the result',
-    ), // ! DO NOT USE AIMETRICQUERY HERE, ZOD CANNOT GET THE TYPE CORRECTLY
-});
 
 type Dependencies = {
     runMiniMetricQuery: RunMiniMetricQueryFn;
@@ -28,7 +21,7 @@ export const getGetOneLineResult = ({
     runMiniMetricQuery,
     updatePrompt,
 }: Dependencies) => {
-    const schema = aiGetOneLineResultToolSchema;
+    const schema = lighterMetricQuerySchema;
 
     return tool({
         description: `Get a single line result from the database. E.g. how many users signed up today?
@@ -42,7 +35,7 @@ Rules for fetching the result:
 - Only apply sort if needed and make sure sort "fieldId"s are from the selected "Metric" and "Dimension" "fieldId"s.
 `,
         parameters: schema,
-        execute: async ({ metricQuery }) => {
+        execute: async (metricQuery) => {
             try {
                 const prompt = await getPrompt();
 
@@ -52,7 +45,14 @@ Rules for fetching the result:
                 });
 
                 await updateProgress('🔍 Fetching the results...');
-                const result = await runMiniMetricQuery(metricQuery);
+                const result = await runMiniMetricQuery({
+                    ...metricQuery,
+                    filters: {
+                        metrics: metricQuery.filters?.metrics ?? undefined,
+                        dimensions:
+                            metricQuery.filters?.dimensions ?? undefined,
+                    },
+                });
 
                 if (result.rows.length > 1) {
                     throw new Error(

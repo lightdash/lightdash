@@ -1,10 +1,5 @@
 import { isSlackPrompt } from '@lightdash/common';
 import { tool } from 'ai';
-import { renderEcharts } from '../../AiService/charts/renderEcharts';
-import {
-    generateBarVizConfigToolSchema,
-    renderVerticalBarMetricChart,
-} from '../../AiService/charts/verticalBarChart';
 import type {
     GetPromptFn,
     RunMiniMetricQueryFn,
@@ -13,6 +8,11 @@ import type {
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { renderEcharts } from '../visualizations/renderEcharts';
+import {
+    generateBarVizConfigToolSchema,
+    renderVerticalBarMetricChart,
+} from '../visualizations/verticalBarChart';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;

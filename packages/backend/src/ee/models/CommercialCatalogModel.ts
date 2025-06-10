@@ -1,9 +1,7 @@
 import {
     AnyType,
-    CatalogFieldMap,
     CatalogType,
     Explore,
-    UnexpectedServerError,
     type ExploreError,
     type TablesConfiguration,
     type UserAttributeValueMap,
@@ -11,7 +9,6 @@ import {
 import { Knex } from 'knex';
 import {
     CatalogTableName,
-    DbCatalogIn,
     type DbCatalog,
 } from '../../database/entities/catalog';
 import { DbTag } from '../../database/entities/tags';
@@ -101,73 +98,62 @@ export class CommercialCatalogModel extends CatalogModel {
         });
     }
 
-    private async embedCatalogItem(
-        catalogItems: DbCatalogIn[],
-    ): Promise<Array<Array<number>>> {
-        if (this.openAi.embedder === undefined) {
-            throw new UnexpectedServerError(
-                'OpenAi embedder is not initialized',
-            );
-        }
-
-        const results = await this.openAi.embedder.embedDocuments(
-            catalogItems.map((catalogItem) =>
-                JSON.stringify({
-                    name: catalogItem.name,
-                    description: catalogItem.description ?? '',
-                }),
-            ),
-        );
-
-        return results;
-    }
-
     async indexCatalog(
         projectUuid: string,
         cachedExploreMap: { [exploreUuid: string]: Explore | ExploreError },
         projectYamlTags: DbTag[],
         userUuid: string | undefined,
-    ): Promise<{
-        catalogInserts: DbCatalog[];
-        catalogFieldMap: CatalogFieldMap;
-    }> {
-        const { catalogInserts, catalogFieldMap } = await super.indexCatalog(
+    ): ReturnType<typeof CatalogModel.prototype.indexCatalog> {
+        const result = await super.indexCatalog(
             projectUuid,
             cachedExploreMap,
             projectYamlTags,
             userUuid,
         );
 
-        const { enabled: copilotEnabled, embeddingSearchEnabled } =
-            this.lightdashConfig.ai.copilot;
+        return result;
 
-        if (!copilotEnabled || !embeddingSearchEnabled) {
-            return { catalogInserts, catalogFieldMap };
-        }
+        // const { enabled: copilotEnabled, embeddingSearchEnabled } =
+        //     this.lightdashConfig.ai.copilot;
 
-        const embeddings = await this.embedCatalogItem(catalogInserts);
+        // if (!copilotEnabled || !embeddingSearchEnabled) {
+        //   return { catalogInserts, catalogFieldMap };
+        // }
 
-        const transaction = await this.database.transaction((trx) =>
-            Promise.all(
-                catalogInserts.map(async (catalogItem, index) => {
-                    const [result] = await trx(CatalogTableName)
-                        .update({
-                            embedding_vector: JSON.stringify(embeddings[index]),
-                        })
-                        .where(
-                            'cached_explore_uuid',
-                            catalogItem.cached_explore_uuid,
-                        )
-                        .andWhere('project_uuid', projectUuid)
-                        .andWhere('name', catalogItem.name)
-                        .andWhere('type', catalogItem.type)
-                        .returning('*');
+        // if (!embedderFn) {
+        //     throw new UnexpectedServerError(
+        //         'Embedder function is not provided',
+        //     );
+        // }
 
-                    return result;
-                }),
-            ),
-        );
+        // const embeddings = await embedderFn(
+        //     catalogInserts.map((catalogItem) => ({
+        //         name: catalogItem.name,
+        //         description: catalogItem.description ?? '',
+        //     })),
+        // );
 
-        return { catalogInserts: transaction, catalogFieldMap };
+        // const transaction = await this.database.transaction((trx) =>
+        //     Promise.all(
+        //         catalogInserts.map(async (catalogItem, index) => {
+        //             const [result] = await trx(CatalogTableName)
+        //                 .update({
+        //                     embedding_vector: JSON.stringify(embeddings[index]),
+        //                 })
+        //                 .where(
+        //                     'cached_explore_uuid',
+        //                     catalogItem.cached_explore_uuid,
+        //                 )
+        //                 .andWhere('project_uuid', projectUuid)
+        //                 .andWhere('name', catalogItem.name)
+        //                 .andWhere('type', catalogItem.type)
+        //                 .returning('*');
+
+        //             return result;
+        //         }),
+        //     ),
+        // );
+
+        // return { catalogInserts: transaction, catalogFieldMap };
     }
 }

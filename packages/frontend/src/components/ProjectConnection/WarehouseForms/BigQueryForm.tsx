@@ -117,6 +117,7 @@ const BigQueryForm: FC<{
     const project = form.getInputProps('warehouse.project');
     const [debouncedProject] = useDebouncedValue(project.value, 300);
 
+    const isSsoEnabled = useFeatureFlagEnabled(FeatureFlags.BigquerySSO);
     // Fetching databases can only happen if user is authenticated
     // if user authenticates, and change to private_key
     // We will not make any queries, in case private_key is different
@@ -128,7 +129,10 @@ const BigQueryForm: FC<{
         data: datasets,
         refetch: refetchDatasets,
         error: datasetsError,
-    } = useBigqueryDatasets(isAuthenticated && isSso, debouncedProject);
+    } = useBigqueryDatasets(
+        isSsoEnabled && isAuthenticated && isSso,
+        debouncedProject,
+    );
     const [isOpen, toggleOpen] = useToggle(false);
     const [temporaryFile, setTemporaryFile] = useState<File | null>(null);
     const { savedProject } = useProjectFormContext();
@@ -143,7 +147,9 @@ const BigQueryForm: FC<{
     }
 
     // savedProject might not be loaded when the form is rendered, so we need to set the defaultValue also on a hook
-    const defaultAuthenticationType = BigqueryAuthenticationType.SSO;
+    const defaultAuthenticationType = isSsoEnabled
+        ? BigqueryAuthenticationType.SSO
+        : BigqueryAuthenticationType.PRIVATE_KEY;
 
     const { mutate: openLoginPopup } = useGoogleLoginPopup(
         'bigquery',
@@ -167,59 +173,67 @@ const BigQueryForm: FC<{
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
-                <Group spacing="sm">
-                    <Select
-                        name="warehouse.authenticationType"
-                        {...form.getInputProps('warehouse.authenticationType')}
-                        defaultValue={defaultAuthenticationType}
-                        label="Authentication Type"
-                        description={
-                            isAuthenticated ? (
-                                <Text mt="0" color="gray" fs="xs">
-                                    You are connected to BigQuery,{' '}
-                                    <Anchor
-                                        href="#"
-                                        onClick={() => {
-                                            openLoginPopup();
-                                        }}
-                                    >
-                                        Click here to reauthenticate.
-                                    </Anchor>
-                                </Text>
-                            ) : (
-                                'Choose whether to authenticate with a service account or a user account'
-                            )
-                        }
-                        data={[
-                            {
-                                value: BigqueryAuthenticationType.PRIVATE_KEY,
-                                label: 'Service Account (JSON key file)',
-                            },
-                            {
-                                value: BigqueryAuthenticationType.SSO,
-                                label: 'User Account (Sign in with Google)',
-                            },
-                        ]}
-                        required
-                        disabled={disabled}
-                        w={isAuthenticated ? '90%' : '100%'}
-                    />
-                    {isAuthenticated && (
-                        <Tooltip label="You are connected to BigQuery">
-                            <Group mt="40px">
-                                <MantineIcon icon={IconCheck} color="green" />
-                            </Group>
-                        </Tooltip>
-                    )}
-                </Group>
-
-                {authenticationType === BigqueryAuthenticationType.SSO && (
-                    <BigQuerySSOInput
-                        isAuthenticated={isAuthenticated}
-                        disabled={disabled}
-                        openLoginPopup={openLoginPopup}
-                    />
+                {isSsoEnabled && (
+                    <Group spacing="sm">
+                        <Select
+                            name="warehouse.authenticationType"
+                            {...form.getInputProps(
+                                'warehouse.authenticationType',
+                            )}
+                            defaultValue={defaultAuthenticationType}
+                            label="Authentication Type"
+                            description={
+                                isAuthenticated ? (
+                                    <Text mt="0" color="gray" fs="xs">
+                                        You are connected to BigQuery,{' '}
+                                        <Anchor
+                                            href="#"
+                                            onClick={() => {
+                                                openLoginPopup();
+                                            }}
+                                        >
+                                            Click here to reauthenticate.
+                                        </Anchor>
+                                    </Text>
+                                ) : (
+                                    'Choose whether to authenticate with a service account or a user account'
+                                )
+                            }
+                            data={[
+                                {
+                                    value: BigqueryAuthenticationType.PRIVATE_KEY,
+                                    label: 'Service Account (JSON key file)',
+                                },
+                                {
+                                    value: BigqueryAuthenticationType.SSO,
+                                    label: 'User Account (Sign in with Google)',
+                                },
+                            ]}
+                            required
+                            disabled={disabled}
+                            w={isAuthenticated ? '90%' : '100%'}
+                        />
+                        {isAuthenticated && (
+                            <Tooltip label="You are connected to BigQuery">
+                                <Group mt="40px">
+                                    <MantineIcon
+                                        icon={IconCheck}
+                                        color="green"
+                                    />
+                                </Group>
+                            </Tooltip>
+                        )}
+                    </Group>
                 )}
+
+                {isSsoEnabled &&
+                    authenticationType === BigqueryAuthenticationType.SSO && (
+                        <BigQuerySSOInput
+                            isAuthenticated={isAuthenticated}
+                            disabled={disabled}
+                            openLoginPopup={openLoginPopup}
+                        />
+                    )}
                 <Group spacing="sm">
                     <TextInput
                         name="warehouse.project"
@@ -280,7 +294,8 @@ const BigQueryForm: FC<{
                     disabled={disabled}
                 />
 
-                {authenticationType === BigqueryAuthenticationType.SSO ? (
+                {isSsoEnabled &&
+                authenticationType === BigqueryAuthenticationType.SSO ? (
                     <>
                         {/*
                 // Autocomplete for datasets
@@ -401,7 +416,7 @@ const BigQueryForm: FC<{
                 )}
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
-                        {isPassthroughLoginFeatureEnabled && (
+                        {isSsoEnabled && isPassthroughLoginFeatureEnabled && (
                             <BooleanSwitch
                                 name="warehouse.requireUserCredentials"
                                 {...form.getInputProps(

@@ -1,52 +1,103 @@
-import { Image, Stack, Title } from '@mantine-8/core';
-import { useParams } from 'react-router';
-import { FadeTransition } from '../../../components/FadeTransition';
+import {
+    ActionIcon,
+    Center,
+    Group,
+    Pill,
+    Popover,
+    ScrollArea,
+    Stack,
+    Text,
+    Title,
+} from '@mantine-8/core';
+import { IconInfoCircle } from '@tabler/icons-react';
+import { useOutletContext, useParams } from 'react-router';
+import { LightdashUserAvatar } from '../../../components/Avatar';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { useStartAgentThreadMutation } from '../../features/aiCopilot/hooks/useAiAgents';
+import { type AgentContext } from './AgentPage';
 
 const AiAgentNewThreadPage = () => {
     const { agentUuid } = useParams();
     const { mutateAsync: startAgentThread, isLoading } =
         useStartAgentThreadMutation(agentUuid!);
+    const { agent } = useOutletContext<AgentContext>();
 
     return (
-        <Stack
-            justify="space-between"
-            gap={0}
-            pos="relative"
-            {...ChatElementsUtils.centeredElementProps}
-        >
-            <FadeTransition>
-                {(styles) => (
-                    <Image
-                        src={
-                            'https://cdn.prod.website-files.com/62a9ae93cf7542032ae55b9c/678fb22fa7253e8363552974_road_bg-p-1600.png'
-                        }
-                        pos="absolute"
-                        bottom={0}
-                        left={0}
-                        right={0}
-                        style={{
-                            ...styles,
-                            pointerEvents: 'none',
-                        }}
-                    />
-                )}
-            </FadeTransition>
-            <Stack flex={1} py="xl" justify="flex-end">
-                <Title order={3} ta="center" c="dimmed">
-                    How can I help you?
-                </Title>
+        <Center h="100%">
+            <Stack
+                justify="space-between"
+                gap={0}
+                pos="relative"
+                {...ChatElementsUtils.centeredElementProps}
+                h="unset"
+            >
+                <Stack flex={1} py="xl">
+                    <Stack align="center" gap="xxs">
+                        <LightdashUserAvatar
+                            size="lg"
+                            variant="filled"
+                            name={agent.name || 'AI'}
+                            src={agent.imageUrl}
+                        />
+                        <Group justify="center" gap={2}>
+                            <Title order={4} ta="center">
+                                {agent.name}
+                            </Title>
+                            {agent.instruction && (
+                                <Popover withArrow>
+                                    <Popover.Target>
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="gray.6"
+                                        >
+                                            <MantineIcon
+                                                icon={IconInfoCircle}
+                                            />
+                                        </ActionIcon>
+                                    </Popover.Target>
+                                    <Popover.Dropdown>
+                                        <ScrollArea.Autosize
+                                            type="hover"
+                                            offsetScrollbars="y"
+                                            scrollbars="y"
+                                            mah={400}
+                                        >
+                                            <Text
+                                                size="sm"
+                                                style={{
+                                                    whiteSpace: 'pre-wrap',
+                                                }}
+                                            >
+                                                {agent.instruction}
+                                            </Text>
+                                        </ScrollArea.Autosize>
+                                    </Popover.Dropdown>
+                                </Popover>
+                            )}
+                        </Group>
+                        {agent.tags && (
+                            <Group gap="xxs">
+                                {agent.tags.map((tag, i) => (
+                                    <Pill key={i} size="sm">
+                                        {tag}
+                                    </Pill>
+                                ))}
+                            </Group>
+                        )}
+                    </Stack>
 
-                <AgentChatInput
-                    onSubmit={(prompt) => {
-                        void startAgentThread({ prompt });
-                    }}
-                    loading={isLoading}
-                />
+                    <AgentChatInput
+                        onSubmit={(prompt) => {
+                            void startAgentThread({ prompt });
+                        }}
+                        loading={isLoading}
+                        placeholder={`Ask ${agent.name} anything about your data...`}
+                    />
+                </Stack>
             </Stack>
-        </Stack>
+        </Center>
     );
 };
 export default AiAgentNewThreadPage;

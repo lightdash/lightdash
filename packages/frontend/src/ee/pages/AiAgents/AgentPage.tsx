@@ -1,4 +1,4 @@
-import { type AiAgentThreadSummary } from '@lightdash/common';
+import { type AiAgent, type AiAgentThreadSummary } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -246,9 +246,13 @@ const AgentPage = () => {
                 </Stack>
             }
         >
-            <Outlet />
+            <Outlet context={{ agent }} />
         </Page>
     );
 };
+
+export interface AgentContext {
+    agent: AiAgent;
+}
 
 export default AgentPage;

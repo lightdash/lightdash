@@ -16,6 +16,7 @@ interface AgentChatInputProps {
     loading?: boolean;
     disabled?: boolean;
     disabledReason?: string;
+    placeholder?: string;
 }
 
 export const AgentChatInput = ({
@@ -23,6 +24,7 @@ export const AgentChatInput = ({
     loading = false,
     disabled = false,
     disabledReason,
+    placeholder = 'Ask anything about your data...',
 }: AgentChatInputProps) => {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const [value, setValue] = useState('');
@@ -65,7 +67,7 @@ export const AgentChatInput = ({
             <Textarea
                 autoFocus
                 ref={inputRef}
-                placeholder={disabled ? undefined : 'Ask Anything'}
+                placeholder={placeholder}
                 autosize
                 minRows={4}
                 radius="0.75rem"

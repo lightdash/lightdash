@@ -92,7 +92,6 @@ export type ModelManifest = {
     spotlightTableConfigModel: SpotlightTableConfigModel;
     queryHistoryModel: QueryHistoryModel;
     /** An implementation signature for these models are not available at this stage */
-    aiModel: unknown;
     aiAgentModel: unknown;
     embedModel: unknown;
     dashboardSummaryModel: unknown;
@@ -514,10 +513,6 @@ export class ModelRepository
                     lightdashConfig: this.lightdashConfig,
                 }),
         );
-    }
-
-    public getAiModel<ModelImplT>(): ModelImplT {
-        return this.getModel('aiModel');
     }
 
     public getAiAgentModel<ModelImplT>(): ModelImplT {

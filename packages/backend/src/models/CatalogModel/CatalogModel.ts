@@ -79,6 +79,12 @@ export class CatalogModel {
         cachedExploreMap: { [exploreUuid: string]: Explore | ExploreError },
         projectYamlTags: DbTag[],
         userUuid: string | undefined,
+        embedderFn?: (
+            documents: {
+                name: string;
+                description: string;
+            }[],
+        ) => Promise<Array<Array<number>>>,
     ): Promise<{
         catalogInserts: DbCatalog[];
         catalogFieldMap: CatalogFieldMap;

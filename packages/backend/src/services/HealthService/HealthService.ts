@@ -134,7 +134,9 @@ export class HealthService extends BaseService {
                         this.lightdashConfig.auth.pat.maxExpirationTimeInDays,
                 },
                 snowflake: {
-                    enabled: !!this.lightdashConfig.auth.snowflake.clientId,
+                    enabled:
+                        !!this.lightdashConfig.auth.snowflake.clientId &&
+                        !!this.lightdashConfig.license.licenseKey,
                 },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,

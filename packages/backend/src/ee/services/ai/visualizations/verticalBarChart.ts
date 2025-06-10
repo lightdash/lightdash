@@ -1,20 +1,18 @@
 import {
     AiChartType,
     AiMetricQuery,
-    FilterSchema,
+    filterSchema,
+    FilterSchemaType,
     MetricQuery,
     SortFieldSchema,
 } from '@lightdash/common';
 import { z } from 'zod';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
-import {
-    FollowUpTools,
-    followUpToolsSchema,
-} from '../utils/aiCopilot/followUpTools';
+import { FollowUpTools, followUpToolsSchema } from '../types/followUpTools';
 import {
     AI_DEFAULT_MAX_QUERY_LIMIT,
     getValidAiQueryLimit,
-} from '../utils/aiCopilot/validators';
+} from '../utils/validators';
 import { getPivotedResults } from './getPivotedResults';
 
 export const verticalBarMetricChartConfigSchema = z.object({
@@ -41,18 +39,15 @@ export const verticalBarMetricChartConfigSchema = z.object({
         ),
     breakdownByDimension: z
         .string()
-        .optional()
         .nullable()
         .describe(
-            '(optional) The field id of the dimension used to split the metrics into groups along the x-axis. If stacking is false then this will create multiple bars around each x value, if stacking is true then this will create multiple bars for each metric stacked on top of each other',
+            'The field id of the dimension used to split the metrics into groups along the x-axis. If stacking is false then this will create multiple bars around each x value, if stacking is true then this will create multiple bars for each metric stacked on top of each other',
         ),
     stackBars: z
         .boolean()
-        .default(false)
-        .optional()
         .nullable()
         .describe(
-            '(optional) Default false. If using breakdownByDimension then this will stack the bars on top of each other instead of side by side.',
+            'If using breakdownByDimension then this will stack the bars on top of each other instead of side by side.',
         ),
     xAxisType: z
         .union([z.literal('category'), z.literal('time')])
@@ -62,22 +57,19 @@ export const verticalBarMetricChartConfigSchema = z.object({
     limit: z
         .number()
         .max(AI_DEFAULT_MAX_QUERY_LIMIT)
-        .optional()
+        .nullable()
         .describe(
-            `(optional, max: ${AI_DEFAULT_MAX_QUERY_LIMIT}) The total number of data points / bars allowed on the chart.`,
+            `The total number of data points / bars allowed on the chart.`,
         ),
     xAxisLabel: z
         .string()
-        .optional()
-        .describe('(optional) A helpful label to explain the x-axis'),
+        .nullable()
+        .describe('A helpful label to explain the x-axis'),
     yAxisLabel: z
         .string()
-        .optional()
-        .describe('(optional) A helpful label to explain the y-axis'),
-    title: z
-        .string()
-        .optional()
-        .describe('(optional) a descriptive title for the chart'),
+        .nullable()
+        .describe('A helpful label to explain the y-axis'),
+    title: z.string().nullable().describe('a descriptive title for the chart'),
     followUpTools: followUpToolsSchema.describe(
         `The actions the User can ask for after the AI has generated the chart. NEVER include ${FollowUpTools.GENERATE_BAR_VIZ} in this list.`,
     ),
@@ -85,18 +77,25 @@ export const verticalBarMetricChartConfigSchema = z.object({
 
 export const generateBarVizConfigToolSchema = z.object({
     vizConfig: verticalBarMetricChartConfigSchema,
-    filters: FilterSchema.optional().describe(
-        'Filters to apply to the query. Filtered fields must exist in the selected explore.',
-    ),
+    filters: filterSchema
+        .nullable()
+        .describe(
+            'Filters to apply to the query. Filtered fields must exist in the selected explore.',
+        ),
 });
 
-type VerticalBarMetricChartConfig = z.infer<
+export type VerticalBarMetricChartConfig = z.infer<
     typeof verticalBarMetricChartConfigSchema
 >;
 
+export const isVerticalBarMetricChartConfig = (
+    config: unknown,
+): config is VerticalBarMetricChartConfig =>
+    typeof config === 'object' && config !== null && 'xAxisType' in config;
+
 export const metricQueryVerticalBarChartMetric = (
     config: VerticalBarMetricChartConfig,
-    filters: z.infer<typeof FilterSchema> = {},
+    filters: FilterSchemaType | null,
 ): AiMetricQuery => {
     const metrics = config.yMetrics;
     const dimensions = [
@@ -110,7 +109,11 @@ export const metricQueryVerticalBarChartMetric = (
         limit: getValidAiQueryLimit(limit),
         sorts,
         exploreName: config.exploreName,
-        filters,
+        // TODO: fix types
+        filters: {
+            metrics: filters?.metrics ?? undefined,
+            dimensions: filters?.dimensions ?? undefined,
+        },
     };
 };
 
@@ -183,7 +186,7 @@ type RenderVerticalBarMetricChartArgs = {
         metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
     vizConfig: VerticalBarMetricChartConfig;
-    filters?: z.infer<typeof FilterSchema>;
+    filters: FilterSchemaType | null;
 };
 
 export const renderVerticalBarMetricChart = async ({
