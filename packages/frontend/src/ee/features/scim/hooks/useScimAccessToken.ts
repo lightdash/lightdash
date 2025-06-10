@@ -1,8 +1,8 @@
 import {
-    type ApiCreateScimTokenRequest,
-    type ApiCreateScimTokenResponse,
+    type ApiCreateScimServiceAccountRequest,
+    type ApiCreateServiceAccountResponse,
     type ApiError,
-    type ScimOrganizationAccessToken,
+    type ServiceAccount,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -16,14 +16,14 @@ import useQueryError from '../../../../hooks/useQueryError';
 
 // gets users access tokens
 const getScimToken = async () =>
-    lightdashApi<ScimOrganizationAccessToken[]>({
+    lightdashApi<ServiceAccount[]>({
         url: `/scim/organization-access-tokens`,
         method: 'GET',
         body: undefined,
     });
 
-const createScimToken = async (data: ApiCreateScimTokenRequest) =>
-    lightdashApi<ApiCreateScimTokenResponse>({
+const createScimToken = async (data: ApiCreateScimServiceAccountRequest) =>
+    lightdashApi<ApiCreateServiceAccountResponse>({
         url: `/scim/organization-access-tokens`,
         method: 'POST',
         body: JSON.stringify(data),
@@ -37,10 +37,10 @@ const deleteScimToken = async (tokenUuid: string) =>
     });
 
 export const useScimTokenList = (
-    useQueryOptions?: UseQueryOptions<ScimOrganizationAccessToken[], ApiError>,
+    useQueryOptions?: UseQueryOptions<ServiceAccount[], ApiError>,
 ) => {
     const setErrorResponse = useQueryError();
-    return useQuery<ScimOrganizationAccessToken[], ApiError>({
+    return useQuery<ServiceAccount[], ApiError>({
         queryKey: ['scim_access_tokens'],
         queryFn: () => getScimToken(),
         retry: false,
@@ -53,9 +53,9 @@ export const useCreateScimToken = () => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<
-        ApiCreateScimTokenResponse,
+        ApiCreateServiceAccountResponse,
         ApiError,
-        ApiCreateScimTokenRequest
+        ApiCreateScimServiceAccountRequest
     >((data) => createScimToken(data), {
         mutationKey: ['create_scim_access_token'],
         retry: 3,
