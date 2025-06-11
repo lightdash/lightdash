@@ -1,3 +1,17 @@
+# [0.1708.0](https://github.com/lightdash/lightdash/compare/0.1707.2...0.1708.0) (2025-06-11)
+
+
+### Features
+
+* Excel download option for SQL chart tables in view page ([#15258](https://github.com/lightdash/lightdash/issues/15258)) ([562d2df](https://github.com/lightdash/lightdash/commit/562d2df196999501390e55a7d2d50f31e78edfb7))
+
+## [0.1707.2](https://github.com/lightdash/lightdash/compare/0.1707.1...0.1707.2) (2025-06-11)
+
+
+### Bug Fixes
+
+* waiting for drain ([#15284](https://github.com/lightdash/lightdash/issues/15284)) ([b9eb515](https://github.com/lightdash/lightdash/commit/b9eb5150cf0a28734ac935a4dcc1fcd58eda4f6f))
+
 ## [0.1707.1](https://github.com/lightdash/lightdash/compare/0.1707.0...0.1707.1) (2025-06-11)
 
 

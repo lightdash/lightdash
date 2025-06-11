@@ -9,7 +9,7 @@ import { useAppSelector } from '../store/hooks';
 import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 import { useSqlQueryRun } from './useSqlQueryRun';
 
-export const downloadCsv = async (
+const downloadCsv = async (
     rows: RawResultRow[],
     columns: string[],
     chartName: string | undefined,
