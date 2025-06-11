@@ -74,7 +74,7 @@ export class S3Client {
                 Key: fileId,
                 Body: file,
                 ContentType: contentType,
-                ACL: 'private',
+                // ACL: 'private',
                 ContentDisposition: `attachment; filename="${fileId}"`,
             },
         });
