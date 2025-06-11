@@ -272,6 +272,7 @@ export class CsvService extends BaseService {
             delimiter: ',',
             header: true,
             columns: csvHeader,
+            bom: true,
         });
 
         const rowTransformer = new Transform({
@@ -337,6 +338,7 @@ export class CsvService extends BaseService {
                 delimiter: ',',
                 header: true,
                 columns: csvHeader,
+                bom: true,
             });
 
             let truncated = false;
