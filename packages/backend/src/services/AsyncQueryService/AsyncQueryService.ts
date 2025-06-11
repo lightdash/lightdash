@@ -1647,14 +1647,12 @@ export class AsyncQueryService extends ProjectService {
         };
 
         // Apply limit override if provided in the request
-        // For unlimited results (null), use 1000x the configured maxLimit to provide
-        // a very high limit suitable for analytics workloads while still being configurable
+        // For unlimited results (null), use Number.MAX_SAFE_INTEGER
         const metricQueryWithLimit =
             limit !== undefined
                 ? {
                       ...metricQuery,
-                      limit:
-                          limit ?? this.lightdashConfig.query.maxLimit * 1000,
+                      limit: limit ?? Number.MAX_SAFE_INTEGER,
                   }
                 : metricQuery;
 

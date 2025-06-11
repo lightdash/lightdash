@@ -120,14 +120,12 @@ const executeAsyncQuery = (
     } else if (data?.query) {
         // For metric queries, we need to handle the limit properly:
         // - undefined: use the original query limit
-        // - null: unlimited results (use a very high limit suitable for analytics)
+        // - null: unlimited results
         // - number: use the specific limit
         let queryLimit = data.query.limit;
         if (data.csvLimit !== undefined) {
-            // For unlimited exports (null), use 10 million which should be sufficient
-            // for most analytics use cases. The backend will use maxLimit * 1000 for
-            // better configurability, but we use a fixed high number here.
-            queryLimit = data.csvLimit ?? 10_000_000;
+            // For unlimited exports (null), use Number.MAX_SAFE_INTEGER
+            queryLimit = data.csvLimit ?? Number.MAX_SAFE_INTEGER;
         }
 
         return executeAsyncMetricQuery(
