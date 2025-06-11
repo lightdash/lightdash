@@ -1,5 +1,6 @@
 import { type AnyType } from './any';
 import { ConditionalOperator, type ConditionalRule } from './conditionalRule';
+import { type DimensionType } from './field';
 import type { SchedulerFilterRule } from './scheduler';
 
 export enum FilterType {
@@ -94,7 +95,8 @@ export const isJoinModelRequiredFilter = (
 export type DashboardFieldTarget = {
     fieldId: string;
     tableName: string;
-    isSqlColumn?: boolean;
+    isSqlColumn?: boolean; // If true, fieldId is a SQL column name and tableName is redundant
+    fallbackType?: DimensionType; // Used to infer filter type when field/column is not available
 };
 
 export const isDashboardFieldTarget = (

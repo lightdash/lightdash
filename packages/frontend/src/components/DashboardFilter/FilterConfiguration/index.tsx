@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     createDashboardFilterRuleFromField,
     createDashboardFilterRuleFromSqlColumn,
+    DimensionType,
     FilterType,
     getFilterTypeFromItem,
     getFilterTypeFromItemType,
@@ -183,14 +184,25 @@ const FilterConfiguration: FC<Props> = ({
         if (selectedField) {
             return getFilterTypeFromItem(selectedField);
         }
-        const selectedColumn = columnsOptions.find(
-            (column) => column.reference === draftFilterRule?.target.fieldId,
-        );
-        if (selectedColumn) {
-            return getFilterTypeFromItemType(selectedColumn.type);
+
+        if (draftFilterRule?.target.fieldId) {
+            const selectedColumn = columnsOptions.find(
+                (column) => column.reference === draftFilterRule.target.fieldId,
+            );
+            return getFilterTypeFromItemType(
+                selectedColumn?.type ??
+                    draftFilterRule.target.fallbackType ??
+                    DimensionType.STRING,
+            );
         }
+
         return FilterType.STRING;
-    }, [columnsOptions, draftFilterRule?.target.fieldId, selectedField]);
+    }, [
+        columnsOptions,
+        draftFilterRule?.target.fallbackType,
+        draftFilterRule?.target.fieldId,
+        selectedField,
+    ]);
 
     const handleChangeTileConfiguration = useCallback(
         (
@@ -210,9 +222,8 @@ const FilterConfiguration: FC<Props> = ({
 
                         // Find fallback target
                         if (!target) {
-                            const defaultColumn: string | undefined =
-                                sqlChartTilesMetadata[tileUuid]?.columns[0]
-                                    ?.reference;
+                            const defaultColumn: ResultColumn | undefined =
+                                sqlChartTilesMetadata[tileUuid]?.columns[0];
                             const defaultField = selectedField
                                 ? getDefaultField(
                                       availableTileFilters[tileUuid] ?? [],
@@ -223,9 +234,10 @@ const FilterConfiguration: FC<Props> = ({
                             if (defaultColumn) {
                                 // Set SQL chart fallback column
                                 target = {
-                                    fieldId: defaultColumn,
+                                    fieldId: defaultColumn.reference,
                                     tableName: 'mock_table',
                                     isSqlColumn: true,
+                                    fallbackType: defaultColumn.type,
                                 };
                             } else if (defaultField) {
                                 // Set default field
