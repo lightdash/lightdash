@@ -28,6 +28,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
     async getInstallationFromOrganizationUuid(organizationUuid: string) {
         const slackSettings = await super.getInstallationFromOrganizationUuid(
             organizationUuid,
+            true,
         );
 
         if (slackSettings === undefined) return undefined;
@@ -83,6 +84,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
             notificationChannel,
             appProfilePhotoUrl,
             slackChannelProjectMappings,
+            aiThreadAccessConsent,
         }: SlackAppCustomSettings,
     ) {
         const organizationId = await this.getOrganizationId(organizationUuid);
@@ -92,6 +94,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
                 .update({
                     notification_channel: notificationChannel,
                     app_profile_photo_url: appProfilePhotoUrl,
+                    ai_thread_access_consent: aiThreadAccessConsent ?? false,
                 })
                 .where('organization_id', organizationId);
 

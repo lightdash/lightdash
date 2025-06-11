@@ -1140,4 +1140,64 @@ export class AiAgentModel {
             })
             .returning('ai_prompt_uuid');
     }
+
+    async existsSlackPromptsByChannelAndTimestamps(
+        slackChannelId: string,
+        timestamps: string[],
+    ): Promise<string[]> {
+        if (timestamps.length === 0) return [];
+
+        const existingPrompts = await this.database(AiSlackPromptTableName)
+            .select('prompt_slack_ts')
+            .where('slack_channel_id', slackChannelId)
+            .whereIn('prompt_slack_ts', timestamps);
+
+        return existingPrompts.map((p) => p.prompt_slack_ts);
+    }
+
+    // TODO: reuse this?
+    async bulkCreateSlackPrompts(
+        threadUuid: string,
+        promptsData: Pick<
+            SlackPrompt,
+            | 'createdByUserUuid'
+            | 'prompt'
+            | 'slackUserId'
+            | 'slackChannelId'
+            | 'promptSlackTs'
+            | 'createdAt'
+        >[],
+    ): Promise<string[]> {
+        if (promptsData.length === 0) return [];
+
+        return this.database.transaction(async (trx) => {
+            const promptRows = await trx(AiPromptTableName)
+                .insert(
+                    promptsData.map((data) => ({
+                        ai_thread_uuid: threadUuid,
+                        created_by_user_uuid: data.createdByUserUuid,
+                        prompt: data.prompt,
+                        ...(data.createdAt
+                            ? { created_at: data.createdAt }
+                            : {}),
+                    })),
+                )
+                .returning('ai_prompt_uuid');
+
+            if (promptRows.length !== promptsData.length) {
+                throw new Error('Failed to create all prompts');
+            }
+
+            await trx(AiSlackPromptTableName).insert(
+                promptRows.map((row, index) => ({
+                    ai_prompt_uuid: row.ai_prompt_uuid,
+                    slack_user_id: promptsData[index].slackUserId,
+                    slack_channel_id: promptsData[index].slackChannelId,
+                    prompt_slack_ts: promptsData[index].promptSlackTs,
+                })),
+            );
+
+            return promptRows.map((row) => row.ai_prompt_uuid);
+        });
+    }
 }
