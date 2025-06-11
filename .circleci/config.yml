@@ -27,4 +27,7 @@ workflows:
     jobs:
       - build-and-push-lightdash-image:
           name: build-docker
+<<<<<<< HEAD
           context: gke-production     
+=======
+>>>>>>> 8af6604cea (Fixed S3 Client for GCS compatibility)
