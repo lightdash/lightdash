@@ -11,6 +11,7 @@ import {
     type DownloadOptions,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
+    MAX_SAFE_INTEGER,
     type MetricQuery,
     ParameterError,
     QueryExecutionContext,
@@ -125,7 +126,7 @@ const executeAsyncQuery = (
         let queryLimit = data.query.limit;
         if (data.csvLimit !== undefined) {
             // For unlimited exports (null), use Number.MAX_SAFE_INTEGER
-            queryLimit = data.csvLimit ?? Number.MAX_SAFE_INTEGER;
+            queryLimit = data.csvLimit ?? MAX_SAFE_INTEGER;
         }
 
         return executeAsyncMetricQuery(
