@@ -1,3 +1,10 @@
+## [0.1702.1](https://github.com/lightdash/lightdash/compare/0.1702.0...0.1702.1) (2025-06-11)
+
+
+### Bug Fixes
+
+* Agent UI fixes from feedback ([#15254](https://github.com/lightdash/lightdash/issues/15254)) ([4ed5d25](https://github.com/lightdash/lightdash/commit/4ed5d253d17bd9c03a6e16429e5b2a9dfd7868f3)), closes [#15186](https://github.com/lightdash/lightdash/issues/15186) [#15187](https://github.com/lightdash/lightdash/issues/15187)
+
 # [0.1702.0](https://github.com/lightdash/lightdash/compare/0.1701.0...0.1702.0) (2025-06-10)
 
 
