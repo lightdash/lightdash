@@ -8,6 +8,7 @@ import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 
 export type ResultsAndColumns = {
+    queryUuid: string;
     fileUrl: string | undefined;
     results: RawResultRow[];
     columns: VizColumn[];

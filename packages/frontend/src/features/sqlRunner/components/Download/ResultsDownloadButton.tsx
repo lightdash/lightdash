@@ -4,65 +4,62 @@ import { IconDownload } from '@tabler/icons-react';
 import { type FC, useMemo } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import ExportResults from '../../../../components/ExportResults';
-import { type UseSavedSqlChartResults } from '../../hooks/useSavedSqlChartResults';
 
 type Props = {
     projectUuid: string;
-    chartResultsData?: UseSavedSqlChartResults;
+    disabled: boolean;
+    vizTableConfig?: VizTableConfig;
+    columnOrder: string[];
+    totalResults: number;
     chartName: string | undefined;
     getDownloadQueryUuid: (limit: number | null) => Promise<string>;
 };
 
 const ResultsDownloadButton: FC<Props> = ({
+    disabled,
     projectUuid,
-    chartResultsData,
+    vizTableConfig,
+    columnOrder,
+    totalResults,
     getDownloadQueryUuid,
     chartName,
 }) => {
-    const [downloadCustomLabels, downloadHiddenColumns, downloadColumnsOrder] =
-        useMemo(() => {
-            let customLabels: Record<string, string> = {};
-            try {
-                if (chartResultsData?.chartSpec.spec?.columns) {
-                    customLabels = Object.fromEntries(
-                        Object.entries(
-                            chartResultsData?.chartSpec.spec
-                                ?.columns as VizTableConfig['columns'],
-                        ).map(([key, config]) => [key, config.label]),
-                    );
-                }
-            } catch (error) {
-                console.warn('Failed to get custom labels for download', error);
-            }
-            let hiddenColumns: string[] = [];
-            try {
-                if (chartResultsData?.chartSpec.spec?.visibleColumns) {
-                    hiddenColumns = Object.entries(
-                        chartResultsData?.chartSpec.spec
-                            ?.columns as VizTableConfig['columns'],
-                    ).reduce<string[]>((acc, [key, config]) => {
-                        if (!config.visible) {
-                            acc.push(key);
-                        }
-                        return acc;
-                    }, []);
-                }
-            } catch (error) {
-                console.warn(
-                    'Failed to get hidden columns for download',
-                    error,
+    const [downloadCustomLabels, downloadHiddenColumns] = useMemo(() => {
+        let customLabels: Record<string, string> = {};
+        try {
+            if (vizTableConfig?.columns) {
+                customLabels = Object.fromEntries(
+                    Object.entries(vizTableConfig?.columns).map(
+                        ([key, config]) => [key, config.label],
+                    ),
                 );
             }
-            let columnOrder: string[] =
-                chartResultsData?.chartUnderlyingData?.columns ?? [];
-            return [customLabels, hiddenColumns, columnOrder];
-        }, [chartResultsData]);
+        } catch (error) {
+            console.warn('Failed to get custom labels for download', error);
+        }
+        let hiddenColumns: string[] = [];
+        try {
+            if (vizTableConfig?.columns) {
+                hiddenColumns = Object.entries(vizTableConfig?.columns).reduce<
+                    string[]
+                >((acc, [key, config]) => {
+                    if (!config.visible) {
+                        acc.push(key);
+                    }
+                    return acc;
+                }, []);
+            }
+        } catch (error) {
+            console.warn('Failed to get hidden columns for download', error);
+        }
+        return [customLabels, hiddenColumns];
+    }, [vizTableConfig]);
 
     return (
-        <Popover withArrow disabled={!chartResultsData}>
+        <Popover withArrow disabled={disabled}>
             <Popover.Target>
                 <Tooltip variant="xs" label="Download results">
-                    <ActionIcon variant="default" disabled={!chartResultsData}>
+                    <ActionIcon variant="default" disabled={disabled}>
                         <MantineIcon icon={IconDownload} />
                     </ActionIcon>
                 </Tooltip>
@@ -70,14 +67,12 @@ const ResultsDownloadButton: FC<Props> = ({
             <Popover.Dropdown>
                 <ExportResults
                     projectUuid={projectUuid}
-                    totalResults={
-                        chartResultsData?.chartUnderlyingData?.rows.length ?? 0
-                    }
+                    totalResults={totalResults}
                     getDownloadQueryUuid={getDownloadQueryUuid}
                     hiddenFields={downloadHiddenColumns}
                     chartName={chartName}
                     customLabels={downloadCustomLabels}
-                    columnOrder={downloadColumnsOrder}
+                    columnOrder={columnOrder}
                 />
             </Popover.Dropdown>
         </Popover>

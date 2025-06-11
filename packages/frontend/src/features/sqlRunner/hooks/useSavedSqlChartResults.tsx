@@ -42,7 +42,7 @@ const isDashboardArgs = (
     args: UseSavedSqlChartResultsArguments,
 ): args is SavedSqlChartDashboardArgs => 'dashboardUuid' in args;
 
-export type UseSavedSqlChartResults = {
+type UseSavedSqlChartResults = {
     queryUuid: string;
     chartSpec: Record<string, any>;
     resultsRunner: IResultsRunner;

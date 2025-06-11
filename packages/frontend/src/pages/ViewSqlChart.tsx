@@ -132,8 +132,21 @@ const ViewSqlChart = () => {
                             params.projectUuid && (
                                 <ResultsDownloadButton
                                     projectUuid={params.projectUuid}
-                                    chartResultsData={chartResultsData}
+                                    disabled={!chartResultsData}
+                                    vizTableConfig={
+                                        isVizTableConfig(chartData?.config)
+                                            ? chartData.config
+                                            : undefined
+                                    }
                                     chartName={chartData?.name}
+                                    totalResults={
+                                        chartResultsData?.chartUnderlyingData
+                                            ?.rows.length ?? 0
+                                    }
+                                    columnOrder={
+                                        chartResultsData?.chartUnderlyingData
+                                            ?.columns ?? []
+                                    }
                                     getDownloadQueryUuid={getDownloadQueryUuid}
                                 />
                             )}

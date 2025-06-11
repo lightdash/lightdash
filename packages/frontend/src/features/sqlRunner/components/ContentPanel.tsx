@@ -55,6 +55,7 @@ import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
+import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
@@ -64,6 +65,7 @@ import {
     selectFetchResultsOnLoad,
     selectLimit,
     selectProjectUuid,
+    selectQueryUuid,
     selectResultsTableConfig,
     selectSavedSqlChart,
     selectSql,
@@ -75,9 +77,9 @@ import {
 } from '../store/sqlRunnerSlice';
 import { runSqlQuery } from '../store/thunks';
 import { ChartDownload } from './Download/ChartDownload';
+import ResultsDownloadButton from './Download/ResultsDownloadButton';
 import { SqlEditor } from './SqlEditor';
 import { SqlQueryHistory } from './SqlQueryHistory';
-// import ResultsDownloadButton from './Download/ResultsDownloadButton';
 
 export const ContentPanel: FC = () => {
     // State we need from redux
@@ -85,6 +87,7 @@ export const ContentPanel: FC = () => {
     const fetchResultsOnLoad = useAppSelector(selectFetchResultsOnLoad);
     const projectUuid = useAppSelector(selectProjectUuid);
     const sql = useAppSelector(selectSql);
+    const queryUuid = useAppSelector(selectQueryUuid);
     const selectedChartType = useAppSelector(selectActiveChartType);
     const activeEditorTab = useAppSelector(selectActiveEditorTab);
     const limit = useAppSelector(selectLimit);
@@ -320,11 +323,25 @@ export const ContentPanel: FC = () => {
         );
     }, [currentVizConfig, pivotedChartInfo]);
 
-    console.log(
-        'pivotedChartInfo',
-        pivotedChartInfo,
-        queryResults,
-        currentVizConfig,
+    const getDownloadQueryUuid = useCallback(
+        async (downloadLimit: number | null) => {
+            // Always execute a new query if:
+            // 1. limit is null (meaning "all results" - should ignore existing query limits)
+            // 2. limit is different from current query
+            // 3. there is no fallback query uuid (in theory, never happens)
+            if (!queryUuid || limit === null || limit !== downloadLimit) {
+                const newQuery = await executeSqlQuery(
+                    projectUuid,
+                    sql,
+                    downloadLimit === null
+                        ? Number.MAX_SAFE_INTEGER
+                        : downloadLimit ?? limit,
+                );
+                return newQuery.queryUuid;
+            }
+            return queryUuid;
+        },
+        [sql, projectUuid, limit, queryUuid],
     );
 
     return (
@@ -462,21 +479,23 @@ export const ContentPanel: FC = () => {
                                 />
                             ) : (
                                 mode === 'default' && (
-                                    <p>hello</p>
-                                    // <ResultsDownloadButton
-                                    //     projectUuid={params.projectUuid}
-                                    //     chartResultsData={chartResultsData}
-                                    //     chartName={savedSqlChart?.name}
-                                    //     getDownloadQueryUuid={getDownloadQueryUuid}
-                                    // />
-                                    // <ResultsDownloadFromUrl
-                                    //     columnNames={
-                                    //         queryResults?.columns.map(
-                                    //             (c) => c.reference,
-                                    //         ) ?? []
-                                    //     }
-                                    //     defaultQueryLimit={defaultQueryLimit}
-                                    // />
+                                    <ResultsDownloadButton
+                                        projectUuid={projectUuid}
+                                        disabled={isLoadingSqlQuery}
+                                        chartName={savedSqlChart?.name}
+                                        vizTableConfig={
+                                            isVizTableConfig(currentVizConfig)
+                                                ? currentVizConfig
+                                                : undefined
+                                        }
+                                        totalResults={
+                                            resultsRunner.getRows().length
+                                        }
+                                        columnOrder={resultsRunner.getColumnNames()}
+                                        getDownloadQueryUuid={
+                                            getDownloadQueryUuid
+                                        }
+                                    />
                                 )
                             )}
                         </Group>
