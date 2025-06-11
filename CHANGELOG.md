@@ -1,3 +1,10 @@
+# [0.1703.0](https://github.com/lightdash/lightdash/compare/0.1702.1...0.1703.0) (2025-06-11)
+
+
+### Features
+
+* show agents only in project ([#15263](https://github.com/lightdash/lightdash/issues/15263)) ([a39a678](https://github.com/lightdash/lightdash/commit/a39a6781e9eddf3d8142fea3842ceb6957bf4ca9))
+
 ## [0.1702.1](https://github.com/lightdash/lightdash/compare/0.1702.0...0.1702.1) (2025-06-11)
 
 
