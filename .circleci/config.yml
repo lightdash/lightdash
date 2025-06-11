@@ -1,0 +1,29 @@
+version: 2.1
+
+orbs:
+  infra: onesignal/infra-circle-orb@0.10.3
+
+jobs:
+  build-and-push-lightdash-image:
+    executor:
+      name: infra/default
+      resource_class: "medium"
+    steps:
+      - checkout
+      - infra/init
+      - infra/build-push:
+          multi_arch: false
+          resource_class: medium
+          build_args: ""
+          registry: "europe-west4-docker.pkg.dev/core-infra-onesignal"
+          repository: "onesignal"
+          docker_dir: "./"
+          dockerfile: "dockerfile"
+          image: "onesignal-lightdash"
+
+workflows:
+  version: 2
+  build-and-push-lightdash-image-workflow:
+    jobs:
+      - build-and-push-lightdash-image:
+          name: build-docker
