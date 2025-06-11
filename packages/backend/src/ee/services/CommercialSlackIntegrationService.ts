@@ -47,6 +47,7 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
             appProfilePhotoUrl: installation.appProfilePhotoUrl,
             slackChannelProjectMappings:
                 installation.slackChannelProjectMappings,
+            aiThreadAccessConsent: installation.aiThreadAccessConsent,
         };
 
         return response;

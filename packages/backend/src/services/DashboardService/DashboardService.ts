@@ -154,6 +154,7 @@ export class DashboardService
             loomTilesCount: dashboard.tiles.filter(
                 ({ type }) => type === DashboardTileTypes.LOOM,
             ).length,
+            tabsCount: dashboard.tabs.length,
         };
     }
 

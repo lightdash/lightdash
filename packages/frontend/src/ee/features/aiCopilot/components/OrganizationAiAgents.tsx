@@ -17,9 +17,9 @@ import {
     useSlackChannels,
 } from '../../../../hooks/slack/useSlack';
 import { useProjects } from '../../../../hooks/useProjects';
-import { useAiAgents } from '../hooks/useAiAgents';
+import { useAiAgents } from '../hooks/useOrganizationAiAgents';
 
-export const AiAgents: FC = () => {
+export const OrganizationAiAgents: FC = () => {
     const navigate = useNavigate();
 
     const { data: slackInstallation } = useGetSlack();

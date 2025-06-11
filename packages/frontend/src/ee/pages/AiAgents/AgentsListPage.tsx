@@ -17,19 +17,20 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { IconBook, IconHelp, IconPlus } from '@tabler/icons-react';
-import { Link } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import Page from '../../../components/common/Page/Page';
 import PageSpinner from '../../../components/PageSpinner';
 import useApp from '../../../providers/App/useApp';
-import { useAiAgents } from '../../features/aiCopilot/hooks/useAiAgents';
+import { useProjectAiAgents } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 
 type AgentCardProps = {
     agent: AiAgent;
 };
 
 const AgentCard = ({ agent }: AgentCardProps) => {
+    const { projectUuid } = useParams();
     const { user } = useApp();
 
     return (
@@ -41,7 +42,7 @@ const AgentCard = ({ agent }: AgentCardProps) => {
                 root: { height: '100%' },
             }}
             component={Link}
-            to={`/ai-agents/${agent.uuid}/threads`}
+            to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
         >
             <Stack gap="sm" p="lg" style={{ flex: 1 }}>
                 <Group gap="sm" wrap="nowrap" align="flex-start">
@@ -105,7 +106,8 @@ const AgentCard = ({ agent }: AgentCardProps) => {
 };
 
 const AgentsListPage = () => {
-    const agentsListQuery = useAiAgents();
+    const { projectUuid } = useParams();
+    const agentsListQuery = useProjectAiAgents(projectUuid);
     const { user } = useApp();
 
     if (agentsListQuery.isLoading) {

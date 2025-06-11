@@ -1,3 +1,59 @@
+## [0.1707.1](https://github.com/lightdash/lightdash/compare/0.1707.0...0.1707.1) (2025-06-11)
+
+
+### Bug Fixes
+
+* pass bom: true to stringify ([#15269](https://github.com/lightdash/lightdash/issues/15269)) ([de6c7f2](https://github.com/lightdash/lightdash/commit/de6c7f21a758cd8647ed546247f3a5db069b5e47))
+
+# [0.1707.0](https://github.com/lightdash/lightdash/compare/0.1706.0...0.1707.0) (2025-06-11)
+
+
+### Features
+
+* optimistically track user feedback on Agent responses ([#15270](https://github.com/lightdash/lightdash/issues/15270)) ([93bc54b](https://github.com/lightdash/lightdash/commit/93bc54b87f0625ed6b3c5923e2f8d9f72656526d))
+
+# [0.1706.0](https://github.com/lightdash/lightdash/compare/0.1705.0...0.1706.0) (2025-06-11)
+
+
+### Features
+
+* add tabs count analytics when saving a dashbaord ([#15240](https://github.com/lightdash/lightdash/issues/15240)) ([c747f83](https://github.com/lightdash/lightdash/commit/c747f831e7bc83f9aca0f6c4b08ae94803134088))
+
+# [0.1705.0](https://github.com/lightdash/lightdash/compare/0.1704.0...0.1705.0) (2025-06-11)
+
+
+### Features
+
+* add fallbackType to DashboardFieldTarget for SQL column filters ([#15234](https://github.com/lightdash/lightdash/issues/15234)) ([ad15d87](https://github.com/lightdash/lightdash/commit/ad15d87b41eed02c27de253b67a9201192c2ed12))
+
+# [0.1704.0](https://github.com/lightdash/lightdash/compare/0.1703.1...0.1704.0) (2025-06-11)
+
+
+### Features
+
+* allow setting thread context consent ([#15223](https://github.com/lightdash/lightdash/issues/15223)) ([0fe53ae](https://github.com/lightdash/lightdash/commit/0fe53ae2a378871cd45c6c76aa7394fc7cdf99e0))
+
+## [0.1703.1](https://github.com/lightdash/lightdash/compare/0.1703.0...0.1703.1) (2025-06-11)
+
+
+### Bug Fixes
+
+* remove download limit on fe ([#15264](https://github.com/lightdash/lightdash/issues/15264)) ([7cff51f](https://github.com/lightdash/lightdash/commit/7cff51fd3d21ce40308a9c22aac2928d620a8ff0))
+
+# [0.1703.0](https://github.com/lightdash/lightdash/compare/0.1702.1...0.1703.0) (2025-06-11)
+
+
+### Features
+
+* show agents only in project ([#15263](https://github.com/lightdash/lightdash/issues/15263)) ([a39a678](https://github.com/lightdash/lightdash/commit/a39a6781e9eddf3d8142fea3842ceb6957bf4ca9))
+
+## [0.1702.1](https://github.com/lightdash/lightdash/compare/0.1702.0...0.1702.1) (2025-06-11)
+
+
+### Bug Fixes
+
+* Agent UI fixes from feedback ([#15254](https://github.com/lightdash/lightdash/issues/15254)) ([4ed5d25](https://github.com/lightdash/lightdash/commit/4ed5d253d17bd9c03a6e16429e5b2a9dfd7868f3)), closes [#15186](https://github.com/lightdash/lightdash/issues/15186) [#15187](https://github.com/lightdash/lightdash/issues/15187)
+
 # [0.1702.0](https://github.com/lightdash/lightdash/compare/0.1701.0...0.1702.0) (2025-06-10)
 
 

@@ -42,7 +42,7 @@ import {
     useCreateAiAgentMutation,
     useDeleteAiAgentMutation,
     useUpdateAiAgentMutation,
-} from '../hooks/useAiAgents';
+} from '../hooks/useOrganizationAiAgents';
 import { ConversationsList } from './ConversationsList';
 import { SlackIntegrationSteps } from './SlackIntegrationSteps';
 
@@ -72,7 +72,7 @@ const formSchema: z.ZodType<
     imageUrl: z.string().url().nullable(),
 });
 
-export const AgentDetails: FC = () => {
+export const OrganizationAiAgent: FC = () => {
     const navigate = useNavigate();
     const { agentId } = useParams<{ agentId: string }>();
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -83,12 +83,7 @@ export const AgentDetails: FC = () => {
     const isCreateMode = agentId === 'new';
     const agentUuid = !isCreateMode && agentId ? agentId : undefined;
 
-    const { data: agent, isLoading: isLoadingAgent } = useAiAgent(
-        agentUuid || '',
-        {
-            enabled: !!agentUuid,
-        },
-    );
+    const { data: agent, isLoading: isLoadingAgent } = useAiAgent(agentUuid);
     const { mutateAsync: deleteAgent } = useDeleteAiAgentMutation();
 
     const { data: slackInstallation } = useGetSlack();

@@ -660,6 +660,7 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         markdownTilesCount: number;
         loomTilesCount: number;
         duplicated?: boolean;
+        tabsCount?: number;
     };
 };
 

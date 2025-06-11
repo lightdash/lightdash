@@ -57,11 +57,13 @@ export class AiAgentModel {
     async getAgent({
         organizationUuid,
         agentUuid,
+        projectUuid,
     }: {
         organizationUuid: string;
         agentUuid: string;
+        projectUuid?: string;
     }): Promise<AiAgentSummary> {
-        const agent = await this.database(AiAgentTableName)
+        const query = this.database(AiAgentTableName)
             .select({
                 uuid: `${AiAgentTableName}.ai_agent_uuid`,
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
@@ -106,6 +108,12 @@ export class AiAgentModel {
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`)
             .first<AiAgent | undefined>();
 
+        if (projectUuid) {
+            void query.where(`${AiAgentTableName}.project_uuid`, projectUuid);
+        }
+
+        const agent = await query;
+
         if (!agent) {
             throw new AiAgentNotFoundError(
                 `AI agent not found for uuid: ${agentUuid}`,
@@ -117,10 +125,12 @@ export class AiAgentModel {
 
     async findAllAgents({
         organizationUuid,
+        projectUuid,
     }: {
         organizationUuid: string;
+        projectUuid?: string;
     }): Promise<AiAgentSummary[]> {
-        const rows = await this.database(AiAgentTableName)
+        const query = this.database(AiAgentTableName)
             .select({
                 uuid: `${AiAgentTableName}.ai_agent_uuid`,
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
@@ -162,6 +172,12 @@ export class AiAgentModel {
             )
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`);
+
+        if (projectUuid) {
+            void query.where(`${AiAgentTableName}.project_uuid`, projectUuid);
+        }
+
+        const rows = await query;
 
         return rows;
     }
@@ -1123,5 +1139,65 @@ export class AiAgentModel {
                 ai_prompt_uuid: data.promptUuid,
             })
             .returning('ai_prompt_uuid');
+    }
+
+    async existsSlackPromptsByChannelAndTimestamps(
+        slackChannelId: string,
+        timestamps: string[],
+    ): Promise<string[]> {
+        if (timestamps.length === 0) return [];
+
+        const existingPrompts = await this.database(AiSlackPromptTableName)
+            .select('prompt_slack_ts')
+            .where('slack_channel_id', slackChannelId)
+            .whereIn('prompt_slack_ts', timestamps);
+
+        return existingPrompts.map((p) => p.prompt_slack_ts);
+    }
+
+    // TODO: reuse this?
+    async bulkCreateSlackPrompts(
+        threadUuid: string,
+        promptsData: Pick<
+            SlackPrompt,
+            | 'createdByUserUuid'
+            | 'prompt'
+            | 'slackUserId'
+            | 'slackChannelId'
+            | 'promptSlackTs'
+            | 'createdAt'
+        >[],
+    ): Promise<string[]> {
+        if (promptsData.length === 0) return [];
+
+        return this.database.transaction(async (trx) => {
+            const promptRows = await trx(AiPromptTableName)
+                .insert(
+                    promptsData.map((data) => ({
+                        ai_thread_uuid: threadUuid,
+                        created_by_user_uuid: data.createdByUserUuid,
+                        prompt: data.prompt,
+                        ...(data.createdAt
+                            ? { created_at: data.createdAt }
+                            : {}),
+                    })),
+                )
+                .returning('ai_prompt_uuid');
+
+            if (promptRows.length !== promptsData.length) {
+                throw new Error('Failed to create all prompts');
+            }
+
+            await trx(AiSlackPromptTableName).insert(
+                promptRows.map((row, index) => ({
+                    ai_prompt_uuid: row.ai_prompt_uuid,
+                    slack_user_id: promptsData[index].slackUserId,
+                    slack_channel_id: promptsData[index].slackChannelId,
+                    prompt_slack_ts: promptsData[index].promptSlackTs,
+                })),
+            );
+
+            return promptRows.map((row) => row.ai_prompt_uuid);
+        });
     }
 }

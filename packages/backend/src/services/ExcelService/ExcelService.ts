@@ -309,7 +309,7 @@ export class ExcelService {
         readStream,
         onRow,
         onComplete,
-        maxLines = 100000,
+        maxLines = 1_000_000,
     }: {
         readStream: Readable;
         onRow?: (
