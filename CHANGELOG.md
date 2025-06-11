@@ -1,3 +1,10 @@
+## [0.1709.1](https://github.com/lightdash/lightdash/compare/0.1709.0...0.1709.1) (2025-06-11)
+
+
+### Bug Fixes
+
+* add BOM character to CSV test expectations ([#15295](https://github.com/lightdash/lightdash/issues/15295)) ([8d0625a](https://github.com/lightdash/lightdash/commit/8d0625aa6c0e8b327a47ac0d278deb548b598b77))
+
 # [0.1709.0](https://github.com/lightdash/lightdash/compare/0.1708.0...0.1709.0) (2025-06-11)
 
 
