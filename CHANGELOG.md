@@ -1,3 +1,10 @@
+# [0.1705.0](https://github.com/lightdash/lightdash/compare/0.1704.0...0.1705.0) (2025-06-11)
+
+
+### Features
+
+* add fallbackType to DashboardFieldTarget for SQL column filters ([#15234](https://github.com/lightdash/lightdash/issues/15234)) ([ad15d87](https://github.com/lightdash/lightdash/commit/ad15d87b41eed02c27de253b67a9201192c2ed12))
+
 # [0.1704.0](https://github.com/lightdash/lightdash/compare/0.1703.1...0.1704.0) (2025-06-11)
 
 
