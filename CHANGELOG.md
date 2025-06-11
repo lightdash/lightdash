@@ -1,3 +1,10 @@
+## [0.1703.1](https://github.com/lightdash/lightdash/compare/0.1703.0...0.1703.1) (2025-06-11)
+
+
+### Bug Fixes
+
+* remove download limit on fe ([#15264](https://github.com/lightdash/lightdash/issues/15264)) ([7cff51f](https://github.com/lightdash/lightdash/commit/7cff51fd3d21ce40308a9c22aac2928d620a8ff0))
+
 # [0.1703.0](https://github.com/lightdash/lightdash/compare/0.1702.1...0.1703.0) (2025-06-11)
 
 
