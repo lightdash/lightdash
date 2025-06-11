@@ -1,3 +1,10 @@
+# [0.1706.0](https://github.com/lightdash/lightdash/compare/0.1705.0...0.1706.0) (2025-06-11)
+
+
+### Features
+
+* add tabs count analytics when saving a dashbaord ([#15240](https://github.com/lightdash/lightdash/issues/15240)) ([c747f83](https://github.com/lightdash/lightdash/commit/c747f831e7bc83f9aca0f6c4b08ae94803134088))
+
 # [0.1705.0](https://github.com/lightdash/lightdash/compare/0.1704.0...0.1705.0) (2025-06-11)
 
 
