@@ -509,6 +509,30 @@ export const useUpdatePromptFeedbackMutation = (
     >({
         mutationFn: ({ messageUuid, humanScore }) =>
             updatePromptFeedback(messageUuid, humanScore),
+        onMutate: ({ messageUuid, humanScore }) => {
+            queryClient.setQueryData(
+                [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
+                (
+                    currentData:
+                        | ApiAiAgentThreadResponse['results']
+                        | undefined,
+                ) => {
+                    if (!currentData) return currentData;
+
+                    return {
+                        ...currentData,
+                        messages: currentData.messages.map((message) =>
+                            message.uuid === messageUuid
+                                ? {
+                                      ...message,
+                                      humanScore,
+                                  }
+                                : message,
+                        ),
+                    };
+                },
+            );
+        },
         onSuccess: () => {
             // Invalidate relevant queries to refresh the data
             void queryClient.invalidateQueries({
