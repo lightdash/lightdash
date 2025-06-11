@@ -1,3 +1,10 @@
+## [0.1707.2](https://github.com/lightdash/lightdash/compare/0.1707.1...0.1707.2) (2025-06-11)
+
+
+### Bug Fixes
+
+* waiting for drain ([#15284](https://github.com/lightdash/lightdash/issues/15284)) ([b9eb515](https://github.com/lightdash/lightdash/commit/b9eb5150cf0a28734ac935a4dcc1fcd58eda4f6f))
+
 ## [0.1707.1](https://github.com/lightdash/lightdash/compare/0.1707.0...0.1707.1) (2025-06-11)
 
 
