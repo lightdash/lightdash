@@ -1,3 +1,10 @@
+## [0.1707.1](https://github.com/lightdash/lightdash/compare/0.1707.0...0.1707.1) (2025-06-11)
+
+
+### Bug Fixes
+
+* pass bom: true to stringify ([#15269](https://github.com/lightdash/lightdash/issues/15269)) ([de6c7f2](https://github.com/lightdash/lightdash/commit/de6c7f21a758cd8647ed546247f3a5db069b5e47))
+
 # [0.1707.0](https://github.com/lightdash/lightdash/compare/0.1706.0...0.1707.0) (2025-06-11)
 
 
