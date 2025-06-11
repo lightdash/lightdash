@@ -4,6 +4,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getErrorMessage, WarehouseResults } from '@lightdash/common';
 import { PassThrough, Readable, Writable } from 'stream';
 import Logger from '../../logging/logger';
+import { sanitizeGenericFileName } from '../../utils/FileDownloadUtils';
 import {
     S3CacheClient,
     type S3CacheClientArguments,
@@ -34,6 +35,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         opts: {
             contentType: string;
         },
+        attachmentDownloadName?: string,
     ) {
         const passThrough = new PassThrough();
 
@@ -44,7 +46,9 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
                 Key: fileName,
                 Body: passThrough,
                 ContentType: opts.contentType,
-                ContentDisposition: `attachment; filename="${fileName}"`,
+                ContentDisposition: `attachment; filename="${
+                    attachmentDownloadName || fileName
+                }"`,
             },
         });
 
@@ -137,6 +141,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             readStream: Readable,
             writeStream: Writable,
         ) => Promise<{ truncated: boolean }>,
+        attachmentDownloadName?: string,
     ): Promise<{ fileUrl: string; truncated: boolean }> {
         // File format configuration map
         const formatConfig = new Map([
@@ -159,9 +164,17 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             formatConfig.get(fileExtension) || formatConfig.get('jsonl')!;
 
         // Create upload stream
-        const { writeStream, close } = this.createUploadStream(sinkFileName, {
-            contentType: config.contentType,
-        });
+        const { writeStream, close } = this.createUploadStream(
+            sinkFileName,
+            {
+                contentType: config.contentType,
+            },
+            attachmentDownloadName
+                ? `${sanitizeGenericFileName(attachmentDownloadName)}.${
+                      config.extension
+                  }`
+                : undefined,
+        );
 
         // Get the results stream
         const resultsStream = await this.getDowloadStream(

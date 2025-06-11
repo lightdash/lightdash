@@ -128,6 +128,7 @@ export type DownloadAsyncQueryResultsRequestParams = {
     columnOrder?: string[];
     hiddenFields?: string[];
     pivotConfig?: PivotConfig;
+    attachmentDownloadName?: string;
 };
 
 export type ExecuteAsyncQueryRequestParams =

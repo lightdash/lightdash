@@ -45,6 +45,7 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     columnOrder?: string[];
     hiddenFields?: string[];
     pivotConfig?: PivotConfig;
+    attachmentDownloadName?: string;
 };
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
