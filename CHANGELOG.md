@@ -1,3 +1,10 @@
+# [0.1707.0](https://github.com/lightdash/lightdash/compare/0.1706.0...0.1707.0) (2025-06-11)
+
+
+### Features
+
+* optimistically track user feedback on Agent responses ([#15270](https://github.com/lightdash/lightdash/issues/15270)) ([93bc54b](https://github.com/lightdash/lightdash/commit/93bc54b87f0625ed6b3c5923e2f8d9f72656526d))
+
 # [0.1706.0](https://github.com/lightdash/lightdash/compare/0.1705.0...0.1706.0) (2025-06-11)
 
 
