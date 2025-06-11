@@ -1,62 +1,84 @@
-import { capitalize, DownloadFileType } from '@lightdash/common';
-import { ActionIcon, Button, Popover, Radio, Stack } from '@mantine/core';
-import { IconDownload } from '@tabler/icons-react';
+import {
+    capitalize,
+    DownloadFileType,
+    type VizTableConfig,
+} from '@lightdash/common';
+import {
+    ActionIcon,
+    Center,
+    Popover,
+    SegmentedControl,
+    Stack,
+    Text,
+} from '@mantine/core';
+import { IconDownload, IconPhoto, IconTableExport } from '@tabler/icons-react';
 import { type EChartsInstance } from 'echarts-for-react';
 import { memo, useState } from 'react';
 import ChartDownloadOptions from '../../../../components/common/ChartDownload/ChartDownloadOptions';
 import { DownloadType } from '../../../../components/common/ChartDownload/chartDownloadUtils';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { useDownloadResults } from '../../hooks/useDownloadResults';
+import ExportResults, {
+    type ExportResultsProps,
+} from '../../../../components/ExportResults';
 
-type Props = {
-    fileUrl: string | undefined;
-    columnNames: string[];
-    chartName: string | undefined;
+type Props = ExportResultsProps & {
+    disabled: boolean;
+    vizTableConfig?: VizTableConfig;
     echartsInstance: EChartsInstance;
 };
 
 export const ChartDownload: React.FC<Props> = memo(
-    ({ fileUrl, columnNames, chartName, echartsInstance }) => {
+    ({ disabled, vizTableConfig, echartsInstance, ...rest }) => {
         const [downloadFormat, setDownloadFormat] = useState<
             DownloadFileType.CSV | DownloadFileType.IMAGE
         >(DownloadFileType.CSV);
-
-        const { handleDownload: handleCsvDownload } = useDownloadResults({
-            fileUrl,
-            columnNames,
-            chartName,
-        });
-
         return (
             <Popover>
                 <Popover.Target>
-                    <ActionIcon variant="default" disabled={!fileUrl}>
+                    <ActionIcon variant="default" disabled={disabled}>
                         <MantineIcon icon={IconDownload} />
                     </ActionIcon>
                 </Popover.Target>
                 <Popover.Dropdown miw={250}>
                     <Stack spacing="xs">
-                        <Radio.Group
-                            size="sm"
-                            value={downloadFormat}
-                            onChange={(
-                                value:
-                                    | DownloadFileType.CSV
-                                    | DownloadFileType.IMAGE,
-                            ) => setDownloadFormat(value)}
-                            name="download-format"
-                            label="Format"
-                        >
-                            <Radio
-                                value={DownloadFileType.CSV}
-                                label={capitalize(DownloadFileType.CSV)}
-                                my="xs"
+                        <Stack spacing="xs">
+                            <Text fw={500}>Download as</Text>
+                            <SegmentedControl
+                                size="xs"
+                                value={downloadFormat}
+                                onChange={(
+                                    value:
+                                        | DownloadFileType.CSV
+                                        | DownloadFileType.IMAGE,
+                                ) => setDownloadFormat(value)}
+                                data={[
+                                    {
+                                        value: DownloadFileType.CSV,
+                                        label: (
+                                            <Center>
+                                                <MantineIcon
+                                                    icon={IconTableExport}
+                                                />
+                                                <Text ml={'xs'}>Results</Text>
+                                            </Center>
+                                        ),
+                                    },
+                                    {
+                                        value: DownloadFileType.IMAGE,
+                                        label: (
+                                            <Center>
+                                                <MantineIcon icon={IconPhoto} />
+                                                <Text ml={'xs'}>
+                                                    {capitalize(
+                                                        DownloadFileType.IMAGE,
+                                                    )}
+                                                </Text>
+                                            </Center>
+                                        ),
+                                    },
+                                ]}
                             />
-                            <Radio
-                                value={DownloadFileType.IMAGE}
-                                label={capitalize(DownloadFileType.IMAGE)}
-                            />
-                        </Radio.Group>
+                        </Stack>
                         {downloadFormat === DownloadFileType.IMAGE && (
                             <ChartDownloadOptions
                                 getChartInstance={() => echartsInstance}
@@ -64,14 +86,7 @@ export const ChartDownload: React.FC<Props> = memo(
                             />
                         )}
                         {downloadFormat === DownloadFileType.CSV && (
-                            <Button
-                                size="xs"
-                                ml="auto"
-                                leftIcon={<MantineIcon icon={IconDownload} />}
-                                onClick={handleCsvDownload}
-                            >
-                                Download
-                            </Button>
+                            <ExportResults {...rest} />
                         )}
                     </Stack>
                 </Popover.Dropdown>

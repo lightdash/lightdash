@@ -110,6 +110,7 @@ export type PivotValuesColumn = {
 };
 
 export type PivotChartData = {
+    queryUuid: string | undefined;
     fileUrl: string | undefined;
     results: RawResultRow[];
     indexColumn: PivotIndexColum;
