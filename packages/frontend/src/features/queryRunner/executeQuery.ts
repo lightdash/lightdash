@@ -60,6 +60,7 @@ export const executeSqlQuery = async (
     const results = await getResultsFromStream<RawResultRow>(fileUrl);
 
     return {
+        queryUuid: query.queryUuid,
         fileUrl,
         results,
         columns: Object.values(query.columns),

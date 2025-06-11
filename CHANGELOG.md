@@ -1,3 +1,17 @@
+## [0.1709.1](https://github.com/lightdash/lightdash/compare/0.1709.0...0.1709.1) (2025-06-11)
+
+
+### Bug Fixes
+
+* add BOM character to CSV test expectations ([#15295](https://github.com/lightdash/lightdash/issues/15295)) ([8d0625a](https://github.com/lightdash/lightdash/commit/8d0625aa6c0e8b327a47ac0d278deb548b598b77))
+
+# [0.1709.0](https://github.com/lightdash/lightdash/compare/0.1708.0...0.1709.0) (2025-06-11)
+
+
+### Features
+
+* Excel download option for SQL chart tables in edit page ([#15283](https://github.com/lightdash/lightdash/issues/15283)) ([47b16c9](https://github.com/lightdash/lightdash/commit/47b16c9bfbfa375465b9fbbefce7999d7b843b91))
+
 # [0.1708.0](https://github.com/lightdash/lightdash/compare/0.1707.2...0.1708.0) (2025-06-11)
 
 

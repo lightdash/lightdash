@@ -99,7 +99,8 @@ describe('Csv service', () => {
         });
 
         expect(csvContent).toEqual(
-            `column number,column string,column date
+            // eslint-disable-next-line no-irregular-whitespace
+            `﻿column number,column string,column date
 $0.00,value_0,2020-03-16
 $1.00,value_1,2020-03-16
 $2.00,value_2,2020-03-16
@@ -132,7 +133,8 @@ $4.00,value_4,2020-03-16
         });
 
         expect(csvContent).toEqual(
-            `table column number,column string,table column date
+            // eslint-disable-next-line no-irregular-whitespace
+            `﻿table column number,column string,table column date
 0,value_0,2020-03-16
 1,value_1,2020-03-16
 2,value_2,2020-03-16
