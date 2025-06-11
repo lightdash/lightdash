@@ -4,6 +4,9 @@ export type YamlColumn = {
     name: string;
     description?: string;
     meta?: DbtColumnMetadata;
+    config?: {
+        meta?: DbtColumnMetadata;
+    };
 };
 
 export type YamlModel = {
@@ -11,6 +14,9 @@ export type YamlModel = {
     description?: string;
     columns?: YamlColumn[];
     meta?: DbtModelMetadata;
+    config?: {
+        meta?: DbtModelMetadata;
+    };
 };
 
 export type YamlSchema = {
