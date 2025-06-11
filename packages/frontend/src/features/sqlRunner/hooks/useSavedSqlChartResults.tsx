@@ -164,13 +164,13 @@ export const useSavedSqlChartResults = (
                               dashboardSorts: args.dashboardSorts,
                               savedSqlUuid,
                               context: args.context as QueryExecutionContext,
-                              limit,
+                              limit: limit ?? Number.MAX_SAFE_INTEGER,
                           })
                         : await getSqlChartPivotChartData({
                               projectUuid: projectUuid!,
                               savedSqlUuid: chartQuery.data.savedSqlUuid,
                               context: context as QueryExecutionContext,
-                              limit,
+                              limit: limit ?? Number.MAX_SAFE_INTEGER,
                           });
                 queryUuidToDownload = queryForDownload.queryUuid;
             }
