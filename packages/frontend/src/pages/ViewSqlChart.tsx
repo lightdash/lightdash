@@ -1,33 +1,26 @@
-import { isVizTableConfig, type VizTableConfig } from '@lightdash/common';
+import { isVizTableConfig } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     Group,
     Paper,
-    Popover,
     SegmentedControl,
     Stack,
     Text,
-    Tooltip,
 } from '@mantine/core';
-import {
-    IconChartHistogram,
-    IconDownload,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconChartHistogram, IconTable } from '@tabler/icons-react';
 import type { EChartsInstance } from 'echarts-for-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import { ChartDataTable } from '../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
-import ExportResults from '../components/ExportResults';
 import { ConditionalVisibility } from '../components/common/ConditionalVisibility';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import { ChartDownload } from '../features/sqlRunner/components/Download/ChartDownload';
+import ResultsDownloadButton from '../features/sqlRunner/components/Download/ResultsDownloadButton';
 import { Header } from '../features/sqlRunner/components/Header';
 import { useSavedSqlChartResults } from '../features/sqlRunner/hooks/useSavedSqlChartResults';
 import { store } from '../features/sqlRunner/store';
@@ -77,45 +70,6 @@ const ViewSqlChart = () => {
             dispatch(setProjectUuid(params.projectUuid));
         }
     }, [dispatch, chartData, params.projectUuid]);
-
-    const [downloadCustomLabels, downloadHiddenColumns, downloadColumnsOrder] =
-        useMemo(() => {
-            let customLabels: Record<string, string> = {};
-            try {
-                if (chartResultsData?.chartSpec.spec?.columns) {
-                    customLabels = Object.fromEntries(
-                        Object.entries(
-                            chartResultsData?.chartSpec.spec
-                                ?.columns as VizTableConfig['columns'],
-                        ).map(([key, config]) => [key, config.label]),
-                    );
-                }
-            } catch (error) {
-                console.warn('Failed to get custom labels for download', error);
-            }
-            let hiddenColumns: string[] = [];
-            try {
-                if (chartResultsData?.chartSpec.spec?.visibleColumns) {
-                    hiddenColumns = Object.entries(
-                        chartResultsData?.chartSpec.spec
-                            ?.columns as VizTableConfig['columns'],
-                    ).reduce<string[]>((acc, [key, config]) => {
-                        if (!config.visible) {
-                            acc.push(key);
-                        }
-                        return acc;
-                    }, []);
-                }
-            } catch (error) {
-                console.warn(
-                    'Failed to get hidden columns for download',
-                    error,
-                );
-            }
-            let columnOrder: string[] =
-                chartResultsData?.chartUnderlyingData?.columns ?? [];
-            return [customLabels, hiddenColumns, columnOrder];
-        }, [chartResultsData]);
 
     return (
         <Page
@@ -176,40 +130,25 @@ const ViewSqlChart = () => {
                             (activeTab === TabOption.CHART &&
                                 isVizTableConfig(chartData?.config))) &&
                             params.projectUuid && (
-                                <Popover withArrow disabled={!chartResultsData}>
-                                    <Popover.Target>
-                                        <Tooltip
-                                            variant="xs"
-                                            label="Download results"
-                                        >
-                                            <ActionIcon
-                                                variant="default"
-                                                disabled={!chartResultsData}
-                                            >
-                                                <MantineIcon
-                                                    icon={IconDownload}
-                                                />
-                                            </ActionIcon>
-                                        </Tooltip>
-                                    </Popover.Target>
-                                    <Popover.Dropdown>
-                                        <ExportResults
-                                            projectUuid={params.projectUuid}
-                                            totalResults={
-                                                chartResultsData
-                                                    ?.chartUnderlyingData?.rows
-                                                    .length ?? 0
-                                            }
-                                            getDownloadQueryUuid={
-                                                getDownloadQueryUuid
-                                            }
-                                            hiddenFields={downloadHiddenColumns}
-                                            chartName={chartData?.name}
-                                            customLabels={downloadCustomLabels}
-                                            columnOrder={downloadColumnsOrder}
-                                        />
-                                    </Popover.Dropdown>
-                                </Popover>
+                                <ResultsDownloadButton
+                                    projectUuid={params.projectUuid}
+                                    disabled={!chartResultsData}
+                                    vizTableConfig={
+                                        isVizTableConfig(chartData?.config)
+                                            ? chartData.config
+                                            : undefined
+                                    }
+                                    chartName={chartData?.name}
+                                    totalResults={
+                                        chartResultsData?.chartUnderlyingData
+                                            ?.rows.length ?? 0
+                                    }
+                                    columnOrder={
+                                        chartResultsData?.chartUnderlyingData
+                                            ?.columns ?? []
+                                    }
+                                    getDownloadQueryUuid={getDownloadQueryUuid}
+                                />
                             )}
                         {activeTab === TabOption.CHART && echartsInstance && (
                             <ChartDownload

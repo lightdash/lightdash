@@ -42,6 +42,17 @@ const isDashboardArgs = (
     args: UseSavedSqlChartResultsArguments,
 ): args is SavedSqlChartDashboardArgs => 'dashboardUuid' in args;
 
+type UseSavedSqlChartResults = {
+    queryUuid: string;
+    chartSpec: Record<string, any>;
+    resultsRunner: IResultsRunner;
+    fileUrl: string;
+    chartUnderlyingData:
+        | { columns: string[]; rows: RawResultRow[] }
+        | undefined;
+    originalColumns: ResultColumns;
+};
+
 export const useSavedSqlChartResults = (
     args: UseSavedSqlChartResultsArguments,
 ) => {
@@ -66,16 +77,7 @@ export const useSavedSqlChartResults = (
 
     // Step 2: Get the results
     const chartResultsQuery = useQuery<
-        {
-            queryUuid: string;
-            chartSpec: Record<string, any>;
-            resultsRunner: IResultsRunner;
-            fileUrl: string;
-            chartUnderlyingData:
-                | { columns: string[]; rows: RawResultRow[] }
-                | undefined;
-            originalColumns: ResultColumns;
-        },
+        UseSavedSqlChartResults,
         Partial<ApiError>
     >(
         ['savedSqlChartResults', savedSqlUuid ?? slug, args], // keep uuid/slug in the key to facilitate cache invalidation

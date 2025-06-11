@@ -84,6 +84,7 @@ export interface SqlRunnerState {
     activeTable: string | undefined;
     activeSchema: string | undefined;
     savedSqlChart: SqlChart | undefined;
+    queryUuid: string | undefined;
     fileUrl: string | undefined;
     name: string;
     description: string;
@@ -137,6 +138,7 @@ export const initialState: SqlRunnerState = {
     activeTable: undefined,
     activeSchema: undefined,
     savedSqlChart: undefined,
+    queryUuid: undefined,
     fileUrl: undefined,
     name: '',
     description: '',
@@ -194,6 +196,7 @@ export const sqlRunnerSlice = createSlice({
         selectFetchResultsOnLoad: (state) => state.fetchResultsOnLoad,
         selectProjectUuid: (state) => state.projectUuid,
         selectSql: (state) => state.sql,
+        selectQueryUuid: (state) => state.queryUuid,
         selectActiveChartType: (state) => state.selectedChartType,
         selectActiveEditorTab: (state) => state.activeEditorTab,
         selectLimit: (state) => state.limit,
@@ -343,6 +346,7 @@ export const sqlRunnerSlice = createSlice({
                 state.queryIsLoading = false;
                 state.sqlColumns = action.payload.columns;
                 state.sqlRows = action.payload.results;
+                state.queryUuid = action.payload.queryUuid;
                 state.fileUrl = action.payload.fileUrl;
                 state.editorHighlightError = undefined;
 
@@ -435,6 +439,7 @@ export const {
 export const {
     selectFetchResultsOnLoad,
     selectSql,
+    selectQueryUuid,
     selectProjectUuid,
     selectActiveChartType,
     selectLimit,
