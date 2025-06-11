@@ -68,12 +68,7 @@ const COMMERCIAL_AI_ROUTES: RouteObject[] = [
 
 const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
     {
-        path: '/aiAgents',
-        // redirrect to ai-agents/ if path is /aiAgents
-        element: <Navigate to="/ai-agents" replace />,
-    },
-    {
-        path: '/ai-agents',
+        path: '/projects/:projectUuid/ai-agents',
         element: (
             <PrivateRoute>
                 <NavBar />

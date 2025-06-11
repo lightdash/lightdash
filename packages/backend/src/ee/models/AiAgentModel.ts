@@ -57,11 +57,13 @@ export class AiAgentModel {
     async getAgent({
         organizationUuid,
         agentUuid,
+        projectUuid,
     }: {
         organizationUuid: string;
         agentUuid: string;
+        projectUuid?: string;
     }): Promise<AiAgentSummary> {
-        const agent = await this.database(AiAgentTableName)
+        const query = this.database(AiAgentTableName)
             .select({
                 uuid: `${AiAgentTableName}.ai_agent_uuid`,
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
@@ -106,6 +108,12 @@ export class AiAgentModel {
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`)
             .first<AiAgent | undefined>();
 
+        if (projectUuid) {
+            void query.where(`${AiAgentTableName}.project_uuid`, projectUuid);
+        }
+
+        const agent = await query;
+
         if (!agent) {
             throw new AiAgentNotFoundError(
                 `AI agent not found for uuid: ${agentUuid}`,
@@ -117,10 +125,12 @@ export class AiAgentModel {
 
     async findAllAgents({
         organizationUuid,
+        projectUuid,
     }: {
         organizationUuid: string;
+        projectUuid?: string;
     }): Promise<AiAgentSummary[]> {
-        const rows = await this.database(AiAgentTableName)
+        const query = this.database(AiAgentTableName)
             .select({
                 uuid: `${AiAgentTableName}.ai_agent_uuid`,
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
@@ -162,6 +172,12 @@ export class AiAgentModel {
             )
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`);
+
+        if (projectUuid) {
+            void query.where(`${AiAgentTableName}.project_uuid`, projectUuid);
+        }
+
+        const rows = await query;
 
         return rows;
     }

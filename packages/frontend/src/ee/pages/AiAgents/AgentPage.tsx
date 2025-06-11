@@ -36,7 +36,7 @@ import ClampedTextWithPopover from '../../features/aiCopilot/components/ClampedT
 import {
     useAiAgent,
     useAiAgentThreads,
-} from '../../features/aiCopilot/hooks/useAiAgents';
+} from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
 
 const INITIAL_MAX_THREADS = 10;
 const MAX_THREADS_INCREMENT = 10;
@@ -44,14 +44,19 @@ const MAX_THREADS_INCREMENT = 10;
 type ThreadNavLinkProps = {
     thread: AiAgentThreadSummary;
     isActive: boolean;
+    projectUuid: string;
 };
 
-const ThreadNavLink: FC<ThreadNavLinkProps> = ({ thread, isActive }) => (
+const ThreadNavLink: FC<ThreadNavLinkProps> = ({
+    thread,
+    isActive,
+    projectUuid,
+}) => (
     <NavLink
         color="gray"
         component={Link}
         key={thread.uuid}
-        to={`/ai-agents/${thread.agentUuid}/threads/${thread.uuid}`}
+        to={`/projects/${projectUuid}/ai-agents/${thread.agentUuid}/threads/${thread.uuid}`}
         px="xs"
         py={4}
         mx={-8}
@@ -76,10 +81,10 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({ thread, isActive }) => (
 );
 const AgentPage = () => {
     const { user } = useApp();
-    const { agentUuid, threadUuid } = useParams();
-    const { data: threads } = useAiAgentThreads(agentUuid ?? '');
+    const { agentUuid, threadUuid, projectUuid } = useParams();
+    const { data: threads } = useAiAgentThreads(agentUuid);
 
-    const { data: agent, isLoading: isLoadingAgent } = useAiAgent(agentUuid!);
+    const { data: agent, isLoading: isLoadingAgent } = useAiAgent(agentUuid);
     const { data: project } = useProject(agent?.projectUuid);
 
     const updatedAt = agent?.updatedAt ? new Date(agent.updatedAt) : new Date();
@@ -98,7 +103,7 @@ const AgentPage = () => {
     }
 
     if (!agent) {
-        return <Navigate to={`/ai-agents`} />;
+        return <Navigate to={`/projects/${projectUuid}/ai-agents`} />;
     }
 
     return (
@@ -110,7 +115,7 @@ const AgentPage = () => {
                             size="compact-xs"
                             variant="subtle"
                             component={Link}
-                            to="/ai-agents"
+                            to={`/projects/${projectUuid}/ai-agents`}
                             leftSection={<MantineIcon icon={IconArrowLeft} />}
                             style={{
                                 root: {
@@ -150,7 +155,7 @@ const AgentPage = () => {
                             leftSection={<IconPlus size={16} />}
                             component={Link}
                             size="xs"
-                            to={`/ai-agents/${agent.uuid}/threads`}
+                            to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
                         >
                             New thread
                         </Button>
@@ -198,7 +203,7 @@ const AgentPage = () => {
                         </Stack>
                     )}
 
-                    {threads && threads.length > 0 && (
+                    {projectUuid && threads && threads.length > 0 && (
                         <Stack gap="xs">
                             <Title order={6}>Threads</Title>
                             <Stack gap={2}>
@@ -206,11 +211,12 @@ const AgentPage = () => {
                                     .slice(0, showMaxItems)
                                     .map((thread) => (
                                         <ThreadNavLink
+                                            key={thread.uuid}
                                             thread={thread}
                                             isActive={
                                                 thread.uuid === threadUuid
                                             }
-                                            key={thread.uuid}
+                                            projectUuid={projectUuid}
                                         />
                                     ))}
                             </Stack>

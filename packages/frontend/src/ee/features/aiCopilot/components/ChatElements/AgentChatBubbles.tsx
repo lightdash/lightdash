@@ -37,7 +37,7 @@ import useApp from '../../../../../providers/App/useApp';
 import {
     useAiAgentThreadMessageViz,
     useUpdatePromptFeedbackMutation,
-} from '../../hooks/useAiAgents';
+} from '../../hooks/useOrganizationAiAgents';
 import { AiChartVisualization } from './AiChartVisualization';
 
 export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({

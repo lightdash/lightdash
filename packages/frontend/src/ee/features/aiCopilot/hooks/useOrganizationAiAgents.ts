@@ -15,13 +15,7 @@ import type {
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
 } from '@lightdash/common';
-import {
-    useMutation,
-    useQuery,
-    useQueryClient,
-    type UseMutationOptions,
-    type UseQueryOptions,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../../api';
 import { pollJobStatus } from '../../../../features/scheduler/hooks/useScheduler';
@@ -31,6 +25,7 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
 import { getChartVisualizationFromAiQuery } from '../utils/getChartVisualizationFromAiQuery';
+import { useProjectAiAgent } from './useProjectAiAgents';
 
 const AI_AGENTS_KEY = 'aiAgents';
 
@@ -94,12 +89,7 @@ const getAgentThreadMessageViz = async (args: {
         body: undefined,
     });
 
-export const useAiAgents = (
-    useQueryOptions?: UseQueryOptions<
-        ApiAiAgentSummaryResponse['results'],
-        ApiError
-    >,
-) => {
+export const useAiAgents = () => {
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiAgentSummaryResponse['results'], ApiError>({
@@ -111,36 +101,26 @@ export const useAiAgents = (
                 apiError: error.error,
             });
         },
-        ...useQueryOptions,
     });
 };
 
-export const useAiAgent = (
-    agentUuid: string,
-    useQueryOptions?: UseQueryOptions<ApiAiAgentResponse['results'], ApiError>,
-) => {
+export const useAiAgent = (agentUuid: string | undefined) => {
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiAgentResponse['results'], ApiError>({
         queryKey: [AI_AGENTS_KEY, agentUuid],
-        queryFn: () => getAgent(agentUuid),
+        queryFn: () => getAgent(agentUuid!),
         onError: (error) => {
             showToastApiError({
                 title: `Failed to fetch AI agent details`,
                 apiError: error.error,
             });
         },
-        ...useQueryOptions,
+        enabled: !!agentUuid,
     });
 };
 
-export const useCreateAiAgentMutation = (
-    options?: UseMutationOptions<
-        ApiCreateAiAgentResponse['results'],
-        ApiError,
-        ApiCreateAiAgent
-    >,
-) => {
+export const useCreateAiAgentMutation = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
@@ -164,17 +144,10 @@ export const useCreateAiAgentMutation = (
                 apiError: error,
             });
         },
-        ...options,
     });
 };
 
-export const useUpdateAiAgentMutation = (
-    options?: UseMutationOptions<
-        ApiAiAgentResponse['results'],
-        ApiError,
-        ApiUpdateAiAgent
-    >,
-) => {
+export const useUpdateAiAgentMutation = () => {
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
@@ -201,7 +174,6 @@ export const useUpdateAiAgentMutation = (
                 apiError: error,
             });
         },
-        ...options,
     });
 };
 
@@ -213,9 +185,7 @@ const deleteAgent = async (agentUuid: string) =>
         body: undefined,
     });
 
-export const useDeleteAiAgentMutation = (
-    options?: UseMutationOptions<ApiSuccessEmpty, ApiError, string>,
-) => {
+export const useDeleteAiAgentMutation = () => {
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
@@ -236,52 +206,41 @@ export const useDeleteAiAgentMutation = (
                 apiError: error,
             });
         },
-        ...options,
     });
 };
 
-export const useAiAgentThreads = (
-    agentUuid: string,
-    useQueryOptions?: UseQueryOptions<
-        ApiAiAgentThreadSummaryListResponse['results'],
-        ApiError
-    >,
-) => {
+export const useAiAgentThreads = (agentUuid: string | undefined) => {
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiAgentThreadSummaryListResponse['results'], ApiError>({
         queryKey: [AI_AGENTS_KEY, agentUuid, 'threads'],
-        queryFn: () => listAgentThreads(agentUuid),
+        queryFn: () => listAgentThreads(agentUuid!),
         onError: (error) => {
             showToastApiError({
                 title: 'Failed to fetch AI agent threads',
                 apiError: error.error,
             });
         },
-        ...useQueryOptions,
+        enabled: !!agentUuid,
     });
 };
 
 export const useAiAgentThread = (
-    agentUuid: string,
-    threadUuid: string,
-    useQueryOptions?: UseQueryOptions<
-        ApiAiAgentThreadResponse['results'],
-        ApiError
-    >,
+    agentUuid: string | undefined,
+    threadUuid: string | null | undefined,
 ) => {
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiAgentThreadResponse['results'], ApiError>({
         queryKey: [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
-        queryFn: () => getAgentThread(agentUuid, threadUuid),
+        queryFn: () => getAgentThread(agentUuid!, threadUuid!),
         onError: (error) => {
             showToastApiError({
                 title: 'Failed to fetch AI agent thread',
                 apiError: error.error,
             });
         },
-        ...useQueryOptions,
+        enabled: !!agentUuid && !!threadUuid,
     });
 };
 
@@ -318,7 +277,7 @@ const createOptimisticMessages = (
 };
 
 const startAgentThread = async (
-    agentUuid: string,
+    agentUuid: string | undefined,
     data: ApiAiAgentThreadGenerateRequest,
 ) =>
     lightdashApi<ApiAiAgentStartThreadResponse['results']>({
@@ -328,25 +287,22 @@ const startAgentThread = async (
     });
 
 export const useStartAgentThreadMutation = (
-    agentUuid: string,
-    options?: UseMutationOptions<
-        ApiAiAgentStartThreadResponse['results'],
-        ApiError,
-        ApiAiAgentThreadGenerateRequest
-    >,
+    agentUuid: string | undefined,
+    projectUuid: string | undefined,
 ) => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     const { user } = useApp();
-    const { data: agent } = useAiAgent(agentUuid);
+    const { data: agent } = useProjectAiAgent(projectUuid, agentUuid);
 
     return useMutation<
         ApiAiAgentStartThreadResponse['results'],
         ApiError,
         ApiAiAgentThreadGenerateRequest
     >({
-        mutationFn: (data) => startAgentThread(agentUuid, data),
+        mutationFn: (data) =>
+            agentUuid ? startAgentThread(agentUuid, data) : Promise.reject(),
         onSuccess: async (data, variables) => {
             await queryClient.invalidateQueries({
                 queryKey: [AI_AGENTS_KEY, agentUuid, 'threads'],
@@ -355,6 +311,10 @@ export const useStartAgentThreadMutation = (
             queryClient.setQueryData(
                 [AI_AGENTS_KEY, agentUuid, 'threads', data.threadUuid],
                 () => {
+                    if (!agentUuid) {
+                        return undefined;
+                    }
+
                     return {
                         createdFrom: 'web_app',
                         firstMessage: variables.prompt,
@@ -387,7 +347,7 @@ export const useStartAgentThreadMutation = (
             );
 
             void navigate(
-                `/ai-agents/${agentUuid}/threads/${data.threadUuid}`,
+                `/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${data.threadUuid}`,
                 {
                     viewTransition: true,
                 },
@@ -399,7 +359,6 @@ export const useStartAgentThreadMutation = (
                 apiError: error,
             });
         },
-        ...options,
     });
 };
 
@@ -415,18 +374,14 @@ const generateAgentThreadResponse = async (
     });
 
 export const useGenerateAgentThreadResponseMutation = (
-    agentUuid: string,
-    threadUuid: string,
-    options?: UseMutationOptions<
-        ApiAiAgentThreadGenerateResponse['results'],
-        ApiError,
-        ApiAiAgentThreadGenerateRequest
-    >,
+    projectUuid: string | undefined,
+    agentUuid: string | undefined,
+    threadUuid: string | undefined,
 ) => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     const { user } = useApp();
-    const { data: agent } = useAiAgent(agentUuid);
+    const { data: agent } = useProjectAiAgent(projectUuid, agentUuid);
 
     return useMutation<
         ApiAiAgentThreadGenerateResponse['results'],
@@ -434,7 +389,9 @@ export const useGenerateAgentThreadResponseMutation = (
         ApiAiAgentThreadGenerateRequest
     >({
         mutationFn: (data) =>
-            generateAgentThreadResponse(agentUuid, threadUuid, data),
+            agentUuid && threadUuid
+                ? generateAgentThreadResponse(agentUuid, threadUuid, data)
+                : Promise.reject(),
         onMutate: (data) => {
             queryClient.setQueryData(
                 [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
@@ -443,7 +400,9 @@ export const useGenerateAgentThreadResponseMutation = (
                         | ApiAiAgentThreadResponse['results']
                         | undefined,
                 ) => {
-                    if (!currentData) return currentData;
+                    if (!currentData || !threadUuid) {
+                        return currentData;
+                    }
 
                     return {
                         ...currentData,
@@ -475,7 +434,6 @@ export const useGenerateAgentThreadResponseMutation = (
                 apiError: error,
             });
         },
-        ...options,
     });
 };
 
@@ -540,11 +498,6 @@ const updatePromptFeedback = async (messageUuid: string, humanScore: number) =>
 export const useUpdatePromptFeedbackMutation = (
     agentUuid: string | undefined,
     threadUuid: string,
-    options?: UseMutationOptions<
-        ApiSuccessEmpty,
-        ApiError,
-        { messageUuid: string; humanScore: number }
-    >,
 ) => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
@@ -568,6 +521,5 @@ export const useUpdatePromptFeedbackMutation = (
                 apiError: error,
             });
         },
-        ...options,
     });
 };
