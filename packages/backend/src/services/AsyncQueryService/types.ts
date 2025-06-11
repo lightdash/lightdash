@@ -11,7 +11,6 @@ import {
     type DateGranularity,
     type DateZoom,
     type Filters,
-    type LimitOverride,
     type PivotIndexColum,
     type QueryExecutionContext,
     type ResultsPaginationArgs,
@@ -56,7 +55,7 @@ export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     chartUuid: string;
     versionUuid?: string;
-    limit?: LimitOverride;
+    limit?: number | null | undefined;
 };
 
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {

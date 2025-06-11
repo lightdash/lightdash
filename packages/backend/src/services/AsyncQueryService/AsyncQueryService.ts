@@ -9,7 +9,6 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     ApiExecuteAsyncSqlQueryResults,
     type ApiGetAsyncQueryResults,
-    applyLimitOverrideToQuery,
     assertUnreachable,
     CompiledDimension,
     convertCustomFormatToFormatExpression,
@@ -1648,10 +1647,14 @@ export class AsyncQueryService extends ProjectService {
         };
 
         // Apply limit override if provided in the request
-        const metricQueryWithLimit = applyLimitOverrideToQuery(
-            metricQuery,
-            limit,
-        );
+        // For unlimited results (null), use Number.MAX_SAFE_INTEGER
+        const metricQueryWithLimit =
+            limit !== undefined
+                ? {
+                      ...metricQuery,
+                      limit: limit ?? Number.MAX_SAFE_INTEGER,
+                  }
+                : metricQuery;
 
         const queryTags: RunQueryTags = {
             organization_uuid: savedChartOrganizationUuid,

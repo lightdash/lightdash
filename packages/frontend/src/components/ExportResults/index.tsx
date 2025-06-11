@@ -17,7 +17,7 @@ import { notifications } from '@mantine/notifications';
 import { IconTableExport } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { memo, useState, type FC } from 'react';
-import useHealth from '../../hooks/health/useHealth';
+
 import useToaster from '../../hooks/toaster/useToaster';
 import { downloadQuery } from '../../hooks/useQueryResults';
 import useUser from '../../hooks/user/useUser';
@@ -73,7 +73,6 @@ const ExportResults: FC<ExportResultsProps> = memo(
         const [fileType, setFileType] = useState<DownloadFileType>(
             DownloadFileType.CSV,
         );
-        const health = useHealth();
 
         const { isLoading: isExporting, mutateAsync: exportMutation } =
             useMutation(
@@ -125,7 +124,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         if (response.truncated) {
                             showToastWarning({
                                 title: `The results in this export have been limited.`,
-                                subtitle: `The export limit is ${health.data?.query.csvCellsLimit} cells, but your file exceeded that limit.`,
+                                subtitle: `The export was truncated due to size constraints.`,
                             });
                         }
                     },
@@ -217,17 +216,14 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         />
                     )}
 
-                    {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
-                        <Alert color="gray.9" p="xs">
-                            <Text size="xs">
-                                Results are limited to{' '}
-                                {Number(
-                                    health.data?.query.csvCellsLimit || 100000,
-                                ).toLocaleString()}{' '}
-                                cells for each file
-                            </Text>
-                        </Alert>
-                    )}
+                    {fileType === DownloadFileType.XLSX &&
+                        (limit === Limit.ALL || limit === Limit.CUSTOM) && (
+                            <Alert color="gray.9" p="xs">
+                                <Text size="xs">
+                                    Excel exports are limited to 1,000,000 rows.
+                                </Text>
+                            </Alert>
+                        )}
 
                     <Button
                         loading={isExporting}
