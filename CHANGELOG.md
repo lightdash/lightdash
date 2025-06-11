@@ -1,3 +1,10 @@
+# [0.1709.0](https://github.com/lightdash/lightdash/compare/0.1708.0...0.1709.0) (2025-06-11)
+
+
+### Features
+
+* Excel download option for SQL chart tables in edit page ([#15283](https://github.com/lightdash/lightdash/issues/15283)) ([47b16c9](https://github.com/lightdash/lightdash/commit/47b16c9bfbfa375465b9fbbefce7999d7b843b91))
+
 # [0.1708.0](https://github.com/lightdash/lightdash/compare/0.1707.2...0.1708.0) (2025-06-11)
 
 
