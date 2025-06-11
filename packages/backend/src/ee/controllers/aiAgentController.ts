@@ -26,6 +26,7 @@ import {
     Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -141,6 +142,7 @@ export class AiAgentController extends BaseController {
     async listAgentThreads(
         @Request() req: express.Request,
         @Path() agentUuid: string,
+        @Query() allUsers?: boolean,
     ): Promise<ApiAiAgentThreadSummaryListResponse> {
         this.setStatus(200);
         return {
@@ -148,6 +150,7 @@ export class AiAgentController extends BaseController {
             results: await this.getAiAgentService().listAgentThreads(
                 req.user!,
                 agentUuid,
+                allUsers,
             ),
         };
     }
@@ -369,6 +372,48 @@ export class ProjectAiAgentController extends BaseController {
             req.user!,
             agentUuid,
             projectUuid,
+        );
+        return {
+            status: 'ok',
+            results: agent,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('201', 'Created')
+    @Post('/')
+    @OperationId('createProjectAgent')
+    async createProjectAgent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiCreateAiAgent,
+    ): Promise<ApiCreateAiAgentResponse> {
+        this.setStatus(201);
+        const agent = await this.getAiAgentService().createAgent(req.user!, {
+            ...body,
+            projectUuid,
+        });
+        return {
+            status: 'ok',
+            results: agent,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{agentUuid}')
+    @OperationId('updateProjectAgent')
+    async updateProjectAgent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Body() body: ApiUpdateAiAgent,
+    ): Promise<ApiAiAgentResponse> {
+        this.setStatus(200);
+        const agent = await this.getAiAgentService().updateAgent(
+            req.user!,
+            agentUuid,
+            { ...body, projectUuid },
         );
         return {
             status: 'ok',
