@@ -1,3 +1,10 @@
+# [0.1704.0](https://github.com/lightdash/lightdash/compare/0.1703.1...0.1704.0) (2025-06-11)
+
+
+### Features
+
+* allow setting thread context consent ([#15223](https://github.com/lightdash/lightdash/issues/15223)) ([0fe53ae](https://github.com/lightdash/lightdash/commit/0fe53ae2a378871cd45c6c76aa7394fc7cdf99e0))
+
 ## [0.1703.1](https://github.com/lightdash/lightdash/compare/0.1703.0...0.1703.1) (2025-06-11)
 
 
