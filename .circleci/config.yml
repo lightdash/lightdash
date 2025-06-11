@@ -27,3 +27,4 @@ workflows:
     jobs:
       - build-and-push-lightdash-image:
           name: build-docker
+          context: gke-production     
