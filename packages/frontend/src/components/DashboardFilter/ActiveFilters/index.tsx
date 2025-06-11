@@ -23,8 +23,8 @@ import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../../common/MantineIcon';
-import Filter from '../Filter';
 import InvalidFilter from '../InvalidFilter';
+import Filter from './Filter';
 
 interface ActiveFiltersProps {
     isEditMode: boolean;

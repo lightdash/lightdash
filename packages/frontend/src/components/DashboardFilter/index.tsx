@@ -13,7 +13,7 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import FiltersProvider from '../common/Filters/FiltersProvider';
 import ActiveFilters from './ActiveFilters';
-import Filter from './Filter';
+import AddFilterButton from './AddFilterButton';
 
 interface Props {
     isEditMode: boolean;
@@ -76,8 +76,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
             dashboardFilters={allFilters}
         >
             <Flex gap="xs" wrap="wrap" mb="xs">
-                <Filter
-                    isCreatingNew
+                <AddFilterButton
                     isEditMode={isEditMode}
                     openPopoverId={openPopoverId}
                     activeTabUuid={activeTabUuid}
