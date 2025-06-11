@@ -272,7 +272,6 @@ export class CsvService extends BaseService {
             delimiter: ',',
             header: true,
             columns: csvHeader,
-            bom: true,
         });
 
         const rowTransformer = new Transform({
@@ -338,10 +337,16 @@ export class CsvService extends BaseService {
                 delimiter: ',',
                 header: true,
                 columns: csvHeader,
-                bom: true,
             });
 
             let truncated = false;
+            let waitingForDrain = false;
+
+            // Define the drain handler outside the loop to avoid ESLint no-loop-func warning
+            const handleDrain = () => {
+                waitingForDrain = false;
+                stringifier.resume();
+            };
 
             stringifier.on('readable', () => {
                 let chunk;
@@ -357,9 +362,11 @@ export class CsvService extends BaseService {
                      */
                     if (!writeStream.write(chunk)) {
                         stringifier.pause();
-                        writeStream.once('drain', () => {
-                            stringifier.resume();
-                        });
+                        // Only add drain listener if we're not already waiting for one
+                        if (!waitingForDrain) {
+                            waitingForDrain = true;
+                            writeStream.once('drain', handleDrain);
+                        }
                         break;
                     }
                 }
