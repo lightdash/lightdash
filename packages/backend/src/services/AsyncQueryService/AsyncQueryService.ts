@@ -52,6 +52,7 @@ import {
     isUserWithOrg,
     isVizTableConfig,
     ItemsMap,
+    MAX_SAFE_INTEGER,
     MetricQuery,
     NotFoundError,
     type Organization,
@@ -1657,7 +1658,7 @@ export class AsyncQueryService extends ProjectService {
             limit !== undefined
                 ? {
                       ...metricQuery,
-                      limit: limit ?? Number.MAX_SAFE_INTEGER,
+                      limit: limit ?? MAX_SAFE_INTEGER,
                   }
                 : metricQuery;
 

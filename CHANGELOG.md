@@ -1,3 +1,10 @@
+## [0.1709.2](https://github.com/lightdash/lightdash/compare/0.1709.1...0.1709.2) (2025-06-11)
+
+
+### Bug Fixes
+
+* use a max 32-bit signed integer for all results queries ([#15296](https://github.com/lightdash/lightdash/issues/15296)) ([0de8186](https://github.com/lightdash/lightdash/commit/0de8186d77904a153a544a0a2f12910181804f71))
+
 ## [0.1709.1](https://github.com/lightdash/lightdash/compare/0.1709.0...0.1709.1) (2025-06-11)
 
 

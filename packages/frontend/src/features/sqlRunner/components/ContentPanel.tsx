@@ -2,6 +2,7 @@ import {
     ChartKind,
     isVizTableConfig,
     MAX_PIVOT_COLUMN_LIMIT,
+    MAX_SAFE_INTEGER,
     type VizTableConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
@@ -334,7 +335,7 @@ export const ContentPanel: FC = () => {
                     projectUuid,
                     sql,
                     downloadLimit === null
-                        ? Number.MAX_SAFE_INTEGER
+                        ? MAX_SAFE_INTEGER
                         : downloadLimit ?? limit,
                 );
                 return newQuery.queryUuid;
