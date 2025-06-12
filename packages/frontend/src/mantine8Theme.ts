@@ -4,6 +4,7 @@ import {
     Loader,
     Pill,
     ScrollArea,
+    Select,
     type ButtonVariant,
     type MantineTheme,
     type MantineThemeOverride,
@@ -141,9 +142,9 @@ export const getMantine8ThemeOverride = (
                     radius: 'md',
                     shadow: 'subtle',
                     withBorder: true,
-                    sx: (theme: MantineTheme) => ({
-                        '&[data-with-border]': {
-                            border: `1px solid ${theme.colors.gray[2]}`,
+                    styles: (theme: MantineTheme) => ({
+                        root: {
+                            borderColor: theme.colors.gray[2],
                         },
                     }),
                 },
@@ -151,6 +152,12 @@ export const getMantine8ThemeOverride = (
             Loader: Loader.extend({
                 defaultProps: {
                     loaders: { ...Loader.defaultLoaders, dots: DotsLoader },
+                },
+            }),
+
+            Select: Select.extend({
+                defaultProps: {
+                    radius: 'md',
                 },
             }),
             ...overrides?.components,

@@ -36,6 +36,7 @@ import {
     ActionIcon,
     Badge,
     Box,
+    Button,
     Group,
     HoverCard,
     Menu,
@@ -831,6 +832,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         return dashboardChartReadyQuery.executeQueryResponse.queryUuid;
     }, [dashboardChartReadyQuery.executeQueryResponse.queryUuid]);
 
+    const closeDataExportModal = useCallback(
+        () => setIsDataExportModalOpen(false),
+        [],
+    );
+
     return (
         <>
             <TileBase
@@ -1269,9 +1275,23 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             {isDataExportModalOpen ? (
                 <Modal
                     opened
-                    onClose={() => setIsDataExportModalOpen(false)}
-                    title="Download data"
-                    size="md"
+                    onClose={closeDataExportModal}
+                    title={
+                        <Group spacing="xs">
+                            <MantineIcon
+                                icon={IconTableExport}
+                                size="lg"
+                                color="gray.7"
+                            />
+                            <Text fw={600}>Export Data</Text>
+                        </Group>
+                    }
+                    styles={(theme) => ({
+                        header: {
+                            borderBottom: `1px solid ${theme.colors.gray[4]}`,
+                        },
+                        body: { padding: 0 },
+                    })}
                 >
                     <ExportResults
                         projectUuid={projectUuid!}
@@ -1286,6 +1306,33 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         hiddenFields={getHiddenTableFields(chart.chartConfig)}
                         pivotConfig={getPivotConfig(chart)}
                         hideLimitSelection
+                        renderDialogActions={({ onExport, isExporting }) => (
+                            <Group
+                                position="right"
+                                sx={(theme) => ({
+                                    borderTop: `1px solid ${theme.colors.gray[4]}`,
+                                    bottom: 0,
+                                    padding: theme.spacing.md,
+                                })}
+                            >
+                                <Button
+                                    variant="outline"
+                                    onClick={closeDataExportModal}
+                                >
+                                    Cancel
+                                </Button>
+
+                                <Button
+                                    loading={isExporting}
+                                    onClick={async () => {
+                                        await onExport();
+                                    }}
+                                    data-testid="chart-export-results-button"
+                                >
+                                    Download
+                                </Button>
+                            </Group>
+                        )}
                     />
                 </Modal>
             ) : null}

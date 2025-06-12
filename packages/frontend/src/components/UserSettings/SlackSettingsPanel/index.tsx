@@ -39,6 +39,7 @@ import {
     useSlackChannels,
     useUpdateSlackAppCustomSettingsMutation,
 } from '../../../hooks/slack/useSlack';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import slackSvg from '../../../svgs/slack.svg';
 import MantineIcon from '../../common/MantineIcon';
@@ -67,6 +68,7 @@ const formSchema = z.object({
 });
 
 const SlackSettingsPanel: FC = () => {
+    const { activeProjectUuid } = useActiveProjectUuid();
     const { data: aiCopilotFlag } = useFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
     );
@@ -288,24 +290,17 @@ const SlackSettingsPanel: FC = () => {
                                             );
                                         }}
                                     />
-                                    <Alert
-                                        color="blue"
-                                        fz="xs"
-                                        icon={
-                                            <MantineIcon
-                                                icon={IconHelpCircle}
-                                            />
-                                        }
-                                    >
-                                        Configure Slack channel project mappings{' '}
+                                    <Text fz="xs" c="dimmed">
+                                        Configure which channels your AI Agents
+                                        can access{' '}
                                         <Anchor
                                             component={Link}
-                                            to="/generalSettings/aiAgents"
+                                            to={`/projects/${activeProjectUuid}/ai-agents`}
                                         >
                                             here
                                         </Anchor>
                                         .
-                                    </Alert>
+                                    </Text>
                                 </Stack>
                             )}
                         </Stack>

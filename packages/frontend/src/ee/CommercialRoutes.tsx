@@ -9,6 +9,7 @@ import AgentPage from './pages/AiAgents/AgentPage';
 import AgentsListPage from './pages/AiAgents/AgentsListPage';
 import AiAgentThreadPage from './pages/AiAgents/AgentThreadPage';
 import AiAgentNewThreadPage from './pages/AiAgents/AiAgentNewThreadPage';
+import ProjectAiAgentEditPage from './pages/AiAgents/ProjectAiAgentEditPage';
 import AiConversationsPage from './pages/AiConversations';
 import EmbedDashboard from './pages/EmbedDashboard';
 import EmbedProvider from './providers/Embed/EmbedProvider';
@@ -81,6 +82,14 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
             {
                 index: true,
                 element: <AgentsListPage />,
+            },
+            {
+                path: 'new',
+                element: <ProjectAiAgentEditPage isCreateMode />,
+            },
+            {
+                path: ':agentUuid/edit',
+                element: <ProjectAiAgentEditPage />,
             },
             {
                 path: ':agentUuid',
