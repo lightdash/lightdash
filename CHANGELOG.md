@@ -1,3 +1,10 @@
+## [0.1712.1](https://github.com/lightdash/lightdash/compare/0.1712.0...0.1712.1) (2025-06-12)
+
+
+### Bug Fixes
+
+* improve space movement with project scoping and cycle detection ([#15300](https://github.com/lightdash/lightdash/issues/15300)) ([5d658b4](https://github.com/lightdash/lightdash/commit/5d658b4ba5b44d55c389130187afbdd6a90be612))
+
 # [0.1712.0](https://github.com/lightdash/lightdash/compare/0.1711.0...0.1712.0) (2025-06-12)
 
 
