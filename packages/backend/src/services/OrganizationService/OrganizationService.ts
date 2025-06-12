@@ -851,7 +851,7 @@ export class OrganizationService extends BaseService {
                 copyWarehouseConnectionFromUpstreamProject: undefined,
                 dbtConnection: setup.dbt,
                 upstreamProjectUuid: undefined,
-                dbtVersion: DbtVersionOptionLatest.LATEST,
+                dbtVersion: setup.project.dbtVersion,
             };
 
             const projectUuid = await this.projectModel.create(
