@@ -3,17 +3,13 @@ import type {
     AiAgentMessageAssistant,
     ApiAiAgentResponse,
     ApiAiAgentStartThreadResponse,
-    ApiAiAgentSummaryResponse,
     ApiAiAgentThreadGenerateRequest,
     ApiAiAgentThreadGenerateResponse,
     ApiAiAgentThreadMessageViz,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
-    ApiCreateAiAgent,
-    ApiCreateAiAgentResponse,
     ApiError,
     ApiSuccessEmpty,
-    ApiUpdateAiAgent,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
@@ -22,6 +18,7 @@ import { pollJobStatus } from '../../../../features/scheduler/hooks/useScheduler
 import useHealth from '../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useActiveProject } from '../../../../hooks/useActiveProject';
 import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
 import { getChartVisualizationFromAiQuery } from '../utils/getChartVisualizationFromAiQuery';
@@ -30,13 +27,6 @@ import { useProjectAiAgent } from './useProjectAiAgents';
 const AI_AGENTS_KEY = 'aiAgents';
 
 // API calls
-const listAgents = () =>
-    lightdashApi<ApiAiAgentSummaryResponse['results']>({
-        version: 'v1',
-        url: `/aiAgents`,
-        method: 'GET',
-        body: undefined,
-    });
 
 const getAgent = async (
     agentUuid: string,
@@ -48,28 +38,23 @@ const getAgent = async (
         body: undefined,
     });
 
-const createAgent = async (data: ApiCreateAiAgent) =>
-    lightdashApi<ApiCreateAiAgentResponse['results']>({
-        version: 'v1',
-        url: `/aiAgents`,
-        method: 'POST',
-        body: JSON.stringify(data),
-    });
+const listAgentThreads = async (agentUuid: string, allUsers?: boolean) => {
+    const searchParams = new URLSearchParams();
+    if (allUsers) {
+        searchParams.set('allUsers', 'true');
+    }
 
-const updateAgent = async (data: ApiUpdateAiAgent) =>
-    lightdashApi<ApiAiAgentResponse['results']>({
-        version: 'v1',
-        url: `/aiAgents/${data.uuid}`,
-        method: 'PATCH',
-        body: JSON.stringify(data),
-    });
+    const queryString = searchParams.toString();
+    const url = `/aiAgents/${agentUuid}/threads${
+        queryString ? `?${queryString}` : ''
+    }`;
 
-const listAgentThreads = async (agentUuid: string) =>
-    lightdashApi<ApiAiAgentThreadSummaryListResponse['results']>({
-        url: `/aiAgents/${agentUuid}/threads`,
+    return lightdashApi<ApiAiAgentThreadSummaryListResponse['results']>({
+        url,
         method: 'GET',
         body: undefined,
     });
+};
 
 const getAgentThread = async (agentUuid: string, threadUuid: string) =>
     lightdashApi<ApiAiAgentThreadResponse['results']>({
@@ -89,21 +74,6 @@ const getAgentThreadMessageViz = async (args: {
         body: undefined,
     });
 
-export const useAiAgents = () => {
-    const { showToastApiError } = useToaster();
-
-    return useQuery<ApiAiAgentSummaryResponse['results'], ApiError>({
-        queryKey: [AI_AGENTS_KEY],
-        queryFn: listAgents,
-        onError: (error) => {
-            showToastApiError({
-                title: 'Failed to fetch AI agents',
-                apiError: error.error,
-            });
-        },
-    });
-};
-
 export const useAiAgent = (agentUuid: string | undefined) => {
     const { showToastApiError } = useToaster();
 
@@ -120,63 +90,6 @@ export const useAiAgent = (agentUuid: string | undefined) => {
     });
 };
 
-export const useCreateAiAgentMutation = () => {
-    const navigate = useNavigate();
-    const queryClient = useQueryClient();
-    const { showToastApiError, showToastSuccess } = useToaster();
-
-    return useMutation<
-        ApiCreateAiAgentResponse['results'],
-        ApiError,
-        ApiCreateAiAgent
-    >({
-        mutationFn: createAgent,
-        onSuccess: () => {
-            showToastSuccess({
-                title: 'AI agent created successfully',
-            });
-            void queryClient.invalidateQueries({ queryKey: [AI_AGENTS_KEY] });
-            void navigate('/generalSettings/aiAgents');
-        },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to create AI agent',
-                apiError: error,
-            });
-        },
-    });
-};
-
-export const useUpdateAiAgentMutation = () => {
-    const queryClient = useQueryClient();
-    const { showToastApiError, showToastSuccess } = useToaster();
-
-    return useMutation<
-        ApiAiAgentResponse['results'],
-        ApiError,
-        ApiUpdateAiAgent
-    >({
-        mutationFn: (data) => updateAgent(data),
-        onSuccess: async (data) => {
-            showToastSuccess({
-                title: 'AI agent updated successfully',
-            });
-            await queryClient.invalidateQueries({
-                queryKey: [AI_AGENTS_KEY, data.uuid],
-            });
-            await queryClient.invalidateQueries({
-                queryKey: [AI_AGENTS_KEY],
-            });
-        },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to update AI agent',
-                apiError: error,
-            });
-        },
-    });
-};
-
 const deleteAgent = async (agentUuid: string) =>
     lightdashApi<ApiSuccessEmpty>({
         version: 'v1',
@@ -186,6 +99,8 @@ const deleteAgent = async (agentUuid: string) =>
     });
 
 export const useDeleteAiAgentMutation = () => {
+    const { data: activeProjectUuid } = useActiveProject();
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
@@ -199,6 +114,7 @@ export const useDeleteAiAgentMutation = () => {
                 queryKey: [AI_AGENTS_KEY],
                 exact: true,
             });
+            void navigate(`/projects/${activeProjectUuid}/ai-agents`);
         },
         onError: ({ error }) => {
             showToastApiError({
@@ -209,12 +125,20 @@ export const useDeleteAiAgentMutation = () => {
     });
 };
 
-export const useAiAgentThreads = (agentUuid: string | undefined) => {
+export const useAiAgentThreads = (
+    agentUuid: string | undefined,
+    allUsers?: boolean,
+) => {
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiAgentThreadSummaryListResponse['results'], ApiError>({
-        queryKey: [AI_AGENTS_KEY, agentUuid, 'threads'],
-        queryFn: () => listAgentThreads(agentUuid!),
+        queryKey: [
+            AI_AGENTS_KEY,
+            agentUuid,
+            'threads',
+            allUsers ? 'all' : 'user',
+        ],
+        queryFn: () => listAgentThreads(agentUuid!, allUsers),
         onError: (error) => {
             showToastApiError({
                 title: 'Failed to fetch AI agent threads',
@@ -304,6 +228,7 @@ export const useStartAgentThreadMutation = (
         mutationFn: (data) =>
             agentUuid ? startAgentThread(agentUuid, data) : Promise.reject(),
         onSuccess: async (data, variables) => {
+            // Invalidate both user-specific and all-users thread queries
             await queryClient.invalidateQueries({
                 queryKey: [AI_AGENTS_KEY, agentUuid, 'threads'],
             });

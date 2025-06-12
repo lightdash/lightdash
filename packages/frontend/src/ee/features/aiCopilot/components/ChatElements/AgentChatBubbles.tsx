@@ -86,7 +86,8 @@ export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
 
 export const AssistantBubble: FC<{
     message: AiAgentMessageAssistant;
-}> = memo(({ message }) => {
+    isPreview?: boolean;
+}> = memo(({ message, isPreview = false }) => {
     const { agentUuid } = useParams();
     const { activeProjectUuid } = useActiveProjectUuid();
 
@@ -199,7 +200,7 @@ export const AssistantBubble: FC<{
                     )}
                 </Paper>
             )}
-            <Group gap={0}>
+            <Group gap={0} display={isPreview ? 'none' : 'flex'}>
                 <CopyButton value={message.message}>
                     {({ copied, copy }) => (
                         <ActionIcon

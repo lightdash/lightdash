@@ -240,6 +240,7 @@ export class AiAgentService {
     async listAgentThreads(
         user: SessionUser,
         agentUuid: string,
+        allUsers?: boolean,
     ): Promise<AiAgentThreadSummary[]> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -260,10 +261,25 @@ export class AiAgentService {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
 
+        // Check if user has admin permissions to view all threads
+        const canViewAllThreads =
+            allUsers &&
+            user.ability.can(
+                'manage',
+                subject('AiAgent', { organizationUuid }),
+            );
+
+        if (allUsers && !canViewAllThreads) {
+            throw new ForbiddenError(
+                'Insufficient permissions to view all agent threads',
+            );
+        }
+
         const threads = await this.aiAgentModel.findThreads({
             organizationUuid,
             agentUuid,
-            userUuid: user.userUuid,
+            // Only filter by userUuid if not requesting all users or if user lacks admin permissions
+            userUuid: canViewAllThreads ? undefined : user.userUuid,
         });
 
         const slackUserIds = _.uniq(

@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import { Box, ScrollArea, Stack, Text, Title } from '@mantine/core';
 import {
-    IconBrain,
     IconBrowser,
     IconBuildingSkyscraper,
     IconCalendarStats,
@@ -26,7 +25,6 @@ import { useMemo, type FC } from 'react';
 import { Navigate, useRoutes, type RouteObject } from 'react-router';
 import PageSpinner from '../components/PageSpinner';
 import AccessTokensPanel from '../components/UserSettings/AccessTokensPanel';
-import AiAgentsPanel from '../components/UserSettings/AiAgentsPanel';
 import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel';
 import AppearanceSettingsPanel from '../components/UserSettings/AppearanceSettingsPanel';
 import DefaultProjectPanel from '../components/UserSettings/DefaultProjectPanel';
@@ -47,7 +45,6 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import RouterNavLink from '../components/common/RouterNavLink';
 import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
-import { OrganizationAiAgent } from '../ee/features/aiCopilot/components/OrganizationAiAgent';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
@@ -76,10 +73,6 @@ const Settings: FC = () => {
 
     const { data: isScimTokenManagementEnabled } = useFeatureFlag(
         CommercialFeatureFlags.Scim,
-    );
-
-    const { data: aiCopilotFlag } = useFeatureFlag(
-        CommercialFeatureFlags.AiCopilot,
     );
 
     const {
@@ -314,17 +307,6 @@ const Settings: FC = () => {
             });
         }
 
-        if (user?.ability.can('manage', 'AiAgent') && aiCopilotFlag?.enabled) {
-            allowedRoutes.push({
-                path: '/aiAgents',
-                element: <AiAgentsPanel />,
-            });
-            allowedRoutes.push({
-                path: '/aiAgents/:agentId',
-                element: <OrganizationAiAgent />,
-            });
-        }
-
         return allowedRoutes;
     }, [
         isScimTokenManagementEnabled?.enabled,
@@ -335,7 +317,6 @@ const Settings: FC = () => {
         organization,
         project,
         health,
-        aiCopilotFlag?.enabled,
     ]);
     const routeElements = useRoutes(routes);
 
@@ -509,18 +490,6 @@ const Settings: FC = () => {
                                         icon={<MantineIcon icon={IconPlug} />}
                                     />
                                 )}
-
-                                {user.ability.can('manage', 'Organization') &&
-                                    aiCopilotFlag?.enabled && (
-                                        <RouterNavLink
-                                            label="AI Agents"
-                                            exact
-                                            to="/generalSettings/aiAgents"
-                                            icon={
-                                                <MantineIcon icon={IconBrain} />
-                                            }
-                                        />
-                                    )}
 
                                 {organization &&
                                     !organization.needsProject &&

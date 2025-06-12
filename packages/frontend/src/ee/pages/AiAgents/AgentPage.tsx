@@ -155,14 +155,13 @@ const AgentPage = () => {
                                     size="lg"
                                     component={Link}
                                     color="gray"
-                                    to={`/generalSettings/aiAgents/${agent.uuid}`}
+                                    to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`}
                                 >
                                     <MantineIcon icon={IconSettings} />
                                 </ActionIcon>
                             )}
                         </Group>
                     </Stack>
-
                     <Divider variant="dashed" />
                     {agent.instruction && (
                         <Stack gap="xs">

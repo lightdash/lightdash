@@ -92,9 +92,9 @@ const AgentCard = ({ agent }: AgentCardProps) => {
                         c="dimmed"
                         bd="none"
                         component={Link}
-                        to={`/generalSettings/aiAgents/${agent.uuid}`}
+                        to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`}
                     >
-                        Settings
+                        Edit
                     </Button>
                 )}
                 <Button variant="default" size="sm" px="md">
@@ -162,7 +162,7 @@ const AgentsListPage = () => {
                                 variant="default"
                                 radius="md"
                                 component={Link}
-                                to="/generalSettings/aiAgents/new"
+                                to={`/projects/${projectUuid}/ai-agents/new`}
                                 leftSection={<MantineIcon icon={IconPlus} />}
                             >
                                 New Agent
