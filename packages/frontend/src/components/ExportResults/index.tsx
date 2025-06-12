@@ -249,6 +249,8 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             sx={{
                                 alignSelf: 'end',
                             }}
+                            my="xs"
+                            size="md"
                             leftIcon={<MantineIcon icon={IconTableExport} />}
                             onClick={exportMutation}
                             data-testid="chart-export-results-button"
