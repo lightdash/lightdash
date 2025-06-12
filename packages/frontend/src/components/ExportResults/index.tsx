@@ -146,20 +146,23 @@ const ExportResults: FC<ExportResultsProps> = memo(
         return (
             <Box>
                 <Stack spacing="xs" miw={300}>
-                    <SegmentedControl
-                        size={'xs'}
-                        value={fileType}
-                        onChange={(value) =>
-                            setFileType(value as DownloadFileType)
-                        }
-                        data={[
-                            { label: 'CSV', value: DownloadFileType.CSV },
-                            { label: 'XLSX', value: DownloadFileType.XLSX },
-                        ]}
-                    />
+                    <Stack spacing="xs">
+                        <Text fw={500}>File format</Text>
+                        <SegmentedControl
+                            size={'xs'}
+                            value={fileType}
+                            onChange={(value) =>
+                                setFileType(value as DownloadFileType)
+                            }
+                            data={[
+                                { label: 'CSV', value: DownloadFileType.CSV },
+                                { label: 'XLSX', value: DownloadFileType.XLSX },
+                            ]}
+                        />
+                    </Stack>
 
                     <Stack spacing="xs">
-                        <Box>Values</Box>
+                        <Text fw={500}>Values</Text>
                         <SegmentedControl
                             size={'xs'}
                             value={format}
@@ -180,7 +183,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     >
                         {!hideLimitSelection ? (
                             <Stack spacing="xs">
-                                <Box>Limit</Box>
+                                <Text fw={500}>Limit</Text>
                                 <SegmentedControl
                                     size={'xs'}
                                     value={limit}
