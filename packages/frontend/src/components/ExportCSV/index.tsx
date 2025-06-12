@@ -23,7 +23,7 @@ enum Values {
     RAW = 'raw',
 }
 
-type ExportCsvRenderProps = {
+export type ExportCsvRenderProps = {
     onExport: () => Promise<unknown>;
     isExporting: boolean;
 };
