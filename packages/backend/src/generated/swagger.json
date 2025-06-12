@@ -17067,6 +17067,9 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "attachmentDownloadName": {
+                        "type": "string"
                     }
                 },
                 "type": "object",

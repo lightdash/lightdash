@@ -4,11 +4,9 @@ import {
     ApiErrorPayload,
     ApiGetChartHistoryResponse,
     ApiGetChartVersionResponse,
-    ApiJobScheduledResponse,
     ApiPromoteChartResponse,
     ApiPromotionChangesResponse,
     ApiSuccessEmpty,
-    DateGranularity,
     DateZoom,
     QueryExecutionContext,
     SortField,
@@ -32,6 +30,7 @@ import {
     getContextFromHeader,
     getContextFromQueryOrHeader,
 } from '../analytics/LightdashAnalytics';
+import { deprecatedDownloadCsvRoute } from '../middlewares/deprecation';
 import {
     allowApiKeyAuthentication,
     deprecatedResultsRoute,
@@ -348,7 +347,11 @@ export class SavedChartController extends BaseController {
      * Download a CSV from a saved chart uuid
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        deprecatedDownloadCsvRoute,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/downloadCsv')
     @OperationId('DownloadCsvFromSavedChart')
