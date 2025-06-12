@@ -12,6 +12,8 @@ import { NextFunction, Request, Response } from 'express';
 import Logger from './logging/logger';
 
 export const errorHandler = (error: Error): LightdashError => {
+    console.error(error);
+
     if (error instanceof ValidateError) {
         return new LightdashError({
             statusCode: 422,
