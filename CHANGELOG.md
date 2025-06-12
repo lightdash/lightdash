@@ -1,3 +1,10 @@
+## [0.1709.4](https://github.com/lightdash/lightdash/compare/0.1709.3...0.1709.4) (2025-06-12)
+
+
+### Bug Fixes
+
+* improve filtering ([#15299](https://github.com/lightdash/lightdash/issues/15299)) ([97a0786](https://github.com/lightdash/lightdash/commit/97a0786c3af560122799481a48f3af74150808d7))
+
 ## [0.1709.3](https://github.com/lightdash/lightdash/compare/0.1709.2...0.1709.3) (2025-06-12)
 
 
