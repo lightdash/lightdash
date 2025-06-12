@@ -16,13 +16,14 @@ import {
 import { notifications } from '@mantine/notifications';
 import { IconTableExport } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { memo, useState, type FC } from 'react';
+import { memo, useState, type FC, type ReactNode } from 'react';
 
 import useToaster from '../../hooks/toaster/useToaster';
 import { downloadQuery } from '../../hooks/useQueryResults';
 import useUser from '../../hooks/user/useUser';
 import { Can } from '../../providers/Ability';
 import MantineIcon from '../common/MantineIcon';
+import { type ExportCsvRenderProps } from '../ExportCSV';
 
 enum Limit {
     TABLE = 'table',
@@ -46,6 +47,7 @@ export type ExportResultsProps = {
     chartName?: string;
     pivotConfig?: PivotConfig;
     hideLimitSelection?: boolean;
+    renderDialogActions?: (renderProps: ExportCsvRenderProps) => ReactNode;
 };
 
 const TOAST_KEY = 'exporting-results';
@@ -62,6 +64,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         chartName,
         pivotConfig,
         hideLimitSelection = false,
+        renderDialogActions,
     }) => {
         const { showToastError, showToastInfo, showToastWarning } =
             useToaster();
@@ -146,32 +149,43 @@ const ExportResults: FC<ExportResultsProps> = memo(
         return (
             <Box>
                 <Stack spacing="xs" miw={300}>
-                    <Stack spacing="xs">
-                        <Text fw={500}>File format</Text>
-                        <SegmentedControl
-                            size={'xs'}
-                            value={fileType}
-                            onChange={(value) =>
-                                setFileType(value as DownloadFileType)
-                            }
-                            data={[
-                                { label: 'CSV', value: DownloadFileType.CSV },
-                                { label: 'XLSX', value: DownloadFileType.XLSX },
-                            ]}
-                        />
-                    </Stack>
+                    <Stack p={renderDialogActions ? 'md' : 0}>
+                        <Stack spacing="xs">
+                            <Text fw={500}>File format</Text>
+                            <SegmentedControl
+                                size={'xs'}
+                                value={fileType}
+                                onChange={(value) =>
+                                    setFileType(value as DownloadFileType)
+                                }
+                                data={[
+                                    {
+                                        label: 'CSV',
+                                        value: DownloadFileType.CSV,
+                                    },
+                                    {
+                                        label: 'XLSX',
+                                        value: DownloadFileType.XLSX,
+                                    },
+                                ]}
+                            />
+                        </Stack>
 
-                    <Stack spacing="xs">
-                        <Text fw={500}>Values</Text>
-                        <SegmentedControl
-                            size={'xs'}
-                            value={format}
-                            onChange={(value) => setFormat(value)}
-                            data={[
-                                { label: 'Formatted', value: Values.FORMATTED },
-                                { label: 'Raw', value: Values.RAW },
-                            ]}
-                        />
+                        <Stack spacing="xs">
+                            <Text fw={500}>Values</Text>
+                            <SegmentedControl
+                                size={'xs'}
+                                value={format}
+                                onChange={(value) => setFormat(value)}
+                                data={[
+                                    {
+                                        label: 'Formatted',
+                                        value: Values.FORMATTED,
+                                    },
+                                    { label: 'Raw', value: Values.RAW },
+                                ]}
+                            />
+                        </Stack>
                     </Stack>
 
                     <Can
@@ -228,18 +242,27 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             </Alert>
                         )}
 
-                    <Button
-                        loading={isExporting}
-                        compact
-                        sx={{
-                            alignSelf: 'end',
-                        }}
-                        leftIcon={<MantineIcon icon={IconTableExport} />}
-                        onClick={exportMutation}
-                        data-testid="chart-export-results-button"
-                    >
-                        Download
-                    </Button>
+                    {!renderDialogActions ? (
+                        <Button
+                            loading={isExporting}
+                            compact
+                            sx={{
+                                alignSelf: 'end',
+                            }}
+                            my="xs"
+                            size="md"
+                            leftIcon={<MantineIcon icon={IconTableExport} />}
+                            onClick={exportMutation}
+                            data-testid="chart-export-results-button"
+                        >
+                            Download
+                        </Button>
+                    ) : (
+                        renderDialogActions({
+                            onExport: exportMutation,
+                            isExporting,
+                        })
+                    )}
                 </Stack>
             </Box>
         );
