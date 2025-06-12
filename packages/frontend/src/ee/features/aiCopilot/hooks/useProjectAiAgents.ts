@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
-const PROJECT_AI_AGENTS_KEY = 'projectAiAgents';
+export const PROJECT_AI_AGENTS_KEY = 'projectAiAgents';
 
 const listProjectAgents = (projectUuid: string) =>
     lightdashApi<ApiAiAgentSummaryResponse['results']>({
