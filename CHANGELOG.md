@@ -1,3 +1,10 @@
+# [0.1710.0](https://github.com/lightdash/lightdash/compare/0.1709.4...0.1710.0) (2025-06-12)
+
+
+### Features
+
+* Excel download option for SQL chart cartesian charts ([#15288](https://github.com/lightdash/lightdash/issues/15288)) ([d2f0c46](https://github.com/lightdash/lightdash/commit/d2f0c465ec8ff8e4361fb338addf9ea229583fb5))
+
 ## [0.1709.4](https://github.com/lightdash/lightdash/compare/0.1709.3...0.1709.4) (2025-06-12)
 
 
