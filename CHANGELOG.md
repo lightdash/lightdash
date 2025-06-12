@@ -1,3 +1,11 @@
+# [0.1712.0](https://github.com/lightdash/lightdash/compare/0.1711.0...0.1712.0) (2025-06-12)
+
+
+### Features
+
+* make ExportResults component wrappable in a modal ([#15303](https://github.com/lightdash/lightdash/issues/15303)) ([db2cdb3](https://github.com/lightdash/lightdash/commit/db2cdb3426c45c8f41471a396564fd759d97d7d0))
+* move create/edit agent to /ai-agents ([#15290](https://github.com/lightdash/lightdash/issues/15290)) ([61c90b3](https://github.com/lightdash/lightdash/commit/61c90b38936f80a3db5a0a73a76cc01f998a8015))
+
 # [0.1711.0](https://github.com/lightdash/lightdash/compare/0.1710.1...0.1711.0) (2025-06-12)
 
 
