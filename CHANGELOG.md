@@ -1,3 +1,10 @@
+## [0.1709.3](https://github.com/lightdash/lightdash/compare/0.1709.2...0.1709.3) (2025-06-12)
+
+
+### Bug Fixes
+
+* correctly send invalidate cache on refresh ([#15287](https://github.com/lightdash/lightdash/issues/15287)) ([f872c3c](https://github.com/lightdash/lightdash/commit/f872c3c46fa5f65e0fcfd686e90533ff8e1a9e99))
+
 ## [0.1709.2](https://github.com/lightdash/lightdash/compare/0.1709.1...0.1709.2) (2025-06-11)
 
 
