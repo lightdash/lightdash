@@ -7,9 +7,11 @@ import {
     ApiSuccessEmpty,
     MetricQuery,
     PivotConfig,
+    QueryExecutionContext,
 } from '@lightdash/common';
 import {
     Body,
+    Deprecated,
     Get,
     Middlewares,
     OperationId,
@@ -24,7 +26,12 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import {
+    getContextFromHeader,
+    getContextFromQueryOrHeader,
+} from '../analytics/LightdashAnalytics';
+import {
     allowApiKeyAuthentication,
+    deprecatedDownloadRoute,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -129,7 +136,12 @@ export class ExploreController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Deprecated()
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        deprecatedDownloadRoute,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('{exploreId}/downloadCsv')
     @OperationId('DownloadCsvFromExplore')
@@ -149,6 +161,22 @@ export class ExploreController extends BaseController {
             pivotConfig?: PivotConfig;
         },
     ): Promise<{ status: 'ok'; results: { jobId: string } }> {
+        const context = getContextFromHeader(req);
+        await this.services
+            .getLightdashAnalyticsService()
+            .trackDeprecatedRouteCalled(
+                {
+                    event: 'deprecated_route.called',
+                    userId: req.user!.userUuid,
+                    properties: {
+                        route: req.path,
+                        context: context ?? QueryExecutionContext.API,
+                    },
+                },
+                {
+                    projectUuid,
+                },
+            );
         this.setStatus(200);
         const {
             onlyRaw,
