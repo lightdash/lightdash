@@ -1,3 +1,10 @@
+# [0.1711.0](https://github.com/lightdash/lightdash/compare/0.1710.1...0.1711.0) (2025-06-12)
+
+
+### Features
+
+* Introduce Agent Switcher ([#15286](https://github.com/lightdash/lightdash/issues/15286)) ([6bdc31d](https://github.com/lightdash/lightdash/commit/6bdc31d376a6155f41f142b38a09009b96bffb2e)), closes [#15247](https://github.com/lightdash/lightdash/issues/15247)
+
 ## [0.1710.1](https://github.com/lightdash/lightdash/compare/0.1710.0...0.1710.1) (2025-06-12)
 
 
