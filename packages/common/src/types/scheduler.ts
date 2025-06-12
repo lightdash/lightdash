@@ -37,6 +37,7 @@ export enum SchedulerJobStatus {
 
 export enum SchedulerFormat {
     CSV = 'csv',
+    XLSX = 'xlsx',
     IMAGE = 'image',
     GSHEETS = 'gsheets',
 }
