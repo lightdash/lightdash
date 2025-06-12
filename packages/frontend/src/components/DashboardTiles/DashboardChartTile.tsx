@@ -1283,7 +1283,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                 size="lg"
                                 color="gray.7"
                             />
-                            <Text fw={600}>Export CSV</Text>
+                            <Text fw={600}>Export Data</Text>
                         </Group>
                     }
                     styles={(theme) => ({
