@@ -42,7 +42,6 @@ const TokenItem: FC<{
     setTokenToDelete: Dispatch<SetStateAction<ServiceAccount | undefined>>;
 }> = ({ token, setTokenToDelete }) => {
     const { description, expiresAt, rotatedAt, lastUsedAt, uuid } = token;
-
     return (
         <>
             <tr>
@@ -141,7 +140,7 @@ export const TokensTable = () => {
     const { cx, classes } = useTableStyles();
 
     const [tokenToDelete, setTokenToDelete] = useState<
-        ScimOrganizationAccessToken | undefined
+        ServiceAccount | undefined
     >();
     const { mutate, isLoading: isDeleting, isSuccess } = useDeleteScimToken();
 
