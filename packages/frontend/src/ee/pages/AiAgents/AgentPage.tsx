@@ -3,7 +3,6 @@ import {
     ActionIcon,
     Box,
     Button,
-    Center,
     Divider,
     Group,
     Loader,
@@ -14,6 +13,7 @@ import {
     Text,
     Title,
     Tooltip,
+    useMantineTheme,
 } from '@mantine-8/core';
 import {
     IconArrowLeft,
@@ -24,9 +24,10 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Link, Navigate, Outlet, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import Page from '../../../components/common/Page/Page';
+import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
 import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import { AgentSwitcher } from '../../features/aiCopilot/components/AgentSwitcher';
@@ -79,6 +80,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
     />
 );
 const AgentPage = () => {
+    const theme = useMantineTheme();
     const { user } = useApp();
     const { agentUuid, threadUuid, projectUuid } = useParams();
     const { data: threads } = useAiAgentThreads(agentUuid);
@@ -92,11 +94,17 @@ const AgentPage = () => {
 
     if (isLoadingAgent) {
         return (
-            <Page withFullHeight>
-                <Center h="100%">
-                    <Loader color="gray" />
-                </Center>
-            </Page>
+            <Box
+                h="100vh"
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: 'white',
+                }}
+            >
+                <Loader color="gray" />
+            </Box>
         );
     }
 
@@ -105,8 +113,23 @@ const AgentPage = () => {
     }
 
     return (
-        <Page
-            sidebar={
+        <PanelGroup
+            direction="horizontal"
+            style={{
+                height: `calc(100vh - ${NAVBAR_HEIGHT}px)`,
+                backgroundColor: 'white',
+            }}
+        >
+            <Panel
+                defaultSize={20}
+                minSize={20}
+                maxSize={40}
+                style={{
+                    padding: '24px',
+                    overflow: 'auto',
+                    backgroundColor: theme.colors.gray[0],
+                }}
+            >
                 <Stack gap="xl" align="stretch">
                     <Stack align="flex-start" gap="xs">
                         <Button
@@ -191,7 +214,10 @@ const AgentPage = () => {
                                 {threads.length === 0 && (
                                     <Paper
                                         withBorder
-                                        style={{ borderStyle: 'dashed' }}
+                                        style={{
+                                            borderStyle: 'dashed',
+                                            backgroundColor: 'transparent',
+                                        }}
                                         p="sm"
                                     >
                                         <Text
@@ -247,10 +273,25 @@ const AgentPage = () => {
                         </Stack>
                     )}
                 </Stack>
-            }
-        >
-            <Outlet context={{ agent }} />
-        </Page>
+            </Panel>
+
+            <PanelResizeHandle
+                style={{
+                    width: '1.5px',
+                    backgroundColor: theme.colors.gray[2],
+                    cursor: 'col-resize',
+                }}
+            />
+
+            <Panel
+                style={{
+                    backgroundColor: 'white',
+                    overflow: 'auto',
+                }}
+            >
+                <Outlet context={{ agent }} />
+            </Panel>
+        </PanelGroup>
     );
 };
 
