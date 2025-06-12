@@ -1,3 +1,10 @@
+## [0.1710.1](https://github.com/lightdash/lightdash/compare/0.1710.0...0.1710.1) (2025-06-12)
+
+
+### Bug Fixes
+
+* LD_SETUP_DBT_VERSION on initialize project ([#15297](https://github.com/lightdash/lightdash/issues/15297)) ([cb7a15a](https://github.com/lightdash/lightdash/commit/cb7a15ac0fb574532db2d418417ff9b571aec661))
+
 # [0.1710.0](https://github.com/lightdash/lightdash/compare/0.1709.4...0.1710.0) (2025-06-12)
 
 
