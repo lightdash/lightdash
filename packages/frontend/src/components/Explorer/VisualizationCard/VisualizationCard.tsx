@@ -191,6 +191,7 @@ const VisualizationCard: FC<{
                                             getDownloadQueryUuid
                                         }
                                         projectUuid={projectUuid}
+                                        chartName={savedChart?.name}
                                         getGsheetLink={getGsheetLink}
                                     />
                                 )}

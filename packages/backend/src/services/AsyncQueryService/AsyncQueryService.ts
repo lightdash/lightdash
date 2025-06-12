@@ -607,6 +607,7 @@ export class AsyncQueryService extends ProjectService {
         columnOrder = [],
         hiddenFields = [],
         pivotConfig,
+        attachmentDownloadName,
     }: DownloadAsyncQueryResultsArgs): Promise<
         | ApiDownloadAsyncQueryResults
         | ApiDownloadAsyncQueryResultsAsCsv
@@ -707,6 +708,7 @@ export class AsyncQueryService extends ProjectService {
                             columnOrder,
                             hiddenFields,
                             pivotConfig,
+                            attachmentDownloadName,
                         },
                     });
                 }
@@ -725,6 +727,7 @@ export class AsyncQueryService extends ProjectService {
                         hiddenFields,
                         pivotConfig,
                     },
+                    attachmentDownloadName,
                 );
             case DownloadFileType.XLSX:
                 // Check if this is a pivot table download
@@ -742,6 +745,7 @@ export class AsyncQueryService extends ProjectService {
                             columnOrder,
                             hiddenFields,
                             pivotConfig,
+                            attachmentDownloadName,
                         },
                     });
                 }
@@ -761,6 +765,7 @@ export class AsyncQueryService extends ProjectService {
                         hiddenFields,
                         pivotConfig,
                     },
+                    attachmentDownloadName,
                 );
             case undefined:
             case DownloadFileType.JSONL:
@@ -800,6 +805,7 @@ export class AsyncQueryService extends ProjectService {
             hiddenFields?: string[];
             pivotConfig?: PivotConfig;
         },
+        attachmentDownloadName?: string,
     ): Promise<{ fileUrl: string; truncated: boolean }> {
         // Generate a unique filename
         const formattedFileName = service.generateFileId(resultsFileName);
@@ -863,6 +869,7 @@ export class AsyncQueryService extends ProjectService {
                     truncated,
                 };
             },
+            attachmentDownloadName,
         );
     }
 

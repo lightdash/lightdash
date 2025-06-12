@@ -1464,6 +1464,7 @@ This method can be memory intensive
             columnOrder: string[];
             hiddenFields: string[];
             pivotConfig: PivotConfig;
+            attachmentDownloadName?: string;
         };
     }): Promise<{ fileUrl: string; truncated: boolean }> {
         const {
@@ -1490,7 +1491,8 @@ This method can be memory intensive
             throw new Error('No data found in results file');
         }
 
-        const fileName = `pivot-${resultsFileName}`;
+        const fileName =
+            options.attachmentDownloadName || `pivot-${resultsFileName}`;
 
         const attachmentUrl = await this.downloadPivotTableCsv({
             name: fileName,

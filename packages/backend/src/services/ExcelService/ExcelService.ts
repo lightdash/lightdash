@@ -256,6 +256,7 @@ export class ExcelService {
             columnOrder: string[];
             hiddenFields: string[];
             pivotConfig: PivotConfig;
+            attachmentDownloadName?: string;
         };
     }): Promise<{ fileUrl: string; truncated: boolean }> {
         const { onlyRaw, customLabels, pivotConfig } = options;
@@ -275,7 +276,8 @@ export class ExcelService {
             throw new Error('No data found in results file');
         }
 
-        const fileName = `pivot-${resultsFileName}`;
+        const fileName =
+            options.attachmentDownloadName || `pivot-${resultsFileName}`;
         const formattedFileName = ExcelService.generateFileId(fileName);
 
         const excelBuffer = await ExcelService.downloadPivotTableXlsx({
