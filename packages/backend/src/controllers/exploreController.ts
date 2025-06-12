@@ -23,6 +23,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { deprecatedDownloadCsvRoute } from '../middlewares/deprecation';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -129,7 +130,11 @@ export class ExploreController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        deprecatedDownloadCsvRoute,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('{exploreId}/downloadCsv')
     @OperationId('DownloadCsvFromExplore')
