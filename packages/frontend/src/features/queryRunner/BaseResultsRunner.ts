@@ -100,6 +100,7 @@ export class BaseResultsRunner implements IResultsRunner {
         query: SemanticLayerQuery,
     ): Promise<PivotChartData> {
         const emptyPivotChartData: PivotChartData = {
+            queryUuid: undefined,
             fileUrl: undefined,
             results: [],
             indexColumn: undefined,

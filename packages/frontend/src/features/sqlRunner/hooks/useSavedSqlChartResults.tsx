@@ -86,7 +86,7 @@ export const useSavedSqlChartResults = (
             // Safe to assume these are defined because of the enabled flag
             const chart = chartQuery.data!;
 
-            let { originalColumns, queryUuid, ...pivotChartData } =
+            let { originalColumns, ...pivotChartData } =
                 isDashboardArgs(args) && savedSqlUuid
                     ? await getDashboardSqlChartPivotChartData({
                           projectUuid: projectUuid!,
@@ -125,7 +125,7 @@ export const useSavedSqlChartResults = (
             });
             const chartUnderlyingData = vizDataModel.getPivotedTableData();
             return {
-                queryUuid,
+                queryUuid: pivotChartData.queryUuid,
                 chartSpec: vizDataModel.getSpec(
                     chart.config.display,
                     organization?.chartColors,
