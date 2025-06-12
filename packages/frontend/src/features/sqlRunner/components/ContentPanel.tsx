@@ -345,6 +345,13 @@ export const ContentPanel: FC = () => {
         [sql, projectUuid, limit, queryUuid],
     );
 
+    const getDownloadPivotQueryUuid = useCallback(async () => {
+        if (!pivotedChartInfo?.data?.queryUuid) {
+            throw new Error('No query uuid to download');
+        }
+        return pivotedChartInfo?.data?.queryUuid;
+    }, [pivotedChartInfo]);
+
     return (
         <Stack spacing="none" style={{ flex: 1, overflow: 'hidden' }}>
             <Tooltip.Group>
@@ -467,16 +474,22 @@ export const ContentPanel: FC = () => {
                             !isVizTableConfig(currentVizConfig) &&
                             selectedChartType ? (
                                 <ChartDownload
-                                    fileUrl={
-                                        pivotedChartInfo?.data?.chartFileUrl
+                                    chartName={savedSqlChart?.name}
+                                    echartsInstance={activeEchartsInstance}
+                                    projectUuid={projectUuid}
+                                    disabled={isLoadingSqlQuery}
+                                    hideLimitSelection={true}
+                                    totalResults={
+                                        resultsRunner.getRows().length
                                     }
-                                    columnNames={
+                                    columnOrder={
                                         pivotedChartInfo?.data?.columns?.map(
                                             (c) => c.reference,
                                         ) ?? []
                                     }
-                                    chartName={savedSqlChart?.name}
-                                    echartsInstance={activeEchartsInstance}
+                                    getDownloadQueryUuid={
+                                        getDownloadPivotQueryUuid
+                                    }
                                 />
                             ) : (
                                 mode === 'default' && (

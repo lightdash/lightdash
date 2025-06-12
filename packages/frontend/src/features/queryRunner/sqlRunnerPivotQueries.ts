@@ -90,6 +90,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
 
         if (index === undefined) {
             return {
+                queryUuid: undefined,
                 results: [],
                 indexColumn: undefined,
                 valuesColumns: [],
@@ -121,6 +122,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
         );
 
         return {
+            queryUuid: pivotResults.queryUuid,
             fileUrl: pivotResults.fileUrl,
             results: pivotResults.results,
             indexColumn: pivotResults.indexColumn,

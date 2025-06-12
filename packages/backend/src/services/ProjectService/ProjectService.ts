@@ -3046,6 +3046,7 @@ export class ProjectService extends BaseService {
                   }));
 
         return {
+            queryUuid: undefined,
             fileUrl,
             valuesColumns: processedColumns,
             indexColumn,

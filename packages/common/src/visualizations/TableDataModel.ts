@@ -107,6 +107,7 @@ export class TableDataModel {
     async getPivotedChartData(): Promise<PivotChartData> {
         // Not implemented in table yet
         return {
+            queryUuid: undefined,
             columns: [],
             fileUrl: '',
             indexColumn: undefined,

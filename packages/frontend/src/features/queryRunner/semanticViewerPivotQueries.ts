@@ -121,6 +121,7 @@ export const getPivotQueryFunctionForSemanticViewer = (
             }, []);
 
         return {
+            queryUuid: undefined,
             results,
             indexColumn,
             valuesColumns,

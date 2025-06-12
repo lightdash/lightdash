@@ -150,17 +150,25 @@ const ViewSqlChart = () => {
                                     getDownloadQueryUuid={getDownloadQueryUuid}
                                 />
                             )}
-                        {activeTab === TabOption.CHART && echartsInstance && (
-                            <ChartDownload
-                                echartsInstance={echartsInstance}
-                                fileUrl={chartResultsData?.fileUrl}
-                                columnNames={
-                                    chartResultsData?.chartUnderlyingData
-                                        ?.columns ?? []
-                                }
-                                chartName={chartData?.name}
-                            />
-                        )}
+                        {activeTab === TabOption.CHART &&
+                            echartsInstance &&
+                            params.projectUuid && (
+                                <ChartDownload
+                                    echartsInstance={echartsInstance}
+                                    chartName={chartData?.name}
+                                    projectUuid={params.projectUuid}
+                                    disabled={!chartResultsData}
+                                    totalResults={
+                                        chartResultsData?.chartUnderlyingData
+                                            ?.rows.length ?? 0
+                                    }
+                                    columnOrder={
+                                        chartResultsData?.chartUnderlyingData
+                                            ?.columns ?? []
+                                    }
+                                    getDownloadQueryUuid={getDownloadQueryUuid}
+                                />
+                            )}
                     </Group>
 
                     {chartError && <ErrorState error={chartError.error} />}

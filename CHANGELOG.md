@@ -1,3 +1,31 @@
+## [0.1710.1](https://github.com/lightdash/lightdash/compare/0.1710.0...0.1710.1) (2025-06-12)
+
+
+### Bug Fixes
+
+* LD_SETUP_DBT_VERSION on initialize project ([#15297](https://github.com/lightdash/lightdash/issues/15297)) ([cb7a15a](https://github.com/lightdash/lightdash/commit/cb7a15ac0fb574532db2d418417ff9b571aec661))
+
+# [0.1710.0](https://github.com/lightdash/lightdash/compare/0.1709.4...0.1710.0) (2025-06-12)
+
+
+### Features
+
+* Excel download option for SQL chart cartesian charts ([#15288](https://github.com/lightdash/lightdash/issues/15288)) ([d2f0c46](https://github.com/lightdash/lightdash/commit/d2f0c465ec8ff8e4361fb338addf9ea229583fb5))
+
+## [0.1709.4](https://github.com/lightdash/lightdash/compare/0.1709.3...0.1709.4) (2025-06-12)
+
+
+### Bug Fixes
+
+* improve filtering ([#15299](https://github.com/lightdash/lightdash/issues/15299)) ([97a0786](https://github.com/lightdash/lightdash/commit/97a0786c3af560122799481a48f3af74150808d7))
+
+## [0.1709.3](https://github.com/lightdash/lightdash/compare/0.1709.2...0.1709.3) (2025-06-12)
+
+
+### Bug Fixes
+
+* correctly send invalidate cache on refresh ([#15287](https://github.com/lightdash/lightdash/issues/15287)) ([f872c3c](https://github.com/lightdash/lightdash/commit/f872c3c46fa5f65e0fcfd686e90533ff8e1a9e99))
+
 ## [0.1709.2](https://github.com/lightdash/lightdash/compare/0.1709.1...0.1709.2) (2025-06-11)
 
 

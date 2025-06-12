@@ -1864,6 +1864,7 @@ export class SpaceModel {
                 WHERE
                     m.space_uuid = ?
                     AND s.path <@ m.path
+                    AND s.project_id = m.project_id
                     AND ((?::uuid) IS NULL OR p.project_id = m.project_id)
             `,
             [
