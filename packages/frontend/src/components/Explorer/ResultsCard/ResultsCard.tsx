@@ -58,6 +58,10 @@ const ResultsCard: FC = memo(() => {
         (context) => context.state.unsavedChartVersion,
     );
 
+    const savedChart = useExplorerContext(
+        (context) => context.state.savedChart,
+    );
+
     const customLabels = getCustomLabelsFromTableConfig(
         unsavedChartVersion.chartConfig.config,
     );
@@ -149,6 +153,7 @@ const ResultsCard: FC = memo(() => {
                                         columnOrder={columnOrder}
                                         customLabels={customLabels}
                                         hiddenFields={hiddenFields}
+                                        chartName={savedChart?.name}
                                         showTableNames
                                     />
                                 </Popover.Dropdown>

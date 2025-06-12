@@ -89,6 +89,7 @@ export const downloadQuery = async (
             columnOrder: options.columnOrder,
             hiddenFields: options.hiddenFields,
             pivotConfig: options.pivotConfig,
+            attachmentDownloadName: options.attachmentDownloadName,
         }),
         version: 'v2',
     });

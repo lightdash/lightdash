@@ -1,3 +1,10 @@
+# [0.1713.0](https://github.com/lightdash/lightdash/compare/0.1712.1...0.1713.0) (2025-06-12)
+
+
+### Features
+
+* use chart name as download file name through ContentDisposition ([#15292](https://github.com/lightdash/lightdash/issues/15292)) ([ab568b4](https://github.com/lightdash/lightdash/commit/ab568b4729a4a1e37490973bede79571e3119c0e))
+
 ## [0.1712.1](https://github.com/lightdash/lightdash/compare/0.1712.0...0.1712.1) (2025-06-12)
 
 

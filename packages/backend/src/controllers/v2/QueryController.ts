@@ -429,6 +429,7 @@ export class QueryController extends BaseController {
                 columnOrder: body.columnOrder,
                 hiddenFields: body.hiddenFields,
                 pivotConfig: body.pivotConfig,
+                attachmentDownloadName: body.attachmentDownloadName,
             });
 
         return {

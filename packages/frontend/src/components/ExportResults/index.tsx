@@ -96,6 +96,9 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         hiddenFields,
                         showTableNames,
                         pivotConfig,
+                        attachmentDownloadName: chartName
+                            ? `${chartName}_${formatDate(new Date())}`
+                            : undefined,
                     });
                 },
                 {

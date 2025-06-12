@@ -26,6 +26,7 @@ import { createPivotConfigFromVisualization } from './chartDownloadUtils';
 export type ChartDownloadMenuProps = {
     getDownloadQueryUuid: (limit: number | null) => Promise<string>;
     projectUuid: string;
+    chartName?: string;
     getGsheetLink?: (
         columnOrder: string[],
         showTableNames: boolean,
@@ -34,7 +35,7 @@ export type ChartDownloadMenuProps = {
 };
 
 const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
-    ({ getDownloadQueryUuid, getGsheetLink, projectUuid }) => {
+    ({ getDownloadQueryUuid, getGsheetLink, projectUuid, chartName }) => {
         const { chartRef, visualizationConfig, resultsData, pivotDimensions } =
             useVisualizationContext();
 
@@ -108,6 +109,7 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                             showTableNames={
                                 visualizationConfig.chartConfig.showTableNames
                             }
+                            chartName={chartName}
                             pivotConfig={pivotConfig}
                             getGsheetLink={
                                 getGsheetLink === undefined
