@@ -1,8 +1,5 @@
 import { stringify } from 'csv-stringify/sync';
-import * as fs from 'fs';
 import type { Knex } from 'knex';
-import * as os from 'os';
-import * as path from 'path';
 import { ClientRepository } from '../../../clients/ClientRepository';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { ProjectTableName } from '../../../database/entities/projects';
@@ -189,16 +186,10 @@ export function getFixDuplicateSlugsScripts(
                         ]),
                     ]);
 
-                    // Create a temporary file for the CSV
-                    const tempDir = os.tmpdir();
                     const timestamp = new Date()
                         .toISOString()
                         .replace(/[:.]/g, '-');
                     const csvFilename = `chart-slug-updates-${timestamp}.csv`;
-                    const csvFilePath = path.join(tempDir, csvFilename);
-
-                    // Write the CSV content to the file
-                    fs.writeFileSync(csvFilePath, csvContent);
 
                     const subject = `Chart slug updates for${projectMessage}${dryRunMessage}`;
                     const title = `Chart slug updates for${projectMessage}${dryRunMessage}`;
@@ -211,10 +202,10 @@ export function getFixDuplicateSlugsScripts(
                         ? opts.emailReportTo
                         : [opts.emailReportTo];
 
-                    // Create attachment
+                    // Create attachment with content directly as string
                     const attachment = {
                         filename: csvFilename,
-                        path: csvFilePath,
+                        content: csvContent,
                         contentType: 'text/csv',
                     };
 
@@ -233,15 +224,6 @@ export function getFixDuplicateSlugsScripts(
                             ', ',
                         )}`,
                     );
-
-                    // Clean up the temporary file
-                    try {
-                        fs.unlinkSync(csvFilePath);
-                    } catch (error) {
-                        console.warn(
-                            `Failed to delete temporary CSV file: ${error}`,
-                        );
-                    }
                 } else {
                     console.warn(
                         `Email client is not configured, skipping email notification`,
