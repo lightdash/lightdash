@@ -1,3 +1,10 @@
+# [0.1714.0](https://github.com/lightdash/lightdash/compare/0.1713.0...0.1714.0) (2025-06-13)
+
+
+### Features
+
+* service accounts ([#15261](https://github.com/lightdash/lightdash/issues/15261)) ([708119a](https://github.com/lightdash/lightdash/commit/708119a7eb55f807ac7f1fd81186ea3632c7d0e0))
+
 # [0.1713.0](https://github.com/lightdash/lightdash/compare/0.1712.1...0.1713.0) (2025-06-12)
 
 

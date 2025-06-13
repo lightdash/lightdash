@@ -47,9 +47,7 @@ import archiver from 'archiver';
 import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
-
 import isNil from 'lodash/isNil';
-import moment from 'moment';
 import { nanoid } from 'nanoid';
 import { createInterface } from 'readline';
 import {
@@ -113,10 +111,14 @@ export const convertSqlToCsv = (
             const rowValue = Object.values(row)[fieldIndex];
 
             if (isRowValueTimestamp(rowValue, field)) {
-                return moment(rowValue).format('YYYY-MM-DD HH:mm:ss.SSS');
+                const date = parseISO(rowValue as string);
+                return isValid(date)
+                    ? format(date, 'yyyy-MM-dd HH:mm:ss.SSS')
+                    : rowValue;
             }
             if (isRowValueDate(rowValue, field)) {
-                return moment(rowValue).format('YYYY-MM-DD');
+                const date = parseISO(rowValue as string);
+                return isValid(date) ? format(date, 'yyyy-MM-dd') : rowValue;
             }
 
             return Object.values(row)[fieldIndex];
@@ -219,10 +221,14 @@ export class CsvService extends BaseService {
 
             const itemIsField = isField(item);
             if (itemIsField && item.type === DimensionType.TIMESTAMP) {
-                return moment(data).format('YYYY-MM-DD HH:mm:ss.SSS');
+                const date = parseISO(data as string);
+                return isValid(date)
+                    ? format(date, 'yyyy-MM-dd HH:mm:ss.SSS')
+                    : data;
             }
             if (itemIsField && item.type === DimensionType.DATE) {
-                return moment(data).format('YYYY-MM-DD');
+                const date = parseISO(data as string);
+                return isValid(date) ? format(date, 'yyyy-MM-dd') : data;
             }
 
             // Return raw value and let csv-stringify handle the rest
@@ -238,7 +244,7 @@ export class CsvService extends BaseService {
     static generateFileId(
         fileName: string,
         truncated: boolean = false,
-        time: moment.Moment = moment(),
+        time: Date = new Date(),
     ): string {
         return generateGenericFileId({
             fileName,
@@ -246,12 +252,6 @@ export class CsvService extends BaseService {
             truncated,
             time,
         });
-    }
-
-    static isValidCsvFileId(fileId: string): boolean {
-        return /^csv-(incomplete_results-)?[a-z0-9_]+-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{4}\.csv$/.test(
-            fileId,
-        );
     }
 
     static async streamObjectRowsToFile(

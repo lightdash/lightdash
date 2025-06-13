@@ -134,6 +134,83 @@
             "ApiCreateServiceAccountRequest": {
                 "$ref": "#/components/schemas/Pick_ServiceAccount.expiresAt-or-description-or-scopes_"
             },
+            "ServiceAccountScope": {
+                "enum": ["scim:manage", "org:admin"],
+                "type": "string"
+            },
+            "ServiceAccount": {
+                "properties": {
+                    "scopes": {
+                        "items": {
+                            "$ref": "#/components/schemas/ServiceAccountScope"
+                        },
+                        "type": "array"
+                    },
+                    "rotatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUsedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "scopes",
+                    "rotatedAt",
+                    "lastUsedAt",
+                    "description",
+                    "expiresAt",
+                    "createdAt",
+                    "organizationUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "Pick_ServiceAccount.expiresAt-or-description-or-scopes_": {
+                "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "scopes": {
+                        "items": {
+                            "$ref": "#/components/schemas/ServiceAccountScope"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["expiresAt", "description", "scopes"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ApiCreateServiceAccountRequest": {
+                "$ref": "#/components/schemas/Pick_ServiceAccount.expiresAt-or-description-or-scopes_"
+            },
             "ScimSchemaType.LIST_RESPONSE": {
                 "enum": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
                 "type": "string"
