@@ -16,7 +16,7 @@ import {
 import {
     IconBrandSlack,
     IconChevronDown,
-    IconPencil,
+    IconMessageCirclePlus,
     IconPlus,
     IconSettings,
 } from '@tabler/icons-react';
@@ -167,7 +167,12 @@ const AgentPage = () => {
                                 <Button
                                     size="compact-xs"
                                     variant="dark"
-                                    leftSection={<IconPencil size={14} />}
+                                    leftSection={
+                                        <MantineIcon
+                                            strokeWidth={1.8}
+                                            icon={IconMessageCirclePlus}
+                                        />
+                                    }
                                     component={Link}
                                     to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
                                 >
