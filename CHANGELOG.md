@@ -1,3 +1,10 @@
+# [0.1716.0](https://github.com/lightdash/lightdash/compare/0.1715.0...0.1716.0) (2025-06-13)
+
+
+### Features
+
+* Remove Agent list page + UI improvs ([#15313](https://github.com/lightdash/lightdash/issues/15313)) ([1d5fd9d](https://github.com/lightdash/lightdash/commit/1d5fd9dc9af729a717bb9762e658a4eb4c23b347)), closes [#15250](https://github.com/lightdash/lightdash/issues/15250)
+
 # [0.1715.0](https://github.com/lightdash/lightdash/compare/0.1714.0...0.1715.0) (2025-06-13)
 
 
