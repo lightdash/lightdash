@@ -284,6 +284,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 encryptionUtil: context.utils.getEncryptionUtil(),
                 msTeamsClient: context.clients.getMsTeamsClient(),
                 renameService: context.serviceRepository.getRenameService(),
+                asyncQueryService:
+                    context.serviceRepository.getAsyncQueryService(),
             }),
         slackBotFactory: (context) =>
             new CommercialSlackBot({

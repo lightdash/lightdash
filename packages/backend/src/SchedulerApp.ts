@@ -66,6 +66,7 @@ const schedulerWorkerFactory = (context: {
         encryptionUtil: context.utils.getEncryptionUtil(),
         msTeamsClient: context.clients.getMsTeamsClient(),
         renameService: context.serviceRepository.getRenameService(),
+        asyncQueryService: context.serviceRepository.getAsyncQueryService(),
     });
 
 export default class SchedulerApp {

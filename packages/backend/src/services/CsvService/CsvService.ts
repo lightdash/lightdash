@@ -138,7 +138,7 @@ export const convertSqlToCsv = (
     });
 };
 
-const getSchedulerCsvLimit = (
+export const getSchedulerCsvLimit = (
     options: SchedulerCsvOptions | undefined,
 ): number | null | undefined => {
     switch (options?.limit) {
