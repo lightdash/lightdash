@@ -69,6 +69,7 @@ import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 import PrometheusMetrics from './prometheus';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
+
 // We need to override this interface to have our user typing
 declare global {
     namespace Express {

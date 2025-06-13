@@ -16,7 +16,7 @@ Content-Type: application/json
 
 {
     "description": "http test",
-    "expiresAt": "2025-06-11T14:00:00.000Z"
+    "expiresAt": "2025-09-11T14:00:00.000Z"
 }
 
 ### Get token by UUID
@@ -30,3 +30,10 @@ Content-Type: application/json
 {
     "expiresAt": "2025-09-11T14:00:00.000Z"
 }
+
+
+### Logout
+GET http://localhost:8080/api/v1/logout
+### Make a request using the scim token
+GET http://localhost:8080/api/v1/scim/v2/Groups
+Authorization: Bearer scim_1b593fb911bbe92cbabd67b6f6234957
