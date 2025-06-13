@@ -17,6 +17,7 @@ import {
     IconReportAnalytics,
     IconTableOptions,
     IconUserCircle,
+    IconUserCode,
     IconUserPlus,
     IconUserShield,
     IconUsers,
@@ -46,6 +47,7 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import RouterNavLink from '../components/common/RouterNavLink';
 import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
+import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import {
@@ -73,6 +75,10 @@ const Settings: FC = () => {
 
     const { data: isScimTokenManagementEnabled } = useFeatureFlag(
         CommercialFeatureFlags.Scim,
+    );
+
+    const isServiceAccountsEnabled = useFeatureFlagEnabled(
+        CommercialFeatureFlags.ServiceAccounts,
     );
 
     const {
@@ -307,8 +313,19 @@ const Settings: FC = () => {
             });
         }
 
+        if (
+            user?.ability.can('manage', 'Organization') &&
+            isServiceAccountsEnabled
+        ) {
+            allowedRoutes.push({
+                path: '/serviceAccounts',
+                element: <ServiceAccountsPage />,
+            });
+        }
+
         return allowedRoutes;
     }, [
+        isServiceAccountsEnabled,
         isScimTokenManagementEnabled?.enabled,
         isPassthroughLoginFeatureEnabled,
         allowPasswordAuthentication,
@@ -514,6 +531,19 @@ const Settings: FC = () => {
                                             to="/generalSettings/scimAccessTokens"
                                             icon={
                                                 <MantineIcon icon={IconKey} />
+                                            }
+                                        />
+                                    )}
+                                {user.ability.can('manage', 'Organization') &&
+                                    isServiceAccountsEnabled && (
+                                        <RouterNavLink
+                                            label="Service Accounts"
+                                            exact
+                                            to="/generalSettings/serviceAccounts"
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconUserCode}
+                                                />
                                             }
                                         />
                                     )}

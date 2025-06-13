@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type CommercialFeatureFlags,
     type FeatureFlag,
     type FeatureFlags,
 } from '@lightdash/common';
@@ -11,8 +12,9 @@ import { lightdashApi } from '../api';
  * Thin wrapper around posthog's useFeatureFlagEnabled hook that is aware
  * of our FeatureFlags enum.
  */
-export const useFeatureFlagEnabled = (featureFlag: FeatureFlags) =>
-    useFeatureFlagEnabledPosthog(featureFlag) === true;
+export const useFeatureFlagEnabled = (
+    featureFlag: FeatureFlags | CommercialFeatureFlags,
+) => useFeatureFlagEnabledPosthog(featureFlag) === true;
 
 /**
  * Use our own endpoint to get the feature flag from multiple sources.

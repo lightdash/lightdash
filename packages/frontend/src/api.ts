@@ -47,14 +47,24 @@ const handleError = (err: any): ApiError => {
     };
 };
 
-type LightdashApiProps = {
-    method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
+type LightdashApiPropsBase = {
     url: string;
-    body: BodyInit | null | undefined;
     headers?: Record<string, string> | undefined;
     version?: 'v1' | 'v2';
     signal?: AbortSignal;
 };
+
+type LightdashApiPropsGetOrDelete = LightdashApiPropsBase & {
+    method: 'GET' | 'DELETE';
+    body?: BodyInit | null | undefined;
+};
+
+type LightdashApiPropsWrite = LightdashApiPropsBase & {
+    method: 'POST' | 'PATCH' | 'PUT';
+    body: BodyInit | null | undefined;
+};
+
+type LightdashApiProps = LightdashApiPropsGetOrDelete | LightdashApiPropsWrite;
 
 const MAX_NETWORK_HISTORY = 10;
 export let networkHistory: AnyType[] = [];
