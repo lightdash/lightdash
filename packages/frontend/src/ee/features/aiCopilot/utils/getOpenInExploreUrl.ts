@@ -8,14 +8,16 @@ export const getOpenInExploreUrl = ({
     columnOrder,
     type,
     chartOptions,
+    pivotColumns,
 }: {
     metricQuery: MetricQuery;
     activeProjectUuid: string;
     columnOrder: string[];
     type: AiChartType;
     chartOptions?: AnyType;
-}) =>
-    getExplorerUrlFromCreateSavedChartVersion(activeProjectUuid, {
+    pivotColumns?: string[];
+}) => {
+    return getExplorerUrlFromCreateSavedChartVersion(activeProjectUuid, {
         tableName: metricQuery.exploreName,
         metricQuery,
         chartConfig: getAiAgentChartConfig({
@@ -26,7 +28,11 @@ export const getOpenInExploreUrl = ({
         tableConfig: {
             columnOrder,
         },
-        // TODO: Add pivotConfig
-        pivotConfig: undefined,
+        pivotConfig: pivotColumns
+            ? {
+                  columns: pivotColumns,
+              }
+            : undefined,
         updatedByUser: undefined,
     });
+};
