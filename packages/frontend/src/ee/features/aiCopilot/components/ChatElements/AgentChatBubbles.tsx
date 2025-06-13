@@ -31,13 +31,15 @@ import dayjs from 'dayjs';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { Link, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
+import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
 import {
-    useAiAgentThreadMessageViz,
+    useAiAgentThreadMessageVizQuery,
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useOrganizationAiAgents';
+import { getChartOptionsFromAiAgentThreadMessageVizQuery } from '../../utils/echarts';
+import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
 import { AiChartVisualization } from './AiChartVisualization';
 
 export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
@@ -89,13 +91,22 @@ export const AssistantBubble: FC<{
     isPreview?: boolean;
 }> = memo(({ message, isPreview = false }) => {
     const { agentUuid } = useParams();
-    const { activeProjectUuid } = useActiveProjectUuid();
+    const { projectUuid } = useParams();
 
-    const vizQuery = useAiAgentThreadMessageViz({
+    const queryExecutionHandle = useAiAgentThreadMessageVizQuery({
         agentUuid: agentUuid!,
         message,
-        activeProjectUuid,
+        projectUuid: projectUuid!,
     });
+
+    const queryResults = useInfiniteQueryResults(
+        projectUuid,
+        queryExecutionHandle?.data?.query.queryUuid,
+    );
+
+    const isQueryLoading =
+        queryExecutionHandle.isLoading || queryResults.isFetchingRows;
+    const isQueryError = queryExecutionHandle.isError || queryResults.error;
 
     const updateFeedbackMutation = useUpdatePromptFeedbackMutation(
         agentUuid,
@@ -114,35 +125,51 @@ export const AssistantBubble: FC<{
     );
 
     const handleUpvote = useCallback(() => {
-        if (!activeProjectUuid || message.humanScore !== null) return; // Prevent changes if already rated
+        if (!projectUuid || message.humanScore !== null) return; // Prevent changes if already rated
         updateFeedbackMutation.mutate({
             messageUuid: message.uuid,
             humanScore: 1,
         });
-    }, [
-        activeProjectUuid,
-        message.uuid,
-        message.humanScore,
-        updateFeedbackMutation,
-    ]);
+    }, [projectUuid, message.uuid, message.humanScore, updateFeedbackMutation]);
 
     const handleDownvote = useCallback(() => {
-        if (!activeProjectUuid || message.humanScore !== null) return; // Prevent changes if already rated
+        if (!projectUuid || message.humanScore !== null) return; // Prevent changes if already rated
         updateFeedbackMutation.mutate({
             messageUuid: message.uuid,
             humanScore: -1,
         });
-    }, [
-        activeProjectUuid,
-        message.uuid,
-        message.humanScore,
-        updateFeedbackMutation,
-    ]);
+    }, [projectUuid, message.uuid, message.humanScore, updateFeedbackMutation]);
 
     // TODO: Do not use hardcoded string for loading state
     const isLoading = message.message === 'Thinking...';
     const hasRating =
         message.humanScore !== undefined && message.humanScore !== null;
+
+    const openInExploreUrl = useMemo(() => {
+        if (isQueryLoading || isQueryError) return '';
+
+        return getOpenInExploreUrl({
+            metricQuery: queryExecutionHandle.data.query.metricQuery,
+            activeProjectUuid: projectUuid!,
+            columnOrder: [
+                ...queryExecutionHandle.data.query.metricQuery.dimensions,
+                ...queryExecutionHandle.data.query.metricQuery.metrics,
+            ],
+            type: queryExecutionHandle.data.type,
+            chartOptions: getChartOptionsFromAiAgentThreadMessageVizQuery({
+                config: message.vizConfigOutput,
+                rows: queryResults.rows,
+                type: queryExecutionHandle.data.type,
+            }),
+        });
+    }, [
+        isQueryLoading,
+        isQueryError,
+        projectUuid,
+        queryExecutionHandle.data,
+        queryResults.rows,
+        message.vizConfigOutput,
+    ]);
 
     return (
         <Stack
@@ -173,18 +200,19 @@ export const AssistantBubble: FC<{
                     radius="md"
                     p="md"
                     shadow="none"
-                    {...((vizQuery.isError || vizQuery.isLoading) && {
+                    {...((queryExecutionHandle.isError ||
+                        queryExecutionHandle.isLoading) && {
                         bg: 'gray.0',
                         style: {
                             borderStyle: 'dashed',
                         },
                     })}
                 >
-                    {vizQuery.isLoading ? (
+                    {isQueryLoading ? (
                         <Center>
                             <Loader type="dots" color="gray" />
                         </Center>
-                    ) : vizQuery.isError ? (
+                    ) : isQueryError ? (
                         <Stack gap="xs" align="center">
                             <MantineIcon
                                 icon={IconExclamationCircle}
@@ -196,7 +224,12 @@ export const AssistantBubble: FC<{
                             </Text>
                         </Stack>
                     ) : (
-                        <AiChartVisualization vizData={vizQuery.data} />
+                        <AiChartVisualization
+                            query={queryExecutionHandle.data.query}
+                            type={queryExecutionHandle.data.type}
+                            vizConfig={message.vizConfigOutput}
+                            results={queryResults}
+                        />
                     )}
                 </Paper>
             )}
@@ -253,7 +286,7 @@ export const AssistantBubble: FC<{
                         />
                     </ActionIcon>
                 )}
-                {!!vizQuery.data?.openInExploreUrl && (
+                {!isQueryLoading && !isQueryError && (
                     <Button
                         variant="subtle"
                         color="gray"
@@ -261,7 +294,7 @@ export const AssistantBubble: FC<{
                         aria-label="open in explore"
                         leftSection={<MantineIcon icon={IconExternalLink} />}
                         component={Link}
-                        to={vizQuery.data.openInExploreUrl}
+                        to={openInExploreUrl}
                         target="_blank"
                         style={{
                             color: '#868e96',

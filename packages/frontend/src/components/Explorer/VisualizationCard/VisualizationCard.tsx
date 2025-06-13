@@ -207,6 +207,7 @@ const VisualizationCard: FC<{
                         echartSeriesClickEvent={echartsClickEvent?.event}
                         dimensions={echartsClickEvent?.dimensions}
                         series={echartsClickEvent?.series}
+                        explore={explore}
                     />
                 </CollapsableCard>
             </VisualizationProvider>
