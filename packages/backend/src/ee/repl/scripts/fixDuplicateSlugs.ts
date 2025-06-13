@@ -1,4 +1,8 @@
+import { stringify } from 'csv-stringify/sync';
+import * as fs from 'fs';
 import type { Knex } from 'knex';
+import * as os from 'os';
+import * as path from 'path';
 import { ClientRepository } from '../../../clients/ClientRepository';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { ProjectTableName } from '../../../database/entities/projects';
@@ -165,7 +169,7 @@ export function getFixDuplicateSlugsScripts(
             // Send email notification if email is provided
             if (opts.emailReportTo && changeLogs.length > 0) {
                 if (clients.getEmailClient().canSendEmail()) {
-                    // Convert changeLogs to markdown table
+                    // Create CSV content using csv-stringify
                     const tableHeaders = [
                         'Project UUID',
                         'Chart UUID',
@@ -173,24 +177,46 @@ export function getFixDuplicateSlugsScripts(
                         'New Slug',
                         'Action',
                     ];
-                    let markdownTable = `| ${tableHeaders.join(
-                        ' | ',
-                    )} |\n| ${tableHeaders.map(() => '---').join(' | ')} |\n`;
 
-                    changeLogs.forEach((log) => {
-                        markdownTable += `| ${log.project_uuid} | ${log.chart_uuid} | ${log.original_slug} | ${log.new_slug} | ${log.action} |\n`;
-                    });
+                    const csvContent = stringify([
+                        tableHeaders,
+                        ...changeLogs.map((log) => [
+                            log.project_uuid,
+                            log.chart_uuid,
+                            log.original_slug,
+                            log.new_slug,
+                            log.action,
+                        ]),
+                    ]);
+
+                    // Create a temporary file for the CSV
+                    const tempDir = os.tmpdir();
+                    const timestamp = new Date()
+                        .toISOString()
+                        .replace(/[:.]/g, '-');
+                    const csvFilename = `chart-slug-updates-${timestamp}.csv`;
+                    const csvFilePath = path.join(tempDir, csvFilename);
+
+                    // Write the CSV content to the file
+                    fs.writeFileSync(csvFilePath, csvContent);
 
                     const subject = `Chart slug updates for${projectMessage}${dryRunMessage}`;
-                    const title = `The following chart slugs have been ${
+                    const title = `Chart slug updates for${projectMessage}${dryRunMessage}`;
+                    const message = `The following chart slugs have been ${
                         dryRun ? 'identified for update' : 'updated'
-                    }`;
-                    const message = `${markdownTable}`;
+                    }. Please see the attached CSV file for details.`;
 
                     // Convert emailReportTo to array if it's a string
                     const recipients = Array.isArray(opts.emailReportTo)
                         ? opts.emailReportTo
                         : [opts.emailReportTo];
+
+                    // Create attachment
+                    const attachment = {
+                        filename: csvFilename,
+                        path: csvFilePath,
+                        contentType: 'text/csv',
+                    };
 
                     await clients
                         .getEmailClient()
@@ -199,11 +225,23 @@ export function getFixDuplicateSlugsScripts(
                             subject,
                             title,
                             message,
+                            [attachment],
                         );
 
                     console.info(
-                        `Email notification sent to ${recipients.join(', ')}`,
+                        `Email notification with CSV attachment sent to ${recipients.join(
+                            ', ',
+                        )}`,
                     );
+
+                    // Clean up the temporary file
+                    try {
+                        fs.unlinkSync(csvFilePath);
+                    } catch (error) {
+                        console.warn(
+                            `Failed to delete temporary CSV file: ${error}`,
+                        );
+                    }
                 } else {
                     console.warn(
                         `Email client is not configured, skipping email notification`,

@@ -379,6 +379,7 @@ export default class EmailClient {
         subject: string,
         title: string,
         message: string,
+        attachments?: Mail.Attachment[],
     ) {
         return this.sendEmail({
             to,
@@ -390,6 +391,7 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
             },
             text: `${title}\n\n${message}`,
+            attachments,
         });
     }
 }
