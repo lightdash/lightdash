@@ -69,7 +69,7 @@ export class ServiceAccountService extends BaseService {
         }
     }
 
-    async createOrganizationAccessToken({
+    async create({
         user,
         tokenDetails,
         prefix = 'scim_',
@@ -112,7 +112,7 @@ export class ServiceAccountService extends BaseService {
         }
     }
 
-    async deleteOrganizationAccessToken({
+    async delete({
         user,
         tokenUuid,
     }: {
@@ -161,7 +161,7 @@ export class ServiceAccountService extends BaseService {
         }
     }
 
-    async rotateOrganizationAccessToken({
+    async rotate({
         user,
         tokenUuid,
         update,
@@ -220,7 +220,7 @@ export class ServiceAccountService extends BaseService {
         return newToken;
     }
 
-    async getOrganizationAccessToken({
+    async get({
         user,
         tokenUuid,
     }: {
@@ -243,7 +243,7 @@ export class ServiceAccountService extends BaseService {
         return existingToken;
     }
 
-    async listOrganizationAccessTokens(
+    async list(
         user: SessionUser,
         scopes: ServiceAccountScope[],
     ): Promise<ServiceAccount[]> {
@@ -269,7 +269,7 @@ export class ServiceAccountService extends BaseService {
         }
     }
 
-    async authenticateToken(
+    async authenticate(
         token: string,
         request: {
             method: string;
@@ -277,8 +277,6 @@ export class ServiceAccountService extends BaseService {
             routePath: string;
         },
     ): Promise<SessionServiceAccount | null> {
-        // TODO validate scope ?
-
         // return null if token is empty
         if (token === '') return null;
 
@@ -304,7 +302,10 @@ export class ServiceAccountService extends BaseService {
                 await this.serviceAccountModel.updateUsedDate(dbToken.uuid);
                 // finally return organization uuid
                 return {
+                    createdByUserUuid: dbToken.createdByUserUuid,
+                    uuid: dbToken.uuid,
                     organizationUuid: dbToken.organizationUuid,
+                    scopes: dbToken.scopes,
                 };
             }
         } catch (error) {
