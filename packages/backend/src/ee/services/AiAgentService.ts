@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AiAgentThread,
     AiAgentThreadSummary,
+    AiChartType,
     AiConversation,
     AiConversationMessage,
     AiDuplicateSlackPromptError,
@@ -9,6 +10,7 @@ import {
     AiWebAppPrompt,
     AnyType,
     ApiAiAgentThreadMessageViz,
+    ApiAiAgentThreadMessageVizQuery,
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
     assertUnreachable,
@@ -20,6 +22,7 @@ import {
     isSlackPrompt,
     LightdashUser,
     NotFoundError,
+    NotImplementedError,
     QueryExecutionContext,
     SlackPrompt,
     UnexpectedServerError,
@@ -34,6 +37,7 @@ import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { UserModel } from '../../models/UserModel';
+import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQueryService';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
 import { AiAgentModel } from '../models/AiAgentModel';
@@ -60,14 +64,20 @@ import {
     AI_DEFAULT_MAX_QUERY_LIMIT,
     validateSelectedFieldsExistence,
 } from './ai/utils/validators';
-import { isCsvFileConfig, renderCsvFile } from './ai/visualizations/csvFile';
+import {
+    isCsvFileConfig,
+    metricQueryCsv,
+    renderCsvFile,
+} from './ai/visualizations/csvFile';
 import {
     isTimeSeriesMetricChartConfig,
+    metricQueryTimeSeriesChartMetric,
     renderTimeseriesChart,
 } from './ai/visualizations/timeSeriesChart';
 import { AiAgentVizConfig } from './ai/visualizations/types';
 import {
     isVerticalBarMetricChartConfig,
+    metricQueryVerticalBarChartMetric,
     renderVerticalBarMetricChart,
 } from './ai/visualizations/verticalBarChart';
 import { CommercialCatalogService } from './CommercialCatalogService';
@@ -82,6 +92,7 @@ type AiAgentServiceDependencies = {
     catalogService: CommercialCatalogService;
     slackClient: SlackClient;
     schedulerClient: CommercialSchedulerClient;
+    asyncQueryService: AsyncQueryService;
 };
 
 export class AiAgentService {
@@ -103,6 +114,8 @@ export class AiAgentService {
 
     private readonly schedulerClient: CommercialSchedulerClient;
 
+    private readonly asyncQueryService: AsyncQueryService;
+
     constructor(dependencies: AiAgentServiceDependencies) {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.analytics = dependencies.analytics;
@@ -113,6 +126,7 @@ export class AiAgentService {
         this.projectService = dependencies.projectService;
         this.slackClient = dependencies.slackClient;
         this.schedulerClient = dependencies.schedulerClient;
+        this.asyncQueryService = dependencies.asyncQueryService;
     }
 
     // from AiService getToolUtilities
@@ -172,6 +186,37 @@ export class AiAgentService {
             undefined,
             QueryExecutionContext.AI,
         );
+    }
+
+    private async executeAsyncAiMetricQuery(
+        user: SessionUser,
+        projectUuid: string,
+        metricQuery: AiMetricQuery,
+    ) {
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            null,
+            metricQuery.exploreName,
+        );
+
+        const metricQueryFields = [
+            ...metricQuery.dimensions,
+            ...metricQuery.metrics,
+        ];
+
+        validateSelectedFieldsExistence(explore, metricQueryFields);
+
+        const asyncQuery = await this.asyncQueryService.executeAsyncMetricQuery(
+            {
+                user,
+                projectUuid,
+                metricQuery: { ...metricQuery, tableCalculations: [] },
+                context: QueryExecutionContext.AI,
+            },
+        );
+
+        return asyncQuery;
     }
 
     private async getIsCopilotEnabled(
@@ -801,6 +846,148 @@ export class AiAgentService {
                         : null,
                     maxLimit: AI_DEFAULT_MAX_QUERY_LIMIT,
                 });
+            default:
+                return assertUnreachable(vizConfig, 'Invalid viz config');
+        }
+    }
+
+    async getAgentThreadMessageVizQuery(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            messageUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        },
+    ): Promise<ApiAiAgentThreadMessageVizQuery> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const { projectUuid } = agent;
+
+        const message = await this.aiAgentModel.findThreadMessage('assistant', {
+            organizationUuid,
+            threadUuid,
+            messageUuid,
+        });
+
+        if (message.role === 'user') {
+            throw new ForbiddenError(
+                'User messages are not supported for this endpoint',
+            );
+        }
+
+        if (!message.metricQuery || !message.vizConfigOutput) {
+            throw new ForbiddenError(
+                'Viz config or metric query not found for this message',
+            );
+        }
+
+        let vizConfig: AiAgentVizConfig;
+        if (isVerticalBarMetricChartConfig(message.vizConfigOutput)) {
+            vizConfig = {
+                type: 'vertical_bar_chart',
+                config: message.vizConfigOutput,
+            };
+        } else if (isTimeSeriesMetricChartConfig(message.vizConfigOutput)) {
+            vizConfig = {
+                type: 'time_series_chart',
+                config: message.vizConfigOutput,
+            };
+        } else if (isCsvFileConfig(message.vizConfigOutput)) {
+            vizConfig = {
+                type: 'csv',
+                config: message.vizConfigOutput,
+            };
+        } else {
+            throw new UnexpectedServerError('Invalid viz config');
+        }
+
+        this.analytics.track({
+            event: 'ai_agent.web_viz_query',
+            userId: user.userUuid,
+            properties: {
+                projectId: agent.projectUuid,
+                organizationId: organizationUuid,
+                agentId: agent.uuid,
+                agentName: agent.name,
+                vizType: vizConfig.type,
+            },
+        });
+
+        switch (vizConfig.type) {
+            case 'vertical_bar_chart': {
+                const metricQuery = metricQueryVerticalBarChartMetric(
+                    vizConfig.config,
+                    message.filtersOutput
+                        ? (message.filtersOutput as FilterSchemaType)
+                        : null,
+                );
+                const query = await this.executeAsyncAiMetricQuery(
+                    user,
+                    projectUuid,
+                    metricQuery,
+                );
+
+                return {
+                    type: AiChartType.VERTICAL_BAR_CHART,
+                    query,
+                };
+            }
+            case 'time_series_chart': {
+                const metricQuery = metricQueryTimeSeriesChartMetric(
+                    vizConfig.config,
+                    message.filtersOutput
+                        ? (message.filtersOutput as FilterSchemaType)
+                        : null,
+                );
+                const query = await this.executeAsyncAiMetricQuery(
+                    user,
+                    projectUuid,
+                    metricQuery,
+                );
+
+                return {
+                    type: AiChartType.TIME_SERIES_CHART,
+                    query,
+                };
+            }
+            case 'csv':
+                const metricQuery = await metricQueryCsv(
+                    vizConfig.config,
+                    AI_DEFAULT_MAX_QUERY_LIMIT,
+                    message.filtersOutput
+                        ? (message.filtersOutput as FilterSchemaType)
+                        : null,
+                );
+                const query = await this.executeAsyncAiMetricQuery(
+                    user,
+                    projectUuid,
+                    metricQuery,
+                );
+                return {
+                    type: AiChartType.CSV,
+                    query,
+                };
             default:
                 return assertUnreachable(vizConfig, 'Invalid viz config');
         }
