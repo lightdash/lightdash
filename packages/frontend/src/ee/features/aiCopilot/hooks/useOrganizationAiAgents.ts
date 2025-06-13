@@ -22,7 +22,7 @@ import { useActiveProject } from '../../../../hooks/useActiveProject';
 import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
 import { getChartVisualizationFromAiQuery } from '../utils/getChartVisualizationFromAiQuery';
-import { useProjectAiAgent } from './useProjectAiAgents';
+import { PROJECT_AI_AGENTS_KEY, useProjectAiAgent } from './useProjectAiAgents';
 
 const AI_AGENTS_KEY = 'aiAgents';
 
@@ -110,6 +110,12 @@ export const useDeleteAiAgentMutation = () => {
             showToastSuccess({
                 title: 'AI agent deleted successfully',
             });
+            // Invalidate Project ai agent queries
+            void queryClient.invalidateQueries({
+                queryKey: [PROJECT_AI_AGENTS_KEY, activeProjectUuid],
+                exact: true,
+            });
+            // Invalidate Organization ai agent queries
             void queryClient.invalidateQueries({
                 queryKey: [AI_AGENTS_KEY],
                 exact: true,
