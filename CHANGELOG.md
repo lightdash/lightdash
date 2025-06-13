@@ -1,3 +1,10 @@
+# [0.1717.0](https://github.com/lightdash/lightdash/compare/0.1716.0...0.1717.0) (2025-06-13)
+
+
+### Features
+
+* add XLSX format option for scheduled deliveries ([#15308](https://github.com/lightdash/lightdash/issues/15308)) ([269028b](https://github.com/lightdash/lightdash/commit/269028b332b4aaf4c2b50d1b12f447ab828ee969))
+
 # [0.1716.0](https://github.com/lightdash/lightdash/compare/0.1715.0...0.1716.0) (2025-06-13)
 
 
