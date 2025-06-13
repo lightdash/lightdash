@@ -12,11 +12,13 @@ import { type FC } from 'react';
 
 import { ServiceAccountScope } from '@lightdash/common';
 
-const AVAILABLE_SCOPES = Object.values(ServiceAccountScope).map((scope) => ({
-    label: scope,
-    value: scope,
-    group: scope.split(':')[0],
-}));
+const AVAILABLE_SCOPES = Object.values(ServiceAccountScope)
+    .map((scope) => ({
+        label: scope,
+        value: scope,
+        group: scope.split(':')[0],
+    }))
+    .filter((scope) => scope.group !== 'scim');
 
 const expireOptions = [
     {
