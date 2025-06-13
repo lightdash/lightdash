@@ -1,3 +1,10 @@
+# [0.1718.0](https://github.com/lightdash/lightdash/compare/0.1717.0...0.1718.0) (2025-06-13)
+
+
+### Features
+
+* add UTF-8 BOM support to CSV exports ([#15226](https://github.com/lightdash/lightdash/issues/15226)) ([166acd1](https://github.com/lightdash/lightdash/commit/166acd12a54080f5519d0872e2259be806c37a1c))
+
 # [0.1717.0](https://github.com/lightdash/lightdash/compare/0.1716.0...0.1717.0) (2025-06-13)
 
 
