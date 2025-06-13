@@ -408,45 +408,6 @@ export default class SchedulerTask {
                     context,
                 };
 
-                // Recursive function that waits for query results to be ready
-                const pollForAsyncChartResults = async (
-                    queryUuid: string,
-                    backoffMs: number = 500,
-                ): Promise<void> => {
-                    const queryHistory =
-                        await this.asyncQueryService.queryHistoryModel.get(
-                            queryUuid,
-                            projectUuid,
-                            user.userUuid,
-                        );
-                    const { status } = queryHistory;
-
-                    switch (status) {
-                        case QueryHistoryStatus.CANCELLED:
-                            throw new Error('Query was cancelled');
-                        case QueryHistoryStatus.ERROR:
-                            throw new Error(
-                                queryHistory.error ?? 'Warehouse query failed',
-                            );
-                        case QueryHistoryStatus.PENDING:
-                            // Implement backoff: 500ms -> 1000ms -> 2000 (then stay at 2000ms)
-                            const nextBackoff = Math.min(backoffMs * 2, 2000);
-                            await sleep(backoffMs);
-                            return pollForAsyncChartResults(
-                                queryUuid,
-                                nextBackoff,
-                            );
-                        case QueryHistoryStatus.READY:
-                            // Continue with execution
-                            return undefined;
-                        default:
-                            return assertUnreachable(
-                                status,
-                                'Unknown query status',
-                            );
-                    }
-                };
-
                 try {
                     if (savedChartUuid) {
                         this.analytics.track({
@@ -467,15 +428,12 @@ export default class SchedulerTask {
                                 },
                             );
 
-                        // Wait query to be ready before download
-                        await pollForAsyncChartResults(query.queryUuid);
-
                         const chart =
                             await this.schedulerService.savedChartModel.get(
                                 savedChartUuid,
                             );
                         const downloadResult =
-                            await this.asyncQueryService.downloadAsyncQueryResults(
+                            await this.asyncQueryService.downloadSyncQueryResults(
                                 {
                                     user,
                                     projectUuid,
@@ -566,16 +524,12 @@ export default class SchedulerTask {
                                                 // todo: support limit arg
                                             },
                                         );
-                                    // Wait query to be ready before download
-                                    await pollForAsyncChartResults(
-                                        query.queryUuid,
-                                    );
                                     const chart =
                                         await this.schedulerService.savedChartModel.get(
                                             chartUuid,
                                         );
                                     const downloadResult =
-                                        await this.asyncQueryService.downloadAsyncQueryResults(
+                                        await this.asyncQueryService.downloadSyncQueryResults(
                                             {
                                                 user,
                                                 projectUuid,
@@ -633,8 +587,6 @@ export default class SchedulerTask {
                                                     : sqlLimit,
                                         },
                                     );
-                                // Wait query to be ready before download
-                                await pollForAsyncChartResults(query.queryUuid);
                                 const chart =
                                     await this.asyncQueryService.savedSqlModel.getByUuid(
                                         chartUuid,
@@ -643,7 +595,7 @@ export default class SchedulerTask {
                                         },
                                     );
                                 const downloadResult =
-                                    await this.asyncQueryService.downloadAsyncQueryResults(
+                                    await this.asyncQueryService.downloadSyncQueryResults(
                                         {
                                             user,
                                             projectUuid,
