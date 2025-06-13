@@ -384,7 +384,7 @@ export class CsvService extends BaseService {
                 resolve({ truncated });
             });
 
-            CsvService.streamJsonlData({
+            CsvService.streamJsonlDataForProcessing({
                 readStream,
                 onRow: (parsedRow) => {
                     const csvRow = CsvService.convertRowToCsv(
@@ -395,7 +395,7 @@ export class CsvService extends BaseService {
                     );
                     stringifier.write(csvRow);
                 },
-                onComplete: (_, isTruncated) => {
+                onComplete: (isTruncated) => {
                     truncated = isTruncated;
                     stringifier.end();
                 },
@@ -1511,6 +1511,51 @@ This method can be memory intensive
             fileUrl: attachmentUrl.path,
             truncated,
         };
+    }
+
+    static async streamJsonlDataForProcessing({
+        readStream,
+        onRow,
+        onComplete,
+    }: {
+        readStream: Readable;
+        onRow: (parsedRow: Record<string, unknown>, lineCount: number) => void;
+        onComplete?: (truncated: boolean) => void;
+    }): Promise<{ truncated: boolean }> {
+        return new Promise((resolve, reject) => {
+            const lineReader = createInterface({
+                input: readStream,
+                crlfDelay: Infinity,
+            });
+
+            let lineCount = 0;
+            const truncated = false;
+
+            lineReader.on('line', (line: string) => {
+                if (!line.trim()) return;
+                lineCount += 1;
+
+                try {
+                    const parsedRow = JSON.parse(line);
+                    onRow(parsedRow, lineCount);
+                } catch (error) {
+                    Logger.error(
+                        `Error parsing line ${lineCount}: ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                }
+            });
+
+            lineReader.on('close', async () => {
+                if (onComplete) {
+                    await onComplete(truncated);
+                }
+                resolve({ truncated });
+            });
+
+            lineReader.on('error', reject);
+        });
     }
 
     /**
