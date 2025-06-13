@@ -4,6 +4,7 @@ import {
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadGenerateRequest,
     ApiAiAgentThreadGenerateResponse,
+    ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
@@ -242,6 +243,32 @@ export class AiAgentController extends BaseController {
             status: 'ok',
             results:
                 await this.getAiAgentService().generateAgentThreadMessageViz(
+                    req.user!,
+                    {
+                        agentUuid,
+                        threadUuid,
+                        messageUuid,
+                    },
+                ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/threads/{threadUuid}/message/{messageUuid}/viz-query')
+    @OperationId('getAgentThreadMessageVizQuery')
+    async getAgentThreadMessageVizQuery(
+        @Request() req: express.Request,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+        @Path() messageUuid: string,
+    ): Promise<ApiAiAgentThreadMessageVizQueryResponse> {
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentService().getAgentThreadMessageVizQuery(
                     req.user!,
                     {
                         agentUuid,

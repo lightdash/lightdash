@@ -108,6 +108,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectService: repository.getProjectService(),
                     catalogService:
                         repository.getCatalogService() as CommercialCatalogService,
+                    asyncQueryService: repository.getAsyncQueryService(),
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({
