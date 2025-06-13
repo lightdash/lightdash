@@ -555,9 +555,7 @@ export default class SchedulerTask {
                                             },
                                         );
                                     return {
-                                        filename: ExcelService.generateFileId(
-                                            chart.name,
-                                        ),
+                                        filename: chart.name,
                                         path: downloadResult.fileUrl,
                                         localPath: downloadResult.fileUrl,
                                         truncated: false,
@@ -611,9 +609,7 @@ export default class SchedulerTask {
                                         },
                                     );
                                 return {
-                                    filename: ExcelService.generateFileId(
-                                        chart.name,
-                                    ),
+                                    filename: chart.name,
                                     path: downloadResult.fileUrl,
                                     localPath: downloadResult.fileUrl,
                                     truncated: false,
