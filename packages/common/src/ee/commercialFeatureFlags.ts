@@ -3,4 +3,5 @@ export enum CommercialFeatureFlags {
     Scim = 'scim-token-management',
     AiCopilot = 'ai-copilot',
     AiAgent = 'ai-agent',
+    ServiceAccounts = 'service-accounts',
 }
