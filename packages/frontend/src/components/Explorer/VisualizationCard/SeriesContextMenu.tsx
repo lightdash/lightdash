@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { getItemMap, hasCustomBinDimension } from '@lightdash/common';
+import {
+    getItemMap,
+    hasCustomBinDimension,
+    type ApiExploreResults,
+} from '@lightdash/common';
 import { Menu, Portal } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
@@ -14,10 +18,8 @@ import {
 import { useParams } from 'react-router';
 import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useExplore } from '../../../hooks/useExplore';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
-import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -31,16 +33,13 @@ export const SeriesContextMenu: FC<{
     echartSeriesClickEvent: EchartSeriesClickEvent | undefined;
     dimensions: string[] | undefined;
     series: EChartSeries[] | undefined;
-}> = memo(({ echartSeriesClickEvent, dimensions, series }) => {
+    explore: ApiExploreResults | undefined;
+}> = memo(({ echartSeriesClickEvent, dimensions, series, explore }) => {
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const { track } = useTracking();
     const { user } = useApp();
 
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
-    const { data: explore } = useExplore(tableName);
     const context = useVisualizationContext();
     const { resultsData: { metricQuery } = {} } = context;
 
