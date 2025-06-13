@@ -1,4 +1,5 @@
 import {
+    AiChartType,
     type AiAgentMessageAssistant,
     type AiAgentMessageUser,
     type AiAgentUser,
@@ -40,6 +41,8 @@ import {
 } from '../../hooks/useOrganizationAiAgents';
 import { getChartOptionsFromAiAgentThreadMessageVizQuery } from '../../utils/echarts';
 import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
+import AgentMetricsAndDimensions from './AgentMetricsAndDimensions';
+import AgentVisualizationFilters from './AgentVisualizationFilters';
 import { AiChartVisualization } from './AiChartVisualization';
 
 export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
@@ -204,6 +207,23 @@ export const AssistantBubble: FC<{
                             vizConfig={message.vizConfigOutput}
                             results={queryResults}
                         />
+                    )}
+                    {queryExecutionHandle.data &&
+                        queryExecutionHandle.data.type !== AiChartType.CSV && (
+                            <AgentMetricsAndDimensions
+                                message={{
+                                    metricQuery:
+                                        queryExecutionHandle.data.query
+                                            .metricQuery,
+                                }}
+                                fieldsMap={
+                                    queryExecutionHandle.data.query.fields
+                                }
+                            />
+                        )}
+
+                    {message.filtersOutput && (
+                        <AgentVisualizationFilters message={message} />
                     )}
                 </Paper>
             )}
