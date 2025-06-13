@@ -9,10 +9,9 @@ import { useMemo, useState, type FC } from 'react';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
 import VisualizationProvider from '../../../../../components/LightdashVisualization/VisualizationProvider';
+import { DrillDownModal } from '../../../../../components/MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../../../../../components/MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../../../../../components/MetricQueryData/UnderlyingDataModal';
-
-import { DrillDownModal } from '../../../../../components/MetricQueryData/DrillDownModal';
 import { type EchartSeriesClickEvent } from '../../../../../components/SimpleChart';
 import { type EChartSeries } from '../../../../../hooks/echarts/useEchartsCartesianConfig';
 import useHealth from '../../../../../hooks/health/useHealth';

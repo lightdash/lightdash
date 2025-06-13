@@ -1,0 +1,20 @@
+.filterButton {
+    background-color: white;
+    cursor: default;
+    border: 1px solid var(--mantine-color-gray-3);
+}
+
+.filterButton:hover {
+    background-color: white;
+}
+
+.filterButton:active {
+    transform: none;
+}
+
+.filterText {
+    max-width: 800px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

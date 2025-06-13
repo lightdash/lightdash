@@ -127,6 +127,8 @@ const FilterRuleSchema = z.union([
     UnitOfTimeFilterRuleSchema,
 ]);
 
+export type FilterRuleSchemaType = z.infer<typeof FilterRuleSchema>;
+
 const AndFilterGroupSchema = z.object({
     id: z.string().describe('A unique identifier for the filter group'),
     and: z
@@ -149,6 +151,8 @@ export const FilterGroupSchema = z.union([
     AndFilterGroupSchema,
     OrFilterGroupSchema,
 ]);
+
+export type FilterGroupSchemaType = z.infer<typeof FilterGroupSchema>;
 
 // TODO: This schema was designed to closely match the existing filter types,
 // but LLM providers require that all fields be explicitly defined and present.
