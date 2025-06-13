@@ -58,7 +58,7 @@
                 "type": "object"
             },
             "ServiceAccountScope": {
-                "enum": ["scim:manage", "org:admin"],
+                "enum": ["scim:manage", "org:admin", "org:read"],
                 "type": "string"
             },
             "ServiceAccount": {
@@ -94,6 +94,10 @@
                     "organizationUuid": {
                         "type": "string"
                     },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "uuid": {
                         "type": "string"
                     }
@@ -106,6 +110,7 @@
                     "expiresAt",
                     "createdAt",
                     "organizationUuid",
+                    "createdByUserUuid",
                     "uuid"
                 ],
                 "type": "object"
