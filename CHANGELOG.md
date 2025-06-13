@@ -1,3 +1,38 @@
+# [0.1718.0](https://github.com/lightdash/lightdash/compare/0.1717.0...0.1718.0) (2025-06-13)
+
+
+### Features
+
+* add UTF-8 BOM support to CSV exports ([#15226](https://github.com/lightdash/lightdash/issues/15226)) ([166acd1](https://github.com/lightdash/lightdash/commit/166acd12a54080f5519d0872e2259be806c37a1c))
+
+# [0.1717.0](https://github.com/lightdash/lightdash/compare/0.1716.0...0.1717.0) (2025-06-13)
+
+
+### Features
+
+* add XLSX format option for scheduled deliveries ([#15308](https://github.com/lightdash/lightdash/issues/15308)) ([269028b](https://github.com/lightdash/lightdash/commit/269028b332b4aaf4c2b50d1b12f447ab828ee969))
+
+# [0.1716.0](https://github.com/lightdash/lightdash/compare/0.1715.0...0.1716.0) (2025-06-13)
+
+
+### Features
+
+* Remove Agent list page + UI improvs ([#15313](https://github.com/lightdash/lightdash/issues/15313)) ([1d5fd9d](https://github.com/lightdash/lightdash/commit/1d5fd9dc9af729a717bb9762e658a4eb4c23b347)), closes [#15250](https://github.com/lightdash/lightdash/issues/15250)
+
+# [0.1715.0](https://github.com/lightdash/lightdash/compare/0.1714.0...0.1715.0) (2025-06-13)
+
+
+### Features
+
+* Add UI for managing Service Accounts ([#15321](https://github.com/lightdash/lightdash/issues/15321)) ([449c901](https://github.com/lightdash/lightdash/commit/449c9015b9218cd5cc217872a34d818fb8c54489))
+
+# [0.1714.0](https://github.com/lightdash/lightdash/compare/0.1713.0...0.1714.0) (2025-06-13)
+
+
+### Features
+
+* service accounts ([#15261](https://github.com/lightdash/lightdash/issues/15261)) ([708119a](https://github.com/lightdash/lightdash/commit/708119a7eb55f807ac7f1fd81186ea3632c7d0e0))
+
 # [0.1713.0](https://github.com/lightdash/lightdash/compare/0.1712.1...0.1713.0) (2025-06-12)
 
 

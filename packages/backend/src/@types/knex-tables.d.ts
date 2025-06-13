@@ -252,9 +252,9 @@ import {
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
 import {
-    ScimOrganizationAccessTokenTable,
-    ScimOrganizationAccessTokenTableName,
-} from '../ee/database/entities/scim';
+    ServiceAccountsTableName,
+    ServiceAccountTable,
+} from '../ee/database/entities/serviceAccounts';
 import {
     SlackChannelProjectMappingsTable,
     SlackChannelProjectMappingsTableName,
@@ -348,7 +348,7 @@ declare module 'knex/types/tables' {
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
         [TagsTableName]: TagsTable;
         [CatalogTagsTableName]: CatalogTagsTable;
-        [ScimOrganizationAccessTokenTableName]: ScimOrganizationAccessTokenTable;
+        [ServiceAccountsTableName]: ServiceAccountTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;

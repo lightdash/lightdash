@@ -2,6 +2,7 @@ import { CommercialFeatureFlags } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconMessageCircleStar } from '@tabler/icons-react';
 import { useNavigate } from 'react-router';
+import { useAiAgentPermission } from '../../ee/features/aiCopilot/hooks/useAiAgentPermission';
 import { useActiveProject } from '../../hooks/useActiveProject';
 import { useFeatureFlag } from '../../hooks/useFeatureFlagEnabled';
 import useApp from '../../providers/App/useApp';
@@ -12,6 +13,7 @@ export const AiAgentsButton = () => {
     const navigate = useNavigate();
 
     const { data: project } = useActiveProject();
+    const canViewAiAgents = useAiAgentPermission({ action: 'view' });
     const appQuery = useApp();
     const aiCopilotFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiCopilot);
     const aiAgentFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiAgent);
@@ -24,7 +26,6 @@ export const AiAgentsButton = () => {
         return null;
     }
 
-    const canViewAiAgents = appQuery.user.data.ability.can('view', 'AiAgent');
     const isAiCopilotEnabled = aiCopilotFlagQuery.data.enabled;
     const isAiAgentEnabled = aiAgentFlagQuery.data.enabled;
 

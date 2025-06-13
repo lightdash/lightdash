@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.1713.0",
+    "version": "0.1718.0",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -71,6 +71,7 @@
         "csv-stringify": "^6.5.1",
         "d3-scale": "^4.0.2",
         "d3-time": "^3.1.0",
+        "date-fns": "^4.1.0",
         "dayjs": "^1.11.10",
         "dompurify": "^3.2.5",
         "echarts": "^5.6.0",

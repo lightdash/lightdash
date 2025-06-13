@@ -66,6 +66,7 @@ import {
     ResultRow,
     type RunQueryTags,
     SessionUser,
+    sleep,
     SortBy,
     type SpaceShare,
     type SpaceSummary,
@@ -93,7 +94,7 @@ import {
 import { wrapSentryTransaction } from '../../utils';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
-import { CsvService } from '../CsvService/CsvService';
+import { CsvService, getSchedulerCsvLimit } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
 import {
     ProjectService,
@@ -594,6 +595,46 @@ export class AsyncQueryService extends ProjectService {
         }
 
         throw new Error('Invalid query status');
+    }
+
+    // Note: This method should only be used in scheduler worker. It may cause API timeouts.
+    async downloadSyncQueryResults(args: DownloadAsyncQueryResultsArgs) {
+        const { queryUuid, projectUuid, user } = args;
+        // Recursive function that waits for query results to be ready
+        const pollForAsyncChartResults = async (
+            backoffMs: number = 500,
+        ): Promise<void> => {
+            const queryHistory = await this.queryHistoryModel.get(
+                queryUuid,
+                projectUuid,
+                user.userUuid,
+            );
+            const { status } = queryHistory;
+
+            switch (status) {
+                case QueryHistoryStatus.CANCELLED:
+                    throw new Error('Query was cancelled');
+                case QueryHistoryStatus.ERROR:
+                    throw new Error(
+                        queryHistory.error ?? 'Warehouse query failed',
+                    );
+                case QueryHistoryStatus.PENDING:
+                    // Implement backoff: 500ms -> 1000ms -> 2000 (then stay at 2000ms)
+                    const nextBackoff = Math.min(backoffMs * 2, 2000);
+                    await sleep(backoffMs);
+                    return pollForAsyncChartResults(nextBackoff);
+                case QueryHistoryStatus.READY:
+                    // Continue with execution
+                    return undefined;
+                default:
+                    return assertUnreachable(status, 'Unknown query status');
+            }
+        };
+
+        // Wait for results to be ready
+        await pollForAsyncChartResults();
+
+        return this.downloadAsyncQueryResults(args);
     }
 
     async downloadAsyncQueryResults({

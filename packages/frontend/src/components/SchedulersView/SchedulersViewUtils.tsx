@@ -10,6 +10,7 @@ import {
     IconCircleCheckFilled,
     IconClockFilled,
     IconCsv,
+    IconFileTypeXls,
     IconPhoto,
     IconProgress,
 } from '@tabler/icons-react';
@@ -38,6 +39,14 @@ export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
             return (
                 <IconBox
                     icon={IconCsv}
+                    color="indigo.6"
+                    style={{ color: theme.colors.indigo[6] }}
+                />
+            );
+        case SchedulerFormat.XLSX:
+            return (
+                <IconBox
+                    icon={IconFileTypeXls}
                     color="indigo.6"
                     style={{ color: theme.colors.indigo[6] }}
                 />

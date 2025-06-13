@@ -98,6 +98,8 @@ const Schedulers: FC<SchedulersProps> = ({
                                   switch (item.format) {
                                       case SchedulerFormat.CSV:
                                           return 'CSV';
+                                      case SchedulerFormat.XLSX:
+                                          return 'XLSX';
                                       case SchedulerFormat.IMAGE:
                                           return 'Image';
                                       case SchedulerFormat.GSHEETS:

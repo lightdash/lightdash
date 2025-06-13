@@ -95,6 +95,7 @@ interface ServiceManifest {
     scimService: unknown;
     supportService: unknown;
     cacheService: unknown;
+    serviceAccountService: unknown;
 }
 
 /**
@@ -900,6 +901,12 @@ export class ServiceRepository
 
     public getCacheService<CacheServiceImplT>(): CacheServiceImplT {
         return this.getService('cacheService');
+    }
+
+    public getServiceAccountService<
+        ServiceAccountServiceImplT,
+    >(): ServiceAccountServiceImplT {
+        return this.getService('serviceAccountService');
     }
 
     /**

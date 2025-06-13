@@ -15,7 +15,7 @@ import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel'
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
 import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
-import { ScimOrganizationAccessTokenModel } from './models/ScimOrganizationAccessTokenModel';
+import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
 import { AiAgentService } from './services/AiAgentService';
@@ -25,6 +25,7 @@ import { CommercialCatalogService } from './services/CommercialCatalogService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { ScimService } from './services/ScimService/ScimService';
+import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
 import { SupportService } from './services/SupportService/SupportService';
 
 type EnterpriseAppArguments = Pick<
@@ -118,8 +119,15 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     emailModel: models.getEmailModel(),
                     analytics: context.lightdashAnalytics,
                     groupsModel: models.getGroupsModel(),
-                    scimOrganizationAccessTokenModel:
-                        models.getScimOrganizationAccessTokenModel(),
+                    serviceAccountModel: models.getServiceAccountModel(),
+                    commercialFeatureFlagModel:
+                        models.getFeatureFlagModel() as CommercialFeatureFlagModel,
+                }),
+            serviceAccountService: ({ models, context }) =>
+                new ServiceAccountService({
+                    lightdashConfig: context.lightdashConfig,
+                    analytics: context.lightdashAnalytics,
+                    serviceAccountModel: models.getServiceAccountModel(),
                     commercialFeatureFlagModel:
                         models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                 }),
@@ -235,8 +243,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             slackAuthenticationModel: ({ database }) =>
                 new CommercialSlackAuthenticationModel({ database }),
-            scimOrganizationAccessTokenModel: ({ database }) =>
-                new ScimOrganizationAccessTokenModel({ database }),
+            serviceAccountModel: ({ database }) =>
+                new ServiceAccountModel({ database }),
             featureFlagModel: ({ database }) =>
                 new CommercialFeatureFlagModel({ database, lightdashConfig }),
         },
@@ -276,6 +284,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 encryptionUtil: context.utils.getEncryptionUtil(),
                 msTeamsClient: context.clients.getMsTeamsClient(),
                 renameService: context.serviceRepository.getRenameService(),
+                asyncQueryService:
+                    context.serviceRepository.getAsyncQueryService(),
             }),
         slackBotFactory: (context) =>
             new CommercialSlackBot({

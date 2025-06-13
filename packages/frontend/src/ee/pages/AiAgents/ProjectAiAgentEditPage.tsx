@@ -161,11 +161,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     }, [agent, isCreateMode]);
 
     const handleBack = () => {
-        if (isCreateMode) {
-            void navigate(`/projects/${projectUuid}/ai-agents`);
-        } else {
-            void navigate(`/projects/${projectUuid}/ai-agents/${agentUuid}`);
-        }
+        void navigate(-1);
     };
 
     const handleSubmit = form.onSubmit(async (values) => {

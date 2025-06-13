@@ -375,7 +375,11 @@ const SchedulerForm: FC<Props> = ({
 
         transformValues: (values): CreateSchedulerAndTargetsWithoutIds => {
             let options = {};
-            if (values.format === SchedulerFormat.CSV) {
+            if (
+                [SchedulerFormat.CSV, SchedulerFormat.XLSX].includes(
+                    values.format,
+                )
+            ) {
                 options = {
                     formatted: values.options.formatted,
                     limit:
@@ -762,6 +766,10 @@ const SchedulerForm: FC<Props> = ({
                                             {
                                                 label: '.csv',
                                                 value: SchedulerFormat.CSV,
+                                            },
+                                            {
+                                                label: '.xlsx',
+                                                value: SchedulerFormat.XLSX,
                                             },
                                             {
                                                 label: 'Image',

@@ -95,7 +95,7 @@ export type ModelManifest = {
     aiAgentModel: unknown;
     embedModel: unknown;
     dashboardSummaryModel: unknown;
-    scimOrganizationAccessTokenModel: unknown;
+    serviceAccountModel: unknown;
 };
 
 /**
@@ -534,8 +534,8 @@ export class ModelRepository
         );
     }
 
-    public getScimOrganizationAccessTokenModel<ModelImplT>(): ModelImplT {
-        return this.getModel('scimOrganizationAccessTokenModel');
+    public getServiceAccountModel<ModelImplT>(): ModelImplT {
+        return this.getModel('serviceAccountModel');
     }
 
     public getSpotlightTableConfigModel(): SpotlightTableConfigModel {
