@@ -24,15 +24,17 @@ import { getListProjectsScripts } from './scripts/listProjects';
 
     const serviceRepository = app.getServiceRepository();
     const models = app.getModels();
+    const clients = app.getClients();
     const database = app.getDatabase();
 
     Object.assign(replInstance.context, {
         common,
         serviceRepository,
         models,
+        clients,
         database,
         scripts: {
-            ...getFixDuplicateSlugsScripts(database),
+            ...getFixDuplicateSlugsScripts(database, clients),
             ...getListProjectsScripts(database),
         },
     });

@@ -756,6 +756,10 @@ export default class App {
         return this.models;
     }
 
+    getClients() {
+        return this.clients;
+    }
+
     getDatabase() {
         return this.database;
     }

@@ -1,14 +1,19 @@
 import type { Knex } from 'knex';
+import { ClientRepository } from '../../../clients/ClientRepository';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { ProjectTableName } from '../../../database/entities/projects';
 import { SavedChartsTableName } from '../../../database/entities/savedCharts';
 import { SpaceTableName } from '../../../database/entities/spaces';
 import { generateUniqueSlugScopedToProject } from '../../../utils/SlugUtils';
 
-export function getFixDuplicateSlugsScripts(database: Knex) {
+export function getFixDuplicateSlugsScripts(
+    database: Knex,
+    clients: ClientRepository,
+) {
     async function fixDuplicateChartSlugs(opts: {
         dryRun: boolean;
         projectUuid?: string;
+        emailReportTo?: string;
     }) {
         if (!opts || !('dryRun' in opts)) {
             throw new Error('Missing dryRun option!!');
@@ -156,6 +161,50 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
             console.info(
                 `Done fixing duplicate slugs for${projectMessage}${dryRunMessage}`,
             );
+
+            // Send email notification if email is provided
+            if (opts.emailReportTo && changeLogs.length > 0) {
+                if (clients.getEmailClient().canSendEmail()) {
+                    // Convert changeLogs to markdown table
+                    const tableHeaders = [
+                        'Project UUID',
+                        'Chart UUID',
+                        'Original Slug',
+                        'New Slug',
+                        'Action',
+                    ];
+                    let markdownTable = `| ${tableHeaders.join(
+                        ' | ',
+                    )} |\n| ${tableHeaders.map(() => '---').join(' | ')} |\n`;
+
+                    changeLogs.forEach((log) => {
+                        markdownTable += `| ${log.project_uuid} | ${log.chart_uuid} | ${log.original_slug} | ${log.new_slug} | ${log.action} |\n`;
+                    });
+
+                    const subject = `Chart slug updates for${projectMessage}${dryRunMessage}`;
+                    const title = `The following chart slugs have been ${
+                        dryRun ? 'identified for update' : 'updated'
+                    }`;
+                    const message = `${markdownTable}`;
+
+                    await clients
+                        .getEmailClient()
+                        .sendGenericNotificationEmail(
+                            opts.emailReportTo,
+                            subject,
+                            title,
+                            message,
+                        );
+
+                    console.info(
+                        `Email notification sent to ${opts.emailReportTo}`,
+                    );
+                } else {
+                    console.warn(
+                        `Email client is not configured, skipping email notification`,
+                    );
+                }
+            }
         });
     }
 
