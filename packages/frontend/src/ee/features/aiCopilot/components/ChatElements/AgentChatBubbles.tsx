@@ -160,6 +160,13 @@ export const AssistantBubble: FC<{
                 rows: queryResults.rows,
                 type: queryExecutionHandle.data.type,
             }),
+            pivotColumns:
+                // TODO: fix this using schema
+                message.vizConfigOutput &&
+                'breakdownByDimension' in message.vizConfigOutput &&
+                typeof message.vizConfigOutput.breakdownByDimension === 'string'
+                    ? [message.vizConfigOutput.breakdownByDimension]
+                    : undefined,
         });
     }, [
         isQueryLoading,

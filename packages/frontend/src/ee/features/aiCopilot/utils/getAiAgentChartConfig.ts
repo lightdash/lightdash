@@ -53,13 +53,19 @@ export const getAiAgentChartConfig = ({
                         echartSeries.type === CartesianSeriesType.BAR
                             ? CartesianSeriesType.BAR
                             : echartSeries.type,
-                    name: echartSeries.name || yField,
+                    name: echartSeries.name,
                     yAxisIndex: 0,
-                    encode: {
-                        xRef: { field: xField },
-                        yRef: { field: yField },
-                    },
-                    stack: echartSeries.stack,
+                    encode:
+                        echartSeries.encode &&
+                        echartSeries.type === CartesianSeriesType.BAR
+                            ? echartSeries.encode
+                            : {
+                                  xRef: { field: xField },
+                                  yRef: { field: yField },
+                              },
+                    ...(echartSeries.stack
+                        ? { stack: echartSeries.stack }
+                        : {}),
                 };
             }) || [];
 
