@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     AlreadyExistsError,
     CommercialFeatureFlags,
-    CreateScimOrganizationAccessToken,
     ForbiddenError,
     getErrorMessage,
     GroupWithMembers,
@@ -15,13 +14,10 @@ import {
     ScimError,
     ScimGroup,
     ScimListResponse,
-    ScimOrganizationAccessToken,
-    ScimOrganizationAccessTokenWithToken,
     ScimSchemaType,
     ScimUpsertGroup,
     ScimUpsertUser,
     ScimUser,
-    SessionServiceAccount,
     SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -46,7 +42,7 @@ import {
     ScimAccessTokenEvent,
 } from '../../analytics';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
-import { ScimOrganizationAccessTokenModel } from '../../models/ScimOrganizationAccessTokenModel';
+import { ServiceAccountModel } from '../../models/ServiceAccountModel';
 
 type ScimServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -55,7 +51,7 @@ type ScimServiceArguments = {
     emailModel: EmailModel;
     analytics: LightdashAnalytics;
     groupsModel: GroupsModel;
-    scimOrganizationAccessTokenModel: ScimOrganizationAccessTokenModel;
+    serviceAccountModel: ServiceAccountModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
 };
 
@@ -72,7 +68,7 @@ export class ScimService extends BaseService {
 
     private readonly groupsModel: GroupsModel;
 
-    private readonly scimOrganizationAccessTokenModel: ScimOrganizationAccessTokenModel;
+    private readonly serviceAccountModel: ServiceAccountModel;
 
     private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
 
@@ -83,7 +79,7 @@ export class ScimService extends BaseService {
         emailModel,
         analytics,
         groupsModel,
-        scimOrganizationAccessTokenModel,
+        serviceAccountModel,
         commercialFeatureFlagModel,
     }: ScimServiceArguments) {
         super();
@@ -93,8 +89,7 @@ export class ScimService extends BaseService {
         this.emailModel = emailModel;
         this.analytics = analytics;
         this.groupsModel = groupsModel;
-        this.scimOrganizationAccessTokenModel =
-            scimOrganizationAccessTokenModel;
+        this.serviceAccountModel = serviceAccountModel;
         this.commercialFeatureFlagModel = commercialFeatureFlagModel;
     }
 
@@ -108,18 +103,6 @@ export class ScimService extends BaseService {
             )
         ) {
             throw new ForbiddenError('You do not have permission');
-        }
-    }
-
-    private async throwErrorOnFeatureDisabled(user: SessionUser) {
-        const isScimTokenManagementEnabled =
-            await this.commercialFeatureFlagModel.get({
-                user,
-                featureFlagId: CommercialFeatureFlags.Scim,
-            });
-
-        if (!isScimTokenManagementEnabled.enabled) {
-            throw new Error('SCIM token management feature not enabled!');
         }
     }
 
@@ -1009,236 +992,5 @@ export class ScimService extends BaseService {
             Sentry.captureException(scimError);
             throw scimError;
         }
-    }
-
-    async createOrganizationAccessToken({
-        user,
-        tokenDetails,
-    }: {
-        user: SessionUser;
-        tokenDetails: CreateScimOrganizationAccessToken;
-    }): Promise<ScimOrganizationAccessToken> {
-        try {
-            await this.throwErrorOnFeatureDisabled(user);
-            ScimService.throwForbiddenErrorOnNoPermission(user);
-            const token = await this.scimOrganizationAccessTokenModel.create({
-                user,
-                data: {
-                    organizationUuid: tokenDetails.organizationUuid,
-                    expiresAt: tokenDetails.expiresAt,
-                    description: tokenDetails.description,
-                },
-            });
-            this.analytics.track<ScimAccessTokenEvent>({
-                event: 'scim_access_token.created',
-                userId: user.userUuid,
-                properties: {
-                    organizationId: token.organizationUuid,
-                },
-            });
-            return token;
-        } catch (error) {
-            if (error instanceof ForbiddenError) {
-                throw error;
-            }
-            throw new Error('Failed to create organization access token');
-        }
-    }
-
-    async deleteOrganizationAccessToken({
-        user,
-        tokenUuid,
-    }: {
-        user: SessionUser;
-        tokenUuid: string;
-    }): Promise<void> {
-        try {
-            await this.throwErrorOnFeatureDisabled(user);
-            ScimService.throwForbiddenErrorOnNoPermission(user);
-            const organizationUuid = user.organizationUuid as string;
-            // get by uuid to check if token exists
-            const token =
-                await this.scimOrganizationAccessTokenModel.getTokenbyUuid(
-                    tokenUuid,
-                );
-            if (!token) {
-                throw new NotFoundError(
-                    `Token with UUID ${tokenUuid} not found`,
-                );
-            }
-            // throw forbidden if token does not belong to organization
-            if (token.organizationUuid !== organizationUuid) {
-                throw new ForbiddenError(
-                    "Token doesn't belong to organization",
-                );
-            }
-            await this.scimOrganizationAccessTokenModel.delete(tokenUuid);
-            this.analytics.track<ScimAccessTokenEvent>({
-                event: 'scim_access_token.deleted',
-                userId: user.userUuid,
-                properties: {
-                    organizationId: token.organizationUuid,
-                },
-            });
-        } catch (error) {
-            if (
-                error instanceof NotFoundError ||
-                error instanceof ForbiddenError
-            ) {
-                throw error;
-            }
-            throw new Error('Failed to delete organization access token');
-        }
-    }
-
-    async rotateOrganizationAccessToken({
-        user,
-        tokenUuid,
-        update,
-    }: {
-        user: SessionUser;
-        tokenUuid: string;
-        update: { expiresAt: Date };
-    }): Promise<ScimOrganizationAccessTokenWithToken> {
-        await this.throwErrorOnFeatureDisabled(user);
-        ScimService.throwForbiddenErrorOnNoPermission(user);
-
-        if (update.expiresAt.getTime() < Date.now()) {
-            throw new ParameterError('Expire time must be in the future');
-        }
-
-        // get by uuid to check if token exists
-        const existingToken =
-            await this.scimOrganizationAccessTokenModel.getTokenbyUuid(
-                tokenUuid,
-            );
-        if (!existingToken) {
-            throw new NotFoundError(`Token with UUID ${tokenUuid} not found`);
-        }
-        // throw forbidden if token does not belong to organization
-        if (existingToken.organizationUuid !== user.organizationUuid) {
-            throw new ForbiddenError("Token doesn't belong to organization");
-        }
-
-        // Business decision, we don't want to rotate tokens that don't expire. Rotation is a security feature that should be used with tokens that expire.
-        if (!existingToken.expiresAt) {
-            throw new ParameterError(
-                'Token with no expiration date cannot be rotated',
-            );
-        }
-
-        if (
-            existingToken.rotatedAt &&
-            existingToken.rotatedAt.getTime() > Date.now() - 3600000
-        ) {
-            throw new ParameterError('Token can only be rotated once per hour');
-        }
-
-        const newToken = await this.scimOrganizationAccessTokenModel.rotate({
-            scimOrganizationAccessTokenUuid: tokenUuid,
-            rotatedByUserUuid: user.userUuid,
-            expiresAt: update.expiresAt,
-        });
-        this.analytics.track<ScimAccessTokenEvent>({
-            event: 'scim_access_token.rotated',
-            userId: user.userUuid,
-            properties: {
-                organizationId: existingToken.organizationUuid,
-            },
-        });
-        return newToken;
-    }
-
-    async getOrganizationAccessToken({
-        user,
-        tokenUuid,
-    }: {
-        user: SessionUser;
-        tokenUuid: string;
-    }): Promise<ScimOrganizationAccessToken> {
-        await this.throwErrorOnFeatureDisabled(user);
-        ScimService.throwForbiddenErrorOnNoPermission(user);
-
-        // get by uuid to check if token exists
-        const existingToken =
-            await this.scimOrganizationAccessTokenModel.getTokenbyUuid(
-                tokenUuid,
-            );
-        if (!existingToken) {
-            throw new NotFoundError(`Token with UUID ${tokenUuid} not found`);
-        }
-        // throw forbidden if token does not belong to organization
-        if (existingToken.organizationUuid !== user.organizationUuid) {
-            throw new ForbiddenError("Token doesn't belong to organization");
-        }
-        return existingToken;
-    }
-
-    async listOrganizationAccessTokens(
-        user: SessionUser,
-    ): Promise<ScimOrganizationAccessToken[]> {
-        try {
-            await this.throwErrorOnFeatureDisabled(user);
-            ScimService.throwForbiddenErrorOnNoPermission(user);
-            const organizationUuid = user.organizationUuid as string;
-            const tokens =
-                await this.scimOrganizationAccessTokenModel.getAllForOrganization(
-                    organizationUuid,
-                );
-            return tokens;
-        } catch (error) {
-            if (error instanceof ForbiddenError) {
-                throw error;
-            }
-            throw new Error('Failed to list organization access tokens');
-        }
-    }
-
-    async authenticateToken(
-        token: string,
-        request: {
-            method: string;
-            path: string;
-            routePath: string;
-        },
-    ): Promise<SessionServiceAccount | null> {
-        // return null if token is empty
-        if (token === '') return null;
-        // return null if token does not start with 'scim_'
-        if (!token.startsWith('scim_')) {
-            return null;
-        }
-        try {
-            const dbToken =
-                await this.scimOrganizationAccessTokenModel.getByToken(token);
-            if (dbToken) {
-                // return null if expired
-                if (dbToken.expiresAt && dbToken.expiresAt < new Date()) {
-                    return null;
-                }
-
-                this.analytics.track<ScimAccessTokenAuthenticationEvent>({
-                    event: 'scim_access_token.authenticated',
-                    anonymousId: LightdashAnalytics.anonymousId,
-                    properties: {
-                        organizationId: dbToken.organizationUuid,
-                        requestMethod: request.method,
-                        requestPath: request.path,
-                        requestRoutePath: request.routePath,
-                    },
-                });
-                // Update last used date
-                await this.scimOrganizationAccessTokenModel.updateUsedDate(
-                    dbToken.uuid,
-                );
-                // finally return organization uuid
-                return {
-                    organizationUuid: dbToken.organizationUuid,
-                };
-            }
-        } catch (error) {
-            return null;
-        }
-        return null;
     }
 }

@@ -1,6 +1,7 @@
 import { getErrorMessage, ScimError } from '@lightdash/common';
 import { RequestHandler } from 'express';
 import { ScimService } from '../services/ScimService/ScimService';
+import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 
 // Middleware to extract SCIM user details
 export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
@@ -30,7 +31,7 @@ export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
         }
         // Attach SCIM serviceAccount to request
         const serviceAccount = await req.services
-            .getScimService<ScimService>()
+            .getServiceAccountService<ServiceAccountService>()
             .authenticateToken(token, {
                 method: req.method,
                 path: req.path,

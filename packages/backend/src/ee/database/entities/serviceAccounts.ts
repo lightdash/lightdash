@@ -1,7 +1,7 @@
 import { Knex } from 'knex';
 
-export type DbScimOrganizationAccessToken = {
-    scim_organization_access_token_uuid: string;
+export type DbServiceAccounts = {
+    service_account_uuid: string;
     token_hash: string;
     organization_uuid: string;
     created_at: Date;
@@ -11,18 +11,19 @@ export type DbScimOrganizationAccessToken = {
     rotated_at: Date | null;
     rotated_by_user_uuid: string | null;
     last_used_at: Date | null;
+    scopes: string[];
 };
 
-type DbCreateScimOrganizationAccessToken = Omit<
-    DbScimOrganizationAccessToken,
-    | 'scim_organization_access_token_uuid'
+type DbCreateServiceAccount = Omit<
+    DbServiceAccounts,
+    | 'service_account_uuid'
     | 'created_at'
     | 'rotated_at'
     | 'last_used_at'
     | 'rotated_by_user_uuid'
 >;
 
-type DbRotatePersonalAccessToken = {
+type DbRotateServiceAccount = {
     token_hash: string;
     rotated_at: Date;
     rotated_by_user_uuid: string;
@@ -33,10 +34,9 @@ type DbUpdateUsedDatePersonalAccessToken = {
     last_used_at: Date;
 };
 
-export type ScimOrganizationAccessTokenTable = Knex.CompositeTableType<
-    DbScimOrganizationAccessToken,
-    DbCreateScimOrganizationAccessToken,
-    DbRotatePersonalAccessToken | DbUpdateUsedDatePersonalAccessToken
+export type ServiceAccountTable = Knex.CompositeTableType<
+    DbServiceAccounts,
+    DbCreateServiceAccount,
+    DbRotateServiceAccount | DbUpdateUsedDatePersonalAccessToken
 >;
-export const ScimOrganizationAccessTokenTableName =
-    'scim_organization_access_tokens';
+export const ServiceAccountsTableName = 'service_accounts';
