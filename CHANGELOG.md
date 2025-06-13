@@ -1,3 +1,10 @@
+# [0.1715.0](https://github.com/lightdash/lightdash/compare/0.1714.0...0.1715.0) (2025-06-13)
+
+
+### Features
+
+* Add UI for managing Service Accounts ([#15321](https://github.com/lightdash/lightdash/issues/15321)) ([449c901](https://github.com/lightdash/lightdash/commit/449c9015b9218cd5cc217872a34d818fb8c54489))
+
 # [0.1714.0](https://github.com/lightdash/lightdash/compare/0.1713.0...0.1714.0) (2025-06-13)
 
 
