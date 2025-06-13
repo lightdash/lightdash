@@ -13,7 +13,7 @@ export function getFixDuplicateSlugsScripts(
     async function fixDuplicateChartSlugs(opts: {
         dryRun: boolean;
         projectUuid?: string;
-        emailReportTo?: string;
+        emailReportTo?: string | string[];
     }) {
         if (!opts || !('dryRun' in opts)) {
             throw new Error('Missing dryRun option!!');
@@ -187,17 +187,22 @@ export function getFixDuplicateSlugsScripts(
                     }`;
                     const message = `${markdownTable}`;
 
+                    // Convert emailReportTo to array if it's a string
+                    const recipients = Array.isArray(opts.emailReportTo)
+                        ? opts.emailReportTo
+                        : [opts.emailReportTo];
+
                     await clients
                         .getEmailClient()
                         .sendGenericNotificationEmail(
-                            opts.emailReportTo,
+                            recipients,
                             subject,
                             title,
                             message,
                         );
 
                     console.info(
-                        `Email notification sent to ${opts.emailReportTo}`,
+                        `Email notification sent to ${recipients.join(', ')}`,
                     );
                 } else {
                     console.warn(

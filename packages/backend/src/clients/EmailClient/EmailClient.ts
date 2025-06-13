@@ -375,13 +375,13 @@ export default class EmailClient {
     }
 
     public async sendGenericNotificationEmail(
-        recipient: string,
+        to: string[],
         subject: string,
         title: string,
         message: string,
     ) {
         return this.sendEmail({
-            to: recipient,
+            to,
             subject,
             template: 'genericNotification',
             context: {
