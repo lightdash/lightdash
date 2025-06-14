@@ -53,6 +53,7 @@ import moment from 'moment';
 import { nanoid } from 'nanoid';
 import { createInterface } from 'readline';
 import {
+    PassThrough,
     pipeline,
     Readable,
     Transform,
@@ -272,7 +273,6 @@ export class CsvService extends BaseService {
             delimiter: ',',
             header: true,
             columns: csvHeader,
-            bom: true,
         });
 
         const rowTransformer = new Transform({
@@ -319,9 +319,7 @@ export class CsvService extends BaseService {
 
     /**
      * Stream S3 JSONL data to CSV file
-     * This method is specifically designed to handle JSONL data from S3 storage
-     * and convert it to CSV format.
-     * Uses the proven ExcelService streaming pattern with shared streamJsonlData utility.
+     * Simple implementation using proper streaming patterns
      */
     static async streamJsonlRowsToFile(
         onlyRaw: boolean,
@@ -334,72 +332,97 @@ export class CsvService extends BaseService {
         }: { readStream: Readable; writeStream: Writable },
     ): Promise<{ truncated: boolean }> {
         return new Promise((resolve, reject) => {
-            const stringifier = stringify({
-                delimiter: ',',
-                header: true,
-                columns: csvHeader,
-                bom: true,
-            });
+            // Write CSV header with BOM immediately
+            writeStream.write(
+                `\uFEFF${csvHeader.map((h) => `"${h}"`).join(',')}\n`,
+            );
 
-            let truncated = false;
-            let waitingForDrain = false;
+            let lineBuffer = '';
+            let rowCount = 0;
 
-            // Define the drain handler outside the loop to avoid ESLint no-loop-func warning
-            const handleDrain = () => {
-                waitingForDrain = false;
-                stringifier.resume();
-            };
+            readStream.on('data', (chunk: Buffer) => {
+                lineBuffer += chunk.toString();
+                const lines = lineBuffer.split('\n');
 
-            stringifier.on('readable', () => {
-                let chunk;
-                // eslint-disable-next-line no-cond-assign
-                while ((chunk = stringifier.read()) !== null) {
-                    /*
-                     * CRITICAL BACKPRESSURE HANDLING:
-                     * writeStream.write() returns false when the internal buffer is full.
-                     * This means the destination (file/S3) can't keep up with data production.
-                     *
-                     * This implements proper stream backpressure - essential for
-                     * handling large CSV files without memory issues.
-                     */
-                    if (!writeStream.write(chunk)) {
-                        stringifier.pause();
-                        // Only add drain listener if we're not already waiting for one
-                        if (!waitingForDrain) {
-                            waitingForDrain = true;
-                            writeStream.once('drain', handleDrain);
+                // Keep last incomplete line in buffer
+                lineBuffer = lines.pop() || '';
+
+                // Process complete lines
+                for (const line of lines) {
+                    if (line.trim()) {
+                        try {
+                            const jsonRow = JSON.parse(line.trim());
+                            const csvRow = CsvService.convertRowToCsv(
+                                jsonRow,
+                                itemMap,
+                                onlyRaw,
+                                sortedFieldIds,
+                            );
+
+                            // Convert to CSV string
+                            const csvString = csvRow
+                                .map((value) => {
+                                    if (value === null || value === undefined)
+                                        return '';
+                                    return `"${String(value).replace(
+                                        /"/g,
+                                        '""',
+                                    )}"`;
+                                })
+                                .join(',');
+
+                            // Write immediately - pure streaming!
+                            writeStream.write(`${csvString}\n`);
+                            rowCount += 1;
+                        } catch (error) {
+                            Logger.debug(
+                                `Skipping invalid JSON line: ${error}`,
+                            );
                         }
-                        break;
                     }
                 }
             });
 
-            stringifier.on('error', (err) => {
-                Logger.error(`Stringifier failed ${err}`);
-                reject(err);
+            readStream.on('end', () => {
+                // Process any remaining line in buffer
+                if (lineBuffer.trim()) {
+                    try {
+                        const jsonRow = JSON.parse(lineBuffer.trim());
+                        const csvRow = CsvService.convertRowToCsv(
+                            jsonRow,
+                            itemMap,
+                            onlyRaw,
+                            sortedFieldIds,
+                        );
+
+                        const csvString = csvRow
+                            .map((value) => {
+                                if (value === null || value === undefined)
+                                    return '';
+                                return `"${String(value).replace(/"/g, '""')}"`;
+                            })
+                            .join(',');
+
+                        writeStream.write(`${csvString}\n`);
+                        rowCount += 1;
+                    } catch (error) {
+                        Logger.debug(`Skipping invalid JSON line: ${error}`);
+                    }
+                }
+
+                Logger.debug(
+                    `streamJsonlRowsToFile: Processed ${rowCount} rows successfully`,
+                );
+                resolve({ truncated: false });
             });
 
-            stringifier.on('finish', () => {
-                writeStream.end();
-                resolve({ truncated });
+            readStream.on('error', (error) => {
+                Logger.error(
+                    'streamJsonlRowsToFile: Read stream error:',
+                    error,
+                );
+                reject(error);
             });
-
-            CsvService.streamJsonlData({
-                readStream,
-                onRow: (parsedRow) => {
-                    const csvRow = CsvService.convertRowToCsv(
-                        parsedRow,
-                        itemMap,
-                        onlyRaw,
-                        sortedFieldIds,
-                    );
-                    stringifier.write(csvRow);
-                },
-                onComplete: (_, isTruncated) => {
-                    truncated = isTruncated;
-                    stringifier.end();
-                },
-            }).catch(reject);
         });
     }
 
