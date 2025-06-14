@@ -131,6 +131,11 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     csvService: CsvService;
 };
 
+const cacheMap = new Map<string, WarehouseResults['rows']>();
+
+const BYPASS_S3_AND_PAGINATION =
+    process.env.DISABLE_RESULT_CACHING_AND_PAGINATION === 'true';
+
 export class AsyncQueryService extends ProjectService {
     queryHistoryModel: QueryHistoryModel;
 
@@ -245,7 +250,13 @@ export class AsyncQueryService extends ProjectService {
         pageSize: number,
         formatter: (row: ResultRow) => ResultRow,
     ) {
-        const cacheStream = await this.storageClient.getDowloadStream(fileName);
+        const cacheStream = BYPASS_S3_AND_PAGINATION
+            ? Readable.from(
+                  (cacheMap.get(fileName) ?? []).map(
+                      (obj) => `${JSON.stringify(obj)}\n`,
+                  ),
+              )
+            : await this.storageClient.getDowloadStream(fileName);
 
         const rows: ResultRow[] = [];
         const rl = createInterface({
@@ -267,6 +278,10 @@ export class AsyncQueryService extends ProjectService {
                 }
                 nonEmptyLineCount += 1;
             }
+        }
+
+        if (BYPASS_S3_AND_PAGINATION) {
+            cacheMap.delete(fileName);
         }
 
         return {
@@ -324,6 +339,11 @@ export class AsyncQueryService extends ProjectService {
         page = 1,
         pageSize,
     }: GetAsyncQueryResultsArgs): Promise<ApiGetAsyncQueryResults> {
+        if (BYPASS_S3_AND_PAGINATION) {
+            // eslint-disable-next-line no-param-reassign
+            pageSize = 999999;
+        }
+
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -363,15 +383,13 @@ export class AsyncQueryService extends ProjectService {
             originalColumns,
         } = queryHistory;
 
-        if (status === QueryHistoryStatus.ERROR) {
-            return {
-                status,
-                queryUuid,
-                error: queryHistory.error,
-            };
-        }
-
         switch (status) {
+            case QueryHistoryStatus.ERROR:
+                return {
+                    status,
+                    queryUuid,
+                    error: queryHistory.error,
+                };
             case QueryHistoryStatus.CANCELLED:
                 return {
                     status,
@@ -405,12 +423,14 @@ export class AsyncQueryService extends ProjectService {
             queryHistory.defaultPageSize ??
             DEFAULT_RESULTS_PAGE_SIZE;
 
-        validatePagination({
-            pageSize: defaultedPageSize,
-            page,
-            queryMaxLimit: this.lightdashConfig.query.maxPageSize,
-            totalRowCount,
-        });
+        if (!BYPASS_S3_AND_PAGINATION) {
+            validatePagination({
+                pageSize: defaultedPageSize,
+                page,
+                queryMaxLimit: this.lightdashConfig.query.maxPageSize,
+                totalRowCount,
+            });
+        }
 
         const formatter = (row: Record<string, unknown>) =>
             formatRow(row, queryHistory.fields);
@@ -435,10 +455,9 @@ export class AsyncQueryService extends ProjectService {
 
         const roundedDurationMs = Math.round(durationMs);
 
-        const { nextPage, previousPage } = getNextAndPreviousPage(
-            page,
-            pageCount,
-        );
+        const { nextPage, previousPage } = BYPASS_S3_AND_PAGINATION
+            ? { nextPage: undefined, previousPage: undefined }
+            : getNextAndPreviousPage(page, pageCount);
 
         this.analytics.track({
             userId: user.userUuid,
@@ -589,6 +608,18 @@ export class AsyncQueryService extends ProjectService {
         if (status === QueryHistoryStatus.READY) {
             if (!resultsFileName) {
                 throw new Error('Results file name not found for query');
+            }
+
+            if (BYPASS_S3_AND_PAGINATION) {
+                const readableStream = Readable.from(
+                    (cacheMap.get(resultsFileName) ?? []).map(
+                        (obj) => `${JSON.stringify(obj)}\n`,
+                    ),
+                );
+
+                cacheMap.delete(resultsFileName);
+
+                return readableStream;
             }
 
             return this.storageClient.getDowloadStream(resultsFileName);
@@ -1110,7 +1141,7 @@ export class AsyncQueryService extends ProjectService {
     }) {
         let stream:
             | {
-                  write: (rows: Record<string, unknown>[]) => void;
+                  write: (rows: WarehouseResults['rows']) => void;
                   close: () => Promise<void>;
               }
             | undefined;
@@ -1118,12 +1149,21 @@ export class AsyncQueryService extends ProjectService {
             const fileName =
                 QueryHistoryModel.createUniqueResultsFileName(cacheKey);
             // Create upload stream for storing results
-            stream = this.storageClient.createUploadStream(
-                S3ResultsFileStorageClient.sanitizeFileExtension(fileName),
-                {
-                    contentType: 'application/jsonl',
-                },
-            );
+            if (BYPASS_S3_AND_PAGINATION) {
+                stream = {
+                    write: (rows: WarehouseResults['rows']) => {
+                        cacheMap.set(fileName, rows);
+                    },
+                    close: async () => {},
+                };
+            } else {
+                stream = this.storageClient.createUploadStream(
+                    S3ResultsFileStorageClient.sanitizeFileExtension(fileName),
+                    {
+                        contentType: 'application/jsonl',
+                    },
+                );
+            }
             const createdAt = new Date();
             const newExpiresAt = this.getCacheExpiresAt(createdAt);
             this.analytics.track({
@@ -1376,16 +1416,14 @@ export class AsyncQueryService extends ProjectService {
 
                     let pivotedQuery = null;
                     if (pivotConfiguration) {
-                        pivotedQuery =
-                            await ProjectService.applyPivotToSqlQuery({
-                                warehouseType: warehouseClient.credentials.type,
-                                sql: compiledQuery,
-                                indexColumn: pivotConfiguration.indexColumn,
-                                valuesColumns: pivotConfiguration.valuesColumns,
-                                groupByColumns:
-                                    pivotConfiguration.groupByColumns,
-                                sortBy: pivotConfiguration.sortBy,
-                            });
+                        pivotedQuery = ProjectService.applyPivotToSqlQuery({
+                            warehouseType: warehouseClient.credentials.type,
+                            sql: compiledQuery,
+                            indexColumn: pivotConfiguration.indexColumn,
+                            valuesColumns: pivotConfiguration.valuesColumns,
+                            groupByColumns: pivotConfiguration.groupByColumns,
+                            sortBy: pivotConfiguration.sortBy,
+                        });
                     }
 
                     const query = pivotedQuery || compiledQuery;
@@ -1417,7 +1455,7 @@ export class AsyncQueryService extends ProjectService {
                     const resultsCache = await this.findResultsCache(
                         projectUuid,
                         cacheKey,
-                        args.invalidateCache,
+                        BYPASS_S3_AND_PAGINATION ? true : args.invalidateCache,
                     );
 
                     const { queryUuid: queryHistoryUuid } =
