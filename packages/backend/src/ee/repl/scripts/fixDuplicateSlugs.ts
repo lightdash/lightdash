@@ -1,14 +1,20 @@
+import { stringify } from 'csv-stringify/sync';
 import type { Knex } from 'knex';
+import { ClientRepository } from '../../../clients/ClientRepository';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { ProjectTableName } from '../../../database/entities/projects';
 import { SavedChartsTableName } from '../../../database/entities/savedCharts';
 import { SpaceTableName } from '../../../database/entities/spaces';
 import { generateUniqueSlugScopedToProject } from '../../../utils/SlugUtils';
 
-export function getFixDuplicateSlugsScripts(database: Knex) {
+export function getFixDuplicateSlugsScripts(
+    database: Knex,
+    clients: ClientRepository,
+) {
     async function fixDuplicateChartSlugs(opts: {
         dryRun: boolean;
         projectUuid?: string;
+        emailReportTo?: string | string[];
     }) {
         if (!opts || !('dryRun' in opts)) {
             throw new Error('Missing dryRun option!!');
@@ -156,6 +162,74 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
             console.info(
                 `Done fixing duplicate slugs for${projectMessage}${dryRunMessage}`,
             );
+
+            // Send email notification if email is provided
+            if (opts.emailReportTo && changeLogs.length > 0) {
+                if (clients.getEmailClient().canSendEmail()) {
+                    // Create CSV content using csv-stringify
+                    const tableHeaders = [
+                        'Project UUID',
+                        'Chart UUID',
+                        'Original Slug',
+                        'New Slug',
+                        'Action',
+                    ];
+
+                    const csvContent = stringify([
+                        tableHeaders,
+                        ...changeLogs.map((log) => [
+                            log.project_uuid,
+                            log.chart_uuid,
+                            log.original_slug,
+                            log.new_slug,
+                            log.action,
+                        ]),
+                    ]);
+
+                    const timestamp = new Date()
+                        .toISOString()
+                        .replace(/[:.]/g, '-');
+                    const csvFilename = `chart-slug-updates-${timestamp}.csv`;
+
+                    const subject = `Chart slug updates for${projectMessage}${dryRunMessage}`;
+                    const title = `Chart slug updates for${projectMessage}${dryRunMessage}`;
+                    const message = `The following chart slugs have been ${
+                        dryRun ? 'identified for update' : 'updated'
+                    }. Please see the attached CSV file for details.`;
+
+                    // Convert emailReportTo to array if it's a string
+                    const recipients = Array.isArray(opts.emailReportTo)
+                        ? opts.emailReportTo
+                        : [opts.emailReportTo];
+
+                    // Create attachment with content directly as string
+                    const attachment = {
+                        filename: csvFilename,
+                        content: csvContent,
+                        contentType: 'text/csv',
+                    };
+
+                    await clients
+                        .getEmailClient()
+                        .sendGenericNotificationEmail(
+                            recipients,
+                            subject,
+                            title,
+                            message,
+                            [attachment],
+                        );
+
+                    console.info(
+                        `Email notification with CSV attachment sent to ${recipients.join(
+                            ', ',
+                        )}`,
+                    );
+                } else {
+                    console.warn(
+                        `Email client is not configured, skipping email notification`,
+                    );
+                }
+            }
         });
     }
 

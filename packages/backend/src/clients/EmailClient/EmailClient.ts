@@ -120,6 +120,10 @@ export default class EmailClient {
         }
     }
 
+    public canSendEmail() {
+        return !!this.transporter;
+    }
+
     public async sendPasswordRecoveryEmail(link: PasswordResetLink) {
         return this.sendEmail({
             to: link.email,
@@ -367,6 +371,27 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
             },
             text,
+        });
+    }
+
+    public async sendGenericNotificationEmail(
+        to: string[],
+        subject: string,
+        title: string,
+        message: string,
+        attachments?: Mail.Attachment[],
+    ) {
+        return this.sendEmail({
+            to,
+            subject,
+            template: 'genericNotification',
+            context: {
+                title,
+                message: marked(message),
+                host: this.lightdashConfig.siteUrl,
+            },
+            text: `${title}\n\n${message}`,
+            attachments,
         });
     }
 }
