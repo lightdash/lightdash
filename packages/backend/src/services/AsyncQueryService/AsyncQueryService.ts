@@ -65,6 +65,7 @@ import {
     type ResultColumns,
     ResultRow,
     type RunQueryTags,
+    SchedulerFormat,
     SessionUser,
     sleep,
     SortBy,
@@ -81,8 +82,8 @@ import { SshTunnel } from '@lightdash/warehouses';
 import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
+import { DownloadCsv } from '../../analytics/LightdashAnalytics';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
-import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -94,7 +95,7 @@ import {
 import { wrapSentryTransaction } from '../../utils';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
-import { CsvService, getSchedulerCsvLimit } from '../CsvService/CsvService';
+import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
 import {
     ProjectService,
@@ -637,7 +638,33 @@ export class AsyncQueryService extends ProjectService {
         return this.downloadAsyncQueryResults(args);
     }
 
-    async downloadAsyncQueryResults({
+    async download(args: DownloadAsyncQueryResultsArgs) {
+        const { user, projectUuid, onlyRaw, type } = args;
+        const baseAnalyticsProperties: DownloadCsv['properties'] = {
+            organizationId: user.organizationUuid,
+            projectId: projectUuid,
+            fileType:
+                type === DownloadFileType.XLSX
+                    ? SchedulerFormat.XLSX
+                    : SchedulerFormat.CSV,
+            values: onlyRaw ? 'raw' : 'formatted',
+            storage: this.s3Client.isEnabled() ? 's3' : 'local',
+        };
+        this.analytics.track({
+            event: 'download_results.started',
+            userId: user.userUuid,
+            properties: baseAnalyticsProperties,
+        });
+        const downloadResult = await this.downloadAsyncQueryResults(args);
+        this.analytics.track({
+            event: 'download_results.completed',
+            userId: user.userUuid,
+            properties: baseAnalyticsProperties,
+        });
+        return downloadResult;
+    }
+
+    private async downloadAsyncQueryResults({
         user,
         projectUuid,
         queryUuid,
