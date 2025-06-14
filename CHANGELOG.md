@@ -1,3 +1,10 @@
+# [0.1719.0](https://github.com/lightdash/lightdash/compare/0.1718.0...0.1719.0) (2025-06-14)
+
+
+### Features
+
+* add project filtering and email report to fixDuplicateSlugs script ([#15338](https://github.com/lightdash/lightdash/issues/15338)) ([7d361a2](https://github.com/lightdash/lightdash/commit/7d361a26ebfdc5b904818b6e00e9fc633c3550af)), closes [#15339](https://github.com/lightdash/lightdash/issues/15339)
+
 # [0.1718.0](https://github.com/lightdash/lightdash/compare/0.1717.0...0.1718.0) (2025-06-13)
 
 
