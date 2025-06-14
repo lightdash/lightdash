@@ -1,18 +1,30 @@
+import { stringify } from 'csv-stringify/sync';
 import type { Knex } from 'knex';
+import { ClientRepository } from '../../../clients/ClientRepository';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { ProjectTableName } from '../../../database/entities/projects';
 import { SavedChartsTableName } from '../../../database/entities/savedCharts';
 import { SpaceTableName } from '../../../database/entities/spaces';
 import { generateUniqueSlugScopedToProject } from '../../../utils/SlugUtils';
 
-export function getFixDuplicateSlugsScripts(database: Knex) {
-    async function fixDuplicateChartSlugs(opts: { dryRun: boolean }) {
+export function getFixDuplicateSlugsScripts(
+    database: Knex,
+    clients: ClientRepository,
+) {
+    async function fixDuplicateChartSlugs(opts: {
+        dryRun: boolean;
+        projectUuid?: string;
+        emailReportTo?: string | string[];
+    }) {
         if (!opts || !('dryRun' in opts)) {
             throw new Error('Missing dryRun option!!');
         }
 
         const { dryRun } = opts;
         const dryRunMessage = dryRun ? ' (dry run)' : '';
+        const projectMessage = opts.projectUuid
+            ? ` project ${opts.projectUuid}`
+            : ' all projects';
 
         return database.transaction(async (trx) => {
             const queryBase = trx(SavedChartsTableName)
@@ -38,6 +50,13 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                     `${ProjectTableName}.project_id`,
                 );
 
+            if (opts.projectUuid) {
+                void queryBase.where(
+                    `${ProjectTableName}.project_uuid`,
+                    opts.projectUuid,
+                );
+            }
+
             const duplicateSlugs = await queryBase
                 .clone()
                 .select<{ slug: string; projectUuid: string }[]>({
@@ -48,12 +67,25 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                     `${SavedChartsTableName}.slug`,
                     `${ProjectTableName}.project_uuid`,
                 )
-                .havingRaw('COUNT(*) > 1');
+                .havingRaw('COUNT(*) > 1')
+                .orderBy([
+                    {
+                        column: `${ProjectTableName}.project_uuid`,
+                        order: 'asc',
+                    },
+                    { column: `${SavedChartsTableName}.slug`, order: 'asc' },
+                ]);
 
             console.info(
-                `Found ${duplicateSlugs.length} duplicate slugs across all projects${dryRunMessage}`,
+                `Found ${duplicateSlugs.length} duplicate slugs on${projectMessage}${dryRunMessage}`,
             );
-
+            const changeLogs: Array<{
+                project_uuid: string;
+                chart_uuid: string;
+                original_slug: string;
+                new_slug: string;
+                action: 'keep' | 'update';
+            }> = [];
             for await (const { slug, projectUuid } of duplicateSlugs) {
                 const chartsWithSlug = await queryBase
                     .clone()
@@ -72,14 +104,31 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                     )
                     .where(`${SavedChartsTableName}.slug`, slug)
                     .andWhere(`${ProjectTableName}.project_uuid`, projectUuid)
-                    .orderBy(`${SavedChartsTableName}.created_at`, 'asc');
+                    .orderBy([
+                        {
+                            column: `${ProjectTableName}.project_uuid`,
+                            order: 'asc',
+                        },
+                        {
+                            column: `${SavedChartsTableName}.slug`,
+                            order: 'asc',
+                        },
+                        {
+                            column: `${SavedChartsTableName}.created_at`,
+                            order: 'asc',
+                        },
+                    ]);
 
                 if (chartsWithSlug.length > 1) {
                     const [firstChart, ...restCharts] = chartsWithSlug;
 
-                    console.info(
-                        `Keeping original slug "${firstChart.slug}" for chart "${firstChart.name}" (${firstChart.saved_query_uuid}) in project ${projectUuid}${dryRunMessage}`,
-                    );
+                    changeLogs.push({
+                        project_uuid: projectUuid,
+                        chart_uuid: firstChart.saved_query_uuid,
+                        original_slug: firstChart.slug,
+                        new_slug: firstChart.slug,
+                        action: 'keep',
+                    });
 
                     for await (const chart of restCharts) {
                         const uniqueSlug =
@@ -90,9 +139,13 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                                 chart.slug,
                             );
 
-                        console.info(
-                            `Updating slug from "${chart.slug}" to "${uniqueSlug}" for chart "${chart.name}" (${chart.saved_query_uuid}) in project ${projectUuid}${dryRunMessage}`,
-                        );
+                        changeLogs.push({
+                            project_uuid: projectUuid,
+                            chart_uuid: chart.saved_query_uuid,
+                            original_slug: chart.slug,
+                            new_slug: uniqueSlug,
+                            action: 'update',
+                        });
 
                         await trx(SavedChartsTableName)
                             .where('saved_query_uuid', chart.saved_query_uuid)
@@ -105,10 +158,78 @@ export function getFixDuplicateSlugsScripts(database: Knex) {
                 // Rollback the transaction if it's a dry run, this is because slugs depend on updated charts
                 await trx.rollback();
             }
-
+            console.table(changeLogs);
             console.info(
-                `Done fixing duplicate slugs for all projects${dryRunMessage}`,
+                `Done fixing duplicate slugs for${projectMessage}${dryRunMessage}`,
             );
+
+            // Send email notification if email is provided
+            if (opts.emailReportTo && changeLogs.length > 0) {
+                if (clients.getEmailClient().canSendEmail()) {
+                    // Create CSV content using csv-stringify
+                    const tableHeaders = [
+                        'Project UUID',
+                        'Chart UUID',
+                        'Original Slug',
+                        'New Slug',
+                        'Action',
+                    ];
+
+                    const csvContent = stringify([
+                        tableHeaders,
+                        ...changeLogs.map((log) => [
+                            log.project_uuid,
+                            log.chart_uuid,
+                            log.original_slug,
+                            log.new_slug,
+                            log.action,
+                        ]),
+                    ]);
+
+                    const timestamp = new Date()
+                        .toISOString()
+                        .replace(/[:.]/g, '-');
+                    const csvFilename = `chart-slug-updates-${timestamp}.csv`;
+
+                    const subject = `Chart slug updates for${projectMessage}${dryRunMessage}`;
+                    const title = `Chart slug updates for${projectMessage}${dryRunMessage}`;
+                    const message = `The following chart slugs have been ${
+                        dryRun ? 'identified for update' : 'updated'
+                    }. Please see the attached CSV file for details.`;
+
+                    // Convert emailReportTo to array if it's a string
+                    const recipients = Array.isArray(opts.emailReportTo)
+                        ? opts.emailReportTo
+                        : [opts.emailReportTo];
+
+                    // Create attachment with content directly as string
+                    const attachment = {
+                        filename: csvFilename,
+                        content: csvContent,
+                        contentType: 'text/csv',
+                    };
+
+                    await clients
+                        .getEmailClient()
+                        .sendGenericNotificationEmail(
+                            recipients,
+                            subject,
+                            title,
+                            message,
+                            [attachment],
+                        );
+
+                    console.info(
+                        `Email notification with CSV attachment sent to ${recipients.join(
+                            ', ',
+                        )}`,
+                    );
+                } else {
+                    console.warn(
+                        `Email client is not configured, skipping email notification`,
+                    );
+                }
+            }
         });
     }
 
