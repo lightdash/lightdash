@@ -6,6 +6,7 @@ import {
     DeactivatedAccountError,
     InvalidUser,
     LightdashMode,
+    SessionUser,
 } from '@lightdash/common';
 import { ErrorRequestHandler, Request, RequestHandler } from 'express';
 import passport from 'passport';
@@ -45,7 +46,6 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
         next();
         return;
     }
-
     if (!lightdashConfig.auth.pat.enabled) {
         throw new AuthorizationError('Personal access tokens are disabled');
     }

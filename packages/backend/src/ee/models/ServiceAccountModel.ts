@@ -35,6 +35,7 @@ export class ServiceAccountModel {
             description: data.description,
             lastUsedAt: data.last_used_at,
             rotatedAt: data.rotated_at,
+            createdByUserUuid: data.created_by_user_uuid,
             scopes: data.scopes as ServiceAccountScope[],
         };
     }
