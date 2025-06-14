@@ -62,6 +62,9 @@ export type DbtModelNode = DbtRawModelNode & {
 export type DbtModelColumn = ColumnInfo & {
     meta: DbtColumnMetadata;
     data_type?: DimensionType;
+    config?: {
+        meta?: DbtColumnMetadata;
+    };
 };
 
 type DbtLightdashFieldTags = {
