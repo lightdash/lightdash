@@ -1077,7 +1077,7 @@ export type DownloadCsv = BaseTrack & {
         | 'download_results.error';
     userId: string;
     properties: {
-        jobId: string;
+        jobId?: string;
         organizationId?: string;
         projectId: string;
         tableId?: string;
