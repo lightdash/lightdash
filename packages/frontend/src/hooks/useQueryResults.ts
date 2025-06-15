@@ -251,10 +251,14 @@ export type InfiniteQueryResults = Partial<
 export const useInfiniteQueryResults = (
     projectUuid?: string,
     queryUuid?: string,
+    chartName?: string,
 ): InfiniteQueryResults => {
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
-        forbiddenToastTitle: 'Error running query',
+        forbiddenToastTitle: chartName
+            ? `Error running query for chart '${chartName}'`
+            : 'Error running query',
+        chartName,
     });
     const [fetchArgs, setFetchArgs] = useState<{
         queryUuid?: string;

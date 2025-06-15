@@ -15,6 +15,7 @@ import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFilter
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { formatChartErrorMessage } from '../../utils/chartErrorUtils';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
 import LinkMenuItem from '../common/LinkMenuItem';
@@ -135,9 +136,11 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                 {!isChartLoading && (
                     <SuboptimalState
                         icon={IconAlertCircle}
-                        title={
-                            chartError?.error?.message || 'Error fetching chart'
-                        }
+                        title={formatChartErrorMessage(
+                            tile.properties.chartName,
+                            chartError?.error?.message ||
+                                'Error fetching chart',
+                        )}
                     />
                 )}
             </TileBase>
@@ -170,10 +173,11 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                 {chartResultsError && (
                     <SuboptimalState
                         icon={IconAlertCircle}
-                        title={
+                        title={formatChartErrorMessage(
+                            tile.properties.chartName,
                             chartResultsError?.error?.message ||
-                            'No data available'
-                        }
+                                'No data available',
+                        )}
                     />
                 )}
             </TileBase>
