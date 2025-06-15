@@ -57,10 +57,11 @@ export const AgentSwitcher = ({
                 imageUrl: imageUrl,
             } satisfies AgentSelectOption),
     );
+
     return (
         <Select
             data={agentOptions}
-            defaultValue={selectedAgent.uuid}
+            value={selectedAgent.uuid}
             onChange={handleSelect}
             checkIconPosition="right"
             w="100%"

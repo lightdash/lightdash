@@ -21,6 +21,7 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 import { useActiveProject } from '../../../../hooks/useActiveProject';
 import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
+import { useDefaultAgent } from './useDefaultAgent';
 import { PROJECT_AI_AGENTS_KEY, useProjectAiAgent } from './useProjectAiAgents';
 
 const AI_AGENTS_KEY = 'aiAgents';
@@ -102,10 +103,12 @@ export const useDeleteAiAgentMutation = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
+    const { defaultAgentUuid, clearDefaultAgent } =
+        useDefaultAgent(activeProjectUuid);
 
     return useMutation<ApiSuccessEmpty, ApiError, string>({
         mutationFn: (agentUuid) => deleteAgent(agentUuid),
-        onSuccess: () => {
+        onSuccess: (_, deletedAgentUuid) => {
             showToastSuccess({
                 title: 'AI agent deleted successfully',
             });
@@ -119,6 +122,9 @@ export const useDeleteAiAgentMutation = () => {
                 queryKey: [AI_AGENTS_KEY],
                 exact: true,
             });
+            if (defaultAgentUuid === deletedAgentUuid) {
+                clearDefaultAgent();
+            }
             void navigate(`/projects/${activeProjectUuid}/ai-agents`);
         },
         onError: ({ error }) => {
