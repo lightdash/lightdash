@@ -2,6 +2,7 @@ import moment from 'moment/moment';
 import { FilterOperator, UnitOfTime } from '../types/filter';
 import { WeekDay } from '../utils/timeFrames';
 import {
+    renderBooleanFilterSql,
     renderDateFilterSql,
     renderFilterRuleSqlFromField,
     renderNumberFilterSql,
@@ -818,5 +819,149 @@ describe('Filter SQL', () => {
                 disabledFilterMock.timezone,
             ),
         ).toBe('1=1');
+    });
+});
+
+describe('Boolean Filter SQL', () => {
+    const dimensionSql = '("table"."is_active")';
+    const baseFilter = {
+        id: 'test-id',
+        target: { fieldId: 'is_active' },
+    };
+
+    describe('equals operator', () => {
+        it('should handle boolean true correctly', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [true],
+            };
+            expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
+                '(("table"."is_active")) = true',
+            );
+        });
+
+        it('should handle boolean false correctly', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [false],
+            };
+            expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
+                '(("table"."is_active")) = false',
+            );
+        });
+
+        it('should handle string "true" correctly', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: ['true'],
+            };
+            expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
+                '(("table"."is_active")) = true',
+            );
+        });
+
+        it('should handle string "false" correctly (THIS WILL FAIL BEFORE FIX)', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: ['false'],
+            };
+            // This test will fail initially because current implementation returns "true"
+            expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
+                '(("table"."is_active")) = false',
+            );
+        });
+
+        it('should handle case insensitive string booleans', () => {
+            const filterFalse = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: ['FALSE'],
+            };
+            const filterTrue = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: ['TRUE'],
+            };
+
+            expect(renderBooleanFilterSql(dimensionSql, filterFalse)).toBe(
+                '(("table"."is_active")) = false',
+            );
+            expect(renderBooleanFilterSql(dimensionSql, filterTrue)).toBe(
+                '(("table"."is_active")) = true',
+            );
+        });
+
+        it('should handle whitespace around boolean strings', () => {
+            const filterFalse = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [' false '],
+            };
+            const filterTrue = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [' true '],
+            };
+
+            expect(renderBooleanFilterSql(dimensionSql, filterFalse)).toBe(
+                '(("table"."is_active")) = false',
+            );
+            expect(renderBooleanFilterSql(dimensionSql, filterTrue)).toBe(
+                '(("table"."is_active")) = true',
+            );
+        });
+    });
+
+    describe('notEquals operator', () => {
+        it('should handle boolean false correctly', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.NOT_EQUALS,
+                values: [false],
+            };
+            expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
+                '((("table"."is_active")) != false OR (("table"."is_active")) IS NULL)',
+            );
+        });
+
+        it('should handle string "false" correctly (THIS WILL FAIL BEFORE FIX)', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.NOT_EQUALS,
+                values: ['false'],
+            };
+            // This test will fail initially because current implementation uses "true"
+            expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
+                '((("table"."is_active")) != false OR (("table"."is_active")) IS NULL)',
+            );
+        });
+    });
+
+    describe('isNull and notNull operators', () => {
+        it('should handle isNull operator', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.NULL,
+                values: [true],
+            };
+            expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
+                '(("table"."is_active")) IS NULL',
+            );
+        });
+
+        it('should handle notNull operator', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.NOT_NULL,
+                values: [true],
+            };
+            expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
+                '(("table"."is_active")) IS NOT NULL',
+            );
+        });
     });
 });
