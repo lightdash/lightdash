@@ -57,6 +57,7 @@ const Login: FC<{}> = () => {
     }, [flashMessages.data, showToastError]);
 
     const [preCheckEmail, setPreCheckEmail] = useState<string>();
+    const [showDelayedLoading, setShowDelayedLoading] = useState(false);
 
     const redirectUrl = location.state?.from
         ? `${location.state.from.pathname}${location.state.from.search}`
@@ -92,6 +93,27 @@ const Login: FC<{}> = () => {
         }
     }, [loginOptionsSuccess, loginOptions]);
 
+    // Delayed loading state - only show loading if request takes longer than 400ms
+    useEffect(() => {
+        let timeoutId: NodeJS.Timeout;
+
+        if (isInitialLoadingLoginOptions) {
+            // Set a timer to show loading after 400ms
+            timeoutId = setTimeout(() => {
+                setShowDelayedLoading(true);
+            }, 400);
+        } else {
+            // Request completed, hide loading immediately
+            setShowDelayedLoading(false);
+        }
+
+        return () => {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
+    }, [isInitialLoadingLoginOptions]);
+
     const { mutate, isLoading, isSuccess, isIdle } = useLoginWithEmailMutation({
         onSuccess: (data) => {
             identify({ id: data.userUuid });
@@ -116,7 +138,7 @@ const Login: FC<{}> = () => {
         }
     }, [isDemo, mutate, isIdle]);
 
-    const formStage = preCheckEmail ? 'login' : 'precheck';
+    const formStage = preCheckEmail && loginOptions ? 'login' : 'precheck';
 
     const isEmailLoginAvailable =
         loginOptions?.showOptions &&
@@ -136,6 +158,14 @@ const Login: FC<{}> = () => {
     }, [form.values, formStage, isEmailLoginAvailable, mutate]);
 
     const disableControls =
+        isInitialLoadingLoginOptions ||
+        loginOptionsLoading ||
+        (loginOptionsSuccess && loginOptions.forceRedirect === true) ||
+        isLoading ||
+        isSuccess;
+
+    const showButtonLoading =
+        showDelayedLoading ||
         loginOptionsLoading ||
         (loginOptionsSuccess && loginOptions.forceRedirect === true) ||
         isLoading ||
@@ -148,7 +178,20 @@ const Login: FC<{}> = () => {
         return loginOptions.showOptions.filter(isOpenIdIdentityIssuerType);
     }, [loginOptions]);
 
-    if (health.isInitialLoading || isDemo || isInitialLoadingLoginOptions) {
+    // Preserve SSO options during loading to prevent flickering
+    const [preservedSsoOptions, setPreservedSsoOptions] = useState<string[]>(
+        [],
+    );
+    useEffect(() => {
+        if (ssoOptions.length > 0) {
+            setPreservedSsoOptions(ssoOptions);
+        }
+    }, [ssoOptions]);
+
+    const displaySsoOptions =
+        ssoOptions.length > 0 ? ssoOptions : preservedSsoOptions;
+
+    if (health.isInitialLoading || isDemo) {
         return <PageSpinner />;
     }
     if (health.status === 'success' && health.data?.requiresOrgRegistration) {
@@ -222,7 +265,8 @@ const Login: FC<{}> = () => {
                                 </Anchor>
                                 <Button
                                     type="submit"
-                                    loading={disableControls}
+                                    loading={showButtonLoading}
+                                    disabled={disableControls}
                                     data-cy="signin-button"
                                 >
                                     Sign in
@@ -232,13 +276,14 @@ const Login: FC<{}> = () => {
                         {formStage === 'precheck' && (
                             <Button
                                 type="submit"
-                                loading={disableControls}
+                                loading={showButtonLoading}
+                                disabled={disableControls}
                                 data-cy="signin-button"
                             >
                                 Continue
                             </Button>
                         )}
-                        {ssoOptions.length > 0 && (
+                        {displaySsoOptions.length > 0 && (
                             <>
                                 {(isEmailLoginAvailable ||
                                     formStage === 'precheck') && (
@@ -257,7 +302,7 @@ const Login: FC<{}> = () => {
                                     />
                                 )}
                                 <Stack>
-                                    {ssoOptions.map((providerName) => (
+                                    {displaySsoOptions.map((providerName) => (
                                         <ThirdPartySignInButton
                                             key={providerName}
                                             providerName={providerName}
