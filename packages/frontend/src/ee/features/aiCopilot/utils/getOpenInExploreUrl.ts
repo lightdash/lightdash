@@ -1,29 +1,38 @@
-import type { AiChartType, AnyType, MetricQuery } from '@lightdash/common';
+import type {
+    AiAgentMessageAssistant,
+    AiChartType,
+    AnyType,
+    MetricQuery,
+} from '@lightdash/common';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../../hooks/useExplorerRoute';
-import { getAiAgentChartConfig } from './getAiAgentChartConfig';
+import { getChartConfigFromAiAgentVizConfig } from './echarts';
 
 export const getOpenInExploreUrl = ({
     metricQuery,
-    activeProjectUuid,
+    projectUuid,
     columnOrder,
     type,
-    chartOptions,
     pivotColumns,
+    vizConfig,
+    rows,
 }: {
     metricQuery: MetricQuery;
-    activeProjectUuid: string;
+    projectUuid: string | undefined;
     columnOrder: string[];
     type: AiChartType;
-    chartOptions?: AnyType;
     pivotColumns?: string[];
+    vizConfig: AiAgentMessageAssistant['vizConfigOutput'];
+    rows: Record<string, unknown>[];
 }) => {
-    return getExplorerUrlFromCreateSavedChartVersion(activeProjectUuid, {
+    return getExplorerUrlFromCreateSavedChartVersion(projectUuid, {
         tableName: metricQuery.exploreName,
         metricQuery,
-        chartConfig: getAiAgentChartConfig({
+        chartConfig: getChartConfigFromAiAgentVizConfig({
             type,
-            chartOptions,
+            // TODO :: fix this using schema
+            config: vizConfig as AnyType,
             metricQuery,
+            rows,
         }),
         tableConfig: {
             columnOrder,
