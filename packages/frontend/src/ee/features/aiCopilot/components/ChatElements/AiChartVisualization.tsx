@@ -12,6 +12,7 @@ import VisualizationProvider from '../../../../../components/LightdashVisualizat
 import MetricQueryDataProvider from '../../../../../components/MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../../../../../components/MetricQueryData/UnderlyingDataModal';
 
+import { DrillDownModal } from '../../../../../components/MetricQueryData/DrillDownModal';
 import { type EchartSeriesClickEvent } from '../../../../../components/SimpleChart';
 import { type EChartSeries } from '../../../../../hooks/echarts/useEchartsCartesianConfig';
 import useHealth from '../../../../../hooks/health/useHealth';
@@ -123,6 +124,7 @@ export const AiChartVisualization: FC<Props> = ({
                     )}
                 </VisualizationProvider>
                 <UnderlyingDataModal />
+                <DrillDownModal />
             </MetricQueryDataProvider>
         </Box>
     );
