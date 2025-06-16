@@ -35,9 +35,9 @@ import MantineModal from '../../../components/common/MantineModal';
 import Page from '../../../components/common/Page/Page';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
 import { useProject } from '../../../hooks/useProject';
-import useApp from '../../../providers/App/useApp';
 import { ConversationsList } from '../../features/aiCopilot/components/ConversationsList';
 import { SlackIntegrationSteps } from '../../features/aiCopilot/components/SlackIntegrationSteps';
+import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useDeleteAiAgentMutation } from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
 import {
     useProjectAiAgent,
@@ -69,17 +69,17 @@ type Props = {
 };
 
 const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
-    const { user } = useApp();
-    const userCanManageOrganization = useMemo(
-        () => user.data?.ability.can('manage', 'Organization'),
-        [user],
-    );
-
-    const navigate = useNavigate();
     const { agentUuid, projectUuid } = useParams<{
         agentUuid: string;
         projectUuid: string;
     }>();
+    const canManageAgents = useAiAgentPermission({
+        action: 'manage',
+        projectUuid,
+    });
+
+    const navigate = useNavigate();
+
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
     const { data: project } = useProject(projectUuid);
@@ -201,10 +201,10 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     }, []);
 
     useEffect(() => {
-        if (!userCanManageOrganization) {
+        if (!canManageAgents) {
             void navigate(`/projects/${projectUuid}/ai-agents`);
         }
-    }, [userCanManageOrganization, navigate, projectUuid]);
+    }, [canManageAgents, navigate, projectUuid]);
 
     if (!isCreateMode && actualAgentUuid && !agent && !isLoadingAgent) {
         return (
@@ -558,7 +558,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                         <ConversationsList
                             agentUuid={actualAgentUuid!}
                             agentName={agent?.name ?? 'Agent'}
-                            allUsers={userCanManageOrganization}
+                            allUsers={canManageAgents}
                         />
                     </Tabs.Panel>
                 </Tabs>
