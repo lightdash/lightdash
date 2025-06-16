@@ -1,3 +1,10 @@
+# [0.1724.0](https://github.com/lightdash/lightdash/compare/0.1723.0...0.1724.0) (2025-06-16)
+
+
+### Features
+
+* Introduce Default Agent ([#15353](https://github.com/lightdash/lightdash/issues/15353)) ([92fb1bd](https://github.com/lightdash/lightdash/commit/92fb1bd66ac6e770d0c89aac1b672165971f354b))
+
 # [0.1723.0](https://github.com/lightdash/lightdash/compare/0.1722.0...0.1723.0) (2025-06-16)
 
 
