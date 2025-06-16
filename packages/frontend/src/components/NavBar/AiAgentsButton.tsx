@@ -1,5 +1,5 @@
 import { CommercialFeatureFlags } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Button as MantineButton } from '@mantine/core';
 import { IconMessageCircleStar } from '@tabler/icons-react';
 import { useNavigate } from 'react-router';
 import { useAiAgentPermission } from '../../ee/features/aiCopilot/hooks/useAiAgentPermission';
@@ -9,15 +9,9 @@ import { useFeatureFlag } from '../../hooks/useFeatureFlagEnabled';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 
-export const AiAgentsButton = () => {
+const Button = ({ projectUuid }: { projectUuid: string }) => {
     // Using `navigate` instead of the `Link` component to ensure round corners within a button group
     const navigate = useNavigate();
-
-    const { data: projectUuid } = useActiveProject();
-    const canViewAiAgents = useAiAgentPermission({ action: 'view' });
-    const appQuery = useApp();
-    const aiCopilotFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiCopilot);
-    const aiAgentFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiAgent);
     const { defaultAgentUuid } = useDefaultAgent(projectUuid);
 
     const handleOnClick = () => {
@@ -29,6 +23,27 @@ export const AiAgentsButton = () => {
             void navigate(`/projects/${projectUuid}/ai-agents`);
         }
     };
+    return (
+        <MantineButton
+            size="xs"
+            variant="default"
+            fz="sm"
+            leftIcon={
+                <MantineIcon icon={IconMessageCircleStar} color="#adb5bd" />
+            }
+            onClick={handleOnClick}
+        >
+            Ask AI
+        </MantineButton>
+    );
+};
+
+export const AiAgentsButton = () => {
+    const { data: projectUuid } = useActiveProject();
+    const canViewAiAgents = useAiAgentPermission({ action: 'view' });
+    const appQuery = useApp();
+    const aiCopilotFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiCopilot);
+    const aiAgentFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiAgent);
 
     if (
         !appQuery.user.isSuccess ||
@@ -50,17 +65,5 @@ export const AiAgentsButton = () => {
         return null;
     }
 
-    return (
-        <Button
-            size="xs"
-            variant="default"
-            fz="sm"
-            leftIcon={
-                <MantineIcon icon={IconMessageCircleStar} color="#adb5bd" />
-            }
-            onClick={handleOnClick}
-        >
-            Ask AI
-        </Button>
-    );
+    return <Button projectUuid={projectUuid} />;
 };
