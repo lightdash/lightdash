@@ -1,6 +1,7 @@
 import { type AiAgentMessage, type AiAgentThread } from '@lightdash/common';
 import { Divider, ScrollArea, Stack } from '@mantine-8/core';
 import { Fragment, useLayoutEffect, useRef, type FC } from 'react';
+import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { AssistantBubble, UserBubble } from './AgentChatBubbles';
 import { ChatElementsUtils } from './utils';
 
@@ -19,7 +20,9 @@ const AiThreadMessage: FC<AiThreadMessageProps> = ({
     return isUser ? (
         <UserBubble message={message} />
     ) : (
-        <AssistantBubble message={message} isPreview={isPreview} />
+        <ErrorBoundary>
+            <AssistantBubble message={message} isPreview={isPreview} />
+        </ErrorBoundary>
     );
 };
 
