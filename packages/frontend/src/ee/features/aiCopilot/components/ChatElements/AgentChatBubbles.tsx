@@ -1,7 +1,9 @@
 import {
+    AiChartType,
     type AiAgentMessageAssistant,
     type AiAgentMessageUser,
     type AiAgentUser,
+    type FilterSchemaType,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -31,6 +33,7 @@ import dayjs from 'dayjs';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { Link, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
@@ -39,6 +42,8 @@ import {
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useOrganizationAiAgents';
 import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
+import AgentVisualizationFilters from './AgentVisualizationFilters';
+import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
 import { AiChartVisualization } from './AiChartVisualization';
 
 export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
@@ -233,6 +238,33 @@ export const AssistantBubble: FC<{
                             results={queryResults}
                         />
                     )}
+                    <Stack gap="xs">
+                        <ErrorBoundary>
+                            {queryExecutionHandle.data &&
+                                queryExecutionHandle.data.type !==
+                                    AiChartType.CSV && (
+                                    <AgentVisualizationMetricsAndDimensions
+                                        metricQuery={
+                                            queryExecutionHandle.data.query
+                                                .metricQuery
+                                        }
+                                        fieldsMap={
+                                            queryExecutionHandle.data.query
+                                                .fields
+                                        }
+                                    />
+                                )}
+
+                            {message.filtersOutput && (
+                                <AgentVisualizationFilters
+                                    // TODO: fix this using schema
+                                    filters={
+                                        message.filtersOutput as FilterSchemaType
+                                    }
+                                />
+                            )}
+                        </ErrorBoundary>
+                    </Stack>
                 </Paper>
             )}
             <Group gap={0} display={isPreview ? 'none' : 'flex'}>
