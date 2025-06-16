@@ -655,13 +655,25 @@ export class AsyncQueryService extends ProjectService {
             userId: user.userUuid,
             properties: baseAnalyticsProperties,
         });
-        const downloadResult = await this.downloadAsyncQueryResults(args);
-        this.analytics.track({
-            event: 'download_results.completed',
-            userId: user.userUuid,
-            properties: baseAnalyticsProperties,
-        });
-        return downloadResult;
+        try {
+            const downloadResult = await this.downloadAsyncQueryResults(args);
+            this.analytics.track({
+                event: 'download_results.completed',
+                userId: user.userUuid,
+                properties: baseAnalyticsProperties,
+            });
+            return downloadResult;
+        } catch (error) {
+            this.analytics.track({
+                event: 'download_results.error',
+                userId: user.userUuid,
+                properties: {
+                    ...baseAnalyticsProperties,
+                    error: error.message,
+                },
+            });
+            throw error;
+        }
     }
 
     private async downloadAsyncQueryResults({
