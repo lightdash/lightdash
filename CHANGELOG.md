@@ -1,3 +1,10 @@
+# [0.1720.0](https://github.com/lightdash/lightdash/compare/0.1719.0...0.1720.0) (2025-06-16)
+
+
+### Features
+
+* stream query results for AI Agent charts ([#15302](https://github.com/lightdash/lightdash/issues/15302)) ([764f50e](https://github.com/lightdash/lightdash/commit/764f50e4b2ed996dde8b2c6c66d24845da580ba4))
+
 # [0.1719.0](https://github.com/lightdash/lightdash/compare/0.1718.0...0.1719.0) (2025-06-14)
 
 
