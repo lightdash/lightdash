@@ -72,6 +72,9 @@ export default class EmailClient {
                     tls: this.lightdashConfig.smtp.allowInvalidCertificate
                         ? { rejectUnauthorized: false }
                         : undefined,
+                    pool: true, // Enable pooled connections
+                    maxConnections: 5, // Maximum number of connections (default is 5)
+                    maxMessages: 100, // Maximum number of messages per connection (default is 100)
                 },
                 {
                     from: `"${this.lightdashConfig.smtp.sender.name}" <${this.lightdashConfig.smtp.sender.email}>`,
