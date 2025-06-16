@@ -1,7 +1,10 @@
 import {
     DimensionType,
     DownloadFileType,
+    getItemLabel,
+    getItemLabelWithoutTableName,
     isMomentInput,
+    ItemsMap,
 } from '@lightdash/common';
 import moment, { MomentInput } from 'moment/moment';
 
@@ -41,4 +44,55 @@ export function generateGenericFileId({
         truncated ? 'incomplete_results-' : ''
     }${sanitizedFileName}-${timestamp}.${fileExtension}`;
     return fileId;
+}
+
+/**
+ * Processes fields for file export, handling column ordering, filtering, and header generation
+ * This utility is shared between CSV and Excel export services to avoid duplication
+ */
+export function processFieldsForExport(
+    fields: ItemsMap,
+    options: {
+        showTableNames?: boolean;
+        customLabels?: Record<string, string>;
+        columnOrder?: string[];
+        hiddenFields?: string[];
+    },
+) {
+    const {
+        showTableNames = false,
+        customLabels = {},
+        columnOrder = [],
+        hiddenFields = [],
+    } = options;
+
+    // Filter out hidden fields and apply column ordering
+    const availableFieldIds = Object.keys(fields).filter(
+        (id) => !hiddenFields.includes(id),
+    );
+
+    const sortedFieldIds =
+        columnOrder.length > 0
+            ? [
+                  ...columnOrder.filter((id) => availableFieldIds.includes(id)),
+                  ...availableFieldIds.filter(
+                      (id) => !columnOrder.includes(id),
+                  ),
+              ]
+            : availableFieldIds;
+
+    const headers = sortedFieldIds.map((fieldId) => {
+        if (customLabels[fieldId]) {
+            return customLabels[fieldId];
+        }
+        const item = fields[fieldId];
+        if (!item) {
+            return fieldId;
+        }
+        return showTableNames
+            ? getItemLabel(item)
+            : getItemLabelWithoutTableName(item);
+    });
+
+    return { sortedFieldIds, headers };
 }
