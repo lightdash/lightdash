@@ -1,12 +1,12 @@
+import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     AuthorizationError,
     getErrorMessage,
-    hasRequiredScopes,
     ScimError,
-    ServiceAccountScope,
 } from '@lightdash/common';
+import { applyServiceAccountAbilities } from '@lightdash/common/src/authorization/serviceAccountAbility';
+import { type MemberAbility } from '@lightdash/common/src/authorization/types';
 import { RequestHandler } from 'express';
-import { isAuthenticated } from '../../controllers/authentication';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 
 // Middleware to extract SCIM user details
@@ -38,7 +38,7 @@ export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
         // Attach SCIM serviceAccount to request
         const serviceAccount = await req.services
             .getServiceAccountService<ServiceAccountService>()
-            .authenticate(token, {
+            .authenticateScim(token, {
                 method: req.method,
                 path: req.path,
                 routePath: req.route.path,
@@ -60,78 +60,81 @@ export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
 };
 
 // Middleware to extract service account and check scopes
-// At the moment, we can only use this middleware on methods that are not user dependant, like running queries
-export const authenticateServiceAccount =
-    (scopes: ServiceAccountScope[]): RequestHandler =>
-    async (req, res, next) => {
-        if (req.isAuthenticated()) {
+export const authenticateServiceAccount: RequestHandler = async (
+    req,
+    res,
+    next,
+) => {
+    // Check for service account headers or payload (assuming service account details are in the headers for this example)
+    const token = req.headers.authorization;
+    try {
+        // throw if no service account token is found
+        if (!token || typeof token !== 'string' || token.length === 0) {
+            next();
+            return;
+        }
+        // split the token into an array
+        const tokenParts = token.split(' ');
+
+        // If it is not a specific Bearer token, we do next, without throwing an error
+        // This could be an ApiKey token, or already authenticated user
+        if (tokenParts.length !== 2 || tokenParts[0] !== 'Bearer') {
+            // We will execute the next middleware
             next();
             return;
         }
 
-        // Check for service account headers or payload (assuming service account details are in the headers for this example)
-        const token = req.headers.authorization;
-        try {
-            // throw if no service account token is found
-            if (!token || typeof token !== 'string' || token.length === 0) {
-                throw new Error('No service account token provided');
-            }
-            // split the token into an array
-            const tokenParts = token.split(' ');
-
-            // If it is not a specific Bearer token, we do next, without throwing an error
-            // This could be an ApiKey token, or already authenticated user
-            if (tokenParts.length !== 2 || tokenParts[0] !== 'Bearer') {
-                // We will execute the next middleware
-                next();
-                return;
-            }
-
-            // extract the token from the array
-            const ServiceAccountToken = tokenParts[1];
-            // Check if the token is valid
-            if (!ServiceAccountToken) {
-                throw new AuthorizationError(
-                    'No service account token provided',
-                );
-            }
-            // Attach service account serviceAccount to request
-            const serviceAccount = await req.services
-                .getServiceAccountService<ServiceAccountService>()
-                .authenticate(ServiceAccountToken, {
-                    method: req.method,
-                    path: req.path,
-                    routePath: req.route.path,
-                });
-
-            if (!serviceAccount) {
-                throw new AuthorizationError(
-                    'Invalid service account token. Authentication failed.',
-                );
-            }
-
-            if (!hasRequiredScopes(serviceAccount.scopes, scopes)) {
-                throw new AuthorizationError(
-                    'Invalid service account token. Missing required scopes.',
-                );
-            }
-            req.serviceAccount = serviceAccount;
-
-            // Also add the admin user to the request
-            // This is for backwards compatibility with all the existing service and controller methods
-            // that rely on the user object
-            if (!serviceAccount.createdByUserUuid) {
-                throw new AuthorizationError(
-                    'Invalid service account token. Missing created by user uuid.',
-                );
-            }
-            const user = await req.services
-                .getUserService()
-                .getSessionByUserUuid(serviceAccount.createdByUserUuid);
-            req.user = user;
-
-            next();
-        } catch (error) {
-            next(new AuthorizationError(getErrorMessage(error)));
+        // extract the token from the array
+        const ServiceAccountToken = tokenParts[1];
+        // Check if the token is valid
+        if (!ServiceAccountToken) {
+            throw new AuthorizationError('No service account token provided');
         }
-    };
+        // Attach service account serviceAccount to request
+        const serviceAccount = await req.services
+            .getServiceAccountService<ServiceAccountService>()
+            .authenticateServiceAccount(ServiceAccountToken);
+
+        if (!serviceAccount) {
+            throw new AuthorizationError(
+                'Invalid service account token. Authentication failed.',
+            );
+        }
+        req.serviceAccount = serviceAccount;
+        // Create a SessionUser with abilities based on service account scopes
+        // Scope validation is done on casl abitly checks
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        applyServiceAccountAbilities({
+            scopes: serviceAccount.scopes,
+            organizationUuid: serviceAccount.organizationUuid,
+            builder,
+        });
+
+        const organization = await req.services
+            .getOrganizationService()
+            .getOrganizationByUuid(serviceAccount.organizationUuid);
+
+        req.user = {
+            userUuid: serviceAccount.uuid,
+            email: 'service-account@lightdash.com',
+            firstName: 'service account',
+            lastName: serviceAccount.description,
+            organizationUuid: serviceAccount.organizationUuid,
+            organizationName: organization.name,
+            organizationCreatedAt: serviceAccount.createdAt, // TODO replace with organization.createdAt,
+            isTrackingAnonymized: false,
+            isMarketingOptedIn: false,
+            isSetupComplete: true,
+            userId: 0,
+            role: undefined,
+            ability: builder.build(),
+            isActive: true,
+            abilityRules: builder.rules,
+            createdAt: serviceAccount.createdAt,
+            updatedAt: serviceAccount.createdAt,
+        };
+        next();
+    } catch (error) {
+        next(new AuthorizationError(getErrorMessage(error)));
+    }
+};

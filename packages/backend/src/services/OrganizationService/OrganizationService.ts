@@ -148,6 +148,12 @@ export class OrganizationService extends BaseService {
         };
     }
 
+    async getOrganizationByUuid(
+        organizationUuid: string,
+    ): Promise<Organization> {
+        return this.organizationModel.get(organizationUuid);
+    }
+
     async updateOrg(
         { organizationUuid, userUuid, ability }: SessionUser,
         data: UpdateOrganization,

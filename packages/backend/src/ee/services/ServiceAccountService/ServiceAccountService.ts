@@ -269,7 +269,7 @@ export class ServiceAccountService extends BaseService {
         }
     }
 
-    async authenticate(
+    async authenticateScim(
         token: string,
         request: {
             method: string;
@@ -302,11 +302,35 @@ export class ServiceAccountService extends BaseService {
                 await this.serviceAccountModel.updateUsedDate(dbToken.uuid);
                 // finally return organization uuid
                 return {
-                    createdByUserUuid: dbToken.createdByUserUuid,
-                    uuid: dbToken.uuid,
                     organizationUuid: dbToken.organizationUuid,
-                    scopes: dbToken.scopes,
                 };
+            }
+        } catch (error) {
+            return null;
+        }
+        return null;
+    }
+
+    async authenticateServiceAccount(
+        token: string,
+    ): Promise<ServiceAccount | null> {
+        // return null if token is empty
+        if (token === '') return null;
+
+        try {
+            const dbToken = await this.serviceAccountModel.getByToken(token);
+            if (dbToken) {
+                // return null if expired
+                if (dbToken.expiresAt && dbToken.expiresAt < new Date()) {
+                    return null;
+                }
+
+                // TODO add analytics
+
+                // Update last used date
+                await this.serviceAccountModel.updateUsedDate(dbToken.uuid);
+                // finally return organization uuid
+                return dbToken;
             }
         } catch (error) {
             return null;
