@@ -78,7 +78,10 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
 const AgentPage = () => {
     const { agentUuid, threadUuid, projectUuid } = useParams();
     const { data: threads } = useAiAgentThreads(agentUuid);
-    const canManageAgents = useAiAgentPermission({ action: 'manage' });
+    const canManageAgents = useAiAgentPermission({
+        action: 'manage',
+        projectUuid,
+    });
 
     const { data: agentsList } = useProjectAiAgents(projectUuid!);
 

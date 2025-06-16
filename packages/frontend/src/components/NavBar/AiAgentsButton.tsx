@@ -40,7 +40,10 @@ const Button = ({ projectUuid }: { projectUuid: string }) => {
 
 export const AiAgentsButton = () => {
     const { data: projectUuid } = useActiveProject();
-    const canViewAiAgents = useAiAgentPermission({ action: 'view' });
+    const canViewAiAgents = useAiAgentPermission({
+        action: 'view',
+        projectUuid: projectUuid ?? undefined,
+    });
     const appQuery = useApp();
     const aiCopilotFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiCopilot);
     const aiAgentFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiAgent);

@@ -434,6 +434,64 @@ describe('Project member permissions', () => {
                     ).toEqual(false);
                 });
             });
+
+            describe('AiAgent', () => {
+                it('can manage AiAgent', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgent', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage AiAgent from another project', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgent', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
+
+            describe('AiAgentThread', () => {
+                it('can view all AiAgentThreads in the project', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgentThread', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can manage all AiAgentThreads in the project', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgentThread', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot view AiAgentThread from another project', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgentThread', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot manage AiAgentThread from another project', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgentThread', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
 
         describe('when user is an editor', () => {
@@ -850,6 +908,94 @@ describe('Project member permissions', () => {
                     ).toEqual(false);
                 });
             });
+
+            describe('AiAgent', () => {
+                it('can view AiAgent', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgent', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage AiAgent', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgent', { projectUuid }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot view AiAgent from another project', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgent', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
+
+            describe('AiAgentThread', () => {
+                it('can view only his own AiAgentThread', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgentThread', {
+                                projectUuid,
+                                userUuid: PROJECT_EDITOR.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can manage only his own AiAgentThread', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgentThread', {
+                                projectUuid,
+                                userUuid: PROJECT_EDITOR.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot view other users AiAgentThread', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgentThread', {
+                                projectUuid,
+                                userUuid: 'another-user-uuid',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot manage other users AiAgentThread', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgentThread', {
+                                projectUuid,
+                                userUuid: 'another-user-uuid',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot view AiAgentThread from another project', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgentThread', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
 
         describe('when user is an developer', () => {
@@ -913,6 +1059,61 @@ describe('Project member permissions', () => {
                         ability.can(
                             'view',
                             subject('JobStatus', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
+
+            describe('AiAgent', () => {
+                it('can manage AiAgent', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgent', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage AiAgent from another project', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgent', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
+
+            describe('AiAgentThread', () => {
+                it('can manage only his own AiAgentThread', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgentThread', {
+                                projectUuid,
+                                userUuid: PROJECT_DEVELOPER.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage other users AiAgentThread', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgentThread', {
+                                projectUuid,
+                                userUuid: 'another-user-uuid',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot manage AiAgentThread from another project', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgentThread', { projectUuid: '5678' }),
                         ),
                     ).toEqual(false);
                 });
@@ -1346,6 +1547,82 @@ describe('Project member permissions', () => {
                     ).toEqual(false);
                 });
             });
+
+            describe('AiAgent', () => {
+                it('cannot view AiAgent', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgent', { projectUuid }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot manage AiAgent', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgent', { projectUuid }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
+
+            describe('AiAgentThread', () => {
+                it('can view only his own AiAgentThread', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgentThread', {
+                                projectUuid,
+                                userUuid: PROJECT_VIEWER.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot view other users AiAgentThread', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgentThread', {
+                                projectUuid,
+                                userUuid: 'another-user-uuid',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot manage his own AiAgentThread', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgentThread', {
+                                projectUuid,
+                                userUuid: PROJECT_VIEWER.userUuid,
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot create AiAgentThread', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('AiAgentThread', { projectUuid }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot view AiAgentThread from another project', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgentThread', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
 
         describe('when user is a interactive viewer', () => {
@@ -1521,6 +1798,91 @@ describe('Project member permissions', () => {
                         subject('UnderlyingData', { projectUuid }),
                     ),
                 ).toEqual(true);
+            });
+
+            describe('AiAgent', () => {
+                it('can view AiAgent', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgent', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage AiAgent', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgent', { projectUuid }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot view AiAgent from another project', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgent', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
+
+            describe('AiAgentThread', () => {
+                it('can create AiAgentThread', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('AiAgentThread', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can view only his own AiAgentThread', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgentThread', {
+                                projectUuid,
+                                userUuid: PROJECT_INTERACTIVE_VIEWER.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot view other users AiAgentThread', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('AiAgentThread', {
+                                projectUuid,
+                                userUuid: 'another-user-uuid',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot manage his own AiAgentThread', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('AiAgentThread', {
+                                projectUuid,
+                                userUuid: PROJECT_INTERACTIVE_VIEWER.userUuid,
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot create AiAgentThread in another project', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('AiAgentThread', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
             });
         });
     });
