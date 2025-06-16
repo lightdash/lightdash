@@ -1,3 +1,11 @@
+# [0.1725.0](https://github.com/lightdash/lightdash/compare/0.1724.2...0.1725.0) (2025-06-16)
+
+
+### Features
+
+* add metrics, dimensions and filters display to AI agent chat ([#15343](https://github.com/lightdash/lightdash/issues/15343)) ([a46bd5e](https://github.com/lightdash/lightdash/commit/a46bd5eccd25ffde13143b7902a0a27809e5a1cb)), closes [#15273](https://github.com/lightdash/lightdash/issues/15273) [#15271](https://github.com/lightdash/lightdash/issues/15271)
+* improved ai_prompt.vizConfig to eChartsConfig translation layer ([#15366](https://github.com/lightdash/lightdash/issues/15366)) ([e8b61c6](https://github.com/lightdash/lightdash/commit/e8b61c6340150fc5af226106e7e186e38e1833a4))
+
 ## [0.1724.2](https://github.com/lightdash/lightdash/compare/0.1724.1...0.1724.2) (2025-06-16)
 
 
