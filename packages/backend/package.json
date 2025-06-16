@@ -78,6 +78,8 @@
         "cron-converter": "^2.0.0",
         "cronstrue": "^2.23.0",
         "csv-stringify": "^6.2.4",
+        "date-fns": "^4.1.0",
+        "date-fns-tz": "^3.2.0",
         "duckdb-async": "^0.10.2",
         "echarts": "^5.5.0",
         "exceljs": "^4.4.0",
