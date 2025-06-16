@@ -174,8 +174,8 @@ export class S3Client {
                 Key: fileId,
                 Body: buffer,
                 ContentType: `application/jsonl`,
-                ACL: 'private',
-                ContentDisposition: createContentDispositionHeader(fileId),
+                // ACL: 'private',
+                ContentDisposition: `attachment; filename="${fileId}"`,
             },
         });
 
