@@ -3,6 +3,7 @@ import { Button } from '@mantine/core';
 import { IconMessageCircleStar } from '@tabler/icons-react';
 import { useNavigate } from 'react-router';
 import { useAiAgentPermission } from '../../ee/features/aiCopilot/hooks/useAiAgentPermission';
+import { useDefaultAgent } from '../../ee/features/aiCopilot/hooks/useDefaultAgent';
 import { useActiveProject } from '../../hooks/useActiveProject';
 import { useFeatureFlag } from '../../hooks/useFeatureFlagEnabled';
 import useApp from '../../providers/App/useApp';
@@ -12,11 +13,22 @@ export const AiAgentsButton = () => {
     // Using `navigate` instead of the `Link` component to ensure round corners within a button group
     const navigate = useNavigate();
 
-    const { data: project } = useActiveProject();
+    const { data: projectUuid } = useActiveProject();
     const canViewAiAgents = useAiAgentPermission({ action: 'view' });
     const appQuery = useApp();
     const aiCopilotFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiCopilot);
     const aiAgentFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiAgent);
+    const { defaultAgentUuid } = useDefaultAgent(projectUuid);
+
+    const handleOnClick = () => {
+        if (defaultAgentUuid) {
+            void navigate(
+                `/projects/${projectUuid}/ai-agents/${defaultAgentUuid}`,
+            );
+        } else {
+            void navigate(`/projects/${projectUuid}/ai-agents`);
+        }
+    };
 
     if (
         !appQuery.user.isSuccess ||
@@ -33,7 +45,7 @@ export const AiAgentsButton = () => {
         !canViewAiAgents ||
         !isAiCopilotEnabled ||
         !isAiAgentEnabled ||
-        !project
+        !projectUuid
     ) {
         return null;
     }
@@ -46,7 +58,7 @@ export const AiAgentsButton = () => {
             leftIcon={
                 <MantineIcon icon={IconMessageCircleStar} color="#adb5bd" />
             }
-            onClick={() => navigate(`/projects/${project}/ai-agents`)}
+            onClick={handleOnClick}
         >
             Ask AI
         </Button>

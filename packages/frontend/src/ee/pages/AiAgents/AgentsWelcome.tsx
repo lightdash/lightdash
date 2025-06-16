@@ -17,13 +17,11 @@ import {
     IconPlus,
     IconRobot,
 } from '@tabler/icons-react';
-import { useEffect } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, Navigate, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import PageSpinner from '../../../components/PageSpinner';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
-import { useProjectAiAgents } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { useDefaultAgent } from '../../features/aiCopilot/hooks/useDefaultAgent';
 
 const AGENT_FEATURES = [
     {
@@ -58,22 +56,15 @@ const AGENT_FEATURES = [
 
 const AgentsWelcome = () => {
     const { projectUuid } = useParams();
-    const { data: agents, isLoading } = useProjectAiAgents(projectUuid);
-    const navigate = useNavigate();
     const canCreateAgent = useAiAgentPermission({ action: 'manage' });
+    const { defaultAgentUuid } = useDefaultAgent(projectUuid);
 
-    useEffect(() => {
-        if (agents && agents.length > 0) {
-            // TODO: Get this from user preferences (tbi) or prev. used from local storage
-            const firstAgent = agents[0];
-            void navigate(
-                `/projects/${projectUuid}/ai-agents/${firstAgent.uuid}`,
-            );
-        }
-    }, [agents, navigate, projectUuid]);
-
-    if (isLoading) {
-        return <PageSpinner />;
+    if (defaultAgentUuid) {
+        return (
+            <Navigate
+                to={`/projects/${projectUuid}/ai-agents/${defaultAgentUuid}`}
+            />
+        );
     }
     return (
         <AiAgentPageLayout>
