@@ -1,3 +1,10 @@
+# [0.1721.0](https://github.com/lightdash/lightdash/compare/0.1720.0...0.1721.0) (2025-06-16)
+
+
+### Features
+
+* Fetch paginated results for AI agent thread messages; Enable "View underlying data" button ([#15311](https://github.com/lightdash/lightdash/issues/15311)) ([53e5a2e](https://github.com/lightdash/lightdash/commit/53e5a2eb7d5b7c4e66847312b6accef6230c8345)), closes [#15274](https://github.com/lightdash/lightdash/issues/15274)
+
 # [0.1720.0](https://github.com/lightdash/lightdash/compare/0.1719.0...0.1720.0) (2025-06-16)
 
 
