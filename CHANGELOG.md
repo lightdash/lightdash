@@ -1,3 +1,10 @@
+## [0.1724.2](https://github.com/lightdash/lightdash/compare/0.1724.1...0.1724.2) (2025-06-16)
+
+
+### Bug Fixes
+
+* trying to pull AI Agents without FF ([#15370](https://github.com/lightdash/lightdash/issues/15370)) ([dfbc8f0](https://github.com/lightdash/lightdash/commit/dfbc8f0e7a8b12b4af536ba2d05f390d9ee182cf))
+
 ## [0.1724.1](https://github.com/lightdash/lightdash/compare/0.1724.0...0.1724.1) (2025-06-16)
 
 
