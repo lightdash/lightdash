@@ -1,14 +1,7 @@
-import {
-    type ScimSchemaType,
-    type ServiceAccount,
-    type ServiceAccountScope,
-} from '..';
+import { type ScimSchemaType, type ServiceAccount } from '..';
 
 export type SessionServiceAccount = {
-    createdByUserUuid: string | null;
-    uuid: string;
     organizationUuid: string;
-    scopes: ServiceAccountScope[];
 };
 
 export interface ScimResource {
