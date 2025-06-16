@@ -38,7 +38,6 @@ import {
     useAiAgentThreadMessageVizQuery,
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useOrganizationAiAgents';
-import { getChartOptionsFromAiAgentThreadMessageVizQuery } from '../../utils/echarts';
 import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
 import { AiChartVisualization } from './AiChartVisualization';
 
@@ -149,17 +148,14 @@ export const AssistantBubble: FC<{
 
         return getOpenInExploreUrl({
             metricQuery: queryExecutionHandle.data.query.metricQuery,
-            activeProjectUuid: projectUuid!,
+            projectUuid,
             columnOrder: [
                 ...queryExecutionHandle.data.query.metricQuery.dimensions,
                 ...queryExecutionHandle.data.query.metricQuery.metrics,
             ],
             type: queryExecutionHandle.data.type,
-            chartOptions: getChartOptionsFromAiAgentThreadMessageVizQuery({
-                config: message.vizConfigOutput,
-                rows: queryResults.rows,
-                type: queryExecutionHandle.data.type,
-            }),
+            vizConfig: message.vizConfigOutput,
+            rows: queryResults.rows,
             pivotColumns:
                 // TODO: fix this using schema
                 message.vizConfigOutput &&

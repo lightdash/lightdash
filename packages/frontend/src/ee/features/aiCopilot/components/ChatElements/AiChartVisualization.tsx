@@ -19,8 +19,7 @@ import useHealth from '../../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { getChartOptionsFromAiAgentThreadMessageVizQuery } from '../../utils/echarts';
-import { getAiAgentChartConfig } from '../../utils/getAiAgentChartConfig';
+import { getChartConfigFromAiAgentVizConfig } from '../../utils/echarts';
 
 type Props = ApiAiAgentThreadMessageVizQuery & {
     vizConfig: AiAgentMessageAssistant['vizConfigOutput'];
@@ -51,24 +50,15 @@ export const AiChartVisualization: FC<Props> = ({
         [results, metricQuery, fields],
     );
 
-    const chartOptions = useMemo(
-        () =>
-            getChartOptionsFromAiAgentThreadMessageVizQuery({
-                config: vizConfig,
-                rows: results.rows,
-                type,
-            }),
-        [vizConfig, results.rows, type],
-    );
-
     const chartConfig = useMemo(
         () =>
-            getAiAgentChartConfig({
-                type: type,
-                chartOptions,
+            getChartConfigFromAiAgentVizConfig({
+                config: vizConfig as any,
+                rows: results.rows,
+                type,
                 metricQuery,
             }),
-        [type, chartOptions, metricQuery],
+        [vizConfig, results.rows, type, metricQuery],
     );
 
     return (
