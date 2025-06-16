@@ -175,10 +175,7 @@ export const executeQueryAndWaitForResults = async (
 };
 
 export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
-    const setErrorResponse = useQueryError({
-        forceToastOnForbidden: true,
-        forbiddenToastTitle: 'Error running query',
-    });
+    const setErrorResponse = useQueryError();
 
     const result = useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
         enabled: !!data,

@@ -37,11 +37,12 @@ export const getDimensionFromId = (
     explore: Explore,
     adapterType: SupportedDbtAdapter,
     startOfWeek: WeekDay | null | undefined,
+    checkUnfilteredTables: boolean = true,
 ): CompiledDimension => {
     const dimensions = getDimensions(explore);
     const dimension = dimensions.find((d) => getItemId(d) === dimId);
 
-    if (dimension === undefined) {
+    if (!dimension) {
         const { baseDimensionId, newTimeFrame } = getDateDimension(dimId);
 
         if (baseDimensionId) {
@@ -50,6 +51,7 @@ export const getDimensionFromId = (
                 explore,
                 adapterType,
                 startOfWeek,
+                checkUnfilteredTables,
             );
             if (baseField && newTimeFrame)
                 return {
@@ -69,12 +71,14 @@ export const getDimensionFromId = (
         // it is possible that the explore is a joined table and is filtered by user_attributes
         // So we check if the dimension exists in the unfiltered tables
         if (
+            checkUnfilteredTables &&
             explore.unfilteredTables &&
             getDimensionFromId(
                 dimId,
                 { ...explore, tables: explore.unfilteredTables },
                 adapterType,
                 startOfWeek,
+                false,
             )
         ) {
             throw new AuthorizationError(
