@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import type { AnyType, CacheMetadata, ItemsMap, MetricQuery } from '../..';
+import type {
+    AnyType,
+    ApiExecuteAsyncMetricQueryResults,
+    CacheMetadata,
+    ItemsMap,
+    MetricQuery,
+} from '../..';
 
 /**
  * Supported AI visualization chart types
@@ -209,6 +215,16 @@ export type ApiAiAgentThreadMessageViz = {
 export type ApiAiAgentThreadMessageVizResponse = {
     status: 'ok';
     results: ApiAiAgentThreadMessageViz;
+};
+
+export type ApiAiAgentThreadMessageVizQuery = {
+    type: AiChartType;
+    query: ApiExecuteAsyncMetricQueryResults;
+};
+
+export type ApiAiAgentThreadMessageVizQueryResponse = {
+    status: 'ok';
+    results: ApiAiAgentThreadMessageVizQuery;
 };
 
 export * from './filterExploreByTags';

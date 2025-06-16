@@ -5553,6 +5553,63 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiExecuteAsyncQueryResultsCommon": {
+                "properties": {
+                    "cacheMetadata": {
+                        "$ref": "#/components/schemas/CacheMetadata"
+                    },
+                    "queryUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["cacheMetadata", "queryUuid"],
+                "type": "object"
+            },
+            "ApiExecuteAsyncMetricQueryResults": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncQueryResultsCommon"
+                    },
+                    {
+                        "properties": {
+                            "fields": {
+                                "$ref": "#/components/schemas/ItemsMap"
+                            },
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/MetricQuery"
+                            }
+                        },
+                        "required": ["fields", "metricQuery"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiAiAgentThreadMessageVizQuery": {
+                "properties": {
+                    "query": {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/AiChartType"
+                    }
+                },
+                "required": ["query", "type"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadMessageVizQueryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiAiAgentThreadMessageVizQuery"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "AiConversation": {
                 "properties": {
                     "user": {
@@ -8856,7 +8913,7 @@
                 "description": "Contains the detail of a full URL to generate a short URL id"
             },
             "SchedulerFormat": {
-                "enum": ["csv", "image", "gsheets"],
+                "enum": ["csv", "xlsx", "image", "gsheets"],
                 "type": "string"
             },
             "SchedulerCsvOptions": {
@@ -16458,37 +16515,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiExecuteAsyncQueryResultsCommon": {
-                "properties": {
-                    "cacheMetadata": {
-                        "$ref": "#/components/schemas/CacheMetadata"
-                    },
-                    "queryUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["cacheMetadata", "queryUuid"],
-                "type": "object"
-            },
-            "ApiExecuteAsyncMetricQueryResults": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/ApiExecuteAsyncQueryResultsCommon"
-                    },
-                    {
-                        "properties": {
-                            "fields": {
-                                "$ref": "#/components/schemas/ItemsMap"
-                            },
-                            "metricQuery": {
-                                "$ref": "#/components/schemas/MetricQuery"
-                            }
-                        },
-                        "required": ["fields", "metricQuery"],
-                        "type": "object"
-                    }
-                ]
-            },
             "ApiSuccess_ApiExecuteAsyncMetricQueryResults_": {
                 "properties": {
                     "results": {
@@ -17769,7 +17795,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1713.0",
+        "version": "0.1723.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

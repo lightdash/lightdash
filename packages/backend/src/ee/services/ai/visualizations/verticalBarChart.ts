@@ -5,6 +5,7 @@ import {
     FilterSchemaType,
     MetricQuery,
     SortFieldSchema,
+    verticalBarMetricVizConfigSchema,
 } from '@lightdash/common';
 import { z } from 'zod';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
@@ -15,45 +16,7 @@ import {
 } from '../utils/validators';
 import { getPivotedResults } from './getPivotedResults';
 
-export const verticalBarMetricChartConfigSchema = z.object({
-    exploreName: z
-        .string()
-        .describe(
-            'The name of the explore containing the metrics and dimensions used for the chart.',
-        ),
-    xDimension: z
-        .string()
-        .describe(
-            'The field id of the dimension to be displayed on the x-axis.',
-        ),
-    yMetrics: z
-        .array(z.string())
-        .min(1)
-        .describe(
-            'At least one metric is required. The field ids of the metrics to be displayed on the y-axis. The height of the bars',
-        ),
-    sorts: z
-        .array(SortFieldSchema)
-        .describe(
-            'Sort configuration for the query, it can use a combination of metrics and dimensions.',
-        ),
-    breakdownByDimension: z
-        .string()
-        .nullable()
-        .describe(
-            'The field id of the dimension used to split the metrics into groups along the x-axis. If stacking is false then this will create multiple bars around each x value, if stacking is true then this will create multiple bars for each metric stacked on top of each other',
-        ),
-    stackBars: z
-        .boolean()
-        .nullable()
-        .describe(
-            'If using breakdownByDimension then this will stack the bars on top of each other instead of side by side.',
-        ),
-    xAxisType: z
-        .union([z.literal('category'), z.literal('time')])
-        .describe(
-            'The x-axis type can be categorical for string value or time if the dimension is a date or timestamp.',
-        ),
+const vizConfigSchema = verticalBarMetricVizConfigSchema.extend({
     limit: z
         .number()
         .max(AI_DEFAULT_MAX_QUERY_LIMIT)
@@ -61,22 +24,13 @@ export const verticalBarMetricChartConfigSchema = z.object({
         .describe(
             `The total number of data points / bars allowed on the chart.`,
         ),
-    xAxisLabel: z
-        .string()
-        .nullable()
-        .describe('A helpful label to explain the x-axis'),
-    yAxisLabel: z
-        .string()
-        .nullable()
-        .describe('A helpful label to explain the y-axis'),
-    title: z.string().nullable().describe('a descriptive title for the chart'),
     followUpTools: followUpToolsSchema.describe(
         `The actions the User can ask for after the AI has generated the chart. NEVER include ${FollowUpTools.GENERATE_BAR_VIZ} in this list.`,
     ),
 });
 
 export const generateBarVizConfigToolSchema = z.object({
-    vizConfig: verticalBarMetricChartConfigSchema,
+    vizConfig: vizConfigSchema,
     filters: filterSchema
         .nullable()
         .describe(
@@ -84,9 +38,7 @@ export const generateBarVizConfigToolSchema = z.object({
         ),
 });
 
-export type VerticalBarMetricChartConfig = z.infer<
-    typeof verticalBarMetricChartConfigSchema
->;
+export type VerticalBarMetricChartConfig = z.infer<typeof vizConfigSchema>;
 
 export const isVerticalBarMetricChartConfig = (
     config: unknown,

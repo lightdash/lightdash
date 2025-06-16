@@ -32,7 +32,7 @@ const getProjectAgent = async (
         body: undefined,
     });
 
-export const useProjectAiAgents = (projectUuid: string | undefined) => {
+export const useProjectAiAgents = (projectUuid?: string | null) => {
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiAgentSummaryResponse['results'], ApiError>({

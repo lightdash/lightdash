@@ -5,7 +5,7 @@ import type {
     ApiAiAgentStartThreadResponse,
     ApiAiAgentThreadGenerateRequest,
     ApiAiAgentThreadGenerateResponse,
-    ApiAiAgentThreadMessageViz,
+    ApiAiAgentThreadMessageVizQuery,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiError,
@@ -21,7 +21,7 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 import { useActiveProject } from '../../../../hooks/useActiveProject';
 import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
-import { getChartVisualizationFromAiQuery } from '../utils/getChartVisualizationFromAiQuery';
+import { useDefaultAgent } from './useDefaultAgent';
 import { PROJECT_AI_AGENTS_KEY, useProjectAiAgent } from './useProjectAiAgents';
 
 const AI_AGENTS_KEY = 'aiAgents';
@@ -63,13 +63,13 @@ const getAgentThread = async (agentUuid: string, threadUuid: string) =>
         body: undefined,
     });
 
-const getAgentThreadMessageViz = async (args: {
+const getAgentThreadMessageVizQuery = async (args: {
     agentUuid: string;
     threadUuid: string;
     messageUuid: string;
 }) =>
-    lightdashApi<ApiAiAgentThreadMessageViz>({
-        url: `/aiAgents/${args.agentUuid}/threads/${args.threadUuid}/message/${args.messageUuid}/viz`,
+    lightdashApi<ApiAiAgentThreadMessageVizQuery>({
+        url: `/aiAgents/${args.agentUuid}/threads/${args.threadUuid}/message/${args.messageUuid}/viz-query`,
         method: 'GET',
         body: undefined,
     });
@@ -103,10 +103,12 @@ export const useDeleteAiAgentMutation = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
+    const { defaultAgentUuid, clearDefaultAgent } =
+        useDefaultAgent(activeProjectUuid);
 
     return useMutation<ApiSuccessEmpty, ApiError, string>({
         mutationFn: (agentUuid) => deleteAgent(agentUuid),
-        onSuccess: () => {
+        onSuccess: (_, deletedAgentUuid) => {
             showToastSuccess({
                 title: 'AI agent deleted successfully',
             });
@@ -120,6 +122,9 @@ export const useDeleteAiAgentMutation = () => {
                 queryKey: [AI_AGENTS_KEY],
                 exact: true,
             });
+            if (defaultAgentUuid === deletedAgentUuid) {
+                clearDefaultAgent();
+            }
             void navigate(`/projects/${activeProjectUuid}/ai-agents`);
         },
         onError: ({ error }) => {
@@ -368,8 +373,8 @@ export const useGenerateAgentThreadResponseMutation = (
     });
 };
 
-export const useAiAgentThreadMessageViz = (args: {
-    activeProjectUuid: string | undefined;
+export const useAiAgentThreadMessageVizQuery = (args: {
+    projectUuid: string | undefined;
     message: AiAgentMessageAssistant;
     agentUuid: string;
 }) => {
@@ -377,11 +382,7 @@ export const useAiAgentThreadMessageViz = (args: {
     const org = useOrganization();
     const { showToastApiError } = useToaster();
 
-    return useQuery<
-        ApiAiAgentThreadMessageViz,
-        ApiError,
-        ReturnType<typeof getChartVisualizationFromAiQuery>
-    >({
+    return useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
         queryKey: [
             AI_AGENTS_KEY,
             args.agentUuid,
@@ -389,10 +390,10 @@ export const useAiAgentThreadMessageViz = (args: {
             args.message.threadUuid,
             'message',
             args.message.uuid,
-            'viz',
+            'viz-query',
         ],
         queryFn: () =>
-            getAgentThreadMessageViz({
+            getAgentThreadMessageVizQuery({
                 agentUuid: args.agentUuid,
                 threadUuid: args.message.threadUuid,
                 messageUuid: args.message.uuid,
@@ -406,16 +407,9 @@ export const useAiAgentThreadMessageViz = (args: {
         enabled:
             !!args.message.metricQuery &&
             !!args.message.vizConfigOutput &&
-            !!args.activeProjectUuid &&
+            !!args.projectUuid &&
             !!health.data &&
             !!org.data,
-        select: (data: ApiAiAgentThreadMessageViz) =>
-            getChartVisualizationFromAiQuery(
-                data,
-                health.data!,
-                org.data!,
-                args.activeProjectUuid,
-            ),
     });
 };
 

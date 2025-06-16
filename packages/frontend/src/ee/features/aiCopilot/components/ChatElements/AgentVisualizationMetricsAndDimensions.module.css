@@ -1,0 +1,19 @@
+.itemButton {
+    cursor: default;
+    border: none;
+}
+
+.itemButton:hover {
+    transform: none;
+}
+
+.itemButton:active {
+    transform: none;
+}
+
+.itemText {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

@@ -1,6 +1,7 @@
 import {
     AiChartType,
     AiMetricQuery,
+    csvFileVizConfigSchema,
     filterSchema,
     FilterSchemaType,
     SortFieldSchema,
@@ -12,30 +13,8 @@ import { ProjectService } from '../../../../services/ProjectService/ProjectServi
 import { FollowUpTools, followUpToolsSchema } from '../types/followUpTools';
 import { getValidAiQueryLimit } from '../utils/validators';
 
-export const csvFileConfigSchema = z
-    .object({
-        exploreName: z
-            .string()
-            .describe(
-                'The name of the explore containing the metrics and dimensions used for csv query',
-            ),
-        metrics: z
-            .array(z.string())
-            .min(1)
-            .describe(
-                'At least one metric is required. The field ids of the metrics to be calculated for the CSV. They will be grouped by the dimensions.',
-            ),
-        dimensions: z
-            .array(z.string())
-            .nullable()
-            .describe(
-                'The field id for the dimensions to group the metrics by',
-            ),
-        sorts: z
-            .array(SortFieldSchema)
-            .describe(
-                'Sort configuration for the query, it can use a combination of metrics and dimensions.',
-            ),
+const vizConfigSchema = csvFileVizConfigSchema
+    .extend({
         limit: z
             .number()
             .nullable()
@@ -49,7 +28,7 @@ export const csvFileConfigSchema = z
     );
 
 export const generateCsvToolSchema = z.object({
-    vizConfig: csvFileConfigSchema,
+    vizConfig: vizConfigSchema,
     filters: filterSchema
         .nullable()
         .describe(
@@ -57,7 +36,7 @@ export const generateCsvToolSchema = z.object({
         ),
 });
 
-export type CsvFileConfig = z.infer<typeof csvFileConfigSchema>;
+export type CsvFileConfig = z.infer<typeof vizConfigSchema>;
 
 export const isCsvFileConfig = (config: unknown): config is CsvFileConfig =>
     typeof config === 'object' &&

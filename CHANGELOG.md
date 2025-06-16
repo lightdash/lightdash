@@ -1,3 +1,67 @@
+# [0.1725.0](https://github.com/lightdash/lightdash/compare/0.1724.2...0.1725.0) (2025-06-16)
+
+
+### Features
+
+* add metrics, dimensions and filters display to AI agent chat ([#15343](https://github.com/lightdash/lightdash/issues/15343)) ([a46bd5e](https://github.com/lightdash/lightdash/commit/a46bd5eccd25ffde13143b7902a0a27809e5a1cb)), closes [#15273](https://github.com/lightdash/lightdash/issues/15273) [#15271](https://github.com/lightdash/lightdash/issues/15271)
+* improved ai_prompt.vizConfig to eChartsConfig translation layer ([#15366](https://github.com/lightdash/lightdash/issues/15366)) ([e8b61c6](https://github.com/lightdash/lightdash/commit/e8b61c6340150fc5af226106e7e186e38e1833a4))
+
+## [0.1724.2](https://github.com/lightdash/lightdash/compare/0.1724.1...0.1724.2) (2025-06-16)
+
+
+### Bug Fixes
+
+* trying to pull AI Agents without FF ([#15370](https://github.com/lightdash/lightdash/issues/15370)) ([dfbc8f0](https://github.com/lightdash/lightdash/commit/dfbc8f0e7a8b12b4af536ba2d05f390d9ee182cf))
+
+## [0.1724.1](https://github.com/lightdash/lightdash/compare/0.1724.0...0.1724.1) (2025-06-16)
+
+
+### Bug Fixes
+
+* Add ErrorBoundary to AssistantBubble component ([#15367](https://github.com/lightdash/lightdash/issues/15367)) ([6a21e43](https://github.com/lightdash/lightdash/commit/6a21e43cbe76bd5df210abde6ef71d417c019e28))
+
+# [0.1724.0](https://github.com/lightdash/lightdash/compare/0.1723.0...0.1724.0) (2025-06-16)
+
+
+### Features
+
+* Introduce Default Agent ([#15353](https://github.com/lightdash/lightdash/issues/15353)) ([92fb1bd](https://github.com/lightdash/lightdash/commit/92fb1bd66ac6e770d0c89aac1b672165971f354b))
+
+# [0.1723.0](https://github.com/lightdash/lightdash/compare/0.1722.0...0.1723.0) (2025-06-16)
+
+
+### Features
+
+* continue exploring pivoted bar chart from AI Agent ([#15312](https://github.com/lightdash/lightdash/issues/15312)) ([3a297f7](https://github.com/lightdash/lightdash/commit/3a297f7a8111ee0efebd31c89cda45f0fe70d902))
+
+# [0.1722.0](https://github.com/lightdash/lightdash/compare/0.1721.0...0.1722.0) (2025-06-16)
+
+
+### Features
+
+* drill into ([#15320](https://github.com/lightdash/lightdash/issues/15320)) ([06bbe4c](https://github.com/lightdash/lightdash/commit/06bbe4c3996f0e393c28a6d122968bd594b3a3e8)), closes [#15275](https://github.com/lightdash/lightdash/issues/15275)
+
+# [0.1721.0](https://github.com/lightdash/lightdash/compare/0.1720.0...0.1721.0) (2025-06-16)
+
+
+### Features
+
+* Fetch paginated results for AI agent thread messages; Enable "View underlying data" button ([#15311](https://github.com/lightdash/lightdash/issues/15311)) ([53e5a2e](https://github.com/lightdash/lightdash/commit/53e5a2eb7d5b7c4e66847312b6accef6230c8345)), closes [#15274](https://github.com/lightdash/lightdash/issues/15274)
+
+# [0.1720.0](https://github.com/lightdash/lightdash/compare/0.1719.0...0.1720.0) (2025-06-16)
+
+
+### Features
+
+* stream query results for AI Agent charts ([#15302](https://github.com/lightdash/lightdash/issues/15302)) ([764f50e](https://github.com/lightdash/lightdash/commit/764f50e4b2ed996dde8b2c6c66d24845da580ba4))
+
+# [0.1719.0](https://github.com/lightdash/lightdash/compare/0.1718.0...0.1719.0) (2025-06-14)
+
+
+### Features
+
+* add project filtering and email report to fixDuplicateSlugs script ([#15338](https://github.com/lightdash/lightdash/issues/15338)) ([7d361a2](https://github.com/lightdash/lightdash/commit/7d361a26ebfdc5b904818b6e00e9fc633c3550af)), closes [#15339](https://github.com/lightdash/lightdash/issues/15339)
+
 # [0.1718.0](https://github.com/lightdash/lightdash/compare/0.1717.0...0.1718.0) (2025-06-13)
 
 
