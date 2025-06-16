@@ -1,3 +1,5 @@
+import { SEED_PROJECT } from '@lightdash/common';
+
 const apiUrl = '/api/v1';
 
 describe('Service Accounts API', () => {
@@ -87,6 +89,75 @@ describe('Service Accounts API', () => {
         );
     });
 
+    it('Should access /groupAccesses with "org:admin" service account token', () => {
+        // First create a service account
+        const serviceAccount = {
+            description: 'e2e test service account for auth',
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            scopes: ['org:admin'],
+        };
+
+        cy.request({
+            url: `${apiUrl}/service-accounts`,
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: serviceAccount,
+        }).then(
+            ({
+                body: {
+                    results: { token },
+                },
+            }) => {
+                // Test accessing projects endpoint with the service account token
+                cy.logout();
+                cy.request({
+                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/groupAccesses`,
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }).then((resp) => {
+                    expect(resp.status).to.eq(200);
+                });
+            },
+        );
+    });
+
+    it('Should not access /groupAccesses with "org:read" service account token', () => {
+        // First create a service account
+        const serviceAccount = {
+            description: 'e2e test service account for auth',
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            scopes: ['org:read'],
+        };
+
+        cy.request({
+            url: `${apiUrl}/service-accounts`,
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: serviceAccount,
+        }).then(
+            ({
+                body: {
+                    results: { token },
+                },
+            }) => {
+                // Test accessing projects endpoint with the service account token
+                cy.logout();
+                cy.request({
+                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/groupAccesses`,
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                    failOnStatusCode: false,
+                }).then((resp) => {
+                    expect(resp.status).to.eq(403);
+                });
+            },
+        );
+    });
+
     it('Should not access unauthorized endpoints with service account token', () => {
         // First create a service account
         const serviceAccount = {
@@ -109,7 +180,7 @@ describe('Service Accounts API', () => {
                 // Test accessing users endpoint with the service account token
                 cy.logout();
                 cy.request({
-                    url: `${apiUrl}/org/users`,
+                    url: `${apiUrl}/org/allowedEmailDomains`,
                     method: 'GET',
                     headers: {
                         Authorization: `Bearer ${token}`,

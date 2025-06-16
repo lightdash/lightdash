@@ -16,7 +16,6 @@ import {
     CreateOrganization,
     KnexPaginateArgs,
     OrganizationMemberProfileUpdate,
-    ServiceAccountScope,
     UpdateAllowedEmailDomains,
     UpdateColorPalette,
     UpdateOrganization,
@@ -39,7 +38,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { authenticateServiceAccount } from '../ee/authentication/middlewares';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -158,11 +156,7 @@ export class OrganizationController extends BaseController {
      * Gets all projects of the current user's organization
      * @param req express request
      */
-    @Middlewares([
-        authenticateServiceAccount([ServiceAccountScope.ORG_READ]),
-        allowApiKeyAuthentication,
-        isAuthenticated,
-    ])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/projects')
     @OperationId('ListOrganizationProjects')
     async getProjects(

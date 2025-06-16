@@ -12,6 +12,7 @@ import {
     SessionUser,
     UnexpectedServerError,
     InvalidUser,
+    ServiceAccount,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
@@ -80,7 +81,7 @@ declare global {
          */
         interface Request {
             services: ServiceRepository;
-            serviceAccount?: SessionServiceAccount;
+            serviceAccount?: Pick<ServiceAccount, 'organizationUuid'>;
             /**
              * @deprecated Clients should be used inside services. This will be removed soon.
              */
