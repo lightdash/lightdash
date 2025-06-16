@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     type AnyType,
 } from '@lightdash/common';
+import { getPivotedData } from '../../../../hooks/plottedData/getPlottedData';
 
 // TODO :: use schemas from AiAgent to infer types for configs
 const getVerticalBarMetricEchartsConfig = (
@@ -10,19 +11,25 @@ const getVerticalBarMetricEchartsConfig = (
     rows: Record<string, unknown>[],
 ) => {
     let chartData = rows;
-    let metrics = config.yMetrics;
-    // if (config.breakdownByDimension) {
-    //     const pivoted = await getPivotedResults(
-    //         rows,
-    //         fieldsMap,
-    //         config.breakdownByDimension,
-    //         config.yMetrics,
-    //         sorts,
-    //     );
-    //     chartData = pivoted.results;
-    //     metrics = pivoted.metrics;
-    // }
     const fields = Object.keys(chartData[0] || {});
+    let metrics = config.yMetrics;
+    const dimensions = [
+        config.xDimension,
+        ...(config.breakdownByDimension ? [config.breakdownByDimension] : []),
+    ];
+
+    if (config.breakdownByDimension) {
+        const pivot = getPivotedData(
+            // @ts-expect-error TODO :: fix this using schema
+            chartData,
+            [config.breakdownByDimension],
+            metrics.filter((metric: string) => !dimensions.includes(metric)),
+            metrics.filter((metric: string) => dimensions.includes(metric)),
+        );
+        chartData = pivot.rows;
+        metrics = Object.values(pivot.rowKeyMap);
+    }
+
     return {
         dataset: {
             source: chartData,
@@ -55,15 +62,33 @@ const getVerticalBarMetricEchartsConfig = (
                 ...(config.yAxisLabel ? { name: config.yAxisLabel } : {}),
             },
         ],
-        series: metrics.map((metric: AnyType) => ({
-            type: 'bar',
-            name: metric,
-            encode: {
-                x: config.xDimension,
-                y: metric,
-            },
-            ...(config.stackBars ? { stack: config.breakdownByDimension } : {}),
-        })),
+        series: metrics.map((metric: AnyType) => {
+            const defaultProperties = {
+                type: 'bar',
+            };
+
+            if (typeof metric === 'string') {
+                return {
+                    ...defaultProperties,
+                    name: metric,
+                    encode: {
+                        xRef: { field: config.xDimension },
+                        yRef: {
+                            field: metric,
+                        },
+                    },
+                };
+            } else {
+                return {
+                    ...defaultProperties,
+                    encode: {
+                        xRef: { field: config.xDimension },
+                        yRef: metric,
+                    },
+                    stack: metric.field,
+                };
+            }
+        }),
     };
 };
 
@@ -73,6 +98,7 @@ const getTimeSeriesMetricEchartsConfig = (
 ) => {
     let chartData = rows;
     let metrics = config.yMetrics;
+    // TODO :: pivot for time series
     // if (config.breakdownByDimension) {
     //     // Sort the pivoted data
     //     const pivoted = await getPivotedResults(

@@ -90,10 +90,10 @@ export const AiChartVisualization: FC<Props> = ({
                         health?.pivotTable.maxColumnLimit ?? 60
                     }
                     initialPivotDimensions={
-                        // @ts-expect-error TODO :: fix this using schema
-                        vizConfig?.breakdownByDimension
-                            ? // @ts-expect-error TODO :: fix this using schema
-                              [vizConfig.breakdownByDimension]
+                        // TODO :: fix this using schema
+                        vizConfig && 'breakdownByDimension' in vizConfig
+                            ? // TODO :: fix this using schema
+                              [vizConfig.breakdownByDimension as string]
                             : undefined
                     }
                     colorPalette={
