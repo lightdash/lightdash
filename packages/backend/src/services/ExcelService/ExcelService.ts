@@ -827,22 +827,19 @@ export class ExcelService {
                 sortedFieldIds,
             );
 
-            // Step 3: Read temp file and upload directly to S3 (NO PassThrough!)
-            const tempFileBuffer = fs.readFileSync(tempFilePath);
+            // Step 3: Stream temp file directly to S3 (no memory spike!)
+            const fileUrl = await ExcelService.uploadFileStreamToS3(
+                storageClient,
+                formattedFileName,
+                tempFilePath,
+                attachmentDownloadName,
+            );
 
-            // Clean up temp file immediately
+            // Clean up temp file after successful upload
             fs.unlink(tempFilePath, (err: NodeJS.ErrnoException | null) => {
                 if (err)
                     Logger.warn(`Could not delete temp file: ${err.message}`);
             });
-
-            // Step 4: Upload buffer directly to S3
-            const fileUrl = await ExcelService.uploadBufferToS3(
-                storageClient,
-                formattedFileName,
-                tempFileBuffer,
-                attachmentDownloadName,
-            );
 
             return {
                 fileUrl,
@@ -858,23 +855,26 @@ export class ExcelService {
         }
     }
 
-    private static async uploadBufferToS3(
+    private static async uploadFileStreamToS3(
         storageClient: S3ResultsFileStorageClient,
         formattedFileName: string,
-        fileBuffer: Buffer,
+        tempFilePath: string,
         attachmentDownloadName?: string,
     ): Promise<string> {
-        // Upload buffer directly using PutObjectCommand (bypassing PassThrough + Upload)
+        // Upload file stream directly using PutObjectCommand (no memory spike!)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const s3Client = (storageClient as any).s3; // Access underlying S3 client
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { bucket } = (storageClient as any).configuration;
 
+        // Create a read stream from the temp file
+        const fileStream = fs.createReadStream(tempFilePath);
+
         await s3Client.send(
             new PutObjectCommand({
                 Bucket: bucket,
                 Key: formattedFileName,
-                Body: fileBuffer,
+                Body: fileStream,
                 ContentType:
                     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 ContentDisposition: `attachment; filename="${
