@@ -1,3 +1,10 @@
+# [0.1722.0](https://github.com/lightdash/lightdash/compare/0.1721.0...0.1722.0) (2025-06-16)
+
+
+### Features
+
+* drill into ([#15320](https://github.com/lightdash/lightdash/issues/15320)) ([06bbe4c](https://github.com/lightdash/lightdash/commit/06bbe4c3996f0e393c28a6d122968bd594b3a3e8)), closes [#15275](https://github.com/lightdash/lightdash/issues/15275)
+
 # [0.1721.0](https://github.com/lightdash/lightdash/compare/0.1720.0...0.1721.0) (2025-06-16)
 
 
