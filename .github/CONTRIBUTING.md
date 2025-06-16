@@ -461,7 +461,7 @@ If you are running lightdash without docker, you will have to run headless brows
 to your lightdash endpoint in localhost. You can achive this on Linux by doing:
 
 ```shell
-docker run -e PORT=3001 --name=lightdash-headless --network 'host' -it --rm ghcr.io/browserless/chromium:v2.24.3
+docker run -e PORT=3001 --name=lightdash-headless --network 'host' -it --rm ghcr.io/browserless/chromium:v2.31.1
 ```
 
 Then make sure to configure the following ENV variables:
@@ -478,7 +478,7 @@ If you are running Lightdash without docker on Mac, you will have to run docker 
 lightdash because it can't use localhost.
 
 ```shell
-docker run -e PORT=3001 -p 3001:3001 --name=lightdash-headless --add-host=lightdash-dev:host-gateway -it --rm ghcr.io/browserless/chromium:v2.24.3
+docker run -e PORT=3001 -p 3001:3001 --name=lightdash-headless --add-host=lightdash-dev:host-gateway -it --rm ghcr.io/browserless/chromium:v2.31.1
 ```
 
 Make sure to add the following line to your `/etc/hosts` file:

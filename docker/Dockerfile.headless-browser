@@ -1,1 +1,6 @@
-FROM ghcr.io/browserless/chromium:v2.24.3
+FROM ghcr.io/browserless/chromium:v2.31.1
+COPY docker/headless-browser-entrypoint.sh /usr/local/bin/headless-browser-entrypoint.sh
+USER root
+RUN chmod +x /usr/local/bin/headless-browser-entrypoint.sh
+USER blessuser
+ENTRYPOINT ["/usr/local/bin/headless-browser-entrypoint.sh"]

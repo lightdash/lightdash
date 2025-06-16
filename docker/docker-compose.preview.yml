@@ -18,7 +18,11 @@ services:
             - '5432'
 
     headless-browser:
-        image: ghcr.io/browserless/chromium:v2.24.3
+        build:
+            context: ..
+            dockerfile: docker/Dockerfile.headless-browser
+        environment:
+            DEBUG_COLORS: false
         restart: always
         ports:
             - '3000'

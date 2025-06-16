@@ -124,7 +124,7 @@
         "pdf-lib": "^1.17.1",
         "pg": "^8.11.3",
         "pg-connection-string": "^2.5.0",
-        "playwright": "^1.44.1",
+        "playwright": "^1.53.0",
         "posthog-node": "^4.2.0",
         "prom-client": "^15.1.2",
         "redoc-express": "^1.0.0",
