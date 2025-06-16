@@ -2,6 +2,7 @@ import { GetObjectCommand, NotFound } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getErrorMessage, WarehouseResults } from '@lightdash/common';
+import fs from 'fs';
 import { PassThrough, Readable, Writable } from 'stream';
 import Logger from '../../logging/logger';
 import { sanitizeGenericFileName } from '../../utils/FileDownloadUtils';
@@ -192,5 +193,52 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             fileUrl: url,
             truncated,
         };
+    }
+
+    /**
+     * Upload a file stream directly to S3
+     * Useful for uploading pre-generated files like Excel files
+     */
+    async uploadFileStream(
+        fileName: string,
+        filePath: string,
+        options: {
+            contentType: string;
+            attachmentDownloadName?: string;
+        },
+    ): Promise<string> {
+        const fileStream = fs.createReadStream(filePath);
+
+        const upload = new Upload({
+            client: this.s3,
+            params: {
+                Bucket: this.configuration.bucket,
+                Key: fileName,
+                Body: fileStream,
+                ContentType: options.contentType,
+                ContentDisposition: `attachment; filename="${
+                    options.attachmentDownloadName || fileName
+                }"`,
+            },
+        });
+
+        try {
+            await upload.done();
+            Logger.debug(
+                `Successfully uploaded file to s3://${this.configuration.bucket}/${fileName}`,
+            );
+
+            // Determine file extension for URL generation
+            const fileExtension =
+                fileName.toLowerCase().split('.').pop() || 'xlsx';
+            return await this.getFileUrl(fileName, fileExtension);
+        } catch (error) {
+            Logger.error(
+                `Failed to upload file to s3://${
+                    this.configuration.bucket
+                }/${fileName}: ${getErrorMessage(error)}`,
+            );
+            throw error;
+        }
     }
 }

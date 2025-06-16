@@ -1,12 +1,16 @@
 import {
     DimensionType,
     DownloadFileType,
+    getErrorMessage,
     getItemLabel,
     getItemLabelWithoutTableName,
     isMomentInput,
     ItemsMap,
 } from '@lightdash/common';
 import moment, { MomentInput } from 'moment/moment';
+import { createInterface } from 'readline';
+import { Readable } from 'stream';
+import Logger from '../logging/logger';
 
 export const isRowValueTimestamp = (
     value: unknown,
@@ -40,10 +44,9 @@ export function generateGenericFileId({
 }): string {
     const timestamp = time.format('YYYY-MM-DD-HH-mm-ss-SSSS');
     const sanitizedFileName = sanitizeGenericFileName(fileName);
-    const fileId = `${fileExtension}-${
+    return `${fileExtension}-${
         truncated ? 'incomplete_results-' : ''
     }${sanitizedFileName}-${timestamp}.${fileExtension}`;
-    return fileId;
 }
 
 /**
@@ -95,4 +98,72 @@ export function processFieldsForExport(
     });
 
     return { sortedFieldIds, headers };
+}
+
+/**
+ * Shared utility for streaming JSONL data from storage
+ * Can be used for both row-by-row processing and collecting all rows
+ * Used by both ExcelService and CsvService
+ */
+export async function streamJsonlData<T>({
+    readStream,
+    onRow,
+    onComplete,
+    maxLines,
+}: {
+    readStream: Readable;
+    onRow?: (parsedRow: Record<string, unknown>, lineCount: number) => T | void;
+    onComplete?: (results: T[], truncated: boolean) => void;
+    maxLines?: number; // undefined = no limit (for CSV), number = limit (for Excel)
+}): Promise<{ results: T[]; truncated: boolean }> {
+    return new Promise((resolve, reject) => {
+        const lineReader = createInterface({
+            input: readStream,
+            crlfDelay: Infinity,
+        });
+
+        let lineCount = 0;
+        let truncated = false;
+        const results: T[] = [];
+
+        lineReader.on('line', (line: string) => {
+            if (!line.trim()) return;
+
+            lineCount += 1;
+
+            // Check if we've exceeded the line limit (only if maxLines is defined)
+            if (maxLines !== undefined && lineCount > maxLines) {
+                truncated = true;
+                lineReader.close();
+                return;
+            }
+
+            try {
+                const parsedRow = JSON.parse(line);
+                if (onRow) {
+                    const result = onRow(parsedRow, lineCount);
+                    if (result !== undefined) {
+                        results.push(result);
+                    }
+                }
+            } catch (error) {
+                Logger.error(
+                    `Error parsing line ${lineCount}: ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+            }
+        });
+
+        lineReader.on('close', async () => {
+            if (onComplete) {
+                await onComplete(results, truncated);
+            }
+            resolve({ results, truncated });
+        });
+
+        lineReader.on('error', (error) => {
+            reject(error);
+        });
+    });
 }
