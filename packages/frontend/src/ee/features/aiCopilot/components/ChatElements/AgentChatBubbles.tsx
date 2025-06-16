@@ -90,13 +90,12 @@ export const AssistantBubble: FC<{
     message: AiAgentMessageAssistant;
     isPreview?: boolean;
 }> = memo(({ message, isPreview = false }) => {
-    const { agentUuid } = useParams();
-    const { projectUuid } = useParams();
+    const { agentUuid, projectUuid } = useParams();
 
     const queryExecutionHandle = useAiAgentThreadMessageVizQuery({
         agentUuid: agentUuid!,
         message,
-        projectUuid: projectUuid!,
+        projectUuid,
     });
 
     const queryResults = useInfiniteQueryResults(

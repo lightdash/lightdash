@@ -1,5 +1,4 @@
 import {
-    AiChartType,
     ChartType,
     ECHARTS_DEFAULT_COLORS,
     type AiAgentMessageAssistant,
@@ -112,17 +111,16 @@ export const AiChartVisualization: FC<Props> = ({
                         className="sentry-block ph-no-capture"
                         data-testid="ai-visualization"
                     />
-                    {type === AiChartType.VERTICAL_BAR_CHART &&
-                        chartConfig.type === ChartType.CARTESIAN && (
-                            <SeriesContextMenu
-                                echartSeriesClickEvent={
-                                    echartsClickEvent ?? undefined
-                                }
-                                dimensions={metricQuery.dimensions}
-                                series={echartSeries}
-                                explore={explore}
-                            />
-                        )}
+                    {chartConfig.type === ChartType.CARTESIAN && (
+                        <SeriesContextMenu
+                            echartSeriesClickEvent={
+                                echartsClickEvent ?? undefined
+                            }
+                            dimensions={metricQuery.dimensions}
+                            series={echartSeries}
+                            explore={explore}
+                        />
+                    )}
                 </VisualizationProvider>
                 <UnderlyingDataModal />
             </MetricQueryDataProvider>
