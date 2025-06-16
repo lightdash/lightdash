@@ -1,3 +1,10 @@
+# [0.1723.0](https://github.com/lightdash/lightdash/compare/0.1722.0...0.1723.0) (2025-06-16)
+
+
+### Features
+
+* continue exploring pivoted bar chart from AI Agent ([#15312](https://github.com/lightdash/lightdash/issues/15312)) ([3a297f7](https://github.com/lightdash/lightdash/commit/3a297f7a8111ee0efebd31c89cda45f0fe70d902))
+
 # [0.1722.0](https://github.com/lightdash/lightdash/compare/0.1721.0...0.1722.0) (2025-06-16)
 
 
