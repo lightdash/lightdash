@@ -302,10 +302,7 @@ export class ServiceAccountService extends BaseService {
                 await this.serviceAccountModel.updateUsedDate(dbToken.uuid);
                 // finally return organization uuid
                 return {
-                    createdByUserUuid: dbToken.createdByUserUuid,
-                    uuid: dbToken.uuid,
                     organizationUuid: dbToken.organizationUuid,
-                    scopes: dbToken.scopes,
                 };
             }
         } catch (error) {
