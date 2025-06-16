@@ -311,7 +311,10 @@ export class AiAgentService {
             allUsers &&
             user.ability.can(
                 'manage',
-                subject('AiAgent', { organizationUuid }),
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                }),
             );
 
         if (allUsers && !canViewAllThreads) {
@@ -399,8 +402,9 @@ export class AiAgentService {
             user.ability.cannot(
                 'view',
                 subject('AiAgentThread', {
-                    organizationUuid,
+                    projectUuid: agent.projectUuid,
                     userUuid: thread.user.uuid,
+                    organizationUuid,
                 }),
             )
         ) {
@@ -470,7 +474,10 @@ export class AiAgentService {
         if (
             user.ability.cannot(
                 'manage',
-                subject('AiAgent', { organizationUuid }),
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid: body.projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -505,7 +512,10 @@ export class AiAgentService {
         if (
             user.ability.cannot(
                 'manage',
-                subject('AiAgent', { organizationUuid }),
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -536,18 +546,21 @@ export class AiAgentService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('AiAgent', { organizationUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
         const agent = await this.getAgent(user, agentUuid);
         if (!agent) {
             throw new ForbiddenError('Agent not found');
+        }
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
         }
 
         if (agent.organizationUuid !== organizationUuid) {
@@ -607,6 +620,7 @@ export class AiAgentService {
                     'view',
                     subject('AiAgentThread', {
                         organizationUuid,
+                        projectUuid: agent.projectUuid,
                         userUuid: thread.user.uuid,
                     }),
                 )
@@ -620,6 +634,7 @@ export class AiAgentService {
                     'create',
                     subject('AiAgentThread', {
                         organizationUuid,
+                        projectUuid: agent.projectUuid,
                     }),
                 )
             ) {

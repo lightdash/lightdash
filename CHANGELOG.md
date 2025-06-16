@@ -1,3 +1,10 @@
+## [0.1725.1](https://github.com/lightdash/lightdash/compare/0.1725.0...0.1725.1) (2025-06-16)
+
+
+### Bug Fixes
+
+* ai agent project permissions ([#15373](https://github.com/lightdash/lightdash/issues/15373)) ([cfe90a8](https://github.com/lightdash/lightdash/commit/cfe90a8f76e99b1552d409794cdf908812950655))
+
 # [0.1725.0](https://github.com/lightdash/lightdash/compare/0.1724.2...0.1725.0) (2025-06-16)
 
 
