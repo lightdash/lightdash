@@ -1,3 +1,10 @@
+## [0.1724.1](https://github.com/lightdash/lightdash/compare/0.1724.0...0.1724.1) (2025-06-16)
+
+
+### Bug Fixes
+
+* Add ErrorBoundary to AssistantBubble component ([#15367](https://github.com/lightdash/lightdash/issues/15367)) ([6a21e43](https://github.com/lightdash/lightdash/commit/6a21e43cbe76bd5df210abde6ef71d417c019e28))
+
 # [0.1724.0](https://github.com/lightdash/lightdash/compare/0.1723.0...0.1724.0) (2025-06-16)
 
 
