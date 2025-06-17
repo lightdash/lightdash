@@ -2,6 +2,12 @@
 set -e
 
 TEMP_PATCH_LOCATION="$HOME/lightdash-public-diff-patch.tmp"
+EXCLUDED_FILES=(
+    ":(exclude).security_config/"
+    ":(exclude)portal_scripts/"
+    ":(exclude)Jenkinsfile.kj-gcp-pre-release"
+    ":(exclude)jenkins-agent.yml"
+)
 CONVENTIONAL_COMMIT_TYPE_TESTS=("feat:" "fix:" "docs:" "style:" "refactor:" "perf:" "test:" "build:" "ci:" "chore:" "revert:")
 
 get_restricted_content () {
@@ -17,9 +23,9 @@ save_code_diff () {
     BRANCH_EXISTS=$1
     NEW_BRANCH_NAME=$2
     if [[ "$BRANCH_EXISTS" -eq "1" ]]; then
-        git diff public/$NEW_BRANCH_NAME ':(exclude).security_config/' ':(exclude)portal_scripts/' > $TEMP_PATCH_LOCATION
+        git diff public/$NEW_BRANCH_NAME "${EXCLUDED_FILES[@]}" > $TEMP_PATCH_LOCATION
     else
-        git diff public/main ':(exclude).security_config/' ':(exclude)portal_scripts/' > $TEMP_PATCH_LOCATION
+        git diff public/main "${EXCLUDED_FILES[@]}" > $TEMP_PATCH_LOCATION
     fi
     echo "$(cat $TEMP_PATCH_LOCATION)"
 }
@@ -64,7 +70,7 @@ sync_internal_to_official() {
     git checkout $THIS_BRANCH_NAME;
 }
 
-if ! test -f $PWD/yarn.lock; then
+if ! test -f $PWD/pnpm-lock.yaml; then
     echo "#### Script must run from the repository's root directory"
     exit 1
 fi
