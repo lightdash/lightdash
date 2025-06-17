@@ -1,3 +1,24 @@
+# [0.1728.0](https://github.com/lightdash/lightdash/compare/0.1727.0...0.1728.0) (2025-06-17)
+
+
+### Features
+
+* support limits for scheduled deliveries ([#15393](https://github.com/lightdash/lightdash/issues/15393)) ([ca8c32d](https://github.com/lightdash/lightdash/commit/ca8c32dd787c9619696a6278ef64694c9b3d0006)), closes [#15341](https://github.com/lightdash/lightdash/issues/15341)
+
+# [0.1727.0](https://github.com/lightdash/lightdash/compare/0.1726.3...0.1727.0) (2025-06-17)
+
+
+### Features
+
+* add custom labels, hidden files and column order support for SQL chart scheduled delivery ([#15389](https://github.com/lightdash/lightdash/issues/15389)) ([1eaa37e](https://github.com/lightdash/lightdash/commit/1eaa37ed2c4f24f6b5eccc863c26b973423b5a3e)), closes [#15342](https://github.com/lightdash/lightdash/issues/15342)
+
+## [0.1726.3](https://github.com/lightdash/lightdash/compare/0.1726.2...0.1726.3) (2025-06-17)
+
+
+### Bug Fixes
+
+* clear dashboardStorage when cancelling changes or leaving dashboard without saving ([#15384](https://github.com/lightdash/lightdash/issues/15384)) ([d4cbb4f](https://github.com/lightdash/lightdash/commit/d4cbb4f0c0bf015a0d53a7e8ce6c49b6d3a43831))
+
 ## [0.1726.2](https://github.com/lightdash/lightdash/compare/0.1726.1...0.1726.2) (2025-06-17)
 
 

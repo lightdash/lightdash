@@ -22,6 +22,7 @@ import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
+import useDashboardStorage from './useDashboardStorage';
 
 const getDashboard = async (id: string) =>
     lightdashApi<Dashboard>({
@@ -277,6 +278,7 @@ export const useUpdateDashboard = (
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { clearDashboardStorage } = useDashboardStorage();
     return useMutation<Dashboard, ApiError, UpdateDashboard>(
         (data) => {
             if (id === undefined) {
@@ -288,6 +290,7 @@ export const useUpdateDashboard = (
         {
             mutationKey: ['dashboard_update'],
             onSuccess: async (_, variables) => {
+                clearDashboardStorage();
                 await queryClient.invalidateQueries(['space', projectUuid]);
                 await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
