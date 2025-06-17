@@ -965,6 +965,7 @@ const models: TsoaRoute.Models = {
             'big_number',
             'funnel',
             'custom',
+            'treemap',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -3260,6 +3261,47 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ChartType.TREEMAP': {
+        dataType: 'refEnum',
+        enums: ['treemap'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TreemapChart: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                endColorThreshold: { dataType: 'double' },
+                startColorThreshold: { dataType: 'double' },
+                useDynamicColors: { dataType: 'boolean' },
+                endColor: { dataType: 'string' },
+                startColor: { dataType: 'string' },
+                colorMetricId: { dataType: 'string' },
+                shouldSumSizeMetric: { dataType: 'boolean' },
+                sizeMetricId: { dataType: 'string' },
+                groupFieldIds: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                leafDepth: { dataType: 'double' },
+                visibleMin: { dataType: 'double' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TreemapChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: { ref: 'TreemapChart' },
+                type: { ref: 'ChartType.TREEMAP', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartConfig: {
         dataType: 'refAlias',
         type: {
@@ -3271,6 +3313,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'PieChartConfig' },
                 { ref: 'FunnelChartConfig' },
                 { ref: 'TableChartConfig' },
+                { ref: 'TreemapChartConfig' },
             ],
             validators: {},
         },
@@ -7522,7 +7565,15 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartType: {
         dataType: 'refEnum',
-        enums: ['cartesian', 'table', 'big_number', 'pie', 'funnel', 'custom'],
+        enums: [
+            'cartesian',
+            'table',
+            'big_number',
+            'pie',
+            'funnel',
+            'treemap',
+            'custom',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartSourceType: {

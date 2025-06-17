@@ -21,6 +21,7 @@ export enum ChartKind {
     BIG_NUMBER = 'big_number',
     FUNNEL = 'funnel',
     CUSTOM = 'custom',
+    TREEMAP = 'treemap',
 }
 
 export enum ChartType {
@@ -29,6 +30,7 @@ export enum ChartType {
     BIG_NUMBER = 'big_number',
     PIE = 'pie',
     FUNNEL = 'funnel',
+    TREEMAP = 'treemap',
     CUSTOM = 'custom',
 }
 
@@ -100,6 +102,20 @@ export type PieChart = {
     legendPosition?: PieChartLegendPosition;
     legendMaxItemLength?: number;
     metadata?: Record<string, SeriesMetadata>;
+};
+
+export type TreemapChart = {
+    visibleMin?: number;
+    leafDepth?: number;
+    groupFieldIds?: string[];
+    sizeMetricId?: string;
+    shouldSumSizeMetric?: boolean;
+    colorMetricId?: string;
+    startColor?: string;
+    endColor?: string;
+    useDynamicColors?: boolean;
+    startColorThreshold?: number;
+    endColorThreshold?: number;
 };
 
 export enum FunnelChartDataInput {
@@ -363,13 +379,19 @@ export type TableChartConfig = {
     config?: TableChart;
 };
 
+export type TreemapChartConfig = {
+    type: ChartType.TREEMAP;
+    config?: TreemapChart;
+};
+
 export type ChartConfig =
     | BigNumberConfig
     | CartesianChartConfig
     | CustomVisConfig
     | PieChartConfig
     | FunnelChartConfig
-    | TableChartConfig;
+    | TableChartConfig
+    | TreemapChartConfig;
 
 export type SavedChartType = ChartType;
 
@@ -559,6 +581,8 @@ export const getChartType = (chartKind: ChartKind | undefined): ChartType => {
             return ChartType.BIG_NUMBER;
         case ChartKind.TABLE:
             return ChartType.TABLE;
+        case ChartKind.TREEMAP:
+            return ChartType.TREEMAP;
         default:
             return ChartType.CARTESIAN;
     }
@@ -611,6 +635,8 @@ export const getChartKind = (
             }
 
             return undefined;
+        case ChartType.TREEMAP:
+            return ChartKind.TREEMAP;
         default:
             return assertUnreachable(
                 chartType,
