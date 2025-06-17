@@ -1,3 +1,10 @@
+## [0.1726.1](https://github.com/lightdash/lightdash/compare/0.1726.0...0.1726.1) (2025-06-17)
+
+
+### Bug Fixes
+
+* wait for non-null charts' responses ([#15388](https://github.com/lightdash/lightdash/issues/15388)) ([6efe487](https://github.com/lightdash/lightdash/commit/6efe487567118a00c2ea5c8c3323a593d47e2c78))
+
 # [0.1726.0](https://github.com/lightdash/lightdash/compare/0.1725.2...0.1726.0) (2025-06-17)
 
 
