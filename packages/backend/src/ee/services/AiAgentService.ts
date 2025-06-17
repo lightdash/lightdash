@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AiAgentThread,
     AiAgentThreadSummary,
+    AiAgentUserPreferences,
     AiChartType,
     AiConversation,
     AiConversationMessage,
@@ -13,6 +14,7 @@ import {
     ApiAiAgentThreadMessageVizQuery,
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
+    ApiUpdateUserAgentPreferences,
     assertUnreachable,
     CatalogType,
     CommercialFeatureFlags,
@@ -1751,5 +1753,70 @@ export class AiAgentService {
             prompt: finalPrompt,
             rows,
         };
+    }
+
+    async getUserAgentPreferences(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AiAgentUserPreferences | null> {
+        const { organizationUuid, userUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError(`Organization not found`);
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError(`Copilot not enabled`);
+        }
+
+        const project = await this.projectService.getProject(projectUuid, user);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError(
+                'Project does not belong to this organization',
+            );
+        }
+
+        return this.aiAgentModel.getUserAgentPreferences({
+            userUuid,
+            projectUuid,
+        });
+    }
+
+    async updateUserAgentPreferences(
+        user: SessionUser,
+        projectUuid: string,
+        body: ApiUpdateUserAgentPreferences,
+    ): Promise<void> {
+        const { organizationUuid, userUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const project = await this.projectService.getProject(projectUuid, user);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError(
+                'Project does not belong to this organization',
+            );
+        }
+
+        const agent = await this.getAgent(
+            user,
+            body.defaultAgentUuid,
+            projectUuid,
+        );
+        if (!agent) {
+            throw new NotFoundError('Agent not found');
+        }
+
+        await this.aiAgentModel.updateUserAgentPreferences({
+            userUuid,
+            projectUuid,
+            defaultAgentUuid: body.defaultAgentUuid,
+        });
     }
 }
