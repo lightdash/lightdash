@@ -1,3 +1,10 @@
+## [0.1726.2](https://github.com/lightdash/lightdash/compare/0.1726.1...0.1726.2) (2025-06-17)
+
+
+### Bug Fixes
+
+* allow users to get slack installation on commercial ([#15394](https://github.com/lightdash/lightdash/issues/15394)) ([db69066](https://github.com/lightdash/lightdash/commit/db69066904d4afb07e36da1ebd10235d409fdb0f))
+
 ## [0.1726.1](https://github.com/lightdash/lightdash/compare/0.1726.0...0.1726.1) (2025-06-17)
 
 
