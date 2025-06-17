@@ -1,4 +1,4 @@
-import { CoreMessage } from 'ai';
+import { CoreMessage, LanguageModelV1 } from 'ai';
 import {
     GetExploreFn,
     GetPromptFn,
@@ -10,19 +10,8 @@ import {
 } from './aiAgentDependencies';
 import { AiAgentExploreSummary } from './aiAgentExploreSummary';
 
-export type AiAgentProvider = 'anthropic' | 'openai';
-
-export type AiAgentProviderConfig<P extends AiAgentProvider = AiAgentProvider> =
-    {
-        [key in P]?: {
-            apiKey: string;
-        };
-    };
-
-export type AiAgentArgs<P extends AiAgentProvider = AiAgentProvider> = {
-    provider: P;
-    modelName: string;
-    providerConfig: AiAgentProviderConfig<P>;
+export type AiAgentArgs = {
+    model: LanguageModelV1;
     promptUuid: string;
     agentName: string;
     instruction: string | null;

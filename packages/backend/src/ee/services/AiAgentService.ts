@@ -46,6 +46,7 @@ import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import { runAgent } from './ai/agents/agent';
 import { generateEmbeddingsNameAndDescription } from './ai/embeds/embed';
+import { getModel } from './ai/models';
 import { getChatHistoryFromThreadMessages } from './ai/prompts/conversationHistory';
 import {
     GetExploreFn,
@@ -1251,15 +1252,11 @@ export class AiAgentService {
             agentSettings?.tags ?? null,
         );
 
-        if (!this.lightdashConfig.ai.copilot.providers) {
-            throw new Error('AI Copilot providers not found');
-        }
+        const model = getModel(this.lightdashConfig.ai.copilot);
 
         return runAgent({
             args: {
-                provider: 'openai',
-                modelName: 'gpt-4.1',
-                providerConfig: this.lightdashConfig.ai.copilot.providers,
+                model,
                 agentName: agentSettings.name,
                 instruction: agentSettings.instruction,
                 messageHistory,

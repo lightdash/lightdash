@@ -1,15 +1,16 @@
-import { AnthropicProviderSettings, createAnthropic } from '@ai-sdk/anthropic';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { LightdashConfig } from '../../../../config/parseConfig';
 
 export const getAnthropicModel = (
-    modelName: string,
-    settings: Pick<AnthropicProviderSettings, 'apiKey'> &
-        Partial<AnthropicProviderSettings> = {},
+    config: NonNullable<
+        LightdashConfig['ai']['copilot']['providers']['anthropic']
+    >,
 ) => {
     const anthropic = createAnthropic({
-        ...settings,
+        apiKey: config.apiKey,
     });
 
-    const model = anthropic(modelName);
+    const model = anthropic(config.modelName);
 
     return model;
 };

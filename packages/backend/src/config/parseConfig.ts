@@ -19,8 +19,16 @@ import {
     WarehouseTypes,
     WeekDay,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/core';
 import { type ClientAuthMethod } from 'openid-client';
 import { VERSION } from '../version';
+import {
+    aiCopilotConfigSchema,
+    AiCopilotConfigSchemaType,
+    DEFAULT_ANTHROPIC_MODEL_NAME,
+    DEFAULT_DEFAULT_AI_PROVIDER,
+    DEFAULT_OPENAI_MODEL_NAME,
+} from './aiConfigSchema';
 
 export const getIntegerFromEnvironmentVariable = (
     name: string,
@@ -522,19 +530,7 @@ export type LightdashConfig = {
     };
     logging: LoggingConfig;
     ai: {
-        copilot: {
-            enabled: boolean;
-            requiresFeatureFlag: boolean;
-            embeddingSearchEnabled?: boolean;
-            providers?: {
-                openai?: {
-                    apiKey: string;
-                };
-                anthropic?: {
-                    apiKey: string;
-                };
-            };
-        };
+        copilot: AiCopilotConfigSchemaType;
     };
     embedding: {
         enabled: boolean;
@@ -794,6 +790,56 @@ export const parseConfig = (): LightdashConfig => {
         throw new ParameterError(
             'To enable iframe embedding, SECURE_COOKIES must be set to true',
         );
+    }
+
+    const rawCopilotConfig = {
+        enabled: process.env.AI_COPILOT_ENABLED === 'true',
+        requiresFeatureFlag:
+            process.env.AI_COPILOT_REQUIRES_FEATURE_FLAG === 'true',
+        embeddingSearchEnabled:
+            process.env.AI_COPILOT_EMBEDDING_SEARCH_ENABLED === 'true',
+        defaultProvider:
+            process.env.AI_DEFAULT_PROVIDER || DEFAULT_DEFAULT_AI_PROVIDER,
+        providers: {
+            azure: process.env.AZURE_AI_API_KEY
+                ? {
+                      endpoint: process.env.AZURE_AI_ENDPOINT,
+                      apiKey: process.env.AZURE_AI_API_KEY,
+                      apiVersion: process.env.AZURE_AI_API_VERSION,
+                      deploymentName: process.env.AZURE_AI_DEPLOYMENT_NAME,
+                  }
+                : undefined,
+            openai: process.env.OPENAI_API_KEY
+                ? {
+                      apiKey: process.env.OPENAI_API_KEY,
+                      modelName:
+                          process.env.OPENAI_MODEL_NAME ||
+                          DEFAULT_OPENAI_MODEL_NAME,
+                  }
+                : undefined,
+            anthropic: process.env.ANTHROPIC_API_KEY
+                ? {
+                      apiKey: process.env.ANTHROPIC_API_KEY,
+                      modelName:
+                          process.env.ANTHROPIC_MODEL_NAME ||
+                          DEFAULT_ANTHROPIC_MODEL_NAME,
+                  }
+                : undefined,
+        },
+    };
+
+    const copilotConfigParse =
+        aiCopilotConfigSchema.safeParse(rawCopilotConfig);
+
+    let copilotConfig: AiCopilotConfigSchemaType;
+    if (!copilotConfigParse.success) {
+        copilotConfig = rawCopilotConfig as AiCopilotConfigSchemaType;
+        Sentry.captureException(copilotConfigParse.error);
+        console.error(
+            `Invalid AI copilot configuration: ${copilotConfigParse.error.message}`,
+        );
+    } else {
+        copilotConfig = copilotConfigParse.data;
     }
 
     return {
@@ -1157,35 +1203,7 @@ export const parseConfig = (): LightdashConfig => {
             filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
         },
         ai: {
-            copilot: {
-                enabled: process.env.AI_COPILOT_ENABLED === 'true',
-
-                ...(process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY
-                    ? {
-                          providers: {
-                              ...(process.env.OPENAI_API_KEY
-                                  ? {
-                                        openai: {
-                                            apiKey: process.env.OPENAI_API_KEY,
-                                        },
-                                    }
-                                  : {}),
-                              ...(process.env.ANTHROPIC_API_KEY
-                                  ? {
-                                        anthropic: {
-                                            apiKey: process.env
-                                                .ANTHROPIC_API_KEY,
-                                        },
-                                    }
-                                  : {}),
-                          },
-                      }
-                    : {}),
-                requiresFeatureFlag:
-                    process.env.AI_COPILOT_REQUIRES_FEATURE_FLAG === 'true',
-                embeddingSearchEnabled:
-                    process.env.AI_COPILOT_EMBEDDING_SEARCH_ENABLED === 'true',
-            },
+            copilot: copilotConfig,
         },
         embedding: {
             enabled: process.env.EMBEDDING_ENABLED === 'true',

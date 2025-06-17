@@ -174,6 +174,14 @@ export const lightdashConfigMock: LightdashConfig = {
         copilot: {
             enabled: false,
             requiresFeatureFlag: false,
+            defaultProvider: 'openai',
+            providers: {
+                openai: {
+                    apiKey: 'mock_api_key',
+                    modelName: 'mock_model_name',
+                },
+            },
+            embeddingSearchEnabled: false,
         },
     },
     embedding: {
