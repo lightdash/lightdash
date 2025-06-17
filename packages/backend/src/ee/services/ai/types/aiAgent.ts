@@ -10,8 +10,19 @@ import {
 } from './aiAgentDependencies';
 import { AiAgentExploreSummary } from './aiAgentExploreSummary';
 
-export type AiAgentArgs = {
-    openaiApiKey: string;
+export type AiAgentProvider = 'anthropic' | 'openai';
+
+export type AiAgentProviderConfig<P extends AiAgentProvider = AiAgentProvider> =
+    {
+        [key in P]?: {
+            apiKey: string;
+        };
+    };
+
+export type AiAgentArgs<P extends AiAgentProvider = AiAgentProvider> = {
+    provider: P;
+    modelName: string;
+    providerConfig: AiAgentProviderConfig<P>;
     promptUuid: string;
     agentName: string;
     instruction: string | null;

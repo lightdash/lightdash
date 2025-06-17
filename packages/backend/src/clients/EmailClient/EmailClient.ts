@@ -11,6 +11,7 @@ import * as nodemailer from 'nodemailer';
 import hbs from 'nodemailer-express-handlebars';
 import Mail from 'nodemailer/lib/mailer';
 import { AuthenticationType } from 'nodemailer/lib/smtp-connection';
+import SMTPPool from 'nodemailer/lib/smtp-pool';
 import path from 'path';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -62,21 +63,23 @@ export default class EmailClient {
                 }
             }
 
-            this.transporter = nodemailer.createTransport(
-                {
-                    host: this.lightdashConfig.smtp.host,
-                    port: this.lightdashConfig.smtp.port,
-                    secure: this.lightdashConfig.smtp.port === 465, // false for any port beside 465, other ports use STARTTLS instead.
-                    ...(auth ? { auth } : {}),
-                    requireTLS: this.lightdashConfig.smtp.secure,
-                    tls: this.lightdashConfig.smtp.allowInvalidCertificate
-                        ? { rejectUnauthorized: false }
-                        : undefined,
-                },
-                {
-                    from: `"${this.lightdashConfig.smtp.sender.name}" <${this.lightdashConfig.smtp.sender.email}>`,
-                },
-            );
+            const options: SMTPPool.Options = {
+                host: this.lightdashConfig.smtp.host,
+                port: this.lightdashConfig.smtp.port,
+                secure: this.lightdashConfig.smtp.port === 465, // false for any port beside 465, other ports use STARTTLS instead.
+                ...(auth ? { auth } : {}),
+                requireTLS: this.lightdashConfig.smtp.secure, // Forces STARTTTLS. Recommended when port is not 465.
+                tls: this.lightdashConfig.smtp.allowInvalidCertificate
+                    ? { rejectUnauthorized: false }
+                    : undefined,
+                pool: true, // Enable pooled connections
+                maxConnections: 5, // Maximum number of connections (default is 5)
+                maxMessages: 100, // Maximum number of messages per connection (default is 100)
+            };
+
+            this.transporter = nodemailer.createTransport(options, {
+                from: `"${this.lightdashConfig.smtp.sender.name}" <${this.lightdashConfig.smtp.sender.email}>`,
+            });
             this.transporter.verify((error) => {
                 if (error) {
                     throw new SmptError(

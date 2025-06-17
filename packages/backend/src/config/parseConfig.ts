@@ -530,6 +530,9 @@ export type LightdashConfig = {
                 openai?: {
                     apiKey: string;
                 };
+                anthropic?: {
+                    apiKey: string;
+                };
             };
         };
     };
@@ -1157,12 +1160,24 @@ export const parseConfig = (): LightdashConfig => {
             copilot: {
                 enabled: process.env.AI_COPILOT_ENABLED === 'true',
 
-                ...(process.env.OPENAI_API_KEY
+                ...(process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY
                     ? {
                           providers: {
-                              openai: {
-                                  apiKey: process.env.OPENAI_API_KEY,
-                              },
+                              ...(process.env.OPENAI_API_KEY
+                                  ? {
+                                        openai: {
+                                            apiKey: process.env.OPENAI_API_KEY,
+                                        },
+                                    }
+                                  : {}),
+                              ...(process.env.ANTHROPIC_API_KEY
+                                  ? {
+                                        anthropic: {
+                                            apiKey: process.env
+                                                .ANTHROPIC_API_KEY,
+                                        },
+                                    }
+                                  : {}),
                           },
                       }
                     : {}),

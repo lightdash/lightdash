@@ -229,13 +229,6 @@ export class AiAgentService {
         return aiCopilotFlag.enabled;
     }
 
-    private getOpenAiApiKey() {
-        if (!this.lightdashConfig.ai.copilot.providers?.openai?.apiKey) {
-            throw new Error('OpenAI API key not found');
-        }
-        return this.lightdashConfig.ai.copilot.providers.openai.apiKey;
-    }
-
     public async getAgent(
         user: SessionUser,
         agentUuid: string,
@@ -1109,8 +1102,15 @@ export class AiAgentService {
                 description: string;
             }>;
         }) => {
+            if (!this.lightdashConfig.ai.copilot.providers?.openai?.apiKey) {
+                throw new Error(
+                    'Embedding search needs OpenAI API key to be set',
+                );
+            }
+
             const embedQueries = await generateEmbeddingsNameAndDescription({
-                apiKey: this.getOpenAiApiKey(),
+                apiKey: this.lightdashConfig.ai.copilot.providers?.openai
+                    ?.apiKey,
                 values: embeddingSearchQueries,
             });
 
@@ -1249,9 +1249,15 @@ export class AiAgentService {
             agentSettings?.tags ?? null,
         );
 
+        if (!this.lightdashConfig.ai.copilot.providers) {
+            throw new Error('AI Copilot providers not found');
+        }
+
         return runAgent({
             args: {
-                openaiApiKey: this.getOpenAiApiKey(),
+                provider: 'openai',
+                modelName: 'gpt-4.1',
+                providerConfig: this.lightdashConfig.ai.copilot.providers,
                 agentName: agentSettings.name,
                 instruction: agentSettings.instruction,
                 messageHistory,

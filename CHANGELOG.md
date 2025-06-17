@@ -1,3 +1,31 @@
+## [0.1726.2](https://github.com/lightdash/lightdash/compare/0.1726.1...0.1726.2) (2025-06-17)
+
+
+### Bug Fixes
+
+* allow users to get slack installation on commercial ([#15394](https://github.com/lightdash/lightdash/issues/15394)) ([db69066](https://github.com/lightdash/lightdash/commit/db69066904d4afb07e36da1ebd10235d409fdb0f))
+
+## [0.1726.1](https://github.com/lightdash/lightdash/compare/0.1726.0...0.1726.1) (2025-06-17)
+
+
+### Bug Fixes
+
+* wait for non-null charts' responses ([#15388](https://github.com/lightdash/lightdash/issues/15388)) ([6efe487](https://github.com/lightdash/lightdash/commit/6efe487567118a00c2ea5c8c3323a593d47e2c78))
+
+# [0.1726.0](https://github.com/lightdash/lightdash/compare/0.1725.2...0.1726.0) (2025-06-17)
+
+
+### Features
+
+* enable email connection pooling ([#15368](https://github.com/lightdash/lightdash/issues/15368)) ([400041d](https://github.com/lightdash/lightdash/commit/400041d187cd2ed86848318189315806ae863053))
+
+## [0.1725.2](https://github.com/lightdash/lightdash/compare/0.1725.1...0.1725.2) (2025-06-17)
+
+
+### Bug Fixes
+
+* organization members should be able to use slack integration ([#15379](https://github.com/lightdash/lightdash/issues/15379)) ([df0f848](https://github.com/lightdash/lightdash/commit/df0f848a59eab99b64237beec352cb01eab384a2)), closes [/github.com/lightdash/lightdash/issues/15115#issuecomment-2969617818](https://github.com//github.com/lightdash/lightdash/issues/15115/issues/issuecomment-2969617818)
+
 ## [0.1725.1](https://github.com/lightdash/lightdash/compare/0.1725.0...0.1725.1) (2025-06-16)
 
 
