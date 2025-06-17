@@ -669,7 +669,7 @@ export class AsyncQueryService extends ProjectService {
                 userId: user.userUuid,
                 properties: {
                     ...baseAnalyticsProperties,
-                    error: error.message,
+                    error: getErrorMessage(error),
                 },
             });
             throw error;
