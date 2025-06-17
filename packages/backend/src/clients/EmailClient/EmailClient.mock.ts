@@ -108,6 +108,9 @@ export const expectedTransporterArgs = [
         },
         requireTLS: true,
         tls: undefined,
+        pool: true,
+        maxConnections: 5,
+        maxMessages: 100,
     },
     {
         from: `"${smtpBase.sender.name}" <${smtpBase.sender.email}>`,
