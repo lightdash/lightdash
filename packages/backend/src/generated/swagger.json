@@ -1762,7 +1762,22 @@
                 "type": "object"
             },
             "Compact": {
-                "enum": ["thousands", "millions", "billions", "trillions"],
+                "enum": [
+                    "thousands",
+                    "millions",
+                    "billions",
+                    "trillions",
+                    "kilobytes",
+                    "megabytes",
+                    "gigabytes",
+                    "terabytes",
+                    "petabytes",
+                    "kibibytes",
+                    "mebibytes",
+                    "gibibytes",
+                    "tebibytes",
+                    "pebibytes"
+                ],
                 "type": "string"
             },
             "CompactOrAlias": {
@@ -1780,7 +1795,27 @@
                             "B",
                             "billion",
                             "T",
-                            "trillion"
+                            "trillion",
+                            "KB",
+                            "kilobyte",
+                            "MB",
+                            "megabyte",
+                            "GB",
+                            "gigabyte",
+                            "TB",
+                            "terabyte",
+                            "PB",
+                            "petabyte",
+                            "KiB",
+                            "kibibyte",
+                            "MiB",
+                            "mebibyte",
+                            "GiB",
+                            "gibibyte",
+                            "TiB",
+                            "tebibytes",
+                            "PiB",
+                            "pebibytes"
                         ]
                     }
                 ]
@@ -2110,6 +2145,8 @@
                     "id",
                     "date",
                     "timestamp",
+                    "bytes_si",
+                    "bytes_iec",
                     "custom"
                 ],
                 "type": "string"
