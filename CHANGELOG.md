@@ -1,3 +1,10 @@
+## [0.1725.2](https://github.com/lightdash/lightdash/compare/0.1725.1...0.1725.2) (2025-06-17)
+
+
+### Bug Fixes
+
+* organization members should be able to use slack integration ([#15379](https://github.com/lightdash/lightdash/issues/15379)) ([df0f848](https://github.com/lightdash/lightdash/commit/df0f848a59eab99b64237beec352cb01eab384a2)), closes [/github.com/lightdash/lightdash/issues/15115#issuecomment-2969617818](https://github.com//github.com/lightdash/lightdash/issues/15115/issues/issuecomment-2969617818)
+
 ## [0.1725.1](https://github.com/lightdash/lightdash/compare/0.1725.0...0.1725.1) (2025-06-16)
 
 
