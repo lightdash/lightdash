@@ -14,23 +14,43 @@ import { checkLightdashVersion } from './dbt/apiClient';
 import { setFirstProject, setProjectCommand } from './setProject';
 
 type LoginOptions = {
+    /** Associated with a Personal Access Token */
     token?: string;
+    /** Associated with a Service Account */
+    serviceAccountToken?: string;
     interactive?: boolean;
     verbose: boolean;
 };
 
+const getAuthToken = (options: LoginOptions) => {
+    if (options.token) {
+        return {
+            header: `ApiKey ${options.token}`,
+            value: options.token,
+        };
+    }
+
+    if (options.serviceAccountToken) {
+        return {
+            header: `Bearer ${options.serviceAccountToken}`,
+            value: options.serviceAccountToken,
+        };
+    }
+
+    return undefined;
+};
+
 const loginWithToken = async (
     url: string,
-    token: string,
-    proxyAuthorization?: string,
+    authToken: { header: string; value: string },
 ) => {
     const userInfoUrl = new URL(`/api/v1/user`, url).href;
-    const proxyAuthorizationHeader = proxyAuthorization
-        ? { 'Proxy-Authorization': proxyAuthorization }
+    const proxyAuthorizationHeader = process.env.LIGHTDASH_PROXY_AUTHORIZATION
+        ? { 'Proxy-Authorization': process.env.LIGHTDASH_PROXY_AUTHORIZATION }
         : undefined;
     const headers = {
-        Authorization: `ApiKey ${token}`,
         'Content-Type': 'application/json',
+        Authorization: authToken.header,
         ...proxyAuthorizationHeader,
     };
     const response = await fetch(userInfoUrl, {
@@ -50,7 +70,7 @@ const loginWithToken = async (
     return {
         userUuid,
         organizationUuid,
-        token,
+        token: authToken.value,
     };
 };
 
@@ -150,9 +170,9 @@ export const login = async (url: string, options: LoginOptions) => {
             )} ?\n`,
         );
     }
-    const proxyAuthorization = process.env.LIGHTDASH_PROXY_AUTHORIZATION;
-    const { userUuid, token, organizationUuid } = options.token
-        ? await loginWithToken(url, options.token, proxyAuthorization)
+    const authToken = getAuthToken(options);
+    const { userUuid, token, organizationUuid } = authToken
+        ? await loginWithToken(url, authToken)
         : await loginWithPassword(url);
 
     GlobalState.debug(`> Logged in with userUuid: ${userUuid}`);

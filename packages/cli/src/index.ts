@@ -175,9 +175,19 @@ ${styles.bold('Examples:')}
         )} https://custom.lightdash.domain --token 12345 ${styles.secondary(
             '-- Logs in with a personal access token (useful for users that use SSO in the browser)',
         )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'login',
+        )} https://custom.lightdash.domain --serviceAccountToken 12345 ${styles.secondary(
+            '-- Logs in with a service account token (useful for CI/CD pipelines)',
+        )}
 `,
     )
     .option('--token <token>', 'Login with a personal access token', undefined)
+    .option(
+        '--serviceAccountToken <token>',
+        'Login with a service account token',
+        undefined,
+    )
     .option('--verbose', undefined, false)
 
     .action(login);

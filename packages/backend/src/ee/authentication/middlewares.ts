@@ -4,9 +4,10 @@ import {
     hasRequiredScopes,
     ScimError,
     ServiceAccountScope,
+    ServiceAccountScopeAll,
+    SystemServiceAccountScope,
 } from '@lightdash/common';
 import { RequestHandler } from 'express';
-import { isAuthenticated } from '../../controllers/authentication';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 
 // Middleware to extract SCIM user details
@@ -62,7 +63,7 @@ export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
 // Middleware to extract service account and check scopes
 // At the moment, we can only use this middleware on methods that are not user dependant, like running queries
 export const authenticateServiceAccount =
-    (scopes: ServiceAccountScope[]): RequestHandler =>
+    (scopes: ServiceAccountScopeAll[]): RequestHandler =>
     async (req, res, next) => {
         if (req.isAuthenticated()) {
             next();
@@ -110,7 +111,17 @@ export const authenticateServiceAccount =
                 );
             }
 
-            if (!hasRequiredScopes(serviceAccount.scopes, scopes)) {
+            const isServiceAccountLogin =
+                scopes.length === 1 &&
+                scopes[0] === SystemServiceAccountScope.SYSTEM_LOGIN;
+            const isMissingScope =
+                !isServiceAccountLogin &&
+                !hasRequiredScopes(
+                    serviceAccount.scopes,
+                    scopes as ServiceAccountScope[],
+                );
+
+            if (isMissingScope) {
                 throw new AuthorizationError(
                     'Invalid service account token. Missing required scopes.',
                 );

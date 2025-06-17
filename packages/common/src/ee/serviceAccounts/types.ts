@@ -1,8 +1,20 @@
+/**
+ * These are unassignable scopes inherited by default for ServiceAccounts.
+ * They are used for identifying Service Accounts.
+ */
+export enum SystemServiceAccountScope {
+    SYSTEM_LOGIN = 'system:login',
+}
+
 export enum ServiceAccountScope {
     SCIM_MANAGE = 'scim:manage',
     ORG_ADMIN = 'org:admin',
     ORG_READ = 'org:read',
 }
+
+export type ServiceAccountScopeAll =
+    | ServiceAccountScope
+    | SystemServiceAccountScope;
 
 /** This is a list of all the scopes, and which scopes they contain
  * So when we check if a service account has a specific scope, or scopes

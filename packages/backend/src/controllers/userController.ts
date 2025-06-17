@@ -13,6 +13,7 @@ import {
     PersonalAccessToken,
     PersonalAccessTokenWithToken,
     RegisterOrActivateUser,
+    SystemServiceAccountScope,
     UpsertUserWarehouseCredentials,
     UserWarehouseCredentials,
     validatePassword,
@@ -35,6 +36,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { authenticateServiceAccount } from '../ee/authentication/middlewares';
 import { UserModel } from '../models/UserModel';
 import {
     allowApiKeyAuthentication,
@@ -51,7 +53,11 @@ export class UserController extends BaseController {
      * Get authenticated user
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        authenticateServiceAccount([SystemServiceAccountScope.SYSTEM_LOGIN]),
+        allowApiKeyAuthentication,
+        isAuthenticated,
+    ])
     @Get('/')
     @OperationId('GetAuthenticatedUser')
     async getAuthenticatedUser(
