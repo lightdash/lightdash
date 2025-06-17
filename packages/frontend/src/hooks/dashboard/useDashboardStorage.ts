@@ -72,6 +72,7 @@ const useDashboardStorage = () => {
         sessionStorage.removeItem('unsavedDashboardTiles');
         sessionStorage.removeItem('unsavedDashboardFilters');
         sessionStorage.removeItem('hasDashboardChanges');
+        sessionStorage.removeItem('activeTabUuid');
         // Trigger storage event to update NavBar
         window.dispatchEvent(new Event('storage'));
     }, []);
