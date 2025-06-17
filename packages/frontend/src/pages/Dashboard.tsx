@@ -49,7 +49,8 @@ const Dashboard: FC = () => {
     }>();
     const { data: spaces } = useSpaceSummaries(projectUuid);
 
-    const { clearIsEditingDashboardChart } = useDashboardStorage();
+    const { clearIsEditingDashboardChart, clearDashboardStorage } =
+        useDashboardStorage();
 
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboard = useDashboardContext((c) => c.dashboard);
@@ -565,6 +566,7 @@ const Dashboard: FC = () => {
                             <Button
                                 color="red"
                                 onClick={() => {
+                                    clearDashboardStorage();
                                     blocker.proceed();
                                 }}
                             >
