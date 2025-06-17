@@ -1,3 +1,10 @@
+# [0.1726.0](https://github.com/lightdash/lightdash/compare/0.1725.2...0.1726.0) (2025-06-17)
+
+
+### Features
+
+* enable email connection pooling ([#15368](https://github.com/lightdash/lightdash/issues/15368)) ([400041d](https://github.com/lightdash/lightdash/commit/400041d187cd2ed86848318189315806ae863053))
+
 ## [0.1725.2](https://github.com/lightdash/lightdash/compare/0.1725.1...0.1725.2) (2025-06-17)
 
 
