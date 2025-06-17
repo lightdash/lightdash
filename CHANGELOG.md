@@ -1,3 +1,10 @@
+# [0.1727.0](https://github.com/lightdash/lightdash/compare/0.1726.3...0.1727.0) (2025-06-17)
+
+
+### Features
+
+* add custom labels, hidden files and column order support for SQL chart scheduled delivery ([#15389](https://github.com/lightdash/lightdash/issues/15389)) ([1eaa37e](https://github.com/lightdash/lightdash/commit/1eaa37ed2c4f24f6b5eccc863c26b973423b5a3e)), closes [#15342](https://github.com/lightdash/lightdash/issues/15342)
+
 ## [0.1726.3](https://github.com/lightdash/lightdash/compare/0.1726.2...0.1726.3) (2025-06-17)
 
 
