@@ -1,5 +1,11 @@
 import { AnyType } from '@lightdash/common';
-import { CoreMessage, generateObject, generateText, NoSuchToolError } from 'ai';
+import {
+    CoreMessage,
+    generateObject,
+    generateText,
+    LanguageModelV1,
+    NoSuchToolError,
+} from 'ai';
 import type { ZodType } from 'zod';
 
 import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
@@ -14,7 +20,7 @@ import { getGetOneLineResult } from '../tools/getOneLineResult';
 import { getExploreInformationPrompt } from '../prompts/exploreInformation';
 import { getSystemPrompt } from '../prompts/system';
 
-import { getOpenaiGpt41model } from '../models/openai-gpt-4.1';
+import { getAiAgentModel } from '../models';
 
 export const runAgent = async ({
     args,
@@ -86,7 +92,11 @@ export const runAgent = async ({
         ...args.messageHistory,
     ];
 
-    const model = getOpenaiGpt41model(args.openaiApiKey);
+    const model = getAiAgentModel(
+        args.provider,
+        args.modelName,
+        args.providerConfig,
+    );
 
     const result = await generateText({
         model,
