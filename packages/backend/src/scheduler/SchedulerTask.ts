@@ -21,7 +21,6 @@ import {
     NotificationFrequency,
     NotificationPayloadBase,
     QueryExecutionContext,
-    QueryHistoryStatus,
     ReadFileError,
     RenameResourcesPayload,
     ReplaceCustomFields,
@@ -42,6 +41,7 @@ import {
     SessionUser,
     SlackInstallationNotFoundError,
     SlackNotificationPayload,
+    SqlChart,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
     ThresholdOperator,
@@ -56,9 +56,12 @@ import {
     convertReplaceableFieldMatchMapToReplaceCustomFields,
     formatRows,
     friendlyName,
+    getColumnOrderFromVizTableConfig,
     getCustomLabelsFromTableConfig,
+    getCustomLabelsFromVizTableConfig,
     getErrorMessage,
     getFulfilledValues,
+    getHiddenFieldsFromVizTableConfig,
     getHiddenTableFields,
     getHumanReadableCronExpression,
     getItemMap,
@@ -77,10 +80,10 @@ import {
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isTableChartConfig,
+    isVizTableConfig,
     operatorActionValue,
     pivotResultsAsCsv,
     setUuidParam,
-    sleep,
 } from '@lightdash/common';
 import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
@@ -601,11 +604,30 @@ export default class SchedulerTask {
                                             type: DownloadFileType.XLSX,
                                             onlyRaw:
                                                 csvOptions?.formatted === false,
-                                            // todo: support this in next pr
-                                            // customLabels: getCustomLabelsFromTableConfig(chart.chartConfig.config),
-                                            // hiddenFields: getHiddenTableFields(chart.chartConfig),
-                                            // pivotConfig: getPivotConfig(chart),
-                                            // columnOrder: chart.tableConfig.columnOrder,
+                                            customLabels:
+                                                getCustomLabelsFromVizTableConfig(
+                                                    isVizTableConfig(
+                                                        chart.config,
+                                                    )
+                                                        ? chart.config
+                                                        : undefined,
+                                                ),
+                                            hiddenFields:
+                                                getHiddenFieldsFromVizTableConfig(
+                                                    isVizTableConfig(
+                                                        chart.config,
+                                                    )
+                                                        ? chart.config
+                                                        : undefined,
+                                                ),
+                                            columnOrder:
+                                                getColumnOrderFromVizTableConfig(
+                                                    isVizTableConfig(
+                                                        chart.config,
+                                                    )
+                                                        ? chart.config
+                                                        : undefined,
+                                                ),
                                         },
                                     );
                                 return {
