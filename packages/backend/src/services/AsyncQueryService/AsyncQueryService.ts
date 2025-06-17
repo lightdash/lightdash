@@ -1816,6 +1816,7 @@ export class AsyncQueryService extends ProjectService {
         dateZoom,
         context,
         invalidateCache,
+        limit,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1898,11 +1899,21 @@ export class AsyncQueryService extends ProjectService {
                     : savedChart.metricQuery.sorts,
         };
 
+        // Apply limit override if provided in the request
+        // For unlimited results (null), use Number.MAX_SAFE_INTEGER
+        const metricQueryWithLimit =
+            limit !== undefined
+                ? {
+                      ...metricQueryWithDashboardOverrides,
+                      limit: limit ?? MAX_SAFE_INTEGER,
+                  }
+                : metricQueryWithDashboardOverrides;
+
         const exploreDimensions = getDimensions(explore);
 
         const metricQueryDimensions = [
-            ...metricQueryWithDashboardOverrides.dimensions,
-            ...(metricQueryWithDashboardOverrides.customDimensions ?? []),
+            ...metricQueryWithLimit.dimensions,
+            ...(metricQueryWithLimit.customDimensions ?? []),
         ];
 
         const xAxisField = isCartesianChartConfig(savedChart.chartConfig.config)
@@ -1920,7 +1931,7 @@ export class AsyncQueryService extends ProjectService {
               );
 
         if (hasADateDimension) {
-            metricQueryWithDashboardOverrides.metadata = {
+            metricQueryWithLimit.metadata = {
                 hasADateDimension: {
                     name: hasADateDimension.name,
                     label: hasADateDimension.label,
@@ -1936,6 +1947,7 @@ export class AsyncQueryService extends ProjectService {
             dashboardFilters,
             dashboardSorts,
             dateZoom,
+            limit,
         };
 
         const queryTags: RunQueryTags = {
@@ -1959,7 +1971,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { sql, fields } = await this.prepareMetricQueryAsyncQueryArgs({
             user,
-            metricQuery: metricQueryWithDashboardOverrides,
+            metricQuery: metricQueryWithLimit,
             explore,
             dateZoom,
             warehouseClient: warehouseConnection.warehouseClient,
@@ -1970,7 +1982,7 @@ export class AsyncQueryService extends ProjectService {
                 user,
                 projectUuid,
                 explore,
-                metricQuery: metricQueryWithDashboardOverrides,
+                metricQuery: metricQueryWithLimit,
                 context,
                 queryTags,
                 invalidateCache,
@@ -1987,7 +1999,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             cacheMetadata,
             appliedDashboardFilters,
-            metricQuery: metricQueryWithDashboardOverrides,
+            metricQuery: metricQueryWithLimit,
             fields,
         };
     }
