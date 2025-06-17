@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DimensionType, MetricType } from '../../types/field';
 import { FilterOperator, UnitOfTime } from '../../types/filter';
+import assertUnreachable from '../../utils/assertUnreachable';
 
 // TODO: most of the things should live in common and some of the existing types should be inferred from here
 // we can't reuse them because there's a bug with TSOA+ZOD - we can't use zod types in TSOA controllers
@@ -71,7 +72,7 @@ const MetricTypeSchema = z.union([
 
 const FieldTypeSchema = z.union([DimensionTypeSchema, MetricTypeSchema]);
 
-const FilterRuleSchemaBase = z
+const FilterRuleSchema = z
     .object({
         id: z.string().describe('A unique identifier for the filter'),
         target: z
@@ -80,9 +81,12 @@ const FilterRuleSchemaBase = z
                 type: FieldTypeSchema.describe('Type of the field'),
             })
             .describe('Target field to apply the filter'),
-        operator: FilterOperatorSchema.describe(
-            'Filter operator to apply to the target field',
-        ),
+        operator: z
+            .union([
+                FilterOperatorSchema,
+                DateFilterOperatorSchemaReqUnitOfTime,
+            ])
+            .describe('Filter operator to apply to the target field'),
         values: z
             .array(
                 z.union([
@@ -95,61 +99,66 @@ const FilterRuleSchemaBase = z
             .describe(
                 'Use the provided values with the specified operator on the target field. If the target field type is timestamp or date, ensure values are JavaScript Date-compatible strings.',
             ),
+        settings: z
+            .object({
+                completed: z
+                    .boolean()
+                    .describe("e.g. if it's a completed month or not"),
+                unitOfTime: z
+                    .nativeEnum(UnitOfTime)
+                    .describe(
+                        'the unit of time to apply on the filter, e.g. month, year, etc',
+                    ),
+            })
+            .nullable()
+            .describe(
+                'Settings for time-based filters, null for non-time filters',
+            ),
     })
-    .describe('Base filter rule schema');
+    .transform((data) => {
+        if (data.settings !== null) {
+            return {
+                id: data.id,
+                target: data.target,
+                operator: data.operator,
+                values: data.values,
+                settings: data.settings,
+            };
+        }
 
-const UnitOfTimeFilterRuleSchema = FilterRuleSchemaBase.merge(
-    z.object({
-        operator: DateFilterOperatorSchemaReqUnitOfTime.describe(
-            'The operator to apply the filter',
-        ),
-        values: z
-            .array(z.union([z.null(), z.string()]))
-            .describe('Ensure values are JavaScript Date-compatible strings.'),
-        settings: z.object({
-            completed: z
-                .boolean()
-                .describe("e.g. if it's a completed month or not"),
-            unitOfTime: z
-                .nativeEnum(UnitOfTime)
-                .describe(
-                    'the unit of time to apply on the filter, e.g. month, year, etc',
-                ),
-        }),
-    }),
-).describe(
-    'Specific filter rule schema for filter operators that require unit of time',
-);
-
-const FilterRuleSchema = z.union([
-    FilterRuleSchemaBase,
-    UnitOfTimeFilterRuleSchema,
-]);
+        return {
+            id: data.id,
+            target: data.target,
+            operator: data.operator,
+            values: data.values,
+        };
+    });
 
 export type FilterRuleSchemaType = z.infer<typeof FilterRuleSchema>;
 
-const AndFilterGroupSchema = z.object({
-    id: z.string().describe('A unique identifier for the filter group'),
-    and: z
-        .array(FilterRuleSchema)
-        .describe(
-            'List of filters to apply to the query. Filters in AND groups can target both metrics and dimensions',
-        ),
-});
-
-const OrFilterGroupSchema = z.object({
-    id: z.string().describe('A unique identifier for the filter group'),
-    or: z
-        .array(FilterRuleSchema)
-        .describe(
-            'List of filters to apply to the query. Filters in OR groups need to target either only metrics or only dimensions',
-        ),
-});
-
-export const FilterGroupSchema = z.union([
-    AndFilterGroupSchema,
-    OrFilterGroupSchema,
-]);
+export const FilterGroupSchema = z
+    .object({
+        id: z.string().describe('A unique identifier for the filter group'),
+        type: z.enum(['and', 'or']).describe('Type of filter group operation'),
+        rule: z
+            .array(FilterRuleSchema)
+            .describe(
+                'List of filters to apply. Filters in groups can target both metrics and dimensions',
+            ),
+    })
+    .transform((data) => {
+        switch (data.type) {
+            case 'and':
+                return { id: data.id, and: data.rule };
+            case 'or':
+                return { id: data.id, or: data.rule };
+            default:
+                return assertUnreachable(
+                    data.type,
+                    'invalid FilterGroupSchema type',
+                );
+        }
+    });
 
 export type FilterGroupSchemaType = z.infer<typeof FilterGroupSchema>;
 
