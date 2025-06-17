@@ -1,3 +1,10 @@
+# [0.1728.0](https://github.com/lightdash/lightdash/compare/0.1727.0...0.1728.0) (2025-06-17)
+
+
+### Features
+
+* support limits for scheduled deliveries ([#15393](https://github.com/lightdash/lightdash/issues/15393)) ([ca8c32d](https://github.com/lightdash/lightdash/commit/ca8c32dd787c9619696a6278ef64694c9b3d0006)), closes [#15341](https://github.com/lightdash/lightdash/issues/15341)
+
 # [0.1727.0](https://github.com/lightdash/lightdash/compare/0.1726.3...0.1727.0) (2025-06-17)
 
 
