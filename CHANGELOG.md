@@ -1,3 +1,10 @@
+## [0.1726.3](https://github.com/lightdash/lightdash/compare/0.1726.2...0.1726.3) (2025-06-17)
+
+
+### Bug Fixes
+
+* clear dashboardStorage when cancelling changes or leaving dashboard without saving ([#15384](https://github.com/lightdash/lightdash/issues/15384)) ([d4cbb4f](https://github.com/lightdash/lightdash/commit/d4cbb4f0c0bf015a0d53a7e8ce6c49b6d3a43831))
+
 ## [0.1726.2](https://github.com/lightdash/lightdash/compare/0.1726.1...0.1726.2) (2025-06-17)
 
 
