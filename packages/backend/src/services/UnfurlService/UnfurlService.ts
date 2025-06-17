@@ -778,7 +778,7 @@ export class UnfurlService extends BaseService {
                                 );
 
                                 const expectedPaginatedResponses =
-                                    chartTileUuids.length;
+                                    nonNullChartTileUuids.length;
                                 this.logger.info(
                                     `Dashboard screenshot: Expecting ${expectedPaginatedResponses} paginated responses`,
                                 );
