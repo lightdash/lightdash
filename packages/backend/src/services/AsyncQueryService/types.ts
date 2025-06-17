@@ -65,6 +65,7 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
     dateZoom?: DateZoom;
+    limit?: number | null | undefined;
 };
 
 export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {

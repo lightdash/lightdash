@@ -512,6 +512,8 @@ export default class SchedulerTask {
                         const csvForChartPromises =
                             chartTileUuidsWithChartUuids.map(
                                 async ({ chartUuid }) => {
+                                    const chartLimit =
+                                        getSchedulerCsvLimit(csvOptions);
                                     const query =
                                         await this.asyncQueryService.executeAsyncDashboardChartQuery(
                                             {
@@ -524,7 +526,7 @@ export default class SchedulerTask {
                                                 dashboardUuid,
                                                 dashboardFilters,
                                                 dashboardSorts: [],
-                                                // todo: support limit arg
+                                                limit: chartLimit,
                                             },
                                         );
                                     const chart =

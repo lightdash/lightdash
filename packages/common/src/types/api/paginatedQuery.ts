@@ -32,12 +32,6 @@ export type ExecuteAsyncSavedChartRequestParams =
     CommonPaginatedQueryRequestParams & {
         chartUuid: string;
         versionUuid?: string;
-        /**
-         * Limit override for query execution:
-         * - undefined: use saved chart's original limit
-         * - null: no limit (unlimited results)
-         * - number: apply specific limit
-         */
         limit?: number | null | undefined;
     };
 
@@ -48,6 +42,7 @@ export type ExecuteAsyncDashboardChartRequestParams =
         dashboardFilters: DashboardFilters;
         dashboardSorts: SortField[];
         dateZoom?: DateZoom;
+        limit?: number | null | undefined;
     };
 
 export type ExecuteAsyncSqlQueryRequestParams =
