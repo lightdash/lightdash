@@ -35,9 +35,7 @@ export class SlackIntegrationService<
 
     async getInstallationFromOrganizationUuid(user: SessionUser) {
         const organizationUuid = user?.organizationUuid;
-        if (!organizationUuid) throw new ForbiddenError();
-
-        if (user.ability.cannot('view', 'Organization')) {
+        if (!organizationUuid) {
             throw new ForbiddenError();
         }
 
