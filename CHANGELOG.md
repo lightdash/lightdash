@@ -1,3 +1,10 @@
+# [0.1734.0](https://github.com/lightdash/lightdash/compare/0.1733.0...0.1734.0) (2025-06-18)
+
+
+### Features
+
+* Introduce ai agent user project preferences table ([#15402](https://github.com/lightdash/lightdash/issues/15402)) ([64764e3](https://github.com/lightdash/lightdash/commit/64764e3c1bbcb9d210f91e686d5964f2af3019b2)), closes [#15386](https://github.com/lightdash/lightdash/issues/15386)
+
 # [0.1733.0](https://github.com/lightdash/lightdash/compare/0.1732.0...0.1733.0) (2025-06-18)
 
 
