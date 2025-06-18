@@ -1,3 +1,12 @@
+## [0.1728.1](https://github.com/lightdash/lightdash/compare/0.1728.0...0.1728.1) (2025-06-18)
+
+
+### Bug Fixes
+
+* `repairToolCall` callback and better error handling for agent ([#15396](https://github.com/lightdash/lightdash/issues/15396)) ([12bfa62](https://github.com/lightdash/lightdash/commit/12bfa62d550dbf4ce44d4e75a55d30a2ef116ad2))
+* add null checks to apiError properties in ApiErrorDisplay ([#15397](https://github.com/lightdash/lightdash/issues/15397)) ([70e35bb](https://github.com/lightdash/lightdash/commit/70e35bb9ae5087d457c27cc9123294163042f1a7))
+* AI Agent message filters UI ([#15401](https://github.com/lightdash/lightdash/issues/15401)) ([2de0b52](https://github.com/lightdash/lightdash/commit/2de0b52d7c9d4bd2a7a34e030eb60022c56d25bd))
+
 # [0.1728.0](https://github.com/lightdash/lightdash/compare/0.1727.0...0.1728.0) (2025-06-17)
 
 
