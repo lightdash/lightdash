@@ -155,7 +155,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             };
         } else if (
             credentials.privateKey &&
-            credentials.authenticationType === 'private_key'
+            (!credentials.password ||
+                credentials.authenticationType === 'private_key')
         ) {
             if (!credentials.privateKeyPass) {
                 authenticationOptions = {
