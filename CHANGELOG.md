@@ -1,3 +1,10 @@
+# [0.1730.0](https://github.com/lightdash/lightdash/compare/0.1729.1...0.1730.0) (2025-06-18)
+
+
+### Features
+
+* New  ai-agents redirect route ([#15417](https://github.com/lightdash/lightdash/issues/15417)) ([6cc8c7f](https://github.com/lightdash/lightdash/commit/6cc8c7fcff9bcc996608bd38e3c7b2140753c6d4))
+
 ## [0.1729.1](https://github.com/lightdash/lightdash/compare/0.1729.0...0.1729.1) (2025-06-18)
 
 
