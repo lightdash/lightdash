@@ -1,11 +1,12 @@
 import {
-    Compact,
     CompactConfigMap,
     CustomFormatType,
     NumberSeparator,
     applyCustomFormat,
     convertCustomFormatToFormatExpression,
     currencies,
+    findCompactConfig,
+    getCompactOptionsForFormatType,
     type CustomFormat,
 } from '@lightdash/common';
 import {
@@ -37,6 +38,8 @@ const formatTypeOptions = [
     CustomFormatType.PERCENT,
     CustomFormatType.CURRENCY,
     CustomFormatType.NUMBER,
+    CustomFormatType.BYTES_SI,
+    CustomFormatType.BYTES_IEC,
     CustomFormatType.CUSTOM,
 ];
 
@@ -91,8 +94,24 @@ export const FormatForm: FC<Props> = ({
                     withinPortal
                     w={200}
                     label="Type"
-                    data={formatTypeOptions}
-                    {...formatInputProps('type')}
+                    data={formatTypeOptions.map((type) => ({
+                        value: type,
+                        label:
+                            type === CustomFormatType.BYTES_SI
+                                ? 'bytes (SI)'
+                                : type === CustomFormatType.BYTES_IEC
+                                ? 'bytes (IEC)'
+                                : type,
+                    }))}
+                    {...{
+                        ...formatInputProps('type'),
+                        onChange: (value) => {
+                            if (value) {
+                                setFormatFieldValue('type', value);
+                                setFormatFieldValue('compact', undefined);
+                            }
+                        },
+                    }}
                 />
 
                 {formatType !== CustomFormatType.DEFAULT && (
@@ -110,6 +129,8 @@ export const FormatForm: FC<Props> = ({
                     CustomFormatType.CURRENCY,
                     CustomFormatType.NUMBER,
                     CustomFormatType.PERCENT,
+                    CustomFormatType.BYTES_SI,
+                    CustomFormatType.BYTES_IEC,
                 ].includes(formatType) && (
                     <Text ml="md" mt={30} w={200} color="gray.6">
                         {'Format: '}
@@ -141,6 +162,8 @@ export const FormatForm: FC<Props> = ({
                 CustomFormatType.CURRENCY,
                 CustomFormatType.NUMBER,
                 CustomFormatType.PERCENT,
+                CustomFormatType.BYTES_SI,
+                CustomFormatType.BYTES_IEC,
             ].includes(formatType) && (
                 <Flex>
                     {formatType === CustomFormatType.CURRENCY && (
@@ -182,9 +205,12 @@ export const FormatForm: FC<Props> = ({
                     />
                 </Flex>
             )}
-            {[CustomFormatType.CURRENCY, CustomFormatType.NUMBER].includes(
-                formatType,
-            ) && (
+            {[
+                CustomFormatType.CURRENCY,
+                CustomFormatType.NUMBER,
+                CustomFormatType.BYTES_SI,
+                CustomFormatType.BYTES_IEC,
+            ].includes(formatType) && (
                 <Flex>
                     <Select
                         withinPortal
@@ -192,15 +218,38 @@ export const FormatForm: FC<Props> = ({
                         w={200}
                         clearable
                         label="Compact"
-                        placeholder="E.g. thousands (K)"
-                        data={[
-                            ...Object.values(Compact).map((c) => ({
+                        placeholder={
+                            formatType === CustomFormatType.BYTES_SI
+                                ? 'E.g. kilobytes (KB)'
+                                : formatType === CustomFormatType.BYTES_IEC
+                                ? 'E.g. kibibytes (KiB)'
+                                : 'E.g. thousands (K)'
+                        }
+                        data={getCompactOptionsForFormatType(formatType).map(
+                            (c) => ({
                                 value: c,
                                 label: CompactConfigMap[c].label,
-                            })),
-                        ]}
+                            }),
+                        )}
                         {...{
                             ...formatInputProps('compact'),
+                            // Override value to ensure invalid compact values are cleared
+                            value: (() => {
+                                const currentCompact = format.compact;
+                                if (!currentCompact) return null;
+
+                                const validCompacts =
+                                    getCompactOptionsForFormatType(formatType);
+                                const compactConfig =
+                                    findCompactConfig(currentCompact);
+
+                                return compactConfig &&
+                                    validCompacts.includes(
+                                        compactConfig.compact,
+                                    )
+                                    ? currentCompact
+                                    : null;
+                            })(),
                             onChange: (value) => {
                                 // Explicitly set value to undefined so the API doesn't received invalid values
                                 setFormatFieldValue(

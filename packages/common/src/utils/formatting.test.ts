@@ -4,6 +4,7 @@ import {
     Compact,
     CustomFormatType,
     DimensionType,
+    FieldType,
     Format,
     MetricType,
     NumberSeparator,
@@ -1285,6 +1286,75 @@ describe('Formatting', () => {
                     }),
                 ).toEqual(expectedValue[i]),
             );
+        });
+
+        test('formatValueWithExpression handles binary byte units correctly', () => {
+            // Test KIBIBYTES (should divide by 1024)
+            const kibibyteExpression = convertCustomFormatToFormatExpression({
+                type: CustomFormatType.BYTES_IEC,
+                compact: Compact.KIBIBYTES,
+            });
+            expect(kibibyteExpression).toEqual('#,##0.00"KiB"');
+            expect(
+                formatValueWithExpression(kibibyteExpression!, 2048),
+            ).toEqual('2.00KiB');
+
+            // Test MEBIBYTES (should divide by 1048576)
+            const mebibyteExpression = convertCustomFormatToFormatExpression({
+                type: CustomFormatType.BYTES_IEC,
+                compact: Compact.MEBIBYTES,
+            });
+            expect(mebibyteExpression).toEqual('#,##0.00"MiB"');
+            expect(
+                formatValueWithExpression(mebibyteExpression!, 2097152),
+            ).toEqual('2.00MiB');
+
+            // Test with rounding
+            const roundedExpression = convertCustomFormatToFormatExpression({
+                type: CustomFormatType.BYTES_IEC,
+                compact: Compact.KIBIBYTES,
+                round: 1,
+            });
+            expect(roundedExpression).toEqual('#,##0.0"KiB"');
+            expect(formatValueWithExpression(roundedExpression!, 1536)).toEqual(
+                '1.5KiB',
+            );
+        });
+
+        test('backend scenario: formatOptions converted to format expression', () => {
+            // This simulates the exact scenario from the backend PR
+            // where formatOptions are converted to format expressions
+            const formatOptions = {
+                type: CustomFormatType.BYTES_IEC,
+                compact: Compact.KIBIBYTES,
+            };
+
+            // Backend calls convertCustomFormatToFormatExpression
+            const formatExpression =
+                convertCustomFormatToFormatExpression(formatOptions);
+            expect(formatExpression).toEqual('#,##0.00"KiB"');
+
+            // Mock metric with format expression set by backend
+            const mockMetric = {
+                fieldType: FieldType.METRIC,
+                type: MetricType.NUMBER,
+                name: 'test_metric',
+                label: 'Test Metric',
+                table: 'test_table',
+                tableLabel: 'Test Table',
+                sql: 'test_sql',
+                hidden: false,
+                // Backend sets format expression instead of formatOptions
+                format: formatExpression || undefined,
+            } as const;
+
+            // Frontend uses formatItemValue which should call formatValueWithExpression
+            const result = formatItemValue(mockMetric, 2048);
+            expect(result).toEqual('2.00KiB'); // Should be correctly divided by 1024
+
+            // Test larger values
+            expect(formatItemValue(mockMetric, 1024)).toEqual('1.00KiB');
+            expect(formatItemValue(mockMetric, 3072)).toEqual('3.00KiB');
         });
     });
 
