@@ -1232,7 +1232,7 @@ export class AiAgentModel {
         projectUuid: string;
     }): Promise<AiAgentUserPreferences | null> {
         const preferences = await this.database(AiAgentUserPreferencesTableName)
-            .select('default_agent_uuid')
+            .select({ defaultAgentUuid: 'default_agent_uuid' })
             .where({ user_uuid: userUuid, project_uuid: projectUuid })
             .first();
 
