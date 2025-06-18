@@ -1,3 +1,10 @@
+## [0.1728.3](https://github.com/lightdash/lightdash/compare/0.1728.2...0.1728.3) (2025-06-18)
+
+
+### Bug Fixes
+
+* apply chart limit to dashboard sql chart and fix remove comments and strip semi-colons when there's no limit ([#15415](https://github.com/lightdash/lightdash/issues/15415)) ([e59e802](https://github.com/lightdash/lightdash/commit/e59e8021c644e9e9ef2e879830aadc0f79e8e89a))
+
 ## [0.1728.2](https://github.com/lightdash/lightdash/compare/0.1728.1...0.1728.2) (2025-06-18)
 
 
