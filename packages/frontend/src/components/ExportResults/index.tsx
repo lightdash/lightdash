@@ -151,7 +151,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
 
         return (
             <Box>
-                <Stack spacing="xs" miw={300}>
+                <Stack spacing={0} miw={300}>
                     <Stack p={renderDialogActions ? 'md' : 0}>
                         <Stack spacing="xs">
                             <Text fw={500}>File format</Text>
@@ -189,61 +189,68 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                 ]}
                             />
                         </Stack>
-                    </Stack>
+                        <Stack spacing="xs">
+                            <Can
+                                I="manage"
+                                this={subject('ChangeCsvResults', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid: projectUuid,
+                                })}
+                            >
+                                {!hideLimitSelection ? (
+                                    <Stack spacing="xs">
+                                        <Text fw={500}>Limit</Text>
+                                        <SegmentedControl
+                                            size={'xs'}
+                                            value={limit}
+                                            onChange={(value) =>
+                                                setLimit(value)
+                                            }
+                                            data={[
+                                                {
+                                                    label: 'Results in Table',
+                                                    value: Limit.TABLE,
+                                                },
+                                                {
+                                                    label: 'All Results',
+                                                    value: Limit.ALL,
+                                                },
+                                                {
+                                                    label: 'Custom...',
+                                                    value: Limit.CUSTOM,
+                                                },
+                                            ]}
+                                        />
+                                    </Stack>
+                                ) : null}
+                            </Can>
 
-                    <Can
-                        I="manage"
-                        this={subject('ChangeCsvResults', {
-                            organizationUuid: user.data?.organizationUuid,
-                            projectUuid: projectUuid,
-                        })}
-                    >
-                        {!hideLimitSelection ? (
-                            <Stack spacing="xs">
-                                <Text fw={500}>Limit</Text>
-                                <SegmentedControl
-                                    size={'xs'}
-                                    value={limit}
-                                    onChange={(value) => setLimit(value)}
-                                    data={[
-                                        {
-                                            label: 'Results in Table',
-                                            value: Limit.TABLE,
-                                        },
-                                        {
-                                            label: 'All Results',
-                                            value: Limit.ALL,
-                                        },
-                                        {
-                                            label: 'Custom...',
-                                            value: Limit.CUSTOM,
-                                        },
-                                    ]}
+                            {limit === Limit.CUSTOM && (
+                                <NumberInput
+                                    w="100%"
+                                    size="xs"
+                                    min={1}
+                                    precision={0}
+                                    required
+                                    value={customLimit}
+                                    onChange={(value) =>
+                                        setCustomLimit(Number(value))
+                                    }
                                 />
-                            </Stack>
-                        ) : null}
-                    </Can>
-
-                    {limit === Limit.CUSTOM && (
-                        <NumberInput
-                            w="100%"
-                            size="xs"
-                            min={1}
-                            precision={0}
-                            required
-                            value={customLimit}
-                            onChange={(value) => setCustomLimit(Number(value))}
-                        />
-                    )}
-
-                    {fileType === DownloadFileType.XLSX &&
-                        (limit === Limit.ALL || limit === Limit.CUSTOM) && (
-                            <Alert color="gray.9" p="xs">
-                                <Text size="xs">
-                                    Excel exports are limited to 1,000,000 rows.
-                                </Text>
-                            </Alert>
-                        )}
+                            )}
+                            {fileType === DownloadFileType.XLSX &&
+                                (limit === Limit.ALL ||
+                                    limit === Limit.CUSTOM) && (
+                                    <Alert color="gray.9" p="xs">
+                                        <Text size="xs">
+                                            Excel exports are limited to
+                                            1,000,000 rows.
+                                        </Text>
+                                    </Alert>
+                                )}
+                        </Stack>
+                    </Stack>
 
                     {!renderDialogActions ? (
                         <Button
@@ -252,7 +259,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             sx={{
                                 alignSelf: 'end',
                             }}
-                            my="xs"
+                            mt="sm"
                             size="md"
                             leftIcon={<MantineIcon icon={IconTableExport} />}
                             onClick={exportMutation}

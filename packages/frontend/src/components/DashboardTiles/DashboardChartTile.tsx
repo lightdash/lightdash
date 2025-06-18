@@ -78,6 +78,7 @@ import {
     getExpectedSeriesMap,
     mergeExistingAndExpectedSeries,
 } from '../../hooks/cartesianChartConfig/utils';
+import { useDashboardChartDownload } from '../../hooks/dashboard/useDashboardChartDownload';
 import {
     useDashboardChartReadyQuery,
     type DashboardChartReadyQuery,
@@ -828,9 +829,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         user.data?.ability,
     ]);
 
-    const getDownloadQueryUuid = useCallback(async () => {
-        return dashboardChartReadyQuery.executeQueryResponse.queryUuid;
-    }, [dashboardChartReadyQuery.executeQueryResponse.queryUuid]);
+    // Use the custom hook for dashboard chart downloads
+    const { getDownloadQueryUuid } = useDashboardChartDownload(
+        tileUuid,
+        chart.uuid,
+        projectUuid,
+        dashboardUuid,
+    );
 
     const closeDataExportModal = useCallback(
         () => setIsDataExportModalOpen(false),
@@ -1305,7 +1310,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         )}
                         hiddenFields={getHiddenTableFields(chart.chartConfig)}
                         pivotConfig={getPivotConfig(chart)}
-                        hideLimitSelection
                         renderDialogActions={({ onExport, isExporting }) => (
                             <Group
                                 position="right"

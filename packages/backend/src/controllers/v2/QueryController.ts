@@ -215,6 +215,7 @@ export class QueryController extends BaseController {
                 dashboardFilters: body.dashboardFilters,
                 dashboardSorts: body.dashboardSorts,
                 dateZoom: body.dateZoom,
+                limit: body.limit,
                 context: context ?? QueryExecutionContext.API,
             });
 
