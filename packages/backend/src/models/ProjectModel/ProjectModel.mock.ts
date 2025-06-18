@@ -2,7 +2,6 @@ import {
     AnyType,
     BigqueryAuthenticationType,
     BigqueryCredentials,
-    ConditionalOperator,
     CreateBigqueryCredentials,
     CreatePostgresCredentials,
     DbtCloudIDEProjectConfig,
@@ -11,6 +10,7 @@ import {
     DimensionType,
     Explore,
     FieldType,
+    FilterOperator,
     MetricFilterRule,
     MetricType,
     OrderFieldsByStrategy,
@@ -109,14 +109,14 @@ export const expectedProject: Project = {
 
 const metricFilter: MetricFilterRule = {
     id: '1234',
-    operator: ConditionalOperator.EQUALS,
+    operator: FilterOperator.EQUALS,
     values: ['test'],
     target: { fieldRef: 'table_field' },
 };
 
 const outdatedMetricFilter: MetricFilterRule = {
     id: '1234',
-    operator: ConditionalOperator.EQUALS,
+    operator: FilterOperator.EQUALS,
     values: ['test'],
     // @ts-expect-error outdated target with fieldId
     target: { fieldId: 'table_field' },

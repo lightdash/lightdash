@@ -2,7 +2,6 @@ import { Ability } from '@casl/ability';
 import {
     AbilityAction,
     AnyType,
-    ConditionalOperator,
     DimensionType,
     Explore,
     ExploreError,
@@ -104,7 +103,7 @@ export const chartForValidation: Awaited<
                 fieldRef: 'table.dimension',
             },
             values: ['n'],
-            operator: ConditionalOperator.ENDS_WITH,
+            operator: FilterOperator.ENDS_WITH,
         },
     ],
 };
@@ -132,7 +131,7 @@ export const chartForValidationWithCustomMetricFilters: Awaited<
                 fieldRef: 'another_table.dimension',
             },
             values: ['n'],
-            operator: ConditionalOperator.ENDS_WITH,
+            operator: FilterOperator.ENDS_WITH,
         },
         {
             id: 'table_custom_metric',
@@ -140,7 +139,7 @@ export const chartForValidationWithCustomMetricFilters: Awaited<
                 fieldRef: 'table.dimension',
             },
             values: ['A'],
-            operator: ConditionalOperator.STARTS_WITH,
+            operator: FilterOperator.STARTS_WITH,
         },
     ],
 };

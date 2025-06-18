@@ -1,7 +1,18 @@
 import { type AnyType } from './any';
-import { ConditionalOperator, type ConditionalRule } from './conditionalRule';
 import { type DimensionType } from './field';
 import type { SchedulerFilterRule } from './scheduler';
+
+export type ConditionalRule<O = FilterOperator, V = unknown> = {
+    id: string;
+    operator: O;
+    values?: V[];
+};
+
+export type ConditionalRuleLabels = {
+    field: string;
+    operator: string;
+    value?: string;
+};
 
 export enum FilterType {
     STRING = 'string',
@@ -61,7 +72,7 @@ export type FieldTarget = {
 };
 
 export interface FilterRule<
-    O = ConditionalOperator,
+    O = FilterOperator,
     T = FieldTarget,
     V = AnyType,
     S = AnyType,
@@ -74,7 +85,7 @@ export interface FilterRule<
 }
 
 export interface MetricFilterRule
-    extends FilterRule<ConditionalOperator, { fieldRef: string }> {}
+    extends FilterRule<FilterOperator, { fieldRef: string }> {}
 
 type JoinModelRequiredFilterTarget = {
     fieldRef: string;
@@ -82,7 +93,7 @@ type JoinModelRequiredFilterTarget = {
 };
 
 export interface JoinModelRequiredFilterRule
-    extends FilterRule<ConditionalOperator, JoinModelRequiredFilterTarget> {}
+    extends FilterRule<FilterOperator, JoinModelRequiredFilterTarget> {}
 
 export type ModelRequiredFilterRule =
     | MetricFilterRule // Keeping backwards compatibility with existing filters
@@ -110,7 +121,7 @@ export const isDashboardFieldTarget = (
 export type DashboardTileTarget = DashboardFieldTarget | false;
 
 export type DashboardFilterRule<
-    O = ConditionalOperator,
+    O = FilterOperator,
     T extends DashboardFieldTarget = DashboardFieldTarget,
     V = AnyType,
     S = AnyType,
@@ -137,19 +148,14 @@ export type DateFilterSettings = {
 };
 
 export type DateFilterRule = FilterRule<
-    ConditionalOperator,
+    FilterOperator,
     unknown,
     AnyType,
     DateFilterSettings
 >;
 
 export const isDateFilterRule = (
-    filter: FilterRule<
-        ConditionalOperator,
-        FieldTarget | unknown,
-        AnyType,
-        AnyType
-    >,
+    filter: FilterRule<FilterOperator, FieldTarget | unknown, AnyType, AnyType>,
 ): filter is DateFilterRule => 'unitOfTime' in (filter.settings || {});
 
 export type FilterGroupItem = FilterGroup | FilterRule;
@@ -506,4 +512,24 @@ export type TimeBasedOverrideMap = Record<
     }
 >;
 
-export { ConditionalOperator as FilterOperator };
+export enum FilterOperator {
+    NULL = 'isNull',
+    NOT_NULL = 'notNull',
+    EQUALS = 'equals',
+    NOT_EQUALS = 'notEquals',
+    STARTS_WITH = 'startsWith',
+    ENDS_WITH = 'endsWith',
+    INCLUDE = 'include',
+    NOT_INCLUDE = 'doesNotInclude',
+    LESS_THAN = 'lessThan',
+    LESS_THAN_OR_EQUAL = 'lessThanOrEqual',
+    GREATER_THAN = 'greaterThan',
+    GREATER_THAN_OR_EQUAL = 'greaterThanOrEqual',
+    IN_THE_PAST = 'inThePast',
+    NOT_IN_THE_PAST = 'notInThePast',
+    IN_THE_NEXT = 'inTheNext',
+    IN_THE_CURRENT = 'inTheCurrent',
+    NOT_IN_THE_CURRENT = 'notInTheCurrent',
+    IN_BETWEEN = 'inBetween',
+    NOT_IN_BETWEEN = 'notInBetween',
+}

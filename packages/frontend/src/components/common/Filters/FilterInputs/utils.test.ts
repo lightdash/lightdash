@@ -1,7 +1,7 @@
 import {
-    ConditionalOperator,
     DimensionType,
     FieldType,
+    FilterOperator,
     FilterType,
     type ConditionalRule,
     type FilterableItem,
@@ -17,7 +17,7 @@ describe('getConditionalRuleLabel', () => {
         // Arrange
         const rule: ConditionalRule = {
             id: 'test-rule-id',
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
             values: ['test-value'],
         };
         const filterType = FilterType.STRING;
@@ -38,7 +38,7 @@ describe('getConditionalRuleLabel', () => {
         // Arrange
         const rule: ConditionalRule = {
             id: 'test-rule-id',
-            operator: ConditionalOperator.GREATER_THAN,
+            operator: FilterOperator.GREATER_THAN,
             values: [100],
         };
         const filterType = FilterType.NUMBER;
@@ -61,7 +61,7 @@ describe('getConditionalRuleLabelFromItem', () => {
         // Arrange
         const rule: ConditionalRule = {
             id: 'test-rule-id',
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
             values: ['test-value'],
         };
         const item: FilterableItem = {
