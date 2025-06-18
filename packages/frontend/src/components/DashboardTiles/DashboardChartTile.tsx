@@ -70,6 +70,7 @@ import React, {
 } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import { formatChartErrorMessage } from '../../utils/chartErrorUtils';
 
 import { DashboardTileComments } from '../../features/comments';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
@@ -1485,7 +1486,12 @@ export const GenericDashboardChartTile: FC<
             >
                 <SuboptimalState
                     icon={IconAlertCircle}
-                    title={error?.error?.message || 'No data available'}
+                    title={formatChartErrorMessage(
+                        dashboardChartReadyQuery?.chart?.name ||
+                            tile.properties.chartName ||
+                            undefined,
+                        error?.error?.message || 'No data available',
+                    )}
                 ></SuboptimalState>
             </TileBase>
         );
@@ -1558,6 +1564,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     const resultsData = useInfiniteQueryResults(
         readyQuery.data?.chart.projectUuid,
         readyQuery.data?.executeQueryResponse.queryUuid,
+        readyQuery.data?.chart.name,
     );
 
     const isLoading = useMemo(() => {

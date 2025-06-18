@@ -17,6 +17,7 @@ import {
 import { SemanticViewerResultsRunnerFrontend } from '../../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import useApp from '../../providers/App/useApp';
+import { formatChartErrorMessage } from '../../utils/chartErrorUtils';
 import getChartDataModel from '../DataViz/transformers/getChartDataModel';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
@@ -195,12 +196,13 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             >
                 <SuboptimalState
                     icon={IconAlertCircle}
-                    title={
+                    title={formatChartErrorMessage(
+                        tile.properties.chartName,
                         chartQuery.error?.error?.message ??
-                        fieldsQuery.error?.error?.message ??
-                        chartResultsQuery.error?.error?.message ??
-                        'No data available'
-                    }
+                            fieldsQuery.error?.error?.message ??
+                            chartResultsQuery.error?.error?.message ??
+                            'No data available',
+                    )}
                 />
             </TileBase>
         );
