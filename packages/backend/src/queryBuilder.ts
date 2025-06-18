@@ -471,8 +471,8 @@ export const applyLimitToSqlQuery = ({
     // do nothing if limit is undefined
     if (limit === undefined) {
         // strip any trailing semicolons and comments
-        let sql = sqlQuery.trim().replace(/;+$/g, '');
-        sql = removeComments(sql);
+        let sql = removeComments(sqlQuery);
+        sql = sql.trim().replace(/;+$/g, '');
         return sql.trim();
     }
     // get any existing outer limit and offset from the SQL query
