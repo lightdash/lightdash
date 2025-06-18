@@ -1,3 +1,10 @@
+## [0.1728.2](https://github.com/lightdash/lightdash/compare/0.1728.1...0.1728.2) (2025-06-18)
+
+
+### Bug Fixes
+
+* snowflake CLI authentication with private key path ([#15404](https://github.com/lightdash/lightdash/issues/15404)) ([4eaa00d](https://github.com/lightdash/lightdash/commit/4eaa00d93934daa4d2b6e11948b898611606ef2f))
+
 ## [0.1728.1](https://github.com/lightdash/lightdash/compare/0.1728.0...0.1728.1) (2025-06-18)
 
 
