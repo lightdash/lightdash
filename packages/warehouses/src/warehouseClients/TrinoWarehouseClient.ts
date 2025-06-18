@@ -19,6 +19,10 @@ import {
     Trino,
 } from 'trino-client';
 import { WarehouseCatalog } from '../types';
+import {
+    DEFAULT_BATCH_SIZE,
+    processPromisesInBatches,
+} from '../utils/processPromisesInBatches';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
 export enum TrinoTypes {
@@ -282,21 +286,23 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         let results: string[][][];
 
         try {
-            const promises = requests.map(async (request) => {
-                let query: Iterator<QueryResult> | null = null;
+            results = await processPromisesInBatches(
+                requests,
+                DEFAULT_BATCH_SIZE,
+                async (request) => {
+                    let query: Iterator<QueryResult> | null = null;
 
-                try {
-                    query = await session.query(queryTableSchema(request));
-                    const result = (await query.next()).value.data ?? [];
-                    return result;
-                } catch (e: AnyType) {
-                    throw new WarehouseQueryError(getErrorMessage(e));
-                } finally {
-                    if (query) void close();
-                }
-            });
-
-            results = await Promise.all(promises);
+                    try {
+                        query = await session.query(queryTableSchema(request));
+                        const result = (await query.next()).value.data ?? [];
+                        return result;
+                    } catch (e: AnyType) {
+                        throw new WarehouseQueryError(getErrorMessage(e));
+                    } finally {
+                        if (query) void close();
+                    }
+                },
+            );
         } finally {
             await close();
         }
