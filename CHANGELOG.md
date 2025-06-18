@@ -1,3 +1,10 @@
+# [0.1733.0](https://github.com/lightdash/lightdash/compare/0.1732.0...0.1733.0) (2025-06-18)
+
+
+### Features
+
+* bring back pivot export limits ([#15376](https://github.com/lightdash/lightdash/issues/15376)) ([672e325](https://github.com/lightdash/lightdash/commit/672e3256269aabb021e7efee15d7cac181d72f79))
+
 # [0.1732.0](https://github.com/lightdash/lightdash/compare/0.1731.0...0.1732.0) (2025-06-18)
 
 
