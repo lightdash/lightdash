@@ -1,3 +1,10 @@
+# [0.1729.0](https://github.com/lightdash/lightdash/compare/0.1728.3...0.1729.0) (2025-06-18)
+
+
+### Features
+
+* add docker-compose.mini.yml with minio, postgres, and headless browser services ([#15410](https://github.com/lightdash/lightdash/issues/15410)) ([a056d3e](https://github.com/lightdash/lightdash/commit/a056d3ea0b865793daf8a27cf01e8cc1115f1246))
+
 ## [0.1728.3](https://github.com/lightdash/lightdash/compare/0.1728.2...0.1728.3) (2025-06-18)
 
 
