@@ -146,11 +146,17 @@ const Login: FC<{}> = () => {
         }
     }, [isDemo, mutate, isIdle]);
 
-    const formStage = preCheckEmail && loginOptions ? 'login' : 'precheck';
-
     const isEmailLoginAvailable =
         loginOptions?.showOptions &&
         loginOptions?.showOptions.includes(LocalIssuerTypes.EMAIL);
+
+    const formStage =
+        preCheckEmail &&
+        loginOptions &&
+        loginOptionsSuccess &&
+        !loginOptionsFetching
+            ? 'login'
+            : 'precheck';
 
     const handleFormSubmit = useCallback(() => {
         if (formStage === 'precheck' && form.values.email !== '') {
