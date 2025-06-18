@@ -1,3 +1,10 @@
+## [0.1729.1](https://github.com/lightdash/lightdash/compare/0.1729.0...0.1729.1) (2025-06-18)
+
+
+### Bug Fixes
+
+* add info logs to compile all explores ([#15416](https://github.com/lightdash/lightdash/issues/15416)) ([e721153](https://github.com/lightdash/lightdash/commit/e721153a891f6e794d5913f67a40a7b67f51be5c))
+
 # [0.1729.0](https://github.com/lightdash/lightdash/compare/0.1728.3...0.1729.0) (2025-06-18)
 
 
