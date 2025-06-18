@@ -59,8 +59,7 @@ const Login: FC<{}> = () => {
     }, [flashMessages.data, showToastError]);
 
     const [preCheckEmail, setPreCheckEmail] = useState<string>();
-    const [showDelayedLoading, setShowDelayedLoading] = useState(false);
-    const [showDelayedDisabled, setShowDelayedDisabled] = useState(false);
+    const [showDelayedState, setShowDelayedState] = useState(false);
 
     const redirectUrl = location.state?.from
         ? `${location.state.from.pathname}${location.state.from.search}`
@@ -105,23 +104,21 @@ const Login: FC<{}> = () => {
         : [];
 
     // Delayed loading state - only show loading if request takes longer than 400ms
-    const { start: startDelayedLoading, clear: clearDelayedLoading } =
-        useTimeout(() => {
-            setShowDelayedLoading(true);
-            setShowDelayedDisabled(true);
-        }, 400);
+    const { start: startDelayedState, clear: clearDelayedState } = useTimeout(
+        () => setShowDelayedState(true),
+        400,
+    );
 
     useEffect(() => {
         if (loginOptionsLoading) {
             // Start timer to show loading/disabled after 400ms
-            startDelayedLoading();
+            startDelayedState();
         } else {
             // Request completed, hide loading/disabled immediately and clear timer
-            setShowDelayedLoading(false);
-            setShowDelayedDisabled(false);
-            clearDelayedLoading();
+            setShowDelayedState(false);
+            clearDelayedState();
         }
-    }, [loginOptionsLoading, startDelayedLoading, clearDelayedLoading]);
+    }, [loginOptionsLoading, startDelayedState, clearDelayedState]);
 
     const { mutate, isLoading, isSuccess, isIdle } = useLoginWithEmailMutation({
         onSuccess: (data) => {
@@ -166,14 +163,8 @@ const Login: FC<{}> = () => {
         }
     }, [form.values, formStage, isEmailLoginAvailable, mutate]);
 
-    const disableControls =
-        showDelayedDisabled ||
-        (loginOptionsSuccess && loginOptions.forceRedirect === true) ||
-        isLoading ||
-        isSuccess;
-
-    const showButtonLoading =
-        showDelayedLoading ||
+    const isInLoadingState =
+        showDelayedState ||
         (loginOptionsSuccess && loginOptions.forceRedirect === true) ||
         isLoading ||
         isSuccess;
@@ -219,7 +210,7 @@ const Login: FC<{}> = () => {
                             placeholder="Your email address"
                             required
                             {...form.getInputProps('email')}
-                            disabled={disableControls}
+                            disabled={isInLoadingState}
                             rightSection={
                                 preCheckEmail ? (
                                     <ActionIcon
@@ -245,15 +236,15 @@ const Login: FC<{}> = () => {
                                     required
                                     autoFocus
                                     {...form.getInputProps('password')}
-                                    disabled={disableControls}
+                                    disabled={isInLoadingState}
                                 />
                                 <Anchor href="/recover-password" mx="auto">
                                     Forgot your password?
                                 </Anchor>
                                 <Button
                                     type="submit"
-                                    loading={showButtonLoading}
-                                    disabled={disableControls}
+                                    loading={isInLoadingState}
+                                    disabled={isInLoadingState}
                                     data-cy="signin-button"
                                 >
                                     Sign in
@@ -263,8 +254,8 @@ const Login: FC<{}> = () => {
                         {formStage === 'precheck' && (
                             <Button
                                 type="submit"
-                                loading={showButtonLoading}
-                                disabled={disableControls}
+                                loading={isInLoadingState}
+                                disabled={isInLoadingState}
                                 data-cy="signin-button"
                             >
                                 Continue
@@ -294,7 +285,7 @@ const Login: FC<{}> = () => {
                                             key={providerName}
                                             providerName={providerName}
                                             redirect={redirectUrl}
-                                            disabled={disableControls}
+                                            disabled={isInLoadingState}
                                         />
                                     ))}
                                 </Stack>
