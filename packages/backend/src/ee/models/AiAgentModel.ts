@@ -6,6 +6,7 @@ import {
     AiAgentSummary,
     AiAgentThreadSummary,
     AiAgentUser,
+    AiAgentUserPreferences,
     AiThread,
     AiWebAppPrompt,
     ApiCreateAiAgent,
@@ -42,6 +43,7 @@ import {
     DbAiAgentIntegration,
     DbAiAgentSlackIntegration,
 } from '../database/entities/aiAgent';
+import { AiAgentUserPreferencesTableName } from '../database/entities/aiAgentUserPreferences';
 
 type Dependencies = {
     database: Knex;
@@ -1199,5 +1201,46 @@ export class AiAgentModel {
 
             return promptRows.map((row) => row.ai_prompt_uuid);
         });
+    }
+
+    async getUserAgentPreferences({
+        userUuid,
+        projectUuid,
+    }: {
+        userUuid: string;
+        projectUuid: string;
+    }): Promise<AiAgentUserPreferences | null> {
+        const preferences = await this.database(AiAgentUserPreferencesTableName)
+            .select('default_agent_uuid')
+            .where({ user_uuid: userUuid, project_uuid: projectUuid })
+            .first();
+
+        return preferences ?? null;
+    }
+
+    async updateUserAgentPreferences({
+        userUuid,
+        projectUuid,
+        defaultAgentUuid,
+    }: {
+        userUuid: string;
+        projectUuid: string;
+        defaultAgentUuid: string;
+    }): Promise<void> {
+        const now = new Date();
+
+        await this.database(AiAgentUserPreferencesTableName)
+            .insert({
+                user_uuid: userUuid,
+                project_uuid: projectUuid,
+                default_agent_uuid: defaultAgentUuid,
+                created_at: now,
+                updated_at: now,
+            })
+            .onConflict(['user_uuid', 'project_uuid'])
+            .merge({
+                default_agent_uuid: defaultAgentUuid,
+                updated_at: now,
+            });
     }
 }
