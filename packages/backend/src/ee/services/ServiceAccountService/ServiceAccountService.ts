@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import {
-    CommercialFeatureFlags,
+    AuthTokenPrefix,
     CreateServiceAccount,
     ForbiddenError,
     NotFoundError,
@@ -15,10 +15,6 @@ import {
 
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
-import { EmailModel } from '../../../models/EmailModel';
-import { GroupsModel } from '../../../models/GroupsModel';
-import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
-import { UserModel } from '../../../models/UserModel';
 import { BaseService } from '../../../services/BaseService';
 import {
     ScimAccessTokenAuthenticationEvent,
@@ -72,7 +68,7 @@ export class ServiceAccountService extends BaseService {
     async create({
         user,
         tokenDetails,
-        prefix = 'scim_',
+        prefix = AuthTokenPrefix.SCIM,
     }: {
         user: SessionUser;
         tokenDetails: CreateServiceAccount;
@@ -165,7 +161,7 @@ export class ServiceAccountService extends BaseService {
         user,
         tokenUuid,
         update,
-        prefix = 'scim_',
+        prefix = AuthTokenPrefix.SCIM,
     }: {
         user: SessionUser;
         tokenUuid: string;

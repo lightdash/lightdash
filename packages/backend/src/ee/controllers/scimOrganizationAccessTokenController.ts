@@ -1,6 +1,7 @@
 import {
     ApiCreateScimServiceAccountRequest,
     ApiErrorPayload,
+    AuthTokenPrefix,
     ScimErrorPayload,
     ServiceAccount,
     ServiceAccountScope,
@@ -81,7 +82,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
                 organizationUuid: req.user?.organizationUuid as string,
                 scopes: SCIM_SCOPES,
             },
-            prefix: 'scim_',
+            prefix: AuthTokenPrefix.SCIM,
         });
         this.setStatus(201);
         return {
@@ -168,7 +169,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
                 user: req.user!,
                 tokenUuid,
                 update: body,
-                prefix: 'scim_',
+                prefix: AuthTokenPrefix.SCIM,
             }),
         };
     }
