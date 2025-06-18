@@ -84,10 +84,10 @@ const Login: FC<{}> = () => {
         isSuccess: loginOptionsSuccess,
     } = useFetchLoginOptions({
         email: preCheckEmail,
+        useQueryOptions: {
+            keepPreviousData: true,
+        },
     });
-    const [ssoOptions, setSsoOptions] = useState<OpenIdIdentityIssuerType[]>(
-        [],
-    );
 
     // Disable fetch once it has succeeded
     useEffect(() => {
@@ -95,14 +95,14 @@ const Login: FC<{}> = () => {
             if (loginOptions.forceRedirect && loginOptions.redirectUri) {
                 window.location.href = loginOptions.redirectUri;
             }
-            const ssoOptionsAvailable = loginOptions.showOptions.filter(
-                isOpenIdIdentityIssuerType,
-            ) as OpenIdIdentityIssuerType[];
-            if (ssoOptionsAvailable.length > 0) {
-                setSsoOptions(ssoOptionsAvailable);
-            }
         }
     }, [loginOptionsSuccess, loginOptions]);
+
+    const ssoOptions = loginOptions
+        ? (loginOptions.showOptions.filter(
+              isOpenIdIdentityIssuerType,
+          ) as OpenIdIdentityIssuerType[])
+        : [];
 
     // Delayed loading state - only show loading if request takes longer than 400ms
     const { start: startDelayedLoading, clear: clearDelayedLoading } =
