@@ -1,3 +1,10 @@
+# [0.1732.0](https://github.com/lightdash/lightdash/compare/0.1731.0...0.1732.0) (2025-06-18)
+
+
+### Features
+
+* dashboard chart tile download limit (is back!) ([#15427](https://github.com/lightdash/lightdash/issues/15427)) ([73ad562](https://github.com/lightdash/lightdash/commit/73ad5623477a958ddc405db6b3248b9fd0a5d4cb))
+
 # [0.1731.0](https://github.com/lightdash/lightdash/compare/0.1730.0...0.1731.0) (2025-06-18)
 
 
