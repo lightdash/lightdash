@@ -403,9 +403,6 @@ export class ExcelService {
                 },
             );
 
-            // Clean up temp file after successful upload
-            ExcelService.cleanupTempFile(tempFilePath);
-
             return {
                 fileUrl,
                 truncated,
@@ -414,9 +411,10 @@ export class ExcelService {
             Logger.error(
                 `Direct Excel export failed: ${getErrorMessage(error)}`,
             );
-            // Clean up temp file on error
-            ExcelService.cleanupTempFile(tempFilePath);
             throw error;
+        } finally {
+            // Always clean up temp file, regardless of success or failure
+            ExcelService.cleanupTempFile(tempFilePath);
         }
     }
 }
