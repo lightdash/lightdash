@@ -178,6 +178,28 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
+    @Delete('/{agentUuid}/threads/{threadUuid}')
+    @OperationId('deleteAgentThread')
+    async deleteAgentThread(
+        @Request() req: express.Request,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.getAiAgentService().deleteThread(
+            req.user!,
+            agentUuid,
+            threadUuid,
+        );
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/generate')
     @OperationId('startAgentThread')
     async createAgentThread(

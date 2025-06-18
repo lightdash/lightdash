@@ -770,6 +770,19 @@ export class AiAgentModel {
             );
     }
 
+    async deleteThread({
+        organizationUuid,
+        threadUuid,
+    }: {
+        organizationUuid: string;
+        threadUuid: string;
+    }): Promise<void> {
+        await this.database(AiThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .where('organization_uuid', organizationUuid)
+            .delete();
+    }
+
     async findThread(uuid: string): Promise<AiThread | undefined> {
         return this.database(AiThreadTableName)
             .select({

@@ -413,11 +413,21 @@ export const useAiAgentThreadMessageVizQuery = (args: {
     });
 };
 
-const updatePromptFeedback = async (messageUuid: string, humanScore: number) =>
+const updatePromptFeedback = async (
+    messageUuid: string,
+    humanScore: number,
+) =>
     lightdashApi<ApiSuccessEmpty>({
         url: `/aiAgents/messages/${messageUuid}/feedback`,
         method: 'PATCH',
         body: JSON.stringify({ humanScore }),
+    });
+
+const deleteAgentThread = async (agentUuid: string, threadUuid: string) =>
+    lightdashApi<ApiSuccessEmpty>({
+        url: `/aiAgents/${agentUuid}/threads/${threadUuid}`,
+        method: 'DELETE',
+        body: undefined,
     });
 
 export const useUpdatePromptFeedbackMutation = (
@@ -467,6 +477,37 @@ export const useUpdatePromptFeedbackMutation = (
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to submit feedback',
+                apiError: error,
+            });
+        },
+    });
+};
+
+export const useDeleteAgentThreadMutation = (agentUuid: string | undefined) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<ApiSuccessEmpty, ApiError, string>({
+        mutationFn: (threadUuid) =>
+            agentUuid
+                ? deleteAgentThread(agentUuid, threadUuid)
+                : Promise.reject(),
+        onSuccess: (_, threadUuid) => {
+            showToastSuccess({
+                title: 'Thread deleted successfully',
+            });
+            // Invalidate all thread-related queries to refresh the lists
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENTS_KEY, agentUuid, 'threads'],
+            });
+            // Remove the specific thread from cache
+            queryClient.removeQueries({
+                queryKey: [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to delete thread',
                 apiError: error,
             });
         },

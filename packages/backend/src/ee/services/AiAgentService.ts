@@ -453,6 +453,75 @@ export class AiAgentService {
         };
     }
 
+    async deleteThread(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        // Check if user has permission to delete this thread
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('AiAgentThread', {
+                    projectUuid: agent.projectUuid,
+                    userUuid: thread.user.uuid,
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to delete this thread',
+            );
+        }
+
+        await this.aiAgentModel.deleteThread({
+            organizationUuid,
+            threadUuid,
+        });
+
+        this.analytics.track({
+            event: 'ai_agent_thread.deleted',
+            userId: user.userUuid,
+            properties: {
+                agentId: agentUuid,
+                threadId: threadUuid,
+                organizationId: organizationUuid,
+                projectId: agent.projectUuid,
+                createdFrom: thread.createdFrom,
+                isOwner: thread.user.uuid === user.userUuid,
+            },
+        });
+    }
+
     public async createAgent(user: SessionUser, body: ApiCreateAiAgent) {
         const { organizationUuid } = user;
         if (!organizationUuid) {
