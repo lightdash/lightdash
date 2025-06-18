@@ -196,10 +196,10 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
     }
 
     /**
-     * Upload a file stream directly to S3
+     * Upload a file directly to S3 from a local file path
      * Useful for uploading pre-generated files like Excel files
      */
-    async uploadFileStream(
+    async uploadFile(
         fileName: string,
         filePath: string,
         options: {

@@ -324,6 +324,10 @@ export class CsvService extends BaseService {
 
         // Full pipeline - all streams connected with automatic backpressure
         return new Promise((resolve, reject) => {
+            // Write BOM before starting the pipeline
+            const bomBuffer = Buffer.from('\uFEFF', 'utf8');
+            writeStream.write(bomBuffer);
+
             pipeline(
                 readStream,
                 rowTransformer,
@@ -361,9 +365,11 @@ export class CsvService extends BaseService {
     ): Promise<{ truncated: boolean }> {
         return new Promise((resolve, reject) => {
             // Write CSV header with BOM immediately
-            writeStream.write(
-                `\uFEFF${csvHeader.map((h) => `"${h}"`).join(',')}\n`,
-            );
+            const headerWithBOM = Buffer.concat([
+                Buffer.from('\uFEFF', 'utf8'),
+                Buffer.from(`${csvHeader.join(',')}\n`, 'utf8'),
+            ]);
+            writeStream.write(headerWithBOM);
 
             let lineBuffer = '';
             let rowCount = 0;
@@ -533,8 +539,11 @@ export class CsvService extends BaseService {
     }): Promise<AttachmentUrl> {
         const fileId = CsvService.generateFileId(fileName, truncated);
         const filePath = `/tmp/${fileId}`;
-        const csvWithBOM = `\uFEFF${csvContent}`;
-        await fsPromise.writeFile(filePath, csvWithBOM, 'utf-8');
+        const csvWithBOM = Buffer.concat([
+            Buffer.from('\uFEFF', 'utf8'),
+            Buffer.from(csvContent, 'utf8'),
+        ]);
+        await fsPromise.writeFile(filePath, csvWithBOM);
 
         if (this.s3Client.isEnabled()) {
             const s3Url = await this.s3Client.uploadCsv(csvContent, fileId);

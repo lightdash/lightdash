@@ -26,6 +26,8 @@ import {
 } from '../../utils/FileDownloadUtils';
 
 export class ExcelService {
+    private static readonly EXCEL_ROW_LIMIT = 1_000_000;
+
     // Helper method for date/timestamp conversion
     private static convertToExcelDate(value: unknown): Date | unknown {
         if (typeof value === 'string') {
@@ -200,7 +202,7 @@ export class ExcelService {
         >({
             readStream,
             onRow: (parsedRow: Record<string, unknown>) => parsedRow, // Just collect all rows
-            maxLines: 1_000_000, // Excel limit - 1 million rows
+            maxLines: ExcelService.EXCEL_ROW_LIMIT,
         });
 
         if (rows.length === 0) {
@@ -209,7 +211,10 @@ export class ExcelService {
 
         const fileName =
             options.attachmentDownloadName || `pivot-${resultsFileName}`;
-        const formattedFileName = ExcelService.generateFileId(fileName);
+        const formattedFileName = ExcelService.generateFileId(
+            fileName,
+            truncated,
+        );
 
         const excelBuffer = await ExcelService.downloadPivotTableXlsx({
             rows,
@@ -261,7 +266,7 @@ export class ExcelService {
         fields: ItemsMap,
         onlyRaw: boolean,
         sortedFieldIds: string[],
-    ): Promise<number> {
+    ): Promise<{ truncated: boolean }> {
         const fileStream = fs.createWriteStream(tempFilePath);
         const workbook = new Excel.stream.xlsx.WorkbookWriter({
             stream: fileStream,
@@ -275,108 +280,54 @@ export class ExcelService {
             width: 15,
         }));
 
-        let rowCount = 0;
-        let lineBuffer = '';
+        let actualRowCount = 0;
 
-        // Process JSONL data line-by-line and stream to temp file
-        for await (const chunk of resultsStream) {
-            lineBuffer += chunk.toString();
-            const lines = lineBuffer.split('\n');
-            lineBuffer = lines.pop() || '';
+        // Use streamJsonlData for clean line processing with automatic truncation
+        const { truncated } = await streamJsonlData<void>({
+            readStream: resultsStream,
+            onRow: (parsedRow: Record<string, unknown>, lineCount: number) => {
+                // Convert row data for Excel
+                const rowData = ExcelService.convertRowToExcel(
+                    parsedRow,
+                    fields,
+                    onlyRaw,
+                    sortedFieldIds,
+                );
 
-            for (const line of lines) {
-                if (line.trim() === '') {
-                    // Skip empty lines
-                } else {
-                    try {
-                        const parsedRow = JSON.parse(line);
-                        if (parsedRow && typeof parsedRow === 'object') {
-                            rowCount += 1;
+                if (Array.isArray(rowData) && rowData.length > 0) {
+                    actualRowCount += 1;
 
-                            // Convert row data for Excel
-                            const rowData = ExcelService.convertRowToExcel(
-                                parsedRow,
-                                fields,
-                                onlyRaw,
-                                sortedFieldIds,
-                            );
-
-                            if (Array.isArray(rowData) && rowData.length > 0) {
-                                // Stream directly to Excel temp file
-                                const rowObject: Record<
-                                    string,
-                                    string | number | Date | null
-                                > = {};
-                                rowData.forEach(
-                                    (
-                                        value: string | number | Date | null,
-                                        colIndex: number,
-                                    ) => {
-                                        rowObject[`col_${colIndex}`] = value;
-                                    },
-                                );
-
-                                const row = worksheet.addRow(rowObject);
-                                row.commit();
-                            } else {
-                                Logger.warn(
-                                    `Invalid row data on row ${rowCount}, skipping`,
-                                );
-                            }
-                        }
-                    } catch (error) {
-                        Logger.error(
-                            `Error parsing JSON line: ${getErrorMessage(
-                                error,
-                            )}`,
-                        );
-                    }
-                }
-            }
-        }
-
-        // Process any remaining buffered line
-        if (lineBuffer.trim()) {
-            try {
-                const parsedRow = JSON.parse(lineBuffer);
-                if (parsedRow && typeof parsedRow === 'object') {
-                    rowCount += 1;
-                    const rowData = ExcelService.convertRowToExcel(
-                        parsedRow,
-                        fields,
-                        onlyRaw,
-                        sortedFieldIds,
+                    // Stream directly to Excel temp file
+                    const rowObject: Record<
+                        string,
+                        string | number | Date | null
+                    > = {};
+                    rowData.forEach(
+                        (
+                            value: string | number | Date | null,
+                            colIndex: number,
+                        ) => {
+                            rowObject[`col_${colIndex}`] = value;
+                        },
                     );
 
-                    if (Array.isArray(rowData) && rowData.length > 0) {
-                        const rowObject: Record<
-                            string,
-                            string | number | Date | null
-                        > = {};
-                        rowData.forEach(
-                            (
-                                value: string | number | Date | null,
-                                colIndex: number,
-                            ) => {
-                                rowObject[`col_${colIndex}`] = value;
-                            },
-                        );
-                        const row = worksheet.addRow(rowObject);
-                        row.commit();
-                    }
+                    const row = worksheet.addRow(rowObject);
+                    row.commit();
+                } else {
+                    Logger.warn(
+                        `Invalid row data on row ${lineCount}, skipping`,
+                    );
                 }
-            } catch (error) {
-                Logger.error(
-                    `Error parsing final line: ${getErrorMessage(error)}`,
-                );
-            }
-        }
+                // Return void since we're processing rows directly
+            },
+            maxLines: ExcelService.EXCEL_ROW_LIMIT,
+        });
 
         // Commit Excel to temp file
         worksheet.commit();
         await workbook.commit();
 
-        return rowCount;
+        return { truncated };
     }
 
     /**
@@ -396,9 +347,6 @@ export class ExcelService {
             attachmentDownloadName?: string;
         } = {},
     ): Promise<{ fileUrl: string; truncated: boolean }> {
-        // Generate a unique filename
-        const formattedFileName = ExcelService.generateFileId(resultsFileName);
-
         // Handle column ordering and filtering
         const {
             onlyRaw = false,
@@ -427,7 +375,7 @@ export class ExcelService {
             );
 
             // Step 2: Stream JSONL data to Excel temp file
-            const rowCount = await ExcelService.streamJsonlToExcelFile(
+            const { truncated } = await ExcelService.streamJsonlToExcelFile(
                 resultsStream,
                 tempFilePath,
                 headers,
@@ -436,10 +384,14 @@ export class ExcelService {
                 sortedFieldIds,
             );
 
-            Logger.debug(`Processed ${rowCount} rows for Excel export`);
+            // Generate filename with truncated flag
+            const formattedFileName = ExcelService.generateFileId(
+                resultsFileName,
+                truncated,
+            );
 
             // Step 3: Stream temp file directly to S3 (no memory spike!)
-            const fileUrl = await storageClient.uploadFileStream(
+            const fileUrl = await storageClient.uploadFile(
                 formattedFileName,
                 tempFilePath,
                 {
@@ -456,7 +408,7 @@ export class ExcelService {
 
             return {
                 fileUrl,
-                truncated: false,
+                truncated,
             };
         } catch (error) {
             Logger.error(
