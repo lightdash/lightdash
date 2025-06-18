@@ -36,7 +36,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         : undefined;
     const headers = {
         'Content-Type': 'application/json',
-        Authorization: `ApiKey ${config.context.apiKey}`,
+        Authorization: `Bearer ${config.context.apiKey}`,
         [LightdashRequestMethodHeader]:
             process.env.CI === 'true'
                 ? RequestMethod.CLI_CI

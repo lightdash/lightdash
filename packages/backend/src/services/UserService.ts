@@ -37,6 +37,7 @@ import {
     ParameterError,
     PasswordReset,
     RegisterOrActivateUser,
+    SessionLightdashUser,
     SessionUser,
     SnowflakeAuthenticationType,
     UpdateUserArgs,
@@ -873,6 +874,9 @@ export class UserService extends BaseService {
         openIdUser: OpenIdUser,
         refreshToken?: string,
     ): Promise<SessionUser> {
+        if (sessionUser.accountType === 'serviceAccount') {
+            throw new ForbiddenError('Service accounts cannot link identities');
+        }
         await this.openIdIdentityModel.createIdentity({
             userId: sessionUser.userId,
             issuer: openIdUser.openId.issuer,
@@ -996,7 +1000,7 @@ export class UserService extends BaseService {
 
     async getLinkedIdentities({
         userId,
-    }: Pick<SessionUser, 'userId'>): Promise<
+    }: Pick<SessionLightdashUser, 'userId'>): Promise<
         Record<OpenIdIdentitySummary['issuerType'], OpenIdIdentitySummary[]>
     > {
         return this.openIdIdentityModel.getIdentitiesByUserId(userId);
@@ -1006,6 +1010,12 @@ export class UserService extends BaseService {
         user: SessionUser,
         openIdentity: DeleteOpenIdentity,
     ): Promise<void> {
+        if (user.accountType === 'serviceAccount') {
+            throw new ForbiddenError(
+                'Service accounts cannot delete linked identities',
+            );
+        }
+
         const userIdentity = await this.openIdIdentityModel.getIdentity(
             user.userId,
             openIdentity.issuer,
@@ -1114,6 +1124,11 @@ export class UserService extends BaseService {
                 data.newPassword,
             );
         } else {
+            if (user.accountType === 'serviceAccount') {
+                throw new ForbiddenError(
+                    'Service accounts cannot create passwords',
+                );
+            }
             await this.userModel.createPassword(user.userId, data.newPassword);
         }
         this.analytics.track({

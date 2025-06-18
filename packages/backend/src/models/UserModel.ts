@@ -565,6 +565,7 @@ export class UserModel {
             userId: user.user_id,
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
+            accountType: 'user',
             ...lightdashUser,
         };
     }
@@ -727,6 +728,7 @@ export class UserModel {
             userId: user.user_id,
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
+            accountType: 'user',
         };
     }
 
@@ -770,6 +772,7 @@ export class UserModel {
             userId: user.user_id,
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
+            accountType: 'user',
         };
     }
 
@@ -809,13 +812,14 @@ export class UserModel {
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
             userId: user.user_id,
+            accountType: 'user',
         };
     }
 
     static lightdashUserFromSession(
         sessionUser: SessionUser,
     ): LightdashUserWithAbilityRules {
-        const { userId, ability, ...lightdashUser } = sessionUser;
+        const { ability, ...lightdashUser } = sessionUser;
         return lightdashUser;
     }
 
@@ -836,6 +840,10 @@ export class UserModel {
             throw new ParameterError("Password doesn't meet requirements");
         }
         const user = await this.findSessionUserByUUID(userUuid);
+        if (user.accountType === 'serviceAccount') {
+            throw new ForbiddenError('Service accounts cannot upsertPassword');
+        }
+
         await this.database(PasswordLoginTableName)
             .insert({
                 user_id: user.userId,
@@ -889,6 +897,7 @@ export class UserModel {
                 pat: this.lightdashConfig.auth.pat,
             },
         });
+
         return {
             user: {
                 ...mapDbUserDetailsToLightdashUser(
@@ -898,6 +907,7 @@ export class UserModel {
                 abilityRules: abilityBuilder.rules,
                 ability: abilityBuilder.build(),
                 userId: row.user_id,
+                accountType: 'user',
             },
             personalAccessToken:
                 PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),

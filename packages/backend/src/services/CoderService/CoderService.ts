@@ -891,6 +891,11 @@ export class CoderService extends BaseService {
         let parentSpaceUuid = closestAncestorSpaceUuid;
         let parentPath = closestAncestorSpace?.path ?? '';
         const newSpaces: Space[] = [];
+
+        if (user.accountType === 'serviceAccount') {
+            throw new ForbiddenError('Service accounts cannot create spaces');
+        }
+
         for await (const currentPath of remainingPath) {
             if (!parentPath) {
                 parentPath = currentPath;

@@ -68,6 +68,7 @@ import express from 'express';
 import type { DbTagUpdate } from '../database/entities/tags';
 import {
     allowApiKeyAuthentication,
+    allowServiceAccountAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -306,7 +307,11 @@ export class ProjectController extends BaseController {
     /**
      * List group access for projects
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowServiceAccountAuthentication,
+        allowApiKeyAuthentication,
+        isAuthenticated,
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/groupAccesses')
     @OperationId('GetProjectGroupAccesses')

@@ -3,6 +3,7 @@ import {
     NotFoundError,
     PersonalAccessToken,
     PersonalAccessTokenWithToken,
+    SessionLightdashUser,
     SessionUser,
     UnexpectedDatabaseError,
 } from '@lightdash/common';
@@ -107,7 +108,7 @@ export class PersonalAccessTokenModel {
     Generates a new token and saves it
     */
     async create(
-        user: Pick<SessionUser, 'userId'>,
+        user: Pick<SessionLightdashUser, 'userId'>,
         data: CreatePersonalAccessToken,
     ): Promise<PersonalAccessTokenWithToken> {
         const token = crypto.randomBytes(16).toString('hex');
@@ -122,7 +123,7 @@ export class PersonalAccessTokenModel {
     it might be provided by the user, or generated automatically on this.create
     */
     async save(
-        user: Pick<SessionUser, 'userId'>,
+        user: Pick<SessionLightdashUser, 'userId'>,
         data: CreatePersonalAccessToken & { token: string },
     ): Promise<PersonalAccessTokenWithToken> {
         const tokenHash = PersonalAccessTokenModel._hash(data.token);

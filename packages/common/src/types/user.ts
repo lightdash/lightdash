@@ -42,8 +42,16 @@ export interface LightdashUserWithAbilityRules extends LightdashUser {
     abilityRules: AbilityBuilder<MemberAbility>['rules'];
 }
 
-export interface SessionUser extends LightdashUserWithAbilityRules {
+export type SessionUser = SessionLightdashUser | SessionServiceAccount;
+
+export interface SessionLightdashUser extends LightdashUserWithAbilityRules {
     userId: number;
+    accountType: 'user';
+    ability: MemberAbility;
+}
+
+export interface SessionServiceAccount extends LightdashUserWithAbilityRules {
+    accountType: 'serviceAccount';
     ability: MemberAbility;
 }
 

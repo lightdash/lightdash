@@ -1,6 +1,6 @@
 import { type ScimSchemaType, type ServiceAccount } from '..';
 
-export type SessionServiceAccount = {
+export type SessionScim = {
     organizationUuid: string;
 };
 

@@ -345,6 +345,10 @@ describe('UserService', () => {
             );
         });
         test('should link openid with authenticated user', async () => {
+            if (authenticatedUser.accountType === 'serviceAccount') {
+                throw new Error('Service accounts cannot link identities');
+            }
+
             await userService.loginWithOpenId(
                 openIdUser,
                 authenticatedUser,
@@ -369,6 +373,10 @@ describe('UserService', () => {
             );
         });
         test('should link openid to an existing user that has another OIDC with the same email', async () => {
+            if (sessionUser.accountType === 'serviceAccount') {
+                throw new Error('Service accounts cannot link identities');
+            }
+
             const service = createUserService({
                 ...lightdashConfigMock,
                 auth: {
@@ -396,6 +404,10 @@ describe('UserService', () => {
             );
         });
         test('should link openid to an existing user that has the same verified email', async () => {
+            if (sessionUser.accountType === 'serviceAccount') {
+                throw new Error('Service accounts cannot link identities');
+            }
+
             const service = createUserService({
                 ...lightdashConfigMock,
                 auth: {

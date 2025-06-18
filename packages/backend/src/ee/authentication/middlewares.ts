@@ -2,7 +2,10 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     AuthorizationError,
     getErrorMessage,
+    OrganizationMemberRole,
     ScimError,
+    ServiceAccountScope,
+    SessionServiceAccount,
 } from '@lightdash/common';
 import { applyServiceAccountAbilities } from '@lightdash/common/src/authorization/serviceAccountAbility';
 import { type MemberAbility } from '@lightdash/common/src/authorization/types';
@@ -57,6 +60,18 @@ export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
             }),
         );
     }
+};
+
+// Authentication will be handled on casl ability checks
+// However, we need the role for some functions on the service
+const getRoleByScopes = (scopes: ServiceAccountScope[]) => {
+    if (
+        scopes.includes(ServiceAccountScope.SCIM_MANAGE) ||
+        scopes.includes(ServiceAccountScope.ORG_ADMIN)
+    ) {
+        return OrganizationMemberRole.ADMIN;
+    }
+    return OrganizationMemberRole.VIEWER;
 };
 
 // Middleware to extract service account and check scopes
@@ -114,8 +129,9 @@ export const authenticateServiceAccount: RequestHandler = async (
             .getOrganizationService()
             .getOrganizationByUuid(serviceAccount.organizationUuid);
 
-        req.user = {
+        const sessionServiceAccount: SessionServiceAccount = {
             userUuid: serviceAccount.uuid,
+            accountType: 'serviceAccount',
             email: 'service-account@lightdash.com',
             firstName: 'service account',
             lastName: serviceAccount.description,
@@ -125,14 +141,14 @@ export const authenticateServiceAccount: RequestHandler = async (
             isTrackingAnonymized: false,
             isMarketingOptedIn: false,
             isSetupComplete: true,
-            userId: 0,
-            role: undefined,
+            role: getRoleByScopes(serviceAccount.scopes),
             ability: builder.build(),
             isActive: true,
             abilityRules: builder.rules,
             createdAt: serviceAccount.createdAt,
             updatedAt: serviceAccount.createdAt,
         };
+        req.user = sessionServiceAccount;
         next();
     } catch (error) {
         next(new AuthorizationError(getErrorMessage(error)));

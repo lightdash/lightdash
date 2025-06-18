@@ -14,6 +14,7 @@ import {
     CreateColorPalette,
     CreateGroup,
     CreateOrganization,
+    ForbiddenError,
     KnexPaginateArgs,
     OrganizationMemberProfileUpdate,
     UpdateAllowedEmailDomains,
@@ -40,6 +41,7 @@ import {
 import express from 'express';
 import {
     allowApiKeyAuthentication,
+    allowServiceAccountAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -87,6 +89,11 @@ export class OrganizationController extends BaseController {
         const sessionUser = await req.services
             .getUserService()
             .getSessionByUserUuid(req.user!.userUuid);
+        if (sessionUser.accountType === 'serviceAccount') {
+            throw new ForbiddenError(
+                'Service accounts cannot create organizations',
+            );
+        }
         await new Promise<void>((resolve, reject) => {
             req.login(sessionUser, (err) => {
                 if (err) {
@@ -156,7 +163,11 @@ export class OrganizationController extends BaseController {
      * Gets all projects of the current user's organization
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowServiceAccountAuthentication,
+        allowApiKeyAuthentication,
+        isAuthenticated,
+    ])
     @Get('/projects')
     @OperationId('ListOrganizationProjects')
     async getProjects(

@@ -10,9 +10,13 @@ import {
     SessionServiceAccount,
     LightdashVersionHeader,
     SessionUser,
+    SessionLightdashUser,
     UnexpectedServerError,
     InvalidUser,
     ServiceAccount,
+    MemberAbility,
+    LightdashUser,
+    LightdashUserWithAbilityRules,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
@@ -29,6 +33,7 @@ import reDoc from 'redoc-express';
 import { URL } from 'url';
 import cors from 'cors';
 import { produce } from 'immer';
+import { AbilityBuilder } from '@casl/ability';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import {
     ClientProviderMap,
@@ -88,7 +93,7 @@ declare global {
             clients: ClientRepository;
         }
 
-        interface User extends SessionUser {}
+        interface User extends SessionLightdashUser, SessionServiceAccount {}
     }
 }
 
