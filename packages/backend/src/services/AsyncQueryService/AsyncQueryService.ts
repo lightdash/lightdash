@@ -2545,7 +2545,7 @@ export class AsyncQueryService extends ProjectService {
             tileUuid,
             dashboardFilters,
             dashboardSorts,
-            limit,
+            limit: limit ?? savedChart.limit,
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
