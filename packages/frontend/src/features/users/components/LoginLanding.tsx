@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 
 import {
     getEmailSchema,
@@ -7,6 +7,7 @@ import {
     LocalIssuerTypes,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
+    type OpenIdIdentityIssuerType,
 } from '@lightdash/common';
 
 import {
@@ -23,6 +24,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
 import { Navigate, useLocation } from 'react-router';
 import { z } from 'zod';
@@ -83,6 +85,9 @@ const Login: FC<{}> = () => {
     } = useFetchLoginOptions({
         email: preCheckEmail,
     });
+    const [ssoOptions, setSsoOptions] = useState<OpenIdIdentityIssuerType[]>(
+        [],
+    );
 
     // Disable fetch once it has succeeded
     useEffect(() => {
@@ -90,29 +95,33 @@ const Login: FC<{}> = () => {
             if (loginOptions.forceRedirect && loginOptions.redirectUri) {
                 window.location.href = loginOptions.redirectUri;
             }
+            const ssoOptionsAvailable = loginOptions.showOptions.filter(
+                isOpenIdIdentityIssuerType,
+            ) as OpenIdIdentityIssuerType[];
+            if (ssoOptionsAvailable.length > 0) {
+                setSsoOptions(ssoOptionsAvailable);
+            }
         }
     }, [loginOptionsSuccess, loginOptions]);
 
     // Delayed loading state - only show loading if request takes longer than 400ms
+    const { start: startDelayedLoading, clear: clearDelayedLoading } =
+        useTimeout(() => setShowDelayedLoading(true), 400);
+
     useEffect(() => {
-        let timeoutId: NodeJS.Timeout;
-
         if (isInitialLoadingLoginOptions) {
-            // Set a timer to show loading after 400ms
-            timeoutId = setTimeout(() => {
-                setShowDelayedLoading(true);
-            }, 400);
+            // Start timer to show loading after 400ms
+            startDelayedLoading();
         } else {
-            // Request completed, hide loading immediately
+            // Request completed, hide loading immediately and clear timer
             setShowDelayedLoading(false);
+            clearDelayedLoading();
         }
-
-        return () => {
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-            }
-        };
-    }, [isInitialLoadingLoginOptions]);
+    }, [
+        isInitialLoadingLoginOptions,
+        startDelayedLoading,
+        clearDelayedLoading,
+    ]);
 
     const { mutate, isLoading, isSuccess, isIdle } = useLoginWithEmailMutation({
         onSuccess: (data) => {
@@ -170,26 +179,6 @@ const Login: FC<{}> = () => {
         (loginOptionsSuccess && loginOptions.forceRedirect === true) ||
         isLoading ||
         isSuccess;
-
-    const ssoOptions = useMemo(() => {
-        if (!loginOptions) {
-            return [];
-        }
-        return loginOptions.showOptions.filter(isOpenIdIdentityIssuerType);
-    }, [loginOptions]);
-
-    // Preserve SSO options during loading to prevent flickering
-    const [preservedSsoOptions, setPreservedSsoOptions] = useState<string[]>(
-        [],
-    );
-    useEffect(() => {
-        if (ssoOptions.length > 0) {
-            setPreservedSsoOptions(ssoOptions);
-        }
-    }, [ssoOptions]);
-
-    const displaySsoOptions =
-        ssoOptions.length > 0 ? ssoOptions : preservedSsoOptions;
 
     if (health.isInitialLoading || isDemo) {
         return <PageSpinner />;
@@ -283,7 +272,7 @@ const Login: FC<{}> = () => {
                                 Continue
                             </Button>
                         )}
-                        {displaySsoOptions.length > 0 && (
+                        {ssoOptions.length > 0 && (
                             <>
                                 {(isEmailLoginAvailable ||
                                     formStage === 'precheck') && (
@@ -302,7 +291,7 @@ const Login: FC<{}> = () => {
                                     />
                                 )}
                                 <Stack>
-                                    {displaySsoOptions.map((providerName) => (
+                                    {ssoOptions.map((providerName) => (
                                         <ThirdPartySignInButton
                                             key={providerName}
                                             providerName={providerName}
