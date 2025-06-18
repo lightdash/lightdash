@@ -18,6 +18,7 @@ import { IconTableExport } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { memo, useState, type FC, type ReactNode } from 'react';
 
+import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
 import { downloadQuery } from '../../hooks/useQueryResults';
 import useUser from '../../hooks/user/useUser';
@@ -70,6 +71,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
             useToaster();
 
         const user = useUser(true);
+        const health = useHealth();
         const [limit, setLimit] = useState<string>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
         const [format, setFormat] = useState<string>(Values.FORMATTED);
@@ -148,6 +150,13 @@ const ExportResults: FC<ExportResultsProps> = memo(
         if (!totalResults || totalResults <= 0) {
             return <Alert color="gray">No data to export</Alert>;
         }
+
+        // Calculate pivot table specific limits
+        const csvCellsLimit = health.data?.query?.csvCellsLimit || 100000;
+        const maxColumnLimit = health.data?.pivotTable?.maxColumnLimit || 60;
+
+        // For pivot tables, calculate conservative row limits
+        const isPivotTable = !!pivotConfig;
 
         return (
             <Box>
@@ -239,9 +248,22 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                     }
                                 />
                             )}
+                            {/* Pivot table specific warnings */}
+                            {isPivotTable && (
+                                <Alert color="gray" p="xs">
+                                    <Text size="xs">
+                                        Pivot exports are limited to{' '}
+                                        {csvCellsLimit.toLocaleString()} cells
+                                        and {maxColumnLimit} columns.
+                                    </Text>
+                                </Alert>
+                            )}
+
+                            {/* Excel row limit warning */}
                             {fileType === DownloadFileType.XLSX &&
                                 (limit === Limit.ALL ||
-                                    limit === Limit.CUSTOM) && (
+                                    limit === Limit.CUSTOM) &&
+                                !isPivotTable && (
                                     <Alert color="gray.9" p="xs">
                                         <Text size="xs">
                                             Excel exports are limited to

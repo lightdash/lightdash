@@ -1504,20 +1504,37 @@ This method can be memory intensive
             pivotConfig,
         } = options;
 
-        // Load all rows from the results file using shared streaming utility
+        // Load rows from the results file using shared streaming utility
+        // Use the same logic as regular CSV exports - respect csvCellsLimit with field count
         const readStream = await storageClient.getDowloadStream(
             resultsFileName,
         );
+
+        const fieldCount = Object.keys(fields).length;
+        const cellsLimit = this.lightdashConfig.query?.csvCellsLimit || 100000;
+
+        // Use standard csvCellsLimit calculation - same as original downloadPivotTableCsv
+        const maxRows = Math.floor(cellsLimit / fieldCount);
+
         const { results: rows, truncated } = await streamJsonlData<
             Record<string, unknown>
         >({
             readStream,
             onRow: (parsedRow: Record<string, unknown>) => parsedRow, // Just collect all rows
-            // No maxLines limit for CSV - can handle millions of rows
+            maxLines: maxRows, // Use standard csvCellsLimit logic
         });
 
         if (rows.length === 0) {
             throw new Error('No data found in results file');
+        }
+
+        // Use same truncation logic as original downloadPivotTableCsv
+        const finalTruncated = truncated || this.couldBeTruncated(rows);
+
+        if (finalTruncated) {
+            Logger.warn(
+                `Pivot CSV export truncated: loaded ${rows.length} rows (csvCellsLimit: ${cellsLimit}, fieldCount: ${fieldCount})`,
+            );
         }
 
         const fileName =
@@ -1532,13 +1549,13 @@ This method can be memory intensive
             pivotConfig,
             exploreId: metricQuery.exploreName || 'explore',
             onlyRaw,
-            truncated,
+            truncated: finalTruncated,
             customLabels,
         });
 
         return {
             fileUrl: attachmentUrl.path,
-            truncated,
+            truncated: finalTruncated,
         };
     }
 }
