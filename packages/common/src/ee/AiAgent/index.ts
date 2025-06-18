@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type {
     AnyType,
     ApiExecuteAsyncMetricQueryResults,
+    ApiSuccess,
     ApiSuccessEmpty,
     CacheMetadata,
     ItemsMap,
@@ -233,10 +234,10 @@ export * from './filterExploreByTags';
 export type AiAgentUserPreferences = {
     defaultAgentUuid: AiAgent['uuid'];
 };
-export type ApiGetUserAgentPreferencesResponse = {
-    status: 'ok';
-    results: AiAgentUserPreferences | null;
-};
+
+export type ApiGetUserAgentPreferencesResponse =
+    | ApiSuccess<AiAgentUserPreferences>
+    | ApiSuccessEmpty;
 
 export type ApiUpdateUserAgentPreferences = AiAgentUserPreferences;
 

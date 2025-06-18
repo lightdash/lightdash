@@ -122,6 +122,8 @@ import type {
     ApiAiConversationMessages,
     ApiAiConversationResponse,
     ApiAiConversations,
+    ApiGetUserAgentPreferencesResponse,
+    ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
     EmbedUrl,
 } from './ee';
@@ -913,7 +915,9 @@ type ApiResults =
     | ApiDownloadAsyncQueryResultsAsXlsx
     | ApiAiAgentThreadResponse['results']
     | ApiAiAgentThreadMessageVizResponse['results']
-    | ApiAiAgentThreadMessageVizQueryResponse['results'];
+    | ApiAiAgentThreadMessageVizQueryResponse['results']
+    | ApiUpdateUserAgentPreferencesResponse['results']
+    | ApiGetUserAgentPreferencesResponse[`results`];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
