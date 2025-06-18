@@ -59,7 +59,8 @@ const Login: FC<{}> = () => {
     }, [flashMessages.data, showToastError]);
 
     const [preCheckEmail, setPreCheckEmail] = useState<string>();
-    const [showDelayedState, setShowDelayedState] = useState(false);
+    const [isLoginOptionsLoadingDebounced, setIsLoginOptionsLoadingDebounced] =
+        useState(false);
 
     const redirectUrl = location.state?.from
         ? `${location.state.from.pathname}${location.state.from.search}`
@@ -79,6 +80,7 @@ const Login: FC<{}> = () => {
 
     const {
         data: loginOptions,
+        isInitialLoading: isInitialLoadingLoginOptions,
         isLoading: loginOptionsLoading,
         isSuccess: loginOptionsSuccess,
     } = useFetchLoginOptions({
@@ -105,7 +107,7 @@ const Login: FC<{}> = () => {
 
     // Delayed loading state - only show loading if request takes longer than 400ms
     const { start: startDelayedState, clear: clearDelayedState } = useTimeout(
-        () => setShowDelayedState(true),
+        () => setIsLoginOptionsLoadingDebounced(true),
         400,
     );
 
@@ -115,7 +117,7 @@ const Login: FC<{}> = () => {
             startDelayedState();
         } else {
             // Request completed, hide loading/disabled immediately and clear timer
-            setShowDelayedState(false);
+            setIsLoginOptionsLoadingDebounced(false);
             clearDelayedState();
         }
     }, [loginOptionsLoading, startDelayedState, clearDelayedState]);
@@ -163,13 +165,13 @@ const Login: FC<{}> = () => {
         }
     }, [form.values, formStage, isEmailLoginAvailable, mutate]);
 
-    const isInLoadingState =
-        showDelayedState ||
+    const isFormLoading =
+        isLoginOptionsLoadingDebounced ||
         (loginOptionsSuccess && loginOptions.forceRedirect === true) ||
         isLoading ||
         isSuccess;
 
-    if (health.isInitialLoading || isDemo) {
+    if (health.isInitialLoading || isDemo || isInitialLoadingLoginOptions) {
         return <PageSpinner />;
     }
     if (health.status === 'success' && health.data?.requiresOrgRegistration) {
@@ -210,7 +212,7 @@ const Login: FC<{}> = () => {
                             placeholder="Your email address"
                             required
                             {...form.getInputProps('email')}
-                            disabled={isInLoadingState}
+                            disabled={isFormLoading}
                             rightSection={
                                 preCheckEmail ? (
                                     <ActionIcon
@@ -236,15 +238,15 @@ const Login: FC<{}> = () => {
                                     required
                                     autoFocus
                                     {...form.getInputProps('password')}
-                                    disabled={isInLoadingState}
+                                    disabled={isFormLoading}
                                 />
                                 <Anchor href="/recover-password" mx="auto">
                                     Forgot your password?
                                 </Anchor>
                                 <Button
                                     type="submit"
-                                    loading={isInLoadingState}
-                                    disabled={isInLoadingState}
+                                    loading={isFormLoading}
+                                    disabled={isFormLoading}
                                     data-cy="signin-button"
                                 >
                                     Sign in
@@ -254,8 +256,8 @@ const Login: FC<{}> = () => {
                         {formStage === 'precheck' && (
                             <Button
                                 type="submit"
-                                loading={isInLoadingState}
-                                disabled={isInLoadingState}
+                                loading={isFormLoading}
+                                disabled={isFormLoading}
                                 data-cy="signin-button"
                             >
                                 Continue
@@ -285,7 +287,7 @@ const Login: FC<{}> = () => {
                                             key={providerName}
                                             providerName={providerName}
                                             redirect={redirectUrl}
-                                            disabled={isInLoadingState}
+                                            disabled={isFormLoading}
                                         />
                                     ))}
                                 </Stack>
