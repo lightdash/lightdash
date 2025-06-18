@@ -193,20 +193,34 @@ export class ExcelService {
     }): Promise<{ fileUrl: string; truncated: boolean }> {
         const { onlyRaw, customLabels, pivotConfig } = options;
 
-        // Load all rows from the results file using shared streaming utility
+        // Load rows from the results file using shared streaming utility
+        // For pivot tables, we need to use csvCellsLimit to prevent memory issues
         const readStream = await storageClient.getDowloadStream(
             resultsFileName,
         );
+
+        const fieldCount = Object.keys(fields).length;
+        const cellsLimit = lightdashConfig.query?.csvCellsLimit || 100000;
+
+        // Use standard csvCellsLimit calculation - same as original downloadPivotTableCsv
+        const maxRows = Math.floor(cellsLimit / fieldCount);
+
         const { results: rows, truncated } = await streamJsonlData<
             Record<string, unknown>
         >({
             readStream,
             onRow: (parsedRow: Record<string, unknown>) => parsedRow, // Just collect all rows
-            maxLines: ExcelService.EXCEL_ROW_LIMIT,
+            maxLines: maxRows, // Use standard csvCellsLimit logic
         });
 
         if (rows.length === 0) {
             throw new Error('No data found in results file');
+        }
+
+        if (truncated) {
+            Logger.warn(
+                `Pivot Excel export truncated: loaded ${rows.length} rows (csvCellsLimit: ${cellsLimit}, fieldCount: ${fieldCount})`,
+            );
         }
 
         const fileName =
