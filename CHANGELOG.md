@@ -1,3 +1,10 @@
+## [0.1734.1](https://github.com/lightdash/lightdash/compare/0.1734.0...0.1734.1) (2025-06-18)
+
+
+### Bug Fixes
+
+* include chart names in error messages ([#15251](https://github.com/lightdash/lightdash/issues/15251)) ([#15348](https://github.com/lightdash/lightdash/issues/15348)) ([44c4719](https://github.com/lightdash/lightdash/commit/44c4719216b8a725afd54c0d001830745c7a6484))
+
 # [0.1734.0](https://github.com/lightdash/lightdash/compare/0.1733.0...0.1734.0) (2025-06-18)
 
 
