@@ -60,6 +60,7 @@ const Login: FC<{}> = () => {
 
     const [preCheckEmail, setPreCheckEmail] = useState<string>();
     const [showDelayedLoading, setShowDelayedLoading] = useState(false);
+    const [showDelayedDisabled, setShowDelayedDisabled] = useState(false);
 
     const redirectUrl = location.state?.from
         ? `${location.state.from.pathname}${location.state.from.search}`
@@ -79,7 +80,6 @@ const Login: FC<{}> = () => {
 
     const {
         data: loginOptions,
-        isInitialLoading: isInitialLoadingLoginOptions,
         isLoading: loginOptionsLoading,
         isSuccess: loginOptionsSuccess,
     } = useFetchLoginOptions({
@@ -106,22 +106,22 @@ const Login: FC<{}> = () => {
 
     // Delayed loading state - only show loading if request takes longer than 400ms
     const { start: startDelayedLoading, clear: clearDelayedLoading } =
-        useTimeout(() => setShowDelayedLoading(true), 400);
+        useTimeout(() => {
+            setShowDelayedLoading(true);
+            setShowDelayedDisabled(true);
+        }, 400);
 
     useEffect(() => {
-        if (isInitialLoadingLoginOptions) {
-            // Start timer to show loading after 400ms
+        if (loginOptionsLoading) {
+            // Start timer to show loading/disabled after 400ms
             startDelayedLoading();
         } else {
-            // Request completed, hide loading immediately and clear timer
+            // Request completed, hide loading/disabled immediately and clear timer
             setShowDelayedLoading(false);
+            setShowDelayedDisabled(false);
             clearDelayedLoading();
         }
-    }, [
-        isInitialLoadingLoginOptions,
-        startDelayedLoading,
-        clearDelayedLoading,
-    ]);
+    }, [loginOptionsLoading, startDelayedLoading, clearDelayedLoading]);
 
     const { mutate, isLoading, isSuccess, isIdle } = useLoginWithEmailMutation({
         onSuccess: (data) => {
@@ -167,15 +167,13 @@ const Login: FC<{}> = () => {
     }, [form.values, formStage, isEmailLoginAvailable, mutate]);
 
     const disableControls =
-        isInitialLoadingLoginOptions ||
-        loginOptionsLoading ||
+        showDelayedDisabled ||
         (loginOptionsSuccess && loginOptions.forceRedirect === true) ||
         isLoading ||
         isSuccess;
 
     const showButtonLoading =
         showDelayedLoading ||
-        loginOptionsLoading ||
         (loginOptionsSuccess && loginOptions.forceRedirect === true) ||
         isLoading ||
         isSuccess;
