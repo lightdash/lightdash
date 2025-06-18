@@ -93,6 +93,7 @@ import {
     ReferenceMap,
 } from '../../queryBuilder';
 import { wrapSentryTransaction } from '../../utils';
+import { processFieldsForExport } from '../../utils/FileDownloadUtils';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
@@ -829,23 +830,19 @@ export class AsyncQueryService extends ProjectService {
                         },
                     });
                 }
-                return this.downloadAsyncQueryResultsAsFormattedFile(
+                // Use direct Excel export to bypass PassThrough + Upload hanging issues
+                return ExcelService.downloadAsyncExcelDirectly(
                     resultsFileName,
                     resultFields,
-                    {
-                        generateFileId: ExcelService.generateFileId,
-                        streamJsonlRowsToFile:
-                            ExcelService.streamJsonlRowsToFile,
-                    },
+                    this.storageClient,
                     {
                         onlyRaw,
                         showTableNames,
                         customLabels,
                         columnOrder,
                         hiddenFields,
-                        pivotConfig,
+                        attachmentDownloadName,
                     },
-                    attachmentDownloadName,
                 );
             case undefined:
             case DownloadFileType.JSONL:
@@ -899,33 +896,12 @@ export class AsyncQueryService extends ProjectService {
             hiddenFields = [],
         } = options || {};
 
-        // Filter out hidden fields and apply column ordering
-        const availableFieldIds = Object.keys(fields).filter(
-            (id) => !hiddenFields.includes(id),
-        );
-        const sortedFieldIds =
-            columnOrder.length > 0
-                ? [
-                      ...columnOrder.filter((id) =>
-                          availableFieldIds.includes(id),
-                      ),
-                      ...availableFieldIds.filter(
-                          (id) => !columnOrder.includes(id),
-                      ),
-                  ]
-                : availableFieldIds;
-
-        const headers = sortedFieldIds.map((fieldId) => {
-            if (customLabels[fieldId]) {
-                return customLabels[fieldId];
-            }
-            const item = fields[fieldId];
-            if (!item) {
-                return fieldId;
-            }
-            return showTableNames
-                ? getItemLabel(item)
-                : getItemLabelWithoutTableName(item);
+        // Process fields and generate headers using shared utility
+        const { sortedFieldIds, headers } = processFieldsForExport(fields, {
+            showTableNames,
+            customLabels,
+            columnOrder,
+            hiddenFields,
         });
 
         // Transform and upload the results
