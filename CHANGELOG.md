@@ -1,3 +1,10 @@
+# [0.1731.0](https://github.com/lightdash/lightdash/compare/0.1730.0...0.1731.0) (2025-06-18)
+
+
+### Features
+
+* proper streaming for csv & xlsx ([#15375](https://github.com/lightdash/lightdash/issues/15375)) ([8e79776](https://github.com/lightdash/lightdash/commit/8e79776b5fd51c09cd57ceadb9f5830c593c69bf))
+
 # [0.1730.0](https://github.com/lightdash/lightdash/compare/0.1729.1...0.1730.0) (2025-06-18)
 
 
