@@ -81,7 +81,7 @@ const Login: FC<{}> = () => {
     const {
         data: loginOptions,
         isInitialLoading: isInitialLoadingLoginOptions,
-        isLoading: loginOptionsLoading,
+        isFetching: loginOptionsFetching,
         isSuccess: loginOptionsSuccess,
     } = useFetchLoginOptions({
         email: preCheckEmail,
@@ -112,7 +112,7 @@ const Login: FC<{}> = () => {
     );
 
     useEffect(() => {
-        if (loginOptionsLoading) {
+        if (loginOptionsFetching) {
             // Start timer to show loading/disabled after 400ms
             startDelayedState();
         } else {
@@ -120,7 +120,7 @@ const Login: FC<{}> = () => {
             setIsLoginOptionsLoadingDebounced(false);
             clearDelayedState();
         }
-    }, [loginOptionsLoading, startDelayedState, clearDelayedState]);
+    }, [loginOptionsFetching, startDelayedState, clearDelayedState]);
 
     const { mutate, isLoading, isSuccess, isIdle } = useLoginWithEmailMutation({
         onSuccess: (data) => {
