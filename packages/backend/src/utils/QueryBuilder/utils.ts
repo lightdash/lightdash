@@ -830,10 +830,7 @@ const isInflationProofMetric = (metricType: MetricType): boolean =>
         metricType,
     );
 
-const getTablesWithInflationFromJoin = (
-    join: CompiledExploreJoin,
-    possibleJoins,
-) => {
+const findTablesWithInflationFromJoin = (join: CompiledExploreJoin) => {
     const tablesWithInflation = new Set<string>();
     if (!join.tablesReferences) {
         // Skip, as we can't detect inflation without knowing table references in join SQL
@@ -849,9 +846,53 @@ const getTablesWithInflationFromJoin = (
         // The table being joined can have metric inflation
         tablesWithInflation.add(join.table);
     }
-    // todo: call recursive function that finds the join for each tablesWithInflation value and returns it's tablesReferences
 
     return tablesWithInflation;
+};
+
+const findChainedOneToOneTableJoins = ({
+    tables,
+    possibleJoins,
+}: {
+    tables: Set<string>;
+    possibleJoins: CompiledExploreJoin[];
+}) => {
+    const result = new Set<string>();
+    // Keep track of visited tables to avoid infinite recursion
+    const visited = new Set<string>();
+
+    const findReferences = (currentTables: Set<string>) => {
+        const newTables = new Set<string>();
+
+        for (const tableName of currentTables) {
+            if (!visited.has(tableName)) {
+                visited.add(tableName);
+                possibleJoins.forEach((join) => {
+                    if (
+                        join.tablesReferences &&
+                        join.tablesReferences.includes(tableName) &&
+                        (!join.relationship ||
+                            join.relationship === 'one-to-one')
+                    ) {
+                        join.tablesReferences.forEach((from) => {
+                            if (!result.has(from)) {
+                                result.add(from);
+                                newTables.add(from);
+                            }
+                        });
+                    }
+                });
+            }
+        }
+
+        // Recursively process newly found tables
+        if (newTables.size > 0) {
+            findReferences(newTables);
+        }
+    };
+
+    findReferences(tables);
+    return result;
 };
 
 const findTablesWithMetricInflation = ({
@@ -882,12 +923,22 @@ const findTablesWithMetricInflation = ({
             // Warn the user about missing relationship so we can detect possible metric inflation
             tablesWithoutRelationship.add(joinedTable);
         } else {
+            // Finds tables with inflation in this join
             const tablesWithInflationFromJoin =
-                getTablesWithInflationFromJoin(join);
+                findTablesWithInflationFromJoin(join);
+            // Finds chained joins with one-to-one relationship
+            const chainedTablesWithInflation = findChainedOneToOneTableJoins({
+                tables: tablesWithInflationFromJoin,
+                possibleJoins,
+            });
+            const newTablesWithInflation = new Set([
+                ...tablesWithInflationFromJoin,
+                ...chainedTablesWithInflation,
+            ]);
             if (
                 intersection(
                     Array.from(tablesWithMetricInflation),
-                    Array.from(tablesWithInflationFromJoin),
+                    Array.from(newTablesWithInflation),
                 ).length > 0
             ) {
                 // if there are multiple one-to-many or many-to-one joins affecting the same table, all tables in the query can have metric inflation
@@ -898,7 +949,7 @@ const findTablesWithMetricInflation = ({
                 );
             } else {
                 // otherwise, add tables with inflation related to this join
-                tablesWithInflationFromJoin.forEach(
+                newTablesWithInflation.forEach(
                     tablesWithMetricInflation.add.bind(
                         tablesWithMetricInflation,
                     ),
