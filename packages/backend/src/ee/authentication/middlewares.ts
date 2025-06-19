@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    applyServiceAccountAbilities,
     AuthorizationError,
     getErrorMessage,
     ScimError,
@@ -103,7 +104,11 @@ export const authenticateServiceAccount: RequestHandler = async (
         // Create a SessionUser with abilities based on service account scopes
         // Scope validation is done on casl abitly checks
         const builder = new AbilityBuilder<MemberAbility>(Ability);
-
+        applyServiceAccountAbilities({
+            scopes: serviceAccount.scopes,
+            organizationUuid: serviceAccount.organizationUuid,
+            builder,
+        });
         const organization = await req.services
             .getOrganizationService()
             .getOrganizationByUuid(serviceAccount.organizationUuid);
