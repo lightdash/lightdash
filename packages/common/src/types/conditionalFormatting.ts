@@ -1,5 +1,5 @@
 import type { ItemsMap } from './field';
-import type { ConditionalRule, FieldTarget, FilterOperator } from './filter';
+import type { BaseFilterRule, FieldTarget, FilterOperator } from './filter';
 
 export type ConditionalFormattingMinMax<T = number> = {
     min: T;
@@ -12,12 +12,12 @@ export type ConditionalFormattingColorRange = {
 };
 
 export type ConditionalFormattingWithValues<T = number | string> =
-    ConditionalRule<FilterOperator, T> & {
+    BaseFilterRule<FilterOperator, T> & {
         values: T[];
     };
 
 export type ConditionalFormattingWithCompareTarget<T = number | string> =
-    ConditionalRule<FilterOperator, T> & {
+    BaseFilterRule<FilterOperator, T> & {
         compareTarget: FieldTarget | null;
         values?: T[];
     };
@@ -97,3 +97,9 @@ export enum ConditionalFormattingComparisonType {
     TARGET_FIELD = 'target_field',
     TARGET_TO_VALUES = 'target_to_values',
 }
+
+export type ConditionalRuleLabel = {
+    field: string;
+    operator: string;
+    value?: string;
+};

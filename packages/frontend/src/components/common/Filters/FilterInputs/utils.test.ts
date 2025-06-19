@@ -3,7 +3,7 @@ import {
     FieldType,
     FilterOperator,
     FilterType,
-    type ConditionalRule,
+    type BaseFilterRule,
     type FilterableItem,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
@@ -15,7 +15,7 @@ import {
 describe('getConditionalRuleLabel', () => {
     it('should return correct labels for a string filter', () => {
         // Arrange
-        const rule: ConditionalRule = {
+        const rule: BaseFilterRule = {
             id: 'test-rule-id',
             operator: FilterOperator.EQUALS,
             values: ['test-value'],
@@ -36,7 +36,7 @@ describe('getConditionalRuleLabel', () => {
 
     it('should return correct labels for a number filter', () => {
         // Arrange
-        const rule: ConditionalRule = {
+        const rule: BaseFilterRule = {
             id: 'test-rule-id',
             operator: FilterOperator.GREATER_THAN,
             values: [100],
@@ -59,7 +59,7 @@ describe('getConditionalRuleLabel', () => {
 describe('getConditionalRuleLabelFromItem', () => {
     it('should return correct labels for a field item', () => {
         // Arrange
-        const rule: ConditionalRule = {
+        const rule: BaseFilterRule = {
             id: 'test-rule-id',
             operator: FilterOperator.EQUALS,
             values: ['test-value'],

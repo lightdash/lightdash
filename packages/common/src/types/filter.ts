@@ -2,24 +2,40 @@ import { type AnyType } from './any';
 import { type DimensionType } from './field';
 import type { SchedulerFilterRule } from './scheduler';
 
-export type ConditionalRule<O = FilterOperator, V = unknown> = {
-    id: string;
-    operator: O;
-    values?: V[];
-};
-
-export type ConditionalRuleLabels = {
-    field: string;
-    operator: string;
-    value?: string;
-};
-
 export enum FilterType {
     STRING = 'string',
     NUMBER = 'number',
     DATE = 'date',
     BOOLEAN = 'boolean',
 }
+
+export enum FilterOperator {
+    NULL = 'isNull',
+    NOT_NULL = 'notNull',
+    EQUALS = 'equals',
+    NOT_EQUALS = 'notEquals',
+    STARTS_WITH = 'startsWith',
+    ENDS_WITH = 'endsWith',
+    INCLUDE = 'include',
+    NOT_INCLUDE = 'doesNotInclude',
+    LESS_THAN = 'lessThan',
+    LESS_THAN_OR_EQUAL = 'lessThanOrEqual',
+    GREATER_THAN = 'greaterThan',
+    GREATER_THAN_OR_EQUAL = 'greaterThanOrEqual',
+    IN_THE_PAST = 'inThePast',
+    NOT_IN_THE_PAST = 'notInThePast',
+    IN_THE_NEXT = 'inTheNext',
+    IN_THE_CURRENT = 'inTheCurrent',
+    NOT_IN_THE_CURRENT = 'notInTheCurrent',
+    IN_BETWEEN = 'inBetween',
+    NOT_IN_BETWEEN = 'notInBetween',
+}
+
+export type BaseFilterRule<O = FilterOperator, V = unknown> = {
+    id: string;
+    operator: O;
+    values?: V[];
+};
 
 export enum UnitOfTime {
     milliseconds = 'milliseconds',
@@ -76,7 +92,7 @@ export interface FilterRule<
     T = FieldTarget,
     V = AnyType,
     S = AnyType,
-> extends ConditionalRule<O, V> {
+> extends BaseFilterRule<O, V> {
     id: string;
     target: T;
     settings?: S;
@@ -211,7 +227,7 @@ export const isFilterGroup = (value: FilterGroupItem): value is FilterGroup =>
     isOrFilterGroup(value) || isAndFilterGroup(value);
 
 export const isFilterRule = (
-    value: ConditionalRule | FilterGroupItem,
+    value: BaseFilterRule | FilterGroupItem,
 ): value is FilterRule =>
     'id' in value && 'target' in value && 'operator' in value;
 
@@ -353,7 +369,7 @@ export const applyDimensionOverrides = (
     });
 
 export const isDashboardFilterRule = (
-    value: ConditionalRule,
+    value: BaseFilterRule,
 ): value is DashboardFilterRule =>
     isFilterRule(value) && 'tableName' in value.target;
 
@@ -511,25 +527,3 @@ export type TimeBasedOverrideMap = Record<
         fieldsToChange: string[];
     }
 >;
-
-export enum FilterOperator {
-    NULL = 'isNull',
-    NOT_NULL = 'notNull',
-    EQUALS = 'equals',
-    NOT_EQUALS = 'notEquals',
-    STARTS_WITH = 'startsWith',
-    ENDS_WITH = 'endsWith',
-    INCLUDE = 'include',
-    NOT_INCLUDE = 'doesNotInclude',
-    LESS_THAN = 'lessThan',
-    LESS_THAN_OR_EQUAL = 'lessThanOrEqual',
-    GREATER_THAN = 'greaterThan',
-    GREATER_THAN_OR_EQUAL = 'greaterThanOrEqual',
-    IN_THE_PAST = 'inThePast',
-    NOT_IN_THE_PAST = 'notInThePast',
-    IN_THE_NEXT = 'inTheNext',
-    IN_THE_CURRENT = 'inTheCurrent',
-    NOT_IN_THE_CURRENT = 'notInTheCurrent',
-    IN_BETWEEN = 'inBetween',
-    NOT_IN_BETWEEN = 'notInBetween',
-}

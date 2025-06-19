@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type {
     ConditionalFormattingRowFields,
     ConditionalFormattingWithCompareTarget,
-    ConditionalRuleLabels,
+    ConditionalRuleLabel,
     ItemsMap,
 } from '..';
 import {
@@ -489,7 +489,7 @@ export const getConditionalFormattingDescription = (
     getConditionalRuleLabel: (
         rule: ConditionalFormattingWithFilterOperator,
         item: FilterableItem,
-    ) => ConditionalRuleLabels,
+    ) => ConditionalRuleLabel,
 ): string | undefined => {
     if (!field || !isFilterableItem(field) || !conditionalFormattingConfig) {
         return undefined;
@@ -519,7 +519,7 @@ export const getConditionalFormattingDescription = (
     ) {
         return conditionalFormattingConfig.rules
             .map<
-                ConditionalRuleLabels & { isComparingTargetToValues?: boolean }
+                ConditionalRuleLabel & { isComparingTargetToValues?: boolean }
             >((r) => {
                 const fieldLabel = getConditionalRuleLabel(r, field);
                 if (isConditionalFormattingWithCompareTarget(r)) {
