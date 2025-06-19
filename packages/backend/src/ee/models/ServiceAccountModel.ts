@@ -136,7 +136,8 @@ export class ServiceAccountModel {
             .select('*')
             .where('organization_uuid', organizationUuid);
         if (scopes) {
-            void query.whereRaw('scopes @> ?', [scopes]); // scopes @> ? returns true only if the database's scopes array contains all elements from the provided scopes array
+            // scopes <@ ? returns true only if the database's scopes array is a full subset of elements from the provided scopes array
+            void query.whereRaw('scopes <@ ?', [scopes]);
         }
         const rows = await query;
         return rows.map(ServiceAccountModel.mapDbObjectToServiceAccount);
