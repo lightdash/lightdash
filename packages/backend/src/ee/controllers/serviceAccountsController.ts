@@ -1,6 +1,7 @@
 import {
     ApiCreateServiceAccountRequest,
     ApiErrorPayload,
+    AuthTokenPrefix,
     ServiceAccount,
     ServiceAccountScope,
 } from '@lightdash/common';
@@ -76,7 +77,7 @@ export class ServiceAccountsController extends BaseController {
                 ...body,
                 organizationUuid: req.user?.organizationUuid as string,
             },
-            prefix: '',
+            prefix: AuthTokenPrefix.SERVICE_ACCOUNT,
         });
         this.setStatus(201);
         return {

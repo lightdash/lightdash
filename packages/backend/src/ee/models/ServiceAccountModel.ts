@@ -1,4 +1,5 @@
 import {
+    AuthTokenPrefix,
     CreateServiceAccount,
     ServiceAccount,
     ServiceAccountScope,
@@ -47,7 +48,7 @@ export class ServiceAccountModel {
     async create({
         user,
         data,
-        prefix = 'scim_',
+        prefix = AuthTokenPrefix.SCIM,
     }: {
         user: SessionUser;
         data: CreateServiceAccount;
@@ -102,7 +103,7 @@ export class ServiceAccountModel {
         serviceAccountUuid,
         rotatedByUserUuid,
         expiresAt,
-        prefix = 'scim_',
+        prefix = AuthTokenPrefix.SCIM,
     }: {
         serviceAccountUuid: string;
         rotatedByUserUuid: string;

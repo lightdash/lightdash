@@ -598,6 +598,9 @@ importers:
       '@types/uuid':
         specifier: ^10.0.0
         version: 10.0.0
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@22.15.3)(typescript@5.7.2)
 
   packages/common:
     dependencies:
@@ -16662,7 +16665,7 @@ snapshots:
 
   '@kwsites/file-exists@1.1.1':
     dependencies:
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -19924,7 +19927,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/type-utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       eslint: 8.57.1
       graphemer: 1.4.0
       ignore: 5.2.0
@@ -19941,7 +19944,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/types': 5.62.0
       '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.5.4)
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       eslint: 8.57.1
     optionalDependencies:
       typescript: 5.5.4
@@ -21834,7 +21837,7 @@ snapshots:
       chalk: 2.4.2
       commander: 2.20.3
       core-js: 3.38.0
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       fast-json-patch: 3.1.1
       get-stdin: 6.0.0
       http-proxy-agent: 5.0.0
@@ -26253,7 +26256,7 @@ snapshots:
 
   nock@13.5.1:
     dependencies:
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       json-stringify-safe: 5.0.1
       propagate: 2.0.1
     transitivePeerDependencies:
@@ -28363,7 +28366,7 @@ snapshots:
     dependencies:
       '@kwsites/file-exists': 1.1.1
       '@kwsites/promise-deferred': 1.1.1
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
 

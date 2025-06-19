@@ -173,11 +173,11 @@ ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login',
         )} https://custom.lightdash.domain --token 12345 ${styles.secondary(
-            '-- Logs in with a personal access token (useful for users that use SSO in the browser)',
+            '-- Logs in with an API access token (useful for users that use SSO in the browser)',
         )}
 `,
     )
-    .option('--token <token>', 'Login with a personal access token', undefined)
+    .option('--token <token>', 'Login with an API access token', undefined)
     .option('--verbose', undefined, false)
 
     .action(login);
