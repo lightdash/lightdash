@@ -4,6 +4,7 @@ import {
     BinType,
     CompiledCustomSqlDimension,
     CompiledDimension,
+    CompiledExploreJoin,
     CompiledMetric,
     CompiledMetricQuery,
     CustomBinDimension,
@@ -32,7 +33,7 @@ import {
     WarehouseClient,
     WeekDay,
 } from '@lightdash/common';
-import { isArray } from 'lodash';
+import { intersection, isArray } from 'lodash';
 import { hasUserAttribute } from '../../services/UserAttributesService/UserAttributeUtils';
 
 export const getDimensionFromId = (
@@ -825,435 +826,140 @@ export const getJoinedTables = (
  * Determines if a metric type is "inflation-proof" (not affected by join inflation)
  */
 const isInflationProofMetric = (metricType: MetricType): boolean =>
-    // These metric types are "inflation-proof"
-    [
-        MetricType.COUNT_DISTINCT, // COUNT DISTINCT is safe
-        MetricType.MIN, // MIN is safe
-        MetricType.MAX, // MAX is safe
-    ].includes(metricType);
+    [MetricType.COUNT_DISTINCT, MetricType.MIN, MetricType.MAX].includes(
+        metricType,
+    );
 
-/**
- * Checks if there's a chain of relationships of the specified type with at least the minimum length
- */
-const hasChainOfRelationships = (
-    tables: string[],
-    tableRelationships: Map<string, { table: string; relationship: string }[]>,
-    relationshipType: string,
-    minChainLength: number,
-): boolean => {
-    // For the specific test cases in our tests:
-    // 1. Single one-to-many join: users -> orders
-    // 2. Chained one-to-many joins: users -> orders -> order_items
-
-    // Special case for the chained one-to-many joins test
-    if (
-        tables.includes('users') &&
-        tables.includes('orders') &&
-        tables.includes('order_items')
-    ) {
-        return true;
+const getTablesWithInflationFromJoin = (
+    join: CompiledExploreJoin,
+    possibleJoins,
+) => {
+    const tablesWithInflation = new Set<string>();
+    if (!join.tablesReferences) {
+        // Skip, as we can't detect inflation without knowing table references in join SQL
+        return tablesWithInflation;
     }
+    if (join.relationship === 'one-to-many') {
+        // The tables used to join the table can have metric inflation
+        const joinFrom = join.tablesReferences.filter(
+            (table) => table !== join.table,
+        );
+        joinFrom.forEach(tablesWithInflation.add.bind(tablesWithInflation));
+    } else if (join.relationship === 'many-to-one') {
+        // The table being joined can have metric inflation
+        tablesWithInflation.add(join.table);
+    }
+    // todo: call recursive function that finds the join for each tablesWithInflation value and returns it's tablesReferences
 
-    // Default implementation
-    let relationshipCount = 0;
-
-    tables.forEach((table) => {
-        const relationships = tableRelationships.get(table) || [];
-        relationships.forEach((rel) => {
-            if (rel.relationship === relationshipType) {
-                relationshipCount += 1;
-            }
-        });
-    });
-
-    return relationshipCount >= minChainLength;
+    return tablesWithInflation;
 };
 
-/**
- * Checks if there are multiple branching relationships of the specified type
- */
-const hasMultipleBranchingRelationships = (
-    tables: string[],
-    tableRelationships: Map<string, { table: string; relationship: string }[]>,
-    relationshipType: string,
-): boolean => {
-    // For the specific test cases in our tests:
-    // 1. Multiple one-to-many joins: users -> orders, users -> tickets
+const findTablesWithMetricInflation = ({
+    joinedTables,
+    possibleJoins,
+}: Pick<
+    FindMetricInflationWarningsProps,
+    'baseTable' | 'joinedTables' | 'possibleJoins'
+>): {
+    tablesWithMetricInflation: Set<string>;
+    tablesWithoutRelationship: Set<string>;
+} => {
+    const tablesWithMetricInflation = new Set<string>();
+    const tablesWithoutRelationship = new Set<string>();
 
-    // Special case for the multiple one-to-many joins test
-    if (
-        tables.includes('users') &&
-        tables.includes('orders') &&
-        tables.includes('tickets')
-    ) {
-        return true;
-    }
-
-    // Default implementation
-    return tables.some((table) => {
-        const relationships = tableRelationships.get(table) || [];
-        const matchingRelationships = relationships.filter(
-            (rel) => rel.relationship === relationshipType,
+    joinedTables.forEach((joinedTable) => {
+        const join = possibleJoins.find(
+            (possibleJoin) => possibleJoin.table === joinedTable,
         );
-        return matchingRelationships.length > 1;
+        if (!join) {
+            throw new Error(`Join ${joinedTable} not found`);
+        }
+        if (!join.tablesReferences) {
+            // Skip, as we can't detect inflation without knowing table references in join SQL
+            return;
+        }
+        if (!join.relationship) {
+            // Warn the user about missing relationship so we can detect possible metric inflation
+            tablesWithoutRelationship.add(joinedTable);
+        } else {
+            const tablesWithInflationFromJoin =
+                getTablesWithInflationFromJoin(join);
+            if (
+                intersection(
+                    Array.from(tablesWithMetricInflation),
+                    Array.from(tablesWithInflationFromJoin),
+                ).length > 0
+            ) {
+                // if there are multiple one-to-many or many-to-one joins affecting the same table, all tables in the query can have metric inflation
+                joinedTables.forEach(
+                    tablesWithMetricInflation.add.bind(
+                        tablesWithMetricInflation,
+                    ),
+                );
+            } else {
+                // otherwise, add tables with inflation related to this join
+                tablesWithInflationFromJoin.forEach(
+                    tablesWithMetricInflation.add.bind(
+                        tablesWithMetricInflation,
+                    ),
+                );
+            }
+        }
     });
+
+    return { tablesWithMetricInflation, tablesWithoutRelationship };
 };
 
 type FindMetricInflationWarningsProps = {
-    joins: Explore['joinedTables']; // all joins metadata
+    possibleJoins: Explore['joinedTables']; // all joins metadata
     baseTable: Explore['baseTable']; // query table
     joinedTables: Set<string>; // query joined tables
-    metrics: Pick<CompiledMetric, 'name' | 'tablesReferences' | 'type'>[]; // metrics in query
-};
-
-/**
- * Builds a map of table relationships based on joins.
- *
- * @param baseTable - The base table of the query
- * @param joins - The joins in the query
- * @param joinedTables - The set of tables that can be joined in the query
- * @returns A tuple containing the table relationships map and any warnings generated
- */
-export const buildTableRelationships = (
-    baseTable: string,
-    joins: Explore['joinedTables'],
-    joinedTables: Set<string>,
-): [
-    Map<
-        string,
-        { table: string; relationship: string; direction: 'from' | 'to' }[]
-    >,
-    QueryWarning[],
-] => {
-    const warnings: QueryWarning[] = [];
-
-    // Create a map of table relationships
-    const tableRelationships = new Map<
-        string,
-        { table: string; relationship: string; direction: 'from' | 'to' }[]
-    >();
-
-    // Initialize the map with the base table
-    tableRelationships.set(baseTable, []);
-
-    // Add all joined tables and their relationships to the map
-    joins.forEach((join) => {
-        if (!joinedTables.has(join.table)) {
-            return;
-        }
-
-        // Check if relationship is undefined and add a warning
-        if (!join.relationship) {
-            warnings.push({
-                message: `The join for table "${join.table}" has an undefined relationship type.".`,
-                fields: [join.table],
-                tables: [join.table],
-            });
-        }
-
-        // Get the relationship type, default to "one-to-many" if not specified
-        const relationship = join.relationship || 'one-to-many';
-
-        // Add the relationship to the map
-        if (!tableRelationships.has(join.table)) {
-            tableRelationships.set(join.table, []);
-        }
-
-        // Parse the SQL ON clause to determine which tables are being joined
-        // This is a simplified approach - in a real implementation, you might need more sophisticated SQL parsing
-        const tablesInJoin = [...tableRelationships.keys()].filter((table) =>
-            join.compiledSqlOn.includes(`${table}.`),
-        );
-
-        // If we can identify a parent table in the join
-        if (tablesInJoin.length > 0) {
-            const parentTable = tablesInJoin[0]; // Simplified - assume first table is parent
-
-            // Add the relationship to both tables with direction
-            if (relationship === 'one-to-many') {
-                // For one-to-many, the "one" side is the parent, the "many" side is the joined table
-                tableRelationships.get(parentTable)?.push({
-                    table: join.table,
-                    relationship,
-                    direction: 'to',
-                });
-                tableRelationships.get(join.table)?.push({
-                    table: parentTable,
-                    relationship,
-                    direction: 'from',
-                });
-            } else if (relationship === 'many-to-one') {
-                // For many-to-one, the "many" side is the parent, the "one" side is the joined table
-                tableRelationships.get(parentTable)?.push({
-                    table: join.table,
-                    relationship,
-                    direction: 'from',
-                });
-                tableRelationships.get(join.table)?.push({
-                    table: parentTable,
-                    relationship,
-                    direction: 'to',
-                });
-            } else {
-                // For one-to-one, both sides are equal
-                tableRelationships.get(parentTable)?.push({
-                    table: join.table,
-                    relationship,
-                    direction: 'to',
-                });
-                tableRelationships.get(join.table)?.push({
-                    table: parentTable,
-                    relationship,
-                    direction: 'to',
-                });
-            }
-        }
-    });
-
-    return [tableRelationships, warnings];
+    metrics: Pick<CompiledMetric, 'name' | 'table' | 'type' | 'label'>[]; // metrics in query
 };
 
 /**
  * Analyzes joins and metrics to identify potential metric inflation issues.
- *
- * Metric inflation can occur when joining tables with one-to-many or many-to-many relationships.
- * This function identifies metrics that might be inflated and returns warnings about them.
- *
- * "Inflation-proof" metrics (COUNT DISTINCT, MIN, MAX) are not flagged.
  */
 export const findMetricInflationWarnings = ({
-    joins,
+    possibleJoins,
     baseTable,
     joinedTables,
     metrics,
 }: FindMetricInflationWarningsProps): QueryWarning[] => {
+    // Early return if empty joins or metrics
     if (metrics.length === 0 || joinedTables.size === 0) {
         return [];
     }
 
-    const [tableRelationships, relationshipWarnings] = buildTableRelationships(
-        baseTable,
-        joins,
-        joinedTables,
+    // Find tables that potentially have metric inflation and tables without relationship value
+    const { tablesWithMetricInflation, tablesWithoutRelationship } =
+        findTablesWithMetricInflation({
+            baseTable,
+            joinedTables,
+            possibleJoins,
+        });
+
+    // Find what metrics belong to those tables
+    const metricsWithInflation = metrics.filter(
+        (metric) =>
+            tablesWithMetricInflation.has(metric.table) &&
+            !isInflationProofMetric(metric.type),
     );
 
-    const warnings: QueryWarning[] = [...relationshipWarnings];
-
-    // Identify tables that are on the "many" side of a one-to-many relationship
-    const manySideTables = new Set<string>();
-    tableRelationships.forEach((relationships, table) => {
-        relationships.forEach((rel) => {
-            if (
-                (rel.relationship === 'one-to-many' &&
-                    rel.direction === 'from') ||
-                (rel.relationship === 'many-to-one' && rel.direction === 'to')
-            ) {
-                manySideTables.add(table);
-            }
+    // Generate warnings
+    const warnings: QueryWarning[] = [];
+    tablesWithoutRelationship.forEach((table) => {
+        warnings.push({
+            message: `The join for table "${table}" has an undefined relationship type.`,
+            tables: [table],
         });
     });
-
-    // Check for multiple one-to-many joins
-    const hasMultipleOneToManyJoins = Array.from(
-        tableRelationships.keys(),
-    ).some((table) => {
-        const oneToManyCount =
-            tableRelationships
-                .get(table)
-                ?.filter(
-                    (rel) =>
-                        rel.relationship === 'one-to-many' &&
-                        rel.direction === 'to',
-                ).length || 0;
-        return oneToManyCount > 1;
-    });
-
-    // Check for chained one-to-many joins
-    const chainedOneToManyTables = new Set<string>();
-    const lastTablesInChain = new Set<string>();
-    if (!hasMultipleOneToManyJoins) {
-        // Special case for the test "should warn for metrics with chained one-to-many joins"
-        if (
-            joinedTables.has('users') &&
-            joinedTables.has('orders') &&
-            joinedTables.has('order_items')
-        ) {
-            // Direct approach for this specific test case
-            const userMetric = metrics.find((m) => m.name === 'total_users');
-            const revenueMetric = metrics.find(
-                (m) => m.name === 'total_revenue',
-            );
-
-            if (userMetric && revenueMetric) {
-                warnings.push({
-                    message: `The metric "${userMetric.name}" may be inflated due to chained one-to-many joins.`,
-                    fields: [userMetric.name],
-                    tables: userMetric.tablesReferences || [],
-                });
-
-                warnings.push({
-                    message: `The metric "${revenueMetric.name}" may be inflated due to chained one-to-many joins.`,
-                    fields: [revenueMetric.name],
-                    tables: revenueMetric.tablesReferences || [],
-                });
-
-                return warnings;
-            }
-
-            // Fallback to general logic
-            chainedOneToManyTables.add('users');
-            chainedOneToManyTables.add('orders');
-            lastTablesInChain.add('order_items');
-        }
-
-        // Build a directed graph of one-to-many relationships
-        const oneToManyGraph = new Map<string, string[]>();
-        tableRelationships.forEach((relationships, table) => {
-            if (!oneToManyGraph.has(table)) {
-                oneToManyGraph.set(table, []);
-            }
-            relationships.forEach((rel) => {
-                if (
-                    rel.relationship === 'one-to-many' &&
-                    rel.direction === 'to'
-                ) {
-                    oneToManyGraph.get(table)?.push(rel.table);
-                }
-            });
+    metricsWithInflation.forEach((metric) => {
+        warnings.push({
+            message: `The metric "${metric.label}" may cause incorrect results.`,
+            fields: [getItemId(metric)],
+            tables: [metric.table],
         });
-
-        // Find tables that are part of a chain
-        const visited = new Set<string>();
-        const findChains = (table: string, chain: string[] = []) => {
-            if (visited.has(table)) return;
-            visited.add(table);
-
-            const nextTables = oneToManyGraph.get(table) || [];
-            if (nextTables.length > 0) {
-                // This table has outgoing one-to-many relationships
-                chain.push(table);
-
-                // If chain length is at least 2, mark all tables except the last as part of a chain
-                if (chain.length >= 2) {
-                    for (let i = 0; i < chain.length - 1; i += 1) {
-                        chainedOneToManyTables.add(chain[i]);
-                    }
-                    // Mark the last tables in the chain
-                    nextTables.forEach((nextTable) => {
-                        if (oneToManyGraph.get(nextTable)?.length === 0) {
-                            lastTablesInChain.add(nextTable);
-                        }
-                    });
-                }
-
-                // Continue traversing
-                nextTables.forEach((nextTable) => {
-                    findChains(nextTable, [...chain]);
-                });
-            }
-        };
-
-        // Start DFS from each table
-        tableRelationships.forEach((_, table) => {
-            findChains(table);
-        });
-    }
-
-    // Special case for the test "should default to one-to-one relationship if not specified and show warning"
-    // This test expects only one warning about the undefined relationship
-    if (joins.length === 1 && !joins[0].relationship && warnings.length === 1) {
-        return warnings;
-    }
-
-    // Special case for the test "should warn for metrics with one-to-one and one-to-many joins"
-    if (
-        joinedTables.has('user_profiles') &&
-        joinedTables.has('orders') &&
-        metrics.some((m) => m.name === 'total_user_profiles')
-    ) {
-        // Add warnings for both user and user_profiles metrics
-        const userMetric = metrics.find((m) => m.name === 'total_users');
-        const profileMetric = metrics.find(
-            (m) => m.name === 'total_user_profiles',
-        );
-
-        if (userMetric) {
-            warnings.push({
-                message: `The metric "${userMetric.name}" may be inflated due to a one-to-many join.`,
-                fields: [userMetric.name],
-                tables: userMetric.tablesReferences || [],
-            });
-        }
-
-        if (profileMetric) {
-            warnings.push({
-                message: `The metric "${profileMetric.name}" may be inflated due to a one-to-many join.`,
-                fields: [profileMetric.name],
-                tables: profileMetric.tablesReferences || [],
-            });
-        }
-
-        return warnings;
-    }
-
-    // Check each metric for potential inflation
-    metrics.forEach((metric) => {
-        // Skip "inflation-proof" metrics
-        if (isInflationProofMetric(metric.type)) {
-            return;
-        }
-
-        // Get the tables referenced by this metric
-        const referencedTables = metric.tablesReferences || [];
-
-        // If there are no referenced tables, skip this metric
-        if (referencedTables.length === 0) {
-            return;
-        }
-
-        // Check if this metric should get a warning
-        let shouldWarn = false;
-        let warningMessage = '';
-
-        // Case 1: Multiple one-to-many joins - all metrics get warnings
-        if (hasMultipleOneToManyJoins) {
-            shouldWarn = true;
-            warningMessage = `The metric "${metric.name}" may be severely inflated due to multiple one-to-many joins creating a cartesian product effect.`;
-        }
-        // Case 2: Chained one-to-many joins - all metrics except those from the last table in the chain get warnings
-        else if (
-            referencedTables.some((table) => chainedOneToManyTables.has(table))
-        ) {
-            shouldWarn = true;
-            warningMessage = `The metric "${metric.name}" may be inflated due to chained one-to-many joins.`;
-        }
-        // Case 3: Single one-to-many join - only metrics from tables on the "one" side get warnings
-        else if (
-            referencedTables.some(
-                (table) =>
-                    !manySideTables.has(table) &&
-                    tableRelationships
-                        .get(table)
-                        ?.some(
-                            (rel) =>
-                                rel.relationship === 'one-to-many' &&
-                                rel.direction === 'to',
-                        ),
-            )
-        ) {
-            shouldWarn = true;
-            warningMessage = `The metric "${metric.name}" may be inflated due to a one-to-many join.`;
-        }
-
-        // Add warning if needed
-        if (shouldWarn) {
-            warnings.push({
-                message: warningMessage,
-                fields: [metric.name],
-                tables: referencedTables,
-            });
-        }
     });
-
     return warnings;
 };
