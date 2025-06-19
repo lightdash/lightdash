@@ -14,7 +14,7 @@ export type GetTableFieldsParams = {
     search: string | undefined;
 };
 
-const fetchTableFields = async ({
+export const fetchTableFields = async ({
     projectUuid,
     tableName,
     schema,
@@ -34,6 +34,11 @@ const fetchTableFields = async ({
 export type WarehouseTableField = {
     name: string;
     type: DimensionType;
+};
+
+export type WarehouseTableFieldWithContext = WarehouseTableField & {
+    table: string;
+    schema: string;
 };
 
 export const useTableFields = ({
