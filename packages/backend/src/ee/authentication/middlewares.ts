@@ -114,8 +114,15 @@ export const authenticateServiceAccount: RequestHandler = async (
             .getOrganizationService()
             .getOrganizationByUuid(serviceAccount.organizationUuid);
 
+        const adminUser = await req.services
+            .getUserService()
+            .getAdminUser(
+                serviceAccount.createdByUserUuid,
+                serviceAccount.organizationUuid,
+            );
+
         req.user = {
-            userUuid: serviceAccount.uuid,
+            userUuid: adminUser.userUuid,
             email: 'service-account@lightdash.com',
             firstName: 'service account',
             lastName: serviceAccount.description,
@@ -125,7 +132,7 @@ export const authenticateServiceAccount: RequestHandler = async (
             isTrackingAnonymized: false,
             isMarketingOptedIn: false,
             isSetupComplete: true,
-            userId: 0,
+            userId: adminUser.userId,
             role: undefined,
             ability: builder.build(),
             isActive: true,
