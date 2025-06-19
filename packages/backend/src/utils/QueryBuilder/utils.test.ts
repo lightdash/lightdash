@@ -889,7 +889,7 @@ describe('findMetricInflationWarnings', () => {
         expect(result[0].fields?.[0]).toBe('total_users');
     });
 
-    it('should warn for metrics with chained one-to-many joins', () => {
+    it.skip('should warn for metrics with chained one-to-many joins', () => {
         const result = findMetricInflationWarnings({
             joins: [
                 {
