@@ -3,6 +3,7 @@ import {
     CustomDimensionType,
     ForbiddenError,
     isCustomBinDimension,
+    MetricType,
     WeekDay,
 } from '@lightdash/common';
 import {
@@ -23,6 +24,7 @@ import {
 import {
     applyLimitToSqlQuery,
     assertValidDimensionRequiredAttribute,
+    findMetricInflationWarnings,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
     replaceUserAttributesAsStrings,
@@ -784,5 +786,344 @@ describe('applyLimitToSqlQuery', () => {
             'WITH subquery AS ( SELECT * FROM orders LIMIT 10 OFFSET 5; ) SELECT * FROM subquery LIMIT 20 OFFSET 10';
 
         expect(result).toBe(expectedQuery);
+    });
+});
+
+describe('findMetricInflationWarnings', () => {
+    it('should return no warnings when there are no metrics', () => {
+        const result = findMetricInflationWarnings({
+            joins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    relationship: 'one-to-many',
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['orders']),
+            metrics: [],
+        });
+
+        expect(result).toEqual([]);
+    });
+
+    it('should return no warnings when there are no joined tables', () => {
+        const result = findMetricInflationWarnings({
+            joins: [],
+            baseTable: 'users',
+            joinedTables: new Set([]),
+            metrics: [
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    tablesReferences: ['users'],
+                },
+            ],
+        });
+
+        expect(result).toEqual([]);
+    });
+
+    // Test case 3: No warnings for "inflation-proof" metrics
+    it('should not warn for inflation-proof metrics (COUNT_DISTINCT, MIN, MAX)', () => {
+        const result = findMetricInflationWarnings({
+            joins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    relationship: 'one-to-many',
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['orders']),
+            metrics: [
+                {
+                    name: 'unique_users',
+                    type: MetricType.COUNT_DISTINCT,
+                    tablesReferences: ['users', 'orders'],
+                },
+                {
+                    name: 'min_order_value',
+                    type: MetricType.MIN,
+                    tablesReferences: ['orders'],
+                },
+                {
+                    name: 'max_order_value',
+                    type: MetricType.MAX,
+                    tablesReferences: ['orders'],
+                },
+            ],
+        });
+
+        expect(result).toEqual([]);
+    });
+
+    // Test case 4: Warnings for metrics with single one-to-many joins
+    it('should warn for metrics with single one-to-many joins', () => {
+        const result = findMetricInflationWarnings({
+            joins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    relationship: 'one-to-many',
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['orders']),
+            metrics: [
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    tablesReferences: ['users', 'orders'],
+                },
+            ],
+        });
+
+        expect(result).toHaveLength(1);
+        expect(result[0].message).toContain('may be inflated');
+        expect(result[0].fields?.[0]).toBe('total_revenue');
+    });
+
+    // Test case 5: Warnings for metrics with chained one-to-many joins
+    it('should warn for metrics with chained one-to-many joins', () => {
+        const result = findMetricInflationWarnings({
+            joins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    relationship: 'one-to-many',
+                },
+                {
+                    table: 'order_items',
+                    sqlOn: 'orders.id = order_items.order_id',
+                    compiledSqlOn: 'orders.id = order_items.order_id',
+                    relationship: 'one-to-many',
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['orders', 'order_items']),
+            metrics: [
+                {
+                    name: 'total_item_revenue',
+                    type: MetricType.SUM,
+                    tablesReferences: ['users', 'orders', 'order_items'],
+                },
+            ],
+        });
+
+        expect(result).toHaveLength(1);
+        // Just check that we have a warning message
+        expect(typeof result[0].message).toBe('string');
+        expect(result[0].fields?.[0]).toBe('total_item_revenue');
+    });
+
+    // Test case 6: Warnings for metrics with multiple one-to-many joins
+    it('should warn for metrics with multiple one-to-many joins', () => {
+        const result = findMetricInflationWarnings({
+            joins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    relationship: 'one-to-many',
+                },
+                {
+                    table: 'tickets',
+                    sqlOn: 'users.id = tickets.user_id',
+                    compiledSqlOn: 'users.id = tickets.user_id',
+                    relationship: 'one-to-many',
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['orders', 'tickets']),
+            metrics: [
+                {
+                    name: 'user_activity_score',
+                    type: MetricType.SUM,
+                    tablesReferences: ['users', 'orders', 'tickets'],
+                },
+            ],
+        });
+
+        expect(result).toHaveLength(1);
+        expect(result[0].message).toContain(
+            'may be severely inflated due to multiple one-to-many joins',
+        );
+        expect(result[0].fields?.[0]).toBe('user_activity_score');
+    });
+
+    // Test case 7: Default to one-to-many relationship if not specified and show warning
+    it('should default to one-to-many relationship if not specified and show warning', () => {
+        const result = findMetricInflationWarnings({
+            joins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    // relationship not specified, should default to one-to-many
+                    compiledSqlOn: 'users.id = orders.user_id',
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['orders']),
+            metrics: [
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    tablesReferences: ['users', 'orders'],
+                },
+            ],
+        });
+
+        // Should have two warnings: one for metric inflation and one for undefined relationship
+        expect(result).toHaveLength(2);
+
+        // Check for the metric inflation warning
+        const metricWarning = result.find(
+            (warning) => warning.fields?.[0] === 'total_revenue',
+        );
+        expect(metricWarning).toBeDefined();
+        expect(metricWarning?.message).toContain('may be inflated');
+
+        // Check for the undefined relationship warning
+        const relationshipWarning = result.find(
+            (warning) => warning.fields?.[0] === 'orders',
+        );
+        expect(relationshipWarning).toBeDefined();
+        expect(relationshipWarning?.message).toContain(
+            'undefined relationship type',
+        );
+        expect(relationshipWarning?.message).toContain(
+            'Defaulting to "one-to-many"',
+        );
+    });
+
+    // Test case 8: Many-to-many relationships should also trigger warnings
+    it('should warn for metrics with many-to-many relationships', () => {
+        const result = findMetricInflationWarnings({
+            joins: [
+                {
+                    table: 'user_groups',
+                    sqlOn: 'users.id = user_groups.user_id',
+                    compiledSqlOn: 'users.id = user_groups.user_id',
+                    relationship: 'one-to-many',
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['user_groups']),
+            metrics: [
+                {
+                    name: 'user_group_count',
+                    type: MetricType.SUM,
+                    tablesReferences: ['users', 'user_groups'],
+                },
+            ],
+        });
+
+        expect(result).toHaveLength(1);
+        expect(result[0].message).toContain('may be inflated');
+        expect(result[0].fields?.[0]).toBe('user_group_count');
+    });
+
+    // Test case 9: One-to-one relationships should not trigger warnings
+    it('should not warn for metrics with one-to-one relationships', () => {
+        const result = findMetricInflationWarnings({
+            joins: [
+                {
+                    table: 'user_profiles',
+                    sqlOn: 'users.id = user_profiles.user_id',
+                    compiledSqlOn: 'users.id = user_profiles.user_id',
+                    relationship: 'one-to-one',
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['user_profiles']),
+            metrics: [
+                {
+                    name: 'profile_completeness',
+                    type: MetricType.SUM,
+                    tablesReferences: ['users', 'user_profiles'],
+                },
+            ],
+        });
+
+        expect(result).toEqual([]);
+    });
+
+    // Test case 10: Mixed relationships
+    it('should handle mixed relationship types correctly', () => {
+        const result = findMetricInflationWarnings({
+            joins: [
+                {
+                    table: 'user_profiles',
+                    sqlOn: 'users.id = user_profiles.user_id',
+                    compiledSqlOn: 'users.id = user_profiles.user_id',
+                    relationship: 'one-to-one',
+                },
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    relationship: 'one-to-many',
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['user_profiles', 'orders']),
+            metrics: [
+                {
+                    name: 'profile_and_order_metric',
+                    type: MetricType.SUM,
+                    tablesReferences: ['users', 'user_profiles', 'orders'],
+                },
+            ],
+        });
+
+        expect(result).toHaveLength(1);
+        expect(result[0].message).toContain('may be inflated');
+        expect(result[0].fields?.[0]).toBe('profile_and_order_metric');
+    });
+
+    // Test case 11: Joining a table from 2 tables
+    // Example in SQL:
+    // SELECT *
+    // FROM table_A A
+    // JOIN table_C C ON C.some_field = A.some_field
+    // JOIN table_B B ON B.id = A.id AND B.user_id = C.user_id
+    it('should handle joining a table from 2 tables', () => {
+        const result = findMetricInflationWarnings({
+            joins: [
+                {
+                    table: 'table_C',
+                    sqlOn: 'table_C.some_field = table_A.some_field',
+                    compiledSqlOn: 'table_C.some_field = table_A.some_field',
+                    relationship: 'one-to-many',
+                },
+                {
+                    table: 'table_B',
+                    sqlOn: 'table_B.id = table_A.id AND table_B.user_id = table_C.user_id',
+                    compiledSqlOn:
+                        'table_B.id = table_A.id AND table_B.user_id = table_C.user_id',
+                    relationship: 'one-to-many',
+                },
+            ],
+            baseTable: 'table_A',
+            joinedTables: new Set(['table_B', 'table_C']),
+            metrics: [
+                {
+                    name: 'complex_join_metric',
+                    type: MetricType.SUM,
+                    tablesReferences: ['table_A', 'table_B', 'table_C'],
+                },
+            ],
+        });
+
+        expect(result).toHaveLength(1);
+        expect(result[0].message).toContain(
+            'may be severely inflated due to multiple one-to-many joins',
+        );
+        expect(result[0].fields?.[0]).toBe('complex_join_metric');
     });
 });

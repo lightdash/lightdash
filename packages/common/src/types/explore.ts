@@ -22,11 +22,12 @@ export type ExploreJoin = {
     hidden?: boolean;
     fields?: string[]; // Optional list of fields to include from the joined table
     always?: boolean; // Optional flag to always join the table
+    relationship?: 'one-to-many' | 'many-to-one' | 'one-to-one';
 };
 
 export type CompiledExploreJoin = Pick<
     ExploreJoin,
-    'table' | 'sqlOn' | 'type' | 'hidden' | 'always'
+    'table' | 'sqlOn' | 'type' | 'hidden' | 'always' | 'relationship'
 > & {
     compiledSqlOn: string; // Sql on clause with template variables resolved
 };
