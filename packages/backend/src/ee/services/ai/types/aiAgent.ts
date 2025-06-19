@@ -1,4 +1,5 @@
 import { CoreMessage, LanguageModelV1 } from 'ai';
+import { ServerResponse } from 'http';
 import {
     GetExploreFn,
     GetPromptFn,
@@ -19,6 +20,7 @@ export type AiAgentArgs = {
     aiAgentExploreSummaries: AiAgentExploreSummary[];
     maxLimit: number;
 };
+
 export type AiAgentDependencies = {
     getExplore: GetExploreFn;
     searchFields: SearchFieldsFn | undefined;
@@ -28,3 +30,7 @@ export type AiAgentDependencies = {
     updatePrompt: UpdatePromptFn;
     updateProgress: UpdateProgressFn;
 };
+
+export type AiGenerateAgentResponseArgs = AiAgentArgs;
+
+export type AiStreamAgentResponseArgs = AiAgentArgs;

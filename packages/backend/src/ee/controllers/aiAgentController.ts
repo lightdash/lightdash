@@ -33,6 +33,7 @@ import {
     Route,
     SuccessResponse,
 } from '@tsoa/runtime';
+import { pipeDataStreamToResponse } from 'ai';
 import express from 'express';
 import {
     allowApiKeyAuthentication,
@@ -225,6 +226,38 @@ export class AiAgentController extends BaseController {
             status: 'ok',
             results: { jobId },
         };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/stream')
+    @OperationId('streamAgentThreadResponse')
+    async streamAgentThreadResponse(
+        @Request() req: express.Request,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+    ): Promise<void> {
+        const stream = await this.getAiAgentService().streamAgentThreadResponse(
+            req.user!,
+            {
+                agentUuid,
+                threadUuid,
+            },
+        );
+
+        /**
+         * @ref https://github.com/lukeautry/tsoa/issues/44#issuecomment-357784246
+         * Hack to get the response object from the request
+         */
+        pipeDataStreamToResponse(req.res!, {
+            execute: (writer) => {
+                // writer.writeData
+                // writer.writeMessageAnnotation({
+                //     type: 'any custom data',
+                // });
+                stream.mergeIntoDataStream(writer, { sendUsage: false });
+            },
+        });
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

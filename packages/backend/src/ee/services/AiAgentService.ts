@@ -28,6 +28,8 @@ import {
     QueryExecutionContext,
     SlackPrompt,
     UnexpectedServerError,
+    UpdateSlackResponse,
+    UpdateWebAppResponse,
     type SessionUser,
 } from '@lightdash/common';
 import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
@@ -44,7 +46,7 @@ import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagServic
 import { ProjectService } from '../../services/ProjectService/ProjectService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
-import { runAgent } from './ai/agents/agent';
+import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
 import { generateEmbeddingsNameAndDescription } from './ai/embeds/embed';
 import { getModel } from './ai/models';
 import { getChatHistoryFromThreadMessages } from './ai/prompts/conversationHistory';
@@ -726,16 +728,87 @@ export class AiAgentService {
             const chatHistoryMessages =
                 getChatHistoryFromThreadMessages(threadMessages);
 
-            const response = await this.generateExploreResult(
+            const response = await this.generateOrStreamAgentResponse(
                 user,
                 chatHistoryMessages,
-                prompt,
+                {
+                    prompt,
+                    stream: false,
+                },
             );
 
             await this.aiAgentModel.updateWebAppResponse({
                 promptUuid,
                 response,
             });
+        } catch (e) {
+            Logger.error('Failed to generate agent thread response:', e);
+            throw new Error('Failed to generate agent thread response');
+        }
+    }
+
+    async streamAgentThreadResponse(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+        },
+    ): Promise<ReturnType<typeof streamAgentResponse>> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const thread = await this.aiAgentModel.findThread(threadUuid);
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const { organizationUuid, projectUuid } = thread;
+
+        if (thread.organizationUuid !== user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const threadMessages = await this.aiAgentModel.getThreadMessages(
+            organizationUuid,
+            projectUuid,
+            threadUuid,
+        );
+
+        if (threadMessages.length === 0) {
+            throw new Error(
+                `No messages found in thread: ${threadUuid}. ${agentUuid}`,
+            );
+        }
+
+        const prompt = await this.aiAgentModel.findWebAppPrompt(
+            threadMessages[threadMessages.length - 1].ai_prompt_uuid,
+        );
+
+        if (!prompt) {
+            throw new NotFoundError(
+                `Prompt not found: ${
+                    threadMessages[threadMessages.length - 1].ai_prompt_uuid
+                }`,
+            );
+        }
+
+        try {
+            const chatHistoryMessages =
+                getChatHistoryFromThreadMessages(threadMessages);
+
+            const response = await this.generateOrStreamAgentResponse(
+                user,
+                chatHistoryMessages,
+                {
+                    prompt,
+                    stream: true,
+                },
+            );
+            return response;
         } catch (e) {
             Logger.error('Failed to generate agent thread response:', e);
             throw new Error('Failed to generate agent thread response');
@@ -1207,11 +1280,47 @@ export class AiAgentService {
         };
     }
 
-    async generateExploreResult(
+    async generateOrStreamAgentResponse(
         user: SessionUser,
         messageHistory: CoreMessage[],
-        slackOrWebAppPrompt: SlackPrompt | AiWebAppPrompt,
-    ): Promise<string> {
+        options: {
+            prompt: AiWebAppPrompt;
+            stream: true;
+        },
+    ): Promise<ReturnType<typeof streamAgentResponse>>;
+    async generateOrStreamAgentResponse(
+        user: SessionUser,
+        messageHistory: CoreMessage[],
+        options: {
+            prompt: AiWebAppPrompt;
+            stream: false;
+        },
+    ): Promise<string>;
+    async generateOrStreamAgentResponse(
+        user: SessionUser,
+        messageHistory: CoreMessage[],
+        options: {
+            prompt: SlackPrompt;
+            stream: false;
+        },
+    ): Promise<string>;
+    async generateOrStreamAgentResponse(
+        user: SessionUser,
+        messageHistory: CoreMessage[],
+        options:
+            | {
+                  prompt: AiWebAppPrompt;
+                  stream: true;
+              }
+            | {
+                  prompt: SlackPrompt;
+                  stream: false;
+              }
+            | {
+                  prompt: AiWebAppPrompt;
+                  stream: false;
+              },
+    ): Promise<string | ReturnType<typeof streamAgentResponse>> {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
         }
@@ -1220,17 +1329,18 @@ export class AiAgentService {
             throw new Error('AI Copilot is not enabled');
         }
 
-        const { projectUuid } = slackOrWebAppPrompt;
+        const { prompt, stream } = options;
+        const { projectUuid } = prompt;
 
         const agentSettings =
-            'slackChannelId' in slackOrWebAppPrompt
+            'slackChannelId' in prompt
                 ? await this.aiAgentModel.getAgentBySlackChannelId({
                       organizationUuid: user.organizationUuid,
-                      slackChannelId: slackOrWebAppPrompt.slackChannelId,
+                      slackChannelId: prompt.slackChannelId,
                   })
                 : await this.aiAgentModel.getAgent({
-                      organizationUuid: slackOrWebAppPrompt.organizationUuid,
-                      agentUuid: slackOrWebAppPrompt.agentUuid!,
+                      organizationUuid: prompt.organizationUuid,
+                      agentUuid: prompt.agentUuid!,
                   });
 
         const {
@@ -1242,7 +1352,7 @@ export class AiAgentService {
             sendFile,
         } = this.getAiAgentDependencies(
             user,
-            slackOrWebAppPrompt,
+            prompt,
             agentSettings?.tags ?? null,
         );
 
@@ -1254,27 +1364,38 @@ export class AiAgentService {
 
         const model = getModel(this.lightdashConfig.ai.copilot);
 
-        return runAgent({
-            args: {
-                model,
-                agentName: agentSettings.name,
-                instruction: agentSettings.instruction,
-                messageHistory,
-                aiAgentExploreSummaries,
-                promptUuid: slackOrWebAppPrompt.promptUuid,
-                maxLimit: this.lightdashConfig.query.maxLimit,
-            },
-            dependencies: {
-                getExplore,
-                searchFields,
-                runMiniMetricQuery,
-                getPrompt,
-                sendFile,
-                // avoid binding
-                updateProgress: (args) => updateProgress(args),
-                updatePrompt: (args) =>
-                    this.aiAgentModel.updateModelResponse(args),
-            },
+        const args = {
+            model,
+            agentName: agentSettings.name,
+            instruction: agentSettings.instruction,
+            messageHistory,
+            aiAgentExploreSummaries,
+            promptUuid: prompt.promptUuid,
+            maxLimit: this.lightdashConfig.query.maxLimit,
+        };
+
+        const dependencies = {
+            getExplore,
+            searchFields,
+            runMiniMetricQuery,
+            getPrompt,
+            sendFile,
+            // avoid binding
+            updateProgress: (progress: string) => updateProgress(progress),
+            updatePrompt: (
+                update: UpdateSlackResponse | UpdateWebAppResponse,
+            ) => this.aiAgentModel.updateModelResponse(update),
+        };
+
+        if (stream) {
+            return streamAgentResponse({
+                args,
+                dependencies,
+            });
+        }
+        return generateAgentResponse({
+            args,
+            dependencies,
         });
     }
 
@@ -1461,10 +1582,13 @@ export class AiAgentService {
             const chatHistoryMessages =
                 getChatHistoryFromThreadMessages(threadMessages);
 
-            response = await this.generateExploreResult(
+            response = await this.generateOrStreamAgentResponse(
                 user,
                 chatHistoryMessages,
-                slackPrompt,
+                {
+                    prompt: slackPrompt,
+                    stream: false,
+                },
             );
         } catch (e) {
             await this.slackClient.postMessage({
@@ -1716,10 +1840,13 @@ export class AiAgentService {
             throw new Error('Prompt not found');
         }
 
-        const response = await this.generateExploreResult(
+        const response = await this.generateOrStreamAgentResponse(
             user,
             [{ role: 'user', content: question }],
-            webAppPrompt,
+            {
+                prompt: webAppPrompt,
+                stream: false,
+            },
         );
 
         await this.aiAgentModel.updateWebAppResponse({
