@@ -30,9 +30,12 @@ import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
-import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import {
+    METRIC_QUERY,
+    warehouseClientMock,
+} from '../../utils/QueryBuilder/queryBuilder.mock';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,

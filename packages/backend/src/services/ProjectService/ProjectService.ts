@@ -188,16 +188,16 @@ import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredent
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
-import {
-    applyLimitToSqlQuery,
-    buildQuery,
-    CompiledQuery,
-} from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import {
+    buildQuery,
+    CompiledQuery,
+} from '../../utils/QueryBuilder/queryBuilder';
+import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,

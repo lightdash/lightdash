@@ -87,13 +87,13 @@ import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClie
 import { measureTime } from '../../logging/measureTime';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
-import {
-    applyLimitToSqlQuery,
-    QueryBuilder,
-    ReferenceMap,
-} from '../../queryBuilder';
 import { wrapSentryTransaction } from '../../utils';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils';
+import {
+    QueryBuilder,
+    ReferenceMap,
+} from '../../utils/QueryBuilder/queryBuilder';
+import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';

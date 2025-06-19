@@ -9,7 +9,7 @@ import {
     SupportedDbtAdapter,
     WarehouseClient,
 } from '@lightdash/common';
-import { emptyTable } from './queryBuilder.mock';
+import { emptyTable } from './utils/QueryBuilder/queryBuilder.mock';
 
 const DIMENSION: CompiledDimension = {
     name: 'dim_1',
