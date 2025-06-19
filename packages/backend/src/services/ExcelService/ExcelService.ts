@@ -5,6 +5,7 @@ import {
     formatItemValue,
     formatRows,
     getErrorMessage,
+    getFormatExpression,
     ItemsMap,
     MetricQuery,
     PivotConfig,
@@ -29,7 +30,7 @@ export class ExcelService {
     private static readonly EXCEL_ROW_LIMIT = 1_000_000;
 
     // Helper method for date/timestamp conversion
-    private static convertToExcelDate(value: unknown): Date | unknown {
+    static convertToExcelDate(value: unknown): Date | unknown {
         if (typeof value === 'string') {
             const dateValue = moment(value, moment.ISO_8601, true);
             if (dateValue.isValid()) {
@@ -66,6 +67,11 @@ export class ExcelService {
                 return rawValue;
             }
 
+            // Return raw value if onlyRaw is true (skip all processing)
+            if (onlyRaw) {
+                return rawValue;
+            }
+
             // If we have item metadata and it's a date/timestamp field, convert for Excel
             if (item && 'type' in item) {
                 if (item.type === DimensionType.TIMESTAMP) {
@@ -76,12 +82,24 @@ export class ExcelService {
                 }
             }
 
-            // Return raw value if onlyRaw is true
-            if (onlyRaw) {
-                return rawValue;
+            // Check if we have a format expression for this item
+            // If yes, return raw value so Excel can apply number formatting correctly
+            if (item && 'format' in item && item.format) {
+                const formatExpression = getFormatExpression(item);
+                if (formatExpression) {
+                    // Convert string numbers to actual numbers for Excel formatting
+                    const stringValue = String(rawValue);
+                    if (
+                        stringValue.trim() !== '' &&
+                        !Number.isNaN(Number(stringValue))
+                    ) {
+                        return Number(stringValue);
+                    }
+                    return rawValue; // Return raw value for Excel to format
+                }
             }
 
-            // Use standard Lightdash formatting if not onlyRaw and we have item metadata
+            // Use standard Lightdash formatting if not onlyRaw and we have item metadata but no format expression
             if (item) {
                 return formatItemValue(item, rawValue);
             }
@@ -281,9 +299,11 @@ export class ExcelService {
         onlyRaw: boolean,
         sortedFieldIds: string[],
     ): Promise<{ truncated: boolean }> {
-        const fileStream = fs.createWriteStream(tempFilePath);
+        // Use the same approach as our working tests - direct filename instead of stream
         const workbook = new Excel.stream.xlsx.WorkbookWriter({
-            stream: fileStream,
+            filename: tempFilePath,
+            useStyles: true,
+            useSharedStrings: true,
         });
         const worksheet = workbook.addWorksheet('Sheet1');
 
@@ -326,6 +346,27 @@ export class ExcelService {
                     );
 
                     const row = worksheet.addRow(rowObject);
+
+                    // Apply format expressions only (values already set via addRow)
+                    rowData.forEach((value, colIndex) => {
+                        const fieldId = sortedFieldIds[colIndex];
+                        const item = fields[fieldId];
+
+                        // Only process cells that need formatting
+                        if (
+                            item &&
+                            'format' in item &&
+                            item.format &&
+                            typeof value === 'number'
+                        ) {
+                            const formatExpression = getFormatExpression(item);
+                            if (formatExpression) {
+                                const cell = row.getCell(colIndex + 1); // ExcelJS uses 1-based indexing
+                                cell.numFmt = formatExpression;
+                            }
+                        }
+                    });
+
                     row.commit();
                 } else {
                     Logger.warn(
