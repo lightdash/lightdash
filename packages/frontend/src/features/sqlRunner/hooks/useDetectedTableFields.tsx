@@ -5,23 +5,26 @@ import {
 } from './useMultipleTableFields';
 import { type TablesBySchema } from './useTables';
 
-const parseTableReferencesFromSQL = (
-    sql: string,
-    quoteChar: string,
-): Array<{
+type ParsedTableReference = {
     database?: string;
     schema?: string;
     table: string;
     fullReference: string;
-}> => {
+};
+
+const isValidTableReference = (
+    tableRef: ParsedTableReference,
+): tableRef is Required<ParsedTableReference> => {
+    return !!(tableRef.database && tableRef.schema);
+};
+
+const parseTableReferencesFromSQL = (
+    sql: string,
+    quoteChar: string,
+): Array<ParsedTableReference> => {
     if (!sql) return [];
 
-    const tableReferences: Array<{
-        database?: string;
-        schema?: string;
-        table: string;
-        fullReference: string;
-    }> = [];
+    const tableReferences: Array<ParsedTableReference> = [];
 
     // Regex to match quoted identifiers in SQL
     // This matches patterns like: "database"."schema"."table" or schema.table or just table
@@ -121,29 +124,35 @@ export const useDetectedTableFields = ({
             return [];
         }
 
-        return detectedTables
-            .filter((tableRef) => {
-                // Only include tables that exist in our catalog
-                if (!tableRef.database || !tableRef.schema) {
-                    return false;
-                }
+        const filteredTables: Required<ParsedTableReference>[] =
+            detectedTables.filter(
+                (tableRef): tableRef is Required<ParsedTableReference> => {
+                    // Only include tables that exist in our catalog
+                    if (!isValidTableReference(tableRef)) {
+                        return false;
+                    }
 
-                const matchesCurrentDatabase =
-                    tableRef.database === transformedData.database;
-                const schemaExists = transformedData.tablesBySchema?.some(
-                    (s) => s.schema === tableRef.schema,
-                );
-                const tableExists = transformedData.tablesBySchema
-                    ?.find((s) => s.schema === tableRef.schema)
-                    ?.tables.hasOwnProperty(tableRef.table);
+                    const matchesCurrentDatabase =
+                        tableRef.database === transformedData.database;
+                    const schemaExists = transformedData.tablesBySchema?.some(
+                        (s) => s.schema === tableRef.schema,
+                    );
+                    const tableExists = transformedData.tablesBySchema
+                        ?.find((s) => s.schema === tableRef.schema)
+                        ?.tables.hasOwnProperty(tableRef.table);
 
-                return matchesCurrentDatabase && schemaExists && tableExists;
-            })
-            .map((tableRef) => ({
-                projectUuid,
-                tableName: tableRef.table,
-                schema: tableRef.schema!,
-            }));
+                    return (
+                        matchesCurrentDatabase &&
+                        !!schemaExists &&
+                        !!tableExists
+                    );
+                },
+            );
+        return filteredTables.map((tableRef) => ({
+            projectUuid,
+            tableName: tableRef.table,
+            schema: tableRef.schema,
+        }));
     }, [detectedTables, transformedData, projectUuid]);
 
     // Use the new multi-table fields hook

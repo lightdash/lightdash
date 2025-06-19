@@ -176,11 +176,11 @@ const registerCustomCompletionProvider = (
                         detail: `Column: ${field.type}${tableContext}`,
                     };
                 });
-                const setOfSuggestions = new Set(suggestions);
+                const fieldMap = new Map();
                 fieldSuggestions.forEach((suggestion) => {
-                    setOfSuggestions.add(suggestion);
+                    fieldMap.set(suggestion.label, suggestion);
                 });
-                suggestions.push(...Array.from(setOfSuggestions));
+                suggestions.push(...fieldMap.values());
             }
 
             // Add table suggestions (lower priority)
@@ -198,12 +198,15 @@ const registerCustomCompletionProvider = (
                 let insertText = insertParts.join('.');
                 if (isLastPartQuoted) {
                     // Remove the opening quote from the first part to insert
-                    insertText = insertText.replace(/^${quoteChar}/, '');
+                    insertText = insertText.replace(
+                        new RegExp(`^${quoteChar}`),
+                        '',
+                    );
                 }
                 return {
                     label: table,
                     kind: monaco.languages.CompletionItemKind.Class,
-                    insertText: insertText,
+                    insertText,
                     range,
                     sortText: `1${table}`, // Lower priority with '1' prefix
                     detail: 'Table',
@@ -334,42 +337,41 @@ export const SqlEditor: FC<{
 
     // Register completion provider reactively when data changes
     useEffect(() => {
-        if (!monaco || !transformedData || !quoteChar) return;
-
-        // Dispose of the previous completion provider
-        if (completionProviderRef.current) {
-            completionProviderRef.current.dispose();
-            completionProviderRef.current = null;
-        }
-
-        const tablesList = generateTableCompletions(quoteChar, transformedData);
-
-        // Transform current table fields to include context and combine with detected table fields
-        const currentTableFieldsWithContext = (tableFieldsData || []).map(
-            (field) => ({
-                ...field,
-                table: currentTable || '',
-                schema: currentSchema || '',
-            }),
-        );
-
-        const allFieldsData = [
-            ...currentTableFieldsWithContext,
-            ...(detectedTablesFieldData || []),
-        ];
-
-        if (tablesList && tablesList.length > 0) {
-            const provider = registerCustomCompletionProvider(
-                monaco,
-                language,
+        // Setup logic only runs when all dependencies are available
+        if (monaco && transformedData && quoteChar) {
+            // Dispose of the previous completion provider
+            if (completionProviderRef.current) {
+                completionProviderRef.current.dispose();
+                completionProviderRef.current = null;
+            }
+            const tablesList = generateTableCompletions(
                 quoteChar,
-                tablesList,
-                allFieldsData.length > 0 ? allFieldsData : undefined,
+                transformedData,
             );
-            completionProviderRef.current = provider;
+            // Transform current table fields to include context and combine with detected table fields
+            const currentTableFieldsWithContext = (tableFieldsData || []).map(
+                (field) => ({
+                    ...field,
+                    table: currentTable || '',
+                    schema: currentSchema || '',
+                }),
+            );
+            const allFieldsData = [
+                ...currentTableFieldsWithContext,
+                ...(detectedTablesFieldData || []),
+            ];
+            if (tablesList && tablesList.length > 0) {
+                const provider = registerCustomCompletionProvider(
+                    monaco,
+                    language,
+                    quoteChar,
+                    tablesList,
+                    allFieldsData.length > 0 ? allFieldsData : undefined,
+                );
+                completionProviderRef.current = provider;
+            }
         }
-
-        // Cleanup function to dispose provider on unmount
+        // Cleanup function always runs on unmount regardless of conditions
         return () => {
             if (completionProviderRef.current) {
                 completionProviderRef.current.dispose();
