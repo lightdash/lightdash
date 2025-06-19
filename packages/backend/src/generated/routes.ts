@@ -1227,7 +1227,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalOperator: {
+    FilterOperator: {
         dataType: 'refEnum',
         enums: [
             'isNull',
@@ -1252,14 +1252,14 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'FilterRule_ConditionalOperator.DashboardFieldTarget.AnyType.AnyType_': {
+    'FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_': {
         dataType: 'refObject',
         properties: {
             values: {
                 dataType: 'array',
                 array: { dataType: 'refAlias', ref: 'AnyType' },
             },
-            operator: { ref: 'ConditionalOperator', required: true },
+            operator: { ref: 'FilterOperator', required: true },
             id: { dataType: 'string', required: true },
             target: { ref: 'DashboardFieldTarget', required: true },
             settings: { ref: 'AnyType' },
@@ -1297,7 +1297,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'FilterRule_ConditionalOperator.DashboardFieldTarget.AnyType.AnyType_',
+                    ref: 'FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -1889,7 +1889,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'array',
                 array: { dataType: 'refAlias', ref: 'AnyType' },
             },
-            operator: { ref: 'ConditionalOperator', required: true },
+            operator: { ref: 'FilterOperator', required: true },
             id: { dataType: 'string', required: true },
             target: { ref: 'FieldTarget', required: true },
             settings: { ref: 'AnyType' },
@@ -2074,7 +2074,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'array',
                 array: { dataType: 'refAlias', ref: 'AnyType' },
             },
-            operator: { ref: 'ConditionalOperator', required: true },
+            operator: { ref: 'FilterOperator', required: true },
             id: { dataType: 'string', required: true },
             target: {
                 dataType: 'nestedObjectLiteral',
@@ -3021,7 +3021,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ConditionalRule_ConditionalOperator.number-or-string_': {
+    'BaseFilterRule_FilterOperator.number-or-string_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -3036,7 +3036,7 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                 },
-                operator: { ref: 'ConditionalOperator', required: true },
+                operator: { ref: 'FilterOperator', required: true },
                 id: { dataType: 'string', required: true },
             },
             validators: {},
@@ -3048,9 +3048,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                {
-                    ref: 'ConditionalRule_ConditionalOperator.number-or-string_',
-                },
+                { ref: 'BaseFilterRule_FilterOperator.number-or-string_' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -3077,9 +3075,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                {
-                    ref: 'ConditionalRule_ConditionalOperator.number-or-string_',
-                },
+                { ref: 'BaseFilterRule_FilterOperator.number-or-string_' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -3108,7 +3104,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalFormattingWithConditionalOperator: {
+    ConditionalFormattingWithFilterOperator: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
@@ -3131,7 +3127,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'ConditionalFormattingWithConditionalOperator',
+                        ref: 'ConditionalFormattingWithFilterOperator',
                     },
                     required: true,
                 },
@@ -3455,7 +3451,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'array',
                 array: { dataType: 'refAlias', ref: 'AnyType' },
             },
-            operator: { ref: 'ConditionalOperator', required: true },
+            operator: { ref: 'FilterOperator', required: true },
             id: { dataType: 'string', required: true },
             target: { ref: 'JoinModelRequiredFilterTarget', required: true },
             settings: { ref: 'AnyType' },
@@ -11438,11 +11434,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_': {
+    'FilterRule_FilterOperator.DashboardFieldTarget.any.any_': {
         dataType: 'refObject',
         properties: {
             values: { dataType: 'array', array: { dataType: 'any' } },
-            operator: { ref: 'ConditionalOperator', required: true },
+            operator: { ref: 'FilterOperator', required: true },
             id: { dataType: 'string', required: true },
             target: { ref: 'DashboardFieldTarget', required: true },
             settings: { dataType: 'any' },
@@ -11452,13 +11448,13 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_': {
+    'DashboardFilterRule_FilterOperator.DashboardFieldTarget.any.any_': {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_',
+                    ref: 'FilterRule_FilterOperator.DashboardFieldTarget.any.any_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -11491,7 +11487,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_',
+                        ref: 'DashboardFilterRule_FilterOperator.DashboardFieldTarget.any.any_',
                     },
                     required: true,
                 },
@@ -11499,7 +11495,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_',
+                        ref: 'DashboardFilterRule_FilterOperator.DashboardFieldTarget.any.any_',
                     },
                     required: true,
                 },
@@ -11545,7 +11541,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
-                operator: { ref: 'ConditionalOperator', required: true },
+                operator: { ref: 'FilterOperator', required: true },
                 values: {
                     dataType: 'union',
                     subSchemas: [
@@ -11629,7 +11625,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -11639,7 +11635,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -11649,7 +11645,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -11662,7 +11658,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
