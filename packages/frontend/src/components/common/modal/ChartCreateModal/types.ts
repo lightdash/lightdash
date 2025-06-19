@@ -12,3 +12,13 @@ export const saveToSpaceSchema = z.object({
 });
 
 export type SaveToSpaceFormType = z.infer<typeof saveToSpaceSchema>;
+
+export type ChartMetadata = {
+    name: string;
+    description: string;
+};
+
+export const DEFAULT_CHART_METADATA = {
+    name: '',
+    description: '',
+} as const;

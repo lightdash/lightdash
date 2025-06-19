@@ -313,6 +313,12 @@ export const timeSeriesMetricVizConfigSchema = z.object({
             'The title of the chart. If not provided the chart will have no title.',
         )
         .nullable(),
+    description: z
+        .string()
+        .nullable()
+        .describe(
+            'Optional. A descriptive summary or explanation for the chart.',
+        ),
     exploreName: z
         .string()
         .describe(
@@ -399,6 +405,12 @@ export const verticalBarMetricVizConfigSchema = z.object({
         .nullable()
         .describe('A helpful label to explain the y-axis'),
     title: z.string().nullable().describe('a descriptive title for the chart'),
+    description: z
+        .string()
+        .nullable()
+        .describe(
+            'Optional. A descriptive summary or explanation for the chart.',
+        ),
 });
 
 export type VerticalBarMetricVizConfigSchemaType = z.infer<

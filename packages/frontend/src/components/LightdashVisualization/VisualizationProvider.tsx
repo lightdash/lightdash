@@ -297,6 +297,7 @@ const VisualizationProvider: FC<
         colorPalette,
         getGroupColor,
         getSeriesColor,
+        chartConfig,
     };
 
     switch (chartConfig.type) {

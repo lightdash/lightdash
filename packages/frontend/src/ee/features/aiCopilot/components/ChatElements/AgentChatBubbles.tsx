@@ -148,34 +148,43 @@ export const AssistantBubble: FC<{
     const hasRating =
         message.humanScore !== undefined && message.humanScore !== null;
 
+    const metricQuery = queryExecutionHandle.data?.query.metricQuery;
+    const rows = queryResults.rows;
+    const type = queryExecutionHandle.data?.type;
+    const vizConfig = message.vizConfigOutput;
+
     const openInExploreUrl = useMemo(() => {
-        if (isQueryLoading || isQueryError) return '';
+        if (
+            !metricQuery ||
+            !type ||
+            !vizConfig ||
+            isQueryLoading ||
+            isQueryError
+        )
+            return '';
 
         return getOpenInExploreUrl({
-            metricQuery: queryExecutionHandle.data.query.metricQuery,
+            metricQuery,
             projectUuid,
-            columnOrder: [
-                ...queryExecutionHandle.data.query.metricQuery.dimensions,
-                ...queryExecutionHandle.data.query.metricQuery.metrics,
-            ],
-            type: queryExecutionHandle.data.type,
-            vizConfig: message.vizConfigOutput,
-            rows: queryResults.rows,
+            columnOrder: [...metricQuery.dimensions, ...metricQuery.metrics],
+            type,
+            vizConfig,
+            rows,
             pivotColumns:
-                // TODO: fix this using schema
-                message.vizConfigOutput &&
-                'breakdownByDimension' in message.vizConfigOutput &&
-                typeof message.vizConfigOutput.breakdownByDimension === 'string'
-                    ? [message.vizConfigOutput.breakdownByDimension]
+                vizConfig &&
+                'breakdownByDimension' in vizConfig &&
+                typeof vizConfig.breakdownByDimension === 'string'
+                    ? [vizConfig.breakdownByDimension]
                     : undefined,
         });
     }, [
+        metricQuery,
+        type,
+        vizConfig,
         isQueryLoading,
         isQueryError,
         projectUuid,
-        queryExecutionHandle.data,
-        queryResults.rows,
-        message.vizConfigOutput,
+        rows,
     ]);
 
     return (
@@ -201,7 +210,7 @@ export const AssistantBubble: FC<{
                 />
             )}
 
-            {message.vizConfigOutput && message.metricQuery && (
+            {vizConfig && metricQuery && (
                 <Paper
                     withBorder
                     radius="md"
@@ -233,9 +242,10 @@ export const AssistantBubble: FC<{
                     ) : (
                         <AiChartVisualization
                             query={queryExecutionHandle.data.query}
-                            type={queryExecutionHandle.data.type}
-                            vizConfig={message.vizConfigOutput}
+                            vizConfig={vizConfig}
                             results={queryResults}
+                            type={queryExecutionHandle.data.type}
+                            projectUuid={projectUuid}
                         />
                     )}
                     <Stack gap="xs">
