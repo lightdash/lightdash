@@ -40,13 +40,8 @@ export class ServiceAccountModel {
         };
     }
 
-    static generateToken(prefix: string = ''): {
-        token: string;
-        tokenHash: string;
-    } {
-        const token = `${prefix}${crypto.randomBytes(16).toString('hex')}`;
-        const tokenHash = ServiceAccountModel._hash(token);
-        return { token, tokenHash };
+    static generateToken(prefix: string = ''): string {
+        return `${prefix}${crypto.randomBytes(16).toString('hex')}`;
     }
 
     async create({
@@ -58,7 +53,16 @@ export class ServiceAccountModel {
         data: CreateServiceAccount;
         prefix?: string;
     }): Promise<ServiceAccountWithToken> {
-        const { token, tokenHash } = ServiceAccountModel.generateToken(prefix);
+        const token = ServiceAccountModel.generateToken(prefix);
+        return this.save(user, data, token);
+    }
+
+    async save(
+        user: SessionUser,
+        data: CreateServiceAccount,
+        token: string,
+    ): Promise<ServiceAccountWithToken> {
+        const tokenHash = ServiceAccountModel._hash(token);
         const [row] = await this.database('service_accounts')
             .insert({
                 created_by_user_uuid: user.userUuid,
@@ -105,7 +109,9 @@ export class ServiceAccountModel {
         expiresAt: Date;
         prefix?: string;
     }): Promise<ServiceAccountWithToken> {
-        const { token, tokenHash } = ServiceAccountModel.generateToken(prefix);
+        const token = ServiceAccountModel.generateToken(prefix);
+        const tokenHash = ServiceAccountModel._hash(token);
+
         const [row] = await this.database(ServiceAccountsTableName)
             .update({
                 rotated_at: new Date(),
