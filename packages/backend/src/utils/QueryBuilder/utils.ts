@@ -25,6 +25,7 @@ import {
     isCompiledCustomSqlDimension,
     MetricType,
     parseAllReferences,
+    QueryWarning,
     SortField,
     SupportedDbtAdapter,
     UserAttributeValueMap,
@@ -1047,10 +1048,4 @@ export const findMetricInflationWarnings = ({
     });
 
     return warnings;
-};
-
-export type QueryWarning = {
-    message: string; // message, in markdown, to be shown to the user
-    fields?: string[]; // field/column that relates to this message
-    tables?: string[]; // tables that relate to this message
 };
