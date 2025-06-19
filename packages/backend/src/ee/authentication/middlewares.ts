@@ -3,12 +3,23 @@ import {
     applyServiceAccountAbilities,
     AuthorizationError,
     getErrorMessage,
+    OrganizationMemberRole,
     ScimError,
+    ServiceAccountScope,
     type MemberAbility,
 } from '@lightdash/common';
 import { RequestHandler } from 'express';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 
+const getRoleForScopes = (scopes: ServiceAccountScope[]) => {
+    if (
+        scopes.includes(ServiceAccountScope.SCIM_MANAGE) ||
+        scopes.includes(ServiceAccountScope.ORG_ADMIN)
+    ) {
+        return OrganizationMemberRole.ADMIN;
+    }
+    return OrganizationMemberRole.MEMBER;
+};
 // Middleware to extract SCIM user details
 export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
     // Check for SCIM headers or payload (assuming SCIM details are in the headers for this example)
@@ -132,7 +143,7 @@ export const authenticateServiceAccount: RequestHandler = async (
             isMarketingOptedIn: false,
             isSetupComplete: true,
             userId: adminUser.userId,
-            role: undefined,
+            role: getRoleForScopes(serviceAccount.scopes),
             ability: builder.build(),
             isActive: true,
             abilityRules: builder.rules,
