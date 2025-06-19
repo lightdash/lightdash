@@ -29,7 +29,8 @@ export type CompiledExploreJoin = Pick<
     ExploreJoin,
     'table' | 'sqlOn' | 'type' | 'hidden' | 'always' | 'relationship'
 > & {
-    compiledSqlOn: string; // Sql on clause with template variables resolved
+    compiledSqlOn: string; // SQL on clause with template variables resolved
+    tablesReferences?: string[]; // Tables referenced in SQL. Optional, to keep it backwards compatible.
 };
 
 export type CompiledTable = TableBase & {
