@@ -1,3 +1,10 @@
+## [0.1735.1](https://github.com/lightdash/lightdash/compare/0.1735.0...0.1735.1) (2025-06-19)
+
+
+### Bug Fixes
+
+* perform getCatalog requests in batches ([#15428](https://github.com/lightdash/lightdash/issues/15428)) ([2527069](https://github.com/lightdash/lightdash/commit/2527069b0067cc327e816ba9a8b39b666d7bee8b))
+
 # [0.1735.0](https://github.com/lightdash/lightdash/compare/0.1734.2...0.1735.0) (2025-06-19)
 
 
