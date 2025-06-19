@@ -1,3 +1,10 @@
+## [0.1734.2](https://github.com/lightdash/lightdash/compare/0.1734.1...0.1734.2) (2025-06-19)
+
+
+### Bug Fixes
+
+* prevent login page refresh when clicking Continue button ([#15350](https://github.com/lightdash/lightdash/issues/15350)) ([93fcc66](https://github.com/lightdash/lightdash/commit/93fcc66171aca43434160cf7f4a872dc711fa9ca)), closes [#15346](https://github.com/lightdash/lightdash/issues/15346)
+
 ## [0.1734.1](https://github.com/lightdash/lightdash/compare/0.1734.0...0.1734.1) (2025-06-18)
 
 
