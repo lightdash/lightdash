@@ -1,11 +1,11 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    applyServiceAccountAbilities,
     AuthorizationError,
     getErrorMessage,
     ScimError,
+    type MemberAbility,
 } from '@lightdash/common';
-import { applyServiceAccountAbilities } from '@lightdash/common/src/authorization/serviceAccountAbility';
-import { type MemberAbility } from '@lightdash/common/src/authorization/types';
 import { RequestHandler } from 'express';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 
