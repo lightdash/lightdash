@@ -109,7 +109,7 @@ describe('EmailClient', () => {
 
             await expect(
                 client.sendPasswordRecoveryEmail(passwordResetLinkMock),
-            ).rejects.toThrow('Failed to send email after 1 attempts');
+            ).rejects.toThrow('Failed to send email after 1 attempt');
 
             // Should not retry non-retryable errors
             expect(mockSendMail).toHaveBeenCalledTimes(1);
