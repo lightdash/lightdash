@@ -5,7 +5,7 @@ import {
     DimensionType,
     MetricType,
 } from '@lightdash/common';
-import { warehouseClientMock } from '../../queryBuilder.mock';
+import { warehouseClientMock } from '../../utils/QueryBuilder/queryBuilder.mock';
 
 export const PROJECT_MODEL = {
     getExploreFromCache: jest.fn(() => ({ ymlPath: 'path/to/schema.yml' })),
