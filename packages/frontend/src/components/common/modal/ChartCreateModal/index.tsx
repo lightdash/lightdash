@@ -7,6 +7,7 @@ import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage
 import MantineIcon from '../../MantineIcon';
 import { SaveToDashboard } from './SaveToDashboard';
 import { SaveToSpaceOrDashboard } from './SaveToSpaceOrDashboard';
+import { type ChartMetadata } from './types';
 
 interface ChartCreateModalProps {
     savedData: CreateSavedChartVersion;
@@ -14,6 +15,7 @@ interface ChartCreateModalProps {
     onClose: () => void;
     defaultSpaceUuid?: string;
     onConfirm: (savedData: CreateSavedChartVersion) => void;
+    chartMetadata?: ChartMetadata;
 }
 
 enum SaveMode {
@@ -27,6 +29,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     onClose,
     defaultSpaceUuid,
     onConfirm,
+    chartMetadata,
 }) => {
     // Store it in the state to avoid losing the param when the user switches between tables
     const [spaceUuid] = useState(defaultSpaceUuid);
@@ -73,6 +76,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                     dashboardUuid={editingDashboardInfo.dashboardUuid}
                     savedData={savedData}
                     onClose={onClose}
+                    defaults={chartMetadata}
                 />
             )}
 
@@ -87,6 +91,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         dashboardName: savedData.dashboardName ?? null,
                         dashboardUuid: savedData.dashboardUuid ?? null,
                     }}
+                    chartMetadata={chartMetadata}
                 />
             )}
         </Modal>

@@ -223,9 +223,15 @@ export type ApiAiAgentThreadMessageVizResponse = {
     results: ApiAiAgentThreadMessageViz;
 };
 
+export type AiVizMetadata = {
+    title: string | null;
+    description: string | null;
+};
+
 export type ApiAiAgentThreadMessageVizQuery = {
     type: AiChartType;
     query: ApiExecuteAsyncMetricQueryResults;
+    metadata: AiVizMetadata;
 };
 
 export type ApiAiAgentThreadMessageVizQueryResponse = {
