@@ -16,12 +16,10 @@ import {
     CreateBigqueryCredentials,
     DimensionType,
     getErrorMessage,
-    isBigQueryWarehouseQueryMetadata,
     Metric,
     MetricType,
     PartitionColumn,
     PartitionType,
-    sleep,
     SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
@@ -35,6 +33,10 @@ import {
     WarehouseExecuteAsyncQueryArgs,
     WarehouseTableSchema,
 } from '../types';
+import {
+    DEFAULT_BATCH_SIZE,
+    processPromisesInBatches,
+} from '../utils/processPromisesInBatches';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
 export enum BigqueryFieldType {
@@ -315,29 +317,29 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             table: string;
         }[],
     ) {
-        const tablesMetadataPromises: Promise<
-            [string, string, string, TableSchema] | undefined
-        >[] = requests.map(({ database, schema, table }) => {
-            const dataset: Dataset = new Dataset(this.client, schema, {
-                projectId: database,
-            });
-            return BigqueryWarehouseClient.getTableMetadata(
-                dataset,
-                table,
-            ).catch((e) => {
-                if (e?.code === 404) {
-                    // Ignore error and let UI show invalid table
-                    return undefined;
-                }
-                throw new WarehouseConnectionError(
-                    `Failed to fetch table metadata for '${database}.${schema}.${table}'. ${getErrorMessage(
-                        e,
-                    )}`,
-                );
-            });
-        });
+        const tablesMetadata = await processPromisesInBatches(
+            requests,
+            DEFAULT_BATCH_SIZE,
+            async ({ database, schema, table }) => {
+                const dataset: Dataset = new Dataset(this.client, schema, {
+                    projectId: database,
+                });
 
-        const tablesMetadata = await Promise.all(tablesMetadataPromises);
+                return BigqueryWarehouseClient.getTableMetadata(
+                    dataset,
+                    table,
+                ).catch((e) => {
+                    if (e?.code === 404) {
+                        return undefined;
+                    }
+                    throw new WarehouseConnectionError(
+                        `Failed to fetch table metadata for '${database}.${schema}.${table}'. ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+                });
+            },
+        );
 
         return tablesMetadata.reduce<WarehouseCatalog>((acc, result) => {
             if (result) {

@@ -28,6 +28,10 @@ import {
 import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
 import { WarehouseCatalog } from '../types';
+import {
+    DEFAULT_BATCH_SIZE,
+    processPromisesInBatches,
+} from '../utils/processPromisesInBatches';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
 const assertIsSnowflakeLoggingLevel = (
@@ -583,12 +587,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             table: string;
         }[],
     ) {
-        const tablesMetadataPromises = config.map(
-            ({ database, schema, table }) =>
+        const tablesMetadata = await processPromisesInBatches(
+            config,
+            DEFAULT_BATCH_SIZE,
+            async ({ database, schema, table }) =>
                 this.runTableCatalogQuery(database, schema, table),
         );
-
-        const tablesMetadata = await Promise.all(tablesMetadataPromises);
 
         return tablesMetadata.reduce<WarehouseCatalog>((acc, tableMetadata) => {
             if (tableMetadata) {
