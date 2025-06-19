@@ -1,5 +1,6 @@
 import {
     AnyType,
+    AuthTokenPrefix,
     cleanColorArray,
     CreateDatabricksCredentials,
     DbtGithubProjectConfig,
@@ -20,7 +21,40 @@ import {
     WeekDay,
 } from '@lightdash/common';
 import { type ClientAuthMethod } from 'openid-client';
+import { isValid } from 'zod';
 import { VERSION } from '../version';
+
+enum TokenEnvironmentVariable {
+    SERVICE_ACCOUNT = 'LD_SETUP_SERVICE_ACCOUNT_TOKEN',
+    PERSONAL_ACCESS_TOKEN = 'LD_SETUP_PROJECT_PAT',
+}
+
+const tokenConfigs = {
+    [TokenEnvironmentVariable.SERVICE_ACCOUNT]: {
+        prefix: AuthTokenPrefix.SERVICE_ACCOUNT,
+    },
+    [TokenEnvironmentVariable.PERSONAL_ACCESS_TOKEN]: {
+        prefix: AuthTokenPrefix.PERSONAL_ACCESS_TOKEN,
+    },
+};
+
+const isApiValidToken = (tokenVar: TokenEnvironmentVariable) => {
+    const { prefix } = tokenConfigs[tokenVar];
+    const token = process.env[tokenVar];
+
+    if (!token) return undefined;
+
+    if (token.startsWith(prefix)) {
+        return {
+            value: token,
+        };
+    }
+
+    throw new ParseError(
+        `Cannot parse API token environment variable ${tokenVar}. The token needs to be prefixed with ${prefix}.`,
+        { variant: 'ApiToken' },
+    );
+};
 
 export const getIntegerFromEnvironmentVariable = (
     name: string,
@@ -300,6 +334,7 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
                     ) || OrganizationMemberRole.VIEWER,
                 name: process.env.LD_SETUP_ORGANIZATION_NAME!,
             },
+            // TODO: Does this need validation as well?
             apiKey: process.env.LD_SETUP_ADMIN_API_KEY
                 ? {
                       token: process.env.LD_SETUP_ADMIN_API_KEY,
@@ -308,9 +343,11 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
                       ),
                   }
                 : undefined,
-            serviceAccount: process.env.LD_SETUP_SERVICE_ACCOUNT_TOKEN
+            serviceAccount: isApiValidToken(
+                TokenEnvironmentVariable.SERVICE_ACCOUNT,
+            )
                 ? {
-                      token: process.env.LD_SETUP_SERVICE_ACCOUNT_TOKEN,
+                      token: process.env.LD_SETUP_SERVICE_ACCOUNT_TOKEN!,
                       expirationTime: parseApiExpiration(
                           'LD_SETUP_SERVICE_ACCOUNT_EXPIRATION',
                       ),
@@ -323,7 +360,9 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
                 database: process.env.LD_SETUP_PROJECT_SCHEMA!,
                 serverHostName: process.env.LD_SETUP_PROJECT_HOST!,
                 httpPath: process.env.LD_SETUP_PROJECT_HTTP_PATH!,
-                personalAccessToken: process.env.LD_SETUP_PROJECT_PAT!,
+                personalAccessToken: isApiValidToken(
+                    TokenEnvironmentVariable.PERSONAL_ACCESS_TOKEN,
+                )?.value!,
                 requireUserCredentials: undefined,
                 startOfWeek: parseEnum<WeekDay>(
                     process.env.LD_SETUP_START_OF_WEEK,
@@ -348,7 +387,15 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
         };
     } catch (e) {
         // If a variable is not set, we will skip the initial setup
-        // log an error, but don't throw an error, to avoid blocking the backend
+        // log an error, but don't throw an error, to avoid blocking the backend.
+        //
+        // Unless it's related to API tokens, in which case we throw an error to get
+        // a proper token. Otherwise, the CLI will not work and the app will be in a state
+        // that needs to be recovered.
+        if (e instanceof ParseError && e.data.variant === 'ApiToken') {
+            throw e;
+        }
+
         console.error('Error parsing initial setup config', e);
         return undefined;
     }
