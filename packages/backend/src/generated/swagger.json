@@ -1210,7 +1210,7 @@
                 "required": ["tableName", "fieldId"],
                 "type": "object"
             },
-            "ConditionalOperator": {
+            "FilterOperator": {
                 "enum": [
                     "isNull",
                     "notNull",
@@ -1234,7 +1234,7 @@
                 ],
                 "type": "string"
             },
-            "FilterRule_ConditionalOperator.DashboardFieldTarget.AnyType.AnyType_": {
+            "FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_": {
                 "properties": {
                     "values": {
                         "items": {
@@ -1243,7 +1243,7 @@
                         "type": "array"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
+                        "$ref": "#/components/schemas/FilterOperator"
                     },
                     "id": {
                         "type": "string"
@@ -1287,7 +1287,7 @@
             "DashboardFilterRule": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.DashboardFieldTarget.AnyType.AnyType_"
+                        "$ref": "#/components/schemas/FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_"
                     },
                     {
                         "properties": {
@@ -2008,7 +2008,7 @@
                         "type": "array"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
+                        "$ref": "#/components/schemas/FilterOperator"
                     },
                     "id": {
                         "type": "string"
@@ -2210,7 +2210,7 @@
                         "type": "array"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
+                        "$ref": "#/components/schemas/FilterOperator"
                     },
                     "id": {
                         "type": "string"
@@ -3244,7 +3244,7 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
-            "ConditionalRule_ConditionalOperator.number-or-string_": {
+            "BaseFilterRule_FilterOperator.number-or-string_": {
                 "properties": {
                     "values": {
                         "items": {
@@ -3261,7 +3261,7 @@
                         "type": "array"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
+                        "$ref": "#/components/schemas/FilterOperator"
                     },
                     "id": {
                         "type": "string"
@@ -3273,7 +3273,7 @@
             "ConditionalFormattingWithValues_number-or-string_": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number-or-string_"
+                        "$ref": "#/components/schemas/BaseFilterRule_FilterOperator.number-or-string_"
                     },
                     {
                         "properties": {
@@ -3300,7 +3300,7 @@
             "ConditionalFormattingWithCompareTarget_number-or-string_": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number-or-string_"
+                        "$ref": "#/components/schemas/BaseFilterRule_FilterOperator.number-or-string_"
                     },
                     {
                         "properties": {
@@ -3332,7 +3332,7 @@
                     }
                 ]
             },
-            "ConditionalFormattingWithConditionalOperator": {
+            "ConditionalFormattingWithFilterOperator": {
                 "anyOf": [
                     {
                         "$ref": "#/components/schemas/ConditionalFormattingWithValues_number-or-string_"
@@ -3346,7 +3346,7 @@
                 "properties": {
                     "rules": {
                         "items": {
-                            "$ref": "#/components/schemas/ConditionalFormattingWithConditionalOperator"
+                            "$ref": "#/components/schemas/ConditionalFormattingWithFilterOperator"
                         },
                         "type": "array"
                     },
@@ -3695,7 +3695,7 @@
                         "type": "array"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
+                        "$ref": "#/components/schemas/FilterOperator"
                     },
                     "id": {
                         "type": "string"
@@ -5900,12 +5900,6 @@
                 "properties": {
                     "results": {
                         "properties": {
-                            "rows": {
-                                "items": {
-                                    "$ref": "#/components/schemas/Record_string.AnyType_"
-                                },
-                                "type": "array"
-                            },
                             "prompt": {
                                 "$ref": "#/components/schemas/AiWebAppPrompt"
                             }
@@ -12306,14 +12300,14 @@
                     }
                 ]
             },
-            "FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_": {
+            "FilterRule_FilterOperator.DashboardFieldTarget.any.any_": {
                 "properties": {
                     "values": {
                         "items": {},
                         "type": "array"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
+                        "$ref": "#/components/schemas/FilterOperator"
                     },
                     "id": {
                         "type": "string"
@@ -12333,10 +12327,10 @@
                 "type": "object",
                 "additionalProperties": true
             },
-            "DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_": {
+            "DashboardFilterRule_FilterOperator.DashboardFieldTarget.any.any_": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_"
+                        "$ref": "#/components/schemas/FilterRule_FilterOperator.DashboardFieldTarget.any.any_"
                     },
                     {
                         "properties": {
@@ -12358,13 +12352,13 @@
                 "properties": {
                     "metrics": {
                         "items": {
-                            "$ref": "#/components/schemas/DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_"
+                            "$ref": "#/components/schemas/DashboardFilterRule_FilterOperator.DashboardFieldTarget.any.any_"
                         },
                         "type": "array"
                     },
                     "tableCalculations": {
                         "items": {
-                            "$ref": "#/components/schemas/DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_"
+                            "$ref": "#/components/schemas/DashboardFilterRule_FilterOperator.DashboardFieldTarget.any.any_"
                         },
                         "type": "array"
                     }
@@ -12393,7 +12387,7 @@
                         "type": "boolean"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
+                        "$ref": "#/components/schemas/FilterOperator"
                     },
                     "values": {
                         "items": {},
@@ -17833,7 +17827,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1732.0",
+        "version": "0.1734.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

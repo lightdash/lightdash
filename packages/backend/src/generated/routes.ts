@@ -1227,7 +1227,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalOperator: {
+    FilterOperator: {
         dataType: 'refEnum',
         enums: [
             'isNull',
@@ -1252,14 +1252,14 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'FilterRule_ConditionalOperator.DashboardFieldTarget.AnyType.AnyType_': {
+    'FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_': {
         dataType: 'refObject',
         properties: {
             values: {
                 dataType: 'array',
                 array: { dataType: 'refAlias', ref: 'AnyType' },
             },
-            operator: { ref: 'ConditionalOperator', required: true },
+            operator: { ref: 'FilterOperator', required: true },
             id: { dataType: 'string', required: true },
             target: { ref: 'DashboardFieldTarget', required: true },
             settings: { ref: 'AnyType' },
@@ -1297,7 +1297,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'FilterRule_ConditionalOperator.DashboardFieldTarget.AnyType.AnyType_',
+                    ref: 'FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -1889,7 +1889,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'array',
                 array: { dataType: 'refAlias', ref: 'AnyType' },
             },
-            operator: { ref: 'ConditionalOperator', required: true },
+            operator: { ref: 'FilterOperator', required: true },
             id: { dataType: 'string', required: true },
             target: { ref: 'FieldTarget', required: true },
             settings: { ref: 'AnyType' },
@@ -2074,7 +2074,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'array',
                 array: { dataType: 'refAlias', ref: 'AnyType' },
             },
-            operator: { ref: 'ConditionalOperator', required: true },
+            operator: { ref: 'FilterOperator', required: true },
             id: { dataType: 'string', required: true },
             target: {
                 dataType: 'nestedObjectLiteral',
@@ -3021,7 +3021,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ConditionalRule_ConditionalOperator.number-or-string_': {
+    'BaseFilterRule_FilterOperator.number-or-string_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -3036,7 +3036,7 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                 },
-                operator: { ref: 'ConditionalOperator', required: true },
+                operator: { ref: 'FilterOperator', required: true },
                 id: { dataType: 'string', required: true },
             },
             validators: {},
@@ -3048,9 +3048,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                {
-                    ref: 'ConditionalRule_ConditionalOperator.number-or-string_',
-                },
+                { ref: 'BaseFilterRule_FilterOperator.number-or-string_' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -3077,9 +3075,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                {
-                    ref: 'ConditionalRule_ConditionalOperator.number-or-string_',
-                },
+                { ref: 'BaseFilterRule_FilterOperator.number-or-string_' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -3108,7 +3104,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ConditionalFormattingWithConditionalOperator: {
+    ConditionalFormattingWithFilterOperator: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
@@ -3131,7 +3127,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'ConditionalFormattingWithConditionalOperator',
+                        ref: 'ConditionalFormattingWithFilterOperator',
                     },
                     required: true,
                 },
@@ -3455,7 +3451,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'array',
                 array: { dataType: 'refAlias', ref: 'AnyType' },
             },
-            operator: { ref: 'ConditionalOperator', required: true },
+            operator: { ref: 'FilterOperator', required: true },
             id: { dataType: 'string', required: true },
             target: { ref: 'JoinModelRequiredFilterTarget', required: true },
             settings: { ref: 'AnyType' },
@@ -5250,20 +5246,6 @@ const models: TsoaRoute.Models = {
                 results: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        rows: {
-                            dataType: 'union',
-                            subSchemas: [
-                                {
-                                    dataType: 'array',
-                                    array: {
-                                        dataType: 'refAlias',
-                                        ref: 'Record_string.AnyType_',
-                                    },
-                                },
-                                { dataType: 'undefined' },
-                            ],
-                            required: true,
-                        },
                         prompt: { ref: 'AiWebAppPrompt', required: true },
                     },
                     required: true,
@@ -11438,11 +11420,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_': {
+    'FilterRule_FilterOperator.DashboardFieldTarget.any.any_': {
         dataType: 'refObject',
         properties: {
             values: { dataType: 'array', array: { dataType: 'any' } },
-            operator: { ref: 'ConditionalOperator', required: true },
+            operator: { ref: 'FilterOperator', required: true },
             id: { dataType: 'string', required: true },
             target: { ref: 'DashboardFieldTarget', required: true },
             settings: { dataType: 'any' },
@@ -11452,13 +11434,13 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_': {
+    'DashboardFilterRule_FilterOperator.DashboardFieldTarget.any.any_': {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_',
+                    ref: 'FilterRule_FilterOperator.DashboardFieldTarget.any.any_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -11491,7 +11473,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_',
+                        ref: 'DashboardFilterRule_FilterOperator.DashboardFieldTarget.any.any_',
                     },
                     required: true,
                 },
@@ -11499,7 +11481,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_',
+                        ref: 'DashboardFilterRule_FilterOperator.DashboardFieldTarget.any.any_',
                     },
                     required: true,
                 },
@@ -11545,7 +11527,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
-                operator: { ref: 'ConditionalOperator', required: true },
+                operator: { ref: 'FilterOperator', required: true },
                 values: {
                     dataType: 'union',
                     subSchemas: [
@@ -19855,6 +19837,72 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'generateAgentThreadResponse',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentController_streamAgentThreadResponse: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        agentUuid: {
+            in: 'path',
+            name: 'agentUuid',
+            required: true,
+            dataType: 'string',
+        },
+        threadUuid: {
+            in: 'path',
+            name: 'threadUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.post(
+        '/api/v1/aiAgents/:agentUuid/threads/:threadUuid/stream',
+        ...fetchMiddlewares<RequestHandler>(AiAgentController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentController.prototype.streamAgentThreadResponse,
+        ),
+
+        async function AiAgentController_streamAgentThreadResponse(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentController_streamAgentThreadResponse,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<AiAgentController>(
+                    AiAgentController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'streamAgentThreadResponse',
                     controller,
                     response,
                     next,
