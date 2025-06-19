@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import { ConditionalOperator } from '../../types/conditionalRule';
 import { DimensionType, MetricType } from '../../types/field';
-import { UnitOfTime } from '../../types/filter';
+import { FilterOperator, UnitOfTime } from '../../types/filter';
 
 // TODO: most of the things should live in common and some of the existing types should be inferred from here
 // we can't reuse them because there's a bug with TSOA+ZOD - we can't use zod types in TSOA controllers
@@ -18,29 +17,29 @@ ID consists of the table name and field name separated by an underscore.
 // All the operators that can be applied to a filter, now we have a validator
 const FilterOperatorSchema = z
     .union([
-        z.literal(ConditionalOperator.NULL),
-        z.literal(ConditionalOperator.NOT_NULL),
-        z.literal(ConditionalOperator.EQUALS),
-        z.literal(ConditionalOperator.NOT_EQUALS),
-        z.literal(ConditionalOperator.STARTS_WITH),
-        z.literal(ConditionalOperator.ENDS_WITH),
-        z.literal(ConditionalOperator.INCLUDE),
-        z.literal(ConditionalOperator.NOT_INCLUDE),
-        z.literal(ConditionalOperator.LESS_THAN),
-        z.literal(ConditionalOperator.LESS_THAN_OR_EQUAL),
-        z.literal(ConditionalOperator.GREATER_THAN),
-        z.literal(ConditionalOperator.GREATER_THAN_OR_EQUAL),
-        z.literal(ConditionalOperator.IN_BETWEEN),
+        z.literal(FilterOperator.NULL),
+        z.literal(FilterOperator.NOT_NULL),
+        z.literal(FilterOperator.EQUALS),
+        z.literal(FilterOperator.NOT_EQUALS),
+        z.literal(FilterOperator.STARTS_WITH),
+        z.literal(FilterOperator.ENDS_WITH),
+        z.literal(FilterOperator.INCLUDE),
+        z.literal(FilterOperator.NOT_INCLUDE),
+        z.literal(FilterOperator.LESS_THAN),
+        z.literal(FilterOperator.LESS_THAN_OR_EQUAL),
+        z.literal(FilterOperator.GREATER_THAN),
+        z.literal(FilterOperator.GREATER_THAN_OR_EQUAL),
+        z.literal(FilterOperator.IN_BETWEEN),
     ])
     .describe('Filter operators that can be applied to a filter');
 
 const DateFilterOperatorSchemaReqUnitOfTime = z
     .union([
-        z.literal(ConditionalOperator.IN_THE_PAST),
-        z.literal(ConditionalOperator.NOT_IN_THE_PAST),
-        z.literal(ConditionalOperator.IN_THE_NEXT),
-        z.literal(ConditionalOperator.IN_THE_CURRENT),
-        z.literal(ConditionalOperator.NOT_IN_THE_CURRENT),
+        z.literal(FilterOperator.IN_THE_PAST),
+        z.literal(FilterOperator.NOT_IN_THE_PAST),
+        z.literal(FilterOperator.IN_THE_NEXT),
+        z.literal(FilterOperator.IN_THE_CURRENT),
+        z.literal(FilterOperator.NOT_IN_THE_CURRENT),
     ])
     .describe(
         'Operators that require a unit of time to be applied on the filter',

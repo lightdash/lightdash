@@ -2,8 +2,8 @@ import {
     createFilterRuleFromField,
     getFieldRef,
     isDimension,
-    type ConditionalOperator,
     type FieldTarget,
+    type FilterOperator,
     type FilterRule,
     type FilterableDimension,
 } from '@lightdash/common';
@@ -20,10 +20,7 @@ import useFiltersContext from '../../common/Filters/useFiltersContext';
 import { addFieldRefToFilterRule } from './utils';
 
 export interface MetricFilterRuleWithFieldId
-    extends FilterRule<
-        ConditionalOperator,
-        FieldTarget & { fieldRef: string }
-    > {}
+    extends FilterRule<FilterOperator, FieldTarget & { fieldRef: string }> {}
 
 export const FilterForm: FC<{
     defaultFilterRuleFieldId: string | undefined;

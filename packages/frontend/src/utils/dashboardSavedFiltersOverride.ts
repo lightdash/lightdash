@@ -1,13 +1,7 @@
-import {
-    ConditionalOperator,
-    type DashboardFilterRule,
-} from '@lightdash/common';
+import { FilterOperator, type DashboardFilterRule } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
 
-const noValueRequiredOperators = [
-    ConditionalOperator.NULL,
-    ConditionalOperator.NOT_NULL,
-];
+const noValueRequiredOperators = [FilterOperator.NULL, FilterOperator.NOT_NULL];
 
 const getDifferences = (
     original: DashboardFilterRule,

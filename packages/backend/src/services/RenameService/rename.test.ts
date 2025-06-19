@@ -4,11 +4,11 @@ import {
     CartesianChartConfig,
     ChartType,
     ConditionalFormattingConfigWithSingleColor,
-    ConditionalOperator,
     CustomVisConfig,
     DashboardDAO,
     DashboardFilterRule,
     FilterGroup,
+    FilterOperator,
     isFilterRuleDefinedForFieldId,
     MetricFilterRule,
     MetricType,
@@ -49,7 +49,7 @@ describe('removeFieldFromFilterGroup', () => {
                 target: {
                     fieldId: fieldToBeRemoved,
                 },
-                operator: ConditionalOperator.EQUALS,
+                operator: FilterOperator.EQUALS,
                 values: ['metric_value_1'],
             },
             {
@@ -60,7 +60,7 @@ describe('removeFieldFromFilterGroup', () => {
                         target: {
                             fieldId: fieldToBeRemoved,
                         },
-                        operator: ConditionalOperator.EQUALS,
+                        operator: FilterOperator.EQUALS,
                         values: ['metric_value_2'],
                     },
                 ],
@@ -82,7 +82,7 @@ describe('removeFieldFromFilterGroup', () => {
             target: {
                 fieldId: 'metric_field_id_3',
             },
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
             values: ['metric_value_3'],
         };
         const filterGroupWithRemainingMetrics = cloneDeep(filterGroup);
@@ -119,7 +119,7 @@ describe('isFilterRuleDefinedForFieldId', () => {
                 target: {
                     fieldId: fieldToBeFound1,
                 },
-                operator: ConditionalOperator.EQUALS,
+                operator: FilterOperator.EQUALS,
                 values: ['metric_value_1'],
             },
             {
@@ -127,7 +127,7 @@ describe('isFilterRuleDefinedForFieldId', () => {
                 target: {
                     fieldId: `${fieldToBeFound3}_to_be_found`,
                 },
-                operator: ConditionalOperator.EQUALS,
+                operator: FilterOperator.EQUALS,
                 values: ['metric_value_3'],
             },
             {
@@ -138,7 +138,7 @@ describe('isFilterRuleDefinedForFieldId', () => {
                         target: {
                             fieldId: fieldToBeFound2,
                         },
-                        operator: ConditionalOperator.EQUALS,
+                        operator: FilterOperator.EQUALS,
                         values: ['metric_value_2'],
                     },
                 ],
@@ -362,7 +362,7 @@ describe('renameMetricQuery', () => {
                             target: {
                                 fieldId: 'payment_id',
                             },
-                            operator: ConditionalOperator.EQUALS,
+                            operator: FilterOperator.EQUALS,
                             values: ['123'],
                         },
                     ],
@@ -436,7 +436,7 @@ describe('renameMetricQuery', () => {
                             target: {
                                 fieldId: 'payment_amount',
                             },
-                            operator: ConditionalOperator.EQUALS,
+                            operator: FilterOperator.EQUALS,
                             values: ['123'],
                         },
                     ],
@@ -641,7 +641,7 @@ describe('renameChartConfigType', () => {
                         rules: [
                             {
                                 id: 'rule_id',
-                                operator: ConditionalOperator.GREATER_THAN,
+                                operator: FilterOperator.GREATER_THAN,
                                 values: [100],
                             },
                         ],
