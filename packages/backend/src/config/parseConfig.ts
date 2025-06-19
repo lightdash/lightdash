@@ -264,16 +264,14 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
         return value as T;
     };
 
-    const parseApiExpiration = (): Date | null => {
-        const apiExpiration = process.env.LD_SETUP_API_KEY_EXPIRATION;
+    const parseApiExpiration = (envVariable: string): Date | null => {
+        const apiExpiration = process.env[envVariable];
         const apiExpirationDays = apiExpiration
             ? parseInt(apiExpiration, 10)
             : 30; // Convert to number, this might throw an error
         if (apiExpirationDays === 0) return null; // If 0, we return null, which means, no expiration
         if (Number.isNaN(apiExpirationDays)) {
-            throw new ParameterError(
-                'LD_SETUP_API_KEY_EXPIRATION must be a valid number',
-            );
+            throw new ParameterError(`${envVariable} must be a valid number`);
         }
         return new Date(Date.now() + 1000 * 60 * 60 * 24 * apiExpirationDays);
     };
@@ -305,7 +303,17 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
             apiKey: process.env.LD_SETUP_ADMIN_API_KEY
                 ? {
                       token: process.env.LD_SETUP_ADMIN_API_KEY,
-                      expirationTime: parseApiExpiration(),
+                      expirationTime: parseApiExpiration(
+                          'LD_SETUP_API_KEY_EXPIRATION',
+                      ),
+                  }
+                : undefined,
+            serviceAccount: process.env.LD_SETUP_SERVICE_ACCOUNT_TOKEN
+                ? {
+                      token: process.env.LD_SETUP_SERVICE_ACCOUNT_TOKEN,
+                      expirationTime: parseApiExpiration(
+                          'LD_SETUP_SERVICE_ACCOUNT_EXPIRATION',
+                      ),
                   }
                 : undefined,
             project: {
@@ -567,6 +575,10 @@ export type LightdashConfig = {
             defaultRole: OrganizationMemberRole;
         };
         apiKey?: {
+            token: string;
+            expirationTime: Date | null;
+        };
+        serviceAccount?: {
             token: string;
             expirationTime: Date | null;
         };
