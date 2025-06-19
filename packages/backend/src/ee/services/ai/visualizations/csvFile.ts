@@ -2,9 +2,7 @@ import {
     AiChartType,
     AiMetricQuery,
     csvFileVizConfigSchema,
-    filterSchema,
-    FilterSchemaType,
-    SortFieldSchema,
+    filtersSchema,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
 import { z } from 'zod';
@@ -29,7 +27,7 @@ const vizConfigSchema = csvFileVizConfigSchema
 
 export const generateCsvToolSchema = z.object({
     vizConfig: vizConfigSchema,
-    filters: filterSchema
+    filters: filtersSchema
         .nullable()
         .describe(
             'Filters to apply to the query. Filtered fields must exist in the selected explore.',
@@ -47,18 +45,14 @@ export const isCsvFileConfig = (config: unknown): config is CsvFileConfig =>
 export const metricQueryCsv = async (
     config: CsvFileConfig,
     maxLimit: number,
-    filters: FilterSchemaType | null,
+    filters: z.infer<typeof filtersSchema> = {},
 ): Promise<AiMetricQuery> => ({
     exploreName: config.exploreName,
     metrics: config.metrics,
     dimensions: config.dimensions || [],
     sorts: config.sorts,
     limit: getValidAiQueryLimit(config.limit, maxLimit),
-    // TODO: fix types
-    filters: {
-        metrics: filters?.metrics ?? undefined,
-        dimensions: filters?.dimensions ?? undefined,
-    },
+    filters,
 });
 
 type RenderCsvFileArgs = {
@@ -66,7 +60,7 @@ type RenderCsvFileArgs = {
         metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
     config: CsvFileConfig;
-    filters: FilterSchemaType | null;
+    filters: z.infer<typeof filtersSchema> | undefined;
     maxLimit: number;
 };
 

@@ -1,50 +1,16 @@
+import { v4 as uuid } from 'uuid';
 import { z } from 'zod';
 import { DimensionType, MetricType } from '../../types/field';
-import { FilterOperator, UnitOfTime } from '../../types/filter';
+import {
+    FilterOperator,
+    type FilterRule,
+    type Filters,
+    UnitOfTime,
+} from '../../types/filter';
 import assertUnreachable from '../../utils/assertUnreachable';
 
 // TODO: most of the things should live in common and some of the existing types should be inferred from here
 // we can't reuse them because there's a bug with TSOA+ZOD - we can't use zod types in TSOA controllers
-
-export const FieldIdSchema = z
-    .string()
-    .min(1)
-    .describe(
-        `Field ID is a unique identifier of a Metric or a Dimension within a project
-ID consists of the table name and field name separated by an underscore.
-@example: orders_status, customers_first_name, orders_total_order_amount, etc.`,
-    );
-
-// All the operators that can be applied to a filter, now we have a validator
-const FilterOperatorSchema = z
-    .union([
-        z.literal(FilterOperator.NULL),
-        z.literal(FilterOperator.NOT_NULL),
-        z.literal(FilterOperator.EQUALS),
-        z.literal(FilterOperator.NOT_EQUALS),
-        z.literal(FilterOperator.STARTS_WITH),
-        z.literal(FilterOperator.ENDS_WITH),
-        z.literal(FilterOperator.INCLUDE),
-        z.literal(FilterOperator.NOT_INCLUDE),
-        z.literal(FilterOperator.LESS_THAN),
-        z.literal(FilterOperator.LESS_THAN_OR_EQUAL),
-        z.literal(FilterOperator.GREATER_THAN),
-        z.literal(FilterOperator.GREATER_THAN_OR_EQUAL),
-        z.literal(FilterOperator.IN_BETWEEN),
-    ])
-    .describe('Filter operators that can be applied to a filter');
-
-const DateFilterOperatorSchemaReqUnitOfTime = z
-    .union([
-        z.literal(FilterOperator.IN_THE_PAST),
-        z.literal(FilterOperator.NOT_IN_THE_PAST),
-        z.literal(FilterOperator.IN_THE_NEXT),
-        z.literal(FilterOperator.IN_THE_CURRENT),
-        z.literal(FilterOperator.NOT_IN_THE_CURRENT),
-    ])
-    .describe(
-        'Operators that require a unit of time to be applied on the filter',
-    );
 
 const DimensionTypeSchema = z.union([
     z.literal(DimensionType.BOOLEAN),
@@ -72,115 +38,219 @@ const MetricTypeSchema = z.union([
 
 const FieldTypeSchema = z.union([DimensionTypeSchema, MetricTypeSchema]);
 
-const FilterRuleSchema = z
-    .object({
-        id: z.string().describe('A unique identifier for the filter'),
-        target: z
-            .object({
-                fieldId: FieldIdSchema,
-                type: FieldTypeSchema.describe('Type of the field'),
-            })
-            .describe('Target field to apply the filter'),
-        operator: z
-            .union([
-                FilterOperatorSchema,
-                DateFilterOperatorSchemaReqUnitOfTime,
-            ])
-            .describe('Filter operator to apply to the target field'),
-        values: z
-            .array(
-                z.union([
-                    z.null(),
-                    z.boolean(),
-                    z.string().describe('Use strings for date filters'),
-                    z.number().describe('Do not use numbers for date filters'),
-                ]),
-            )
-            .describe(
-                'Use the provided values with the specified operator on the target field. If the target field type is timestamp or date, ensure values are JavaScript Date-compatible strings.',
-            ),
-        settings: z
-            .object({
-                completed: z
-                    .boolean()
-                    .describe("e.g. if it's a completed month or not"),
-                unitOfTime: z
-                    .nativeEnum(UnitOfTime)
-                    .describe(
-                        'the unit of time to apply on the filter, e.g. month, year, etc',
-                    ),
-            })
-            .nullable()
-            .describe(
-                'Settings for time-based filters, null for non-time filters',
-            ),
-    })
-    .transform((data) => {
-        if (data.settings !== null) {
-            return {
-                id: data.id,
-                target: data.target,
-                operator: data.operator,
-                values: data.values,
-                settings: data.settings,
-            };
-        }
+const fieldIdSchema = z
+    .string()
+    .min(1)
+    .describe(
+        `Field ID is a unique identifier of a Metric or a Dimension within a project
+ID consists of the table name and field name separated by an underscore.
+@example: orders_status, customers_first_name, orders_total_order_amount, etc.`,
+    );
 
-        return {
-            id: data.id,
+const booleanFilterSchema = z.union([
+    z.object({
+        operator: z.union([
+            z.literal(FilterOperator.NULL),
+            z.literal(FilterOperator.NOT_NULL),
+        ]),
+    }),
+    z.object({
+        operator: z.union([
+            z.literal(FilterOperator.EQUALS),
+            z.literal(FilterOperator.NOT_EQUALS),
+        ]),
+        values: z.array(z.boolean()).length(1),
+    }),
+]);
+
+const stringFilterSchema = z.union([
+    z.object({
+        operator: z.union([
+            z.literal(FilterOperator.NULL),
+            z.literal(FilterOperator.NOT_NULL),
+        ]),
+    }),
+    z.object({
+        operator: z.union([
+            z.literal(FilterOperator.EQUALS),
+            z.literal(FilterOperator.NOT_EQUALS),
+            z.literal(FilterOperator.STARTS_WITH),
+            z.literal(FilterOperator.ENDS_WITH),
+            z.literal(FilterOperator.INCLUDE),
+            z.literal(FilterOperator.NOT_INCLUDE),
+        ]),
+        values: z.array(z.string()),
+    }),
+]);
+
+const numberFilterSchema = z.union([
+    z.object({
+        operator: z.union([
+            z.literal(FilterOperator.NULL),
+            z.literal(FilterOperator.NOT_NULL),
+        ]),
+    }),
+    z.object({
+        operator: z.union([
+            z.literal(FilterOperator.EQUALS),
+            z.literal(FilterOperator.NOT_EQUALS),
+        ]),
+        values: z.array(z.number()),
+    }),
+    z.object({
+        operator: z.union([
+            z.literal(FilterOperator.LESS_THAN),
+            z.literal(FilterOperator.GREATER_THAN),
+        ]),
+        values: z.array(z.number()).length(1),
+    }),
+    z.object({
+        operator: z.union([
+            z.literal(FilterOperator.IN_BETWEEN),
+            z.literal(FilterOperator.NOT_IN_BETWEEN),
+        ]),
+        values: z.array(z.number()).length(2),
+    }),
+]);
+
+const dateOrDateTimeSchema = z.union([
+    z.string().date(),
+    z.string().datetime(),
+]);
+
+const dateFilterSchema = z.union([
+    z.object({
+        operator: z.union([
+            z.literal(FilterOperator.NULL),
+            z.literal(FilterOperator.NOT_NULL),
+        ]),
+    }),
+    z.object({
+        operator: z.union([
+            z.literal(FilterOperator.EQUALS),
+            z.literal(FilterOperator.NOT_EQUALS),
+        ]),
+        values: z.array(dateOrDateTimeSchema),
+    }),
+    z.object({
+        operator: z.union([
+            z.literal(FilterOperator.IN_THE_PAST),
+            z.literal(FilterOperator.NOT_IN_THE_PAST),
+            z.literal(FilterOperator.IN_THE_NEXT),
+            // NOTE: NOT_IN_THE_NEXT is not supported...
+        ]),
+        values: z.array(z.number()).length(1),
+        settings: z.object({
+            completed: z.boolean(),
+            unitOfTime: z.union([
+                z.literal(UnitOfTime.days),
+                z.literal(UnitOfTime.weeks),
+                z.literal(UnitOfTime.months),
+                z.literal(UnitOfTime.quarters),
+                z.literal(UnitOfTime.years),
+            ]),
+        }),
+    }),
+    z.object({
+        operator: z.union([
+            z.literal(FilterOperator.IN_THE_CURRENT),
+            z.literal(FilterOperator.NOT_IN_THE_CURRENT),
+        ]),
+        values: z.array(z.literal(1)).length(1),
+        settings: z.object({
+            completed: z.literal(false),
+            unitOfTime: z.union([
+                z.literal(UnitOfTime.days),
+                z.literal(UnitOfTime.weeks),
+                z.literal(UnitOfTime.months),
+                z.literal(UnitOfTime.quarters),
+                z.literal(UnitOfTime.years),
+            ]),
+        }),
+    }),
+    z.object({
+        operator: z.union([
+            z.literal(FilterOperator.LESS_THAN),
+            z.literal(FilterOperator.LESS_THAN_OR_EQUAL),
+            z.literal(FilterOperator.GREATER_THAN),
+            z.literal(FilterOperator.GREATER_THAN_OR_EQUAL),
+        ]),
+        values: z.array(dateOrDateTimeSchema).length(1),
+    }),
+    z.object({
+        operator: z.literal(FilterOperator.IN_BETWEEN),
+        values: z.array(dateOrDateTimeSchema).length(2),
+    }),
+]);
+
+const filterRuleSchema = z
+    .object({
+        type: z.enum(['or', 'and']).describe('Type of filter group operation'),
+        target: z.object({
+            fieldId: fieldIdSchema,
+            type: FieldTypeSchema,
+        }),
+        rule: z.union([
+            booleanFilterSchema.describe('Boolean filter'),
+            stringFilterSchema.describe('String filter'),
+            numberFilterSchema.describe('Number filter'),
+            dateFilterSchema.describe('Date filter'),
+        ]),
+    })
+    .transform(
+        (data): FilterRule => ({
+            id: uuid(),
             target: data.target,
-            operator: data.operator,
-            values: data.values,
-        };
-    });
+            operator: data.rule.operator,
+            values: 'values' in data.rule ? data.rule.values : [],
+            ...('settings' in data.rule
+                ? { settings: data.rule.settings }
+                : {}),
+        }),
+    );
 
-export type FilterRuleSchemaType = z.infer<typeof FilterRuleSchema>;
-
-export const FilterGroupSchema = z
+export const filtersSchema = z
     .object({
-        id: z.string().describe('A unique identifier for the filter group'),
         type: z.enum(['and', 'or']).describe('Type of filter group operation'),
-        rule: z
-            .array(FilterRuleSchema)
-            .describe(
-                'List of filters to apply. Filters in groups can target both metrics and dimensions',
-            ),
+        dimensions: z.array(filterRuleSchema).nullable(),
+        metrics: z.array(filterRuleSchema).nullable(),
     })
-    .transform((data) => {
+    .transform((data): Filters => {
         switch (data.type) {
             case 'and':
-                return { id: data.id, and: data.rule };
+                return {
+                    dimensions: {
+                        id: uuid(),
+                        and: data.dimensions ?? [],
+                    },
+                    metrics: {
+                        id: uuid(),
+                        and: data.metrics ?? [],
+                    },
+                };
             case 'or':
-                return { id: data.id, or: data.rule };
+                return {
+                    dimensions: {
+                        id: uuid(),
+                        or: data.dimensions ?? [],
+                    },
+                    metrics: {
+                        id: uuid(),
+                        or: data.metrics ?? [],
+                    },
+                };
             default:
-                return assertUnreachable(
-                    data.type,
-                    'invalid FilterGroupSchema type',
-                );
+                return assertUnreachable(data.type, 'Invalid filter type');
         }
     });
 
-export type FilterGroupSchemaType = z.infer<typeof FilterGroupSchema>;
-
-// TODO: This schema was designed to closely match the existing filter types,
-// but LLM providers require that all fields be explicitly defined and present.
-// https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses#all-fields-must-be-required
-export const filterSchema = z.object({
-    dimensions: FilterGroupSchema.nullable(),
-    metrics: FilterGroupSchema.nullable(),
-});
-
-export type FilterSchemaType = z.infer<typeof filterSchema>;
-
-export const GenerateQueryFiltersToolSchema = z.object({
+export const generateQueryFiltersToolSchema = z.object({
     exploreName: z.string().describe('Name of the selected explore'),
-    filterGroup: FilterGroupSchema.describe(
-        'Filters to apply to the query. Filtered fields must exist in the selected explore.',
-    ),
+    filters: filtersSchema,
 });
 
 export const SortFieldSchema = z.object({
-    fieldId: FieldIdSchema.describe(
+    fieldId: fieldIdSchema.describe(
         '"fieldId" must come from the selected Metrics or Dimensions; otherwise, it will throw an error.',
     ),
     descending: z
@@ -231,16 +301,16 @@ export const lighterMetricQuerySchema = z.object({
         .string()
         .describe('Name of the explore to query. @example: "users"'),
     metrics: z
-        .array(FieldIdSchema)
+        .array(fieldIdSchema)
         .describe(
             'Metrics (measures) to calculate over the table for this query. @example: ["payments_total_amount", "orders_total_shipping_cost"]',
         ),
     dimensions: z
-        .array(FieldIdSchema)
+        .array(fieldIdSchema)
         .describe(
             'Dimensions to break down the metric into groups. @example: ["orders_status", "customers_first_name"]',
         ),
-    filters: filterSchema.describe('Filters to apply to the query'),
+    filters: filtersSchema.describe('Filters to apply to the query'),
     sorts: z
         .array(SortFieldSchema)
         .describe(

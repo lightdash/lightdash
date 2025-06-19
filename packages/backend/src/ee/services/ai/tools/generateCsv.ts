@@ -51,7 +51,7 @@ Rules for generating the CSV file:
                 const { csv, metricQuery } = await renderCsvFile({
                     runMetricQuery: runMiniMetricQuery,
                     config: vizConfig,
-                    filters,
+                    filters: filters ?? undefined,
                     maxLimit,
                 });
 
