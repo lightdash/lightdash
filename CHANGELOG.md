@@ -1,3 +1,10 @@
+# [0.1735.0](https://github.com/lightdash/lightdash/compare/0.1734.2...0.1735.0) (2025-06-19)
+
+
+### Features
+
+* improve sql runner completion ([#15433](https://github.com/lightdash/lightdash/issues/15433)) ([ba87f73](https://github.com/lightdash/lightdash/commit/ba87f732738879ea7fbb3c169b74c9b9a9644d67))
+
 ## [0.1734.2](https://github.com/lightdash/lightdash/compare/0.1734.1...0.1734.2) (2025-06-19)
 
 
