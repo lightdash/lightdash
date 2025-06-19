@@ -1,9 +1,12 @@
-import { SessionServiceAccount } from '@lightdash/common';
+import { ServiceAccountScope, SessionServiceAccount } from '@lightdash/common';
 import express from 'express';
 import { BaseService } from '../../services/BaseService';
 
 export const mockServiceAccount: SessionServiceAccount = {
+    createdByUserUuid: 'test-user-uuid',
+    uuid: 'test-service-account-uuid',
     organizationUuid: 'test-org-uuid',
+    scopes: [ServiceAccountScope.ORG_READ],
 };
 
 export const mockRequest = {

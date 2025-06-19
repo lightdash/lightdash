@@ -3,9 +3,8 @@ import {
     AuthorizationError,
     getErrorMessage,
     ScimError,
+    type MemberAbility,
 } from '@lightdash/common';
-import { applyServiceAccountAbilities } from '@lightdash/common/src/authorization/serviceAccountAbility';
-import { type MemberAbility } from '@lightdash/common/src/authorization/types';
 import { RequestHandler } from 'express';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 
@@ -104,11 +103,6 @@ export const authenticateServiceAccount: RequestHandler = async (
         // Create a SessionUser with abilities based on service account scopes
         // Scope validation is done on casl abitly checks
         const builder = new AbilityBuilder<MemberAbility>(Ability);
-        applyServiceAccountAbilities({
-            scopes: serviceAccount.scopes,
-            organizationUuid: serviceAccount.organizationUuid,
-            builder,
-        });
 
         const organization = await req.services
             .getOrganizationService()
