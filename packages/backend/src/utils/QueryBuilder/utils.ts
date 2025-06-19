@@ -944,7 +944,7 @@ export const findMetricInflationWarnings = ({
         // Check if relationship is undefined and add a warning
         if (!join.relationship) {
             warnings.push({
-                message: `The join for table "${join.table}" has an undefined relationship type. Defaulting to "one-to-many".`,
+                message: `The join for table "${join.table}" has an undefined relationship type.".`,
                 fields: [join.table],
                 tables: [join.table],
             });
