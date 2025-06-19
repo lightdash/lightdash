@@ -4,14 +4,13 @@ import {
     ApiResponse,
     AuthorizationError,
     LightdashError,
-    LightdashRequestMethodHeader,
-    RequestMethod,
 } from '@lightdash/common';
 import fetch, { BodyInit } from 'node-fetch';
 import { URL } from 'url';
 import { getConfig } from '../../config';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
+import { buildRequestHeaders } from '../utils';
 
 const { version: VERSION } = require('../../../package.json');
 
@@ -31,18 +30,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             `Not logged in. Run 'lightdash login --help'`,
         );
     }
-    const proxyAuthorizationHeader = config.context.proxyAuthorization
-        ? { 'Proxy-Authorization': config.context.proxyAuthorization }
-        : undefined;
-    const headers = {
-        'Content-Type': 'application/json',
-        Authorization: `ApiKey ${config.context.apiKey}`,
-        [LightdashRequestMethodHeader]:
-            process.env.CI === 'true'
-                ? RequestMethod.CLI_CI
-                : RequestMethod.CLI,
-        ...proxyAuthorizationHeader,
-    };
+    const headers = buildRequestHeaders(config.context.apiKey);
     const fullUrl = new URL(url, config.context.serverUrl).href;
     GlobalState.debug(`> Making HTTP ${method} request to: ${fullUrl}`);
 
