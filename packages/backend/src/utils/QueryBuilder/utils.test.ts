@@ -1,5 +1,6 @@
 import {
     BinType,
+    CompiledExploreJoin,
     CustomDimensionType,
     ForbiddenError,
     isCustomBinDimension,
@@ -24,6 +25,7 @@ import {
 import {
     applyLimitToSqlQuery,
     assertValidDimensionRequiredAttribute,
+    buildTableRelationships,
     findMetricInflationWarnings,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
@@ -1123,5 +1125,167 @@ describe('findMetricInflationWarnings', () => {
         expect(result[0].fields?.[0]).toBe('metric_a');
         expect(result[1].fields?.[0]).toBe('metric_b');
         expect(result[2].fields?.[0]).toBe('metric_c');
+    });
+});
+
+describe('buildTableRelationships', () => {
+    it('should build relationships for a simple one-to-many join', () => {
+        const baseTable = 'users';
+        const joins = [
+            {
+                table: 'orders',
+                sqlOn: 'users.id = orders.user_id',
+                compiledSqlOn: 'users.id = orders.user_id',
+                relationship: 'one-to-many',
+            } as CompiledExploreJoin,
+        ];
+        const joinedTables = new Set(['orders']);
+
+        const [tableRelationships, warnings] = buildTableRelationships(
+            baseTable,
+            joins,
+            joinedTables,
+        );
+
+        // Check that the map has entries for both tables
+        expect(tableRelationships.has('users')).toBe(true);
+        expect(tableRelationships.has('orders')).toBe(true);
+
+        // Check the relationships for users table
+        const usersRelationships = tableRelationships.get('users');
+        expect(usersRelationships).toHaveLength(1);
+        expect(usersRelationships?.[0]).toEqual({
+            table: 'orders',
+            relationship: 'one-to-many',
+            direction: 'to',
+        });
+
+        // Check the relationships for orders table
+        const ordersRelationships = tableRelationships.get('orders');
+        expect(ordersRelationships).toHaveLength(1);
+        expect(ordersRelationships?.[0]).toEqual({
+            table: 'users',
+            relationship: 'one-to-many',
+            direction: 'from',
+        });
+
+        // Check that no warnings were generated
+        expect(warnings).toHaveLength(0);
+    });
+
+    it('should build relationships for multiple joins with different relationship types', () => {
+        const baseTable = 'users';
+        const joins = [
+            {
+                table: 'orders',
+                sqlOn: 'users.id = orders.user_id',
+                compiledSqlOn: 'users.id = orders.user_id',
+                relationship: 'one-to-many',
+            } as CompiledExploreJoin,
+            {
+                table: 'user_profiles',
+                sqlOn: 'users.id = user_profiles.user_id',
+                compiledSqlOn: 'users.id = user_profiles.user_id',
+                relationship: 'one-to-one',
+            } as CompiledExploreJoin,
+            {
+                table: 'companies',
+                sqlOn: 'users.company_id = companies.id',
+                compiledSqlOn: 'users.company_id = companies.id',
+                relationship: 'many-to-one',
+            } as CompiledExploreJoin,
+        ];
+        const joinedTables = new Set(['orders', 'user_profiles', 'companies']);
+
+        const [tableRelationships, warnings] = buildTableRelationships(
+            baseTable,
+            joins,
+            joinedTables,
+        );
+
+        // Check that the map has entries for all tables
+        expect(tableRelationships.has('users')).toBe(true);
+        expect(tableRelationships.has('orders')).toBe(true);
+        expect(tableRelationships.has('user_profiles')).toBe(true);
+        expect(tableRelationships.has('companies')).toBe(true);
+
+        // Check the relationships for users table
+        const usersRelationships = tableRelationships.get('users');
+        expect(usersRelationships).toHaveLength(3);
+
+        // Check one-to-many relationship with orders
+        expect(usersRelationships?.find((r) => r.table === 'orders')).toEqual({
+            table: 'orders',
+            relationship: 'one-to-many',
+            direction: 'to',
+        });
+
+        // Check one-to-one relationship with user_profiles
+        expect(
+            usersRelationships?.find((r) => r.table === 'user_profiles'),
+        ).toEqual({
+            table: 'user_profiles',
+            relationship: 'one-to-one',
+            direction: 'to',
+        });
+
+        // Check many-to-one relationship with companies
+        expect(
+            usersRelationships?.find((r) => r.table === 'companies'),
+        ).toEqual({
+            table: 'companies',
+            relationship: 'many-to-one',
+            direction: 'from',
+        });
+
+        // Check that no warnings were generated
+        expect(warnings).toHaveLength(0);
+    });
+
+    it('should generate a warning for undefined relationship and default to one-to-many', () => {
+        const baseTable = 'users';
+        const joins = [
+            {
+                table: 'orders',
+                sqlOn: 'users.id = orders.user_id',
+                compiledSqlOn: 'users.id = orders.user_id',
+                // relationship is undefined
+            } as CompiledExploreJoin,
+        ];
+        const joinedTables = new Set(['orders']);
+
+        const [tableRelationships, warnings] = buildTableRelationships(
+            baseTable,
+            joins,
+            joinedTables,
+        );
+
+        // Check that the map has entries for both tables
+        expect(tableRelationships.has('users')).toBe(true);
+        expect(tableRelationships.has('orders')).toBe(true);
+
+        // Check the relationships for users table - should default to one-to-many
+        const usersRelationships = tableRelationships.get('users');
+        expect(usersRelationships).toHaveLength(1);
+        expect(usersRelationships?.[0]).toEqual({
+            table: 'orders',
+            relationship: 'one-to-many',
+            direction: 'to',
+        });
+
+        // Check the relationships for orders table
+        const ordersRelationships = tableRelationships.get('orders');
+        expect(ordersRelationships).toHaveLength(1);
+        expect(ordersRelationships?.[0]).toEqual({
+            table: 'users',
+            relationship: 'one-to-many',
+            direction: 'from',
+        });
+
+        // Check that a warning was generated for the undefined relationship
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0].fields).toContain('orders');
+        expect(warnings[0].tables).toContain('orders');
+        expect(warnings[0].message).toContain('undefined relationship type');
     });
 });

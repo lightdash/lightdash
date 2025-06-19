@@ -911,7 +911,7 @@ type FindMetricInflationWarningsProps = {
  *
  * @param baseTable - The base table of the query
  * @param joins - The joins in the query
- * @param joinedTables - The set of tables that are joined in the query
+ * @param joinedTables - The set of tables that can be joined in the query
  * @returns A tuple containing the table relationships map and any warnings generated
  */
 export const buildTableRelationships = (
@@ -972,52 +972,40 @@ export const buildTableRelationships = (
             // Add the relationship to both tables with direction
             if (relationship === 'one-to-many') {
                 // For one-to-many, the "one" side is the parent, the "many" side is the joined table
-                tableRelationships
-                    .get(parentTable)
-                    ?.push({
-                        table: join.table,
-                        relationship,
-                        direction: 'to',
-                    });
-                tableRelationships
-                    .get(join.table)
-                    ?.push({
-                        table: parentTable,
-                        relationship,
-                        direction: 'from',
-                    });
+                tableRelationships.get(parentTable)?.push({
+                    table: join.table,
+                    relationship,
+                    direction: 'to',
+                });
+                tableRelationships.get(join.table)?.push({
+                    table: parentTable,
+                    relationship,
+                    direction: 'from',
+                });
             } else if (relationship === 'many-to-one') {
                 // For many-to-one, the "many" side is the parent, the "one" side is the joined table
-                tableRelationships
-                    .get(parentTable)
-                    ?.push({
-                        table: join.table,
-                        relationship,
-                        direction: 'from',
-                    });
-                tableRelationships
-                    .get(join.table)
-                    ?.push({
-                        table: parentTable,
-                        relationship,
-                        direction: 'to',
-                    });
+                tableRelationships.get(parentTable)?.push({
+                    table: join.table,
+                    relationship,
+                    direction: 'from',
+                });
+                tableRelationships.get(join.table)?.push({
+                    table: parentTable,
+                    relationship,
+                    direction: 'to',
+                });
             } else {
                 // For one-to-one, both sides are equal
-                tableRelationships
-                    .get(parentTable)
-                    ?.push({
-                        table: join.table,
-                        relationship,
-                        direction: 'to',
-                    });
-                tableRelationships
-                    .get(join.table)
-                    ?.push({
-                        table: parentTable,
-                        relationship,
-                        direction: 'to',
-                    });
+                tableRelationships.get(parentTable)?.push({
+                    table: join.table,
+                    relationship,
+                    direction: 'to',
+                });
+                tableRelationships.get(join.table)?.push({
+                    table: parentTable,
+                    relationship,
+                    direction: 'to',
+                });
             }
         }
     });
