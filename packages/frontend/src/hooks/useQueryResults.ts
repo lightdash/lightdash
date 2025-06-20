@@ -183,6 +183,7 @@ export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
     const result = useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
         enabled: !!data,
         queryKey: ['create-query', data],
+        keepPreviousData: true, // needed to keep the last metric query which could break cartesian chart config
         queryFn: ({ signal }) => {
             return executeAsyncQuery(data, signal);
         },
