@@ -4,6 +4,7 @@ import {
     ItemsMap,
     getFormatExpression,
 } from '@lightdash/common';
+import moment from 'moment';
 import { ExcelService } from './ExcelService';
 
 // Mock data for testing
@@ -161,6 +162,30 @@ const mockItemMapWithFormats: ItemsMap = {
         label: 'One Decimal',
         sql: '${TABLE}.one_decimal_value',
     },
+    date_with_custom_format: {
+        name: 'date_with_custom_format',
+        description: undefined,
+        type: DimensionType.DATE,
+        hidden: false,
+        table: 'table',
+        tableLabel: 'table',
+        label: 'Custom Date Format',
+        fieldType: FieldType.DIMENSION,
+        format: 'dd mmmm yyyy', // Custom date format like "05 July 2020"
+        sql: '${TABLE}.custom_date',
+    },
+    timestamp_with_custom_format: {
+        name: 'timestamp_with_custom_format',
+        description: undefined,
+        type: DimensionType.TIMESTAMP,
+        hidden: false,
+        table: 'table',
+        tableLabel: 'table',
+        label: 'Custom Timestamp Format',
+        fieldType: FieldType.DIMENSION,
+        format: 'mm/dd/yyyy hh:mm', // Custom timestamp format
+        sql: '${TABLE}.custom_timestamp',
+    },
 };
 
 describe('ExcelService', () => {
@@ -192,8 +217,9 @@ describe('ExcelService', () => {
             expect(result[0]).toBe(1234.56);
             // Number with percentage format should be converted to actual number
             expect(result[1]).toBe(0.1234);
-            // Number without format should be formatted as string (using formatItemValue)
-            expect(typeof result[2]).toBe('string');
+            // Number without explicit format should still be converted to number (gets default format)
+            expect(result[2]).toBe(999.99);
+            expect(typeof result[2]).toBe('number');
             // String should remain as string
             expect(result[3]).toBe('test string');
         });
@@ -520,8 +546,9 @@ describe('ExcelService', () => {
             expect(result[0]).toBe(100.5);
             expect(typeof result[0]).toBe('number');
 
-            // Non-format fields should be formatted as strings (formatItemValue)
-            expect(typeof result[1]).toBe('string');
+            // Number fields without explicit format should still become numbers (gets default format)
+            expect(result[1]).toBe(200.75);
+            expect(typeof result[1]).toBe('number');
 
             // String fields should remain strings
             expect(result[2]).toBe('test');
@@ -529,6 +556,70 @@ describe('ExcelService', () => {
             // Format expression fields should become numbers
             expect(result[3]).toBe(300.25);
             expect(typeof result[3]).toBe('number');
+        });
+
+        it('should convert dates with custom formats to Date objects', () => {
+            const row = {
+                date_with_custom_format: '2020-07-05T00:00:00.000Z', // ISO string
+                timestamp_with_custom_format: '2023-12-25T10:30:00.000Z', // ISO string
+                date_column: '2023-01-01', // Date without custom format
+                string_column: 'test',
+            };
+
+            const sortedFieldIds = [
+                'date_with_custom_format',
+                'timestamp_with_custom_format',
+                'date_column',
+                'string_column',
+            ];
+
+            const result = ExcelService.convertRowToExcel(
+                row,
+                mockItemMapWithFormats,
+                false,
+                sortedFieldIds,
+            );
+
+            // Date with custom format should be converted to Date object for Excel formatting
+            expect(result[0]).toBeInstanceOf(Date);
+            expect(result[0]).toEqual(new Date('2020-07-05T00:00:00.000Z'));
+
+            // Timestamp with custom format should be converted to Date object
+            expect(result[1]).toBeInstanceOf(Date);
+            expect(result[1]).toEqual(new Date('2023-12-25T10:30:00.000Z'));
+
+            // Date without custom format should also be converted to Date object
+            expect(result[2]).toBeInstanceOf(Date);
+
+            // String should remain as string
+            expect(result[3]).toBe('test');
+        });
+
+        it('should handle various date string formats with custom formatting', () => {
+            const row = {
+                date_with_custom_format: '2020-07-05', // Date string
+                timestamp_with_custom_format: '2023-12-25T10:30:00.000Z', // Full ISO string
+            };
+
+            const sortedFieldIds = [
+                'date_with_custom_format',
+                'timestamp_with_custom_format',
+            ];
+
+            const result = ExcelService.convertRowToExcel(
+                row,
+                mockItemMapWithFormats,
+                false,
+                sortedFieldIds,
+            );
+
+            // Both should be converted to Date objects
+            expect(result[0]).toBeInstanceOf(Date);
+            expect(result[1]).toBeInstanceOf(Date);
+
+            // Check that dates are correctly parsed (use moment for consistent comparison)
+            expect(result[0]).toEqual(moment('2020-07-05').toDate());
+            expect(result[1]).toEqual(new Date('2023-12-25T10:30:00.000Z'));
         });
     });
 
@@ -618,6 +709,14 @@ describe('ExcelService', () => {
                 { field: 'euro_currency', expectedFormat: '[$€-407] #,##0.00' },
                 { field: 'basic_rounding', expectedFormat: '0' },
                 { field: 'one_decimal', expectedFormat: '0.0' },
+                {
+                    field: 'date_with_custom_format',
+                    expectedFormat: 'dd mmmm yyyy',
+                },
+                {
+                    field: 'timestamp_with_custom_format',
+                    expectedFormat: 'mm/dd/yyyy hh:mm',
+                },
             ];
 
             testCases.forEach(({ field, expectedFormat }) => {

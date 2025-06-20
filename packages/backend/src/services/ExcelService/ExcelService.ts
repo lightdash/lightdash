@@ -60,42 +60,46 @@ export class ExcelService {
         sortedFieldIds: string[],
     ): (string | number | Date | null)[] {
         return sortedFieldIds.map((fieldId) => {
-            const item = itemMap[fieldId];
             const rawValue = row[fieldId];
+            if (onlyRaw) {
+                return rawValue;
+            }
 
             if (rawValue === null || rawValue === undefined) {
                 return rawValue;
             }
 
-            // Return raw value if onlyRaw is true (skip all processing)
-            if (onlyRaw) {
+            const item = itemMap[fieldId];
+
+            const formatExpression = getFormatExpression(item);
+            if (formatExpression) {
+                // For date/timestamp fields with custom formatting, convert to Date object first
+                if (
+                    item &&
+                    'type' in item &&
+                    (item.type === DimensionType.DATE ||
+                        item.type === DimensionType.TIMESTAMP)
+                ) {
+                    return moment(rawValue).toDate();
+                }
+
+                // Convert string numbers to actual numbers for Excel formatting
+                const stringValue = String(rawValue);
+                if (
+                    stringValue.trim() !== '' &&
+                    !Number.isNaN(Number(stringValue))
+                ) {
+                    return Number(stringValue);
+                }
                 return rawValue;
             }
 
-            // If we have item metadata and it's a date/timestamp field, convert for Excel
             if (item && 'type' in item) {
-                if (item.type === DimensionType.TIMESTAMP) {
+                if (
+                    item.type === DimensionType.TIMESTAMP ||
+                    item.type === DimensionType.DATE
+                ) {
                     return moment(rawValue).toDate();
-                }
-                if (item.type === DimensionType.DATE) {
-                    return moment(rawValue).toDate();
-                }
-            }
-
-            // Check if we have a format expression for this item
-            // If yes, return raw value so Excel can apply number formatting correctly
-            if (item && 'format' in item && item.format) {
-                const formatExpression = getFormatExpression(item);
-                if (formatExpression) {
-                    // Convert string numbers to actual numbers for Excel formatting
-                    const stringValue = String(rawValue);
-                    if (
-                        stringValue.trim() !== '' &&
-                        !Number.isNaN(Number(stringValue))
-                    ) {
-                        return Number(stringValue);
-                    }
-                    return rawValue; // Return raw value for Excel to format
                 }
             }
 
@@ -307,12 +311,25 @@ export class ExcelService {
         });
         const worksheet = workbook.addWorksheet('Sheet1');
 
-        // Set up columns
-        worksheet.columns = headers.map((header, index) => ({
-            header,
-            key: `col_${index}`,
-            width: 15,
-        }));
+        // Set up columns with formatting
+        worksheet.columns = headers.map((header, index) => {
+            const fieldId = sortedFieldIds[index];
+            const item = fields[fieldId];
+            const formatExpression = getFormatExpression(item);
+
+            const column: Partial<Excel.Column> = {
+                header,
+                key: `col_${index}`,
+                width: 15,
+            };
+
+            // Apply number formatting at column level if available
+            if (formatExpression) {
+                column.style = { numFmt: formatExpression };
+            }
+
+            return column;
+        });
 
         let actualRowCount = 0;
 
@@ -346,27 +363,6 @@ export class ExcelService {
                     );
 
                     const row = worksheet.addRow(rowObject);
-
-                    // Apply format expressions only (values already set via addRow)
-                    rowData.forEach((value, colIndex) => {
-                        const fieldId = sortedFieldIds[colIndex];
-                        const item = fields[fieldId];
-
-                        // Only process cells that need formatting
-                        if (
-                            item &&
-                            'format' in item &&
-                            item.format &&
-                            typeof value === 'number'
-                        ) {
-                            const formatExpression = getFormatExpression(item);
-                            if (formatExpression) {
-                                const cell = row.getCell(colIndex + 1); // ExcelJS uses 1-based indexing
-                                cell.numFmt = formatExpression;
-                            }
-                        }
-                    });
-
                     row.commit();
                 } else {
                     Logger.warn(
