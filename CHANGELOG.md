@@ -1,3 +1,10 @@
+# [0.1737.0](https://github.com/lightdash/lightdash/compare/0.1736.1...0.1737.0) (2025-06-20)
+
+
+### Features
+
+* Azure OpenAI  API provider for Agents ([#15399](https://github.com/lightdash/lightdash/issues/15399)) ([ec1958e](https://github.com/lightdash/lightdash/commit/ec1958e7a6107813d0b4d64ea7642cada5433800)), closes [#15356](https://github.com/lightdash/lightdash/issues/15356)
+
 ## [0.1736.1](https://github.com/lightdash/lightdash/compare/0.1736.0...0.1736.1) (2025-06-20)
 
 
