@@ -5,6 +5,7 @@ import {
     formatItemValue,
     formatRows,
     getErrorMessage,
+    getFormatExpression,
     ItemsMap,
     MetricQuery,
     PivotConfig,
@@ -29,7 +30,7 @@ export class ExcelService {
     private static readonly EXCEL_ROW_LIMIT = 1_000_000;
 
     // Helper method for date/timestamp conversion
-    private static convertToExcelDate(value: unknown): Date | unknown {
+    static convertToExcelDate(value: unknown): Date | unknown {
         if (typeof value === 'string') {
             const dateValue = moment(value, moment.ISO_8601, true);
             if (dateValue.isValid()) {
@@ -59,29 +60,50 @@ export class ExcelService {
         sortedFieldIds: string[],
     ): (string | number | Date | null)[] {
         return sortedFieldIds.map((fieldId) => {
-            const item = itemMap[fieldId];
             const rawValue = row[fieldId];
+            if (onlyRaw) {
+                return rawValue;
+            }
 
             if (rawValue === null || rawValue === undefined) {
                 return rawValue;
             }
 
-            // If we have item metadata and it's a date/timestamp field, convert for Excel
-            if (item && 'type' in item) {
-                if (item.type === DimensionType.TIMESTAMP) {
-                    return moment(rawValue).toDate();
-                }
-                if (item.type === DimensionType.DATE) {
-                    return moment(rawValue).toDate();
-                }
-            }
+            const item = itemMap[fieldId];
 
-            // Return raw value if onlyRaw is true
-            if (onlyRaw) {
+            const formatExpression = getFormatExpression(item);
+            if (formatExpression) {
+                // For date/timestamp fields with custom formatting, convert to Date object first
+                if (
+                    item &&
+                    'type' in item &&
+                    (item.type === DimensionType.DATE ||
+                        item.type === DimensionType.TIMESTAMP)
+                ) {
+                    return moment(rawValue).toDate();
+                }
+
+                // Convert string numbers to actual numbers for Excel formatting
+                const stringValue = String(rawValue);
+                if (
+                    stringValue.trim() !== '' &&
+                    !Number.isNaN(Number(stringValue))
+                ) {
+                    return Number(stringValue);
+                }
                 return rawValue;
             }
 
-            // Use standard Lightdash formatting if not onlyRaw and we have item metadata
+            if (item && 'type' in item) {
+                if (
+                    item.type === DimensionType.TIMESTAMP ||
+                    item.type === DimensionType.DATE
+                ) {
+                    return moment(rawValue).toDate();
+                }
+            }
+
+            // Use standard Lightdash formatting if not onlyRaw and we have item metadata but no format expression
             if (item) {
                 return formatItemValue(item, rawValue);
             }
@@ -281,18 +303,33 @@ export class ExcelService {
         onlyRaw: boolean,
         sortedFieldIds: string[],
     ): Promise<{ truncated: boolean }> {
-        const fileStream = fs.createWriteStream(tempFilePath);
+        // Use the same approach as our working tests - direct filename instead of stream
         const workbook = new Excel.stream.xlsx.WorkbookWriter({
-            stream: fileStream,
+            filename: tempFilePath,
+            useStyles: true,
+            useSharedStrings: true,
         });
         const worksheet = workbook.addWorksheet('Sheet1');
 
-        // Set up columns
-        worksheet.columns = headers.map((header, index) => ({
-            header,
-            key: `col_${index}`,
-            width: 15,
-        }));
+        // Set up columns with formatting
+        worksheet.columns = headers.map((header, index) => {
+            const fieldId = sortedFieldIds[index];
+            const item = fields[fieldId];
+            const formatExpression = getFormatExpression(item);
+
+            const column: Partial<Excel.Column> = {
+                header,
+                key: `col_${index}`,
+                width: 15,
+            };
+
+            // Apply number formatting at column level if available
+            if (formatExpression) {
+                column.style = { numFmt: formatExpression };
+            }
+
+            return column;
+        });
 
         let actualRowCount = 0;
 
