@@ -1,3 +1,10 @@
+## [0.1736.1](https://github.com/lightdash/lightdash/compare/0.1736.0...0.1736.1) (2025-06-20)
+
+
+### Bug Fixes
+
+* pass org name to ai feature flags ([#15448](https://github.com/lightdash/lightdash/issues/15448)) ([773f528](https://github.com/lightdash/lightdash/commit/773f5289bed7ea50fbb186e130ae74fcd0a30498))
+
 # [0.1736.0](https://github.com/lightdash/lightdash/compare/0.1735.1...0.1736.0) (2025-06-20)
 
 
