@@ -1,3 +1,10 @@
+## [0.1740.1](https://github.com/lightdash/lightdash/compare/0.1740.0...0.1740.1) (2025-06-20)
+
+
+### Bug Fixes
+
+* improve search performance for sidebars with a lot of content ([#15435](https://github.com/lightdash/lightdash/issues/15435)) ([3d98764](https://github.com/lightdash/lightdash/commit/3d987640d68bda784c7ecf7877b306582e8c5239))
+
 # [0.1740.0](https://github.com/lightdash/lightdash/compare/0.1739.2...0.1740.0) (2025-06-20)
 
 
