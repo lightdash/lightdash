@@ -830,7 +830,7 @@ export class AiAgentService {
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizConfig: vizConfig.config,
                     // TODO: validate before casting
-                    filters: message.filtersOutput,
+                    filters: message.filtersOutput ?? undefined,
                 });
             case 'time_series_chart':
                 return renderTimeseriesChart({
@@ -838,7 +838,7 @@ export class AiAgentService {
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizConfig: vizConfig.config,
                     // TODO: validate before casting
-                    filters: message.filtersOutput,
+                    filters: message.filtersOutput ?? undefined,
                 });
             case 'csv':
                 return renderCsvFile({
@@ -846,7 +846,7 @@ export class AiAgentService {
                         this.runAiMetricQuery(user, projectUuid, q),
                     config: vizConfig.config,
                     // TODO: validate before casting
-                    filters: message.filtersOutput,
+                    filters: message.filtersOutput ?? undefined,
                     maxLimit: AI_DEFAULT_MAX_QUERY_LIMIT,
                 });
             default:
@@ -941,7 +941,7 @@ export class AiAgentService {
             case 'vertical_bar_chart': {
                 const metricQuery = metricQueryVerticalBarChartMetric(
                     vizConfig.config,
-                    message.filtersOutput,
+                    message.filtersOutput ?? undefined,
                 );
 
                 const query = await this.executeAsyncAiMetricQuery(
@@ -958,7 +958,7 @@ export class AiAgentService {
             case 'time_series_chart': {
                 const metricQuery = metricQueryTimeSeriesChartMetric(
                     vizConfig.config,
-                    message.filtersOutput,
+                    message.filtersOutput ?? undefined,
                 );
                 const query = await this.executeAsyncAiMetricQuery(
                     user,
@@ -975,7 +975,7 @@ export class AiAgentService {
                 const metricQuery = await metricQueryCsv(
                     vizConfig.config,
                     AI_DEFAULT_MAX_QUERY_LIMIT,
-                    message.filtersOutput,
+                    message.filtersOutput ?? undefined,
                 );
                 const query = await this.executeAsyncAiMetricQuery(
                     user,

@@ -107,13 +107,14 @@ export type AiAgentMessageAssistant = {
     role: 'assistant';
     uuid: string;
     threadUuid: string;
-    message: string; // ai_prompt.response
-    createdAt: string; // ai_prompt.responded_at
 
-    vizConfigOutput?: object;
-    filtersOutput?: object;
-    metricQuery?: object;
-    humanScore?: number;
+    message: string | null; // ai_prompt.response
+    createdAt: string | null; // ai_prompt.responded_at
+
+    vizConfigOutput: object | null;
+    filtersOutput: object | null;
+    metricQuery: object | null;
+    humanScore: number | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
