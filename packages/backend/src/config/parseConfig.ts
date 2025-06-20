@@ -593,6 +593,9 @@ export type LightdashConfig = {
     scim: {
         enabled: boolean;
     };
+    serviceAccount: {
+        enabled: boolean;
+    };
     github: {
         appName: string;
         redirectDomain: string;
@@ -1269,6 +1272,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         scim: {
             enabled: process.env.SCIM_ENABLED === 'true',
+        },
+        serviceAccount: {
+            enabled: process.env.SERVICE_ACCOUNT_ENABLED === 'true',
         },
         github: {
             appName: process.env.GITHUB_APP_NAME || 'lightdash-app-dev',

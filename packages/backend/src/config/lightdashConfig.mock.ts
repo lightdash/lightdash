@@ -216,6 +216,9 @@ export const lightdashConfigMock: LightdashConfig = {
     microsoftTeams: {
         enabled: false,
     },
+    serviceAccount: {
+        enabled: false,
+    },
     googleCloudPlatform: {
         projectId: 'test-project-id',
     },

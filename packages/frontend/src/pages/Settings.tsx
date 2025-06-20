@@ -77,7 +77,7 @@ const Settings: FC = () => {
         CommercialFeatureFlags.Scim,
     );
 
-    const isServiceAccountsEnabled = useFeatureFlagEnabled(
+    const isServiceAccountFeatureFlagEnabled = useFeatureFlagEnabled(
         CommercialFeatureFlags.ServiceAccounts,
     );
 
@@ -117,6 +117,9 @@ const Settings: FC = () => {
         health?.auth.oidc.enabled;
 
     const isGroupManagementEnabled = UserGroupFeatureFlag?.enabled;
+    // This allows us to enable service accounts in the UI for on-premise installations
+    const isServiceAccountsEnabled =
+        health?.isServiceAccountEnabled || isServiceAccountFeatureFlagEnabled;
 
     const routes = useMemo<RouteObject[]>(() => {
         const allowedRoutes: RouteObject[] = [
