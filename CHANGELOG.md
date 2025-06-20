@@ -1,3 +1,10 @@
+## [0.1739.1](https://github.com/lightdash/lightdash/compare/0.1739.0...0.1739.1) (2025-06-20)
+
+
+### Bug Fixes
+
+* service account model no license ([#15450](https://github.com/lightdash/lightdash/issues/15450)) ([21f22c7](https://github.com/lightdash/lightdash/commit/21f22c78fa3688823754905a86c20f8274d3c99d))
+
 # [0.1739.0](https://github.com/lightdash/lightdash/compare/0.1738.0...0.1739.0) (2025-06-20)
 
 
