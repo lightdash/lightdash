@@ -1,3 +1,10 @@
+## [0.1740.2](https://github.com/lightdash/lightdash/compare/0.1740.1...0.1740.2) (2025-06-20)
+
+
+### Bug Fixes
+
+* get private spaces when moving dashboard - admin view ([#15462](https://github.com/lightdash/lightdash/issues/15462)) ([67901f3](https://github.com/lightdash/lightdash/commit/67901f3d049330d03bd541acf3b724f0cd8eab0d))
+
 ## [0.1740.1](https://github.com/lightdash/lightdash/compare/0.1740.0...0.1740.1) (2025-06-20)
 
 
