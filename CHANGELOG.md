@@ -1,3 +1,10 @@
+## [0.1739.2](https://github.com/lightdash/lightdash/compare/0.1739.1...0.1739.2) (2025-06-20)
+
+
+### Bug Fixes
+
+* running query breaking series axis configuration for cartesian charts ([#15459](https://github.com/lightdash/lightdash/issues/15459)) ([31bb67f](https://github.com/lightdash/lightdash/commit/31bb67f36e98c9f4771bcf836261feb5dd61b36e))
+
 ## [0.1739.1](https://github.com/lightdash/lightdash/compare/0.1739.0...0.1739.1) (2025-06-20)
 
 
