@@ -47,7 +47,7 @@ const Dashboard: FC = () => {
         mode?: string;
         tabUuid?: string;
     }>();
-    const { data: spaces } = useSpaceSummaries(projectUuid);
+    const { data: spaces } = useSpaceSummaries(projectUuid, true);
 
     const { clearIsEditingDashboardChart, clearDashboardStorage } =
         useDashboardStorage();
