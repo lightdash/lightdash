@@ -72,7 +72,7 @@ type OrganizationServiceArguments = {
     personalAccessTokenModel: PersonalAccessTokenModel;
     emailModel: EmailModel;
     projectService: ProjectService; // For compiling project on new setup
-    serviceAccountModel: ServiceAccountModel; // For creating service account on new setup
+    serviceAccountModel?: ServiceAccountModel; // For creating service account on new setup
 };
 
 export class OrganizationService extends BaseService {
@@ -102,7 +102,7 @@ export class OrganizationService extends BaseService {
 
     private readonly projectService: ProjectService;
 
-    private readonly serviceAccountModel: ServiceAccountModel;
+    private readonly serviceAccountModel?: ServiceAccountModel;
 
     constructor({
         lightdashConfig,
@@ -918,7 +918,7 @@ export class OrganizationService extends BaseService {
                 );
             }
 
-            if (setup.serviceAccount) {
+            if (setup.serviceAccount && this.serviceAccountModel) {
                 this.logger.debug(`Initial setup: creating service account`);
                 await this.serviceAccountModel.save(
                     sessionUser,

@@ -411,7 +411,6 @@ export class ServiceRepository
                         this.models.getPersonalAccessTokenModel(),
                     emailModel: this.models.getEmailModel(),
                     projectService: this.getProjectService(),
-                    serviceAccountModel: this.models.getServiceAccountModel(),
                 }),
         );
     }

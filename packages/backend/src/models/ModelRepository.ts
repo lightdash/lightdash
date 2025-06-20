@@ -1,6 +1,5 @@
 import { Knex } from 'knex';
 import { LightdashConfig } from '../config/parseConfig';
-import { ServiceAccountModel } from '../ee/models/ServiceAccountModel';
 import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
@@ -516,16 +515,6 @@ export class ModelRepository
         );
     }
 
-    public getServiceAccountModel(): ServiceAccountModel {
-        return this.getModel(
-            'serviceAccountModel',
-            () =>
-                new ServiceAccountModel({
-                    database: this.database,
-                }),
-        );
-    }
-
     public getAiAgentModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentModel');
     }
@@ -543,6 +532,10 @@ export class ModelRepository
             'tagsModel',
             () => new TagsModel({ database: this.database }),
         );
+    }
+
+    public getServiceAccountModel<ModelImplT>(): ModelImplT {
+        return this.getModel('serviceAccountModel');
     }
 
     public getSpotlightTableConfigModel(): SpotlightTableConfigModel {
