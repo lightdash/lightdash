@@ -3,7 +3,11 @@ import {
     CustomDimensionType,
     ForbiddenError,
 } from '@lightdash/common';
-import { buildQuery } from './queryBuilder';
+import {
+    BuildQueryProps,
+    CompiledQuery,
+    MetricQueryBuilder,
+} from './queryBuilder';
 import {
     bigqueryClientMock,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_AND_TABLE_CALCULATION,
@@ -59,6 +63,10 @@ import {
 } from './queryBuilder.mock';
 
 const replaceWhitespace = (str: string) => str.replace(/\s+/g, ' ').trim();
+
+// Wrapper around class to simplify test calls
+const buildQuery = (args: BuildQueryProps): CompiledQuery =>
+    new MetricQueryBuilder(args).compileQuery();
 
 describe('Query builder', () => {
     test('Should build simple metric query', () => {
