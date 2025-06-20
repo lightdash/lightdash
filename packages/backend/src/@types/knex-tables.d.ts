@@ -237,6 +237,8 @@ import {
     AiSlackThreadTableName,
     AiThreadTable,
     AiThreadTableName,
+    AiWebAppPromptTable,
+    AiWebAppPromptTableName,
 } from '../ee/database/entities/ai';
 import {
     AiAgentInstructionVersionsTable,
@@ -336,6 +338,7 @@ declare module 'knex/types/tables' {
         [AiSlackThreadTableName]: AiSlackThreadTable;
         [AiPromptTableName]: AiPromptTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
+        [AiWebAppPromptTableName]: AiWebAppPromptTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentIntegrationTableName]: AiAgentIntegrationTable;
         [AiAgentSlackIntegrationTableName]: AiAgentSlackIntegrationTable;

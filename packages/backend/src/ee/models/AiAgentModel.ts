@@ -32,8 +32,10 @@ import {
     AiWebAppPromptTableName,
     AiWebAppThreadTableName,
     DbAiPrompt,
+    DbAiSlackPrompt,
     DbAiSlackThread,
     DbAiThread,
+    DbAiWebAppPrompt,
 } from '../database/entities/ai';
 import {
     AiAgentInstructionVersionsTableName,
@@ -663,6 +665,43 @@ export class AiAgentModel {
         },
     ): Promise<AiAgentMessage> {
         const row = await this.database(AiPromptTableName)
+            .select<
+                (Pick<
+                    DbAiPrompt,
+                    | 'ai_prompt_uuid'
+                    | 'prompt'
+                    | 'response'
+                    | 'created_at'
+                    | 'responded_at'
+                    | 'filters_output'
+                    | 'viz_config_output'
+                    | 'metric_query'
+                    | 'human_score'
+                > &
+                    Pick<DbUser, 'user_uuid'> &
+                    Pick<DbAiThread, 'ai_thread_uuid'> &
+                    Pick<DbAiSlackPrompt, 'slack_user_id'> &
+                    Pick<DbAiWebAppPrompt, 'user_uuid'> & {
+                        user_name: string;
+                    })[]
+            >(
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiPromptTableName}.prompt`,
+                `${AiPromptTableName}.response`,
+                `${AiPromptTableName}.created_at`,
+                `${AiPromptTableName}.responded_at`,
+                `${AiPromptTableName}.filters_output`,
+                `${AiPromptTableName}.viz_config_output`,
+                `${AiPromptTableName}.metric_query`,
+                `${AiPromptTableName}.human_score`,
+                `${UserTableName}.user_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiSlackPromptTableName}.slack_user_id`,
+                `${AiWebAppPromptTableName}.user_uuid`,
+                this.database.raw(
+                    `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
+                ),
+            )
             .join(
                 UserTableName,
                 `${AiPromptTableName}.created_by_user_uuid`,
@@ -673,27 +712,6 @@ export class AiAgentModel {
                 `${AiPromptTableName}.ai_thread_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
             )
-            .select(
-                `${AiPromptTableName}.ai_prompt_uuid`,
-                'prompt',
-                'response',
-                'responded_at',
-                'filters_output',
-                'viz_config_output',
-                'metric_query',
-                'human_score',
-                `${UserTableName}.user_uuid`,
-                `${AiThreadTableName}.ai_thread_uuid`,
-                `${AiSlackPromptTableName}.slack_user_id`,
-                `${AiWebAppPromptTableName}.user_uuid`,
-            )
-            .select({
-                uuid: `${AiPromptTableName}.ai_prompt_uuid`,
-                created_at: `${AiPromptTableName}.created_at`,
-                user_name: this.database.raw(
-                    `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)`,
-                ),
-            })
             .leftJoin(
                 AiSlackPromptTableName,
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -726,7 +744,7 @@ export class AiAgentModel {
                     uuid: row.ai_prompt_uuid,
                     threadUuid: row.ai_thread_uuid,
                     message: row.prompt,
-                    createdAt: row.created_at,
+                    createdAt: row.created_at.toString(),
                     user: {
                         uuid: row.user_uuid,
                         name: row.user_name,
@@ -737,8 +755,11 @@ export class AiAgentModel {
                     role: 'assistant',
                     uuid: row.ai_prompt_uuid,
                     threadUuid: row.ai_thread_uuid,
-                    message: row.response,
-                    createdAt: row.responded_at,
+
+                    // TODO: handle null response
+                    message: row.response ?? '',
+                    createdAt: row.responded_at?.toString() ?? '',
+
                     vizConfigOutput: row.viz_config_output,
                     filtersOutput: row.filters_output,
                     metricQuery: row.metric_query,

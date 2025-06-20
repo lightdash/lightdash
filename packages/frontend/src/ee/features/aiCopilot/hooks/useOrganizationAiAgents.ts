@@ -207,6 +207,10 @@ const createOptimisticMessages = (
                 name: agent?.name ?? 'Unknown',
                 uuid: agent?.uuid ?? 'unknown',
             },
+            vizConfigOutput: null,
+            filtersOutput: null,
+            metricQuery: null,
+            humanScore: null,
         },
     ];
 };

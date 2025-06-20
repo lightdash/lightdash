@@ -96,9 +96,13 @@ export const AgentChatDisplay: FC<AgentChatDisplayProps> = ({
                                 xs,
                             ) && (
                                 <Divider
-                                    label={ChatElementsUtils.getDividerLabel(
-                                        message.createdAt,
-                                    )}
+                                    label={
+                                        message.createdAt
+                                            ? ChatElementsUtils.getDividerLabel(
+                                                  message.createdAt,
+                                              )
+                                            : undefined
+                                    }
                                     labelPosition="center"
                                     my="sm"
                                 />
