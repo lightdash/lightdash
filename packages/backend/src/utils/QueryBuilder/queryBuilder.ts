@@ -34,7 +34,6 @@ import {
     WarehouseClient,
     WeekDay,
 } from '@lightdash/common';
-import { wrapSentryTransactionSync } from '../../utils';
 import {
     assertValidDimensionRequiredAttribute,
     getCustomBinDimensionSql,
@@ -64,7 +63,7 @@ export type BuildQueryProps = {
     timezone: string;
 };
 
-class MetricQueryBuilder {
+export class MetricQueryBuilder {
     constructor(private args: BuildQueryProps) {}
 
     /**
@@ -655,12 +654,6 @@ class MetricQueryBuilder {
         };
     }
 }
-
-export const buildQuery = (args: BuildQueryProps): CompiledQuery =>
-    wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () => {
-        const queryBuilder = new MetricQueryBuilder(args);
-        return queryBuilder.compileQuery();
-    });
 
 type ReferenceObject = { type: DimensionType; sql: string };
 export type ReferenceMap = Record<string, ReferenceObject> | undefined;
