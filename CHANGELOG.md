@@ -1,3 +1,10 @@
+# [0.1738.0](https://github.com/lightdash/lightdash/compare/0.1737.0...0.1738.0) (2025-06-20)
+
+
+### Features
+
+* use yml format prop for excel data export & unit tests ([#15442](https://github.com/lightdash/lightdash/issues/15442)) ([8fe43a6](https://github.com/lightdash/lightdash/commit/8fe43a63075903d2bae9cd24a4d9660a904e2fa3)), closes [#15430](https://github.com/lightdash/lightdash/issues/15430)
+
 # [0.1737.0](https://github.com/lightdash/lightdash/compare/0.1736.1...0.1737.0) (2025-06-20)
 
 
