@@ -1,3 +1,10 @@
+# [0.1736.0](https://github.com/lightdash/lightdash/compare/0.1735.1...0.1736.0) (2025-06-20)
+
+
+### Features
+
+* improve service account authentication with CASL abilities ([#15354](https://github.com/lightdash/lightdash/issues/15354)) ([056bd51](https://github.com/lightdash/lightdash/commit/056bd51eaec4e06744b5198a2860f429132112e7)), closes [#15425](https://github.com/lightdash/lightdash/issues/15425) [#15398](https://github.com/lightdash/lightdash/issues/15398) [#15425](https://github.com/lightdash/lightdash/issues/15425) [#15398](https://github.com/lightdash/lightdash/issues/15398) [#15418](https://github.com/lightdash/lightdash/issues/15418) [#15426](https://github.com/lightdash/lightdash/issues/15426)
+
 ## [0.1735.1](https://github.com/lightdash/lightdash/compare/0.1735.0...0.1735.1) (2025-06-19)
 
 
