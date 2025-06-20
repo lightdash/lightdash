@@ -22,7 +22,7 @@ describe('SCIM Authentication Middleware', () => {
 
         expect(
             mockRequest.services.getServiceAccountService<ServiceAccountService>()
-                .authenticateToken,
+                .authenticateScim,
         ).toHaveBeenCalledWith('scim_test_token', {
             method: mockRequest.method,
             path: mockRequest.path,

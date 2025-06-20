@@ -1,4 +1,5 @@
 import {
+    AuthTokenPrefix,
     CreateServiceAccount,
     ServiceAccount,
     ServiceAccountScope,
@@ -35,29 +36,34 @@ export class ServiceAccountModel {
             description: data.description,
             lastUsedAt: data.last_used_at,
             rotatedAt: data.rotated_at,
+            createdByUserUuid: data.created_by_user_uuid,
             scopes: data.scopes as ServiceAccountScope[],
         };
     }
 
-    static generateToken(prefix: string = ''): {
-        token: string;
-        tokenHash: string;
-    } {
-        const token = `${prefix}${crypto.randomBytes(16).toString('hex')}`;
-        const tokenHash = ServiceAccountModel._hash(token);
-        return { token, tokenHash };
+    static generateToken(prefix: string = ''): string {
+        return `${prefix}${crypto.randomBytes(16).toString('hex')}`;
     }
 
     async create({
         user,
         data,
-        prefix = 'scim_',
+        prefix = AuthTokenPrefix.SCIM,
     }: {
         user: SessionUser;
         data: CreateServiceAccount;
         prefix?: string;
     }): Promise<ServiceAccountWithToken> {
-        const { token, tokenHash } = ServiceAccountModel.generateToken(prefix);
+        const token = ServiceAccountModel.generateToken(prefix);
+        return this.save(user, data, token);
+    }
+
+    async save(
+        user: SessionUser,
+        data: CreateServiceAccount,
+        token: string,
+    ): Promise<ServiceAccountWithToken> {
+        const tokenHash = ServiceAccountModel._hash(token);
         const [row] = await this.database('service_accounts')
             .insert({
                 created_by_user_uuid: user.userUuid,
@@ -97,14 +103,16 @@ export class ServiceAccountModel {
         serviceAccountUuid,
         rotatedByUserUuid,
         expiresAt,
-        prefix = 'scim_',
+        prefix = AuthTokenPrefix.SCIM,
     }: {
         serviceAccountUuid: string;
         rotatedByUserUuid: string;
         expiresAt: Date;
         prefix?: string;
     }): Promise<ServiceAccountWithToken> {
-        const { token, tokenHash } = ServiceAccountModel.generateToken(prefix);
+        const token = ServiceAccountModel.generateToken(prefix);
+        const tokenHash = ServiceAccountModel._hash(token);
+
         const [row] = await this.database(ServiceAccountsTableName)
             .update({
                 rotated_at: new Date(),
@@ -128,7 +136,8 @@ export class ServiceAccountModel {
             .select('*')
             .where('organization_uuid', organizationUuid);
         if (scopes) {
-            void query.whereRaw('scopes @> ?', [scopes]); // scopes @> ? returns true only if the database's scopes array contains all elements from the provided scopes array
+            // scopes <@ ? returns true only if the database's scopes array is a full subset of elements from the provided scopes array
+            void query.whereRaw('scopes <@ ?', [scopes]);
         }
         const rows = await query;
         return rows.map(ServiceAccountModel.mapDbObjectToServiceAccount);

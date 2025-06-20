@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import {
-    CommercialFeatureFlags,
+    AuthTokenPrefix,
     CreateServiceAccount,
     ForbiddenError,
     NotFoundError,
@@ -15,10 +15,6 @@ import {
 
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
-import { EmailModel } from '../../../models/EmailModel';
-import { GroupsModel } from '../../../models/GroupsModel';
-import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
-import { UserModel } from '../../../models/UserModel';
 import { BaseService } from '../../../services/BaseService';
 import {
     ScimAccessTokenAuthenticationEvent,
@@ -69,10 +65,10 @@ export class ServiceAccountService extends BaseService {
         }
     }
 
-    async createOrganizationAccessToken({
+    async create({
         user,
         tokenDetails,
-        prefix = 'scim_',
+        prefix = AuthTokenPrefix.SCIM,
     }: {
         user: SessionUser;
         tokenDetails: CreateServiceAccount;
@@ -112,7 +108,7 @@ export class ServiceAccountService extends BaseService {
         }
     }
 
-    async deleteOrganizationAccessToken({
+    async delete({
         user,
         tokenUuid,
     }: {
@@ -161,11 +157,11 @@ export class ServiceAccountService extends BaseService {
         }
     }
 
-    async rotateOrganizationAccessToken({
+    async rotate({
         user,
         tokenUuid,
         update,
-        prefix = 'scim_',
+        prefix = AuthTokenPrefix.SCIM,
     }: {
         user: SessionUser;
         tokenUuid: string;
@@ -220,7 +216,7 @@ export class ServiceAccountService extends BaseService {
         return newToken;
     }
 
-    async getOrganizationAccessToken({
+    async get({
         user,
         tokenUuid,
     }: {
@@ -243,7 +239,7 @@ export class ServiceAccountService extends BaseService {
         return existingToken;
     }
 
-    async listOrganizationAccessTokens(
+    async list(
         user: SessionUser,
         scopes: ServiceAccountScope[],
     ): Promise<ServiceAccount[]> {
@@ -269,7 +265,7 @@ export class ServiceAccountService extends BaseService {
         }
     }
 
-    async authenticateToken(
+    async authenticateScim(
         token: string,
         request: {
             method: string;
@@ -277,8 +273,6 @@ export class ServiceAccountService extends BaseService {
             routePath: string;
         },
     ): Promise<SessionServiceAccount | null> {
-        // TODO validate scope ?
-
         // return null if token is empty
         if (token === '') return null;
 
@@ -306,6 +300,33 @@ export class ServiceAccountService extends BaseService {
                 return {
                     organizationUuid: dbToken.organizationUuid,
                 };
+            }
+        } catch (error) {
+            return null;
+        }
+        return null;
+    }
+
+    async authenticateServiceAccount(
+        token: string,
+    ): Promise<ServiceAccount | null> {
+        // return null if token is empty
+        if (token === '') return null;
+
+        try {
+            const dbToken = await this.serviceAccountModel.getByToken(token);
+            if (dbToken) {
+                // return null if expired
+                if (dbToken.expiresAt && dbToken.expiresAt < new Date()) {
+                    return null;
+                }
+
+                // TODO add analytics
+
+                // Update last used date
+                await this.serviceAccountModel.updateUsedDate(dbToken.uuid);
+                // finally return organization uuid
+                return dbToken;
             }
         } catch (error) {
             return null;

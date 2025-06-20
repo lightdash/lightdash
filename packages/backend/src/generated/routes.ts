@@ -143,7 +143,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ServiceAccountScope: {
         dataType: 'refEnum',
-        enums: ['scim:manage', 'org:admin'],
+        enums: ['scim:manage', 'org:admin', 'org:edit', 'org:read'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ServiceAccount: {
@@ -183,6 +183,14 @@ const models: TsoaRoute.Models = {
                 },
                 createdAt: { dataType: 'datetime', required: true },
                 organizationUuid: { dataType: 'string', required: true },
+                createdByUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 uuid: { dataType: 'string', required: true },
             },
             validators: {},
