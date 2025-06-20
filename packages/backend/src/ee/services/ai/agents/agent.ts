@@ -16,8 +16,6 @@ import Logger from '../../../../logging/logger';
 import { getExploreInformationPrompt } from '../prompts/exploreInformation';
 import { getSystemPrompt } from '../prompts/system';
 
-import { getAiAgentModel } from '../models';
-
 export const runAgent = async ({
     args,
     dependencies,
@@ -88,15 +86,9 @@ export const runAgent = async ({
         ...args.messageHistory,
     ];
 
-    const model = getAiAgentModel(
-        args.provider,
-        args.modelName,
-        args.providerConfig,
-    );
-
     try {
         const result = await generateText({
-            model,
+            model: args.model,
             tools,
             toolChoice: 'auto',
             messages,
@@ -117,7 +109,7 @@ export const runAgent = async ({
 
                 // TODO: extract this as separate agent
                 const { object: repairedArgs } = await generateObject({
-                    model,
+                    model: args.model,
                     schema: tool.parameters as ZodType<AnyType>,
                     messages: [
                         ...conversationHistory,
