@@ -52,7 +52,7 @@ type SchedulerClientArguments = {
     schedulerModel: SchedulerModel;
 };
 
-const SCHEDULED_JOB_MAX_ATTEMPTS = 3;
+const SCHEDULED_JOB_MAX_ATTEMPTS = 1;
 
 export const getDailyDatesFromCron = (
     {

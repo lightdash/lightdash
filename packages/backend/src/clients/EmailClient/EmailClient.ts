@@ -128,7 +128,7 @@ export default class EmailClient {
         options: Mail.Options & EmailTemplate,
     ): Promise<void> {
         if (this.transporter) {
-            const maxRetries = 2;
+            const maxRetries = 3;
             const baseDelay = 1000; // 1 second
 
             /* eslint-disable no-await-in-loop */
@@ -155,9 +155,9 @@ export default class EmailClient {
                         );
                     }
 
-                    // On the second attempt, try recreating the transporter to handle stale connections
+                    // On the last retry attempt, try recreating the transporter to handle stale connections
                     if (
-                        attempt === 2 &&
+                        attempt === maxRetries - 1 &&
                         error instanceof Error &&
                         error.message.includes('ECONNRESET')
                     ) {
