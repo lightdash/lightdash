@@ -1,3 +1,10 @@
+# [0.1741.0](https://github.com/lightdash/lightdash/compare/0.1740.2...0.1741.0) (2025-06-20)
+
+
+### Features
+
+* allow service accounts via environment variable ([#15460](https://github.com/lightdash/lightdash/issues/15460)) ([939998a](https://github.com/lightdash/lightdash/commit/939998aff3c76a26c8e7d3797d75772b54e83527))
+
 ## [0.1740.2](https://github.com/lightdash/lightdash/compare/0.1740.1...0.1740.2) (2025-06-20)
 
 
