@@ -1,3 +1,10 @@
+# [0.1740.0](https://github.com/lightdash/lightdash/compare/0.1739.2...0.1740.0) (2025-06-20)
+
+
+### Features
+
+* retry mechanism and increased timeouts for the email client ([#15443](https://github.com/lightdash/lightdash/issues/15443)) ([1b2407b](https://github.com/lightdash/lightdash/commit/1b2407b49a95b5c98024823b45d705602656c57d)), closes [#15364](https://github.com/lightdash/lightdash/issues/15364)
+
 ## [0.1739.2](https://github.com/lightdash/lightdash/compare/0.1739.1...0.1739.2) (2025-06-20)
 
 
