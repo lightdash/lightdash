@@ -67,5 +67,83 @@ describe('EmailClient', () => {
             await client.sendPasswordRecoveryEmail(passwordResetLinkMock);
             expect(client.transporter?.sendMail).toHaveBeenCalledTimes(1);
         });
+
+        test('should retry email sending on ECONNRESET error', async () => {
+            const mockSendMail = jest
+                .fn()
+                .mockRejectedValueOnce(new Error('read ECONNRESET'))
+                .mockResolvedValueOnce({ messageId: 'test-message-id' });
+
+            (nodemailer.createTransport as jest.Mock).mockReturnValue({
+                verify: jest.fn((callback) => callback()),
+                sendMail: mockSendMail,
+                use: jest.fn(),
+                close: jest.fn(),
+            });
+
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+
+            await client.sendPasswordRecoveryEmail(passwordResetLinkMock);
+
+            // Should have retried once after the initial failure
+            expect(mockSendMail).toHaveBeenCalledTimes(2);
+        });
+
+        test('should fail after max retries with non-retryable error', async () => {
+            const mockSendMail = jest
+                .fn()
+                .mockRejectedValue(new Error('Authentication failed'));
+
+            (nodemailer.createTransport as jest.Mock).mockReturnValue({
+                verify: jest.fn((callback) => callback()),
+                sendMail: mockSendMail,
+                use: jest.fn(),
+                close: jest.fn(),
+            });
+
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+
+            await expect(
+                client.sendPasswordRecoveryEmail(passwordResetLinkMock),
+            ).rejects.toThrow('Failed to send email after 1 attempt');
+
+            // Should not retry non-retryable errors
+            expect(mockSendMail).toHaveBeenCalledTimes(1);
+        });
+
+        test('should retry up to 3 times with retryable error and recreate transporter on last retry', async () => {
+            const mockSendMail = jest
+                .fn()
+                .mockRejectedValue(new Error('read ECONNRESET'));
+
+            const mockClose = jest.fn();
+            const mockCreateTransport = nodemailer.createTransport as jest.Mock;
+
+            mockCreateTransport.mockReturnValue({
+                verify: jest.fn((callback) => callback()),
+                sendMail: mockSendMail,
+                use: jest.fn(),
+                close: mockClose,
+            });
+
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+
+            await expect(
+                client.sendPasswordRecoveryEmail(passwordResetLinkMock),
+            ).rejects.toThrow('Failed to send email after 3 attempts');
+
+            // Should have tried 3 times (initial + 2 retries)
+            expect(mockSendMail).toHaveBeenCalledTimes(3);
+
+            // Should have recreated transporter on the second attempt (maxRetries - 1)
+            expect(mockClose).toHaveBeenCalledTimes(1);
+            expect(mockCreateTransport).toHaveBeenCalledTimes(2); // Initial + recreation
+        });
     });
 });
