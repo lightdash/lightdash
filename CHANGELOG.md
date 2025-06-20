@@ -1,3 +1,10 @@
+# [0.1739.0](https://github.com/lightdash/lightdash/compare/0.1738.0...0.1739.0) (2025-06-20)
+
+
+### Features
+
+* strict schema filter generation with AI agent tools ([#15445](https://github.com/lightdash/lightdash/issues/15445)) ([c4a0c6f](https://github.com/lightdash/lightdash/commit/c4a0c6f049faa8a0bd9ae33d4df6161467e8aa75))
+
 # [0.1738.0](https://github.com/lightdash/lightdash/compare/0.1737.0...0.1738.0) (2025-06-20)
 
 
