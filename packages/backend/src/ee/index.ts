@@ -244,6 +244,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             slackAuthenticationModel: ({ database }) =>
                 new CommercialSlackAuthenticationModel({ database }),
+            serviceAccountModel: ({ database }) =>
+                new ServiceAccountModel({ database }),
             featureFlagModel: ({ database }) =>
                 new CommercialFeatureFlagModel({ database, lightdashConfig }),
         },
