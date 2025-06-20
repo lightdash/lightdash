@@ -64,15 +64,27 @@ export type BuildQueryProps = {
     timezone: string;
 };
 
-export const buildQuery = ({
-    explore,
-    compiledMetricQuery,
-    warehouseClient,
-    intrinsicUserAttributes,
-    userAttributes = {},
-    timezone,
-}: BuildQueryProps): CompiledQuery =>
-    wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () => {
+class MetricQueryBuilder {
+    constructor(private args: BuildQueryProps) {}
+
+    /**
+     * Compiles a database query based on the provided metric query, explores, user attributes, and warehouse-specific configurations.
+     *
+     * This method processes dimensions, metrics, filters, and joins across multiple dataset definitions to generate
+     * a complete SQL query string tailored for the specific warehouse type and environment. Additionally, it ensures
+     * field validation and substitution of user-specific attributes for dynamic query generation.
+     *
+     * @return {CompiledQuery} The compiled query object containing the SQL string and meta information ready for execution.
+     */
+    public compileQuery(): CompiledQuery {
+        const {
+            explore,
+            compiledMetricQuery,
+            warehouseClient,
+            intrinsicUserAttributes,
+            userAttributes = {},
+            timezone,
+        } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
         const adapterType: SupportedDbtAdapter =
             warehouseClient.getAdapterType();
@@ -641,6 +653,13 @@ export const buildQuery = ({
             query: metricQuerySql,
             fields,
         };
+    }
+}
+
+export const buildQuery = (args: BuildQueryProps): CompiledQuery =>
+    wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () => {
+        const queryBuilder = new MetricQueryBuilder(args);
+        return queryBuilder.compileQuery();
     });
 
 type ReferenceObject = { type: DimensionType; sql: string };
