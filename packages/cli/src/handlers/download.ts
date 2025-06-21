@@ -202,7 +202,7 @@ export const downloadContent = async (
             `Downloaded ${contentAsCode.offset} of ${contentAsCode.total} ${type}`,
         );
         contentAsCode.missingIds.forEach((missingId) => {
-            console.warn(styles.warning(`\nNo chart with id "${missingId}"`));
+            console.warn(styles.warning(`\nNo ${type} with id "${missingId}"`));
         });
 
         if ('dashboards' in contentAsCode) {
@@ -242,7 +242,7 @@ export const downloadContent = async (
                         ),
                     ];
                 },
-                chartSlugs,
+                [],
             );
         } else {
             const outputDir = await createDirForContent(
@@ -344,7 +344,7 @@ export const downloadHandler = async (
 
             // If any filter is provided, we download all charts for these dashboard
             // We don't need to do this if we download everything (no filters)
-            if (hasFilters) {
+            if (hasFilters && chartSlugs.length > 0) {
                 spinner.start(
                     `Downloading ${chartSlugs.length} charts linked to dashboards`,
                 );
