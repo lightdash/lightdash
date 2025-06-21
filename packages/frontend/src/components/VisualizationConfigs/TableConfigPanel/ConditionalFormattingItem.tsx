@@ -103,7 +103,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                     // Reset the config if the field type changes
                     // TODO: move to a helper function
                     const shouldReset =
-                        (isNumericItem(currentField) &&
+                        ((!currentField || isNumericItem(currentField)) &&
                             isStringDimension(newField)) ||
                         (isStringDimension(currentField) &&
                             isNumericItem(newField));
@@ -377,7 +377,8 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                             ConditionalFormattingConfigType
                                                 .Range
                                         ],
-                                        disabled: !isNumericItem(field),
+                                        disabled:
+                                            field && !isNumericItem(field),
                                     },
                                 ]}
                                 value={getConditionalFormattingConfigType(
