@@ -21,8 +21,8 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 import { useActiveProject } from '../../../../hooks/useActiveProject';
 import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
-import { useDefaultAgent } from './useDefaultAgent';
 import { PROJECT_AI_AGENTS_KEY, useProjectAiAgent } from './useProjectAiAgents';
+import { USER_AGENT_PREFERENCES } from './useUserAgentPreferences';
 
 const AI_AGENTS_KEY = 'aiAgents';
 
@@ -103,28 +103,34 @@ export const useDeleteAiAgentMutation = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
-    const { defaultAgentUuid, clearDefaultAgent } =
-        useDefaultAgent(activeProjectUuid);
 
     return useMutation<ApiSuccessEmpty, ApiError, string>({
         mutationFn: (agentUuid) => deleteAgent(agentUuid),
-        onSuccess: (_, deletedAgentUuid) => {
+        onSuccess: async () => {
             showToastSuccess({
                 title: 'AI agent deleted successfully',
             });
-            // Invalidate Project ai agent queries
-            void queryClient.invalidateQueries({
-                queryKey: [PROJECT_AI_AGENTS_KEY, activeProjectUuid],
+            await Promise.all(
+                [
+                    // Invalidates Project queries
+                    [PROJECT_AI_AGENTS_KEY, activeProjectUuid],
+                    // Invalidates Organization queries
+                    [AI_AGENTS_KEY],
+                    // Invalidates User Preferences queries
+                    [USER_AGENT_PREFERENCES, activeProjectUuid],
+                ].map((queryKey) =>
+                    queryClient.invalidateQueries({
+                        queryKey,
+                        exact: true,
+                    }),
+                ),
+            );
+            // Not sure why this is needed, the invalidation is performed as a new request is triggered,
+            // but the hook is still returning stale data
+            await queryClient.refetchQueries({
+                queryKey: [USER_AGENT_PREFERENCES, activeProjectUuid],
                 exact: true,
             });
-            // Invalidate Organization ai agent queries
-            void queryClient.invalidateQueries({
-                queryKey: [AI_AGENTS_KEY],
-                exact: true,
-            });
-            if (defaultAgentUuid === deletedAgentUuid) {
-                clearDefaultAgent();
-            }
             void navigate(`/projects/${activeProjectUuid}/ai-agents`);
         },
         onError: ({ error }) => {
