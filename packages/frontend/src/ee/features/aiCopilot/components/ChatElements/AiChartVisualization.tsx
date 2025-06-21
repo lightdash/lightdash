@@ -19,10 +19,12 @@ import { useOrganization } from '../../../../../hooks/organization/useOrganizati
 import { useExplore } from '../../../../../hooks/useExplore';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { getChartConfigFromAiAgentVizConfig } from '../../utils/echarts';
+import SaveVisualization from './SaveVisualization';
 
 type Props = ApiAiAgentThreadMessageVizQuery & {
     vizConfig: AiAgentMessageAssistant['vizConfigOutput'];
     results: InfiniteQueryResults;
+    projectUuid?: string;
 };
 
 export const AiChartVisualization: FC<Props> = ({
@@ -30,6 +32,7 @@ export const AiChartVisualization: FC<Props> = ({
     results,
     type,
     vizConfig,
+    projectUuid,
 }) => {
     const { data: health } = useHealth();
     const { data: organization } = useOrganization();
@@ -97,6 +100,7 @@ export const AiChartVisualization: FC<Props> = ({
                         setEchartSeries(series);
                     }}
                 >
+                    <SaveVisualization projectUuid={projectUuid} />
                     <LightdashVisualization
                         className="sentry-block ph-no-capture"
                         data-testid="ai-visualization"
