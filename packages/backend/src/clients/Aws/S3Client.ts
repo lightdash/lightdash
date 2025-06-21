@@ -74,7 +74,6 @@ export class S3Client {
                 Key: fileId,
                 Body: file,
                 ContentType: contentType,
-                ACL: 'private',
                 ContentDisposition: `attachment; filename="${fileId}"`,
             },
         });
@@ -173,7 +172,6 @@ export class S3Client {
                 Key: fileId,
                 Body: buffer,
                 ContentType: `application/jsonl`,
-                ACL: 'private',
                 ContentDisposition: `attachment; filename="${fileId}"`,
             },
         });
