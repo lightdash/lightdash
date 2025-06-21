@@ -110,8 +110,8 @@ const convertDimension = (
     startOfWeek?: WeekDay | null,
     isAdditionalDimension?: boolean,
 ): Dimension => {
-    let type =
-        column.meta.dimension?.type || column.data_type || DimensionType.STRING;
+    const meta = column.config?.meta || column.meta;
+    let type = meta.dimension?.type || column.data_type || DimensionType.STRING;
     if (!Object.values(DimensionType).includes(type)) {
         throw new MissingCatalogEntryError(
             `Could not recognise type "${type}" for dimension "${
@@ -122,9 +122,9 @@ const convertDimension = (
             {},
         );
     }
-    let name = column.meta.dimension?.name || column.name;
-    let sql = column.meta.dimension?.sql || defaultSql(column.name);
-    let label = column.meta.dimension?.label || friendlyName(name);
+    let name = meta.dimension?.name || column.name;
+    let sql = meta.dimension?.sql || defaultSql(column.name);
+    let label = meta.dimension?.label || friendlyName(name);
     if (type === DimensionType.TIMESTAMP) {
         sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
     }
@@ -134,8 +134,8 @@ const convertDimension = (
     let timeIntervalBaseDimensionName: string | undefined;
 
     const groups: string[] = convertToGroups(
-        column.meta.dimension?.groups,
-        column.meta.dimension?.group_label,
+        meta.dimension?.groups,
+        meta.dimension?.group_label,
     );
 
     if (timeInterval) {
@@ -153,7 +153,7 @@ const convertDimension = (
             .toLowerCase()}`;
 
         groups.push(
-            column.meta.dimension?.label ??
+            meta.dimension?.label ??
                 friendlyName(timeIntervalBaseDimensionName),
         );
 
@@ -168,27 +168,25 @@ const convertDimension = (
         table: model.name,
         tableLabel,
         type,
-        description: column.meta.dimension?.description || column.description,
+        description: meta.dimension?.description || column.description,
         source,
         timeInterval,
         timeIntervalBaseDimensionName,
-        hidden: !!column.meta.dimension?.hidden,
-        format: column.meta.dimension?.format,
-        round: column.meta.dimension?.round,
-        compact: column.meta.dimension?.compact,
-        requiredAttributes: column.meta.dimension?.required_attributes,
-        colors: column.meta.dimension?.colors,
-        ...(column.meta.dimension?.urls
-            ? { urls: column.meta.dimension.urls }
-            : {}),
+        hidden: !!meta.dimension?.hidden,
+        format: meta.dimension?.format,
+        round: meta.dimension?.round,
+        compact: meta.dimension?.compact,
+        requiredAttributes: meta.dimension?.required_attributes,
+        colors: meta.dimension?.colors,
+        ...(meta.dimension?.urls ? { urls: meta.dimension.urls } : {}),
         ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
         groups,
         isIntervalBase,
-        ...(column.meta.dimension && column.meta.dimension.tags
+        ...(meta.dimension && meta.dimension.tags
             ? {
-                  tags: Array.isArray(column.meta.dimension.tags)
-                      ? column.meta.dimension.tags
-                      : [column.meta.dimension.tags],
+                  tags: Array.isArray(meta.dimension.tags)
+                      ? meta.dimension.tags
+                      : [meta.dimension.tags],
               }
             : {}),
     };
@@ -214,6 +212,9 @@ const generateTableLineage = (
     );
 };
 
+/**
+ * @deprecated This function uses the old dbt metrics format.
+ */
 const convertDbtMetricToLightdashMetric = (
     metric: DbtMetric,
     tableName: string,
@@ -341,6 +342,7 @@ export const convertTable = (
                 undefined,
                 startOfWeek,
             );
+            const columnMeta = column.config?.meta || column.meta;
 
             const processIntervalDimension = (
                 dim: Dimension,
@@ -351,11 +353,11 @@ export const convertTable = (
 
                     if (
                         !dim.isAdditionalDimension &&
-                        column.meta.dimension?.time_intervals &&
-                        Array.isArray(column.meta.dimension.time_intervals)
+                        columnMeta.dimension?.time_intervals &&
+                        Array.isArray(columnMeta.dimension.time_intervals)
                     ) {
                         intervals = validateTimeFrames(
-                            column.meta.dimension.time_intervals,
+                            columnMeta.dimension.time_intervals,
                         );
                     } else if (
                         dim.isAdditionalDimension &&
@@ -383,8 +385,7 @@ export const convertTable = (
                                                   name: dim.name,
                                                   meta: {
                                                       dimension: {
-                                                          ...column.meta
-                                                              .dimension,
+                                                          ...columnMeta.dimension,
                                                           type: dim.type,
                                                           label: dim.label,
                                                           groups: dim.groups,
@@ -414,7 +415,7 @@ export const convertTable = (
             };
 
             extraDimensions = Object.entries(
-                column.meta.additional_dimensions || {},
+                columnMeta.additional_dimensions || {},
             ).reduce((acc, [subDimensionName, subDimension]) => {
                 const additionalDim = convertDimension(
                     index,
@@ -446,7 +447,7 @@ export const convertTable = (
             }, extraDimensions);
 
             const columnMetrics = Object.fromEntries(
-                Object.entries(column.meta.metrics || {}).map(
+                Object.entries(columnMeta.metrics || {}).map(
                     ([name, metric]) => [
                         name,
                         convertColumnMetric({
@@ -460,10 +461,10 @@ export const convertTable = (
                             spotlightConfig: {
                                 ...spotlightConfig,
                                 default_visibility:
-                                    model.meta.spotlight?.visibility ??
+                                    meta.spotlight?.visibility ??
                                     spotlightConfig.default_visibility,
                             },
-                            modelCategories: model.meta.spotlight?.categories,
+                            modelCategories: meta.spotlight?.categories,
                         }),
                     ],
                 ),
@@ -482,7 +483,7 @@ export const convertTable = (
     );
 
     const modelMetrics = Object.fromEntries(
-        Object.entries(model.meta.metrics || {}).map(([name, metric]) => [
+        Object.entries(meta.metrics || {}).map(([name, metric]) => [
             name,
             convertModelMetric({
                 modelName: model.name,
@@ -492,10 +493,10 @@ export const convertTable = (
                 spotlightConfig: {
                     ...spotlightConfig,
                     default_visibility:
-                        model.meta.spotlight?.visibility ??
+                        meta.spotlight?.visibility ??
                         spotlightConfig.default_visibility,
                 },
-                modelCategories: model.meta.spotlight?.categories,
+                modelCategories: meta.spotlight?.categories,
             }),
         ]),
     );
@@ -510,10 +511,10 @@ export const convertTable = (
                 {
                     ...spotlightConfig,
                     default_visibility:
-                        model.meta.spotlight?.visibility ??
+                        meta.spotlight?.visibility ??
                         spotlightConfig.default_visibility,
                 },
-                model.meta.spotlight?.categories,
+                meta.spotlight?.categories,
             ),
         ]),
     );
@@ -554,7 +555,7 @@ export const convertTable = (
         });
     }
 
-    const sqlTable = model.meta.sql_from || model.relation_name;
+    const sqlTable = meta.sql_from || model.relation_name;
     return {
         name: model.name,
         label: tableLabel,
@@ -645,6 +646,14 @@ export const convertExplores = async (
     const [tables, exploreErrors] = models.reduce(
         ([accTables, accErrors], model) => {
             const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
+            const configTags = model.config?.tags;
+
+            // model.config.tags takes priority over model.tags
+            // but model.config.tags has type string[] | string | undefined - so we have to handle the different cases
+            const tags = Array.isArray(configTags)
+                ? configTags
+                : (configTags ? [configTags] : []) || model.tags || [];
+
             // If there are any errors compiling the table return an ExploreError
             try {
                 // base dimensions and metrics
@@ -675,7 +684,7 @@ export const convertExplores = async (
                 const exploreError: ExploreError = {
                     name: model.name,
                     label: meta.label || friendlyName(model.name),
-                    tags: model.tags,
+                    tags,
                     groupLabel: meta.group_label,
                     errors: [
                         {
@@ -706,12 +715,16 @@ export const convertExplores = async (
     const exploreCompiler = new ExploreCompiler(warehouseClient);
     const explores: (Explore | ExploreError)[] = validModels.map((model) => {
         const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
+        const configTags = model.config?.tags;
+        const tags = Array.isArray(configTags)
+            ? configTags
+            : (configTags ? [configTags] : []) || model.tags || [];
 
         try {
             return exploreCompiler.compileExplore({
                 name: model.name,
                 label: meta.label || friendlyName(model.name),
-                tags: model.tags || [],
+                tags,
                 baseTable: model.name,
                 groupLabel: meta.group_label,
                 joinedTables: (meta?.joins || []).map((join) => ({
