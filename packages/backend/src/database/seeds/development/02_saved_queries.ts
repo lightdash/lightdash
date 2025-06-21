@@ -2,8 +2,8 @@ import {
     BinType,
     CartesianSeriesType,
     ChartType,
-    ConditionalOperator,
     CustomDimensionType,
+    FilterOperator,
     generateSlug,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
@@ -353,7 +353,7 @@ export async function seed(knex: Knex): Promise<void> {
                                 target: {
                                     fieldId: 'orders_order_date_month',
                                 },
-                                operator: ConditionalOperator.EQUALS,
+                                operator: FilterOperator.EQUALS,
                                 values: ['2018-02-01T00:00:00Z'],
                             },
                         ],
@@ -428,7 +428,7 @@ export async function seed(knex: Knex): Promise<void> {
                             rules: [
                                 {
                                     id: '2f4bf13c-861b-41e7-bad8-7f553fb93197',
-                                    operator: ConditionalOperator.GREATER_THAN,
+                                    operator: FilterOperator.GREATER_THAN,
                                     values: [300],
                                 },
                             ],

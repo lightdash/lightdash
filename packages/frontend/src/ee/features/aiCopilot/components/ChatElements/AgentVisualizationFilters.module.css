@@ -11,10 +11,3 @@
 .filterButton:active {
     transform: none;
 }
-
-.filterText {
-    max-width: 800px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}

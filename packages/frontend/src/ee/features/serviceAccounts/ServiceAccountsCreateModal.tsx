@@ -1,14 +1,20 @@
 import {
+    ActionIcon,
+    Alert,
     Button,
+    CopyButton,
     Modal,
     MultiSelect,
     Select,
     Stack,
     TextInput,
+    Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { IconAlertCircle, IconCheck, IconCopy } from '@tabler/icons-react';
 import { addDays } from 'date-fns';
 import { type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 
 import { ServiceAccountScope } from '@lightdash/common';
 
@@ -56,6 +62,7 @@ type Props = {
     onClose: () => void;
     onSave: (values: any) => void;
     isWorking: boolean;
+    token?: string;
 };
 
 export const ServiceAccountsCreateModal: FC<Props> = ({
@@ -63,6 +70,7 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
     onClose,
     onSave,
     isWorking,
+    token,
 }) => {
     const form = useForm({
         initialValues: {
@@ -97,7 +105,6 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
             ...values,
             expiresAt: expiresAt ? addDays(new Date(), expiresAt) : expiresAt,
         });
-        closeModal();
     });
 
     return (
@@ -109,39 +116,81 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
                 title: { fontWeight: 'bold', fontSize: theme.fontSizes.lg },
             })}
         >
-            <form onSubmit={handleOnSubmit}>
+            {!token ? (
+                <form onSubmit={handleOnSubmit}>
+                    <Stack spacing="md">
+                        <TextInput
+                            label="Description"
+                            placeholder="What's this service account for?"
+                            required
+                            disabled={isWorking}
+                            {...form.getInputProps('description')}
+                        />
+                        <Select
+                            withinPortal
+                            defaultValue={expireOptions[0].value}
+                            label="Expiration"
+                            data={expireOptions}
+                            disabled={isWorking}
+                            {...form.getInputProps('expiresAt')}
+                        ></Select>
+                        <MultiSelect
+                            label="Scopes"
+                            placeholder="Select scopes"
+                            data={AVAILABLE_SCOPES}
+                            required
+                            searchable
+                            maxDropdownHeight={140}
+                            disabled={isWorking}
+                            {...form.getInputProps('scopes')}
+                        />
+
+                        <Button type="submit" ml="auto" loading={isWorking}>
+                            Create service account
+                        </Button>
+                    </Stack>
+                </form>
+            ) : (
                 <Stack spacing="md">
                     <TextInput
-                        label="Description"
-                        placeholder="What's this service account for?"
-                        required
-                        disabled={isWorking}
-                        {...form.getInputProps('description')}
+                        label="Token"
+                        readOnly
+                        className="sentry-block ph-no-capture"
+                        value={token}
+                        rightSection={
+                            <CopyButton value={token}>
+                                {({ copied, copy }) => (
+                                    <Tooltip
+                                        label={copied ? 'Copied' : 'Copy'}
+                                        withArrow
+                                        position="right"
+                                    >
+                                        <ActionIcon
+                                            color={copied ? 'teal' : 'gray'}
+                                            onClick={copy}
+                                        >
+                                            <MantineIcon
+                                                icon={
+                                                    copied
+                                                        ? IconCheck
+                                                        : IconCopy
+                                                }
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                )}
+                            </CopyButton>
+                        }
                     />
-                    <Select
-                        withinPortal
-                        defaultValue={expireOptions[0].value}
-                        label="Expiration"
-                        data={expireOptions}
-                        disabled={isWorking}
-                        {...form.getInputProps('expiresAt')}
-                    ></Select>
-                    <MultiSelect
-                        label="Scopes"
-                        placeholder="Select scopes"
-                        data={AVAILABLE_SCOPES}
-                        required
-                        searchable
-                        maxDropdownHeight={140}
-                        disabled={isWorking}
-                        {...form.getInputProps('scopes')}
-                    />
-
-                    <Button type="submit" ml="auto" loading={isWorking}>
-                        Create service account
+                    <Alert icon={<MantineIcon icon={IconAlertCircle} />}>
+                        Make sure to copy your access token now. You won't be
+                        able to see it again!
+                    </Alert>
+                    <Button onClick={closeModal} ml="auto">
+                        Done
                     </Button>
                 </Stack>
-            </form>
+            )}
         </Modal>
     );
 };

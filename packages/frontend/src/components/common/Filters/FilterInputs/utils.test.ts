@@ -1,9 +1,9 @@
 import {
-    ConditionalOperator,
     DimensionType,
     FieldType,
+    FilterOperator,
     FilterType,
-    type ConditionalRule,
+    type BaseFilterRule,
     type FilterableItem,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
@@ -15,9 +15,9 @@ import {
 describe('getConditionalRuleLabel', () => {
     it('should return correct labels for a string filter', () => {
         // Arrange
-        const rule: ConditionalRule = {
+        const rule: BaseFilterRule = {
             id: 'test-rule-id',
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
             values: ['test-value'],
         };
         const filterType = FilterType.STRING;
@@ -36,9 +36,9 @@ describe('getConditionalRuleLabel', () => {
 
     it('should return correct labels for a number filter', () => {
         // Arrange
-        const rule: ConditionalRule = {
+        const rule: BaseFilterRule = {
             id: 'test-rule-id',
-            operator: ConditionalOperator.GREATER_THAN,
+            operator: FilterOperator.GREATER_THAN,
             values: [100],
         };
         const filterType = FilterType.NUMBER;
@@ -59,9 +59,9 @@ describe('getConditionalRuleLabel', () => {
 describe('getConditionalRuleLabelFromItem', () => {
     it('should return correct labels for a field item', () => {
         // Arrange
-        const rule: ConditionalRule = {
+        const rule: BaseFilterRule = {
             id: 'test-rule-id',
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
             values: ['test-value'],
         };
         const item: FilterableItem = {

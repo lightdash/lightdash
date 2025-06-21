@@ -58,7 +58,7 @@
                 "type": "object"
             },
             "ServiceAccountScope": {
-                "enum": ["scim:manage", "org:admin"],
+                "enum": ["scim:manage", "org:admin", "org:edit", "org:read"],
                 "type": "string"
             },
             "ServiceAccount": {
@@ -94,6 +94,10 @@
                     "organizationUuid": {
                         "type": "string"
                     },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "uuid": {
                         "type": "string"
                     }
@@ -106,6 +110,7 @@
                     "expiresAt",
                     "createdAt",
                     "organizationUuid",
+                    "createdByUserUuid",
                     "uuid"
                 ],
                 "type": "object"
@@ -1210,7 +1215,7 @@
                 "required": ["tableName", "fieldId"],
                 "type": "object"
             },
-            "ConditionalOperator": {
+            "FilterOperator": {
                 "enum": [
                     "isNull",
                     "notNull",
@@ -1234,7 +1239,7 @@
                 ],
                 "type": "string"
             },
-            "FilterRule_ConditionalOperator.DashboardFieldTarget.AnyType.AnyType_": {
+            "FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_": {
                 "properties": {
                     "values": {
                         "items": {
@@ -1243,7 +1248,7 @@
                         "type": "array"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
+                        "$ref": "#/components/schemas/FilterOperator"
                     },
                     "id": {
                         "type": "string"
@@ -1287,7 +1292,7 @@
             "DashboardFilterRule": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.DashboardFieldTarget.AnyType.AnyType_"
+                        "$ref": "#/components/schemas/FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_"
                     },
                     {
                         "properties": {
@@ -2008,7 +2013,7 @@
                         "type": "array"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
+                        "$ref": "#/components/schemas/FilterOperator"
                     },
                     "id": {
                         "type": "string"
@@ -2210,7 +2215,7 @@
                         "type": "array"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
+                        "$ref": "#/components/schemas/FilterOperator"
                     },
                     "id": {
                         "type": "string"
@@ -3244,7 +3249,7 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
-            "ConditionalRule_ConditionalOperator.number-or-string_": {
+            "BaseFilterRule_FilterOperator.number-or-string_": {
                 "properties": {
                     "values": {
                         "items": {
@@ -3261,7 +3266,7 @@
                         "type": "array"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
+                        "$ref": "#/components/schemas/FilterOperator"
                     },
                     "id": {
                         "type": "string"
@@ -3273,7 +3278,7 @@
             "ConditionalFormattingWithValues_number-or-string_": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number-or-string_"
+                        "$ref": "#/components/schemas/BaseFilterRule_FilterOperator.number-or-string_"
                     },
                     {
                         "properties": {
@@ -3300,7 +3305,7 @@
             "ConditionalFormattingWithCompareTarget_number-or-string_": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number-or-string_"
+                        "$ref": "#/components/schemas/BaseFilterRule_FilterOperator.number-or-string_"
                     },
                     {
                         "properties": {
@@ -3332,7 +3337,7 @@
                     }
                 ]
             },
-            "ConditionalFormattingWithConditionalOperator": {
+            "ConditionalFormattingWithFilterOperator": {
                 "anyOf": [
                     {
                         "$ref": "#/components/schemas/ConditionalFormattingWithValues_number-or-string_"
@@ -3346,7 +3351,7 @@
                 "properties": {
                     "rules": {
                         "items": {
-                            "$ref": "#/components/schemas/ConditionalFormattingWithConditionalOperator"
+                            "$ref": "#/components/schemas/ConditionalFormattingWithFilterOperator"
                         },
                         "type": "array"
                     },
@@ -3695,7 +3700,7 @@
                         "type": "array"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
+                        "$ref": "#/components/schemas/FilterOperator"
                     },
                     "id": {
                         "type": "string"
@@ -4878,6 +4883,40 @@
             },
             "ItemsMap": {
                 "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
+            },
+            "AiAgentUserPreferences": {
+                "properties": {
+                    "defaultAgentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["defaultAgentUuid"],
+                "type": "object"
+            },
+            "ApiGetUserAgentPreferencesResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentUserPreferences"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUpdateUserAgentPreferencesResponse": {
+                "$ref": "#/components/schemas/ApiSuccessEmpty"
+            },
+            "ApiUpdateUserAgentPreferences": {
+                "$ref": "#/components/schemas/AiAgentUserPreferences"
             },
             "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl_": {
                 "properties": {
@@ -12272,14 +12311,14 @@
                     }
                 ]
             },
-            "FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_": {
+            "FilterRule_FilterOperator.DashboardFieldTarget.any.any_": {
                 "properties": {
                     "values": {
                         "items": {},
                         "type": "array"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
+                        "$ref": "#/components/schemas/FilterOperator"
                     },
                     "id": {
                         "type": "string"
@@ -12299,10 +12338,10 @@
                 "type": "object",
                 "additionalProperties": true
             },
-            "DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_": {
+            "DashboardFilterRule_FilterOperator.DashboardFieldTarget.any.any_": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.DashboardFieldTarget.any.any_"
+                        "$ref": "#/components/schemas/FilterRule_FilterOperator.DashboardFieldTarget.any.any_"
                     },
                     {
                         "properties": {
@@ -12324,13 +12363,13 @@
                 "properties": {
                     "metrics": {
                         "items": {
-                            "$ref": "#/components/schemas/DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_"
+                            "$ref": "#/components/schemas/DashboardFilterRule_FilterOperator.DashboardFieldTarget.any.any_"
                         },
                         "type": "array"
                     },
                     "tableCalculations": {
                         "items": {
-                            "$ref": "#/components/schemas/DashboardFilterRule_ConditionalOperator.DashboardFieldTarget.any.any_"
+                            "$ref": "#/components/schemas/DashboardFilterRule_FilterOperator.DashboardFieldTarget.any.any_"
                         },
                         "type": "array"
                     }
@@ -12359,7 +12398,7 @@
                         "type": "boolean"
                     },
                     "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
+                        "$ref": "#/components/schemas/FilterOperator"
                     },
                     "values": {
                         "items": {},
@@ -16692,8 +16731,7 @@
                             "limit": {
                                 "type": "number",
                                 "format": "double",
-                                "nullable": true,
-                                "description": "Limit override for query execution:\n- undefined: use saved chart's original limit\n- null: no limit (unlimited results)\n- number: apply specific limit"
+                                "nullable": true
                             },
                             "versionUuid": {
                                 "type": "string"
@@ -16754,6 +16792,11 @@
                     },
                     {
                         "properties": {
+                            "limit": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
                             "dateZoom": {
                                 "$ref": "#/components/schemas/DateZoom"
                             },
@@ -17795,7 +17838,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1725.0",
+        "version": "0.1734.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

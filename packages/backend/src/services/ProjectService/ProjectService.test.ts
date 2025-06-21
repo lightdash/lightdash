@@ -1,6 +1,6 @@
 import {
-    ConditionalOperator,
     defineUserAbility,
+    FilterOperator,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
@@ -30,9 +30,12 @@ import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
-import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import {
+    METRIC_QUERY,
+    warehouseClientMock,
+} from '../../utils/QueryBuilder/queryBuilder.mock';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -380,7 +383,7 @@ describe('ProjectService', () => {
                                    FROM test.table AS "a"
                                    WHERE (( LOWER() LIKE LOWER('%%') ))
                                    GROUP BY 1
-                                   ORDER BY "a_dim1" 
+                                   ORDER BY "a_dim1"
                                    LIMIT 10`),
             );
         });
@@ -406,7 +409,7 @@ describe('ProjectService', () => {
                     and: [
                         {
                             id: 'valid',
-                            operator: ConditionalOperator.EQUALS,
+                            operator: FilterOperator.EQUALS,
                             values: ['test'],
                             target: {
                                 fieldId: 'a_dim1',
@@ -414,7 +417,7 @@ describe('ProjectService', () => {
                         },
                         {
                             id: 'valid_joined',
-                            operator: ConditionalOperator.EQUALS,
+                            operator: FilterOperator.EQUALS,
                             values: ['test'],
                             target: {
                                 fieldId: 'b_dim1',
@@ -422,7 +425,7 @@ describe('ProjectService', () => {
                         },
                         {
                             id: 'invalid',
-                            operator: ConditionalOperator.EQUALS,
+                            operator: FilterOperator.EQUALS,
                             values: ['test'],
                             target: {
                                 fieldId: 'c_dim1',
@@ -433,12 +436,12 @@ describe('ProjectService', () => {
             );
             expect(runQueryMock).toHaveBeenCalledTimes(1);
             expect(replaceWhitespace(runQueryMock.mock.calls[0][0])).toEqual(
-                replaceWhitespace(`SELECT AS "a_dim1" 
-                                        FROM test.table AS "a" 
-                                        LEFT OUTER JOIN public.b AS "b" ON ("a".dim1) = ("b".dim1) 
-                                        WHERE (( LOWER() LIKE LOWER('%%') ) AND ( () IN ('test') ) AND ( () IN ('test') )) 
-                                        GROUP BY 1 
-                                        ORDER BY "a_dim1" 
+                replaceWhitespace(`SELECT AS "a_dim1"
+                                        FROM test.table AS "a"
+                                        LEFT OUTER JOIN public.b AS "b" ON ("a".dim1) = ("b".dim1)
+                                        WHERE (( LOWER() LIKE LOWER('%%') ) AND ( () IN ('test') ) AND ( () IN ('test') ))
+                                        GROUP BY 1
+                                        ORDER BY "a_dim1"
                                         LIMIT 10`),
             );
         });

@@ -1,16 +1,17 @@
-import { createOpenAI, OpenAIProviderSettings } from '@ai-sdk/openai';
+import { createOpenAI } from '@ai-sdk/openai';
+import { LightdashConfig } from '../../../../config/parseConfig';
 
 export const getOpenaiGptmodel = (
-    modelName: string,
-    settings: Pick<OpenAIProviderSettings, 'apiKey'> &
-        Partial<OpenAIProviderSettings> = {},
+    config: NonNullable<
+        LightdashConfig['ai']['copilot']['providers']['openai']
+    >,
 ) => {
     const openai = createOpenAI({
-        ...settings,
+        apiKey: config.apiKey,
         compatibility: 'strict',
     });
 
-    const model = openai(modelName, {
+    const model = openai(config.modelName, {
         structuredOutputs: true,
     });
 

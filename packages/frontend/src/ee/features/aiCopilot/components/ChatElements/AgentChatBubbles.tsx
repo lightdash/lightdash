@@ -3,7 +3,7 @@ import {
     type AiAgentMessageAssistant,
     type AiAgentMessageUser,
     type AiAgentUser,
-    type FilterSchemaType,
+    type Filters,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -196,7 +196,7 @@ export const AssistantBubble: FC<{
                 />
             ) : (
                 <MDEditor.Markdown
-                    source={message.message}
+                    source={message.message ?? 'No response...'}
                     style={{ backgroundColor: 'transparent' }}
                 />
             )}
@@ -258,9 +258,7 @@ export const AssistantBubble: FC<{
                             {message.filtersOutput && (
                                 <AgentVisualizationFilters
                                     // TODO: fix this using schema
-                                    filters={
-                                        message.filtersOutput as FilterSchemaType
-                                    }
+                                    filters={message.filtersOutput as Filters}
                                 />
                             )}
                         </ErrorBoundary>
@@ -268,7 +266,7 @@ export const AssistantBubble: FC<{
                 </Paper>
             )}
             <Group gap={0} display={isPreview ? 'none' : 'flex'}>
-                <CopyButton value={message.message}>
+                <CopyButton value={message.message ?? ''}>
                     {({ copied, copy }) => (
                         <ActionIcon
                             variant="subtle"

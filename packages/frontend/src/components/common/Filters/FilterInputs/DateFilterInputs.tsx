@@ -8,7 +8,7 @@ import {
     isFilterRule,
     parseDate,
     timeframeToUnitOfTime,
-    type ConditionalRule,
+    type BaseFilterRule,
     type DateFilterRule,
 } from '@lightdash/common';
 import { Flex, NumberInput, Text } from '@mantine/core';
@@ -28,7 +28,7 @@ import FilterUnitOfTimeAutoComplete from './FilterUnitOfTimeAutoComplete';
 import FilterWeekPicker from './FilterWeekPicker';
 import FilterYearPicker from './FilterYearPicker';
 
-const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
+const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
     props: FilterInputsProps<T>,
 ) => {
     const { field, rule, onChange, popoverProps, disabled, filterType } = props;

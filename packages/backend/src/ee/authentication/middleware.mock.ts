@@ -17,7 +17,7 @@ export const mockRequest = {
     },
     services: {
         getServiceAccountService: jest.fn().mockReturnValue({
-            authenticateToken: jest.fn().mockResolvedValue(mockServiceAccount),
+            authenticateScim: jest.fn().mockResolvedValue(mockServiceAccount),
         }),
     },
 } as unknown as express.Request;
@@ -29,7 +29,7 @@ export const mockRequestWithInvalidToken = {
     },
     services: {
         getServiceAccountService: jest.fn().mockReturnValue({
-            authenticateToken: jest.fn().mockResolvedValue(null),
+            authenticateScim: jest.fn().mockResolvedValue(null),
         }),
     },
 } as unknown as express.Request;

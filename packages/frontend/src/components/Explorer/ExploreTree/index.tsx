@@ -7,9 +7,24 @@ import {
     type Explore,
     type Metric,
 } from '@lightdash/common';
-import { ActionIcon, Center, ScrollArea, Text, TextInput } from '@mantine/core';
+import {
+    ActionIcon,
+    Center,
+    Loader,
+    ScrollArea,
+    Text,
+    TextInput,
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    useTransition,
+    type FC,
+} from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import TableTree from './TableTree';
 import { getSearchResults } from './TableTree/Tree/utils';
@@ -40,14 +55,26 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     missingFields,
 }) => {
     const [search, setSearch] = useState<string>('');
-    const isSearching = !!search && search !== '';
+    const [isPending, startTransition] = useTransition();
+    const [searchResultsMap, setSearchResultsMap] = useState<
+        Record<string, string[]>
+    >({});
+    const [debouncedSearch] = useDebouncedValue(search, 300);
+    const isSearching = useMemo(() => {
+        const trimmedSearch = search.trim();
+        return !!trimmedSearch && trimmedSearch !== '';
+    }, [search]);
 
     const handleSearchChange = useCallback(
-        (e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value),
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            setSearch(e.target.value);
+        },
         [],
     );
 
-    const handleClearSearch = useCallback(() => setSearch(''), []);
+    const handleClearSearch = useCallback(() => {
+        setSearch('');
+    }, []);
 
     const searchResults = useCallback(
         (table: CompiledTable) => {
@@ -62,10 +89,23 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                 return { ...acc, [getItemId(item)]: item };
             }, {});
 
-            return getSearchResults(allFields, search);
+            return getSearchResults(allFields, debouncedSearch);
         },
-        [additionalMetrics, search],
+        [additionalMetrics, debouncedSearch],
     );
+
+    useEffect(() => {
+        startTransition(() => {
+            setSearchResultsMap(
+                Object.values(explore.tables).reduce<Record<string, string[]>>(
+                    (acc, table) => {
+                        return { ...acc, [table.name]: searchResults(table) };
+                    },
+                    {},
+                ),
+            );
+        });
+    }, [explore, searchResults]);
 
     const tableTrees = useMemo(() => {
         return Object.values(explore.tables)
@@ -77,17 +117,21 @@ const ExploreTree: FC<ExploreTreeProps> = ({
             })
             .filter(
                 (table) =>
-                    !(isSearching && searchResults(table).length === 0) &&
-                    !table.hidden,
+                    !(
+                        isSearching &&
+                        searchResultsMap[table.name]?.length === 0
+                    ) && !table.hidden,
             );
-    }, [explore, isSearching, searchResults]);
+    }, [explore, isSearching, searchResultsMap]);
 
     return (
         <>
             <TextInput
                 icon={<MantineIcon icon={IconSearch} />}
                 rightSection={
-                    search ? (
+                    isPending ? (
+                        <Loader size="xs" />
+                    ) : search ? (
                         <ActionIcon onClick={handleClearSearch}>
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
@@ -109,7 +153,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                         <TableTree
                             key={table.name}
                             isOpenByDefault={index === 0}
-                            searchQuery={search}
+                            searchQuery={debouncedSearch}
                             showTableLabel={
                                 Object.keys(explore.tables).length > 1
                             }
@@ -132,10 +176,12 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                             }
                             missingFields={missingFields}
                             selectedDimensions={selectedDimensions}
+                            searchResults={searchResultsMap[table.name]}
+                            isSearching={isSearching}
                         />
                     ))
                 ) : (
-                    <Center>
+                    <Center display={isSearching ? 'none' : 'flex'}>
                         <Text color="dimmed">No fields found...</Text>
                     </Center>
                 )}

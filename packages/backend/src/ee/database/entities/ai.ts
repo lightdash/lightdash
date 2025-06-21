@@ -51,7 +51,7 @@ export type AiSlackThreadTable = Knex.CompositeTableType<
 
 export type AiWebAppThreadTable = Knex.CompositeTableType<
     DbWebAppThread,
-    Pick<DbWebAppThread, 'user_uuid'>,
+    Pick<DbWebAppThread, 'ai_thread_uuid'>,
     never
 >;
 
@@ -92,7 +92,7 @@ export type AiPromptTable = Knex.CompositeTableType<
 export const AiSlackPromptTableName = 'ai_slack_prompt';
 export const AiWebAppPromptTableName = 'ai_web_app_prompt';
 
-type DbAiSlackPrompt = {
+export type DbAiSlackPrompt = {
     ai_slack_prompt_uuid: string;
     ai_prompt_uuid: string;
     slack_user_id: string;
@@ -101,7 +101,7 @@ type DbAiSlackPrompt = {
     response_slack_ts: string | null;
 };
 
-type DbAiWebAppPrompt = {
+export type DbAiWebAppPrompt = {
     ai_slack_prompt_uuid: string;
     ai_prompt_uuid: string;
     user_uuid: string;
@@ -121,6 +121,6 @@ export type AiSlackPromptTable = Knex.CompositeTableType<
 
 export type AiWebAppPromptTable = Knex.CompositeTableType<
     DbAiWebAppPrompt,
-    Pick<DbAiWebAppPrompt, 'ai_prompt_uuid'>,
+    Pick<DbAiWebAppPrompt, 'ai_prompt_uuid' | 'user_uuid'>,
     Pick<DbAiWebAppPrompt, 'user_uuid'>
 >;

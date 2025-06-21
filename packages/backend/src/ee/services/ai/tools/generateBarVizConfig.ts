@@ -50,7 +50,7 @@ Rules for generating the bar chart visualization:
                     await renderVerticalBarMetricChart({
                         runMetricQuery: runMiniMetricQuery,
                         vizConfig,
-                        filters,
+                        filters: filters ?? undefined,
                     });
 
                 const file = await renderEcharts(chartOptions);

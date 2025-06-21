@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AiAgentThread,
     AiAgentThreadSummary,
+    AiAgentUserPreferences,
     AiChartType,
     AiConversation,
     AiConversationMessage,
@@ -13,16 +14,15 @@ import {
     ApiAiAgentThreadMessageVizQuery,
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
+    ApiUpdateUserAgentPreferences,
     assertUnreachable,
     CatalogType,
     CommercialFeatureFlags,
     filterExploreByTags,
-    FilterSchemaType,
     ForbiddenError,
     isSlackPrompt,
     LightdashUser,
     NotFoundError,
-    NotImplementedError,
     QueryExecutionContext,
     SlackPrompt,
     UnexpectedServerError,
@@ -44,6 +44,7 @@ import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import { runAgent } from './ai/agents/agent';
 import { generateEmbeddingsNameAndDescription } from './ai/embeds/embed';
+import { getModel } from './ai/models';
 import { getChatHistoryFromThreadMessages } from './ai/prompts/conversationHistory';
 import {
     GetExploreFn,
@@ -829,9 +830,7 @@ export class AiAgentService {
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizConfig: vizConfig.config,
                     // TODO: validate before casting
-                    filters: message.filtersOutput
-                        ? (message.filtersOutput as FilterSchemaType)
-                        : null,
+                    filters: message.filtersOutput ?? undefined,
                 });
             case 'time_series_chart':
                 return renderTimeseriesChart({
@@ -839,9 +838,7 @@ export class AiAgentService {
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizConfig: vizConfig.config,
                     // TODO: validate before casting
-                    filters: message.filtersOutput
-                        ? (message.filtersOutput as FilterSchemaType)
-                        : null,
+                    filters: message.filtersOutput ?? undefined,
                 });
             case 'csv':
                 return renderCsvFile({
@@ -849,9 +846,7 @@ export class AiAgentService {
                         this.runAiMetricQuery(user, projectUuid, q),
                     config: vizConfig.config,
                     // TODO: validate before casting
-                    filters: message.filtersOutput
-                        ? (message.filtersOutput as FilterSchemaType)
-                        : null,
+                    filters: message.filtersOutput ?? undefined,
                     maxLimit: AI_DEFAULT_MAX_QUERY_LIMIT,
                 });
             default:
@@ -946,10 +941,9 @@ export class AiAgentService {
             case 'vertical_bar_chart': {
                 const metricQuery = metricQueryVerticalBarChartMetric(
                     vizConfig.config,
-                    message.filtersOutput
-                        ? (message.filtersOutput as FilterSchemaType)
-                        : null,
+                    message.filtersOutput ?? undefined,
                 );
+
                 const query = await this.executeAsyncAiMetricQuery(
                     user,
                     projectUuid,
@@ -964,9 +958,7 @@ export class AiAgentService {
             case 'time_series_chart': {
                 const metricQuery = metricQueryTimeSeriesChartMetric(
                     vizConfig.config,
-                    message.filtersOutput
-                        ? (message.filtersOutput as FilterSchemaType)
-                        : null,
+                    message.filtersOutput ?? undefined,
                 );
                 const query = await this.executeAsyncAiMetricQuery(
                     user,
@@ -983,9 +975,7 @@ export class AiAgentService {
                 const metricQuery = await metricQueryCsv(
                     vizConfig.config,
                     AI_DEFAULT_MAX_QUERY_LIMIT,
-                    message.filtersOutput
-                        ? (message.filtersOutput as FilterSchemaType)
-                        : null,
+                    message.filtersOutput ?? undefined,
                 );
                 const query = await this.executeAsyncAiMetricQuery(
                     user,
@@ -1249,15 +1239,11 @@ export class AiAgentService {
             agentSettings?.tags ?? null,
         );
 
-        if (!this.lightdashConfig.ai.copilot.providers) {
-            throw new Error('AI Copilot providers not found');
-        }
+        const model = getModel(this.lightdashConfig.ai.copilot);
 
         return runAgent({
             args: {
-                provider: 'openai',
-                modelName: 'gpt-4.1',
-                providerConfig: this.lightdashConfig.ai.copilot.providers,
+                model,
                 agentName: agentSettings.name,
                 instruction: agentSettings.instruction,
                 messageHistory,
@@ -1751,5 +1737,70 @@ export class AiAgentService {
             prompt: finalPrompt,
             rows,
         };
+    }
+
+    async getUserAgentPreferences(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AiAgentUserPreferences | null> {
+        const { organizationUuid, userUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError(`Organization not found`);
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError(`Copilot not enabled`);
+        }
+
+        const project = await this.projectService.getProject(projectUuid, user);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError(
+                'Project does not belong to this organization',
+            );
+        }
+
+        return this.aiAgentModel.getUserAgentPreferences({
+            userUuid,
+            projectUuid,
+        });
+    }
+
+    async updateUserAgentPreferences(
+        user: SessionUser,
+        projectUuid: string,
+        body: ApiUpdateUserAgentPreferences,
+    ): Promise<void> {
+        const { organizationUuid, userUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const project = await this.projectService.getProject(projectUuid, user);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError(
+                'Project does not belong to this organization',
+            );
+        }
+
+        const agent = await this.getAgent(
+            user,
+            body.defaultAgentUuid,
+            projectUuid,
+        );
+        if (!agent) {
+            throw new NotFoundError('Agent not found');
+        }
+
+        await this.aiAgentModel.updateUserAgentPreferences({
+            userUuid,
+            projectUuid,
+            defaultAgentUuid: body.defaultAgentUuid,
+        });
     }
 }

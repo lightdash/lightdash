@@ -1,6 +1,7 @@
 import {
     ApiCreateServiceAccountRequest,
     ApiErrorPayload,
+    AuthTokenPrefix,
     ServiceAccount,
     ServiceAccountScope,
 } from '@lightdash/common';
@@ -46,11 +47,10 @@ export class ServiceAccountsController extends BaseController {
         const scopes = Object.values(ServiceAccountScope).filter(
             (scope) => scope !== ServiceAccountScope.SCIM_MANAGE,
         );
-        const results =
-            await this.getServiceAccountService().listOrganizationAccessTokens(
-                req.user!,
-                scopes,
-            );
+        const results = await this.getServiceAccountService().list(
+            req.user!,
+            scopes,
+        );
         this.setStatus(200);
         return {
             status: 'ok',
@@ -71,17 +71,14 @@ export class ServiceAccountsController extends BaseController {
         @Request() req: express.Request,
         @Body() body: ApiCreateServiceAccountRequest,
     ): Promise<{ status: 'ok'; results: ServiceAccount }> {
-        const token =
-            await this.getServiceAccountService().createOrganizationAccessToken(
-                {
-                    user: req.user!,
-                    tokenDetails: {
-                        ...body,
-                        organizationUuid: req.user?.organizationUuid as string,
-                    },
-                    prefix: '',
-                },
-            );
+        const token = await this.getServiceAccountService().create({
+            user: req.user!,
+            tokenDetails: {
+                ...body,
+                organizationUuid: req.user?.organizationUuid as string,
+            },
+            prefix: AuthTokenPrefix.SERVICE_ACCOUNT,
+        });
         this.setStatus(201);
         return {
             status: 'ok',
@@ -102,7 +99,7 @@ export class ServiceAccountsController extends BaseController {
         @Request() req: express.Request,
         @Path() tokenUuid: string,
     ): Promise<{ status: 'ok'; results: undefined }> {
-        await this.getServiceAccountService().deleteOrganizationAccessToken({
+        await this.getServiceAccountService().delete({
             user: req.user!,
             tokenUuid,
         });

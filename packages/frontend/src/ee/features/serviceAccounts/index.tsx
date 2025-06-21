@@ -5,6 +5,7 @@ import { IconUsersGroup } from '@tabler/icons-react';
 import { EmptyState } from '../../../components/common/EmptyState';
 import MantineIcon from '../../../components/common/MantineIcon';
 
+import { useState } from 'react';
 import { ServiceAccountsCreateModal } from './ServiceAccountsCreateModal';
 import { ServiceAccountsTable } from './ServiceAccountsTable';
 import { useServiceAccounts } from './useServiceAccounts';
@@ -12,10 +13,16 @@ import { useServiceAccounts } from './useServiceAccounts';
 export function ServiceAccountsPage() {
     const [opened, { open, close }] = useDisclosure(false);
     const { listAccounts, createAccount, deleteAccount } = useServiceAccounts();
+    const [token, setToken] = useState<string>();
+
+    const handleCloseModal = () => {
+        setToken(undefined);
+        close();
+    };
 
     const handleSaveAccount = async (values: any) => {
-        await createAccount.mutateAsync(values);
-        close();
+        const data = await createAccount.mutateAsync(values);
+        setToken(data.token);
     };
 
     const hasAccounts = listAccounts?.data?.length ?? 0 > 0;
@@ -55,9 +62,10 @@ export function ServiceAccountsPage() {
 
             <ServiceAccountsCreateModal
                 isOpen={opened}
-                onClose={close}
+                onClose={handleCloseModal}
                 onSave={handleSaveAccount}
                 isWorking={createAccount.isLoading}
+                token={token}
             />
         </Stack>
     );

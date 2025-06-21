@@ -4,7 +4,7 @@ import {
     assertUnreachable,
     isFilterRule,
     isTableCalculation,
-    type ConditionalRule,
+    type BaseFilterRule,
 } from '@lightdash/common';
 import isString from 'lodash/isString';
 import { type FilterInputsProps } from '.';
@@ -16,7 +16,7 @@ import FilterNumberInput from './FilterNumberInput';
 import FilterNumberRangeInput from './FilterNumberRangeInput';
 import FilterStringAutoComplete from './FilterStringAutoComplete';
 
-const DefaultFilterInputs = <T extends ConditionalRule>({
+const DefaultFilterInputs = <T extends BaseFilterRule>({
     field,
     filterType,
     rule,

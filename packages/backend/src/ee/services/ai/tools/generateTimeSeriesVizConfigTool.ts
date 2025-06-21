@@ -57,7 +57,7 @@ Rules for generating the time series chart visualization:
                     await renderTimeseriesChart({
                         runMetricQuery: runMiniMetricQuery,
                         vizConfig,
-                        filters,
+                        filters: filters ?? undefined,
                     });
 
                 const file = await renderEcharts(chartOptions);

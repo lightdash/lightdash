@@ -1,9 +1,5 @@
-import {
-    type ConditionalOperator,
-    type ConditionalRule,
-} from './conditionalRule';
 import type { ItemsMap } from './field';
-import { type FieldTarget } from './filter';
+import type { BaseFilterRule, FieldTarget, FilterOperator } from './filter';
 
 export type ConditionalFormattingMinMax<T = number> = {
     min: T;
@@ -16,32 +12,32 @@ export type ConditionalFormattingColorRange = {
 };
 
 export type ConditionalFormattingWithValues<T = number | string> =
-    ConditionalRule<ConditionalOperator, T> & {
+    BaseFilterRule<FilterOperator, T> & {
         values: T[];
     };
 
 export type ConditionalFormattingWithCompareTarget<T = number | string> =
-    ConditionalRule<ConditionalOperator, T> & {
+    BaseFilterRule<FilterOperator, T> & {
         compareTarget: FieldTarget | null;
         values?: T[];
     };
 
-export type ConditionalFormattingWithConditionalOperator<T = number | string> =
+export type ConditionalFormattingWithFilterOperator<T = number | string> =
     | ConditionalFormattingWithValues<T>
     | ConditionalFormattingWithCompareTarget<T>;
 
 export const isConditionalFormattingWithValues = (
-    rule: ConditionalFormattingWithConditionalOperator,
+    rule: ConditionalFormattingWithFilterOperator,
 ): rule is ConditionalFormattingWithValues => 'values' in rule;
 
 export const isConditionalFormattingWithCompareTarget = (
-    rule: ConditionalFormattingWithConditionalOperator,
+    rule: ConditionalFormattingWithFilterOperator,
 ): rule is ConditionalFormattingWithCompareTarget => 'compareTarget' in rule;
 
 export type ConditionalFormattingConfigWithSingleColor = {
     target: FieldTarget | null;
     color: string;
-    rules: ConditionalFormattingWithConditionalOperator[];
+    rules: ConditionalFormattingWithFilterOperator[];
 };
 
 export const isConditionalFormattingConfigWithSingleColor = (
@@ -101,3 +97,9 @@ export enum ConditionalFormattingComparisonType {
     TARGET_FIELD = 'target_field',
     TARGET_TO_VALUES = 'target_to_values',
 }
+
+export type ConditionalRuleLabel = {
+    field: string;
+    operator: string;
+    value?: string;
+};

@@ -19,6 +19,10 @@ import {
     WarehouseResults,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '../types';
+import {
+    DEFAULT_BATCH_SIZE,
+    processPromisesInBatches,
+} from '../utils/processPromisesInBatches';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
 type SchemaResult = {
@@ -123,27 +127,6 @@ const normaliseDatabricksType = (type: string): DatabricksTypes => {
     }
     return match[0] as DatabricksTypes;
 };
-
-const DATABRICKS_QUERIES_BATCH_SIZE = 100;
-
-async function processPromisesInBatches<T, R>(
-    items: Array<T>,
-    batchSize: number,
-    fn: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
-    let results: R[] = [];
-    /* eslint-disable no-await-in-loop */
-    for (let start = 0; start < items.length; start += batchSize) {
-        const end =
-            start + batchSize > items.length ? items.length : start + batchSize;
-        const slicedResults = await Promise.all(
-            items.slice(start, end).map(fn),
-        );
-        results = [...results, ...slicedResults];
-    }
-    /* eslint-enable no-await-in-loop */
-    return results;
-}
 
 const mapFieldType = (type: string): DimensionType => {
     const normalizedType = normaliseDatabricksType(type);
@@ -316,7 +299,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         try {
             results = await processPromisesInBatches(
                 requests,
-                DATABRICKS_QUERIES_BATCH_SIZE,
+                DEFAULT_BATCH_SIZE,
                 async (request) => {
                     let query: IOperation | null = null;
                     try {

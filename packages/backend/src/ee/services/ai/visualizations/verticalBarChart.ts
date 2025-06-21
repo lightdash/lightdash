@@ -1,10 +1,8 @@
 import {
     AiChartType,
     AiMetricQuery,
-    filterSchema,
-    FilterSchemaType,
+    filtersSchema,
     MetricQuery,
-    SortFieldSchema,
     verticalBarMetricVizConfigSchema,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -31,7 +29,7 @@ const vizConfigSchema = verticalBarMetricVizConfigSchema.extend({
 
 export const generateBarVizConfigToolSchema = z.object({
     vizConfig: vizConfigSchema,
-    filters: filterSchema
+    filters: filtersSchema
         .nullable()
         .describe(
             'Filters to apply to the query. Filtered fields must exist in the selected explore.',
@@ -47,7 +45,7 @@ export const isVerticalBarMetricChartConfig = (
 
 export const metricQueryVerticalBarChartMetric = (
     config: VerticalBarMetricChartConfig,
-    filters: FilterSchemaType | null,
+    filters: z.infer<typeof filtersSchema> = {},
 ): AiMetricQuery => {
     const metrics = config.yMetrics;
     const dimensions = [
@@ -61,11 +59,7 @@ export const metricQueryVerticalBarChartMetric = (
         limit: getValidAiQueryLimit(limit),
         sorts,
         exploreName: config.exploreName,
-        // TODO: fix types
-        filters: {
-            metrics: filters?.metrics ?? undefined,
-            dimensions: filters?.dimensions ?? undefined,
-        },
+        filters,
     };
 };
 
@@ -138,7 +132,7 @@ type RenderVerticalBarMetricChartArgs = {
         metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
     vizConfig: VerticalBarMetricChartConfig;
-    filters: FilterSchemaType | null;
+    filters: z.infer<typeof filtersSchema> | undefined;
 };
 
 export const renderVerticalBarMetricChart = async ({
