@@ -18,6 +18,7 @@ import CustomVisConfigTabs from '../../VisualizationConfigs/ChartConfigPanel/Cus
 import { ConfigTabs as FunnelChartConfigTabs } from '../../VisualizationConfigs/FunnelChartConfig/FunnelChartConfigTabs';
 import { ConfigTabs as PieChartConfigTabs } from '../../VisualizationConfigs/PieChartConfig/PieChartConfigTabs';
 import { ConfigTabs as TableConfigTabs } from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
+import { ConfigTabs as TreemapConfigTabs } from '../../VisualizationConfigs/TreemapConfig/TreemapConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 
 const VisualizationSidebar: FC<{
@@ -56,6 +57,8 @@ const VisualizationSidebar: FC<{
                     return PieChartConfigTabs;
                 case ChartType.FUNNEL:
                     return FunnelChartConfigTabs;
+                case ChartType.TREEMAP:
+                    return TreemapConfigTabs;
                 case ChartType.CUSTOM:
                     return CustomVisConfigTabs;
                 default:

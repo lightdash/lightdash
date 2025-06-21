@@ -42,6 +42,7 @@ import {
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import { Knex } from 'knex';
+import { max } from 'lodash';
 import {
     ConditionalFormattingRuleSavedEvent,
     CreateSavedChartVersionEvent,
@@ -277,6 +278,28 @@ export class SavedChartService
                           showLegend: echartsConfig?.legend?.show !== false,
                           hasCustomTooltip:
                               (echartsConfig?.tooltip || '').length > 0,
+                      }
+                    : undefined,
+            treemap:
+                savedChart.chartConfig.type === ChartType.TREEMAP
+                    ? {
+                          visibleMin: savedChart.chartConfig.config?.visibleMin,
+                          leafDepth: savedChart.chartConfig.config?.leafDepth,
+                          dimensionCount:
+                              savedChart.chartConfig.config?.groupFieldIds
+                                  ?.length || 0,
+                          shouldSumSizeMetric:
+                              savedChart.chartConfig.config
+                                  ?.shouldSumSizeMetric,
+                          startColor: savedChart.chartConfig.config?.startColor,
+                          endColor: savedChart.chartConfig.config?.endColor,
+                          useDynamicColors:
+                              savedChart.chartConfig.config?.useDynamicColors,
+                          startColorThreshold:
+                              savedChart.chartConfig.config
+                                  ?.startColorThreshold,
+                          endColorThreshold:
+                              savedChart.chartConfig.config?.endColorThreshold,
                       }
                     : undefined,
             custom:

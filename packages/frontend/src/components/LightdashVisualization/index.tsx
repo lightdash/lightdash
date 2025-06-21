@@ -6,6 +6,7 @@ import SimpleChart from '../SimpleChart';
 import SimplePieChart from '../SimplePieChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
+import SimpleTreemap from '../SimpleTreemap';
 import { useVisualizationContext } from './useVisualizationContext';
 
 interface LightdashVisualizationProps {
@@ -77,6 +78,16 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
             case ChartType.FUNNEL:
                 return (
                     <FunnelChart
+                        className={className}
+                        isInDashboard={!!isDashboard}
+                        $shouldExpand
+                        data-testid={props['data-testid']}
+                        {...props}
+                    />
+                );
+            case ChartType.TREEMAP:
+                return (
+                    <SimpleTreemap
                         className={className}
                         isInDashboard={!!isDashboard}
                         $shouldExpand
