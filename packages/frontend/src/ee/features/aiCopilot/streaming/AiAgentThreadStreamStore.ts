@@ -1,20 +1,33 @@
+import { type AnyType } from '@lightdash/common';
 import {
     configureStore,
     createSlice,
     type PayloadAction,
 } from '@reduxjs/toolkit';
 
+interface ToolCall {
+    toolCallId: string;
+    toolName: string;
+    args: Record<string, AnyType>;
+    isStreaming?: boolean;
+}
+
 export interface StreamingState {
     threadUuid: string;
     content: string;
     isStreaming: boolean;
+    toolCalls: ToolCall[];
     error?: string;
 }
 
-type threadUuid = string;
-type State = Record<threadUuid, StreamingState>;
+type State = Record<string, StreamingState>;
 
 const initialState: State = {};
+const initialThread: Omit<StreamingState, 'threadUuid'> = {
+    content: '',
+    isStreaming: true,
+    toolCalls: [],
+};
 
 const threadStreamSlice = createSlice({
     name: 'threadStream',
@@ -28,8 +41,7 @@ const threadStreamSlice = createSlice({
 
             state[threadUuid] = {
                 threadUuid,
-                content: '',
-                isStreaming: true,
+                ...initialThread,
             };
         },
         appendToMessage: (
@@ -58,6 +70,36 @@ const threadStreamSlice = createSlice({
 
             state[threadUuid].isStreaming = false;
         },
+        addToolCall: (
+            state,
+            action: PayloadAction<{
+                threadUuid: string;
+                toolCallId: string;
+                toolName: string;
+                args: Record<string, any>;
+            }>,
+        ) => {
+            const { threadUuid, toolCallId, toolName, args } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (streamingThread) {
+                const existingIndex = streamingThread.toolCalls.findIndex(
+                    (tc) => tc.toolCallId === toolCallId,
+                );
+                if (existingIndex !== -1) {
+                    streamingThread.toolCalls[existingIndex] = {
+                        ...streamingThread.toolCalls[existingIndex],
+                        toolName,
+                        args,
+                    };
+                } else {
+                    streamingThread.toolCalls.push({
+                        toolCallId,
+                        toolName,
+                        args,
+                    });
+                }
+            }
+        },
         setError: (
             state,
             action: PayloadAction<{ threadUuid: string; error: string }>,
@@ -74,8 +116,13 @@ const threadStreamSlice = createSlice({
     },
 });
 
-export const { startStreaming, appendToMessage, stopStreaming, setError } =
-    threadStreamSlice.actions;
+export const {
+    startStreaming,
+    appendToMessage,
+    stopStreaming,
+    setError,
+    addToolCall,
+} = threadStreamSlice.actions;
 
 export const store = configureStore({
     reducer: {

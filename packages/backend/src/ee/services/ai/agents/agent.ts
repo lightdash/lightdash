@@ -224,6 +224,7 @@ export const streamAgentResponse = async ({
                 delayInMs: 20,
                 chunking: 'line',
             }),
+            toolCallStreaming: true,
         });
         return result;
     } catch (error) {
