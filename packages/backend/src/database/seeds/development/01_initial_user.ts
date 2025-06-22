@@ -248,7 +248,7 @@ export async function seed(knex: Knex): Promise<void> {
                 warehouseCatalog: undefined,
                 onWarehouseCatalogChange: () => {},
             },
-            SupportedDbtVersions.V1_4,
+            SupportedDbtVersions.V1_7,
         );
         const explores = await adapter.compileAllExplores({
             userUuid: user.user_uuid,
