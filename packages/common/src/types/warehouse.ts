@@ -3,7 +3,10 @@ import { type QueryExecutionContext } from './analytics';
 import { type AnyType } from './any';
 import { type SupportedDbtAdapter } from './dbt';
 import { type DimensionType, type Metric } from './field';
-import { type CreateWarehouseCredentials } from './projects';
+import {
+    type CreateWarehouseCredentials,
+    type WarehouseTypes,
+} from './projects';
 import type { WarehouseQueryMetadata } from './queryHistory';
 
 export type RunQueryTags = {
@@ -67,7 +70,17 @@ export type WarehouseExecuteAsyncQuery = {
     durationMs: number;
 };
 
-export interface WarehouseClient {
+export interface WarehouseSqlBuilder {
+    type: WarehouseTypes;
+    getStartOfWeek: () => WeekDay | null | undefined;
+    getAdapterType: () => SupportedDbtAdapter;
+    getStringQuoteChar: () => string;
+    getEscapeStringQuoteChar: () => string;
+    getMetricSql: (sql: string, metric: Metric) => string;
+    concatString: (...args: string[]) => string;
+}
+
+export interface WarehouseClient extends Omit<WarehouseSqlBuilder, 'type'> {
     credentials: CreateWarehouseCredentials;
     getCatalog: (
         config: {
@@ -111,18 +124,6 @@ export interface WarehouseClient {
     ): Promise<WarehouseResults>;
 
     test(): Promise<void>;
-
-    getStartOfWeek(): WeekDay | null | undefined;
-
-    getAdapterType(): SupportedDbtAdapter;
-
-    getStringQuoteChar(): string;
-
-    getEscapeStringQuoteChar(): string;
-
-    getMetricSql(sql: string, metric: Metric): string;
-
-    concatString(...args: string[]): string;
 
     getAllTables(
         schema?: string,
