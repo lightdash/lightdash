@@ -4,6 +4,7 @@ import {
     AnyType,
     ApiSqlQueryResults,
     applyDimensionOverrides,
+    CustomSqlQueryForbiddenError,
     DashboardFilters,
     DateGranularity,
     DimensionType,
@@ -1111,9 +1112,7 @@ This method can be memory intensive
                 }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         // If the user can't change the csv limit, default csvLimit to undefined
@@ -1184,9 +1183,7 @@ This method can be memory intensive
                 }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const baseAnalyticsProperties: DownloadCsv['properties'] = {

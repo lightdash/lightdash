@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    CustomSqlQueryForbiddenError,
     ForbiddenError,
     isCustomSqlDimension,
     SessionUser,
@@ -90,9 +91,7 @@ export class GdriveService extends BaseService {
                 }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const { organizationUuid } = await this.projectService.getProject(
