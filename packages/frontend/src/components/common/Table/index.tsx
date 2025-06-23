@@ -1,3 +1,4 @@
+import { type ApiErrorDetail } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
 import { type ComponentProps, type FC } from 'react';
 import {
@@ -22,6 +23,7 @@ type Props = ComponentProps<typeof TableProvider> & {
     $shouldExpand?: boolean;
     $padding?: number;
     'data-testid'?: string;
+    errorDetail?: ApiErrorDetail | null;
 };
 
 const Table: FC<React.PropsWithChildren<Props>> = ({
@@ -35,6 +37,7 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
     minimal = false,
     showSubtotals = true,
     'data-testid': dataTestId,
+    errorDetail,
     ...rest
 }) => {
     const theme = useMantineTheme();
@@ -62,7 +65,9 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
                     showSubtotals={showSubtotals}
                 />
 
-                {status === 'error' && <ExploreErrorState />}
+                {status === 'error' && (
+                    <ExploreErrorState errorDetail={errorDetail} />
+                )}
                 {status === 'idle' && <IdleState />}
                 {status === 'success' && rest.data.length === 0 && (
                     <EmptyState />
