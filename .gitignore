@@ -53,6 +53,7 @@ package-lock.json
 
 # examples
 /examples/full-jaffle-shop-demo/dbt/target
+/examples/full-jaffle-shop-demo/dbt/dbt_internal_packages/
 /dbt
 /profile*
 
