@@ -1,3 +1,10 @@
+## [0.1743.1](https://github.com/lightdash/lightdash/compare/0.1743.0...0.1743.1) (2025-06-23)
+
+
+### Bug Fixes
+
+* make serviceAccountModel optional in OrganizationService ([#15464](https://github.com/lightdash/lightdash/issues/15464)) ([7bdae64](https://github.com/lightdash/lightdash/commit/7bdae648bc90d8cc3e68dc07db9f4cb4bb519dec)), closes [#15450](https://github.com/lightdash/lightdash/issues/15450)
+
 # [0.1743.0](https://github.com/lightdash/lightdash/compare/0.1742.0...0.1743.0) (2025-06-23)
 
 
