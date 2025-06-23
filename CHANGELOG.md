@@ -1,3 +1,10 @@
+# [0.1743.0](https://github.com/lightdash/lightdash/compare/0.1742.0...0.1743.0) (2025-06-23)
+
+
+### Features
+
+* Use User preferences to get and set default agent ([#15409](https://github.com/lightdash/lightdash/issues/15409)) ([978e1fe](https://github.com/lightdash/lightdash/commit/978e1fe2cc4437e0d405a57eafabc78aac44e99c)), closes [#15386](https://github.com/lightdash/lightdash/issues/15386)
+
 # [0.1742.0](https://github.com/lightdash/lightdash/compare/0.1741.0...0.1742.0) (2025-06-23)
 
 
