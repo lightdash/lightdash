@@ -33,7 +33,11 @@ import {
     type Metric,
     type TableCalculation,
 } from './types/field';
-import { type AdditionalMetric, type MetricQuery } from './types/metricQuery';
+import {
+    type AdditionalMetric,
+    type MetricQuery,
+    type QueryWarning,
+} from './types/metricQuery';
 import {
     OrganizationMemberRole,
     type ApiOrganizationMemberProfiles,
@@ -545,6 +549,7 @@ export type ApiExecuteAsyncMetricQueryResults =
     ApiExecuteAsyncQueryResultsCommon & {
         metricQuery: MetricQuery;
         fields: ItemsMap;
+        warnings: QueryWarning[];
     };
 
 export type ApiExecuteAsyncDashboardChartQueryResults =

@@ -25,6 +25,7 @@ import {
     ItemsMap,
     MetricFilterRule,
     parseAllReferences,
+    QueryWarning,
     renderFilterRuleSql,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
@@ -34,8 +35,10 @@ import {
     WarehouseClient,
     WeekDay,
 } from '@lightdash/common';
+import Logger from '../../logging/logger';
 import {
     assertValidDimensionRequiredAttribute,
+    findMetricInflationWarnings,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
     getDimensionFromFilterTargetId,
@@ -52,6 +55,7 @@ import {
 export type CompiledQuery = {
     query: string;
     fields: ItemsMap;
+    warnings: QueryWarning[];
 };
 
 export type BuildQueryProps = {
@@ -568,6 +572,20 @@ export class MetricQueryBuilder {
             filters.tableCalculations,
         );
 
+        let warnings: QueryWarning[] = [];
+        try {
+            warnings = findMetricInflationWarnings({
+                possibleJoins: explore.joinedTables,
+                baseTable: explore.baseTable,
+                joinedTables,
+                metrics: metrics.map((field) =>
+                    getMetricFromId(field, explore, compiledMetricQuery),
+                ),
+            });
+        } catch (e) {
+            Logger.error('Error during metric inflation detection', e);
+        }
+
         const sqlLimit = `LIMIT ${limit}`;
 
         if (
@@ -627,6 +645,7 @@ export class MetricQueryBuilder {
             return {
                 query: [cte, finalQuery, sqlOrderBy, sqlLimit].join('\n'),
                 fields,
+                warnings,
             };
         }
 
@@ -651,6 +670,7 @@ export class MetricQueryBuilder {
         return {
             query: metricQuerySql,
             fields,
+            warnings,
         };
     }
 }

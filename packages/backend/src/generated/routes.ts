@@ -5039,6 +5039,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    QueryWarning: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tables: { dataType: 'array', array: { dataType: 'string' } },
+                fields: { dataType: 'array', array: { dataType: 'string' } },
+                message: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiExecuteAsyncMetricQueryResults: {
         dataType: 'refAlias',
         type: {
@@ -5048,6 +5061,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        warnings: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'QueryWarning',
+                            },
+                            required: true,
+                        },
                         fields: { ref: 'ItemsMap', required: true },
                         metricQuery: { ref: 'MetricQuery', required: true },
                     },
