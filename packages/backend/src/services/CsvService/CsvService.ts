@@ -279,7 +279,9 @@ export class CsvService extends BaseService {
     }
 
     static isValidCsvFileId(fileId: string): boolean {
-        return /^csv-(incomplete_results-)?[a-z0-9_]+-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{4}\.csv$/.test(
+        // Updated regex to allow Unicode characters, spaces, mixed case, and common punctuation
+        // This matches our new sanitizeGenericFileName approach
+        return /^csv-(incomplete_results-)?[^/\\:*?"<>|]+-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{4}\.csv$/.test(
             fileId,
         );
     }
