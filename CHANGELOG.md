@@ -1,3 +1,10 @@
+# [0.1746.0](https://github.com/lightdash/lightdash/compare/0.1745.2...0.1746.0) (2025-06-23)
+
+
+### Features
+
+* add relationship property to joins ([#15473](https://github.com/lightdash/lightdash/issues/15473)) ([b790f6b](https://github.com/lightdash/lightdash/commit/b790f6b9881defd94b582a31bf430a9ce78a00e2))
+
 ## [0.1745.2](https://github.com/lightdash/lightdash/compare/0.1745.1...0.1745.2) (2025-06-23)
 
 
