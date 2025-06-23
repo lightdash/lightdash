@@ -27,7 +27,27 @@
                 "K",
                 "M",
                 "B",
-                "T"
+                "T",
+                "kilobyte",
+                "megabyte",
+                "gigabyte",
+                "terabyte",
+                "petabyte",
+                "KB",
+                "MB",
+                "GB",
+                "TB",
+                "PB",
+                "kibibyte",
+                "mebibyte",
+                "gibibyte",
+                "tebibyte",
+                "pebibyte",
+                "KiB",
+                "MiB",
+                "GiB",
+                "TiB",
+                "PiB"
             ]
         },
         "Format": {

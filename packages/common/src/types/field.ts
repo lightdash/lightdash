@@ -52,9 +52,9 @@ const CompactAlias = [
     'GiB',
     'gibibyte',
     'TiB',
-    'tebibytes',
+    'tebibyte',
     'PiB',
-    'pebibytes',
+    'pebibyte',
 ] as const;
 
 export enum NumberSeparator {
@@ -174,7 +174,7 @@ export const CompactConfigMap: Record<Compact, CompactConfig> = {
     },
     [Compact.TEBIBYTES]: {
         compact: Compact.TEBIBYTES,
-        alias: ['TiB', 'tebibytes'],
+        alias: ['TiB', 'tebibyte'],
         orderOfMagnitude: -1,
         convertFn: (value: number) => value / 1099511627776,
         label: 'tebibytes (TiB)',
@@ -182,7 +182,7 @@ export const CompactConfigMap: Record<Compact, CompactConfig> = {
     },
     [Compact.PEBIBYTES]: {
         compact: Compact.PEBIBYTES,
-        alias: ['PiB', 'pebibytes'],
+        alias: ['PiB', 'pebibyte'],
         orderOfMagnitude: -1,
         convertFn: (value: number) => value / 1125899906842624,
         label: 'pebibytes (PiB)',
