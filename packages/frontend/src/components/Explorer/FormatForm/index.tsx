@@ -19,7 +19,7 @@ import {
     TextInput,
 } from '@mantine/core';
 import { type GetInputProps } from '@mantine/form/lib/types';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { type ValueOf } from 'type-fest';
 
 type Props = {
@@ -86,6 +86,18 @@ export const FormatForm: FC<Props> = ({
     format,
 }) => {
     const formatType = format.type;
+
+    const validCompactValue = useMemo(() => {
+        const currentCompact = format.compact;
+        if (!currentCompact) return null;
+
+        const validCompacts = getCompactOptionsForFormatType(formatType);
+        const compactConfig = findCompactConfig(currentCompact);
+
+        return compactConfig && validCompacts.includes(compactConfig.compact)
+            ? currentCompact
+            : null;
+    }, [format.compact, formatType]);
 
     return (
         <Stack>
@@ -234,22 +246,7 @@ export const FormatForm: FC<Props> = ({
                         {...{
                             ...formatInputProps('compact'),
                             // Override value to ensure invalid compact values are cleared
-                            value: (() => {
-                                const currentCompact = format.compact;
-                                if (!currentCompact) return null;
-
-                                const validCompacts =
-                                    getCompactOptionsForFormatType(formatType);
-                                const compactConfig =
-                                    findCompactConfig(currentCompact);
-
-                                return compactConfig &&
-                                    validCompacts.includes(
-                                        compactConfig.compact,
-                                    )
-                                    ? currentCompact
-                                    : null;
-                            })(),
+                            value: validCompactValue,
                             onChange: (value) => {
                                 // Explicitly set value to undefined so the API doesn't received invalid values
                                 setFormatFieldValue(
