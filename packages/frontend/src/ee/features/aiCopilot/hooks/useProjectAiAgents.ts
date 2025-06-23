@@ -6,7 +6,12 @@ import type {
     ApiError,
     ApiUpdateAiAgent,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type UseQueryOptions,
+} from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -32,19 +37,27 @@ const getProjectAgent = async (
         body: undefined,
     });
 
-export const useProjectAiAgents = (projectUuid?: string | null) => {
+export const useProjectAiAgents = (
+    projectUuid?: string | null,
+    options?: UseQueryOptions<ApiAiAgentSummaryResponse['results'], ApiError>,
+) => {
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiAgentSummaryResponse['results'], ApiError>({
         queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid],
         queryFn: () => listProjectAgents(projectUuid!),
+        ...options,
         onError: (error) => {
             showToastApiError({
                 title: 'Failed to fetch project AI agents',
                 apiError: error.error,
             });
+
+            if (options?.onError) {
+                options.onError(error);
+            }
         },
-        enabled: !!projectUuid,
+        enabled: !!projectUuid && options?.enabled !== false,
     });
 };
 
