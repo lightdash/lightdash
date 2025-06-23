@@ -722,6 +722,7 @@ export type AuthGoogleConfig = {
     callbackPath: string;
     googleDriveApiKey: string | undefined;
     enabled: boolean;
+    enableGCloudADC: boolean;
 };
 
 type AuthOktaConfig = {
@@ -1033,6 +1034,7 @@ export const parseConfig = (): LightdashConfig => {
                 callbackPath: '/oauth/redirect/google',
                 googleDriveApiKey: process.env.GOOGLE_DRIVE_API_KEY,
                 enabled: process.env.AUTH_GOOGLE_ENABLED === 'true',
+                enableGCloudADC: process.env.AUTH_ENABLE_GCLOUD_ADC === 'true',
             },
             okta: {
                 oauth2Issuer: process.env.AUTH_OKTA_OAUTH_ISSUER,
