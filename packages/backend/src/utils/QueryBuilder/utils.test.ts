@@ -841,7 +841,7 @@ describe('findMetricInflationWarnings', () => {
                 },
             ],
             baseTable: 'users',
-            joinedTables: new Set(['orders']),
+            joinedTables: new Set(['users', 'orders']),
             metrics: [
                 {
                     name: 'count_users',
@@ -1026,7 +1026,7 @@ describe('findMetricInflationWarnings', () => {
 
         expect(result).toHaveLength(1);
         expect(result[0].tables?.[0]).toBe('orders');
-        expect(result[0].message).toContain('undefined relationship type');
+        expect(result[0].message).toContain('missing a join relationship type');
     });
 
     it('should not warn for metrics with one-to-one relationships', () => {

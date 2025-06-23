@@ -5630,6 +5630,27 @@
                 "required": ["cacheMetadata", "queryUuid"],
                 "type": "object"
             },
+            "QueryWarning": {
+                "properties": {
+                    "tables": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "fields": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "required": ["message"],
+                "type": "object"
+            },
             "ApiExecuteAsyncMetricQueryResults": {
                 "allOf": [
                     {
@@ -5637,6 +5658,12 @@
                     },
                     {
                         "properties": {
+                            "warnings": {
+                                "items": {
+                                    "$ref": "#/components/schemas/QueryWarning"
+                                },
+                                "type": "array"
+                            },
                             "fields": {
                                 "$ref": "#/components/schemas/ItemsMap"
                             },
@@ -5644,7 +5671,7 @@
                                 "$ref": "#/components/schemas/MetricQuery"
                             }
                         },
-                        "required": ["fields", "metricQuery"],
+                        "required": ["warnings", "fields", "metricQuery"],
                         "type": "object"
                     }
                 ]

@@ -901,6 +901,7 @@ const findChainedOneToOneTableJoins = ({
 };
 
 const findTablesWithMetricInflation = ({
+    baseTable,
     joinedTables,
     possibleJoins,
 }: Pick<
@@ -914,6 +915,10 @@ const findTablesWithMetricInflation = ({
     const tablesWithoutRelationship = new Set<string>();
 
     joinedTables.forEach((joinedTable) => {
+        if (joinedTable === baseTable) {
+            return;
+        }
+
         const join = possibleJoins.find(
             (possibleJoin) => possibleJoin.table === joinedTable,
         );
@@ -1006,13 +1011,13 @@ export const findMetricInflationWarnings = ({
     const warnings: QueryWarning[] = [];
     tablesWithoutRelationship.forEach((table) => {
         warnings.push({
-            message: `The join for table "${table}" has an undefined relationship type.`,
+            message: `Join **"${table}"** is missing a join relationship type. [Read more](https://docs.lightdash.com/references/joins#defining-join-relationships)`,
             tables: [table],
         });
     });
     metricsWithInflation.forEach((metric) => {
         warnings.push({
-            message: `The metric "${metric.label}" may cause incorrect results.`,
+            message: `Metric **"${metric.label}"** could be inflated due to join relationships. [Read more](https://docs.lightdash.com/references/joins#metric-inflation-in-sql-joins)`,
             fields: [getItemId(metric)],
             tables: [metric.table],
         });
