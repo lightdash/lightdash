@@ -1,3 +1,10 @@
+# [0.1742.0](https://github.com/lightdash/lightdash/compare/0.1741.0...0.1742.0) (2025-06-23)
+
+
+### Features
+
+* Improve Custom SQL queries permissions UX ([#15381](https://github.com/lightdash/lightdash/issues/15381)) ([1bfdfa4](https://github.com/lightdash/lightdash/commit/1bfdfa44f9d00d5e48269986a82bad4fcf076213)), closes [#15169](https://github.com/lightdash/lightdash/issues/15169)
+
 # [0.1741.0](https://github.com/lightdash/lightdash/compare/0.1740.2...0.1741.0) (2025-06-20)
 
 
