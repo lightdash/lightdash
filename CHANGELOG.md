@@ -1,3 +1,15 @@
+# [0.1748.0](https://github.com/lightdash/lightdash/compare/0.1747.0...0.1748.0) (2025-06-23)
+
+
+### Bug Fixes
+
+* validate undefined filter groups ([#15502](https://github.com/lightdash/lightdash/issues/15502)) ([59307f9](https://github.com/lightdash/lightdash/commit/59307f9b6c2b787a0a6e97dbffa35335d02f146f))
+
+
+### Features
+
+* use filename*=UTF-8 for content-disposition & utils tests ([#15494](https://github.com/lightdash/lightdash/issues/15494)) ([b1e880e](https://github.com/lightdash/lightdash/commit/b1e880e17dad711f38043f7e0cc41018b1db2082))
+
 # [0.1747.0](https://github.com/lightdash/lightdash/compare/0.1746.0...0.1747.0) (2025-06-23)
 
 
