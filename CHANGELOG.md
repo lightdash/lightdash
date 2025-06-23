@@ -1,3 +1,10 @@
+# [0.1747.0](https://github.com/lightdash/lightdash/compare/0.1746.0...0.1747.0) (2025-06-23)
+
+
+### Features
+
+* add query warnings for metric inflation detection ([#15500](https://github.com/lightdash/lightdash/issues/15500)) ([37db62c](https://github.com/lightdash/lightdash/commit/37db62c00ab256a06ed3cbb98f5f4a8b1368fb7e))
+
 # [0.1746.0](https://github.com/lightdash/lightdash/compare/0.1745.2...0.1746.0) (2025-06-23)
 
 
