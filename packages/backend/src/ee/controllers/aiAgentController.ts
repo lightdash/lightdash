@@ -2,8 +2,12 @@ import {
     ApiAiAgentResponse,
     ApiAiAgentStartThreadResponse,
     ApiAiAgentSummaryResponse,
+    ApiAiAgentThreadCreateRequest,
+    ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadGenerateRequest,
     ApiAiAgentThreadGenerateResponse,
+    ApiAiAgentThreadMessageCreateRequest,
+    ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
@@ -181,9 +185,51 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads')
+    @OperationId('createAgentThread')
+    async createAgentThread(
+        @Request() req: express.Request,
+        @Path() agentUuid: string,
+        @Body() body: ApiAiAgentThreadCreateRequest,
+    ): Promise<ApiAiAgentThreadCreateResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().createAgentThread(
+                req.user!,
+                agentUuid,
+                body,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/messages')
+    @OperationId('createAgentThreadMessage')
+    async createAgentThreadMessage(
+        @Request() req: express.Request,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+        @Body() body: ApiAiAgentThreadMessageCreateRequest,
+    ): Promise<ApiAiAgentThreadMessageCreateResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().createAgentThreadMessage(
+                req.user!,
+                agentUuid,
+                threadUuid,
+                body,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/generate')
     @OperationId('startAgentThread')
-    async createAgentThread(
+    async startAgentThread(
         @Request() req: express.Request,
         @Path() agentUuid: string,
         @Body() body: ApiAiAgentThreadGenerateRequest,
@@ -228,6 +274,30 @@ export class AiAgentController extends BaseController {
             status: 'ok',
             results: { jobId },
         };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/stream')
+    @OperationId('streamAgentThreadResponse')
+    async streamAgentThreadResponse(
+        @Request() req: express.Request,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+    ): Promise<void> {
+        const stream = await this.getAiAgentService().streamAgentThreadResponse(
+            req.user!,
+            {
+                agentUuid,
+                threadUuid,
+            },
+        );
+
+        /**
+         * @ref https://github.com/lukeautry/tsoa/issues/44#issuecomment-357784246
+         * Hack to get the response object from the request
+         */
+        stream.pipeDataStreamToResponse(req.res!);
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

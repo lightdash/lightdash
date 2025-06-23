@@ -1,4 +1,3 @@
-import type { AnyType } from '../../types/any';
 import { type TraceTaskBase } from '../../types/scheduler';
 
 export type AiThread = {
@@ -155,7 +154,6 @@ export type ApiAiConversationResponse = {
     status: 'ok';
     results: {
         prompt: AiWebAppPrompt;
-        rows: Record<string, AnyType>[] | undefined;
     };
 };
 
