@@ -21,7 +21,8 @@ import { Link, Navigate, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
-import { useDefaultAgent } from '../../features/aiCopilot/hooks/useDefaultAgent';
+import { useProjectAiAgents } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { useGetUserAgentPreferences } from '../../features/aiCopilot/hooks/useUserAgentPreferences';
 
 const AGENT_FEATURES = [
     {
@@ -57,15 +58,28 @@ const AGENT_FEATURES = [
 const AgentsWelcome = () => {
     const { projectUuid } = useParams();
     const canCreateAgent = useAiAgentPermission({ action: 'manage' });
-    const { defaultAgentUuid } = useDefaultAgent(projectUuid);
+    const { data: agents } = useProjectAiAgents(projectUuid);
+    const { data: userAgentPreferences } =
+        useGetUserAgentPreferences(projectUuid);
 
-    if (defaultAgentUuid) {
+    if (userAgentPreferences?.defaultAgentUuid) {
         return (
             <Navigate
-                to={`/projects/${projectUuid}/ai-agents/${defaultAgentUuid}`}
+                to={`/projects/${projectUuid}/ai-agents/${userAgentPreferences.defaultAgentUuid}`}
+                replace
             />
         );
     }
+
+    if (agents && agents.length > 0) {
+        return (
+            <Navigate
+                to={`/projects/${projectUuid}/ai-agents/${agents[0].uuid}`}
+                replace
+            />
+        );
+    }
+
     return (
         <AiAgentPageLayout>
             <Center h="80%">

@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/cli",
-    "version": "0.1741.0",
+    "version": "0.1748.0",
     "license": "MIT",
     "bin": {
         "lightdash": "dist/index.js"
@@ -48,6 +48,7 @@
         "test": "jest",
         "dev": "ts-node src/index.ts",
         "build": "tsc --build tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json --noEmit",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "pnpm run linter ./src",

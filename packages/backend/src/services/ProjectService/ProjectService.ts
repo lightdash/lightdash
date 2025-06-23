@@ -33,6 +33,7 @@ import {
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     CustomFormatType,
+    CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
     DashboardBasicDetails,
     DashboardFilters,
@@ -191,11 +192,15 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectAdapter } from '../../types';
-import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import {
+    runWorkerThread,
+    wrapSentryTransaction,
+    wrapSentryTransactionSync,
+} from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
-    buildQuery,
     CompiledQuery,
+    MetricQueryBuilder,
 } from '../../utils/QueryBuilder/queryBuilder';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { BaseService } from '../BaseService';
@@ -1633,7 +1638,7 @@ export class ProjectService extends BaseService {
             warehouseClient,
         });
 
-        const buildQueryResult = buildQuery({
+        const queryBuilder = new MetricQueryBuilder({
             explore: exploreWithOverride,
             compiledMetricQuery,
             warehouseClient,
@@ -1641,8 +1646,9 @@ export class ProjectService extends BaseService {
             userAttributes,
             timezone,
         });
-
-        return buildQueryResult;
+        return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
+            queryBuilder.compileQuery(),
+        );
     }
 
     async compileQuery(
@@ -1673,9 +1679,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const explore =
@@ -1771,9 +1775,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const queryTags: RunQueryTags = {
@@ -2086,9 +2088,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const queryTags: RunQueryTags = {
@@ -5231,9 +5231,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const results = await this._calculateTotal(
@@ -5408,9 +5406,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         // Reuse the _calculateTotal method by passing the explore, metricQuery, and organizationUuid

@@ -7,6 +7,7 @@ models:
       joins:
         - join: plan
           sql_on: ${membership.plan_id} = ${plan.id}
+          relationship: many-to-one
     columns:
       - name: id
       - name: customer_id

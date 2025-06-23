@@ -1762,7 +1762,22 @@
                 "type": "object"
             },
             "Compact": {
-                "enum": ["thousands", "millions", "billions", "trillions"],
+                "enum": [
+                    "thousands",
+                    "millions",
+                    "billions",
+                    "trillions",
+                    "kilobytes",
+                    "megabytes",
+                    "gigabytes",
+                    "terabytes",
+                    "petabytes",
+                    "kibibytes",
+                    "mebibytes",
+                    "gibibytes",
+                    "tebibytes",
+                    "pebibytes"
+                ],
                 "type": "string"
             },
             "CompactOrAlias": {
@@ -1780,7 +1795,27 @@
                             "B",
                             "billion",
                             "T",
-                            "trillion"
+                            "trillion",
+                            "KB",
+                            "kilobyte",
+                            "MB",
+                            "megabyte",
+                            "GB",
+                            "gigabyte",
+                            "TB",
+                            "terabyte",
+                            "PB",
+                            "petabyte",
+                            "KiB",
+                            "kibibyte",
+                            "MiB",
+                            "mebibyte",
+                            "GiB",
+                            "gibibyte",
+                            "TiB",
+                            "tebibytes",
+                            "PiB",
+                            "pebibytes"
                         ]
                     }
                 ]
@@ -2110,6 +2145,8 @@
                     "id",
                     "date",
                     "timestamp",
+                    "bytes_si",
+                    "bytes_iec",
                     "custom"
                 ],
                 "type": "string"
@@ -3637,7 +3674,11 @@
                 "type": "string",
                 "enum": ["inner", "full", "left", "right"]
             },
-            "Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_": {
+            "JoinRelationship": {
+                "enum": ["one-to-many", "many-to-one", "one-to-one"],
+                "type": "string"
+            },
+            "Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always-or-relationship_": {
                 "properties": {
                     "type": {
                         "$ref": "#/components/schemas/DbtModelJoinType"
@@ -3653,6 +3694,9 @@
                     },
                     "always": {
                         "type": "boolean"
+                    },
+                    "relationship": {
+                        "$ref": "#/components/schemas/JoinRelationship"
                     }
                 },
                 "required": ["table", "sqlOn"],
@@ -3662,10 +3706,16 @@
             "CompiledExploreJoin": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_"
+                        "$ref": "#/components/schemas/Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always-or-relationship_"
                     },
                     {
                         "properties": {
+                            "tablesReferences": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "compiledSqlOn": {
                                 "type": "string"
                             }
@@ -4884,40 +4934,6 @@
             "ItemsMap": {
                 "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
-            "AiAgentUserPreferences": {
-                "properties": {
-                    "defaultAgentUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["defaultAgentUuid"],
-                "type": "object"
-            },
-            "ApiGetUserAgentPreferencesResponse": {
-                "properties": {
-                    "results": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AiAgentUserPreferences"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiUpdateUserAgentPreferencesResponse": {
-                "$ref": "#/components/schemas/ApiSuccessEmpty"
-            },
-            "ApiUpdateUserAgentPreferences": {
-                "$ref": "#/components/schemas/AiAgentUserPreferences"
-            },
             "Pick_AiAgent.uuid-or-name-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl_": {
                 "properties": {
                     "name": {
@@ -5352,25 +5368,31 @@
                 "properties": {
                     "humanScore": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
                     },
                     "metricQuery": {
                         "additionalProperties": true,
-                        "type": "object"
+                        "type": "object",
+                        "nullable": true
                     },
                     "filtersOutput": {
                         "additionalProperties": true,
-                        "type": "object"
+                        "type": "object",
+                        "nullable": true
                     },
                     "vizConfigOutput": {
                         "additionalProperties": true,
-                        "type": "object"
+                        "type": "object",
+                        "nullable": true
                     },
                     "createdAt": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "message": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "threadUuid": {
                         "type": "string"
@@ -5385,6 +5407,10 @@
                     }
                 },
                 "required": [
+                    "humanScore",
+                    "metricQuery",
+                    "filtersOutput",
+                    "vizConfigOutput",
                     "createdAt",
                     "message",
                     "threadUuid",
@@ -5604,6 +5630,27 @@
                 "required": ["cacheMetadata", "queryUuid"],
                 "type": "object"
             },
+            "QueryWarning": {
+                "properties": {
+                    "tables": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "fields": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "required": ["message"],
+                "type": "object"
+            },
             "ApiExecuteAsyncMetricQueryResults": {
                 "allOf": [
                     {
@@ -5611,6 +5658,12 @@
                     },
                     {
                         "properties": {
+                            "warnings": {
+                                "items": {
+                                    "$ref": "#/components/schemas/QueryWarning"
+                                },
+                                "type": "array"
+                            },
                             "fields": {
                                 "$ref": "#/components/schemas/ItemsMap"
                             },
@@ -5618,7 +5671,7 @@
                                 "$ref": "#/components/schemas/MetricQuery"
                             }
                         },
-                        "required": ["fields", "metricQuery"],
+                        "required": ["warnings", "fields", "metricQuery"],
                         "type": "object"
                     }
                 ]
@@ -5926,6 +5979,45 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "AiAgentUserPreferences": {
+                "properties": {
+                    "defaultAgentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["defaultAgentUuid"],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentUserPreferences_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentUserPreferences"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGetUserAgentPreferencesResponse": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiSuccess_AiAgentUserPreferences_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ApiSuccessEmpty"
+                    }
+                ]
+            },
+            "ApiUpdateUserAgentPreferencesResponse": {
+                "$ref": "#/components/schemas/ApiSuccessEmpty"
+            },
+            "ApiUpdateUserAgentPreferences": {
+                "$ref": "#/components/schemas/AiAgentUserPreferences"
             },
             "ApiJobScheduledResponse": {
                 "properties": {
@@ -17838,7 +17930,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1734.2",
+        "version": "0.1745.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

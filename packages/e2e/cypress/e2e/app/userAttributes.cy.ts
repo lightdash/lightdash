@@ -30,7 +30,7 @@ describe('User attributes sql_filter', () => {
         // run query
         cy.get('button').contains('Run query').click();
 
-        cy.contains('Error running query');
+        cy.contains('Error loading results');
 
         cy.contains(
             // eslint-disable-next-line no-template-curly-in-string

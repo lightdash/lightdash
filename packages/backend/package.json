@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.1741.0",
+    "version": "0.1748.0",
     "private": true,
     "main": "dist/index",
     "license": "MIT",
@@ -147,6 +147,7 @@
         "debug": "tsx watch --clear-screen=false --inspect-brk=0.0.0.0:9229 src/index.ts",
         "build": "tsc --build tsconfig.json",
         "build-sourcemaps": "tsc --build tsconfig.sentry.json",
+        "typecheck": "tsc --project tsconfig.json --noEmit",
         "postbuild": "copyfiles --error --up 1 src/**/*.html dist",
         "start": "node dist/index.js",
         "scheduler": "node dist/scheduler.js",

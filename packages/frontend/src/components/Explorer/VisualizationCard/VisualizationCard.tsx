@@ -154,6 +154,7 @@ const VisualizationCard: FC<{
                     unsavedChartVersion.pivotConfig?.columns
                 }
                 resultsData={resultsData}
+                apiErrorDetail={query.error?.error}
                 isLoading={isLoadingQueryResults}
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
