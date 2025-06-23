@@ -736,6 +736,7 @@ export const compiledSimpleJoinedExplore: Explore = {
             sqlOn: '${a.dim1} = ${b.dim1}',
             compiledSqlOn: '("a".dim1) = ("b".dim1)',
             tablesReferences: ['a', 'b'],
+            relationship: undefined,
             type: undefined,
             hidden: undefined,
             always: undefined,
@@ -870,6 +871,7 @@ export const compiledExploreWithJoinWithFieldsAndGroups: Explore = {
             type: undefined,
             hidden: undefined,
             always: undefined,
+            relationship: undefined,
         },
     ],
     tables: {
@@ -1096,6 +1098,7 @@ export const compiledJoinedExploreOverridingJoinAlias: Explore = {
             type: undefined,
             hidden: undefined,
             always: undefined,
+            relationship: undefined,
         },
     ],
     tables: {
@@ -1141,6 +1144,7 @@ export const compiledJoinedExploreOverridingAliasAndLabel: Explore = {
             type: undefined,
             hidden: undefined,
             always: undefined,
+            relationship: undefined,
         },
     ],
     tables: {
@@ -1210,6 +1214,7 @@ export const compiledJoinedExploreWithTwoJoinsToTheSameTable: Explore = {
             type: undefined,
             hidden: undefined,
             always: undefined,
+            relationship: undefined,
         },
         {
             table: 'custom_alias',
@@ -1219,6 +1224,7 @@ export const compiledJoinedExploreWithTwoJoinsToTheSameTable: Explore = {
             type: undefined,
             hidden: undefined,
             always: undefined,
+            relationship: undefined,
         },
     ],
     tables: {
@@ -1281,6 +1287,7 @@ export const compiledExploreWithHiddenJoin: Explore = {
             type: undefined,
             hidden: true,
             always: undefined,
+            relationship: undefined,
         },
     ],
     tables: {
@@ -1389,6 +1396,7 @@ export const compiledJoinedExploreWithJoinAliasAndSubsetOfFieldsThatDontIncludeS
                 type: undefined,
                 hidden: undefined,
                 always: undefined,
+                relationship: undefined,
             },
         ],
         tables: {
@@ -1791,6 +1799,7 @@ export const exploreWithRequiredAttributesCompiled: Explore = {
             type: undefined,
             hidden: undefined,
             always: undefined,
+            relationship: undefined,
         },
     ],
     tables: {
@@ -1929,6 +1938,7 @@ export const compiledSimpleJoinedExploreWithAlwaysTrue: Explore = {
             type: undefined,
             hidden: undefined,
             always: true,
+            relationship: undefined,
         },
     ],
 };

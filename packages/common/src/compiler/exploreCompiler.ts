@@ -673,7 +673,7 @@ export class ExploreCompiler {
     }
 
     compileExploreJoinSql(
-        join: ExploreJoin,
+        join: Pick<ExploreJoin, 'sqlOn' | 'table'>,
         tables: Record<string, Table>,
     ): { sql: string; tablesReferences: Set<string> } {
         const tablesReferences = new Set<string>([]);
@@ -701,7 +701,6 @@ export class ExploreCompiler {
             {
                 table: join.alias || join.table,
                 sqlOn: join.sqlOn,
-                always: join.always,
             },
             tables,
         );
@@ -713,6 +712,7 @@ export class ExploreCompiler {
             tablesReferences: Array.from(tablesReferences),
             hidden: join.hidden,
             always: join.always,
+            relationship: join.relationship,
         };
     }
 }

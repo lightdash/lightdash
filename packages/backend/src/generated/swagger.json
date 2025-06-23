@@ -3674,6 +3674,10 @@
                 "type": "string",
                 "enum": ["inner", "full", "left", "right"]
             },
+            "JoinRelationship": {
+                "enum": ["one-to-many", "many-to-one", "one-to-one"],
+                "type": "string"
+            },
             "Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always-or-relationship_": {
                 "properties": {
                     "type": {
@@ -3692,8 +3696,7 @@
                         "type": "boolean"
                     },
                     "relationship": {
-                        "type": "string",
-                        "enum": ["one-to-many", "many-to-one", "one-to-one"]
+                        "$ref": "#/components/schemas/JoinRelationship"
                     }
                 },
                 "required": ["table", "sqlOn"],
@@ -17900,7 +17903,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1743.1",
+        "version": "0.1745.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

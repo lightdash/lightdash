@@ -3420,6 +3420,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    JoinRelationship: {
+        dataType: 'refEnum',
+        enums: ['one-to-many', 'many-to-one', 'one-to-one'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always-or-relationship_':
         {
             dataType: 'refAlias',
@@ -3452,9 +3457,7 @@ const models: TsoaRoute.Models = {
                     relationship: {
                         dataType: 'union',
                         subSchemas: [
-                            { dataType: 'enum', enums: ['one-to-many'] },
-                            { dataType: 'enum', enums: ['many-to-one'] },
-                            { dataType: 'enum', enums: ['one-to-one'] },
+                            { ref: 'JoinRelationship' },
                             { dataType: 'undefined' },
                         ],
                     },
