@@ -192,11 +192,15 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectAdapter } from '../../types';
-import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import {
+    runWorkerThread,
+    wrapSentryTransaction,
+    wrapSentryTransactionSync,
+} from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
-    buildQuery,
     CompiledQuery,
+    MetricQueryBuilder,
 } from '../../utils/QueryBuilder/queryBuilder';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { BaseService } from '../BaseService';
@@ -1634,7 +1638,7 @@ export class ProjectService extends BaseService {
             warehouseClient,
         });
 
-        const buildQueryResult = buildQuery({
+        const queryBuilder = new MetricQueryBuilder({
             explore: exploreWithOverride,
             compiledMetricQuery,
             warehouseClient,
@@ -1642,8 +1646,9 @@ export class ProjectService extends BaseService {
             userAttributes,
             timezone,
         });
-
-        return buildQueryResult;
+        return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
+            queryBuilder.compileQuery(),
+        );
     }
 
     async compileQuery(
