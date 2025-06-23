@@ -16,13 +16,14 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultAgentButton/DefaultAgentButton';
-import { useStartAgentThreadMutation } from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
+import { useCreateAgentThreadMutation } from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
+
 import { type AgentContext } from './AgentPage';
 
 const AiAgentNewThreadPage = () => {
     const { agentUuid, projectUuid } = useParams();
-    const { mutateAsync: startAgentThread, isLoading } =
-        useStartAgentThreadMutation(agentUuid, projectUuid);
+    const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
+        useCreateAgentThreadMutation(agentUuid, projectUuid);
     const { agent } = useOutletContext<AgentContext>();
 
     return (
@@ -95,9 +96,9 @@ const AiAgentNewThreadPage = () => {
 
                     <AgentChatInput
                         onSubmit={(prompt) => {
-                            void startAgentThread({ prompt });
+                            void createAgentThread({ prompt });
                         }}
-                        loading={isLoading}
+                        loading={isCreatingThread}
                         placeholder={`Ask ${agent.name} anything about your data...`}
                     />
                 </Stack>

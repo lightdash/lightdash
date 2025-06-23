@@ -7,8 +7,9 @@ import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatEleme
 import {
     useAiAgent,
     useAiAgentThread,
-    useGenerateAgentThreadResponseMutation,
+    useCreateAgentThreadMessageMutation,
 } from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
+import { useAiAgentThreadStreaming } from '../../features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = () => {
@@ -25,16 +26,13 @@ const AiAgentThreadPage = () => {
     const { agent } = useOutletContext<AgentContext>();
 
     const {
-        mutateAsync: generateAgentThreadResponse,
-        isLoading: isGenerating,
-    } = useGenerateAgentThreadResponseMutation(
-        projectUuid,
-        agentUuid,
-        threadUuid,
-    );
+        mutateAsync: createAgentThreadMessage,
+        isLoading: isCreatingMessage,
+    } = useCreateAgentThreadMessageMutation(projectUuid, agentUuid, threadUuid);
+    const isStreaming = useAiAgentThreadStreaming(threadUuid!);
 
     const handleSubmit = (prompt: string) => {
-        void generateAgentThreadResponse({ prompt });
+        void createAgentThreadMessage({ prompt });
     };
 
     if (isLoadingThread || !thread || agentQuery.isLoading) {
@@ -51,7 +49,7 @@ const AiAgentThreadPage = () => {
                 thread={thread}
                 agentName={agentQuery.data?.name ?? 'AI'}
                 enableAutoScroll={true}
-                isGenerating={isGenerating}
+                mode="interactive"
             />
             <Box
                 {...ChatElementsUtils.centeredElementProps}
@@ -65,7 +63,7 @@ const AiAgentThreadPage = () => {
                         !isThreadFromCurrentUser
                     }
                     disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
-                    loading={isGenerating}
+                    loading={isCreatingMessage || isStreaming}
                     onSubmit={handleSubmit}
                     placeholder={`Ask ${agent.name} anything about your data...`}
                 />

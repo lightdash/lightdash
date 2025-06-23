@@ -100,7 +100,7 @@ export const ThreadDetailsModal: FC<ThreadDetailsModalProps> = ({
                             showScrollbar={true}
                             enableAutoScroll={false}
                             padding="md"
-                            isPreview
+                            mode="preview"
                         />
                     </Paper>
                     {chatUrl && isThreadFromCurrentUser && (
