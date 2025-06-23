@@ -1,3 +1,10 @@
+## [0.1745.2](https://github.com/lightdash/lightdash/compare/0.1745.1...0.1745.2) (2025-06-23)
+
+
+### Bug Fixes
+
+* bring back table wide conditional formatting ([#15439](https://github.com/lightdash/lightdash/issues/15439)) ([c0a93c1](https://github.com/lightdash/lightdash/commit/c0a93c16c2a0be4b1da48b3d3e8a692d884f397e))
+
 ## [0.1745.1](https://github.com/lightdash/lightdash/compare/0.1745.0...0.1745.1) (2025-06-23)
 
 
