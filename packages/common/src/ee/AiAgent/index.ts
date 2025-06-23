@@ -199,17 +199,6 @@ export type ApiAiAgentThreadMessageCreateResponse = ApiSuccess<
     AiAgentMessageUser<AiAgentUser>
 >;
 
-export type ApiAiAgentThreadGenerateRequest = {
-    prompt: string;
-};
-
-export type ApiAiAgentThreadGenerateResponse = {
-    status: 'ok';
-    results: {
-        jobId: string;
-    };
-};
-
 export type ApiAiAgentStartThreadResponse = {
     status: 'ok';
     results: {

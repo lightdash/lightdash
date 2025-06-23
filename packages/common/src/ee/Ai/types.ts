@@ -100,12 +100,6 @@ export type SlackPromptJobPayload = TraceTaskBase & {
     slackPromptUuid: string;
 };
 
-export type AiAgentThreadGenerateJobPayload = TraceTaskBase & {
-    agentUuid: string;
-    threadUuid: string;
-    promptUuid: string;
-};
-
 export type AiConversation = {
     threadUuid: string;
     createdAt: string | Date;

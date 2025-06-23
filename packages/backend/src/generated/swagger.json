@@ -5513,58 +5513,6 @@
                 "required": ["prompt"],
                 "type": "object"
             },
-            "ApiAiAgentStartThreadResponse": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "threadUuid": {
-                                "type": "string"
-                            },
-                            "jobId": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["threadUuid", "jobId"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiAgentThreadGenerateRequest": {
-                "properties": {
-                    "prompt": {
-                        "type": "string"
-                    }
-                },
-                "required": ["prompt"],
-                "type": "object"
-            },
-            "ApiAiAgentThreadGenerateResponse": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "jobId": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["jobId"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "AiChartType": {
                 "description": "Supported AI visualization chart types",
                 "enum": ["time_series_chart", "vertical_bar_chart", "csv"],
@@ -9464,7 +9412,6 @@
                 "type": "string",
                 "enum": [
                     "slackAiPrompt",
-                    "aiAgentThreadGenerate",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
                     "sendEmailNotification",
