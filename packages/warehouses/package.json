@@ -33,6 +33,7 @@
         "format": "pnpm run formatter ./src --check",
         "fix-format": "pnpm run formatter ./src --write",
         "test": "jest",
+        "typecheck": "tsc --project tsconfig.json --noEmit",
         "copy-files": "copyfiles -u 1 src/warehouseClients/ca-bundle-aws-redshift.crt src/warehouseClients/ca-bundle-aws-rds-global.pem dist/",
         "build": "pnpm run copy-files && tsc --build tsconfig.json",
         "dev": "pnpm run copy-files && tsc --build --watch --preserveWatchOutput tsconfig.json",

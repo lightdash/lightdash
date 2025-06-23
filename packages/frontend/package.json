@@ -4,6 +4,7 @@
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
+        "typecheck-sdk": "tsc --project tsconfig.json --noEmit",
         "dev": "vite",
         "build": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build",
         "build-sdk": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build --config vite.config.sdk.ts",
