@@ -1,3 +1,10 @@
+## [0.1745.1](https://github.com/lightdash/lightdash/compare/0.1745.0...0.1745.1) (2025-06-23)
+
+
+### Bug Fixes
+
+* support YAML boolean filter string representations "false" and "\!false" ([#15351](https://github.com/lightdash/lightdash/issues/15351)) ([03db83b](https://github.com/lightdash/lightdash/commit/03db83bf92fef99bc203325f91a549759279e9b1)), closes [#15175](https://github.com/lightdash/lightdash/issues/15175)
+
 # [0.1745.0](https://github.com/lightdash/lightdash/compare/0.1744.0...0.1745.0) (2025-06-23)
 
 
