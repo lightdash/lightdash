@@ -1,3 +1,10 @@
+## [0.1743.2](https://github.com/lightdash/lightdash/compare/0.1743.1...0.1743.2) (2025-06-23)
+
+
+### Bug Fixes
+
+* warn user if selecting models with skip-dbt-compile ([#15471](https://github.com/lightdash/lightdash/issues/15471)) ([f04330a](https://github.com/lightdash/lightdash/commit/f04330a0e4774305a6d29c4d49206efde9d0875b))
+
 ## [0.1743.1](https://github.com/lightdash/lightdash/compare/0.1743.0...0.1743.1) (2025-06-23)
 
 
