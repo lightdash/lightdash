@@ -24,7 +24,7 @@ import {
     generateGenericFileId,
     processFieldsForExport,
     streamJsonlData,
-} from '../../utils/FileDownloadUtils';
+} from '../../utils/FileDownloadUtils/FileDownloadUtils';
 
 export class ExcelService {
     private static readonly EXCEL_ROW_LIMIT = 1_000_000;

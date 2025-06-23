@@ -89,7 +89,7 @@ import { measureTime } from '../../logging/measureTime';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import { wrapSentryTransaction } from '../../utils';
-import { processFieldsForExport } from '../../utils/FileDownloadUtils';
+import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import {
     QueryBuilder,
     ReferenceMap,

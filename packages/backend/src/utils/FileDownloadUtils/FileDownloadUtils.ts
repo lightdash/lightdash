@@ -10,7 +10,7 @@ import {
 import moment, { MomentInput } from 'moment/moment';
 import { createInterface } from 'readline';
 import { Readable } from 'stream';
-import Logger from '../logging/logger';
+import Logger from '../../logging/logger';
 
 export const isRowValueTimestamp = (
     value: unknown,
@@ -25,10 +25,37 @@ export const isRowValueDate = (
     isMomentInput(value) && field.type === DimensionType.DATE;
 
 export function sanitizeGenericFileName(name: string): string {
-    return name
-        .toLowerCase()
-        .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
-        .replace(/_{2,}/g, '_'); // Replace multiple underscores with a single one
+    return (
+        name
+            // Remove filesystem-unsafe characters: / \ : * ? " < > |
+            .replace(/[/\\:*?"<>|]/g, '_')
+            // Remove control characters (characters 0-31 and 127)
+            .replace(/[\u0000-\u001F\u007F]/g, '') // eslint-disable-line no-control-regex
+            // Trim leading/trailing spaces and dots (Windows issues)
+            .replace(/^[\s.]+|[\s.]+$/g, '')
+            // Replace multiple consecutive underscores with single underscore
+            .replace(/_{2,}/g, '_') ||
+        // Ensure it's not empty
+        'download'
+    );
+}
+
+/**
+ * Creates a properly encoded Content-Disposition header that supports UTF-8 filenames
+ * Uses RFC 5987 encoding to handle non-ASCII characters like Japanese characters
+ */
+export function createContentDispositionHeader(filename: string): string {
+    // First sanitize the filename using our standard sanitization
+    const sanitizedFilename = sanitizeGenericFileName(filename);
+
+    // Create ASCII fallback by removing non-ASCII characters
+    const asciiFallback = sanitizedFilename.replace(/[^\u0000-\u007F]/g, ''); // eslint-disable-line no-control-regex
+
+    // RFC 5987 encoding: encode the filename and prepend with UTF-8''
+    const encodedFilename = encodeURIComponent(sanitizedFilename);
+
+    // Return both filename (ASCII fallback) and filename* (UTF-8 encoded)
+    return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedFilename}`;
 }
 
 export function generateGenericFileId({

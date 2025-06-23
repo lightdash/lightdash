@@ -84,7 +84,7 @@ import {
     isRowValueTimestamp,
     sanitizeGenericFileName,
     streamJsonlData,
-} from '../../utils/FileDownloadUtils';
+} from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
