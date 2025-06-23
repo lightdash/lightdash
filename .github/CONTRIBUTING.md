@@ -313,7 +313,32 @@ To setup Development Environment without Docker you need following pre-requisite
 - postgres >= 12
 - dbt 1.7.x aliased to `dbt1.7`
 
-eg. on MacOS you can follow this instructions:
+> [!TIP] Mac Installs
+> On MacOS you can run an [install script](scripts/local-mac.sh) to install all the dependencies and setup the development environment.
+
+First, be sure to clone the repo and run all commands from the root of the repo.
+
+```shell
+# Run the install script
+./scripts/local-mac.sh
+```
+
+Once the install script has finished, you'll need to setup the database: 
+
+```shell
+# Setup the databases
+pnpm load:env ./scripts/local-init.sh
+```
+
+After that you're good to go! You can start the local dev server by running:
+
+```shell
+# Start the local dev server
+pnpm load:env pnpm dev
+```
+
+> [!NOTE]
+> You can also manually install the dependencies and setup the database to pick and choose what you need:
 
 ```shell
 # 1 Install Homebrew (https://brew.sh)
@@ -382,15 +407,20 @@ pnpm load:env ./scripts/seed-lightdash.sh
 
 # Run
 pnpm load:env pnpm dev
+```
+</details>
 
-# Log in dev mode
-When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
+<br />
+Now that the server is running, when navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
 
+```yml
 Username: demo@lightdash.com
 Password: demo_password!
 ```
 
-> ⚠️ you can add env variables to your system and ignore running `pnpm load:env` before each command
+> [!TIP] System Environment Variables
+> You can add env variables to your system and ignore running `pnpm load:env` before each command. One easy way to do this is add `source <path to project>/.env.development.local` to your `.zprofile` or `.bash_profile.`
+> Just be sure that the .env file properly wraps strings in double quotes if needed.
 
 #### How to run unit tests
 
