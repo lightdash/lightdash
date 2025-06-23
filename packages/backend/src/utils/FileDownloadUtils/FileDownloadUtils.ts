@@ -48,8 +48,14 @@ export function createContentDispositionHeader(filename: string): string {
     // First sanitize the filename using our standard sanitization
     const sanitizedFilename = sanitizeGenericFileName(filename);
 
-    // Create ASCII fallback by removing non-ASCII characters
-    const asciiFallback = sanitizedFilename.replace(/[^\u0000-\u007F]/g, ''); // eslint-disable-line no-control-regex
+    // Create ASCII fallback by removing non-ASCII characters and normalizing spaces
+    const asciiFallback =
+        sanitizedFilename
+            .replace(/[^\u0000-\u007F]/g, '') // eslint-disable-line no-control-regex
+            .replace(/\s+/g, ' ') // normalize multiple spaces to single space
+            .replace(/\s+\./g, '.') // remove spaces before file extensions
+            .trim() || // remove leading/trailing spaces
+        'download'; // fallback if empty
 
     // RFC 5987 encoding: encode the filename and prepend with UTF-8''
     const encodedFilename = encodeURIComponent(sanitizedFilename);

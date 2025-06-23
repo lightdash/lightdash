@@ -118,12 +118,12 @@ describe('FileDownloadUtils', () => {
             ],
             [
                 'Report 美しい.csv',
-                'Report .csv',
+                'Report.csv',
                 'Report%20%E7%BE%8E%E3%81%97%E3%81%84.csv',
                 'mixed ASCII/Unicode',
             ],
             ['données.csv', 'donnes.csv', 'donn%C3%A9es.csv', 'French'],
-            ['Sales 📊.csv', 'Sales .csv', 'Sales%20%F0%9F%93%8A.csv', 'emoji'],
+            ['Sales 📊.csv', 'Sales.csv', 'Sales%20%F0%9F%93%8A.csv', 'emoji'],
         ];
 
         it('handles basic functionality', () => {
@@ -148,7 +148,7 @@ describe('FileDownloadUtils', () => {
         it('handles ASCII fallback scenarios', () => {
             const result1 =
                 createContentDispositionHeader('美しいチャート Report.csv');
-            expect(result1).toContain('filename=" Report.csv"'); // Japanese removed
+            expect(result1).toContain('filename="Report.csv"'); // Japanese removed, space normalized
             expect(result1).toContain(
                 "filename*=UTF-8''%E7%BE%8E%E3%81%97%E3%81%84%E3%83%81%E3%83%A3%E3%83%BC%E3%83%88%20Report.csv",
             );
@@ -169,7 +169,7 @@ describe('FileDownloadUtils', () => {
                 'Données "françaises": Q1\\Q2 📊.xlsx',
             );
             expect(result2).toContain(
-                'filename="Donnes _franaises_ Q1_Q2 .xlsx"',
+                'filename="Donnes _franaises_ Q1_Q2.xlsx"',
             );
             expect(result2).toContain(
                 "filename*=UTF-8''Donn%C3%A9es%20_fran%C3%A7aises_%20Q1_Q2%20%F0%9F%93%8A.xlsx",
