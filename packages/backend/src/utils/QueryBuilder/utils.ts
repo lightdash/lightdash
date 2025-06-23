@@ -24,6 +24,7 @@ import {
     getSqlForTruncatedDate,
     IntrinsicUserAttributes,
     isCompiledCustomSqlDimension,
+    JoinRelationship,
     MetricType,
     parseAllReferences,
     QueryWarning,
@@ -840,13 +841,13 @@ const findTablesWithInflationFromJoin = (join: CompiledExploreJoin) => {
         // Skip, as we can't detect inflation without knowing table references in join SQL
         return tablesWithInflation;
     }
-    if (join.relationship === 'one-to-many') {
+    if (join.relationship === JoinRelationship.ONE_TO_MANY) {
         // The tables used to join the table can have metric inflation
         const joinFrom = join.tablesReferences.filter(
             (table) => table !== join.table,
         );
         joinFrom.forEach(tablesWithInflation.add.bind(tablesWithInflation));
-    } else if (join.relationship === 'many-to-one') {
+    } else if (join.relationship === JoinRelationship.MANY_TO_ONE) {
         // The table being joined can have metric inflation
         tablesWithInflation.add(join.table);
     }
@@ -876,7 +877,7 @@ const findChainedOneToOneTableJoins = ({
                         join.tablesReferences &&
                         join.tablesReferences.includes(tableName) &&
                         (!join.relationship ||
-                            join.relationship === 'one-to-one')
+                            join.relationship === JoinRelationship.ONE_TO_ONE)
                     ) {
                         join.tablesReferences.forEach((from) => {
                             if (!result.has(from)) {
