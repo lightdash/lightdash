@@ -41,7 +41,12 @@ import {
     useAiAgentThreadMessageVizQuery,
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useOrganizationAiAgents';
+import {
+    useAiAgentThreadStreaming,
+    useAiAgentThreadStreamQuery,
+} from '../../streaming/useAiAgentThreadStreamQuery';
 import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
+import { isOptimisticMessageStub } from '../../utils/thinkingMessageStub';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
 import { AiChartVisualization } from './AiChartVisualization';
@@ -87,6 +92,30 @@ export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
                 />
             </Card>
         </Stack>
+    );
+};
+
+const AssistantBubbleContent: FC<{ message: AiAgentMessageAssistant }> = ({
+    message,
+}) => {
+    const streamingState = useAiAgentThreadStreamQuery(message.threadUuid);
+    const isStubbed = isOptimisticMessageStub(message.message);
+    const isStreaming =
+        useAiAgentThreadStreaming(message.threadUuid) && isStubbed;
+    const messageContent = isStreaming
+        ? streamingState.content
+        : isStubbed // avoid brief flash of `THINKING_STUB`
+        ? ''
+        : message.message ?? 'No response...';
+
+    return (
+        <>
+            <MDEditor.Markdown
+                source={messageContent}
+                style={{ backgroundColor: 'transparent' }}
+            />
+            {isStreaming ? <Loader type="dots" color="gray" /> : null}
+        </>
     );
 };
 
@@ -143,10 +172,12 @@ export const AssistantBubble: FC<{
         });
     }, [projectUuid, message.uuid, message.humanScore, updateFeedbackMutation]);
 
-    // TODO: Do not use hardcoded string for loading state
-    const isLoading = message.message === 'Thinking...';
     const hasRating =
         message.humanScore !== undefined && message.humanScore !== null;
+
+    const isLoading =
+        useAiAgentThreadStreaming(message.threadUuid) &&
+        isOptimisticMessageStub(message.message);
 
     const openInExploreUrl = useMemo(() => {
         if (isQueryLoading || isQueryError) return '';
@@ -188,18 +219,7 @@ export const AssistantBubble: FC<{
                 borderStartStartRadius: '0px',
             }}
         >
-            {isLoading ? (
-                <Loader
-                    type="dots"
-                    color="gray"
-                    delayedMessage="Processing your request, this may take a moment"
-                />
-            ) : (
-                <MDEditor.Markdown
-                    source={message.message ?? 'No response...'}
-                    style={{ backgroundColor: 'transparent' }}
-                />
-            )}
+            <AssistantBubbleContent message={message} />
 
             {message.vizConfigOutput && message.metricQuery && (
                 <Paper
