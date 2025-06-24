@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { lightdashApiStream } from '../../../../api';
 import { useAiAgentThreadStreamAbortController } from './AiAgentThreadStreamAbortControllerContext';
 import {
+    addToolCall,
     type AiAgentThreadStreamDispatch,
     appendToMessage,
     setError,
@@ -73,6 +74,17 @@ export function useAiAgentThreadStreamMutation() {
                         await onFinish?.();
 
                         dispatch(stopStreaming({ threadUuid }));
+                    },
+                    onToolCallPart: (toolCall) => {
+                        if (abortController.signal.aborted) return;
+                        dispatch(
+                            addToolCall({
+                                threadUuid,
+                                toolCallId: toolCall.toolCallId,
+                                toolName: toolCall.toolName,
+                                args: toolCall.args,
+                            }),
+                        );
                     },
                     onErrorPart: (error) => {
                         if (abortController.signal.aborted) return;

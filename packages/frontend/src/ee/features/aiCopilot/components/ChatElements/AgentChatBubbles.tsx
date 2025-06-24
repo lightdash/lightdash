@@ -47,6 +47,7 @@ import {
 } from '../../streaming/useAiAgentThreadStreamQuery';
 import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
 import { isOptimisticMessageStub } from '../../utils/thinkingMessageStub';
+import AgentToolCalls from './AgentToolCalls/AgentToolCalls';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
 import { AiChartVisualization } from './AiChartVisualization';
@@ -110,6 +111,7 @@ const AssistantBubbleContent: FC<{ message: AiAgentMessageAssistant }> = ({
 
     return (
         <>
+            <AgentToolCalls />
             <MDEditor.Markdown
                 source={messageContent}
                 style={{ backgroundColor: 'transparent' }}
