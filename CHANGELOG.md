@@ -1,3 +1,10 @@
+# [0.1749.0](https://github.com/lightdash/lightdash/compare/0.1748.2...0.1749.0) (2025-06-24)
+
+
+### Features
+
+* add feature flag checks and loading states to AI agents page ([#15503](https://github.com/lightdash/lightdash/issues/15503)) ([2923c3b](https://github.com/lightdash/lightdash/commit/2923c3b908097fe9370ab5be77a8deec822a689b))
+
 ## [0.1748.2](https://github.com/lightdash/lightdash/compare/0.1748.1...0.1748.2) (2025-06-24)
 
 
