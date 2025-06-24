@@ -70,6 +70,195 @@ export type BuildQueryProps = {
 export class MetricQueryBuilder {
     constructor(private args: BuildQueryProps) {}
 
+    private isNotCustomDimension(field: string) {
+        const {
+            compiledMetricQuery: { compiledCustomDimensions },
+        } = this.args;
+        return !compiledCustomDimensions.map((cd) => cd.id).includes(field);
+    }
+
+    private getCustomDimensionSQL() {
+        const {
+            explore,
+            compiledMetricQuery,
+            warehouseClient,
+            intrinsicUserAttributes,
+            userAttributes = {},
+        } = this.args;
+        const { dimensions, sorts, compiledCustomDimensions } =
+            compiledMetricQuery;
+        const selectedCustomDimensions = compiledCustomDimensions.filter((cd) =>
+            dimensions.includes(cd.id),
+        );
+        const customBinDimensionSql = getCustomBinDimensionSql({
+            warehouseClient,
+            explore,
+            customDimensions:
+                selectedCustomDimensions?.filter(isCustomBinDimension),
+            intrinsicUserAttributes,
+            userAttributes,
+            sorts,
+        });
+        const customSqlDimensionSql = getCustomSqlDimensionSql({
+            warehouseClient,
+            customDimensions: selectedCustomDimensions?.filter(
+                isCompiledCustomSqlDimension,
+            ),
+        });
+        return {
+            customBinDimensionSql,
+            customSqlDimensionSql,
+        };
+    }
+
+    private getNestedDimensionFilterSQLFromModelFilters(
+        table: CompiledTable,
+        dimensionsFilterGroup: FilterGroup | undefined,
+    ): string | undefined {
+        const { explore } = this.args;
+        // We only force required filters that are not explicitly set to false
+        // requiredFilters with required:false will be added on the UI, but not enforced on the backend
+        const modelFilterRules: MetricFilterRule[] | undefined =
+            table.requiredFilters?.filter(
+                (filter) => filter.required !== false,
+            );
+
+        if (!modelFilterRules) return undefined;
+
+        const reducedRules: string[] = modelFilterRules.reduce<string[]>(
+            (acc, filter) => {
+                let dimension: CompiledDimension | undefined;
+
+                // This function already takes care of falling back to the base table if the fieldRef doesn't have 2 parts (falls back to base table name)
+                const filterRule = createFilterRuleFromModelRequiredFilterRule(
+                    filter,
+                    table.name,
+                );
+
+                if (isJoinModelRequiredFilter(filter)) {
+                    const joinedTable = explore.tables[filter.target.tableName];
+
+                    if (joinedTable) {
+                        dimension = Object.values(joinedTable.dimensions).find(
+                            (d) => getItemId(d) === filterRule.target.fieldId,
+                        );
+                    }
+                } else {
+                    dimension = Object.values(table.dimensions).find(
+                        (tc) => getItemId(tc) === filterRule.target.fieldId,
+                    );
+                }
+
+                if (!dimension) return acc;
+
+                if (
+                    isFilterRuleInQuery(
+                        dimension,
+                        filterRule,
+                        dimensionsFilterGroup,
+                    )
+                )
+                    return acc;
+
+                const filterString = `( ${this.getFilterRuleSQL(
+                    filterRule,
+                    FieldType.DIMENSION,
+                )} )`;
+                return [...acc, filterString];
+            },
+            [],
+        );
+
+        return reducedRules.join(' AND ');
+    }
+
+    private getNestedFilterSQLFromGroup(
+        filterGroup: FilterGroup | undefined,
+        fieldType?: FieldType,
+    ): string | undefined {
+        if (filterGroup) {
+            const operator = isAndFilterGroup(filterGroup) ? 'AND' : 'OR';
+            const items = isAndFilterGroup(filterGroup)
+                ? filterGroup.and
+                : filterGroup.or;
+            if (items.length === 0) return undefined;
+            const filterRules: string[] = items.reduce<string[]>(
+                (sum, item) => {
+                    const filterSql: string | undefined = isFilterGroup(item)
+                        ? this.getNestedFilterSQLFromGroup(item, fieldType)
+                        : `(\n  ${this.getFilterRuleSQL(item, fieldType)}\n)`;
+                    return filterSql ? [...sum, filterSql] : sum;
+                },
+                [],
+            );
+            return filterRules.length > 0
+                ? `(${filterRules.join(` ${operator} `)})`
+                : undefined;
+        }
+        return undefined;
+    }
+
+    private getFilterRuleSQL(filter: FilterRule, fieldType?: FieldType) {
+        const { explore, compiledMetricQuery, warehouseClient, timezone } =
+            this.args;
+        const adapterType: SupportedDbtAdapter =
+            warehouseClient.getAdapterType();
+        const { compiledCustomDimensions } = compiledMetricQuery;
+        const fieldQuoteChar = getFieldQuoteChar(
+            warehouseClient.credentials.type,
+        );
+        const stringQuoteChar = warehouseClient.getStringQuoteChar();
+        const escapeStringQuoteChar =
+            warehouseClient.getEscapeStringQuoteChar();
+        const startOfWeek = warehouseClient.getStartOfWeek();
+
+        if (!fieldType) {
+            const field = compiledMetricQuery.compiledTableCalculations?.find(
+                (tc) => getItemId(tc) === filter.target.fieldId,
+            );
+            return renderTableCalculationFilterRuleSql(
+                filter,
+                field,
+                fieldQuoteChar,
+                stringQuoteChar,
+                escapeStringQuoteChar,
+                adapterType,
+                startOfWeek,
+                timezone,
+            );
+        }
+
+        const field =
+            fieldType === FieldType.DIMENSION
+                ? [
+                      ...getDimensions(explore),
+                      ...compiledCustomDimensions.filter(
+                          isCompiledCustomSqlDimension,
+                      ),
+                  ].find((d) => getItemId(d) === filter.target.fieldId)
+                : getMetricFromId(
+                      filter.target.fieldId,
+                      explore,
+                      compiledMetricQuery,
+                  );
+        if (!field) {
+            throw new FieldReferenceError(
+                `Filter has a reference to an unknown ${fieldType}: ${filter.target.fieldId}`,
+            );
+        }
+
+        return renderFilterRuleSqlFromField(
+            filter,
+            field,
+            fieldQuoteChar,
+            stringQuoteChar,
+            escapeStringQuoteChar,
+            startOfWeek,
+            adapterType,
+            timezone,
+        );
+    }
+
     /**
      * Compiles a database query based on the provided metric query, explores, user attributes, and warehouse-specific configurations.
      *
@@ -86,7 +275,6 @@ export class MetricQueryBuilder {
             warehouseClient,
             intrinsicUserAttributes,
             userAttributes = {},
-            timezone,
         } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
         const adapterType: SupportedDbtAdapter =
@@ -108,17 +296,12 @@ export class MetricQueryBuilder {
         const fieldQuoteChar = getFieldQuoteChar(
             warehouseClient.credentials.type,
         );
-        const stringQuoteChar = warehouseClient.getStringQuoteChar();
-        const escapeStringQuoteChar =
-            warehouseClient.getEscapeStringQuoteChar();
         const startOfWeek = warehouseClient.getStartOfWeek();
 
         // dimensions contains a mix of Dimensions and CustomDimensions,
         // we want to filter customDimensions from this list as we will handle them separately
-        const excludeCustomDimensions = (field: string) =>
-            !compiledCustomDimensions.map((cd) => cd.id).includes(field);
         const dimensionSelects = dimensions
-            .filter(excludeCustomDimensions)
+            .filter(this.isNotCustomDimension.bind(this))
             .map((field) => {
                 const alias = field;
                 const dimension = getDimensionFromId(
@@ -136,24 +319,8 @@ export class MetricQueryBuilder {
                 return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
             });
 
-        const selectedCustomDimensions = compiledCustomDimensions.filter((cd) =>
-            dimensions.includes(cd.id),
-        );
-        const customBinDimensionSql = getCustomBinDimensionSql({
-            warehouseClient,
-            explore,
-            customDimensions:
-                selectedCustomDimensions?.filter(isCustomBinDimension),
-            intrinsicUserAttributes,
-            userAttributes,
-            sorts,
-        });
-        const customSqlDimensionSql = getCustomSqlDimensionSql({
-            warehouseClient,
-            customDimensions: selectedCustomDimensions?.filter(
-                isCompiledCustomSqlDimension,
-            ),
-        });
+        const { customBinDimensionSql, customSqlDimensionSql } =
+            this.getCustomDimensionSQL();
 
         const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
 
@@ -196,7 +363,7 @@ export class MetricQueryBuilder {
                 return [...acc, ...(metric.tablesReferences || [metric.table])];
             }, []),
             ...dimensions
-                .filter(excludeCustomDimensions)
+                .filter(this.isNotCustomDimension.bind(this))
                 .reduce<string[]>((acc, field) => {
                     const dim = getDimensionFromId(
                         field,
@@ -385,150 +552,9 @@ export class MetricQueryBuilder {
 
         const sqlOrderBy =
             fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
-        const sqlFilterRule = (filter: FilterRule, fieldType?: FieldType) => {
-            if (!fieldType) {
-                const field =
-                    compiledMetricQuery.compiledTableCalculations?.find(
-                        (tc) => getItemId(tc) === filter.target.fieldId,
-                    );
-                return renderTableCalculationFilterRuleSql(
-                    filter,
-                    field,
-                    fieldQuoteChar,
-                    stringQuoteChar,
-                    escapeStringQuoteChar,
-                    adapterType,
-                    startOfWeek,
-                    timezone,
-                );
-            }
-
-            const field =
-                fieldType === FieldType.DIMENSION
-                    ? [
-                          ...getDimensions(explore),
-                          ...compiledCustomDimensions.filter(
-                              isCompiledCustomSqlDimension,
-                          ),
-                      ].find((d) => getItemId(d) === filter.target.fieldId)
-                    : getMetricFromId(
-                          filter.target.fieldId,
-                          explore,
-                          compiledMetricQuery,
-                      );
-            if (!field) {
-                throw new FieldReferenceError(
-                    `Filter has a reference to an unknown ${fieldType}: ${filter.target.fieldId}`,
-                );
-            }
-
-            return renderFilterRuleSqlFromField(
-                filter,
-                field,
-                fieldQuoteChar,
-                stringQuoteChar,
-                escapeStringQuoteChar,
-                startOfWeek,
-                adapterType,
-                timezone,
-            );
-        };
-
-        const getNestedFilterSQLFromGroup = (
-            filterGroup: FilterGroup | undefined,
-            fieldType?: FieldType,
-        ): string | undefined => {
-            if (filterGroup) {
-                const operator = isAndFilterGroup(filterGroup) ? 'AND' : 'OR';
-                const items = isAndFilterGroup(filterGroup)
-                    ? filterGroup.and
-                    : filterGroup.or;
-                if (items.length === 0) return undefined;
-                const filterRules: string[] = items.reduce<string[]>(
-                    (sum, item) => {
-                        const filterSql: string | undefined = isFilterGroup(
-                            item,
-                        )
-                            ? getNestedFilterSQLFromGroup(item, fieldType)
-                            : `(\n  ${sqlFilterRule(item, fieldType)}\n)`;
-                        return filterSql ? [...sum, filterSql] : sum;
-                    },
-                    [],
-                );
-                return filterRules.length > 0
-                    ? `(${filterRules.join(` ${operator} `)})`
-                    : undefined;
-            }
-            return undefined;
-        };
-
-        const getNestedDimensionFilterSQLFromModelFilters = (
-            table: CompiledTable,
-            dimensionsFilterGroup: FilterGroup | undefined,
-        ): string | undefined => {
-            // We only force required filters that are not explicitly set to false
-            // requiredFilters with required:false will be added on the UI, but not enforced on the backend
-            const modelFilterRules: MetricFilterRule[] | undefined =
-                table.requiredFilters?.filter(
-                    (filter) => filter.required !== false,
-                );
-
-            if (!modelFilterRules) return undefined;
-
-            const reducedRules: string[] = modelFilterRules.reduce<string[]>(
-                (acc, filter) => {
-                    let dimension: CompiledDimension | undefined;
-
-                    // This function already takes care of falling back to the base table if the fieldRef doesn't have 2 parts (falls back to base table name)
-                    const filterRule =
-                        createFilterRuleFromModelRequiredFilterRule(
-                            filter,
-                            table.name,
-                        );
-
-                    if (isJoinModelRequiredFilter(filter)) {
-                        const joinedTable =
-                            explore.tables[filter.target.tableName];
-
-                        if (joinedTable) {
-                            dimension = Object.values(
-                                joinedTable.dimensions,
-                            ).find(
-                                (d) =>
-                                    getItemId(d) === filterRule.target.fieldId,
-                            );
-                        }
-                    } else {
-                        dimension = Object.values(table.dimensions).find(
-                            (tc) => getItemId(tc) === filterRule.target.fieldId,
-                        );
-                    }
-
-                    if (!dimension) return acc;
-
-                    if (
-                        isFilterRuleInQuery(
-                            dimension,
-                            filterRule,
-                            dimensionsFilterGroup,
-                        )
-                    )
-                        return acc;
-
-                    const filterString = `( ${sqlFilterRule(
-                        filterRule,
-                        FieldType.DIMENSION,
-                    )} )`;
-                    return [...acc, filterString];
-                },
-                [],
-            );
-
-            return reducedRules.join(' AND ');
-        };
 
         const requiredDimensionFilterSql =
-            getNestedDimensionFilterSQLFromModelFilters(
+            this.getNestedDimensionFilterSQLFromModelFilters(
                 explore.tables[explore.baseTable],
                 filters.dimensions,
             );
@@ -544,7 +570,7 @@ export class MetricQueryBuilder {
               ]
             : [];
 
-        const nestedFilterSql = getNestedFilterSQLFromGroup(
+        const nestedFilterSql = this.getNestedFilterSQLFromGroup(
             filters.dimensions,
             FieldType.DIMENSION,
         );
@@ -563,12 +589,12 @@ export class MetricQueryBuilder {
                 ? `WHERE ${allSqlFilters.join(' AND ')}`
                 : '';
 
-        const whereMetricFilters = getNestedFilterSQLFromGroup(
+        const whereMetricFilters = this.getNestedFilterSQLFromGroup(
             filters.metrics,
             FieldType.METRIC,
         );
 
-        const tableCalculationFilters = getNestedFilterSQLFromGroup(
+        const tableCalculationFilters = this.getNestedFilterSQLFromGroup(
             filters.tableCalculations,
         );
 
