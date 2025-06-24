@@ -30,13 +30,17 @@ export const SqlEditorPreferencesPopover: FC = () => {
     const handleQuotePreferenceChange = (
         preference: SqlEditorPreferences['quotePreference'],
     ) => {
-        setSettings({ ...settings, quotePreference: preference });
+        if (settings) {
+            setSettings({ ...settings, quotePreference: preference });
+        }
     };
 
     const handleCasePreferenceChange = (
         preference: SqlEditorPreferences['casePreference'],
     ) => {
-        setSettings({ ...settings, casePreference: preference });
+        if (settings) {
+            setSettings({ ...settings, casePreference: preference });
+        }
     };
 
     return (

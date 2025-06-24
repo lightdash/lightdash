@@ -162,7 +162,6 @@ const registerCustomCompletionProvider = (
 
             const suggestions: languages.CompletionItem[] = [];
 
-
             const formatFieldName = (fieldName: string): string => {
                 let formattedName = fieldName;
 
@@ -181,7 +180,6 @@ const registerCustomCompletionProvider = (
 
                 return formattedName;
             };
-
 
             // Add field suggestions first (top priority)
             if (fields && fields.length > 0) {
@@ -281,11 +279,6 @@ const generateTableCompletions = (
             return `${quoteChar}${formattedDb}${quoteChar}.${quoteChar}${formattedSchema}${quoteChar}.${quoteChar}${formattedTable}${quoteChar}`;
         }
 
-        // Apply quote preference (only always or never)
-        if (settings.quotePreference === 'always') {
-            return `${quoteChar}${formattedDb}${quoteChar}.${quoteChar}${formattedSchema}${quoteChar}.${quoteChar}${formattedTable}${quoteChar}`;
-        }
-
         // Apply case preference (only lowercase or uppercase)
         if (settings.casePreference === 'lowercase') {
             formattedDb = formattedDb.toLowerCase();
@@ -295,6 +288,11 @@ const generateTableCompletions = (
             formattedDb = formattedDb.toUpperCase();
             formattedSchema = formattedSchema.toUpperCase();
             formattedTable = formattedTable.toUpperCase();
+        }
+
+        // Apply quote preference (only always or never)
+        if (settings.quotePreference === 'always') {
+            return `${quoteChar}${formattedDb}${quoteChar}.${quoteChar}${formattedSchema}${quoteChar}.${quoteChar}${formattedTable}${quoteChar}`;
         }
 
         return `${formattedDb}.${formattedSchema}.${formattedTable}`;
