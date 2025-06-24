@@ -479,7 +479,7 @@ export class AiAgentModel {
                     | 'created_at'
                     | 'created_from'
                 > &
-                    Pick<DbAiPrompt, 'prompt'> &
+                    Pick<DbAiPrompt, 'prompt' | 'ai_prompt_uuid'> &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiSlackThread, 'slack_user_id'> & {
                         user_name: string;
@@ -490,6 +490,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.created_at`,
                 `${AiThreadTableName}.created_from`,
                 `${AiPromptTableName}.prompt`,
+                `${AiPromptTableName}.ai_prompt_uuid`,
                 `${UserTableName}.user_uuid`,
                 this.database.raw(
                     `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
@@ -652,6 +653,30 @@ export class AiAgentModel {
         });
     }
 
+    async findThreadMessage(
+        role: 'user',
+        {
+            organizationUuid,
+            threadUuid,
+            messageUuid,
+        }: {
+            organizationUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        },
+    ): Promise<AiAgentMessageUser<AiAgentUser>>;
+    async findThreadMessage(
+        role: 'assistant',
+        {
+            organizationUuid,
+            threadUuid,
+            messageUuid,
+        }: {
+            organizationUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        },
+    ): Promise<AiAgentMessageAssistant>;
     async findThreadMessage(
         role: 'user' | 'assistant',
         {

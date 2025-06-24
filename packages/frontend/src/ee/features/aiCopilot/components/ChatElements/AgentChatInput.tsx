@@ -24,13 +24,24 @@ export const AgentChatInput = ({
     disabledReason,
     placeholder = 'Ask anything about your data...',
 }: AgentChatInputProps) => {
+    // this is a workaround to prevent the enter key from being pressed when
+    // the user is composing a character
+    // see https://developer.mozilla.org/en-US/docs/Web/API/CompositionEvent for more details
+    const [isComposing, setIsComposing] = useState(false);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const [value, setValue] = useState('');
+
     useLayoutEffect(() => {
         if (!inputRef.current) return;
         const elem = inputRef.current;
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Enter' && !e.shiftKey && !disabled && !loading) {
+            if (
+                e.key === 'Enter' &&
+                !e.shiftKey &&
+                !disabled &&
+                !loading &&
+                !isComposing
+            ) {
                 e.preventDefault();
                 const valueToSubmit = value.trim();
                 if (valueToSubmit) {
@@ -44,7 +55,30 @@ export const AgentChatInput = ({
         return () => {
             elem.removeEventListener('keydown', handleKeyDown);
         };
-    }, [onSubmit, disabled, loading, value]);
+    }, [onSubmit, disabled, loading, value, isComposing]);
+
+    useLayoutEffect(() => {
+        if (!inputRef.current) return;
+        const elem = inputRef.current;
+
+        function handleCompositionStart() {
+            setIsComposing(true);
+        }
+        function handleCompositionEnd() {
+            setIsComposing(false);
+        }
+
+        elem.addEventListener('compositionstart', handleCompositionStart);
+        elem.addEventListener('compositionend', handleCompositionEnd);
+
+        return () => {
+            elem.removeEventListener(
+                'compositionstart',
+                handleCompositionStart,
+            );
+            elem.removeEventListener('compositionend', handleCompositionEnd);
+        };
+    }, []);
 
     return (
         <Paper
@@ -78,14 +112,14 @@ export const AgentChatInput = ({
                     <ActionIcon
                         variant="filled"
                         size="md"
-                        radius="md"
+                        radius="xl"
                         style={{
                             position: 'absolute',
                             bottom: 12,
                             right: 12,
                         }}
                         color="violet"
-                        disabled={disabled}
+                        disabled={disabled || isComposing}
                         loading={loading}
                         onClick={() => {
                             const valueToSubmit = value.trim();

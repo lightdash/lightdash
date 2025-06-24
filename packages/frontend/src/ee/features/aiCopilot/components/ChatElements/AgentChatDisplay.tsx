@@ -1,8 +1,9 @@
 import { type AiAgentMessage, type AiAgentThread } from '@lightdash/common';
 import { Divider, ScrollArea, Stack } from '@mantine-8/core';
-import { Fragment, useLayoutEffect, useRef, type FC } from 'react';
+import { Fragment, useRef, type FC } from 'react';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { AssistantBubble, UserBubble } from './AgentChatBubbles';
+import ThreadScrollToBottom from './ScrollToBottom';
 import { ChatElementsUtils } from './utils';
 
 type AiThreadMessageProps = {
@@ -33,8 +34,7 @@ type AgentChatDisplayProps = {
     showScrollbar?: boolean;
     enableAutoScroll?: boolean;
     padding?: string;
-    isGenerating?: boolean;
-    isPreview?: boolean;
+    mode: 'preview' | 'interactive';
 };
 
 export const AgentChatDisplay: FC<AgentChatDisplayProps> = ({
@@ -44,30 +44,9 @@ export const AgentChatDisplay: FC<AgentChatDisplayProps> = ({
     showScrollbar = true,
     enableAutoScroll = false,
     padding = 'xl',
-    isGenerating = false,
-    isPreview = false,
+    mode,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
-
-    useLayoutEffect(() => {
-        if (!enableAutoScroll || !viewport.current) return;
-
-        const scrollToBottom = () => {
-            const element = viewport.current!;
-            element.scrollTo({
-                top: element.scrollHeight,
-                behavior: 'smooth',
-            });
-        };
-
-        const raf = requestAnimationFrame(scrollToBottom);
-        const timeout = setTimeout(scrollToBottom, 300);
-
-        return () => {
-            cancelAnimationFrame(raf);
-            clearTimeout(timeout);
-        };
-    }, [enableAutoScroll, isGenerating, thread?.messages.length]);
 
     return (
         <ScrollArea
@@ -80,6 +59,7 @@ export const AgentChatDisplay: FC<AgentChatDisplayProps> = ({
                 },
             }}
             viewportRef={viewport}
+            key={thread.uuid}
         >
             <Stack
                 {...ChatElementsUtils.centeredElementProps}
@@ -110,11 +90,14 @@ export const AgentChatDisplay: FC<AgentChatDisplayProps> = ({
                             <AiThreadMessage
                                 message={message}
                                 agentName={agentName}
-                                isPreview={isPreview}
+                                isPreview={mode === 'preview'}
                             />
                         </Fragment>
                     );
                 })}
+                {enableAutoScroll ? (
+                    <ThreadScrollToBottom scrollAreaRef={viewport} />
+                ) : null}
             </Stack>
         </ScrollArea>
     );

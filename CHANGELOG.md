@@ -1,3 +1,60 @@
+## [0.1752.2](https://github.com/lightdash/lightdash/compare/0.1752.1...0.1752.2) (2025-06-24)
+
+
+### Bug Fixes
+
+* content-disposition header in s3Client ([#15520](https://github.com/lightdash/lightdash/issues/15520)) ([3548794](https://github.com/lightdash/lightdash/commit/354879455ea773e1b73793da46d307e35bdd512d))
+
+## [0.1752.1](https://github.com/lightdash/lightdash/compare/0.1752.0...0.1752.1) (2025-06-24)
+
+
+### Bug Fixes
+
+* duplicate virtual views into preview project ([#15513](https://github.com/lightdash/lightdash/issues/15513)) ([6f6be4d](https://github.com/lightdash/lightdash/commit/6f6be4d79604ee8eb2060e9e2fa9011287bda177))
+
+# [0.1752.0](https://github.com/lightdash/lightdash/compare/0.1751.0...0.1752.0) (2025-06-24)
+
+
+### Features
+
+* add tool call streaming for AI agents ([#15481](https://github.com/lightdash/lightdash/issues/15481)) ([6430ef7](https://github.com/lightdash/lightdash/commit/6430ef79848da078418041c6fbf19448c53164c1))
+
+# [0.1751.0](https://github.com/lightdash/lightdash/compare/0.1750.0...0.1751.0) (2025-06-24)
+
+
+### Features
+
+* AI Agent stream state management ([#15479](https://github.com/lightdash/lightdash/issues/15479)) ([e4d5099](https://github.com/lightdash/lightdash/commit/e4d509961d4ba1caef63527ea9845333129f207b)), closes [#15360](https://github.com/lightdash/lightdash/issues/15360)
+* **frontend:** streaming support for AI Agent thread responses ([#15480](https://github.com/lightdash/lightdash/issues/15480)) ([74fbf99](https://github.com/lightdash/lightdash/commit/74fbf993960d0523bbd890ce151278c78111c278)), closes [#15360](https://github.com/lightdash/lightdash/issues/15360)
+
+# [0.1750.0](https://github.com/lightdash/lightdash/compare/0.1749.0...0.1750.0) (2025-06-24)
+
+
+### Features
+
+* **backend:** streaming support for AI Agent thread responses ([#15478](https://github.com/lightdash/lightdash/issues/15478)) ([467856d](https://github.com/lightdash/lightdash/commit/467856ded8262928d15400abd5c6019eddfdde2c)), closes [#15360](https://github.com/lightdash/lightdash/issues/15360)
+
+# [0.1749.0](https://github.com/lightdash/lightdash/compare/0.1748.2...0.1749.0) (2025-06-24)
+
+
+### Features
+
+* add feature flag checks and loading states to AI agents page ([#15503](https://github.com/lightdash/lightdash/issues/15503)) ([2923c3b](https://github.com/lightdash/lightdash/commit/2923c3b908097fe9370ab5be77a8deec822a689b))
+
+## [0.1748.2](https://github.com/lightdash/lightdash/compare/0.1748.1...0.1748.2) (2025-06-24)
+
+
+### Bug Fixes
+
+* prevent empty dashboards from downloading all charts ([#15352](https://github.com/lightdash/lightdash/issues/15352)) ([b55682f](https://github.com/lightdash/lightdash/commit/b55682fbc9a22e29d780e838041ad3c6a1e25214)), closes [#14833](https://github.com/lightdash/lightdash/issues/14833)
+
+## [0.1748.1](https://github.com/lightdash/lightdash/compare/0.1748.0...0.1748.1) (2025-06-24)
+
+
+### Bug Fixes
+
+* prevent Enter key submission during character composition ([#15504](https://github.com/lightdash/lightdash/issues/15504)) ([426bce5](https://github.com/lightdash/lightdash/commit/426bce5c134e522b51a65d783f97b14811d3dcee))
+
 # [0.1748.0](https://github.com/lightdash/lightdash/compare/0.1747.0...0.1748.0) (2025-06-23)
 
 

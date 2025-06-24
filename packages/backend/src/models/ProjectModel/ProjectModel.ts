@@ -1535,6 +1535,27 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
+            const virtualViews = await trx(CachedExploreTableName)
+                .where('project_uuid', projectUuid)
+                .andWhereJsonPath(
+                    'explore',
+                    '$.type',
+                    '=',
+                    ExploreType.VIRTUAL,
+                );
+
+            Logger.info(
+                `Duplicating ${virtualViews.length} virtual views into ${previewProjectUuid}`,
+            );
+
+            await trx(CachedExploreTableName).insert(
+                virtualViews.map((v) => ({
+                    ...v,
+                    project_uuid: previewProjectUuid,
+                    cached_explore_uuid: undefined,
+                })),
+            );
+
             // .dP"Y8    db    Yb    dP 888888 8888b.      .dP"Y8  dP"Yb  88
             // `Ybo."   dPYb    Yb  dP  88__    8I  Yb     `Ybo." dP   Yb 88
             // o.`Y8b  dP__Yb    YbdP   88""    8I  dY     o.`Y8b Yb b dP 88  .o

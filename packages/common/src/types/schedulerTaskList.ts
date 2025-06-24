@@ -1,7 +1,4 @@
-import {
-    type AiAgentThreadGenerateJobPayload,
-    type SlackPromptJobPayload,
-} from '../ee';
+import { type SlackPromptJobPayload } from '../ee';
 import { type SchedulerIndexCatalogJobPayload } from './catalog';
 import { type UploadMetricGsheetPayload } from './gdrive';
 import { type RenameResourcesPayload } from './rename';
@@ -27,7 +24,6 @@ import {
 
 export const EE_SCHEDULER_TASKS = {
     SLACK_AI_PROMPT: 'slackAiPrompt',
-    AI_AGENT_THREAD_GENERATE: 'aiAgentThreadGenerate',
 } as const;
 
 export const SCHEDULER_TASKS = {
@@ -74,13 +70,11 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: TraceTaskBase;
     [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: ExportCsvDashboardPayload;
     [SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
-    [SCHEDULER_TASKS.AI_AGENT_THREAD_GENERATE]: AiAgentThreadGenerateJobPayload;
     [SCHEDULER_TASKS.RENAME_RESOURCES]: RenameResourcesPayload;
 }
 
 export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
-    [EE_SCHEDULER_TASKS.AI_AGENT_THREAD_GENERATE]: AiAgentThreadGenerateJobPayload;
 }
 
 export type SchedulerTaskName =
