@@ -1,3 +1,11 @@
+# [0.1751.0](https://github.com/lightdash/lightdash/compare/0.1750.0...0.1751.0) (2025-06-24)
+
+
+### Features
+
+* AI Agent stream state management ([#15479](https://github.com/lightdash/lightdash/issues/15479)) ([e4d5099](https://github.com/lightdash/lightdash/commit/e4d509961d4ba1caef63527ea9845333129f207b)), closes [#15360](https://github.com/lightdash/lightdash/issues/15360)
+* **frontend:** streaming support for AI Agent thread responses ([#15480](https://github.com/lightdash/lightdash/issues/15480)) ([74fbf99](https://github.com/lightdash/lightdash/commit/74fbf993960d0523bbd890ce151278c78111c278)), closes [#15360](https://github.com/lightdash/lightdash/issues/15360)
+
 # [0.1750.0](https://github.com/lightdash/lightdash/compare/0.1749.0...0.1750.0) (2025-06-24)
 
 
