@@ -3,17 +3,15 @@ import { IconTool } from '@tabler/icons-react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useAiAgentThreadStreamToolCalls } from '../../../streaming/useAiAgentThreadStreamQuery';
+import { getToolCallDescription } from './ToolCallDescriptions';
 
-// TODO :: should be based on schemas
-const TOOL_DISPLAY_MESSAGES = {
-    findFields: 'Finding relevant fields',
-    generateBarVizConfig: 'Generating a bar chart',
-    generateCsv: 'Generating CSV file',
-    generateQueryFilters: 'Applying filters to the query',
-    generateTimeSeriesVizConfig: 'Generating a line chart',
-} as const;
-
-const TOOL_NAMES = Object.keys(TOOL_DISPLAY_MESSAGES);
+const TOOL_NAMES = [
+    'findFields',
+    'generateBarVizConfig',
+    'generateCsv',
+    'generateQueryFilters',
+    'generateTimeSeriesVizConfig',
+];
 
 const AgentToolCalls = () => {
     const { threadUuid } = useParams();
@@ -42,9 +40,7 @@ const AgentToolCalls = () => {
                     )
                     .map((toolCall) => {
                         const toolDescription =
-                            TOOL_DISPLAY_MESSAGES[
-                                toolCall.toolName as keyof typeof TOOL_DISPLAY_MESSAGES
-                            ];
+                            getToolCallDescription(toolCall);
 
                         if (!toolDescription) return null;
 
