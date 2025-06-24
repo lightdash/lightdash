@@ -417,9 +417,34 @@ export class AiAgentService {
         });
 
         if (thread.createdFrom !== 'slack') {
+            const messagesWithToolCalls = await Promise.all(
+                messages.map(async (message) => {
+                    if (message.role !== 'assistant') {
+                        return message;
+                    }
+
+                    const toolCalls =
+                        await this.aiAgentModel.getToolCallsForPrompt(
+                            message.uuid,
+                        );
+
+                    return {
+                        ...message,
+                        toolCalls: toolCalls.map((toolCall) => ({
+                            uuid: toolCall.ai_agent_tool_call_uuid,
+                            promptUuid: toolCall.ai_prompt_uuid,
+                            toolCallId: toolCall.tool_call_id,
+                            toolName: toolCall.tool_name,
+                            toolArgs: toolCall.tool_args,
+                            createdAt: toolCall.created_at,
+                        })),
+                    };
+                }),
+            );
+
             return {
                 ...thread,
-                messages,
+                messages: messagesWithToolCalls,
             };
         }
 

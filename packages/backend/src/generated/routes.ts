@@ -4773,11 +4773,31 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentToolCall: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                createdAt: { dataType: 'datetime', required: true },
+                toolArgs: { dataType: 'object', required: true },
+                toolName: { dataType: 'string', required: true },
+                toolCallId: { dataType: 'string', required: true },
+                promptUuid: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentMessageAssistant: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                toolCalls: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'AiAgentToolCall' },
+                },
                 humanScore: {
                     dataType: 'union',
                     subSchemas: [

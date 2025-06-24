@@ -1315,6 +1315,6 @@ export class AiAgentModel {
     ): Promise<DbAiAgentToolCall[]> {
         return this.database(AiAgentToolCallTableName)
             .where('ai_prompt_uuid', promptUuid)
-            .orderBy('order_index', 'asc');
+            .orderBy('created_at', 'asc');
     }
 }
