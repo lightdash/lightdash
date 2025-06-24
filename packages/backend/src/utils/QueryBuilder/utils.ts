@@ -518,7 +518,12 @@ export const getCustomBinDimensionSql = ({
     userAttributes: UserAttributeValueMap | undefined;
     sorts: SortField[] | undefined;
 }):
-    | { ctes: string[]; joins: string[]; tables: string[]; selects: string[] }
+    | {
+          ctes: string[];
+          join: string | undefined;
+          tables: string[];
+          selects: string[];
+      }
     | undefined => {
     const startOfWeek = warehouseClient.getStartOfWeek();
 
@@ -795,7 +800,12 @@ export const getCustomBinDimensionSql = ({
         [],
     );
 
-    return { ctes, joins, tables: [...new Set(tables)], selects };
+    return {
+        ctes,
+        join: joins.length > 0 ? `CROSS JOIN ${joins.join(',\n')}` : undefined,
+        tables: [...new Set(tables)],
+        selects,
+    };
 };
 
 export const getJoinedTables = (
