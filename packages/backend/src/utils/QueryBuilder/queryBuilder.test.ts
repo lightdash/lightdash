@@ -2,6 +2,7 @@ import {
     BinType,
     CustomDimensionType,
     ForbiddenError,
+    TimeFrames,
 } from '@lightdash/common';
 import {
     BuildQueryProps,
@@ -19,6 +20,7 @@ import {
     EXPLORE_ALL_JOIN_TYPES_CHAIN,
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
+    EXPLORE_WITH_REQUIRED_FILTERS,
     EXPLORE_WITH_SQL_FILTER,
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
@@ -32,6 +34,8 @@ import {
     METRIC_QUERY_WITH_ADDITIONAL_METRIC,
     METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL,
     METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+    METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT,
+    METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT_SQL,
     METRIC_QUERY_WITH_DISABLED_FILTER,
     METRIC_QUERY_WITH_DISABLED_FILTER_SQL,
     METRIC_QUERY_WITH_EMPTY_FILTER,
@@ -49,10 +53,13 @@ import {
     METRIC_QUERY_WITH_METRIC_FILTER,
     METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL,
     METRIC_QUERY_WITH_METRIC_FILTER_SQL,
+    METRIC_QUERY_WITH_MONTH_NAME_SORT,
+    METRIC_QUERY_WITH_MONTH_NAME_SORT_SQL,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL,
     METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
     METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL,
+    METRIC_QUERY_WITH_REQUIRED_FILTERS_SQL,
     METRIC_QUERY_WITH_SQL_FILTER,
     METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER,
     METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL,
@@ -549,5 +556,103 @@ describe('Query builder', () => {
                 timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).not.toContain('age_range');
+    });
+    it('Should build query with required filters with joined tables', () => {
+        expect(
+            replaceWhitespace(
+                buildQuery({
+                    explore: EXPLORE_WITH_REQUIRED_FILTERS,
+                    compiledMetricQuery: METRIC_QUERY,
+                    warehouseClient: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }).query,
+            ),
+        ).toStrictEqual(
+            replaceWhitespace(METRIC_QUERY_WITH_REQUIRED_FILTERS_SQL),
+        );
+    });
+
+    it('Should build metric query with metric filters', () => {
+        expect(
+            replaceWhitespace(
+                buildQuery({
+                    explore: EXPLORE,
+                    compiledMetricQuery: METRIC_QUERY_WITH_METRIC_FILTER,
+                    warehouseClient: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }).query,
+            ),
+        ).toStrictEqual(replaceWhitespace(METRIC_QUERY_WITH_METRIC_FILTER_SQL));
+    });
+
+    it('Should build metric query with sort by dimension with timeinterval month name', () => {
+        // Create a modified explore with a month name dimension
+        const exploreWithMonthNameDimension = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    dimensions: {
+                        ...EXPLORE.tables.table1.dimensions,
+                        dim1: {
+                            ...EXPLORE.tables.table1.dimensions.dim1,
+                            timeInterval: TimeFrames.MONTH_NAME,
+                        },
+                    },
+                },
+            },
+        };
+
+        expect(
+            replaceWhitespace(
+                buildQuery({
+                    explore: exploreWithMonthNameDimension,
+                    compiledMetricQuery: METRIC_QUERY_WITH_MONTH_NAME_SORT,
+                    warehouseClient: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }).query,
+            ),
+        ).toStrictEqual(
+            replaceWhitespace(METRIC_QUERY_WITH_MONTH_NAME_SORT_SQL),
+        );
+    });
+
+    it('Should build metric query with sort by dimension with timeinterval day of the week name', () => {
+        // Create a modified explore with a day of week name dimension
+        const exploreWithDayOfWeekNameDimension = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    dimensions: {
+                        ...EXPLORE.tables.table1.dimensions,
+                        dim1: {
+                            ...EXPLORE.tables.table1.dimensions.dim1,
+                            timeInterval: TimeFrames.DAY_OF_WEEK_NAME,
+                        },
+                    },
+                },
+            },
+        };
+
+        expect(
+            replaceWhitespace(
+                buildQuery({
+                    explore: exploreWithDayOfWeekNameDimension,
+                    compiledMetricQuery:
+                        METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT,
+                    warehouseClient: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }).query,
+            ),
+        ).toStrictEqual(
+            replaceWhitespace(METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT_SQL),
+        );
     });
 });
