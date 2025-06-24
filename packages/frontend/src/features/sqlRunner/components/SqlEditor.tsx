@@ -166,6 +166,14 @@ const registerCustomCompletionProvider = (
                 let formattedName = fieldName;
 
                 // Apply quote preference (only always or never)
+                // First apply case preference
+                if (settings?.casePreference === 'lowercase') {
+                    formattedName = formattedName.toLowerCase();
+                } else if (settings?.casePreference === 'uppercase') {
+                    formattedName = formattedName.toUpperCase();
+                }
+
+                // Then apply quote preference
                 if (!settings || settings?.quotePreference === 'always') {
                     return `${quoteChar}${formattedName}${quoteChar}`;
                 }
