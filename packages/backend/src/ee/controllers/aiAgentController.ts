@@ -4,8 +4,6 @@ import {
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
-    ApiAiAgentThreadGenerateRequest,
-    ApiAiAgentThreadGenerateResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
@@ -222,57 +220,6 @@ export class AiAgentController extends BaseController {
                 threadUuid,
                 body,
             ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('/{agentUuid}/generate')
-    @OperationId('startAgentThread')
-    async startAgentThread(
-        @Request() req: express.Request,
-        @Path() agentUuid: string,
-        @Body() body: ApiAiAgentThreadGenerateRequest,
-    ): Promise<ApiAiAgentStartThreadResponse> {
-        this.setStatus(200);
-        const { jobId, threadUuid } =
-            await this.getAiAgentService().scheduleGenerateAgentThreadResponse(
-                req.user!,
-                {
-                    agentUuid,
-                    threadUuid: undefined,
-                    prompt: body.prompt,
-                },
-            );
-        return {
-            status: 'ok',
-            results: { jobId, threadUuid },
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('/{agentUuid}/threads/{threadUuid}/generate')
-    @OperationId('generateAgentThreadResponse')
-    async generateAgentThreadResponse(
-        @Request() req: express.Request,
-        @Path() agentUuid: string,
-        @Path() threadUuid: string,
-        @Body() body: ApiAiAgentThreadGenerateRequest,
-    ): Promise<ApiAiAgentThreadGenerateResponse> {
-        this.setStatus(200);
-        const { jobId } =
-            await this.getAiAgentService().scheduleGenerateAgentThreadResponse(
-                req.user!,
-                {
-                    agentUuid,
-                    threadUuid,
-                    prompt: body.prompt,
-                },
-            );
-        return {
-            status: 'ok',
-            results: { jobId },
         };
     }
 
