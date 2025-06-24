@@ -1747,4 +1747,27 @@ export const METRIC_QUERY_WITH_REQUIRED_FILTERS_SQL = `WITH metrics AS (
 )
 SELECT *, table1_dim1 + table1_metric1 AS "calc3" FROM metrics ORDER BY "table1_metric1" DESC LIMIT 10`;
 
+// Metric query with custom SQL dimension
+export const METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION: CompiledMetricQuery = {
+    exploreName: 'table1',
+    dimensions: ['table1_dim1', 'is_adult'],
+    metrics: ['table1_metric1'],
+    filters: {},
+    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [CUSTOM_SQL_DIMENSION],
+};
+
+// Expected SQL for metric query with custom SQL dimension
+export const EXPECTED_SQL_WITH_CUSTOM_SQL_DIMENSION = `SELECT "table1".dim1 AS "table1_dim1",
+       ("table1".dim1 < 18) AS "is_adult",
+       MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+GROUP BY 1,2
+ORDER BY "table1_metric1" DESC LIMIT 10`;
+
 export const QUERY_BUILDER_UTC_TIMEZONE = 'UTC';

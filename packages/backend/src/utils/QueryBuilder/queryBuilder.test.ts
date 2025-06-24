@@ -15,6 +15,7 @@ import {
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_NUMBER,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_WIDTH,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_WIDTH_ON_POSTGRES,
+    EXPECTED_SQL_WITH_CUSTOM_SQL_DIMENSION,
     EXPECTED_SQL_WITH_SORTED_CUSTOM_DIMENSION,
     EXPLORE,
     EXPLORE_ALL_JOIN_TYPES_CHAIN,
@@ -34,6 +35,7 @@ import {
     METRIC_QUERY_WITH_ADDITIONAL_METRIC,
     METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL,
     METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+    METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION,
     METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT,
     METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT_SQL,
     METRIC_QUERY_WITH_DISABLED_FILTER,
@@ -653,6 +655,22 @@ describe('Query builder', () => {
             ),
         ).toStrictEqual(
             replaceWhitespace(METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT_SQL),
+        );
+    });
+
+    it('Should build metric query as a custom SQL dimension', () => {
+        expect(
+            replaceWhitespace(
+                buildQuery({
+                    explore: EXPLORE,
+                    compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION,
+                    warehouseClient: warehouseClientMock,
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                }).query,
+            ),
+        ).toStrictEqual(
+            replaceWhitespace(EXPECTED_SQL_WITH_CUSTOM_SQL_DIMENSION),
         );
     });
 });
