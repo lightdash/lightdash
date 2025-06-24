@@ -162,6 +162,7 @@ const registerCustomCompletionProvider = (
 
             const suggestions: languages.CompletionItem[] = [];
 
+
             const formatFieldName = (fieldName: string): string => {
                 let formattedName = fieldName;
 
@@ -178,15 +179,9 @@ const registerCustomCompletionProvider = (
                     return `${quoteChar}${formattedName}${quoteChar}`;
                 }
 
-                // Apply case preference (only lowercase or uppercase)
-                if (settings.casePreference === 'lowercase') {
-                    formattedName = formattedName.toLowerCase();
-                } else if (settings.casePreference === 'uppercase') {
-                    formattedName = formattedName.toUpperCase();
-                }
-
                 return formattedName;
             };
+
 
             // Add field suggestions first (top priority)
             if (fields && fields.length > 0) {
