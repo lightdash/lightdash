@@ -23,7 +23,6 @@ import { notifications } from '@mantine/notifications';
 import {
     IconAlertCircle,
     IconChartHistogram,
-    IconCodeCircle,
     IconGripHorizontal,
 } from '@tabler/icons-react';
 import type { EChartsInstance } from 'echarts-for-react';
@@ -80,6 +79,7 @@ import { runSqlQuery } from '../store/thunks';
 import { ChartDownload } from './Download/ChartDownload';
 import ResultsDownloadButton from './Download/ResultsDownloadButton';
 import { SqlEditor } from './SqlEditor';
+import { SqlEditorPreferencesPopover } from './SqlEditorPreferencesPopover';
 import { SqlQueryHistory } from './SqlQueryHistory';
 
 export const ContentPanel: FC = () => {
@@ -399,12 +399,8 @@ export const ContentPanel: FC = () => {
                                                     label="You haven't run this query yet."
                                                 >
                                                     <Group spacing={4} noWrap>
-                                                        <MantineIcon
-                                                            color="gray.6"
-                                                            icon={
-                                                                IconCodeCircle
-                                                            }
-                                                        />
+                                                        <SqlEditorPreferencesPopover />
+
                                                         <Text>SQL</Text>
                                                     </Group>
                                                 </Tooltip>

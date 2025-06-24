@@ -21,6 +21,10 @@ import SuboptimalState from '../../../components/common/SuboptimalState/Suboptim
 import '../../../styles/monaco.css';
 import { useDetectedTableFields } from '../hooks/useDetectedTableFields';
 import {
+    useSqlEditorPreferences,
+    type SqlEditorPreferences,
+} from '../hooks/useSqlEditorPreferences';
+import {
     useTableFields,
     type WarehouseTableFieldWithContext,
 } from '../hooks/useTableFields';
@@ -137,6 +141,7 @@ const registerCustomCompletionProvider = (
     quoteChar: string,
     tables: string[],
     fields?: WarehouseTableFieldWithContext[],
+    settings?: SqlEditorPreferences,
 ) => {
     return monaco.languages.registerCompletionItemProvider(language, {
         provideCompletionItems: (model, position) => {
@@ -157,9 +162,29 @@ const registerCustomCompletionProvider = (
 
             const suggestions: languages.CompletionItem[] = [];
 
+            const formatFieldName = (fieldName: string): string => {
+                let formattedName = fieldName;
+
+                // Apply quote preference (only always or never)
+                if (!settings || settings?.quotePreference === 'always') {
+                    return `${quoteChar}${formattedName}${quoteChar}`;
+                }
+
+                // Apply case preference (only lowercase or uppercase)
+                if (settings.casePreference === 'lowercase') {
+                    formattedName = formattedName.toLowerCase();
+                } else if (settings.casePreference === 'uppercase') {
+                    formattedName = formattedName.toUpperCase();
+                }
+
+                return formattedName;
+            };
+
             // Add field suggestions first (top priority)
             if (fields && fields.length > 0) {
-                const fieldSuggestions = fields.map((field) => {
+                const fieldSuggestions: languages.CompletionItem[] = [];
+
+                fields.forEach((field) => {
                     // Check if field has table context information
                     const hasTableContext =
                         'table' in field && 'schema' in field;
@@ -167,15 +192,25 @@ const registerCustomCompletionProvider = (
                         ? ` from ${field.schema}.${field.table}`
                         : '';
 
-                    return {
-                        label: `${field.name} (${field.type})${tableContext}`,
+                    const formattedFieldName = formatFieldName(field.name);
+                    const displayName =
+                        settings?.casePreference === 'lowercase'
+                            ? field.name.toLowerCase()
+                            : settings?.casePreference === 'uppercase'
+                            ? field.name.toUpperCase()
+                            : field.name;
+
+                    fieldSuggestions.push({
+                        label: `${displayName} (${field.type})${tableContext}`,
                         kind: monaco.languages.CompletionItemKind.Field,
-                        insertText: `${quoteChar}${field.name}${quoteChar}`,
+                        insertText: formattedFieldName,
                         range,
-                        sortText: `0${field.name}`, // High priority with '0' prefix
+                        sortText: `0${displayName}`, // High priority
                         detail: `Column: ${field.type}${tableContext}`,
-                    };
+                    });
                 });
+
+                // Deduplicate by label
                 const fieldMap = new Map();
                 fieldSuggestions.forEach((suggestion) => {
                     fieldMap.set(suggestion.label, suggestion);
@@ -203,6 +238,7 @@ const registerCustomCompletionProvider = (
                         '',
                     );
                 }
+
                 return {
                     label: table,
                     kind: monaco.languages.CompletionItemKind.Class,
@@ -222,15 +258,49 @@ const registerCustomCompletionProvider = (
 const generateTableCompletions = (
     quoteChar: string,
     data: { database: string; tablesBySchema: TablesBySchema },
+    settings?: SqlEditorPreferences,
 ) => {
     if (!data) return;
 
     const database = data.database;
+
+    // Helper function to format table names based on settings
+    const formatTableName = (
+        db: string,
+        schema: string,
+        table: string,
+    ): string => {
+        let formattedDb = db;
+        let formattedSchema = schema;
+        let formattedTable = table;
+
+        if (!settings) {
+            return `${quoteChar}${formattedDb}${quoteChar}.${quoteChar}${formattedSchema}${quoteChar}.${quoteChar}${formattedTable}${quoteChar}`;
+        }
+
+        // Apply quote preference (only always or never)
+        if (settings.quotePreference === 'always') {
+            return `${quoteChar}${formattedDb}${quoteChar}.${quoteChar}${formattedSchema}${quoteChar}.${quoteChar}${formattedTable}${quoteChar}`;
+        }
+
+        // Apply case preference (only lowercase or uppercase)
+        if (settings.casePreference === 'lowercase') {
+            formattedDb = formattedDb.toLowerCase();
+            formattedSchema = formattedSchema.toLowerCase();
+            formattedTable = formattedTable.toLowerCase();
+        } else if (settings.casePreference === 'uppercase') {
+            formattedDb = formattedDb.toUpperCase();
+            formattedSchema = formattedSchema.toUpperCase();
+            formattedTable = formattedTable.toUpperCase();
+        }
+
+        return `${formattedDb}.${formattedSchema}.${formattedTable}`;
+    };
+
     const tablesList = data.tablesBySchema
         ?.map((s) =>
-            Object.keys(s.tables).map(
-                (t) =>
-                    `${quoteChar}${database}${quoteChar}.${quoteChar}${s.schema}${quoteChar}.${quoteChar}${t}${quoteChar}`,
+            Object.keys(s.tables).map((t) =>
+                formatTableName(database, s.schema.toString(), t),
             ),
         )
         .flat();
@@ -250,6 +320,9 @@ export const SqlEditor: FC<{
     const warehouseConnectionType = useAppSelector(
         (state) => state.sqlRunner.warehouseConnectionType,
     );
+
+    const [settings] = useSqlEditorPreferences(warehouseConnectionType);
+
     const { data: tablesData, isLoading: isTablesDataLoading } = useTables({
         projectUuid,
     });
@@ -347,6 +420,7 @@ export const SqlEditor: FC<{
             const tablesList = generateTableCompletions(
                 quoteChar,
                 transformedData,
+                settings,
             );
             // Transform current table fields to include context and combine with detected table fields
             const currentTableFieldsWithContext = (tableFieldsData || []).map(
@@ -367,6 +441,7 @@ export const SqlEditor: FC<{
                     quoteChar,
                     tablesList,
                     allFieldsData.length > 0 ? allFieldsData : undefined,
+                    settings,
                 );
                 completionProviderRef.current = provider;
             }
@@ -387,6 +462,8 @@ export const SqlEditor: FC<{
         detectedTablesFieldData,
         currentTable,
         currentSchema,
+        warehouseConnectionType,
+        settings,
     ]);
 
     useEffect(() => {
