@@ -1,3 +1,10 @@
+## [0.1748.1](https://github.com/lightdash/lightdash/compare/0.1748.0...0.1748.1) (2025-06-24)
+
+
+### Bug Fixes
+
+* prevent Enter key submission during character composition ([#15504](https://github.com/lightdash/lightdash/issues/15504)) ([426bce5](https://github.com/lightdash/lightdash/commit/426bce5c134e522b51a65d783f97b14811d3dcee))
+
 # [0.1748.0](https://github.com/lightdash/lightdash/compare/0.1747.0...0.1748.0) (2025-06-23)
 
 
