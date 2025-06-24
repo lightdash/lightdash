@@ -1,3 +1,10 @@
+# [0.1753.0](https://github.com/lightdash/lightdash/compare/0.1752.2...0.1753.0) (2025-06-24)
+
+
+### Features
+
+* allow user preferences in sql editor ([#15510](https://github.com/lightdash/lightdash/issues/15510)) ([fd7434a](https://github.com/lightdash/lightdash/commit/fd7434a78dfb5444d37208b02c4093ccdfe3ee06))
+
 ## [0.1752.2](https://github.com/lightdash/lightdash/compare/0.1752.1...0.1752.2) (2025-06-24)
 
 
