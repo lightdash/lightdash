@@ -18,11 +18,6 @@ export enum FeatureFlags {
     EnableUserTimezones = 'enable-user-timezones',
 
     /**
-     * Enable the semantic layer
-     */
-    SemanticLayerEnabled = 'semantic-layer-enabled',
-
-    /**
      * Enable dashboard comments
      */
     DashboardComments = 'dashboard-comments-enabled',
