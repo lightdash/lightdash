@@ -116,6 +116,8 @@ export type AiAgentMessageAssistant = {
     filtersOutput: object | null;
     metricQuery: object | null;
     humanScore: number | null;
+
+    toolCalls: AiAgentToolCall[];
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
@@ -252,3 +254,12 @@ export type ApiGetUserAgentPreferencesResponse =
 export type ApiUpdateUserAgentPreferences = AiAgentUserPreferences;
 
 export type ApiUpdateUserAgentPreferencesResponse = ApiSuccessEmpty;
+
+export type AiAgentToolCall = {
+    uuid: string;
+    promptUuid: string;
+    toolCallId: string;
+    toolName: string;
+    toolArgs: object;
+    createdAt: Date;
+};

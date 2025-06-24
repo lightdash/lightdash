@@ -632,7 +632,7 @@ export class AiAgentModel {
             )
             .orderBy(`${AiPromptTableName}.created_at`, 'asc');
 
-        return rows.flatMap((row) => {
+        const messagesPromises = rows.map(async (row) => {
             const messages: AiAgentMessage<{
                 uuid: string;
                 name: string;
@@ -652,6 +652,10 @@ export class AiAgentModel {
                 },
             });
 
+            const toolCalls = await this.getToolCallsForPrompt(
+                row.ai_prompt_uuid,
+            );
+
             if (row.responded_at != null) {
                 messages.push({
                     role: 'assistant',
@@ -663,11 +667,21 @@ export class AiAgentModel {
                     filtersOutput: row.filters_output,
                     metricQuery: row.metric_query,
                     humanScore: row.human_score,
+                    toolCalls: toolCalls.map((toolCall) => ({
+                        uuid: toolCall.ai_agent_tool_call_uuid,
+                        promptUuid: toolCall.ai_prompt_uuid,
+                        toolCallId: toolCall.tool_call_id,
+                        toolName: toolCall.tool_name,
+                        toolArgs: toolCall.tool_args,
+                        createdAt: toolCall.created_at,
+                    })),
                 });
             }
 
             return messages;
         });
+
+        return (await Promise.all(messagesPromises)).flat();
     }
 
     async findThreadMessage(
@@ -793,6 +807,9 @@ export class AiAgentModel {
                     },
                 } satisfies AiAgentMessageUser;
             case 'assistant':
+                const toolCalls = await this.getToolCallsForPrompt(
+                    row.ai_prompt_uuid,
+                );
                 return {
                     role: 'assistant',
                     uuid: row.ai_prompt_uuid,
@@ -806,6 +823,14 @@ export class AiAgentModel {
                     filtersOutput: row.filters_output,
                     metricQuery: row.metric_query,
                     humanScore: row.human_score,
+                    toolCalls: toolCalls.map((toolCall) => ({
+                        uuid: toolCall.ai_agent_tool_call_uuid,
+                        promptUuid: toolCall.ai_prompt_uuid,
+                        toolCallId: toolCall.tool_call_id,
+                        toolName: toolCall.tool_name,
+                        toolArgs: toolCall.tool_args,
+                        createdAt: toolCall.created_at,
+                    })),
                 } satisfies AiAgentMessageAssistant;
             default:
                 return assertUnreachable(role, `Unknown role ${role}`);
@@ -1308,6 +1333,6 @@ export class AiAgentModel {
     ): Promise<DbAiAgentToolCall[]> {
         return this.database(AiAgentToolCallTableName)
             .where('ai_prompt_uuid', promptUuid)
-            .orderBy('order_index', 'asc');
+            .orderBy('created_at', 'asc');
     }
 }

@@ -5313,8 +5313,47 @@
                 ],
                 "type": "object"
             },
+            "AiAgentToolCall": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "toolArgs": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "toolName": {
+                        "type": "string"
+                    },
+                    "toolCallId": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "toolArgs",
+                    "toolName",
+                    "toolCallId",
+                    "promptUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
             "AiAgentMessageAssistant": {
                 "properties": {
+                    "toolCalls": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentToolCall"
+                        },
+                        "type": "array"
+                    },
                     "humanScore": {
                         "type": "number",
                         "format": "double",
@@ -5356,6 +5395,7 @@
                     }
                 },
                 "required": [
+                    "toolCalls",
                     "humanScore",
                     "metricQuery",
                     "filtersOutput",
