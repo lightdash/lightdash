@@ -17,6 +17,7 @@ import { ReadStream } from 'fs';
 import { PassThrough, Readable } from 'stream';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import { createContentDispositionHeader } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 
 type S3ClientArguments = {
     lightdashConfig: LightdashConfig;
@@ -75,7 +76,7 @@ export class S3Client {
                 Body: file,
                 ContentType: contentType,
                 ACL: 'private',
-                ContentDisposition: `attachment; filename="${fileId}"`,
+                ContentDisposition: createContentDispositionHeader(fileId),
             },
         });
         try {
@@ -174,7 +175,7 @@ export class S3Client {
                 Body: buffer,
                 ContentType: `application/jsonl`,
                 ACL: 'private',
-                ContentDisposition: `attachment; filename="${fileId}"`,
+                ContentDisposition: createContentDispositionHeader(fileId),
             },
         });
 
