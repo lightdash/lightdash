@@ -185,6 +185,20 @@ export type ApiAiAgentThreadResponse = {
     results: AiAgentThread;
 };
 
+export type ApiAiAgentThreadCreateRequest = {
+    prompt?: string;
+};
+
+export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;
+
+export type ApiAiAgentThreadMessageCreateRequest = {
+    prompt: string;
+};
+
+export type ApiAiAgentThreadMessageCreateResponse = ApiSuccess<
+    AiAgentMessageUser<AiAgentUser>
+>;
+
 export type ApiAiAgentThreadGenerateRequest = {
     prompt: string;
 };

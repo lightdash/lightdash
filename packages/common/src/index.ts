@@ -120,6 +120,8 @@ import { type UserWarehouseCredentials } from './types/userWarehouseCredentials'
 import { type ValidationResponse } from './types/validation';
 
 import type {
+    ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
@@ -923,7 +925,9 @@ type ApiResults =
     | ApiAiAgentThreadMessageVizResponse['results']
     | ApiAiAgentThreadMessageVizQueryResponse['results']
     | ApiUpdateUserAgentPreferencesResponse['results']
-    | ApiGetUserAgentPreferencesResponse[`results`];
+    | ApiGetUserAgentPreferencesResponse[`results`]
+    | ApiAiAgentThreadCreateResponse['results']
+    | ApiAiAgentThreadMessageCreateResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
