@@ -4,7 +4,12 @@ import {
     type ApiUpdateUserAgentPreferences,
     type ApiUpdateUserAgentPreferencesResponse,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type UseQueryOptions,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
@@ -17,11 +22,18 @@ const getUserAgentPreferences = (projectUuid: string) =>
         body: undefined,
     });
 
-export const useGetUserAgentPreferences = (projectUuid?: string | null) => {
+export const useGetUserAgentPreferences = (
+    projectUuid?: string | null,
+    options?: UseQueryOptions<
+        ApiGetUserAgentPreferencesResponse['results'],
+        ApiError
+    >,
+) => {
     return useQuery<ApiGetUserAgentPreferencesResponse['results'], ApiError>({
         queryKey: [USER_AGENT_PREFERENCES, projectUuid],
         queryFn: () => getUserAgentPreferences(projectUuid!),
-        enabled: !!projectUuid,
+        ...options,
+        enabled: !!projectUuid && options?.enabled !== false,
     });
 };
 
