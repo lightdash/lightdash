@@ -877,6 +877,7 @@ export const parseConfig = (): LightdashConfig => {
                       modelName:
                           process.env.OPENAI_MODEL_NAME ||
                           DEFAULT_OPENAI_MODEL_NAME,
+                      baseUrl: process.env.OPENAI_BASE_URL,
                   }
                 : undefined,
             anthropic: process.env.ANTHROPIC_API_KEY
