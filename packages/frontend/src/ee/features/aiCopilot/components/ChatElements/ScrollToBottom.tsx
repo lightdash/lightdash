@@ -67,7 +67,11 @@ const ThreadScrollToBottom = ({
             checkCurrentScrollPosition: true,
             behavior: 'auto',
         });
-    }, [streamingState?.content, scrollToBottom]);
+    }, [
+        streamingState?.content,
+        streamingState.toolCalls.length,
+        scrollToBottom,
+    ]);
 
     return <div ref={messagesEndRef} data-testid="thread-scroll-to-bottom" />;
 };
