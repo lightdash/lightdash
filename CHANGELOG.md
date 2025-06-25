@@ -1,3 +1,10 @@
+## [0.1754.1](https://github.com/lightdash/lightdash/compare/0.1754.0...0.1754.1) (2025-06-25)
+
+
+### Bug Fixes
+
+* only insert virtual views into preview when there are any ([#15536](https://github.com/lightdash/lightdash/issues/15536)) ([7a31229](https://github.com/lightdash/lightdash/commit/7a3122974139f04aba300dc982c83e17b3c15a41))
+
 # [0.1754.0](https://github.com/lightdash/lightdash/compare/0.1753.0...0.1754.0) (2025-06-25)
 
 
