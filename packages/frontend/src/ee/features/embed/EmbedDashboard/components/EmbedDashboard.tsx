@@ -11,7 +11,6 @@ import {
     getResponsiveGridLayoutProps,
 } from '../../../../../components/DashboardTabs/gridUtils';
 import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile';
-import SemanticViewerChartTile from '../../../../../components/DashboardTiles/DashboardSemanticViewerChartTile';
 import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import { LockedDashboardModal } from '../../../../../components/common/modal/LockedDashboardModal';
@@ -227,15 +226,7 @@ const EmbedDashboard: FC<{
                                 onEdit={() => {}}
                             />
                         ) : tile.type ===
-                          DashboardTileTypes.SEMANTIC_VIEWER_CHART ? (
-                            <SemanticViewerChartTile
-                                key={tile.uuid}
-                                tile={tile}
-                                isEditMode={false}
-                                onDelete={() => {}}
-                                onEdit={() => {}}
-                            />
-                        ) : (
+                          DashboardTileTypes.SEMANTIC_VIEWER_CHART ? null : ( // TODO: update this type
                             assertUnreachable(
                                 tile,
                                 `Dashboard tile type is not recognised`,

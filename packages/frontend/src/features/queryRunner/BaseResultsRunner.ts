@@ -19,7 +19,8 @@ import {
 import { type QueryClient } from '@tanstack/react-query';
 import { createQueryClient } from '../../providers/ReactQuery/createQueryClient';
 
-export function getDimensionTypeFromSemanticLayerFieldType(
+// TODO: clean up types
+function getDimensionTypeFromSemanticLayerFieldType(
     type: SemanticLayerFieldType,
 ): DimensionType {
     switch (type) {
