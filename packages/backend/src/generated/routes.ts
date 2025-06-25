@@ -140,8 +140,19 @@ const models: TsoaRoute.Models = {
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ServiceAccountScope: {
-        dataType: 'refEnum',
-        enums: ['scim:manage', 'org:admin', 'org:edit', 'org:read'],
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['project:manage'] },
+                { dataType: 'enum', enums: ['content:manage'] },
+                { dataType: 'enum', enums: ['scim:manage'] },
+                { dataType: 'enum', enums: ['org:read'] },
+                { dataType: 'enum', enums: ['org:edit'] },
+                { dataType: 'enum', enums: ['org:admin'] },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ServiceAccount: {
@@ -151,7 +162,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 scopes: {
                     dataType: 'array',
-                    array: { dataType: 'refEnum', ref: 'ServiceAccountScope' },
+                    array: { dataType: 'refAlias', ref: 'ServiceAccountScope' },
                     required: true,
                 },
                 rotatedAt: {
@@ -211,7 +222,17 @@ const models: TsoaRoute.Models = {
                 description: { dataType: 'string', required: true },
                 scopes: {
                     dataType: 'array',
-                    array: { dataType: 'refEnum', ref: 'ServiceAccountScope' },
+                    array: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['project:manage'] },
+                            { dataType: 'enum', enums: ['content:manage'] },
+                            { dataType: 'enum', enums: ['scim:manage'] },
+                            { dataType: 'enum', enums: ['org:read'] },
+                            { dataType: 'enum', enums: ['org:edit'] },
+                            { dataType: 'enum', enums: ['org:admin'] },
+                        ],
+                    },
                     required: true,
                 },
             },

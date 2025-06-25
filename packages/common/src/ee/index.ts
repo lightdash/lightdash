@@ -5,6 +5,7 @@ export * from './commercialFeatureFlags';
 export * from './embed';
 export * from './scim/errors';
 export * from './scim/types';
+export * from './serviceAccounts/scopes';
 export * from './serviceAccounts/types';
 
 export enum ScimSchemaType {

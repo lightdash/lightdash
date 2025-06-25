@@ -1,9 +1,4 @@
-export enum ServiceAccountScope {
-    SCIM_MANAGE = 'scim:manage',
-    ORG_ADMIN = 'org:admin',
-    ORG_EDIT = 'org:edit',
-    ORG_READ = 'org:read',
-}
+import { type ServiceAccountScope } from './scopes';
 
 export type ServiceAccount = {
     uuid: string;

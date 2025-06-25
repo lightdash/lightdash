@@ -1,7 +1,8 @@
 /* 
 Service accounts
 */
-import { ServiceAccount, ServiceAccountScope } from '@lightdash/common';
+import { ServiceAccount } from '@lightdash/common';
+import { ProjectScope } from '@lightdash/common/src/ee/serviceAccounts/scopes';
 import express from 'express';
 
 // Mock service account data
@@ -14,7 +15,7 @@ export const mockServiceAccount: ServiceAccount = {
     description: 'Test service account',
     lastUsedAt: null,
     rotatedAt: null,
-    scopes: [ServiceAccountScope.ORG_ADMIN],
+    scopes: [ProjectScope.MANAGE],
 };
 
 export const mockExpiredServiceAccount: ServiceAccount = {

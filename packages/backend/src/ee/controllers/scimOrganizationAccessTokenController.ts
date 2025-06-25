@@ -3,8 +3,8 @@ import {
     ApiErrorPayload,
     AuthTokenPrefix,
     ScimErrorPayload,
+    ScimScope,
     ServiceAccount,
-    ServiceAccountScope,
     ServiceAccountWithToken,
 } from '@lightdash/common';
 import {
@@ -32,7 +32,7 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 
-const SCIM_SCOPES = [ServiceAccountScope.SCIM_MANAGE];
+const SCIM_SCOPES = [ScimScope.MANAGE];
 
 @Route('/api/v1/scim/organization-access-tokens')
 @Hidden()
