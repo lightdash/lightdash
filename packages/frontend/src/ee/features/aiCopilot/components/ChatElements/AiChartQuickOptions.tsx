@@ -1,3 +1,7 @@
+import {
+    type AiAgentMessageAssistant,
+    type SavedChart,
+} from '@lightdash/common';
 import { ActionIcon, Menu } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import {
@@ -5,6 +9,7 @@ import {
     IconDeviceFloppy,
     IconDots,
     IconExternalLink,
+    IconTableShortcut,
 } from '@tabler/icons-react';
 import { Fragment, useMemo } from 'react';
 import { Link } from 'react-router';
@@ -12,29 +17,40 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
+import { useSavePromptQuery } from '../../hooks/useProjectAiAgents';
 import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
 
 type Props = {
-    projectUuid?: string;
+    projectUuid: string;
     saveChartOptions?: {
         name: string | null;
         description: string | null;
     };
+    message: AiAgentMessageAssistant;
 };
 
 export const AiChartQuickOptions = ({
     projectUuid,
     saveChartOptions = { name: '', description: '' },
+    message,
 }: Props) => {
     const [opened, { open, close }] = useDisclosure(false);
-
     const { visualizationConfig, columnOrder, resultsData, chartConfig } =
         useVisualizationContext();
+    const { mutate: savePromptQuery } = useSavePromptQuery(
+        projectUuid,
+        message.threadUuid,
+        message.uuid,
+    );
     const metricQuery = resultsData?.metricQuery;
     const type = chartConfig.type;
     const vizConfig = visualizationConfig;
 
     const isDisabled = !metricQuery || !type || !vizConfig;
+    const onSaveChart = (savedData: SavedChart) => {
+        void savePromptQuery({ savedQueryUuid: savedData.uuid });
+        close();
+    };
 
     const openInExploreUrl = useMemo(() => {
         if (isDisabled) return '';
@@ -71,12 +87,28 @@ export const AiChartQuickOptions = ({
                 </Menu.Target>
                 <Menu.Dropdown>
                     <Menu.Label>Quick actions</Menu.Label>
-                    <Menu.Item
-                        onClick={() => open()}
-                        leftSection={<MantineIcon icon={IconDeviceFloppy} />}
-                    >
-                        Save
-                    </Menu.Item>
+                    {message.savedQueryUuid ? (
+                        <Menu.Item
+                            component={Link}
+                            to={`/projects/${projectUuid}/saved/${message.savedQueryUuid}`}
+                            target="_blank"
+                            leftSection={
+                                <MantineIcon icon={IconTableShortcut} />
+                            }
+                        >
+                            View saved chart
+                        </Menu.Item>
+                    ) : (
+                        <Menu.Item
+                            onClick={() => open()}
+                            leftSection={
+                                <MantineIcon icon={IconDeviceFloppy} />
+                            }
+                        >
+                            Save
+                        </Menu.Item>
+                    )}
+
                     <Menu.Item
                         component={Link}
                         to={openInExploreUrl}
@@ -110,7 +142,7 @@ export const AiChartQuickOptions = ({
                         chartConfig,
                         tableConfig: { columnOrder },
                     }}
-                    onConfirm={close}
+                    onConfirm={onSaveChart}
                     onClose={close}
                     chartMetadata={{
                         name: saveChartOptions.name ?? '',
