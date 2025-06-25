@@ -2694,6 +2694,7 @@ export class ProjectService extends BaseService {
         return results;
     }
 
+    // TODO: consider removing this method in milestone #212
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. We know that the warehouse client method shouldn't be in a model, but instead it should be its own client.
     async streamSqlQueryIntoFile({
         userUuid,

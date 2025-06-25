@@ -18,7 +18,6 @@ import {
     hasIntersection,
     isDimension,
     isExploreError,
-    type SemanticViewerChartSearchResults,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -325,31 +324,6 @@ export class SearchModel {
             {
                 name: SavedSqlTableName,
                 uuidColumnName: 'saved_sql_uuid',
-            },
-            projectUuid,
-            query,
-            filters,
-        );
-    }
-
-    private async searchSemanticViewerCharts(
-        projectUuid: string,
-        query: string,
-        filters?: SearchFilters,
-    ): Promise<SemanticViewerChartSearchResults[]> {
-        if (
-            !shouldSearchForType(
-                SearchItemType.SEMANTIC_VIEWER_CHART,
-                filters?.type,
-            )
-        ) {
-            return [];
-        }
-
-        return this.searchCharts(
-            {
-                name: SavedSemanticViewerChartsTableName,
-                uuidColumnName: 'saved_semantic_viewer_chart_uuid',
             },
             projectUuid,
             query,
@@ -687,11 +661,7 @@ export class SearchModel {
             query,
             filters,
         );
-        const semanticViewerCharts = await this.searchSemanticViewerCharts(
-            projectUuid,
-            query,
-            filters,
-        );
+
         const explores = await this.getProjectExplores(projectUuid);
         const tableErrors = await this.searchTableErrors(
             projectUuid,
@@ -712,7 +682,6 @@ export class SearchModel {
             dashboards,
             savedCharts,
             sqlCharts,
-            semanticViewerCharts,
             tables: tablesAndErrors,
             fields,
             pages,

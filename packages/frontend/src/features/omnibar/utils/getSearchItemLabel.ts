@@ -18,9 +18,6 @@ export const getSearchItemLabel = (itemType: SearchItemType) => {
             return 'Pages';
         case SearchItemType.SQL_CHART:
             return 'SQL Charts';
-        case SearchItemType.SEMANTIC_VIEWER_CHART:
-            return 'Semantic Viewer Charts';
-
         default:
             return assertUnreachable(
                 itemType,

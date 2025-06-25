@@ -21,7 +21,6 @@ import {
     ProjectMemberRole,
     ProjectSummary,
     ProjectType,
-    SemanticLayerType,
     SnowflakeAuthenticationType,
     SnowflakeCredentials,
     SpaceSummary,

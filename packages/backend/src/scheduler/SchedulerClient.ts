@@ -19,7 +19,6 @@ import {
     SchedulerFormat,
     SchedulerJobStatus,
     SchedulerTaskName,
-    SemanticLayerQueryPayload,
     SlackNotificationPayload,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
