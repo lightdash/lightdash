@@ -416,6 +416,11 @@ program
         `If set to 'prod' it will copy the table configuration from prod project`,
         'all',
     )
+    .option(
+        '--skip-copy-content',
+        'Skip copying content from the source project',
+        false,
+    )
     .action(previewHandler);
 
 program
@@ -493,6 +498,11 @@ program
         '--table-configuration <prod|all>',
         `If set to 'prod' it will copy the table configuration from prod project`,
         'all',
+    )
+    .option(
+        '--skip-copy-content',
+        'Skip copying content from the source project',
+        false,
     )
     .action(startPreviewHandler);
 
