@@ -311,7 +311,7 @@ describe('with custom dimensions', () => {
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
-            joins: ['age_range_cte'],
+            join: 'CROSS JOIN age_range_cte',
             selects: [
                 `CASE
                         WHEN "table1".dim1 IS NULL THEN NULL
@@ -357,7 +357,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
-            joins: ['age_range_cte'],
+            join: 'CROSS JOIN age_range_cte',
             selects: [
                 `CONCAT(age_range_cte.min_id, ' - ', age_range_cte.max_id) AS \`age_range\``,
             ],
@@ -388,7 +388,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
-            joins: ['age_range_cte'],
+            join: 'CROSS JOIN age_range_cte',
             selects: [
                 `CASE
                             WHEN "table1".dim1 IS NULL THEN NULL
