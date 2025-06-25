@@ -324,6 +324,82 @@ export class MetricQueryBuilder {
         );
     }
 
+    private getSortSQL() {
+        const { explore, compiledMetricQuery, warehouseClient } = this.args;
+        const { sorts, compiledCustomDimensions } = compiledMetricQuery;
+        const fieldQuoteChar = getFieldQuoteChar(
+            warehouseClient.credentials.type,
+        );
+        const startOfWeek = warehouseClient.getStartOfWeek();
+        const compiledDimensions = getDimensions(explore);
+        let requiresQueryInCTE = false;
+        const fieldOrders = sorts.map((sort) => {
+            if (
+                compiledCustomDimensions &&
+                compiledCustomDimensions.find(
+                    (customDimension) =>
+                        getItemId(customDimension) === sort.fieldId &&
+                        isCustomBinDimension(customDimension),
+                )
+            ) {
+                // Custom dimensions will have a separate `select` for ordering,
+                // that returns the min value (int) of the bin, rather than a string,
+                // so we can use it for sorting
+                return `${fieldQuoteChar}${
+                    sort.fieldId
+                }_order${fieldQuoteChar}${sort.descending ? ' DESC' : ''}`;
+            }
+            const sortedDimension = compiledDimensions.find(
+                (d) => getItemId(d) === sort.fieldId,
+            );
+
+            if (
+                sortedDimension &&
+                sortedDimension.timeInterval === TimeFrames.MONTH_NAME
+            ) {
+                requiresQueryInCTE = true;
+
+                return sortMonthName(
+                    sortedDimension,
+                    getFieldQuoteChar(warehouseClient.credentials.type),
+                    sort.descending,
+                );
+            }
+            if (
+                sortedDimension &&
+                sortedDimension.timeInterval === TimeFrames.DAY_OF_WEEK_NAME
+            ) {
+                // in BigQuery, we cannot use a function in the ORDER BY clause that references a column that is not aggregated or grouped
+                // so we need to wrap the query in a CTE to allow us to reference the column in the ORDER BY clause
+                // for consistency, we do it for all warehouses
+                requiresQueryInCTE = true;
+                return sortDayOfWeekName(
+                    sortedDimension,
+                    startOfWeek,
+                    getFieldQuoteChar(warehouseClient.credentials.type),
+                    sort.descending,
+                );
+            }
+            return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
+                sort.descending ? ' DESC' : ''
+            }`;
+        });
+
+        const sqlOrderBy =
+            fieldOrders.length > 0
+                ? `ORDER BY ${fieldOrders.join(', ')}`
+                : undefined;
+        return {
+            sqlOrderBy,
+            requiresQueryInCTE,
+        };
+    }
+
+    private getLimitSQL() {
+        const { limit } = this.args.compiledMetricQuery;
+        return limit !== undefined ? `LIMIT ${limit}` : undefined;
+    }
+
     /**
      * Compiles a database query based on the provided metric query, explores, user attributes, and warehouse-specific configurations.
      *
@@ -345,10 +421,8 @@ export class MetricQueryBuilder {
         const adapterType: SupportedDbtAdapter =
             warehouseClient.getAdapterType();
         const {
-            dimensions,
             metrics,
             filters,
-            sorts,
             limit,
             additionalMetrics,
             compiledCustomDimensions,
@@ -520,64 +594,6 @@ export class MetricQueryBuilder {
                 ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}`
                 : '';
 
-        const compiledDimensions = getDimensions(explore);
-
-        let shouldWrapQueryCTE = false;
-        const fieldOrders = sorts.map((sort) => {
-            if (
-                compiledCustomDimensions &&
-                compiledCustomDimensions.find(
-                    (customDimension) =>
-                        getItemId(customDimension) === sort.fieldId &&
-                        isCustomBinDimension(customDimension),
-                )
-            ) {
-                // Custom dimensions will have a separate `select` for ordering,
-                // that returns the min value (int) of the bin, rather than a string,
-                // so we can use it for sorting
-                return `${fieldQuoteChar}${
-                    sort.fieldId
-                }_order${fieldQuoteChar}${sort.descending ? ' DESC' : ''}`;
-            }
-            const sortedDimension = compiledDimensions.find(
-                (d) => getItemId(d) === sort.fieldId,
-            );
-
-            if (
-                sortedDimension &&
-                sortedDimension.timeInterval === TimeFrames.MONTH_NAME
-            ) {
-                shouldWrapQueryCTE = true;
-
-                return sortMonthName(
-                    sortedDimension,
-                    getFieldQuoteChar(warehouseClient.credentials.type),
-                    sort.descending,
-                );
-            }
-            if (
-                sortedDimension &&
-                sortedDimension.timeInterval === TimeFrames.DAY_OF_WEEK_NAME
-            ) {
-                // in BigQuery, we cannot use a function in the ORDER BY clause that references a column that is not aggregated or grouped
-                // so we need to wrap the query in a CTE to allow us to reference the column in the ORDER BY clause
-                // for consistency, we do it for all warehouses
-                shouldWrapQueryCTE = true;
-                return sortDayOfWeekName(
-                    sortedDimension,
-                    startOfWeek,
-                    getFieldQuoteChar(warehouseClient.credentials.type),
-                    sort.descending,
-                );
-            }
-            return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
-                sort.descending ? ' DESC' : ''
-            }`;
-        });
-
-        const sqlOrderBy =
-            fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
-
         const requiredDimensionFilterSql =
             this.getNestedDimensionFilterSQLFromModelFilters(
                 explore.tables[explore.baseTable],
@@ -638,12 +654,12 @@ export class MetricQueryBuilder {
             Logger.error('Error during metric inflation detection', e);
         }
 
-        const sqlLimit = `LIMIT ${limit}`;
-
+        const sqlLimit = this.getLimitSQL();
+        const { sqlOrderBy, requiresQueryInCTE } = this.getSortSQL();
         if (
             compiledMetricQuery.compiledTableCalculations.length > 0 ||
             whereMetricFilters ||
-            shouldWrapQueryCTE
+            requiresQueryInCTE
         ) {
             const cteSql = [
                 sqlSelect,
@@ -693,7 +709,9 @@ export class MetricQueryBuilder {
             const cte = `WITH ${ctes.join(',\n')}`;
 
             return {
-                query: [cte, finalQuery, sqlOrderBy, sqlLimit].join('\n'),
+                query: [cte, finalQuery, sqlOrderBy, sqlLimit]
+                    .filter((l) => l !== undefined)
+                    .join('\n'),
                 fields,
                 warnings,
             };
