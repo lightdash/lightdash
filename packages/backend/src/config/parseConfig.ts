@@ -856,6 +856,7 @@ export const parseConfig = (): LightdashConfig => {
 
     const rawCopilotConfig = {
         enabled: process.env.AI_COPILOT_ENABLED === 'true',
+        telemetryEnabled: process.env.AI_COPILOT_TELEMETRY_ENABLED === 'true',
         requiresFeatureFlag:
             process.env.AI_COPILOT_REQUIRES_FEATURE_FLAG === 'true',
         embeddingSearchEnabled:

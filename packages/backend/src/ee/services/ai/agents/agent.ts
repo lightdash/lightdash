@@ -30,6 +30,26 @@ const defaultAgentOptions = {
     temperature: 0.2,
 } as const;
 
+const getAgentTelemetryConfig = (
+    functionId: string,
+    {
+        agentUuid,
+        threadUuid,
+        promptUuid,
+    }: Pick<AiAgentArgs, 'agentUuid' | 'threadUuid' | 'promptUuid'>,
+) =>
+    ({
+        functionId,
+        isEnabled: true,
+        recordInputs: true,
+        recordOutputs: true,
+        metadata: {
+            agentUuid,
+            threadUuid,
+            promptUuid,
+        },
+    } as const);
+
 const getAgentTools = (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
@@ -146,6 +166,10 @@ export const generateAgentResponse = async ({
                             ].join('\n'),
                         },
                     ],
+                    experimental_telemetry: getAgentTelemetryConfig(
+                        'generateAgentResponse/repairToolCall',
+                        args,
+                    ),
                 });
 
                 return { ...toolCall, args: JSON.stringify(repairedArgs) };
@@ -165,6 +189,10 @@ export const generateAgentResponse = async ({
                     );
                 }
             },
+            experimental_telemetry: getAgentTelemetryConfig(
+                'generateAgentResponse',
+                args,
+            ),
         });
 
         return result.text;
@@ -221,6 +249,10 @@ export const streamAgentResponse = async ({
                             ].join('\n'),
                         },
                     ],
+                    experimental_telemetry: getAgentTelemetryConfig(
+                        'streamAgentResponse/repairToolCall',
+                        args,
+                    ),
                 });
 
                 return { ...toolCall, args: JSON.stringify(repairedArgs) };
@@ -255,6 +287,10 @@ export const streamAgentResponse = async ({
                 Logger.error(error);
                 Sentry.captureException(error);
             },
+            experimental_telemetry: getAgentTelemetryConfig(
+                'streamAgentResponse',
+                args,
+            ),
         });
         return result;
     } catch (error) {

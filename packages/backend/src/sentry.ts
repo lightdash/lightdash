@@ -40,6 +40,15 @@ Sentry.init({
                   }),
               ]
             : []),
+        ...(lightdashConfig.ai.copilot.enabled &&
+        lightdashConfig.ai.copilot.telemetryEnabled
+            ? [
+                  Sentry.vercelAIIntegration({
+                      recordInputs: true,
+                      recordOutputs: true,
+                  }),
+              ]
+            : []),
     ],
     ignoreErrors: IGNORE_ERRORS,
     tracesSampler: (context) => {

@@ -1296,11 +1296,13 @@ export class AiAgentService {
 
         const args = {
             model,
+            agentUuid: agentSettings.uuid,
+            threadUuid: prompt.threadUuid,
+            promptUuid: prompt.promptUuid,
             agentName: agentSettings.name,
             instruction: agentSettings.instruction,
             messageHistory,
             aiAgentExploreSummaries,
-            promptUuid: prompt.promptUuid,
             maxLimit: this.lightdashConfig.query.maxLimit,
         };
 

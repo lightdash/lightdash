@@ -14,6 +14,8 @@ import { AiAgentExploreSummary } from './aiAgentExploreSummary';
 export type AiAgentArgs = {
     model: LanguageModelV1;
     promptUuid: string;
+    agentUuid: string;
+    threadUuid: string;
     agentName: string;
     instruction: string | null;
     messageHistory: CoreMessage[];
