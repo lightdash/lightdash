@@ -355,6 +355,37 @@ export class MetricQueryBuilder {
         };
     }
 
+    private getTableCalculationsSQL(): {
+        selects: string[];
+        filtersSQL: string | undefined;
+    } {
+        const { compiledMetricQuery, warehouseClient } = this.args;
+        const { filters } = compiledMetricQuery;
+        const fieldQuoteChar = getFieldQuoteChar(
+            warehouseClient.credentials.type,
+        );
+
+        // Selects
+        const selects = compiledMetricQuery.compiledTableCalculations.map(
+            (tableCalculation) => {
+                const alias = tableCalculation.name;
+                return `  ${tableCalculation.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
+            },
+        );
+
+        // Filters
+        const tableCalculationFilters = this.getNestedFilterSQLFromGroup(
+            filters.tableCalculations,
+        );
+
+        return {
+            selects,
+            filtersSQL: tableCalculationFilters
+                ? ` WHERE ${tableCalculationFilters}`
+                : undefined,
+        };
+    }
+
     private getNestedDimensionFilterSQLFromModelFilters(
         table: CompiledTable,
         dimensionsFilterGroup: FilterGroup | undefined,
@@ -615,13 +646,14 @@ export class MetricQueryBuilder {
             userAttributes = {},
         } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
-        const { metrics, filters } = compiledMetricQuery;
+        const { metrics } = compiledMetricQuery;
         const fieldQuoteChar = getFieldQuoteChar(
             warehouseClient.credentials.type,
         );
 
         const dimensionsSQL = this.getDimensionsSQL();
         const metricsSQL = this.getMetricsSQL();
+        const tableCalculationSQL = this.getTableCalculationsSQL();
 
         const selectedTables = new Set<string>([
             ...metricsSQL.tables,
@@ -677,10 +709,6 @@ export class MetricQueryBuilder {
             })
             .join('\n');
 
-        const tableCalculationFilters = this.getNestedFilterSQLFromGroup(
-            filters.tableCalculations,
-        );
-
         let warnings: QueryWarning[] = [];
         try {
             warnings = findMetricInflationWarnings({
@@ -704,7 +732,7 @@ export class MetricQueryBuilder {
         const sqlLimit = this.getLimitSQL();
         const { sqlOrderBy, requiresQueryInCTE } = this.getSortSQL();
         if (
-            compiledMetricQuery.compiledTableCalculations.length > 0 ||
+            tableCalculationSQL.selects.length > 0 ||
             metricsSQL.filtersSQL ||
             requiresQueryInCTE
         ) {
@@ -723,16 +751,10 @@ export class MetricQueryBuilder {
                 ...dimensionsSQL.ctes,
                 `${cteName} AS (\n${cteSql}\n)`,
             ];
-            const tableCalculationSelects =
-                compiledMetricQuery.compiledTableCalculations.map(
-                    (tableCalculation) => {
-                        const alias = tableCalculation.name;
-                        return `  ${tableCalculation.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
-                    },
-                );
+
             const finalSelect = `SELECT\n${[
                 '  *',
-                ...tableCalculationSelects,
+                ...tableCalculationSQL.selects,
             ].join(',\n')}`;
             const finalFrom = `FROM ${cteName}`;
             const secondQuery = [finalSelect, finalFrom, metricsSQL.filtersSQL]
@@ -740,15 +762,13 @@ export class MetricQueryBuilder {
                 .join('\n');
 
             let finalQuery = secondQuery;
-            if (tableCalculationFilters) {
+            if (tableCalculationSQL.filtersSQL) {
                 const queryResultCteName = 'table_calculations';
                 ctes.push(`${queryResultCteName} AS (\n${secondQuery}\n)`);
 
                 finalQuery = `SELECT *
-                              FROM ${queryResultCteName}`;
-
-                if (tableCalculationFilters)
-                    finalQuery += ` WHERE ${tableCalculationFilters}`;
+                              FROM ${queryResultCteName}
+                              ${tableCalculationSQL.filtersSQL}`;
             }
             const cte = `WITH ${ctes.join(',\n')}`;
 
