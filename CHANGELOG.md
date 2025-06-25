@@ -1,3 +1,10 @@
+# [0.1759.0](https://github.com/lightdash/lightdash/compare/0.1758.0...0.1759.0) (2025-06-25)
+
+
+### Features
+
+* add primary key support for metric inflation detection ([#15531](https://github.com/lightdash/lightdash/issues/15531)) ([7c69e43](https://github.com/lightdash/lightdash/commit/7c69e437236711f5c01e928030fc0e681476a4da))
+
 # [0.1758.0](https://github.com/lightdash/lightdash/compare/0.1757.1...0.1758.0) (2025-06-25)
 
 
