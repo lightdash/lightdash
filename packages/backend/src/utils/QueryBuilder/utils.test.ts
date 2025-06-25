@@ -1204,4 +1204,55 @@ describe('findMetricInflationWarnings', () => {
         expect(result[1].fields?.[0]).toBe('table_B_metric_b');
         expect(result[2].fields?.[0]).toBe('table_C_metric_c');
     });
+
+    it('should warn for tables with missing primary key', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: {}, // Missing primary key
+            },
+            possibleJoins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                    tablesReferences: ['users', 'orders'],
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['orders']),
+            metrics: [
+                {
+                    name: 'total_users',
+                    type: MetricType.SUM,
+                    table: 'users',
+                    label: 'Total users',
+                },
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    table: 'orders',
+                    label: 'Total revenue',
+                },
+            ],
+        });
+
+        // Should have warnings for both the missing primary key and the metric inflation
+        expect(result).toHaveLength(2);
+
+        // Check for the missing primary key warning
+        const primaryKeyWarning = result.find((warning) =>
+            warning.message.includes('missing a primary key definition'),
+        );
+        expect(primaryKeyWarning).toBeDefined();
+        expect(primaryKeyWarning?.tables?.[0]).toBe('orders');
+
+        // Check for the metric inflation warning
+        const metricWarning = result.find(
+            (warning) =>
+                warning.fields && warning.fields[0] === 'users_total_users',
+        );
+        expect(metricWarning).toBeDefined();
+    });
 });

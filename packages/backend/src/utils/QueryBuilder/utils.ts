@@ -929,7 +929,13 @@ const findTablesWithMetricInflation = ({
     const tablesWithoutPrimaryKey = new Set<string>();
 
     joinedTables.forEach((joinedTable) => {
+        if (!tables[joinedTable]?.primaryKey) {
+            // Warn the user about missing primary key so we can detect possible metric inflation
+            tablesWithoutPrimaryKey.add(joinedTable);
+        }
+
         if (joinedTable === baseTable) {
+            // skip base table
             return;
         }
 
@@ -946,9 +952,6 @@ const findTablesWithMetricInflation = ({
         if (!join.relationship) {
             // Warn the user about missing relationship so we can detect possible metric inflation
             joinWithoutRelationship.add(joinedTable);
-        } else if (!tables[joinedTable]?.primaryKey) {
-            // Warn the user about missing primary key so we can detect possible metric inflation
-            tablesWithoutPrimaryKey.add(joinedTable);
         } else {
             // Finds tables with inflation in this join
             const tablesWithInflationFromJoin =
