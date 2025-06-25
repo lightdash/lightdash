@@ -626,6 +626,7 @@ export class MetricQueryBuilder {
         let warnings: QueryWarning[] = [];
         try {
             warnings = findMetricInflationWarnings({
+                tables: explore.tables,
                 possibleJoins: explore.joinedTables,
                 baseTable: explore.baseTable,
                 joinedTables,

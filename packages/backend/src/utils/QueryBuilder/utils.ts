@@ -7,6 +7,7 @@ import {
     CompiledExploreJoin,
     CompiledMetric,
     CompiledMetricQuery,
+    CompiledTable,
     CustomBinDimension,
     CustomDimension,
     DbtModelJoinType,
@@ -914,15 +915,18 @@ const findTablesWithMetricInflation = ({
     baseTable,
     joinedTables,
     possibleJoins,
+    tables,
 }: Pick<
     FindMetricInflationWarningsProps,
-    'baseTable' | 'joinedTables' | 'possibleJoins'
+    'baseTable' | 'joinedTables' | 'possibleJoins' | 'tables'
 >): {
     tablesWithMetricInflation: Set<string>;
-    tablesWithoutRelationship: Set<string>;
+    joinWithoutRelationship: Set<string>;
+    tablesWithoutPrimaryKey: Set<string>;
 } => {
     const tablesWithMetricInflation = new Set<string>();
-    const tablesWithoutRelationship = new Set<string>();
+    const joinWithoutRelationship = new Set<string>();
+    const tablesWithoutPrimaryKey = new Set<string>();
 
     joinedTables.forEach((joinedTable) => {
         if (joinedTable === baseTable) {
@@ -941,7 +945,10 @@ const findTablesWithMetricInflation = ({
         }
         if (!join.relationship) {
             // Warn the user about missing relationship so we can detect possible metric inflation
-            tablesWithoutRelationship.add(joinedTable);
+            joinWithoutRelationship.add(joinedTable);
+        } else if (!tables[joinedTable]?.primaryKey) {
+            // Warn the user about missing primary key so we can detect possible metric inflation
+            tablesWithoutPrimaryKey.add(joinedTable);
         } else {
             // Finds tables with inflation in this join
             const tablesWithInflationFromJoin =
@@ -978,10 +985,15 @@ const findTablesWithMetricInflation = ({
         }
     });
 
-    return { tablesWithMetricInflation, tablesWithoutRelationship };
+    return {
+        tablesWithMetricInflation,
+        joinWithoutRelationship,
+        tablesWithoutPrimaryKey,
+    };
 };
 
 type FindMetricInflationWarningsProps = {
+    tables: { [tableName: string]: Pick<CompiledTable, 'primaryKey'> };
     possibleJoins: Explore['joinedTables']; // all joins metadata
     baseTable: Explore['baseTable']; // query table
     joinedTables: Set<string>; // query joined tables
@@ -992,6 +1004,7 @@ type FindMetricInflationWarningsProps = {
  * Analyzes joins and metrics to identify potential metric inflation issues.
  */
 export const findMetricInflationWarnings = ({
+    tables,
     possibleJoins,
     baseTable,
     joinedTables,
@@ -1003,12 +1016,16 @@ export const findMetricInflationWarnings = ({
     }
 
     // Find tables that potentially have metric inflation and tables without relationship value
-    const { tablesWithMetricInflation, tablesWithoutRelationship } =
-        findTablesWithMetricInflation({
-            baseTable,
-            joinedTables,
-            possibleJoins,
-        });
+    const {
+        tablesWithMetricInflation,
+        joinWithoutRelationship,
+        tablesWithoutPrimaryKey,
+    } = findTablesWithMetricInflation({
+        baseTable,
+        joinedTables,
+        possibleJoins,
+        tables,
+    });
 
     // Find what metrics belong to those tables
     const metricsWithInflation = metrics.filter(
@@ -1019,9 +1036,15 @@ export const findMetricInflationWarnings = ({
 
     // Generate warnings
     const warnings: QueryWarning[] = [];
-    tablesWithoutRelationship.forEach((table) => {
+    joinWithoutRelationship.forEach((table) => {
         warnings.push({
-            message: `Join **"${table}"** is missing a join relationship type. [Read more](https://docs.lightdash.com/references/joins#defining-join-relationships)`,
+            message: `Join **"${table}"** is missing a join relationship type. This can prevent data duplication in joins. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
+            tables: [table],
+        });
+    });
+    tablesWithoutPrimaryKey.forEach((table) => {
+        warnings.push({
+            message: `Table **"${table}"** is missing a primary key definition. This can prevent data duplication in joins. [Read more](https://docs.lightdash.com/references/tables#defining-primary-keys)`,
             tables: [table],
         });
     });
