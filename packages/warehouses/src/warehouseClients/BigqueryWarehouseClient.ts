@@ -38,6 +38,7 @@ import {
     processPromisesInBatches,
 } from '../utils/processPromisesInBatches';
 import WarehouseBaseClient from './WarehouseBaseClient';
+import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
 export enum BigqueryFieldType {
     STRING = 'STRING',
@@ -129,11 +130,32 @@ type BigqueryError = {
     errors: bigquery.IErrorProto[];
 };
 
+export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
+    readonly type = WarehouseTypes.BIGQUERY;
+
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.BIGQUERY;
+    }
+
+    getMetricSql(sql: string, metric: Metric): string {
+        switch (metric.type) {
+            case MetricType.PERCENTILE:
+                return `APPROX_QUANTILES(${sql}, 100)[OFFSET(${
+                    metric.percentile ?? 50
+                })]`;
+            case MetricType.MEDIAN:
+                return `APPROX_QUANTILES(${sql}, 100)[OFFSET(50)]`;
+            default:
+                return super.getMetricSql(sql, metric);
+        }
+    }
+}
+
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
     client: BigQuery;
 
     constructor(credentials: CreateBigqueryCredentials) {
-        super(credentials);
+        super(credentials, new BigquerySqlBuilder(credentials.startOfWeek));
         try {
             this.client = new BigQuery({
                 projectId: credentials.executionProject || credentials.project,
@@ -358,31 +380,6 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
             return acc;
         }, {});
-    }
-
-    getStringQuoteChar() {
-        return "'";
-    }
-
-    getEscapeStringQuoteChar() {
-        return '\\';
-    }
-
-    getAdapterType(): SupportedDbtAdapter {
-        return SupportedDbtAdapter.BIGQUERY;
-    }
-
-    getMetricSql(sql: string, metric: Metric) {
-        switch (metric.type) {
-            case MetricType.PERCENTILE:
-                return `APPROX_QUANTILES(${sql}, 100)[OFFSET(${
-                    metric.percentile ?? 50
-                })]`;
-            case MetricType.MEDIAN:
-                return `APPROX_QUANTILES(${sql}, 100)[OFFSET(50)]`;
-            default:
-                return super.getMetricSql(sql, metric);
-        }
     }
 
     async getAllTables() {
