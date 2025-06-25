@@ -45,11 +45,6 @@ export enum FeatureFlags {
     WriteBackCustomBinDimensions = 'write-back-custom-bin-dimensions',
 
     /**
-     * Enable a new API endpoint that requests results page by page.
-     */
-    QueryPagination = 'query-pagination',
-
-    /**
      * Enable the ability to show the warehouse execution time and total time in the chart tile.
      */
     ShowExecutionTime = 'show-execution-time',
