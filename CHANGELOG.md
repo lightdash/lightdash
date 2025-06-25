@@ -1,3 +1,10 @@
+# [0.1760.0](https://github.com/lightdash/lightdash/compare/0.1759.0...0.1760.0) (2025-06-25)
+
+
+### Features
+
+* Save generated viz from agent chat ([#15444](https://github.com/lightdash/lightdash/issues/15444)) ([f9da123](https://github.com/lightdash/lightdash/commit/f9da123bf9b2557273ec482b2590c5269d8bc200)), closes [#15276](https://github.com/lightdash/lightdash/issues/15276)
+
 # [0.1759.0](https://github.com/lightdash/lightdash/compare/0.1758.0...0.1759.0) (2025-06-25)
 
 
