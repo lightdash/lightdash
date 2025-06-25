@@ -7,6 +7,7 @@ const EmbedProviderContext = createContext<EmbedContext>({
     projectUuid: undefined,
     languageMap: undefined,
     t: (_input: string) => undefined,
+    onExplore: () => {},
 });
 
 export default EmbedProviderContext;

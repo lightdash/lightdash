@@ -12,6 +12,7 @@ function useEmbed(): EmbedContext {
             projectUuid: undefined,
             languageMap: undefined,
             t: (_input: string) => undefined,
+            onExplore: () => {},
         };
     }
 

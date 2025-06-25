@@ -18,8 +18,8 @@ import SqlCard from './SqlCard/SqlCard';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
 import { WriteBackModal } from './WriteBackModal';
 
-const Explorer: FC<{ hideHeader?: boolean }> = memo(
-    ({ hideHeader = false }) => {
+const Explorer: FC<{ hideHeader?: boolean; projectUuid?: string }> = memo(
+    ({ hideHeader = false, projectUuid: propProjectUuid }) => {
         const unsavedChartVersionTableName = useExplorerContext(
             (context) => context.state.unsavedChartVersion.tableName,
         );
@@ -29,7 +29,12 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const isEditMode = useExplorerContext(
             (context) => context.state.isEditMode,
         );
-        const { projectUuid } = useParams<{ projectUuid: string }>();
+        const { projectUuid: urlProjectUuid } = useParams<{
+            projectUuid: string;
+        }>();
+
+        // Use prop projectUuid if provided, otherwise fall back to URL params
+        const projectUuid = propProjectUuid || urlProjectUuid;
 
         const queryUuid = useExplorerContext(
             (context) => context.query?.data?.queryUuid,

@@ -816,6 +816,7 @@ const ExplorerProvider: FC<
             | { chartUuid: string; context?: string }
             | { chartUuid: string; chartVersionUuid: string };
         dateZoomGranularity?: DateGranularity;
+        projectUuid?: string;
     }>
 > = ({
     isEditMode = false,
@@ -825,6 +826,7 @@ const ExplorerProvider: FC<
     children,
     viewModeQueryArgs,
     dateZoomGranularity,
+    projectUuid: propProjectUuid,
 }) => {
     const defaultStateWithConfig = useMemo(
         () => ({
@@ -1320,7 +1322,10 @@ const ExplorerProvider: FC<
         },
         [queryResults.queryUuid, queryResults.totalResults, validQueryArgs],
     );
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { projectUuid: projectUuidFromParams } = useParams<{
+        projectUuid: string;
+    }>();
+    const projectUuid = propProjectUuid || projectUuidFromParams;
     const { remove: clearQueryResults } = query;
     const resetQueryResults = useCallback(() => {
         setValidQueryArgs(null);

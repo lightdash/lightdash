@@ -42,11 +42,14 @@ const LoadingSkeleton = () => (
     </Stack>
 );
 
-const BasePanel = () => {
+const BasePanel = ({ projectUuid }: { projectUuid?: string }) => {
     const navigate = useNavigate();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { projectUuid: urlProjectUuid } = useParams<{
+        projectUuid: string;
+    }>();
+    const finalProjectUuid = projectUuid || urlProjectUuid;
     const [search, setSearch] = useState<string>('');
-    const exploresResult = useExplores(projectUuid, true);
+    const exploresResult = useExplores(finalProjectUuid, true);
 
     const [exploreGroupMap, defaultUngroupedExplores, customUngroupedExplores] =
         useMemo(() => {
@@ -158,7 +161,7 @@ const BasePanel = () => {
                                                     query={search}
                                                     onClick={() => {
                                                         void navigate(
-                                                            `/projects/${projectUuid}/tables/${explore.name}`,
+                                                            `/projects/${finalProjectUuid}/tables/${explore.name}`,
                                                         );
                                                     }}
                                                 />
@@ -174,7 +177,7 @@ const BasePanel = () => {
                                         query={search}
                                         onClick={() => {
                                             void navigate(
-                                                `/projects/${projectUuid}/tables/${explore.name}`,
+                                                `/projects/${finalProjectUuid}/tables/${explore.name}`,
                                             );
                                         }}
                                     />
@@ -199,7 +202,7 @@ const BasePanel = () => {
                                         query={search}
                                         onClick={() => {
                                             void navigate(
-                                                `/projects/${projectUuid}/tables/${explore.name}`,
+                                                `/projects/${finalProjectUuid}/tables/${explore.name}`,
                                             );
                                         }}
                                     />
@@ -219,8 +222,11 @@ const BasePanel = () => {
     );
 };
 
-const ExploreSideBar = memo(() => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+const ExploreSideBar = memo(({ projectUuid }: { projectUuid?: string }) => {
+    const { projectUuid: urlProjectUuid } = useParams<{
+        projectUuid: string;
+    }>();
+    const finalProjectUuid = projectUuid || urlProjectUuid;
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -232,12 +238,16 @@ const ExploreSideBar = memo(() => {
 
     const handleBack = useCallback(() => {
         clearExplore();
-        void navigate(`/projects/${projectUuid}/tables`);
-    }, [clearExplore, navigate, projectUuid]);
+        void navigate(`/projects/${finalProjectUuid}/tables`);
+    }, [clearExplore, navigate, finalProjectUuid]);
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
-            {!tableName ? <BasePanel /> : <ExplorePanel onBack={handleBack} />}
+            {!tableName ? (
+                <BasePanel projectUuid={finalProjectUuid} />
+            ) : (
+                <ExplorePanel onBack={handleBack} />
+            )}
         </TrackSection>
     );
 });

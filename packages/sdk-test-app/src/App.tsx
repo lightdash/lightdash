@@ -58,6 +58,45 @@ const EmbedUrlInput: React.FC<EmbedUrlInputProps> = ({
     );
 };
 
+const containerStyle = {
+    fontFamily: 'Arial, Helvetica, sans-serif',
+    background: 'linear-gradient(135deg, #f0f2f5 0%, #e9eff5 100%)',
+    minHeight: '100vh',
+    display: 'flex',
+    justifyContent: 'center',
+    padding: '20px',
+};
+
+const contentStyle = {
+    backgroundColor: '#ffffff',
+    padding: '40px',
+    borderRadius: '8px',
+    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+    maxWidth: '1400px',
+    width: '100%',
+};
+
+// Chart container style
+const chartContainerStyle = {
+    width: '100%',
+    height: '500px',
+    border: '2px dashed #ccc',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'aliceblue',
+};
+
+// Info box style with bluish text and a light blue background
+const infoBoxStyle = {
+    backgroundColor: '#e7f3fe', // light blue background
+    borderLeft: '4px solid #2196F3', // blue accent border
+    padding: '15px',
+    margin: '20px auto',
+    color: '#0b75c9', // bluish text
+    borderRadius: '4px',
+};
+
 function App() {
     const { t, i18n } = useTranslation();
 
@@ -72,43 +111,10 @@ function App() {
 
     const [inputsOpen, setInputsOpen] = useState(false);
 
-    const containerStyle = {
-        fontFamily: 'Arial, Helvetica, sans-serif',
-        background: 'linear-gradient(135deg, #f0f2f5 0%, #e9eff5 100%)',
-        minHeight: '100vh',
-        display: 'flex',
-        justifyContent: 'center',
-        padding: '20px',
-    };
-
-    const contentStyle = {
-        backgroundColor: '#ffffff',
-        padding: '40px',
-        borderRadius: '8px',
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-        maxWidth: '1400px',
-        width: '100%',
-    };
-
-    // Chart container style
-    const chartContainerStyle = {
-        width: '100%',
-        height: '500px',
-        border: '2px dashed #ccc',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'aliceblue',
-    };
-
-    // Info box style with bluish text and a light blue background
-    const infoBoxStyle = {
-        backgroundColor: '#e7f3fe', // light blue background
-        borderLeft: '4px solid #2196F3', // blue accent border
-        padding: '15px',
-        margin: '20px auto',
-        color: '#0b75c9', // bluish text
-        borderRadius: '4px',
+    const [explore, setExplore] = useState<string | null>();
+    const handleExploreClick = (options: any) => {
+        console.log('handleExploreClick', options);
+        setExplore(options.chart);
     };
 
     useEffect(() => {
@@ -206,19 +212,30 @@ function App() {
                         </p>
 
                         <div style={chartContainerStyle}>
-                            <Lightdash.Dashboard
-                                key={i18n.language}
-                                instanceUrl={lightdashUrl}
-                                token={lightdashToken}
-                                styles={{
-                                    backgroundColor: 'transparent',
-                                    fontFamily: 'Comic Sans MS',
-                                }}
-                                contentOverrides={i18n.getResourceBundle(
-                                    i18n.language,
-                                    'analytics',
-                                )}
-                            />
+                            {explore ? (
+                                <Lightdash.Explore
+                                    instanceUrl={lightdashUrl}
+                                    token={lightdashToken}
+                                    exploreId={explore.tableName}
+                                    explore={explore}
+                                    // onBack={() => setExplore(null)}
+                                />
+                            ) : (
+                                <Lightdash.Dashboard
+                                    key={i18n.language}
+                                    instanceUrl={lightdashUrl}
+                                    token={lightdashToken}
+                                    styles={{
+                                        backgroundColor: 'transparent',
+                                        fontFamily: 'Comic Sans MS',
+                                    }}
+                                    contentOverrides={i18n.getResourceBundle(
+                                        i18n.language,
+                                        'analytics',
+                                    )}
+                                    onExplore={handleExploreClick}
+                                />
+                            )}
                         </div>
 
                         {/* Info box with bluish text */}

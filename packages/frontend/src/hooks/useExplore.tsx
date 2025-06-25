@@ -14,14 +14,21 @@ const getExplore = async (projectUuid: string, exploreId: string) =>
 export const useExplore = (
     activeTableName: string | undefined,
     useQueryOptions?: UseQueryOptions<ApiExploreResults, ApiError>,
+    projectUuid?: string,
 ) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { projectUuid: projectUuidFromParams } = useParams<{
+        projectUuid: string;
+    }>();
     const setErrorResponse = useQueryError();
-    const queryKey = ['tables', activeTableName, projectUuid];
+
+    // Use provided projectUuid or fall back to URL params
+    const finalProjectUuid = projectUuid || projectUuidFromParams;
+
+    const queryKey = ['tables', activeTableName, finalProjectUuid];
     return useQuery<ApiExploreResults, ApiError>({
         queryKey,
-        queryFn: () => getExplore(projectUuid!, activeTableName || ''),
-        enabled: !!activeTableName,
+        queryFn: () => getExplore(finalProjectUuid!, activeTableName || ''),
+        enabled: !!activeTableName && !!finalProjectUuid,
         onError: (result) => setErrorResponse(result),
         retry: false,
         ...useQueryOptions,

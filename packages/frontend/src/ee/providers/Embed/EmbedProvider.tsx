@@ -9,6 +9,7 @@ type Props = {
     filters?: SdkFilter[];
     projectUuid?: string;
     contentOverrides?: LanguageMap;
+    onExplore?: (options: { exploreId: string }) => void;
 };
 
 const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -17,6 +18,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     filters,
     projectUuid,
     contentOverrides,
+    onExplore,
 }) => {
     const t = (input: string) => get(contentOverrides, input);
 
@@ -28,6 +30,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
                 projectUuid,
                 t,
                 languageMap: contentOverrides,
+                onExplore,
             }}
         >
             {children}

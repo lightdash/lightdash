@@ -7,4 +7,5 @@ export interface EmbedContext {
     projectUuid?: string;
     languageMap?: LanguageMap;
     t: (input: string) => string | undefined;
+    onExplore?: (options: { exploreId: string }) => void;
 }
