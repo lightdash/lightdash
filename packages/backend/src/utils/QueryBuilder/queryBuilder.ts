@@ -628,36 +628,29 @@ export class MetricQueryBuilder {
         return `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
     }
 
-    /**
-     * Compiles a database query based on the provided metric query, explores, user attributes, and warehouse-specific configurations.
-     *
-     * This method processes dimensions, metrics, filters, and joins across multiple dataset definitions to generate
-     * a complete SQL query string tailored for the specific warehouse type and environment. Additionally, it ensures
-     * field validation and substitution of user-specific attributes for dynamic query generation.
-     *
-     * @return {CompiledQuery} The compiled query object containing the SQL string and meta information ready for execution.
-     */
-    public compileQuery(): CompiledQuery {
+    private getJoinsSQL({
+        tablesReferencedInDimensions,
+        tablesReferencedInMetrics,
+    }: {
+        tablesReferencedInDimensions: string[];
+        tablesReferencedInMetrics: string[];
+    }): {
+        joinSQL: string;
+        tables: Set<string>;
+    } {
         const {
             explore,
-            compiledMetricQuery,
             warehouseClient,
             intrinsicUserAttributes,
             userAttributes = {},
         } = this.args;
-        const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
-        const { metrics } = compiledMetricQuery;
         const fieldQuoteChar = getFieldQuoteChar(
             warehouseClient.credentials.type,
         );
 
-        const dimensionsSQL = this.getDimensionsSQL();
-        const metricsSQL = this.getMetricsSQL();
-        const tableCalculationSQL = this.getTableCalculationsSQL();
-
         const selectedTables = new Set<string>([
-            ...metricsSQL.tables,
-            ...dimensionsSQL.tables,
+            ...tablesReferencedInDimensions,
+            ...tablesReferencedInMetrics,
         ]);
 
         const tableSqlWhere =
@@ -688,7 +681,7 @@ export class MetricQueryBuilder {
             ...requiredFilterJoinedTables,
         ]);
 
-        const sqlJoins = explore.joinedTables
+        const joinSQL = explore.joinedTables
             .filter((join) => joinedTables.has(join.table) || join.always)
             .map((join) => {
                 const joinTable = replaceUserAttributesRaw(
@@ -709,13 +702,42 @@ export class MetricQueryBuilder {
             })
             .join('\n');
 
+        return {
+            joinSQL,
+            tables: joinedTables,
+        };
+    }
+
+    /**
+     * Compiles a database query based on the provided metric query, explores, user attributes, and warehouse-specific configurations.
+     *
+     * This method processes dimensions, metrics, filters, and joins across multiple dataset definitions to generate
+     * a complete SQL query string tailored for the specific warehouse type and environment. Additionally, it ensures
+     * field validation and substitution of user-specific attributes for dynamic query generation.
+     *
+     * @return {CompiledQuery} The compiled query object containing the SQL string and meta information ready for execution.
+     */
+    public compileQuery(): CompiledQuery {
+        const { explore, compiledMetricQuery } = this.args;
+        const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
+        const { metrics } = compiledMetricQuery;
+
+        const dimensionsSQL = this.getDimensionsSQL();
+        const metricsSQL = this.getMetricsSQL();
+        const tableCalculationSQL = this.getTableCalculationsSQL();
+
+        const joins = this.getJoinsSQL({
+            tablesReferencedInDimensions: dimensionsSQL.tables,
+            tablesReferencedInMetrics: metricsSQL.tables,
+        });
+
         let warnings: QueryWarning[] = [];
         try {
             warnings = findMetricInflationWarnings({
                 tables: explore.tables,
                 possibleJoins: explore.joinedTables,
                 baseTable: explore.baseTable,
-                joinedTables,
+                joinedTables: joins.tables,
                 metrics: metrics.map((field) =>
                     getMetricFromId(field, explore, compiledMetricQuery),
                 ),
@@ -739,7 +761,7 @@ export class MetricQueryBuilder {
             const cteSql = [
                 sqlSelect,
                 sqlFrom,
-                sqlJoins,
+                joins.joinSQL,
                 ...dimensionsSQL.joins,
                 dimensionsSQL.filtersSQL,
                 dimensionsSQL.groupBySQL,
@@ -787,7 +809,7 @@ export class MetricQueryBuilder {
                 : undefined,
             sqlSelect,
             sqlFrom,
-            sqlJoins,
+            joins.joinSQL,
             ...dimensionsSQL.joins,
             dimensionsSQL.filtersSQL,
             dimensionsSQL.groupBySQL,
