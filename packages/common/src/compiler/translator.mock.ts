@@ -234,6 +234,7 @@ export const BASE_LIGHTDASH_TABLE: Omit<Table, 'lineageGraph'> = {
     description: model.description,
     sqlWhere: undefined,
     requiredAttributes: undefined,
+    primaryKey: undefined,
     dimensions: {
         myColumnName: {
             compact: undefined,
@@ -263,6 +264,129 @@ export const BASE_LIGHTDASH_TABLE: Omit<Table, 'lineageGraph'> = {
     requiredFilters: [],
     groupLabel: undefined,
     groupDetails: {},
+};
+
+export const MODEL_WITH_SINGLE_PRIMARY_KEY: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    meta: {
+        primary_key: 'user_id',
+    },
+    columns: {
+        user_id: {
+            name: 'user_id',
+            data_type: DimensionType.STRING,
+            meta: {},
+        },
+    },
+};
+
+export const MODEL_WITH_COMPOSITE_PRIMARY_KEY: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    meta: {
+        primary_key: ['user_id', 'order_id'],
+    },
+    columns: {
+        user_id: {
+            name: 'user_id',
+            data_type: DimensionType.STRING,
+            meta: {},
+        },
+        order_id: {
+            name: 'order_id',
+            data_type: DimensionType.STRING,
+            meta: {},
+        },
+    },
+};
+
+export const LIGHTDASH_TABLE_WITH_SINGLE_PRIMARY_KEY: Omit<
+    Table,
+    'lineageGraph'
+> = {
+    ...BASE_LIGHTDASH_TABLE,
+    primaryKey: ['user_id'],
+    dimensions: {
+        user_id: {
+            fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
+            description: undefined,
+            type: DimensionType.STRING,
+            sql: '${TABLE}.user_id',
+            name: 'user_id',
+            label: 'User id',
+            table: 'myTable',
+            tableLabel: 'My table',
+            source: undefined,
+            timeInterval: undefined,
+            timeIntervalBaseDimensionName: undefined,
+            hidden: false,
+            format: undefined,
+            round: undefined,
+            compact: undefined,
+            groups: [],
+            colors: undefined,
+            index: 0,
+            isIntervalBase: false,
+        },
+    },
+};
+
+export const LIGHTDASH_TABLE_WITH_COMPOSITE_PRIMARY_KEY: Omit<
+    Table,
+    'lineageGraph'
+> = {
+    ...BASE_LIGHTDASH_TABLE,
+    primaryKey: ['user_id', 'order_id'],
+    dimensions: {
+        user_id: {
+            fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
+            description: undefined,
+            type: DimensionType.STRING,
+            sql: '${TABLE}.user_id',
+            name: 'user_id',
+            label: 'User id',
+            table: 'myTable',
+            tableLabel: 'My table',
+            source: undefined,
+            timeInterval: undefined,
+            timeIntervalBaseDimensionName: undefined,
+            hidden: false,
+            format: undefined,
+            round: undefined,
+            compact: undefined,
+            groups: [],
+            colors: undefined,
+            index: 0,
+            isIntervalBase: false,
+        },
+        order_id: {
+            fieldType: FieldType.DIMENSION,
+            requiredAttributes: undefined,
+            description: undefined,
+            type: DimensionType.STRING,
+            sql: '${TABLE}.order_id',
+            name: 'order_id',
+            label: 'Order id',
+            table: 'myTable',
+            tableLabel: 'My table',
+            source: undefined,
+            timeInterval: undefined,
+            timeIntervalBaseDimensionName: undefined,
+            hidden: false,
+            format: undefined,
+            round: undefined,
+            compact: undefined,
+            groups: [],
+            colors: undefined,
+            index: 1,
+            isIntervalBase: false,
+        },
+    },
 };
 
 export const MODEL_WITH_GROUP_LABEL: DbtModelNode & { relation_name: string } =

@@ -1119,6 +1119,7 @@ export type CreateProject = Omit<
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
     tableConfiguration?: CreateProjectTableConfiguration;
+    copyContent?: boolean;
 };
 
 export type UpdateProject = Omit<

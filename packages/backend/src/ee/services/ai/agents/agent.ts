@@ -1,7 +1,6 @@
 import { AnyType } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
-    CoreMessage,
     generateObject,
     generateText,
     NoSuchToolError,
@@ -9,24 +8,20 @@ import {
     streamText,
 } from 'ai';
 import type { ZodType } from 'zod';
-
-import { ServerResponse } from 'http';
-import type {
-    AiAgentArgs,
-    AiAgentDependencies,
-    AiStreamAgentResponseArgs,
-} from '../types/aiAgent';
-
+import Logger from '../../../../logging/logger';
+import { getExploreInformationPrompt } from '../prompts/exploreInformation';
+import { getSystemPrompt } from '../prompts/system';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
 import { getGenerateCsv } from '../tools/generateCsv';
 import { getGenerateQueryFilters } from '../tools/generateQueryFilters';
 import { getGenerateTimeSeriesVizConfig } from '../tools/generateTimeSeriesVizConfigTool';
 import { getGetOneLineResult } from '../tools/getOneLineResult';
-
-import Logger from '../../../../logging/logger';
-import { getExploreInformationPrompt } from '../prompts/exploreInformation';
-import { getSystemPrompt } from '../prompts/system';
+import type {
+    AiAgentArgs,
+    AiAgentDependencies,
+    AiStreamAgentResponseArgs,
+} from '../types/aiAgent';
 
 const defaultAgentOptions = {
     toolChoice: 'auto',
@@ -34,6 +29,26 @@ const defaultAgentOptions = {
     maxRetries: 3,
     temperature: 0.2,
 } as const;
+
+const getAgentTelemetryConfig = (
+    functionId: string,
+    {
+        agentUuid,
+        threadUuid,
+        promptUuid,
+    }: Pick<AiAgentArgs, 'agentUuid' | 'threadUuid' | 'promptUuid'>,
+) =>
+    ({
+        functionId,
+        isEnabled: true,
+        recordInputs: true,
+        recordOutputs: true,
+        metadata: {
+            agentUuid,
+            threadUuid,
+            promptUuid,
+        },
+    } as const);
 
 const getAgentTools = (
     args: AiAgentArgs,
@@ -151,11 +166,35 @@ export const generateAgentResponse = async ({
                             ].join('\n'),
                         },
                     ],
+                    experimental_telemetry: getAgentTelemetryConfig(
+                        'generateAgentResponse/repairToolCall',
+                        args,
+                    ),
                 });
 
                 return { ...toolCall, args: JSON.stringify(repairedArgs) };
             },
+            onStepFinish: async (step) => {
+                if (step.toolCalls && step.toolCalls.length > 0) {
+                    await Promise.all(
+                        step.toolCalls.map(async (toolCall) => {
+                            // Store immediately when tool call happens
+                            await dependencies.storeToolCall({
+                                promptUuid: args.promptUuid,
+                                toolCallId: toolCall.toolCallId,
+                                toolName: toolCall.toolName,
+                                toolArgs: toolCall.args,
+                            });
+                        }),
+                    );
+                }
+            },
+            experimental_telemetry: getAgentTelemetryConfig(
+                'generateAgentResponse',
+                args,
+            ),
         });
+
         return result.text;
     } catch (error) {
         Logger.error(error);
@@ -210,9 +249,28 @@ export const streamAgentResponse = async ({
                             ].join('\n'),
                         },
                     ],
+                    experimental_telemetry: getAgentTelemetryConfig(
+                        'streamAgentResponse/repairToolCall',
+                        args,
+                    ),
                 });
 
                 return { ...toolCall, args: JSON.stringify(repairedArgs) };
+            },
+            onChunk: (event) => {
+                if (event.chunk.type === 'tool-call') {
+                    void dependencies
+                        .storeToolCall({
+                            promptUuid: args.promptUuid,
+                            toolCallId: event.chunk.toolCallId,
+                            toolName: event.chunk.toolName,
+                            toolArgs: event.chunk.args,
+                        })
+                        .catch((error) => {
+                            Logger.error('Failed to store tool call', error);
+                            Sentry.captureException(error);
+                        });
+                }
             },
             onFinish: ({ text }) => {
                 void dependencies.updatePrompt({
@@ -225,6 +283,14 @@ export const streamAgentResponse = async ({
                 chunking: 'line',
             }),
             toolCallStreaming: true,
+            onError: (error) => {
+                Logger.error(error);
+                Sentry.captureException(error);
+            },
+            experimental_telemetry: getAgentTelemetryConfig(
+                'streamAgentResponse',
+                args,
+            ),
         });
         return result;
     } catch (error) {

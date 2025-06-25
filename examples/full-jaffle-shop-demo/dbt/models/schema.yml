@@ -2,6 +2,7 @@ version: 2
 models:
   - name: customers
     meta:
+      primary_key: customer_id
       spotlight:
         categories: ["experimental"]
       joins:
@@ -110,6 +111,7 @@ models:
 
       {{ doc("orders_status") }}
     meta:
+      primary_key: order_id
       spotlight:
         categories:
           - sales
@@ -271,6 +273,7 @@ models:
   - name: payments
     description: This table has information about individual payments
     meta:
+      primary_key: payment_id
       joins:
         - join: orders
           sql_on: ${orders.order_id} = ${payments.order_id}

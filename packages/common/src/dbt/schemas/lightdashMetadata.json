@@ -27,7 +27,27 @@
                 "K",
                 "M",
                 "B",
-                "T"
+                "T",
+                "kilobyte",
+                "megabyte",
+                "gigabyte",
+                "terabyte",
+                "petabyte",
+                "KB",
+                "MB",
+                "GB",
+                "TB",
+                "PB",
+                "kibibyte",
+                "mebibyte",
+                "gibibyte",
+                "tebibyte",
+                "pebibyte",
+                "KiB",
+                "MiB",
+                "GiB",
+                "TiB",
+                "PiB"
             ]
         },
         "Format": {
@@ -264,6 +284,19 @@
             "type": "object",
             "required": [],
             "properties": {
+                "primary_key": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
+                },
                 "joins": {
                     "type": "array",
                     "items": {

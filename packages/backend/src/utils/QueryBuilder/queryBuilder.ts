@@ -70,23 +70,47 @@ export type BuildQueryProps = {
 export class MetricQueryBuilder {
     constructor(private args: BuildQueryProps) {}
 
-    private isNotCustomDimension(field: string) {
-        const {
-            compiledMetricQuery: { compiledCustomDimensions },
-        } = this.args;
-        return !compiledCustomDimensions.map((cd) => cd.id).includes(field);
-    }
-
-    private getCustomDimensionSQL() {
+    private getDimensionsSQL(): {
+        ctes: string[];
+        joins: string[];
+        tables: string[];
+        selects: string[];
+    } {
         const {
             explore,
             compiledMetricQuery,
             warehouseClient,
-            intrinsicUserAttributes,
             userAttributes = {},
+            intrinsicUserAttributes,
         } = this.args;
+        const adapterType: SupportedDbtAdapter =
+            warehouseClient.getAdapterType();
         const { dimensions, sorts, compiledCustomDimensions } =
             compiledMetricQuery;
+        const fieldQuoteChar = getFieldQuoteChar(
+            warehouseClient.credentials.type,
+        );
+        const startOfWeek = warehouseClient.getStartOfWeek();
+        const dimensionsObjects = dimensions
+            .filter(
+                (id) =>
+                    !compiledCustomDimensions.map((cd) => cd.id).includes(id),
+            ) // exclude custom dimensions as they are handled separately
+            .map((field) => {
+                const dimension = getDimensionFromId(
+                    field,
+                    explore,
+                    adapterType,
+                    startOfWeek,
+                );
+
+                assertValidDimensionRequiredAttribute(
+                    dimension,
+                    userAttributes,
+                    `dimension: "${field}"`,
+                );
+                return dimension;
+            });
         const selectedCustomDimensions = compiledCustomDimensions.filter((cd) =>
             dimensions.includes(cd.id),
         );
@@ -105,9 +129,50 @@ export class MetricQueryBuilder {
                 isCompiledCustomSqlDimension,
             ),
         });
+
+        // CTEs
+        const ctes = [];
+        if (customBinDimensionSql?.ctes) {
+            ctes.push(...customBinDimensionSql.ctes);
+        }
+
+        // Joins
+        const joins = [];
+        if (customBinDimensionSql?.join) {
+            joins.push(customBinDimensionSql.join);
+        }
+
+        // Tables
+        const tables = dimensionsObjects.reduce<string[]>(
+            (acc, dim) => [...acc, ...(dim.tablesReferences || [dim.table])],
+            [],
+        );
+        if (customBinDimensionSql?.tables) {
+            tables.push(...customBinDimensionSql.tables);
+        }
+        if (customSqlDimensionSql?.tables) {
+            tables.push(...customSqlDimensionSql.tables);
+        }
+
+        // Selects
+        const selects = dimensionsObjects.map(
+            (dimension) =>
+                `  ${dimension.compiledSql} AS ${fieldQuoteChar}${getItemId(
+                    dimension,
+                )}${fieldQuoteChar}`,
+        );
+        if (customBinDimensionSql?.selects) {
+            selects.push(...customBinDimensionSql.selects);
+        }
+        if (customSqlDimensionSql?.selects) {
+            selects.push(...customSqlDimensionSql.selects);
+        }
+
         return {
-            customBinDimensionSql,
-            customSqlDimensionSql,
+            ctes,
+            joins,
+            tables,
+            selects,
         };
     }
 
@@ -259,6 +324,82 @@ export class MetricQueryBuilder {
         );
     }
 
+    private getSortSQL() {
+        const { explore, compiledMetricQuery, warehouseClient } = this.args;
+        const { sorts, compiledCustomDimensions } = compiledMetricQuery;
+        const fieldQuoteChar = getFieldQuoteChar(
+            warehouseClient.credentials.type,
+        );
+        const startOfWeek = warehouseClient.getStartOfWeek();
+        const compiledDimensions = getDimensions(explore);
+        let requiresQueryInCTE = false;
+        const fieldOrders = sorts.map((sort) => {
+            if (
+                compiledCustomDimensions &&
+                compiledCustomDimensions.find(
+                    (customDimension) =>
+                        getItemId(customDimension) === sort.fieldId &&
+                        isCustomBinDimension(customDimension),
+                )
+            ) {
+                // Custom dimensions will have a separate `select` for ordering,
+                // that returns the min value (int) of the bin, rather than a string,
+                // so we can use it for sorting
+                return `${fieldQuoteChar}${
+                    sort.fieldId
+                }_order${fieldQuoteChar}${sort.descending ? ' DESC' : ''}`;
+            }
+            const sortedDimension = compiledDimensions.find(
+                (d) => getItemId(d) === sort.fieldId,
+            );
+
+            if (
+                sortedDimension &&
+                sortedDimension.timeInterval === TimeFrames.MONTH_NAME
+            ) {
+                requiresQueryInCTE = true;
+
+                return sortMonthName(
+                    sortedDimension,
+                    getFieldQuoteChar(warehouseClient.credentials.type),
+                    sort.descending,
+                );
+            }
+            if (
+                sortedDimension &&
+                sortedDimension.timeInterval === TimeFrames.DAY_OF_WEEK_NAME
+            ) {
+                // in BigQuery, we cannot use a function in the ORDER BY clause that references a column that is not aggregated or grouped
+                // so we need to wrap the query in a CTE to allow us to reference the column in the ORDER BY clause
+                // for consistency, we do it for all warehouses
+                requiresQueryInCTE = true;
+                return sortDayOfWeekName(
+                    sortedDimension,
+                    startOfWeek,
+                    getFieldQuoteChar(warehouseClient.credentials.type),
+                    sort.descending,
+                );
+            }
+            return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
+                sort.descending ? ' DESC' : ''
+            }`;
+        });
+
+        const sqlOrderBy =
+            fieldOrders.length > 0
+                ? `ORDER BY ${fieldOrders.join(', ')}`
+                : undefined;
+        return {
+            sqlOrderBy,
+            requiresQueryInCTE,
+        };
+    }
+
+    private getLimitSQL() {
+        const { limit } = this.args.compiledMetricQuery;
+        return limit !== undefined ? `LIMIT ${limit}` : undefined;
+    }
+
     /**
      * Compiles a database query based on the provided metric query, explores, user attributes, and warehouse-specific configurations.
      *
@@ -280,10 +421,8 @@ export class MetricQueryBuilder {
         const adapterType: SupportedDbtAdapter =
             warehouseClient.getAdapterType();
         const {
-            dimensions,
             metrics,
             filters,
-            sorts,
             limit,
             additionalMetrics,
             compiledCustomDimensions,
@@ -298,29 +437,7 @@ export class MetricQueryBuilder {
         );
         const startOfWeek = warehouseClient.getStartOfWeek();
 
-        // dimensions contains a mix of Dimensions and CustomDimensions,
-        // we want to filter customDimensions from this list as we will handle them separately
-        const dimensionSelects = dimensions
-            .filter(this.isNotCustomDimension.bind(this))
-            .map((field) => {
-                const alias = field;
-                const dimension = getDimensionFromId(
-                    field,
-                    explore,
-                    adapterType,
-                    startOfWeek,
-                );
-
-                assertValidDimensionRequiredAttribute(
-                    dimension,
-                    userAttributes,
-                    `dimension: "${field}"`,
-                );
-                return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
-            });
-
-        const { customBinDimensionSql, customSqlDimensionSql } =
-            this.getCustomDimensionSQL();
+        const dimensionsSQL = this.getDimensionsSQL();
 
         const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
 
@@ -362,19 +479,7 @@ export class MetricQueryBuilder {
                 );
                 return [...acc, ...(metric.tablesReferences || [metric.table])];
             }, []),
-            ...dimensions
-                .filter(this.isNotCustomDimension.bind(this))
-                .reduce<string[]>((acc, field) => {
-                    const dim = getDimensionFromId(
-                        field,
-                        explore,
-                        adapterType,
-                        startOfWeek,
-                    );
-                    return [...acc, ...(dim.tablesReferences || [dim.table])];
-                }, []),
-            ...(customBinDimensionSql?.tables || []),
-            ...(customSqlDimensionSql?.tables || []),
+            ...dimensionsSQL.tables,
             ...getFilterRulesFromGroup(filters.dimensions).reduce<string[]>(
                 (acc, filterRule) => {
                     const dim = getDimensionFromFilterTargetId(
@@ -478,80 +583,16 @@ export class MetricQueryBuilder {
         }, []);
 
         const sqlSelect = `SELECT\n${[
-            ...dimensionSelects,
-            ...(customBinDimensionSql?.selects || []),
-            ...(customSqlDimensionSql?.selects || []),
+            ...dimensionsSQL.selects,
             ...metricSelects,
             ...filteredMetricSelects,
         ].join(',\n')}`;
 
-        const groups = [
-            ...(dimensionSelects.length > 0 ? dimensionSelects : []),
-            ...(customBinDimensionSql?.selects || []),
-            ...(customSqlDimensionSql?.selects || []),
-        ];
+        const groups = dimensionsSQL.selects;
         const sqlGroupBy =
             groups.length > 0
                 ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}`
                 : '';
-
-        const compiledDimensions = getDimensions(explore);
-
-        let shouldWrapQueryCTE = false;
-        const fieldOrders = sorts.map((sort) => {
-            if (
-                compiledCustomDimensions &&
-                compiledCustomDimensions.find(
-                    (customDimension) =>
-                        getItemId(customDimension) === sort.fieldId &&
-                        isCustomBinDimension(customDimension),
-                )
-            ) {
-                // Custom dimensions will have a separate `select` for ordering,
-                // that returns the min value (int) of the bin, rather than a string,
-                // so we can use it for sorting
-                return `${fieldQuoteChar}${
-                    sort.fieldId
-                }_order${fieldQuoteChar}${sort.descending ? ' DESC' : ''}`;
-            }
-            const sortedDimension = compiledDimensions.find(
-                (d) => getItemId(d) === sort.fieldId,
-            );
-
-            if (
-                sortedDimension &&
-                sortedDimension.timeInterval === TimeFrames.MONTH_NAME
-            ) {
-                shouldWrapQueryCTE = true;
-
-                return sortMonthName(
-                    sortedDimension,
-                    getFieldQuoteChar(warehouseClient.credentials.type),
-                    sort.descending,
-                );
-            }
-            if (
-                sortedDimension &&
-                sortedDimension.timeInterval === TimeFrames.DAY_OF_WEEK_NAME
-            ) {
-                // in BigQuery, we cannot use a function in the ORDER BY clause that references a column that is not aggregated or grouped
-                // so we need to wrap the query in a CTE to allow us to reference the column in the ORDER BY clause
-                // for consistency, we do it for all warehouses
-                shouldWrapQueryCTE = true;
-                return sortDayOfWeekName(
-                    sortedDimension,
-                    startOfWeek,
-                    getFieldQuoteChar(warehouseClient.credentials.type),
-                    sort.descending,
-                );
-            }
-            return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
-                sort.descending ? ' DESC' : ''
-            }`;
-        });
-
-        const sqlOrderBy =
-            fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
 
         const requiredDimensionFilterSql =
             this.getNestedDimensionFilterSQLFromModelFilters(
@@ -601,6 +642,7 @@ export class MetricQueryBuilder {
         let warnings: QueryWarning[] = [];
         try {
             warnings = findMetricInflationWarnings({
+                tables: explore.tables,
                 possibleJoins: explore.joinedTables,
                 baseTable: explore.baseTable,
                 joinedTables,
@@ -612,20 +654,18 @@ export class MetricQueryBuilder {
             Logger.error('Error during metric inflation detection', e);
         }
 
-        const sqlLimit = `LIMIT ${limit}`;
-
+        const sqlLimit = this.getLimitSQL();
+        const { sqlOrderBy, requiresQueryInCTE } = this.getSortSQL();
         if (
             compiledMetricQuery.compiledTableCalculations.length > 0 ||
             whereMetricFilters ||
-            shouldWrapQueryCTE
+            requiresQueryInCTE
         ) {
             const cteSql = [
                 sqlSelect,
                 sqlFrom,
                 sqlJoins,
-                customBinDimensionSql && customBinDimensionSql.joins.length > 0
-                    ? `CROSS JOIN ${customBinDimensionSql.joins.join(',\n')}`
-                    : undefined,
+                ...dimensionsSQL.joins,
                 sqlWhere,
                 sqlGroupBy,
             ]
@@ -633,7 +673,7 @@ export class MetricQueryBuilder {
                 .join('\n');
             const cteName = 'metrics';
             const ctes = [
-                ...(customBinDimensionSql?.ctes || []),
+                ...dimensionsSQL.ctes,
                 `${cteName} AS (\n${cteSql}\n)`,
             ];
             const tableCalculationSelects =
@@ -669,22 +709,22 @@ export class MetricQueryBuilder {
             const cte = `WITH ${ctes.join(',\n')}`;
 
             return {
-                query: [cte, finalQuery, sqlOrderBy, sqlLimit].join('\n'),
+                query: [cte, finalQuery, sqlOrderBy, sqlLimit]
+                    .filter((l) => l !== undefined)
+                    .join('\n'),
                 fields,
                 warnings,
             };
         }
 
         const metricQuerySql = [
-            customBinDimensionSql && customBinDimensionSql.ctes.length > 0
-                ? `WITH ${customBinDimensionSql.ctes.join(',\n')}`
+            dimensionsSQL.ctes.length > 0
+                ? `WITH ${dimensionsSQL.ctes.join(',\n')}`
                 : undefined,
             sqlSelect,
             sqlFrom,
             sqlJoins,
-            customBinDimensionSql && customBinDimensionSql.joins.length > 0
-                ? `CROSS JOIN ${customBinDimensionSql.joins.join(',\n')}`
-                : undefined,
+            ...dimensionsSQL.joins,
             sqlWhere,
             sqlGroupBy,
             sqlOrderBy,

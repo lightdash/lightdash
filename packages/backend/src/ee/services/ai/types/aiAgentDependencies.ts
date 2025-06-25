@@ -36,3 +36,10 @@ export type SendFileFn = (args: PostSlackFile) => Promise<void>;
 export type UpdatePromptFn = (
     prompt: UpdateWebAppResponse | UpdateSlackResponse,
 ) => Promise<void>;
+
+export type StoreToolCallFn = (data: {
+    promptUuid: string;
+    toolCallId: string;
+    toolName: string;
+    toolArgs: object;
+}) => Promise<void>;

@@ -25,12 +25,14 @@ import {
 import { Knex } from 'knex';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import {
+    AiAgentToolCallTableName,
     AiPromptTableName,
     AiSlackPromptTableName,
     AiSlackThreadTableName,
     AiThreadTableName,
     AiWebAppPromptTableName,
     AiWebAppThreadTableName,
+    DbAiAgentToolCall,
     DbAiPrompt,
     DbAiSlackPrompt,
     DbAiSlackThread,
@@ -1288,5 +1290,31 @@ export class AiAgentModel {
                 default_agent_uuid: defaultAgentUuid,
                 updated_at: now,
             });
+    }
+
+    async createToolCall(data: {
+        promptUuid: string;
+        toolCallId: string;
+        toolName: string;
+        toolArgs: object;
+    }): Promise<string> {
+        const [toolCall] = await this.database(AiAgentToolCallTableName)
+            .insert({
+                ai_prompt_uuid: data.promptUuid,
+                tool_call_id: data.toolCallId,
+                tool_name: data.toolName,
+                tool_args: data.toolArgs,
+            })
+            .returning('ai_agent_tool_call_uuid');
+
+        return toolCall.ai_agent_tool_call_uuid;
+    }
+
+    async getToolCallsForPrompt(
+        promptUuid: string,
+    ): Promise<DbAiAgentToolCall[]> {
+        return this.database(AiAgentToolCallTableName)
+            .where('ai_prompt_uuid', promptUuid)
+            .orderBy('order_index', 'asc');
     }
 }

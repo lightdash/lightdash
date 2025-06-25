@@ -33,7 +33,6 @@ import {
     type FC,
 } from 'react';
 import { v4 as uuid4 } from 'uuid';
-import { useSavedSemanticViewerChart } from '../../features/semanticViewer/api/hooks';
 import { useSavedSqlChart } from '../../features/sqlRunner/hooks/useSavedSqlCharts';
 import {
     appendNewTilesToBottom,
@@ -105,13 +104,6 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         { projectUuid, uuid: uuid },
         { enabled: dashboardTileType === DashboardTileTypes.SQL_CHART },
     );
-    const semanticViewerChartQuery = useSavedSemanticViewerChart(
-        { projectUuid, findBy: { uuid } },
-        {
-            enabled:
-                dashboardTileType === DashboardTileTypes.SEMANTIC_VIEWER_CHART,
-        },
-    );
 
     const tile = useMemo<
         | {
@@ -165,29 +157,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                 };
 
             case DashboardTileTypes.SEMANTIC_VIEWER_CHART:
-                if (!semanticViewerChartQuery.isSuccess) return;
-
-                return {
-                    props: {
-                        uuid: semanticViewerChartQuery.data
-                            .savedSemanticViewerChartUuid,
-                        spaceUuid: semanticViewerChartQuery.data.space.uuid,
-                    },
-                    payload: {
-                        uuid: uuid4(),
-                        type: DashboardTileTypes.SEMANTIC_VIEWER_CHART,
-                        properties: {
-                            chartName: semanticViewerChartQuery.data.name,
-                            savedSemanticViewerChartUuid:
-                                semanticViewerChartQuery.data
-                                    .savedSemanticViewerChartUuid,
-                        },
-                        tabUuid: undefined,
-                        ...getDefaultChartTileSize(
-                            semanticViewerChartQuery.data.config.type,
-                        ),
-                    },
-                };
+            // TODO: update this type
 
             case DashboardTileTypes.LOOM:
             case DashboardTileTypes.MARKDOWN:
@@ -200,12 +170,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     `Unsupported chart tile type: ${dashboardTileType}`,
                 );
         }
-    }, [
-        dashboardTileType,
-        exploreChartQuery,
-        sqlChartQuery,
-        semanticViewerChartQuery,
-    ]);
+    }, [dashboardTileType, exploreChartQuery, sqlChartQuery]);
 
     const { data: dashboards, isInitialLoading: isLoadingDashboards } =
         useDashboards(

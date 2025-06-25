@@ -311,7 +311,7 @@ describe('with custom dimensions', () => {
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
-            joins: ['age_range_cte'],
+            join: 'CROSS JOIN age_range_cte',
             selects: [
                 `CASE
                         WHEN "table1".dim1 IS NULL THEN NULL
@@ -357,7 +357,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
-            joins: ['age_range_cte'],
+            join: 'CROSS JOIN age_range_cte',
             selects: [
                 `CONCAT(age_range_cte.min_id, ' - ', age_range_cte.max_id) AS \`age_range\``,
             ],
@@ -388,7 +388,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
-            joins: ['age_range_cte'],
+            join: 'CROSS JOIN age_range_cte',
             selects: [
                 `CASE
                             WHEN "table1".dim1 IS NULL THEN NULL
@@ -794,6 +794,10 @@ describe('applyLimitToSqlQuery', () => {
 describe('findMetricInflationWarnings', () => {
     it('should return no warnings when there are no metrics', () => {
         const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: { primaryKey: ['id'] },
+            },
             possibleJoins: [
                 {
                     table: 'orders',
@@ -813,6 +817,9 @@ describe('findMetricInflationWarnings', () => {
 
     it('should return no warnings when there are no joined tables', () => {
         const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+            },
             possibleJoins: [],
             baseTable: 'users',
             joinedTables: new Set([]),
@@ -831,6 +838,10 @@ describe('findMetricInflationWarnings', () => {
 
     it('should not warn for inflation-proof metrics (COUNT_DISTINCT, MIN, MAX)', () => {
         const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: { primaryKey: ['id'] },
+            },
             possibleJoins: [
                 {
                     table: 'orders',
@@ -869,6 +880,10 @@ describe('findMetricInflationWarnings', () => {
 
     it('should warn for metrics with single one-to-many joins', () => {
         const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: { primaryKey: ['id'] },
+            },
             possibleJoins: [
                 {
                     table: 'orders',
@@ -902,6 +917,11 @@ describe('findMetricInflationWarnings', () => {
 
     it('should warn for metrics with chained one-to-many joins', () => {
         const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: { primaryKey: ['id'] },
+                order_items: { primaryKey: ['id'] },
+            },
             possibleJoins: [
                 {
                     table: 'orders',
@@ -949,6 +969,11 @@ describe('findMetricInflationWarnings', () => {
 
     it('should warn for metrics with multiple one-to-many joins', () => {
         const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: { primaryKey: ['id'] },
+                tickets: { primaryKey: ['id'] },
+            },
             possibleJoins: [
                 {
                     table: 'orders',
@@ -997,6 +1022,10 @@ describe('findMetricInflationWarnings', () => {
 
     it('should warn for joins with undefined relationship', () => {
         const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: { primaryKey: ['id'] },
+            },
             possibleJoins: [
                 {
                     table: 'orders',
@@ -1031,6 +1060,10 @@ describe('findMetricInflationWarnings', () => {
 
     it('should not warn for metrics with one-to-one relationships', () => {
         const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                user_profiles: { primaryKey: ['id'] },
+            },
             possibleJoins: [
                 {
                     table: 'user_profiles',
@@ -1063,6 +1096,11 @@ describe('findMetricInflationWarnings', () => {
 
     it('should warn for metrics with one-to-one and one-to-many joins', () => {
         const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                user_profiles: { primaryKey: ['id'] },
+                orders: { primaryKey: ['id'] },
+            },
             possibleJoins: [
                 {
                     table: 'user_profiles',
@@ -1115,6 +1153,11 @@ describe('findMetricInflationWarnings', () => {
     // JOIN table_B B ON B.id = A.id AND B.user_id = C.user_id
     it('should warn for metrics with one-to-many complex join', () => {
         const result = findMetricInflationWarnings({
+            tables: {
+                table_A: { primaryKey: ['id'] },
+                table_B: { primaryKey: ['id'] },
+                table_C: { primaryKey: ['id'] },
+            },
             possibleJoins: [
                 {
                     table: 'table_C',
@@ -1160,5 +1203,56 @@ describe('findMetricInflationWarnings', () => {
         expect(result[0].fields?.[0]).toBe('table_A_metric_a');
         expect(result[1].fields?.[0]).toBe('table_B_metric_b');
         expect(result[2].fields?.[0]).toBe('table_C_metric_c');
+    });
+
+    it('should warn for tables with missing primary key', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: {}, // Missing primary key
+            },
+            possibleJoins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                    tablesReferences: ['users', 'orders'],
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['orders']),
+            metrics: [
+                {
+                    name: 'total_users',
+                    type: MetricType.SUM,
+                    table: 'users',
+                    label: 'Total users',
+                },
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    table: 'orders',
+                    label: 'Total revenue',
+                },
+            ],
+        });
+
+        // Should have warnings for both the missing primary key and the metric inflation
+        expect(result).toHaveLength(2);
+
+        // Check for the missing primary key warning
+        const primaryKeyWarning = result.find((warning) =>
+            warning.message.includes('missing a primary key definition'),
+        );
+        expect(primaryKeyWarning).toBeDefined();
+        expect(primaryKeyWarning?.tables?.[0]).toBe('orders');
+
+        // Check for the metric inflation warning
+        const metricWarning = result.find(
+            (warning) =>
+                warning.fields && warning.fields[0] === 'users_total_users',
+        );
+        expect(metricWarning).toBeDefined();
     });
 });

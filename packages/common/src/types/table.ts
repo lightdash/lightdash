@@ -19,6 +19,7 @@ export type TableBase = {
     database: string;
     schema: string;
     sqlTable: string; // The sql identifier for the table
+    primaryKey?: string[];
     orderFieldsBy?: OrderFieldsByStrategy;
     groupLabel?: string;
     sqlWhere?: string;

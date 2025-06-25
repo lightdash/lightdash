@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.1753.0",
+    "version": "0.1760.0",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -46,7 +46,7 @@
         "@monaco-editor/react": "^4.6.0",
         "@popsql/monaco-sql-languages": "^0.2.0",
         "@reduxjs/toolkit": "^2.2.6",
-        "@sentry/react": "^9.4.0",
+        "@sentry/react": "^9.31.0",
         "@sentry/vite-plugin": "^3.2.2",
         "@shopify/react-web-worker": "^5.0.13",
         "@tabler/icons-react": "^2.32.0",

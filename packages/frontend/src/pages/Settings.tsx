@@ -10,7 +10,6 @@ import {
     IconDatabaseCog,
     IconDatabaseExport,
     IconKey,
-    IconLayersLinked,
     IconLock,
     IconPalette,
     IconPlug,
@@ -67,10 +66,6 @@ const Settings: FC = () => {
     );
     const isPassthroughLoginFeatureEnabled = useFeatureFlagEnabled(
         FeatureFlags.PassthroughLogin,
-    );
-
-    const isSemanticLayerEnabled = useFeatureFlagEnabled(
-        FeatureFlags.SemanticLayerEnabled,
     );
 
     const { data: isScimTokenManagementEnabled } = useFeatureFlag(
@@ -578,26 +573,6 @@ const Settings: FC = () => {
                                             />
                                         }
                                     />
-
-                                    {user.ability?.can(
-                                        'manage',
-                                        subject('Project', {
-                                            organizationUuid:
-                                                project.organizationUuid,
-                                            projectUuid: project.projectUuid,
-                                        }),
-                                    ) && isSemanticLayerEnabled ? (
-                                        <RouterNavLink
-                                            label="Semantic Layer Integration"
-                                            exact
-                                            to={`/generalSettings/projectManagement/${project.projectUuid}/semanticLayer`}
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconLayersLinked}
-                                                />
-                                            }
-                                        />
-                                    ) : null}
 
                                     <RouterNavLink
                                         label="Tables configuration"

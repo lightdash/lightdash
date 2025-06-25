@@ -8,6 +8,7 @@ import {
     AiConversationMessage,
     AiDuplicateSlackPromptError,
     AiMetricQuery,
+    AiVizMetadata,
     AiWebAppPrompt,
     AnyType,
     ApiAiAgentThreadCreateRequest,
@@ -57,6 +58,7 @@ import {
     RunMiniMetricQueryFn,
     SearchFieldsFn,
     SendFileFn,
+    StoreToolCallFn,
     UpdateProgressFn,
 } from './ai/types/aiAgentDependencies';
 import { AiAgentExploreSummary } from './ai/types/aiAgentExploreSummary';
@@ -914,6 +916,19 @@ export class AiAgentService {
             );
         }
 
+        const metadata = {
+            title:
+                'title' in message.vizConfigOutput &&
+                typeof message.vizConfigOutput.title === 'string'
+                    ? message.vizConfigOutput.title
+                    : null,
+            description:
+                'description' in message.vizConfigOutput &&
+                typeof message.vizConfigOutput.description === 'string'
+                    ? message.vizConfigOutput.description
+                    : null,
+        } satisfies AiVizMetadata;
+
         let vizConfig: AiAgentVizConfig;
         if (isVerticalBarMetricChartConfig(message.vizConfigOutput)) {
             vizConfig = {
@@ -962,6 +977,7 @@ export class AiAgentService {
                 return {
                     type: AiChartType.VERTICAL_BAR_CHART,
                     query,
+                    metadata,
                 };
             }
             case 'time_series_chart': {
@@ -978,6 +994,7 @@ export class AiAgentService {
                 return {
                     type: AiChartType.TIME_SERIES_CHART,
                     query,
+                    metadata,
                 };
             }
             case 'csv':
@@ -994,6 +1011,7 @@ export class AiAgentService {
                 return {
                     type: AiChartType.CSV,
                     query,
+                    metadata,
                 };
             default:
                 return assertUnreachable(vizConfig, 'Invalid viz config');
@@ -1191,6 +1209,10 @@ export class AiAgentService {
             await this.slackClient.postFileToThread(args);
         };
 
+        const storeToolCall: StoreToolCallFn = async (data) => {
+            await this.aiAgentModel.createToolCall(data);
+        };
+
         return {
             getExplore,
             searchFields: this.lightdashConfig.ai.copilot.embeddingSearchEnabled
@@ -1200,6 +1222,7 @@ export class AiAgentService {
             getPrompt,
             runMiniMetricQuery,
             sendFile,
+            storeToolCall,
         };
     }
 
@@ -1273,6 +1296,7 @@ export class AiAgentService {
             getPrompt,
             runMiniMetricQuery,
             sendFile,
+            storeToolCall,
         } = this.getAiAgentDependencies(
             user,
             prompt,
@@ -1289,11 +1313,13 @@ export class AiAgentService {
 
         const args = {
             model,
+            agentUuid: agentSettings.uuid,
+            threadUuid: prompt.threadUuid,
+            promptUuid: prompt.promptUuid,
             agentName: agentSettings.name,
             instruction: agentSettings.instruction,
             messageHistory,
             aiAgentExploreSummaries,
-            promptUuid: prompt.promptUuid,
             maxLimit: this.lightdashConfig.query.maxLimit,
         };
 
@@ -1303,6 +1329,7 @@ export class AiAgentService {
             runMiniMetricQuery,
             getPrompt,
             sendFile,
+            storeToolCall,
             // avoid binding
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (

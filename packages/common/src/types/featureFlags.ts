@@ -18,11 +18,6 @@ export enum FeatureFlags {
     EnableUserTimezones = 'enable-user-timezones',
 
     /**
-     * Enable the semantic layer
-     */
-    SemanticLayerEnabled = 'semantic-layer-enabled',
-
-    /**
      * Enable dashboard comments
      */
     DashboardComments = 'dashboard-comments-enabled',
@@ -43,11 +38,6 @@ export enum FeatureFlags {
      * Enable the ability to write back custom bin dimensions to dbt.
      */
     WriteBackCustomBinDimensions = 'write-back-custom-bin-dimensions',
-
-    /**
-     * Enable a new API endpoint that requests results page by page.
-     */
-    QueryPagination = 'query-pagination',
 
     /**
      * Enable the ability to show the warehouse execution time and total time in the chart tile.

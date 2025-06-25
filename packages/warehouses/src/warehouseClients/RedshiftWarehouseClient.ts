@@ -1,8 +1,12 @@
-import { CreateRedshiftCredentials } from '@lightdash/common';
+import {
+    CreateRedshiftCredentials,
+    SupportedDbtAdapter,
+    WarehouseTypes,
+} from '@lightdash/common';
 import * as fs from 'fs';
 import path from 'path';
 import { PoolConfig } from 'pg';
-import { PostgresClient } from './PostgresWarehouseClient';
+import { PostgresClient, PostgresSqlBuilder } from './PostgresWarehouseClient';
 
 const AMAZON_CA_BUNDLE = [
     fs.readFileSync(path.resolve(__dirname, './ca-bundle-aws-redshift.crt')),
@@ -33,6 +37,14 @@ const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
     }
 };
 
+export class RedshiftSqlBuilder extends PostgresSqlBuilder {
+    type = WarehouseTypes.REDSHIFT;
+
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.REDSHIFT;
+    }
+}
+
 export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCredentials> {
     constructor(credentials: CreateRedshiftCredentials) {
         const sslmode = credentials.sslmode || 'prefer';
@@ -45,5 +57,7 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
             )}:${credentials.port}/${encodeURIComponent(credentials.dbname)}`,
             ssl,
         });
+        // Override the sqlBuilder with RedshiftSqlBuilder
+        this.sqlBuilder = new RedshiftSqlBuilder(credentials.startOfWeek);
     }
 }

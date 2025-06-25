@@ -11,6 +11,7 @@ import {
     LIGHTDASH_TABLE_SQL_WHERE,
     LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS,
     LIGHTDASH_TABLE_WITH_ADDITIONAL_DIMENSIONS,
+    LIGHTDASH_TABLE_WITH_COMPOSITE_PRIMARY_KEY,
     LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     LIGHTDASH_TABLE_WITH_DBT_METRICS,
     LIGHTDASH_TABLE_WITH_DBT_V9_METRICS,
@@ -23,7 +24,9 @@ import {
     LIGHTDASH_TABLE_WITH_MODEL_LEVEL_CATEGORIES,
     LIGHTDASH_TABLE_WITH_NO_CATEGORIES,
     LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
+    LIGHTDASH_TABLE_WITH_SINGLE_PRIMARY_KEY,
     MODEL_WITH_ADDITIONAL_DIMENSIONS,
+    MODEL_WITH_COMPOSITE_PRIMARY_KEY,
     MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_GROUPS_BLOCK,
@@ -36,6 +39,7 @@ import {
     MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_OFF_BOOLEAN_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
+    MODEL_WITH_SINGLE_PRIMARY_KEY,
     MODEL_WITH_SQL_FILTER,
     MODEL_WITH_SQL_WHERE,
     MODEL_WITH_WRONG_METRIC,
@@ -317,6 +321,28 @@ describe('convert tables from dbt models', () => {
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_GROUP_BLOCK);
+    });
+
+    it('should convert dbt model with single column primary key', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_SINGLE_PRIMARY_KEY,
+                [],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_SINGLE_PRIMARY_KEY);
+    });
+
+    it('should convert dbt model with composite primary key', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_COMPOSITE_PRIMARY_KEY,
+                [],
+                DEFAULT_SPOTLIGHT_CONFIG,
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_COMPOSITE_PRIMARY_KEY);
     });
 });
 

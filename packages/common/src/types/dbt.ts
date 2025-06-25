@@ -113,6 +113,7 @@ type DbtModelJoin = {
     fields?: string[];
     always?: boolean;
     relationship?: JoinRelationship;
+    primary_key?: string | string[];
 };
 export type DbtColumnMetadata = DbtColumnLightdashConfig & {};
 type DbtColumnLightdashConfig = {

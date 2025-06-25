@@ -124,3 +124,23 @@ export type AiWebAppPromptTable = Knex.CompositeTableType<
     Pick<DbAiWebAppPrompt, 'ai_prompt_uuid' | 'user_uuid'>,
     Pick<DbAiWebAppPrompt, 'user_uuid'>
 >;
+
+export const AiAgentToolCallTableName = 'ai_agent_tool_call';
+
+export type DbAiAgentToolCall = {
+    ai_agent_tool_call_uuid: string;
+    ai_prompt_uuid: string;
+    tool_call_id: string;
+    tool_name: string;
+    tool_args: object;
+    created_at: Date;
+};
+
+export type AiAgentToolCallTable = Knex.CompositeTableType<
+    DbAiAgentToolCall,
+    Pick<
+        DbAiAgentToolCall,
+        'ai_prompt_uuid' | 'tool_call_id' | 'tool_name' | 'tool_args'
+    >,
+    never
+>;
