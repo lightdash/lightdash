@@ -1,3 +1,10 @@
+# [0.1758.0](https://github.com/lightdash/lightdash/compare/0.1757.1...0.1758.0) (2025-06-25)
+
+
+### Features
+
+* add --skip-copy-content option to preview and start-preview commands ([#15549](https://github.com/lightdash/lightdash/issues/15549)) ([862a7fb](https://github.com/lightdash/lightdash/commit/862a7fbd26f4e948283c2e38fb8fc07cbaa804d0))
+
 ## [0.1757.1](https://github.com/lightdash/lightdash/compare/0.1757.0...0.1757.1) (2025-06-25)
 
 
