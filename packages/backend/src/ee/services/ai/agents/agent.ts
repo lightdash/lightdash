@@ -251,6 +251,10 @@ export const streamAgentResponse = async ({
                 chunking: 'line',
             }),
             toolCallStreaming: true,
+            onError: (error) => {
+                Logger.error(error);
+                Sentry.captureException(error);
+            },
         });
         return result;
     } catch (error) {

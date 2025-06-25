@@ -9,6 +9,9 @@ export const getOpenaiGptmodel = (
     const openai = createOpenAI({
         apiKey: config.apiKey,
         compatibility: 'strict',
+        ...(config.baseUrl
+            ? { baseURL: config.baseUrl, compatibility: 'compatible' }
+            : {}),
     });
 
     const model = openai(config.modelName, {
