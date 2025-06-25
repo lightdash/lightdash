@@ -227,14 +227,17 @@ export const streamAgentResponse = async ({
             },
             onChunk: (event) => {
                 if (event.chunk.type === 'tool-call') {
-                    console.log('tool-call', event.chunk);
-
-                    void dependencies.storeToolCall({
-                        promptUuid: args.promptUuid,
-                        toolCallId: event.chunk.toolCallId,
-                        toolName: event.chunk.toolName,
-                        toolArgs: event.chunk.args,
-                    });
+                    void dependencies
+                        .storeToolCall({
+                            promptUuid: args.promptUuid,
+                            toolCallId: event.chunk.toolCallId,
+                            toolName: event.chunk.toolName,
+                            toolArgs: event.chunk.args,
+                        })
+                        .catch((error) => {
+                            Logger.error('Failed to store tool call', error);
+                            Sentry.captureException(error);
+                        });
                 }
             },
             onFinish: ({ text }) => {
