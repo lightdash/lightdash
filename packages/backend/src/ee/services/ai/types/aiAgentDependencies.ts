@@ -43,3 +43,12 @@ export type StoreToolCallFn = (data: {
     toolName: string;
     toolArgs: object;
 }) => Promise<void>;
+
+export type StoreToolResultsFn = (
+    data: Array<{
+        promptUuid: string;
+        toolCallId: string;
+        toolName: string;
+        result: string;
+    }>,
+) => Promise<void>;
