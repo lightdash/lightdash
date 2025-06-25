@@ -119,7 +119,6 @@ import { ExcelService } from '../services/ExcelService/ExcelService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RenameService } from '../services/RenameService/RenameService';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
-import { SemanticLayerService } from '../services/SemanticLayerService/SemanticLayerService';
 import {
     ScreenshotContext,
     UnfurlService,
@@ -144,7 +143,6 @@ export type SchedulerTaskArguments = {
     s3Client: S3Client;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
-    semanticLayerService: SemanticLayerService;
     catalogService: CatalogService;
     encryptionUtil: EncryptionUtil;
     msTeamsClient: MicrosoftTeamsClient;
@@ -181,8 +179,6 @@ export default class SchedulerTask {
 
     protected readonly slackClient: SlackClient;
 
-    private readonly semanticLayerService: SemanticLayerService;
-
     private readonly catalogService: CatalogService;
 
     private readonly encryptionUtil: EncryptionUtil;
@@ -208,7 +204,6 @@ export default class SchedulerTask {
         this.s3Client = args.s3Client;
         this.schedulerClient = args.schedulerClient;
         this.slackClient = args.slackClient;
-        this.semanticLayerService = args.semanticLayerService;
         this.catalogService = args.catalogService;
         this.encryptionUtil = args.encryptionUtil;
         this.msTeamsClient = args.msTeamsClient;
@@ -1731,26 +1726,6 @@ export default class SchedulerTask {
             Logger.error(`Error in scheduler task: ${e}`);
             throw e;
         }
-    }
-
-    protected async semanticLayerQuery(
-        jobId: string,
-        scheduledTime: Date,
-        payload: SemanticLayerQueryPayload,
-    ) {
-        await this.logWrapper(
-            {
-                task: SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY,
-                jobId,
-                scheduledTime,
-                details: {
-                    createdByUserUuid: payload.userUuid,
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                },
-            },
-            async () => this.semanticLayerService.streamQueryIntoFile(payload),
-        );
     }
 
     protected async sqlRunner(

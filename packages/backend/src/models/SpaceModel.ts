@@ -1234,24 +1234,6 @@ export class SpaceModel {
         );
     }
 
-    async getSpaceSemanticViewerCharts(
-        spaceUuids: string[],
-        filters?: {
-            recentlyUpdated?: boolean;
-            mostPopular?: boolean;
-        },
-    ): Promise<SpaceQuery[]> {
-        return this.getSpaceCharts(
-            {
-                name: SavedSemanticViewerChartsTableName,
-                uuidColumnName: 'saved_semantic_viewer_chart_uuid',
-                chartSourceType: ChartSourceType.SEMANTIC_LAYER,
-            },
-            spaceUuids,
-            filters,
-        );
-    }
-
     async getSpaceQueries(
         spaceUuids: string[],
         filters?: {

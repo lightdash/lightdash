@@ -44,9 +44,6 @@ const GridTile: FC<
             return <LoomTile {...props} tile={tile} />;
         case DashboardTileTypes.SQL_CHART:
             return <SqlChartTile {...props} tile={tile} />;
-        case DashboardTileTypes.SEMANTIC_VIEWER_CHART:
-            // TODO: update this type
-            return null;
         default: {
             return assertUnreachable(
                 tile,

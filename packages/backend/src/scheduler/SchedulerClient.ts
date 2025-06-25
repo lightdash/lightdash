@@ -679,31 +679,6 @@ export class SchedulerClient {
         return jobId;
     }
 
-    async semanticLayerStreamingResults(payload: SemanticLayerQueryPayload) {
-        const graphileClient = await this.graphileUtils;
-        const now = new Date();
-        const jobId = await SchedulerClient.addJob(
-            graphileClient,
-            SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY,
-            payload,
-            now,
-            JobPriority.HIGH,
-        );
-        await this.schedulerModel.logSchedulerJob({
-            task: SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY,
-            jobId,
-            scheduledTime: now,
-            status: SchedulerJobStatus.SCHEDULED,
-            details: {
-                createdByUserUuid: payload.userUuid,
-                projectUuid: payload.projectUuid,
-                organizationUuid: payload.organizationUuid,
-            },
-        });
-
-        return jobId;
-    }
-
     async runSql(payload: SqlRunnerPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();

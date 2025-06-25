@@ -10,8 +10,6 @@ export const convertChartSourceTypeToDashboardTileType = (
             return DashboardTileTypes.SAVED_CHART;
         case ChartSourceType.SQL:
             return DashboardTileTypes.SQL_CHART;
-        case ChartSourceType.SEMANTIC_LAYER:
-            return DashboardTileTypes.SEMANTIC_VIEWER_CHART;
         default:
             return assertUnreachable(
                 sourceType,

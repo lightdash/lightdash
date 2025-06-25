@@ -300,8 +300,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 schedulerClient: context.clients.getSchedulerClient(),
                 slackClient: context.clients.getSlackClient(),
                 aiAgentService: context.serviceRepository.getAiAgentService(),
-                semanticLayerService:
-                    context.serviceRepository.getSemanticLayerService(),
                 catalogService: context.serviceRepository.getCatalogService(),
                 encryptionUtil: context.utils.getEncryptionUtil(),
                 msTeamsClient: context.clients.getMsTeamsClient(),

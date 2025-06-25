@@ -57,8 +57,6 @@ const getChartResourceUrl = (
     switch (item.data.source) {
         case ChartSourceType.SQL:
             return `/projects/${projectUuid}/sql-runner/${item.data.slug}`;
-        case ChartSourceType.SEMANTIC_LAYER:
-            return `/projects/${projectUuid}/semantic-viewer/${item.data.slug}`;
         case ChartSourceType.DBT_EXPLORE:
         case undefined:
             return `/projects/${projectUuid}/saved/${item.data.uuid}`;
