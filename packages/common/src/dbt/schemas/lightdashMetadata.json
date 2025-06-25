@@ -284,6 +284,19 @@
             "type": "object",
             "required": [],
             "properties": {
+                "primary_key": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
+                },
                 "joins": {
                     "type": "array",
                     "items": {
