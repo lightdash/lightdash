@@ -69,7 +69,7 @@ type FormValues = z.infer<typeof saveToSpaceOrDashboardSchema>;
 type Props = {
     projectUuid?: string;
     savedData: CreateSavedChartVersion;
-    onConfirm: (savedData: CreateSavedChartVersion) => void;
+    onConfirm: (savedData: SavedChart) => void;
     onClose: () => void;
     dashboardInfoFromSavedData?: {
         dashboardUuid: string | null;

@@ -219,6 +219,7 @@ const createOptimisticMessages = (
             metricQuery: null,
             humanScore: null,
             toolCalls: [],
+            savedQueryUuid: null,
         },
     ];
 };
@@ -483,6 +484,52 @@ export const useUpdatePromptFeedbackMutation = (
             showToastApiError({
                 title: 'Failed to submit feedback',
                 apiError: error,
+            });
+        },
+    });
+};
+
+const savePromptQuery = async ({
+    agentUuid,
+    threadUuid,
+    messageUuid,
+    savedQueryUuid,
+}: {
+    agentUuid: string;
+    threadUuid: string;
+    messageUuid: string;
+    savedQueryUuid: string | null;
+}) =>
+    lightdashApi<ApiSuccessEmpty>({
+        url: `/aiAgents/${agentUuid}/threads/${threadUuid}/messages/${messageUuid}/savedQuery`,
+        method: `PATCH`,
+        body: JSON.stringify({
+            savedQueryUuid,
+        }),
+    });
+
+export const useSavePromptQuery = (
+    agentUuid: string,
+    threadUuid: string,
+    messageUuid: string,
+) => {
+    const queryClient = useQueryClient();
+
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { savedQueryUuid: string | null }
+    >({
+        mutationFn: ({ savedQueryUuid }) =>
+            savePromptQuery({
+                agentUuid,
+                threadUuid,
+                messageUuid,
+                savedQueryUuid,
+            }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
             });
         },
     });
