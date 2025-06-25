@@ -935,13 +935,16 @@ export class ProjectService extends BaseService {
                     data.upstreamProjectUuid,
                     projectUuid,
                 );
-                await this.copyContentOnPreview(
-                    data.upstreamProjectUuid,
-                    projectUuid,
-                    user,
-                );
 
-                hasContentCopy = true;
+                if (data.copyContent ?? true) {
+                    await this.copyContentOnPreview(
+                        data.upstreamProjectUuid,
+                        projectUuid,
+                        user,
+                    );
+
+                    hasContentCopy = true;
+                }
             } catch (e) {
                 Sentry.captureException(e);
                 this.logger.error(`Unable to copy content on preview ${e}`);
