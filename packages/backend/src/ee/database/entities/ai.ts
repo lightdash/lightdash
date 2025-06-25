@@ -71,22 +71,24 @@ export type DbAiPrompt = {
     metric_query: object | null;
 };
 
-type DbAiPromptUpdate = Partial<
-    Pick<
-        DbAiPrompt,
-        | 'response'
-        | 'responded_at'
-        | 'viz_config_output'
-        | 'filters_output'
-        | 'human_score'
-        | 'metric_query'
-    >
->;
-
 export type AiPromptTable = Knex.CompositeTableType<
+    // base
     DbAiPrompt,
+    // insert
     Pick<DbAiPrompt, 'ai_thread_uuid' | 'created_by_user_uuid' | 'prompt'>,
-    DbAiPromptUpdate
+    // update
+    Partial<
+        Pick<
+            DbAiPrompt,
+            | 'response'
+            | 'viz_config_output'
+            | 'filters_output'
+            | 'human_score'
+            | 'metric_query'
+        > & {
+            responded_at: Knex.Raw;
+        }
+    >
 >;
 
 export const AiSlackPromptTableName = 'ai_slack_prompt';

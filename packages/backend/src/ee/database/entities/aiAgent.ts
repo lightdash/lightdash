@@ -15,9 +15,14 @@ export type DbAiAgent = {
 };
 
 export type AiAgentTable = Knex.CompositeTableType<
+    // base
     DbAiAgent,
+    // insert
     Omit<DbAiAgent, 'ai_agent_uuid' | 'created_at' | 'updated_at'>,
-    Partial<Omit<DbAiAgent, 'ai_agent_uuid' | 'created_at'>>
+    // update
+    Partial<Omit<DbAiAgent, 'ai_agent_uuid' | 'created_at' | 'updated_at'>> & {
+        updated_at: Knex.Raw;
+    }
 >;
 
 export const AiAgentIntegrationTableName = 'ai_agent_integration';
@@ -63,10 +68,12 @@ export type DbAiAgentInstructionVersions = {
 };
 
 export type AiAgentInstructionVersionsTable = Knex.CompositeTableType<
+    // base
     DbAiAgentInstructionVersions,
-    Omit<DbAiAgentInstructionVersions, 'ai_agent_instruction_version_uuid'> &
-        Partial<Pick<DbAiAgentInstructionVersions, 'created_at'>>,
-    Partial<
-        Omit<DbAiAgentInstructionVersions, 'ai_agent_instruction_version_uuid'>
+    // insert
+    Omit<
+        DbAiAgentInstructionVersions,
+        'ai_agent_instruction_version_uuid' | 'created_at'
     >
+    // update - defaults to partial of insert
 >;
