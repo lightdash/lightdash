@@ -395,6 +395,11 @@ export class MetricQueryBuilder {
         };
     }
 
+    private getLimitSQL() {
+        const { limit } = this.args.compiledMetricQuery;
+        return limit !== undefined ? `LIMIT ${limit}` : undefined;
+    }
+
     /**
      * Compiles a database query based on the provided metric query, explores, user attributes, and warehouse-specific configurations.
      *
@@ -649,7 +654,7 @@ export class MetricQueryBuilder {
             Logger.error('Error during metric inflation detection', e);
         }
 
-        const sqlLimit = `LIMIT ${limit}`;
+        const sqlLimit = this.getLimitSQL();
         const { sqlOrderBy, requiresQueryInCTE } = this.getSortSQL();
         if (
             compiledMetricQuery.compiledTableCalculations.length > 0 ||
@@ -704,7 +709,9 @@ export class MetricQueryBuilder {
             const cte = `WITH ${ctes.join(',\n')}`;
 
             return {
-                query: [cte, finalQuery, sqlOrderBy, sqlLimit].join('\n'),
+                query: [cte, finalQuery, sqlOrderBy, sqlLimit]
+                    .filter((l) => l !== undefined)
+                    .join('\n'),
                 fields,
                 warnings,
             };
