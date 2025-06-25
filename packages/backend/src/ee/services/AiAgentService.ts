@@ -8,6 +8,7 @@ import {
     AiConversationMessage,
     AiDuplicateSlackPromptError,
     AiMetricQuery,
+    AiVizMetadata,
     AiWebAppPrompt,
     AnyType,
     ApiAiAgentThreadCreateRequest,
@@ -915,6 +916,19 @@ export class AiAgentService {
             );
         }
 
+        const metadata = {
+            title:
+                'title' in message.vizConfigOutput &&
+                typeof message.vizConfigOutput.title === 'string'
+                    ? message.vizConfigOutput.title
+                    : null,
+            description:
+                'description' in message.vizConfigOutput &&
+                typeof message.vizConfigOutput.description === 'string'
+                    ? message.vizConfigOutput.description
+                    : null,
+        } satisfies AiVizMetadata;
+
         let vizConfig: AiAgentVizConfig;
         if (isVerticalBarMetricChartConfig(message.vizConfigOutput)) {
             vizConfig = {
@@ -963,6 +977,7 @@ export class AiAgentService {
                 return {
                     type: AiChartType.VERTICAL_BAR_CHART,
                     query,
+                    metadata,
                 };
             }
             case 'time_series_chart': {
@@ -979,6 +994,7 @@ export class AiAgentService {
                 return {
                     type: AiChartType.TIME_SERIES_CHART,
                     query,
+                    metadata,
                 };
             }
             case 'csv':
@@ -995,6 +1011,7 @@ export class AiAgentService {
                 return {
                     type: AiChartType.CSV,
                     query,
+                    metadata,
                 };
             default:
                 return assertUnreachable(vizConfig, 'Invalid viz config');

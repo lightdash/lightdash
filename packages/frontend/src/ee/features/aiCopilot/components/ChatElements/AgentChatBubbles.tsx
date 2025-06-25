@@ -7,7 +7,6 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Button,
     Card,
     Center,
     CopyButton,
@@ -22,7 +21,6 @@ import {
     IconCheck,
     IconCopy,
     IconExclamationCircle,
-    IconExternalLink,
     IconThumbDown,
     IconThumbDownFilled,
     IconThumbUp,
@@ -31,7 +29,7 @@ import {
 import MDEditor from '@uiw/react-md-editor';
 import dayjs from 'dayjs';
 import { memo, useCallback, useMemo, type FC } from 'react';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
@@ -45,7 +43,6 @@ import {
     useAiAgentThreadStreaming,
     useAiAgentThreadStreamQuery,
 } from '../../streaming/useAiAgentThreadStreamQuery';
-import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
 import { isOptimisticMessageStub } from '../../utils/thinkingMessageStub';
 import AgentToolCalls from './AgentToolCalls/AgentToolCalls';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
@@ -181,35 +178,10 @@ export const AssistantBubble: FC<{
         useAiAgentThreadStreaming(message.threadUuid) &&
         isOptimisticMessageStub(message.message);
 
-    const openInExploreUrl = useMemo(() => {
-        if (isQueryLoading || isQueryError) return '';
+    const metricQuery = queryExecutionHandle.data?.query.metricQuery;
+    const vizConfig = message.vizConfigOutput;
 
-        return getOpenInExploreUrl({
-            metricQuery: queryExecutionHandle.data.query.metricQuery,
-            projectUuid,
-            columnOrder: [
-                ...queryExecutionHandle.data.query.metricQuery.dimensions,
-                ...queryExecutionHandle.data.query.metricQuery.metrics,
-            ],
-            type: queryExecutionHandle.data.type,
-            vizConfig: message.vizConfigOutput,
-            rows: queryResults.rows,
-            pivotColumns:
-                // TODO: fix this using schema
-                message.vizConfigOutput &&
-                'breakdownByDimension' in message.vizConfigOutput &&
-                typeof message.vizConfigOutput.breakdownByDimension === 'string'
-                    ? [message.vizConfigOutput.breakdownByDimension]
-                    : undefined,
-        });
-    }, [
-        isQueryLoading,
-        isQueryError,
-        projectUuid,
-        queryExecutionHandle.data,
-        queryResults.rows,
-        message.vizConfigOutput,
-    ]);
+    if (!projectUuid) throw new Error(`Project Uuid not found`);
 
     return (
         <Stack
@@ -223,7 +195,7 @@ export const AssistantBubble: FC<{
         >
             <AssistantBubbleContent message={message} />
 
-            {message.vizConfigOutput && message.metricQuery && (
+            {vizConfig && metricQuery && (
                 <Paper
                     withBorder
                     radius="md"
@@ -254,10 +226,12 @@ export const AssistantBubble: FC<{
                         </Stack>
                     ) : (
                         <AiChartVisualization
+                            metadata={queryExecutionHandle.data.metadata}
                             query={queryExecutionHandle.data.query}
-                            type={queryExecutionHandle.data.type}
-                            vizConfig={message.vizConfigOutput}
+                            vizConfig={vizConfig}
                             results={queryResults}
+                            type={queryExecutionHandle.data.type}
+                            projectUuid={projectUuid}
                         />
                     )}
                     <Stack gap="xs">
@@ -266,10 +240,7 @@ export const AssistantBubble: FC<{
                                 queryExecutionHandle.data.type !==
                                     AiChartType.CSV && (
                                     <AgentVisualizationMetricsAndDimensions
-                                        metricQuery={
-                                            queryExecutionHandle.data.query
-                                                .metricQuery
-                                        }
+                                        metricQuery={metricQuery}
                                         fieldsMap={
                                             queryExecutionHandle.data.query
                                                 .fields
@@ -339,23 +310,6 @@ export const AssistantBubble: FC<{
                             }
                         />
                     </ActionIcon>
-                )}
-                {!isQueryLoading && !isQueryError && (
-                    <Button
-                        variant="subtle"
-                        color="gray"
-                        size="xs"
-                        aria-label="open in explore"
-                        leftSection={<MantineIcon icon={IconExternalLink} />}
-                        component={Link}
-                        to={openInExploreUrl}
-                        target="_blank"
-                        style={{
-                            color: '#868e96',
-                        }}
-                    >
-                        Continue exploring
-                    </Button>
                 )}
             </Group>
         </Stack>

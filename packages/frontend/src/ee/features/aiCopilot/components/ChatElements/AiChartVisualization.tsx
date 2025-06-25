@@ -4,7 +4,7 @@ import {
     type AiAgentMessageAssistant,
     type ApiAiAgentThreadMessageVizQuery,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box, Group } from '@mantine-8/core';
 import { useMemo, useState, type FC } from 'react';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
@@ -19,10 +19,12 @@ import { useOrganization } from '../../../../../hooks/organization/useOrganizati
 import { useExplore } from '../../../../../hooks/useExplore';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { getChartConfigFromAiAgentVizConfig } from '../../utils/echarts';
+import { AiChartQuickOptions } from './AiChartQuickOptions';
 
 type Props = ApiAiAgentThreadMessageVizQuery & {
     vizConfig: AiAgentMessageAssistant['vizConfigOutput'];
     results: InfiniteQueryResults;
+    projectUuid: string;
 };
 
 export const AiChartVisualization: FC<Props> = ({
@@ -30,6 +32,8 @@ export const AiChartVisualization: FC<Props> = ({
     results,
     type,
     vizConfig,
+    projectUuid,
+    metadata,
 }) => {
     const { data: health } = useHealth();
     const { data: organization } = useOrganization();
@@ -97,6 +101,15 @@ export const AiChartVisualization: FC<Props> = ({
                         setEchartSeries(series);
                     }}
                 >
+                    <Group justify="flex-end" w="100%">
+                        <AiChartQuickOptions
+                            projectUuid={projectUuid}
+                            saveChartOptions={{
+                                name: metadata.title,
+                                description: metadata.description,
+                            }}
+                        />
+                    </Group>
                     <LightdashVisualization
                         className="sentry-block ph-no-capture"
                         data-testid="ai-visualization"
