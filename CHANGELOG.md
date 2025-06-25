@@ -1,3 +1,10 @@
+# [0.1754.0](https://github.com/lightdash/lightdash/compare/0.1753.0...0.1754.0) (2025-06-25)
+
+
+### Features
+
+* add byte compact to yaml ([#15497](https://github.com/lightdash/lightdash/issues/15497)) ([6f9a8da](https://github.com/lightdash/lightdash/commit/6f9a8daabfe6167da7633e68e67b39fea51fee3d))
+
 # [0.1753.0](https://github.com/lightdash/lightdash/compare/0.1752.2...0.1753.0) (2025-06-24)
 
 
