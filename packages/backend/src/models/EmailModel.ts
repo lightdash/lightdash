@@ -55,6 +55,14 @@ export class EmailModel {
     }
 
     async getPrimaryEmailStatus(userUuid: string): Promise<EmailStatus> {
+        if (!userUuid) {
+            return {
+                email: '',
+                isVerified: false,
+                otp: undefined,
+            };
+        }
+
         const [row] = await this.database('emails')
             .innerJoin('users', 'users.user_id', 'emails.user_id')
             .leftJoin(

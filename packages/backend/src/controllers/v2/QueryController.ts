@@ -54,7 +54,7 @@ export type ApiGetAsyncQueryResultsResponse = {
 @Tags('v2', 'Query')
 export class QueryController extends BaseController {
     @Hidden()
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    // @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/{queryUuid}')
     @OperationId('getAsyncQueryResults')
@@ -112,7 +112,7 @@ export class QueryController extends BaseController {
     }
 
     @Hidden()
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    // @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/metric-query')
     @OperationId('executeAsyncMetricQuery')

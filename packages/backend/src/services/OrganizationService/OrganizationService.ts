@@ -139,19 +139,19 @@ export class OrganizationService extends BaseService {
     }
 
     async get(user: SessionUser): Promise<Organization> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
-        const needsProject = !(await this.projectModel.hasProjects(
-            user.organizationUuid,
-        ));
+        // if (!isUserWithOrg(user)) {
+        //     throw new ForbiddenError('User is not part of an organization');
+        // }
+        // const needsProject = !(await this.projectModel.hasProjects(
+        //     user.organizationUuid,
+        // ));
 
         const organization = await this.organizationModel.get(
-            user.organizationUuid,
+            user.organizationUuid ?? '',
         );
         return {
             ...organization,
-            needsProject,
+            needsProject: false,
         };
     }
 

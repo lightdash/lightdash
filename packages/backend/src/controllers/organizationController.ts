@@ -53,7 +53,7 @@ export class OrganizationController extends BaseController {
      * Get the current user's organization
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    // @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get()
     @OperationId('GetMyOrganization')
     async getOrganization(

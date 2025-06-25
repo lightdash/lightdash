@@ -1480,6 +1480,9 @@ export class LightdashAnalytics extends Analytics {
     }
 
     track<T extends BaseTrack>(payload: TypedEvent | UntypedEvent<T>) {
+        const identity = payload.userId
+            ? { userId: payload.userId }
+            : { anonymousId: 'anonymous-steve' };
         if (!this.lightdashConfig.rudder.writeKey) return; // Tracking disabled
         if (isUserUpdatedEvent(payload)) {
             const basicEventProperties = {
@@ -1491,6 +1494,7 @@ export class LightdashAnalytics extends Analytics {
 
             super.track({
                 ...payload,
+                ...identity,
                 event: `${this.lightdashContext.app.name}.${payload.event}`,
                 context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
                 properties: payload.properties.isTrackingAnonymized
@@ -1521,6 +1525,7 @@ export class LightdashAnalytics extends Analytics {
 
         super.track({
             ...payload,
+            ...identity,
             event: `${this.lightdashContext.app.name}.${payload.event}`,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });

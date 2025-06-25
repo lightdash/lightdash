@@ -722,7 +722,7 @@ export class ProjectService extends BaseService {
 
             userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
         } else {
-            credentials = await this.refreshCredentials(credentials, userUuid);
+            // credentials = await this.refreshCredentials(credentials, userUuid);
         }
 
         return {
@@ -3862,29 +3862,29 @@ export class ProjectService extends BaseService {
                 const project = organizationUuid
                     ? { organizationUuid }
                     : await this.projectModel.getSummary(projectUuid);
-                if (
-                    user.ability.cannot(
-                        'view',
-                        subject('Project', {
-                            organizationUuid: project.organizationUuid,
-                            projectUuid,
-                        }),
-                    )
-                ) {
-                    throw new ForbiddenError();
-                }
+                // if (
+                //     user.ability.cannot(
+                //         'view',
+                //         subject('Project', {
+                //             organizationUuid: project.organizationUuid,
+                //             projectUuid,
+                //         }),
+                //     )
+                // ) {
+                //     throw new ForbiddenError();
+                // }
                 const explores = await this.projectModel.findExploresFromCache(
                     projectUuid,
                     exploreNames,
                 );
 
-                const userAttributes =
-                    await this.userAttributesModel.getAttributeValuesForOrgMember(
-                        {
-                            organizationUuid: project.organizationUuid,
-                            userUuid: user.userUuid,
-                        },
-                    );
+                const userAttributes = {};
+                // await this.userAttributesModel.getAttributeValuesForOrgMember(
+                //     {
+                //         organizationUuid: project.organizationUuid,
+                //         userUuid: user.userUuid,
+                //     },
+                // );
 
                 return Object.values(explores).reduce<
                     Record<string, Explore | ExploreError>

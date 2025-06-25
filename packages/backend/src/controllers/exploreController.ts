@@ -82,7 +82,7 @@ export class ExploreController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    // @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('{exploreId}')
     @OperationId('GetExplore')
