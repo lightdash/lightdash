@@ -1,6 +1,6 @@
 import {
     friendlyName,
-    getItemLabel,
+    getItemLabelWithoutTableName,
     isCompiledMetric,
     isDimension,
     isField,
@@ -8,7 +8,7 @@ import {
     type ItemsMap,
     type MetricQuery,
 } from '@lightdash/common';
-import { Box, Button, Flex, HoverCard, Text } from '@mantine-8/core';
+import { Box, Button, Flex, Group, HoverCard, Text } from '@mantine-8/core';
 import { lighten } from 'polished';
 import { type FC } from 'react';
 import FieldIcon from '../../../../../components/common/Filters/FieldIcon';
@@ -32,8 +32,10 @@ const MetricDimensionItem: FC<{
         return null;
     }
 
-    const displayName = field ? getItemLabel(field) : friendlyName(fieldId);
-    const backgroundColor = lighten(0.05, getItemBgColor(field));
+    const displayName = field
+        ? getItemLabelWithoutTableName(field)
+        : friendlyName(fieldId);
+    const backgroundColor = lighten(0.08, getItemBgColor(field));
     const iconColor = type === 'dimension' ? 'blue.9' : 'yellow.9';
 
     // Get field description and other metadata
@@ -71,7 +73,7 @@ const MetricDimensionItem: FC<{
         >
             <HoverCard.Target>
                 <Button
-                    size="xs"
+                    size="compact-xs"
                     variant="default"
                     className={classes.itemButton}
                     style={{ backgroundColor }}
@@ -140,26 +142,24 @@ const AgentVisualizationMetricsAndDimensions: FC<Props> = ({
     }
 
     return (
-        <>
-            <Flex gap="xs" wrap="wrap" align="center">
-                {metricQuery.metrics.map((fieldId) => (
-                    <MetricDimensionItem
-                        key={fieldId}
-                        fieldId={fieldId}
-                        type="metric"
-                        fieldsMap={fieldsMap}
-                    />
-                ))}
-                {metricQuery.dimensions.map((fieldId) => (
-                    <MetricDimensionItem
-                        key={fieldId}
-                        fieldId={fieldId}
-                        type="dimension"
-                        fieldsMap={fieldsMap}
-                    />
-                ))}
-            </Flex>
-        </>
+        <Group gap="xs" wrap="wrap">
+            {metricQuery.metrics.map((fieldId) => (
+                <MetricDimensionItem
+                    key={fieldId}
+                    fieldId={fieldId}
+                    type="metric"
+                    fieldsMap={fieldsMap}
+                />
+            ))}
+            {metricQuery.dimensions.map((fieldId) => (
+                <MetricDimensionItem
+                    key={fieldId}
+                    fieldId={fieldId}
+                    type="dimension"
+                    fieldsMap={fieldsMap}
+                />
+            ))}
+        </Group>
     );
 };
 

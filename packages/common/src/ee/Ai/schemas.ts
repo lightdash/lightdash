@@ -320,7 +320,8 @@ export const lighterMetricQuerySchema = z.object({
         .number()
         .int()
         .min(1)
-        .describe('Maximum number of rows to return from query'),
+        .describe('Maximum number of rows to return from query')
+        .nullable(),
     // tableCalculations: z
     //     .array(TableCalculationSchema)
     //     .describe(
@@ -415,11 +416,71 @@ export const timeSeriesMetricVizConfigSchema = z.object({
         .describe(
             'default line. The type of line to display. If area then the area under the line will be filled in.',
         ),
+    limit: z
+        .number()
+        .int()
+        .min(1)
+        .describe('Maximum number of rows to return from query')
+        .nullable(),
+    followUpTools: z
+        .array(z.string())
+        .describe(
+            'List of follow-up tools that can be used after this visualization',
+        ),
 });
 
 export type TimeSeriesMetricVizConfigSchemaType = z.infer<
     typeof timeSeriesMetricVizConfigSchema
 >;
+
+const testingFilterRuleSchema = z
+    // Notice and is an array of objects with an id, operator, and target
+    .array(
+        z.object({
+            id: z.string(),
+            operator: z.string(),
+            // Ideally we can use z.pick but it's not a valid method
+            //  z.pick(z.union([
+            //     booleanFilterSchema.describe('Boolean filter'),
+            //     stringFilterSchema.describe('String filter'),
+            //     numberFilterSchema.describe('Number filter'),
+            //     dateFilterSchema.describe('Date filter'),
+            // ]), 'operator'),
+            target: z.object({
+                fieldId: fieldIdSchema,
+                type: FieldTypeSchema,
+            }),
+        }),
+    )
+    .nullable()
+    // Notice optional is used to make the field optional
+    .optional();
+
+const testingFiltersSchema = z.object({
+    // Notice dimensions is an object
+    dimensions: z.object({
+        id: z.string(),
+        and: testingFilterRuleSchema,
+        or: testingFilterRuleSchema,
+    }),
+
+    metrics: z.object({
+        id: z.string(),
+        and: testingFilterRuleSchema,
+        or: testingFilterRuleSchema,
+    }),
+});
+
+// Outer schema that matches the actual toolArgs structure
+export const timeSeriesToolArgsSchema = z.object({
+    filters: testingFiltersSchema.nullable(),
+    vizConfig: timeSeriesMetricVizConfigSchema,
+});
+
+export const generateQueryFiltersToolSchema2 = z.object({
+    exploreName: z.string().describe('Name of the selected explore'),
+    filters: testingFiltersSchema.nullable(),
+});
 
 export const verticalBarMetricVizConfigSchema = z.object({
     exploreName: z
@@ -469,11 +530,28 @@ export const verticalBarMetricVizConfigSchema = z.object({
         .nullable()
         .describe('A helpful label to explain the y-axis'),
     title: z.string().nullable().describe('a descriptive title for the chart'),
+    limit: z
+        .number()
+        .int()
+        .min(1)
+        .describe('Maximum number of rows to return from query')
+        .nullable(),
+    followUpTools: z
+        .array(z.string())
+        .describe(
+            'List of follow-up tools that can be used after this visualization',
+        ),
 });
 
 export type VerticalBarMetricVizConfigSchemaType = z.infer<
     typeof verticalBarMetricVizConfigSchema
 >;
+
+// Outer schema that matches the actual toolArgs structure
+export const verticalBarToolArgsSchema = z.object({
+    filters: testingFiltersSchema.nullable(),
+    vizConfig: verticalBarMetricVizConfigSchema,
+});
 
 export const csvFileVizConfigSchema = z.object({
     exploreName: z
@@ -496,6 +574,145 @@ export const csvFileVizConfigSchema = z.object({
         .describe(
             'Sort configuration for the query, it can use a combination of metrics and dimensions.',
         ),
+    limit: z
+        .number()
+        .int()
+        .min(1)
+        .describe('Maximum number of rows to return from query')
+        .nullable(),
+    followUpTools: z
+        .array(z.string())
+        .describe(
+            'List of follow-up tools that can be used after this visualization',
+        ),
 });
 
 export type CsvFileVizConfigSchemaType = z.infer<typeof csvFileVizConfigSchema>;
+
+// Outer schema that matches the actual toolArgs structure
+export const csvToolArgsSchema = z.object({
+    filters: testingFiltersSchema.nullable(),
+    vizConfig: csvFileVizConfigSchema,
+});
+
+// Derived types from schemas
+export type FindFieldsToolArgs = z.infer<typeof aiFindFieldsToolSchema>;
+export type GenerateQueryFiltersToolArgs = z.infer<
+    typeof generateQueryFiltersToolSchema
+>;
+export type GenerateTimeSeriesVizConfigToolArgs = z.infer<
+    typeof timeSeriesToolArgsSchema
+>;
+export type GenerateBarVizConfigToolArgs = z.infer<
+    typeof verticalBarToolArgsSchema
+>;
+export type GenerateCsvToolArgs = z.infer<typeof csvToolArgsSchema>;
+
+// Tool names enum/union type
+export const TOOL_NAMES = [
+    'findFields',
+    'generateBarVizConfig',
+    'generateCsv',
+    'generateQueryFilters',
+    'generateTimeSeriesVizConfig',
+] as const;
+
+export type ToolName = typeof TOOL_NAMES[number];
+
+// Tool display messages
+export const TOOL_DISPLAY_MESSAGES = {
+    findFields: 'Finding relevant fields',
+    generateBarVizConfig: 'Generating a bar chart',
+    generateCsv: 'Generating CSV file',
+    generateQueryFilters: 'Applying filters to the query',
+    generateTimeSeriesVizConfig: 'Generating a line chart',
+} as const satisfies Record<ToolName, string>;
+
+export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL = {
+    findFields: 'Found relevant fields',
+    generateBarVizConfig: 'Generated a bar chart',
+    generateCsv: 'Generated CSV file',
+    generateQueryFilters: 'Applied filters to the query',
+    generateTimeSeriesVizConfig: 'Generated a line chart',
+} as const satisfies Record<ToolName, string>;
+
+// Type guards for tool arguments
+export const isFindFieldsToolArgs = (
+    toolArgs: unknown,
+): toolArgs is FindFieldsToolArgs => {
+    try {
+        aiFindFieldsToolSchema.parse(toolArgs);
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+export const isGenerateQueryFiltersToolArgs = (
+    toolArgs: unknown,
+): toolArgs is GenerateQueryFiltersToolArgs => {
+    try {
+        generateQueryFiltersToolSchema2.parse(toolArgs);
+        return true;
+    } catch (error) {
+        console.log({ toolArgs });
+        console.log('isGenerateQueryFiltersToolArgs error', error);
+        return false;
+    }
+};
+
+export const isGenerateTimeSeriesVizConfigToolArgs = (
+    toolArgs: unknown,
+): toolArgs is GenerateTimeSeriesVizConfigToolArgs => {
+    try {
+        timeSeriesToolArgsSchema.parse(toolArgs);
+        return true;
+    } catch (error) {
+        console.log('isGenerateTimeSeriesVizConfigToolArgs error', error);
+        return false;
+    }
+};
+
+export const isGenerateBarVizConfigToolArgs = (
+    toolArgs: unknown,
+): toolArgs is GenerateBarVizConfigToolArgs => {
+    try {
+        verticalBarToolArgsSchema.parse(toolArgs);
+        return true;
+    } catch (error) {
+        console.log('isGenerateBarVizConfigToolArgs error', error);
+        return false;
+    }
+};
+
+export const isGenerateCsvToolArgs = (
+    toolArgs: unknown,
+): toolArgs is GenerateCsvToolArgs => {
+    try {
+        csvToolArgsSchema.parse(toolArgs);
+        return true;
+    } catch (error) {
+        console.log('isGenerateCsvToolArgs error', error);
+        return false;
+    }
+};
+
+// Typed tool call variant
+export type TypedAiAgentToolCall<T extends ToolName = ToolName> = {
+    uuid: string;
+    promptUuid: string;
+    toolCallId: string;
+    toolName: T;
+    toolArgs: T extends 'findFields'
+        ? FindFieldsToolArgs
+        : T extends 'generateQueryFilters'
+        ? GenerateQueryFiltersToolArgs
+        : T extends 'generateTimeSeriesVizConfig'
+        ? GenerateTimeSeriesVizConfigToolArgs
+        : T extends 'generateBarVizConfig'
+        ? GenerateBarVizConfigToolArgs
+        : T extends 'generateCsv'
+        ? GenerateCsvToolArgs
+        : object;
+    createdAt: Date;
+};

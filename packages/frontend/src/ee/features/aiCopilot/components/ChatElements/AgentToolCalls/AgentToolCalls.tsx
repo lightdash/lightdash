@@ -1,19 +1,13 @@
+import {
+    type ToolName,
+    TOOL_DISPLAY_MESSAGES,
+    TOOL_NAMES,
+} from '@lightdash/common';
 import { Box, List, Text, ThemeIcon } from '@mantine-8/core';
 import { IconTool } from '@tabler/icons-react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useAiAgentThreadStreamToolCalls } from '../../../streaming/useAiAgentThreadStreamQuery';
-
-// TODO :: should be based on schemas
-const TOOL_DISPLAY_MESSAGES = {
-    findFields: 'Finding relevant fields',
-    generateBarVizConfig: 'Generating a bar chart',
-    generateCsv: 'Generating CSV file',
-    generateQueryFilters: 'Applying filters to the query',
-    generateTimeSeriesVizConfig: 'Generating a line chart',
-} as const;
-
-const TOOL_NAMES = Object.keys(TOOL_DISPLAY_MESSAGES);
 
 const AgentToolCalls = () => {
     const { threadUuid } = useParams();
@@ -38,7 +32,7 @@ const AgentToolCalls = () => {
             >
                 {toolCalls
                     .filter((toolCall) =>
-                        TOOL_NAMES.includes(toolCall.toolName),
+                        TOOL_NAMES.includes(toolCall.toolName as ToolName),
                     )
                     .map((toolCall) => {
                         const toolDescription =
