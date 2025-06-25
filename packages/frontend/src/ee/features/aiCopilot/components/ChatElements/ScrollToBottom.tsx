@@ -69,7 +69,7 @@ const ThreadScrollToBottom = ({
         });
     }, [
         streamingState?.content,
-        streamingState.toolCalls.length,
+        streamingState?.toolCalls?.length,
         scrollToBottom,
     ]);
 

@@ -100,11 +100,12 @@ const AssistantBubbleContent: FC<{ message: AiAgentMessageAssistant }> = ({
     const isStubbed = isOptimisticMessageStub(message.message);
     const isStreaming =
         useAiAgentThreadStreaming(message.threadUuid) && isStubbed;
-    const messageContent = isStreaming
-        ? streamingState.content
-        : isStubbed // avoid brief flash of `THINKING_STUB`
-        ? ''
-        : message.message ?? 'No response...';
+    const messageContent =
+        isStreaming && streamingState
+            ? streamingState.content
+            : isStubbed // avoid brief flash of `THINKING_STUB`
+            ? ''
+            : message.message ?? 'No response...';
 
     return (
         <>
