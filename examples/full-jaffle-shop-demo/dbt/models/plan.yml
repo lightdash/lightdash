@@ -2,6 +2,7 @@ version: 2
 models:
   - name: plan
     meta:
+      primary_key: id
       required_attributes:
         is_admin: 'true'
     columns:
