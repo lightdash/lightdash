@@ -52,7 +52,7 @@ import { AiChartVisualization } from './AiChartVisualization';
 export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
     message,
 }) => {
-    const timeAgo = useTimeAgo(new Date(message.createdAt));
+    const timeAgo = useTimeAgo(message.createdAt);
     const name = message.user.name;
     const app = useApp();
     const showUserName = app.user?.data?.userUuid !== message.user.uuid;
