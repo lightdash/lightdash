@@ -1,3 +1,10 @@
+# [0.1757.0](https://github.com/lightdash/lightdash/compare/0.1756.0...0.1757.0) (2025-06-25)
+
+
+### Features
+
+* add telemetry for AI agent tool calls and upgrade Sentry to v9.31.0 ([#15534](https://github.com/lightdash/lightdash/issues/15534)) ([6563a9f](https://github.com/lightdash/lightdash/commit/6563a9f5de85f3236e0a0130af003625ac1005d3))
+
 # [0.1756.0](https://github.com/lightdash/lightdash/compare/0.1755.0...0.1756.0) (2025-06-25)
 
 
