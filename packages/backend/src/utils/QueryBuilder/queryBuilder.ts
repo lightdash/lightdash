@@ -70,6 +70,14 @@ export type BuildQueryProps = {
 export class MetricQueryBuilder {
     constructor(private args: BuildQueryProps) {}
 
+    static buildCtesSQL(ctes: string[]) {
+        return ctes.length > 0 ? `WITH ${ctes.join(',\n')}` : undefined;
+    }
+
+    static assembleSqlParts(parts: Array<string | undefined>) {
+        return parts.filter((l) => l !== undefined).join('\n');
+    }
+
     private getDimensionsFilterSQL() {
         const {
             explore,
@@ -762,69 +770,64 @@ export class MetricQueryBuilder {
             metricsSQL.filtersSQL ||
             requiresQueryInCTE
         ) {
-            const cteSql = [
+            const cteSql = MetricQueryBuilder.assembleSqlParts([
                 sqlSelect,
                 sqlFrom,
                 joins.joinSQL,
                 ...dimensionsSQL.joins,
                 dimensionsSQL.filtersSQL,
                 dimensionsSQL.groupBySQL,
-            ]
-                .filter((l) => l !== undefined)
-                .join('\n');
+            ]);
             const cteName = 'metrics';
             const ctes = [
                 ...dimensionsSQL.ctes,
                 `${cteName} AS (\n${cteSql}\n)`,
             ];
+            const queryWithTableCalculations =
+                MetricQueryBuilder.assembleSqlParts([
+                    `SELECT\n${['  *', ...tableCalculationSQL.selects].join(
+                        ',\n',
+                    )}`,
+                    `FROM ${cteName}`,
+                    metricsSQL.filtersSQL,
+                ]);
 
-            const finalSelect = `SELECT\n${[
-                '  *',
-                ...tableCalculationSQL.selects,
-            ].join(',\n')}`;
-            const finalFrom = `FROM ${cteName}`;
-            const secondQuery = [finalSelect, finalFrom, metricsSQL.filtersSQL]
-                .filter((l) => l !== undefined)
-                .join('\n');
-
-            let finalQuery = secondQuery;
+            let finalQuery = queryWithTableCalculations;
             if (tableCalculationSQL.filtersSQL) {
                 const queryResultCteName = 'table_calculations';
-                ctes.push(`${queryResultCteName} AS (\n${secondQuery}\n)`);
+                ctes.push(
+                    `${queryResultCteName} AS (\n${queryWithTableCalculations}\n)`,
+                );
 
                 finalQuery = `SELECT *
                               FROM ${queryResultCteName}
                               ${tableCalculationSQL.filtersSQL}`;
             }
-            const cte = `WITH ${ctes.join(',\n')}`;
 
             return {
-                query: [cte, finalQuery, sqlOrderBy, sqlLimit]
-                    .filter((l) => l !== undefined)
-                    .join('\n'),
+                query: MetricQueryBuilder.assembleSqlParts([
+                    MetricQueryBuilder.buildCtesSQL(ctes),
+                    finalQuery,
+                    sqlOrderBy,
+                    sqlLimit,
+                ]),
                 fields,
                 warnings,
             };
         }
 
-        const metricQuerySql = [
-            dimensionsSQL.ctes.length > 0
-                ? `WITH ${dimensionsSQL.ctes.join(',\n')}`
-                : undefined,
-            sqlSelect,
-            sqlFrom,
-            joins.joinSQL,
-            ...dimensionsSQL.joins,
-            dimensionsSQL.filtersSQL,
-            dimensionsSQL.groupBySQL,
-            sqlOrderBy,
-            sqlLimit,
-        ]
-            .filter((l) => l !== undefined)
-            .join('\n');
-
         return {
-            query: metricQuerySql,
+            query: MetricQueryBuilder.assembleSqlParts([
+                MetricQueryBuilder.buildCtesSQL(dimensionsSQL.ctes),
+                sqlSelect,
+                sqlFrom,
+                joins.joinSQL,
+                ...dimensionsSQL.joins,
+                dimensionsSQL.filtersSQL,
+                dimensionsSQL.groupBySQL,
+                sqlOrderBy,
+                sqlLimit,
+            ]),
             fields,
             warnings,
         };
