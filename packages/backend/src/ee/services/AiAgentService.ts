@@ -57,6 +57,7 @@ import {
     RunMiniMetricQueryFn,
     SearchFieldsFn,
     SendFileFn,
+    StoreToolCallFn,
     UpdateProgressFn,
 } from './ai/types/aiAgentDependencies';
 import { AiAgentExploreSummary } from './ai/types/aiAgentExploreSummary';
@@ -1191,6 +1192,10 @@ export class AiAgentService {
             await this.slackClient.postFileToThread(args);
         };
 
+        const storeToolCall: StoreToolCallFn = async (data) => {
+            await this.aiAgentModel.createToolCall(data);
+        };
+
         return {
             getExplore,
             searchFields: this.lightdashConfig.ai.copilot.embeddingSearchEnabled
@@ -1200,6 +1205,7 @@ export class AiAgentService {
             getPrompt,
             runMiniMetricQuery,
             sendFile,
+            storeToolCall,
         };
     }
 
@@ -1273,6 +1279,7 @@ export class AiAgentService {
             getPrompt,
             runMiniMetricQuery,
             sendFile,
+            storeToolCall,
         } = this.getAiAgentDependencies(
             user,
             prompt,
@@ -1303,6 +1310,7 @@ export class AiAgentService {
             runMiniMetricQuery,
             getPrompt,
             sendFile,
+            storeToolCall,
             // avoid binding
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (

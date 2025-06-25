@@ -5,6 +5,7 @@ import {
     RunMiniMetricQueryFn,
     SearchFieldsFn,
     SendFileFn,
+    StoreToolCallFn,
     UpdateProgressFn,
     UpdatePromptFn,
 } from './aiAgentDependencies';
@@ -28,6 +29,7 @@ export type AiAgentDependencies = {
     sendFile: SendFileFn;
     updatePrompt: UpdatePromptFn;
     updateProgress: UpdateProgressFn;
+    storeToolCall: StoreToolCallFn;
 };
 
 export type AiGenerateAgentResponseArgs = AiAgentArgs;
