@@ -1,9 +1,11 @@
 import { z } from 'zod';
+import { type Organization } from '../../types/organization';
 import { type LightdashUser } from '../../types/user';
 import assertUnreachable from '../../utils/assertUnreachable';
 
 export type Embed = {
     projectUuid: string;
+    organization: Pick<Organization, 'organizationUuid'>;
     encodedSecret: string;
     dashboardUuids: string[];
     allowAllDashboards: boolean;
@@ -96,7 +98,7 @@ export type EmbedJwt = z.infer<typeof EmbedJwtSchema>;
 
 // Note: we can't extend zod types since tsoa doesn't support it
 
-type CommonEmbedJwtContent = {
+export type CommonEmbedJwtContent = {
     type: 'dashboard';
     projectUuid?: string;
     isPreview?: boolean;
@@ -126,6 +128,8 @@ export type CreateEmbedJwt = {
         externalId?: string;
     };
     expiresIn?: string;
+    iat?: number;
+    exp?: number;
 };
 
 export function isDashboardUuidContent(
