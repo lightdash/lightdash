@@ -1,3 +1,10 @@
+## [0.1760.1](https://github.com/lightdash/lightdash/compare/0.1760.0...0.1760.1) (2025-06-26)
+
+
+### Bug Fixes
+
+* handle null streamingState in AI agent chat components ([#15566](https://github.com/lightdash/lightdash/issues/15566)) ([b9b3e72](https://github.com/lightdash/lightdash/commit/b9b3e7209954f34ef9600e1eb3502180e51a9cdd))
+
 # [0.1760.0](https://github.com/lightdash/lightdash/compare/0.1759.0...0.1760.0) (2025-06-25)
 
 
