@@ -7,7 +7,9 @@ import type {
     CacheMetadata,
     ItemsMap,
     MetricQuery,
+    ToolName,
 } from '../..';
+import { type FindFieldsToolArgs } from '../Ai/schemas';
 
 /**
  * Supported AI visualization chart types
@@ -258,11 +260,23 @@ export type ApiUpdateUserAgentPreferences = AiAgentUserPreferences;
 
 export type ApiUpdateUserAgentPreferencesResponse = ApiSuccessEmpty;
 
-export type AiAgentToolCall = {
+// Base tool call structure
+export type BaseAiAgentToolCall = {
     uuid: string;
     promptUuid: string;
     toolCallId: string;
-    toolName: string;
-    toolArgs: object;
     createdAt: Date;
 };
+
+// Discriminated union for different tool types
+export type AiAgentToolCall = BaseAiAgentToolCall &
+    (
+        | {
+              toolName: 'findFields';
+              toolArgs: FindFieldsToolArgs;
+          }
+        | {
+              toolName: Exclude<ToolName, 'findFields'>;
+              toolArgs: object; // TODO: Add specific types for other tools as schemas are created
+          }
+    );
