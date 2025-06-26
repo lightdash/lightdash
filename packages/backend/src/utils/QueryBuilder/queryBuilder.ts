@@ -780,7 +780,7 @@ export class MetricQueryBuilder {
             getMetricFromId(field, explore, compiledMetricQuery),
         );
 
-        // Warn user about metrics with fanouts witch we don't have a solution for yet.
+        // Warn user about metrics with fanouts which we don't have a solution for yet.
         const warnings: QueryWarning[] = [];
         const ctes: string[] = [];
         const metricCtes: Array<{ name: string; metrics: string[] }> = [];
