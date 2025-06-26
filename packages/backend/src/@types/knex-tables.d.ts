@@ -251,6 +251,10 @@ import {
     AiAgentTableName,
 } from '../ee/database/entities/aiAgent';
 import {
+    AiAgentUserPreferencesTable,
+    AiAgentUserPreferencesTableName,
+} from '../ee/database/entities/aiAgentUserPreferences';
+import {
     DashboardSummariesTable,
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
@@ -345,6 +349,7 @@ declare module 'knex/types/tables' {
         [AiAgentSlackIntegrationTableName]: AiAgentSlackIntegrationTable;
         [AiAgentInstructionVersionsTableName]: AiAgentInstructionVersionsTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;
+        [AiAgentUserPreferencesTableName]: AiAgentUserPreferencesTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
         [DashboardSummariesTableName]: DashboardSummariesTable;

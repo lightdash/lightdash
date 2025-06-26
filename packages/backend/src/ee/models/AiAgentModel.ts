@@ -237,7 +237,6 @@ export class AiAgentModel {
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
-            const createdAt = new Date();
             const [agent] = await trx(AiAgentTableName)
                 .insert({
                     name: args.name,
@@ -286,7 +285,6 @@ export class AiAgentModel {
             if (args.instruction) {
                 await trx(AiAgentInstructionVersionsTableName).insert({
                     ai_agent_uuid: agent.ai_agent_uuid,
-                    created_at: createdAt,
                     instruction: args.instruction,
                 });
             }
@@ -313,19 +311,21 @@ export class AiAgentModel {
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
-            const updatedAt = new Date();
-
             const [agent] = await trx(AiAgentTableName)
                 .where({
                     ai_agent_uuid: args.agentUuid,
                     organization_uuid: args.organizationUuid,
                 })
                 .update({
-                    name: args.name,
-                    project_uuid: args.projectUuid,
-                    tags: args.tags,
-                    updated_at: updatedAt,
-                    image_url: args.imageUrl,
+                    updated_at: trx.fn.now(),
+                    ...(args.tags !== undefined ? { tags: args.tags } : {}),
+                    ...(args.name !== undefined ? { name: args.name } : {}),
+                    ...(args.imageUrl !== undefined
+                        ? { image_url: args.imageUrl }
+                        : {}),
+                    ...(args.projectUuid !== undefined
+                        ? { project_uuid: args.projectUuid }
+                        : {}),
                 })
                 .returning('*');
 
@@ -378,7 +378,6 @@ export class AiAgentModel {
                 const [result] = await trx(AiAgentInstructionVersionsTableName)
                     .insert({
                         ai_agent_uuid: agent.ai_agent_uuid,
-                        created_at: updatedAt,
                         // We need to represent removing an instruction, so we backfill with an empty string
                         instruction: args.instruction ?? '',
                     })
@@ -579,27 +578,43 @@ export class AiAgentModel {
                 `${AiPromptTableName}.ai_thread_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
             )
-            .select(
+            .select<
+                (Pick<
+                    DbAiPrompt,
+                    | 'ai_prompt_uuid'
+                    | 'prompt'
+                    | 'created_at'
+                    | 'response'
+                    | 'responded_at'
+                    | 'filters_output'
+                    | 'viz_config_output'
+                    | 'metric_query'
+                    | 'human_score'
+                > &
+                    Pick<DbUser, 'user_uuid'> &
+                    Pick<DbAiThread, 'ai_thread_uuid'> &
+                    Pick<DbAiSlackPrompt, 'slack_user_id'> &
+                    Pick<DbAiWebAppPrompt, 'user_uuid'> & {
+                        user_name: string;
+                    })[]
+            >(
                 `${AiPromptTableName}.ai_prompt_uuid`,
-                'prompt',
-                'response',
-                'responded_at',
-                'filters_output',
-                'viz_config_output',
-                'metric_query',
-                'human_score',
+                `${AiPromptTableName}.prompt`,
+                `${AiPromptTableName}.created_at`,
+                `${AiPromptTableName}.response`,
+                `${AiPromptTableName}.responded_at`,
+                `${AiPromptTableName}.filters_output`,
+                `${AiPromptTableName}.viz_config_output`,
+                `${AiPromptTableName}.metric_query`,
+                `${AiPromptTableName}.human_score`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
                 `${AiWebAppPromptTableName}.user_uuid`,
-            )
-            .select({
-                uuid: `${AiPromptTableName}.ai_prompt_uuid`,
-                created_at: `${AiPromptTableName}.created_at`,
-                user_name: this.database.raw(
-                    `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)`,
+                this.database.raw(
+                    `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
                 ),
-            })
+            )
             .leftJoin(
                 AiSlackPromptTableName,
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -622,20 +637,20 @@ export class AiAgentModel {
                 uuid: string;
                 name: string;
                 slackUserId: string | null;
-            }>[] = [
-                {
-                    role: 'user',
-                    uuid: row.ai_prompt_uuid,
-                    threadUuid: row.ai_thread_uuid,
-                    message: row.prompt,
-                    createdAt: row.created_at,
-                    user: {
-                        uuid: row.user_uuid,
-                        name: row.user_name,
-                        slackUserId: row.slack_user_id,
-                    },
+            }>[] = [];
+
+            messages.push({
+                role: 'user',
+                uuid: row.ai_prompt_uuid,
+                threadUuid: row.ai_thread_uuid,
+                message: row.prompt,
+                createdAt: row.created_at.toISOString(),
+                user: {
+                    uuid: row.user_uuid,
+                    name: row.user_name,
+                    slackUserId: row.slack_user_id,
                 },
-            ];
+            });
 
             if (row.responded_at != null) {
                 messages.push({
@@ -643,7 +658,7 @@ export class AiAgentModel {
                     uuid: row.ai_prompt_uuid,
                     threadUuid: row.ai_thread_uuid,
                     message: row.response,
-                    createdAt: row.responded_at,
+                    createdAt: row.responded_at.toISOString(),
                     vizConfigOutput: row.viz_config_output,
                     filtersOutput: row.filters_output,
                     metricQuery: row.metric_query,
@@ -1045,10 +1060,12 @@ export class AiAgentModel {
         });
     }
 
-    async updateModelResponse(data: UpdateSlackResponse) {
+    async updateModelResponse(
+        data: UpdateSlackResponse | UpdateWebAppResponse,
+    ) {
         await this.database(AiPromptTableName)
             .update({
-                responded_at: new Date(),
+                responded_at: this.database.fn.now(),
                 ...(data.response ? { response: data.response } : {}),
                 ...(data.filtersOutput
                     ? { filters_output: data.filtersOutput }
@@ -1171,26 +1188,6 @@ export class AiAgentModel {
         });
     }
 
-    async updateWebAppResponse(data: UpdateWebAppResponse) {
-        await this.database(AiPromptTableName)
-            .update({
-                responded_at: new Date(),
-                ...(data.response ? { response: data.response } : {}),
-                ...(data.filtersOutput
-                    ? { filters_output: data.filtersOutput }
-                    : {}),
-                ...(data.vizConfigOutput
-                    ? { viz_config_output: data.vizConfigOutput }
-                    : {}),
-                ...(data.humanScore ? { human_score: data.humanScore } : {}),
-                ...(data.metricQuery ? { metric_query: data.metricQuery } : {}),
-            })
-            .where({
-                ai_prompt_uuid: data.promptUuid,
-            })
-            .returning('ai_prompt_uuid');
-    }
-
     async existsSlackPromptsByChannelAndTimestamps(
         slackChannelId: string,
         timestamps: string[],
@@ -1275,20 +1272,16 @@ export class AiAgentModel {
         projectUuid: string;
         defaultAgentUuid: string;
     }): Promise<void> {
-        const now = new Date();
-
         await this.database(AiAgentUserPreferencesTableName)
             .insert({
                 user_uuid: userUuid,
                 project_uuid: projectUuid,
                 default_agent_uuid: defaultAgentUuid,
-                created_at: now,
-                updated_at: now,
             })
             .onConflict(['user_uuid', 'project_uuid'])
             .merge({
                 default_agent_uuid: defaultAgentUuid,
-                updated_at: now,
+                updated_at: this.database.fn.now(),
             });
     }
 
