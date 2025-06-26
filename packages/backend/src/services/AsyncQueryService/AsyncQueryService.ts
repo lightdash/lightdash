@@ -1290,11 +1290,6 @@ export class AsyncQueryService extends ProjectService {
             false, // default value
         );
 
-        console.log(
-            '#### useExperimentalMetricCtes',
-            useExperimentalMetricCtes,
-        );
-
         const fullQuery = await ProjectService._compileQuery(
             metricQuery,
             explore,
