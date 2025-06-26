@@ -78,6 +78,7 @@ lightdash
 
 # Prometheus
 prometheus.yml
+data/
 
 # environment
 .env*

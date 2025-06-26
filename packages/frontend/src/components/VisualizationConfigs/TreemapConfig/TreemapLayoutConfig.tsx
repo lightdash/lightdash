@@ -113,12 +113,13 @@ export const Layout: React.FC = () => {
                         </Tooltip>
                     </Group>
                     <DragDropContext
-                        onDragEnd={({ destination, source }) =>
+                        onDragEnd={({ destination, source }) => {
+                            if (!destination) return;
                             groupReorder({
                                 from: source.index,
-                                to: destination?.index || 0,
-                            })
-                        }
+                                to: destination.index,
+                            });
+                        }}
                     >
                         <Droppable droppableId="dnd-list" direction="vertical">
                             {(provided) => (
