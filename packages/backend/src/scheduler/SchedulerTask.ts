@@ -37,7 +37,6 @@ import {
     type SchedulerIndexCatalogJobPayload,
     SchedulerJobStatus,
     SchedulerLog,
-    SemanticLayerQueryPayload,
     SessionUser,
     SlackInstallationNotFoundError,
     SlackNotificationPayload,

@@ -25,11 +25,6 @@ export enum WarehouseTypes {
     TRINO = 'trino',
 }
 
-export enum SemanticLayerType {
-    DBT = 'DBT',
-    CUBE = 'CUBE',
-}
-
 export type SshTunnelConfiguration = {
     useSshTunnel?: boolean;
     sshTunnelHost?: string;
