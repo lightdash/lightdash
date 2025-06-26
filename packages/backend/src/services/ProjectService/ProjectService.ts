@@ -51,6 +51,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    FeatureFlags,
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
@@ -186,6 +187,7 @@ import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -1626,6 +1628,7 @@ export class ProjectService extends BaseService {
         userAttributes: UserAttributeValueMap,
         timezone: string,
         dateZoom?: DateZoom,
+        useExperimentalMetricCtes?: boolean,
     ): Promise<CompiledQuery> {
         const exploreWithOverride = ProjectService.updateExploreWithDateZoom(
             explore,
@@ -1648,8 +1651,11 @@ export class ProjectService extends BaseService {
             userAttributes,
             timezone,
         });
-        return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
-            queryBuilder.compileQuery(),
+
+        return wrapSentryTransactionSync(
+            'QueryBuilder.buildQuery',
+            { useExperimentalMetricCtes },
+            () => queryBuilder.compileQuery(useExperimentalMetricCtes),
         );
     }
 
@@ -1701,6 +1707,13 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes(user, organizationUuid);
 
+        const useExperimentalMetricCtes = await isFeatureFlagEnabled(
+            FeatureFlags.ShowQueryWarnings,
+            user,
+            { throwOnTimeout: false },
+            false, // default value
+        );
+
         const compiledQuery = await ProjectService._compileQuery(
             metricQuery,
             explore,
@@ -1708,6 +1721,8 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
+            undefined,
+            useExperimentalMetricCtes,
         );
         await sshTunnel.disconnect();
         return compiledQuery;
@@ -4973,6 +4988,7 @@ export class ProjectService extends BaseService {
         explore: Explore,
         metricQuery: MetricQuery,
         warehouseClient: WarehouseClient,
+        useExperimentalMetricCtes?: boolean,
     ) {
         const totalQuery: MetricQuery = {
             ...metricQuery,
@@ -4992,6 +5008,8 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
+            undefined,
+            useExperimentalMetricCtes,
         );
 
         return { query, totalQuery };
@@ -5023,12 +5041,20 @@ export class ProjectService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes(user, organizationUuid);
 
+        const useExperimentalMetricCtes = await isFeatureFlagEnabled(
+            FeatureFlags.ShowQueryWarnings,
+            user,
+            { throwOnTimeout: false },
+            false, // default value
+        );
+
         const { query } = await this._getCalculateTotalQuery(
             userAttributes,
             intrinsicUserAttributes,
             explore,
             metricQuery,
             warehouseClient,
+            useExperimentalMetricCtes,
         );
 
         const queryTags: RunQueryTags = {
