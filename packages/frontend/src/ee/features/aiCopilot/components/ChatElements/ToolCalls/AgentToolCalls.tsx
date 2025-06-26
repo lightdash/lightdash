@@ -1,19 +1,9 @@
+import { TOOL_DISPLAY_MESSAGES, ToolNameSchema } from '@lightdash/common';
 import { Box, List, Text, ThemeIcon } from '@mantine-8/core';
 import { IconTool } from '@tabler/icons-react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useAiAgentThreadStreamToolCalls } from '../../../streaming/useAiAgentThreadStreamQuery';
-
-// TODO :: should be based on schemas
-const TOOL_DISPLAY_MESSAGES = {
-    findFields: 'Finding relevant fields',
-    generateBarVizConfig: 'Generating a bar chart',
-    generateCsv: 'Generating CSV file',
-    generateQueryFilters: 'Applying filters to the query',
-    generateTimeSeriesVizConfig: 'Generating a line chart',
-} as const;
-
-const TOOL_NAMES = Object.keys(TOOL_DISPLAY_MESSAGES);
 
 const AgentToolCalls = () => {
     const { threadUuid } = useParams();
@@ -37,24 +27,28 @@ const AgentToolCalls = () => {
                 }
             >
                 {toolCalls
-                    .filter((toolCall) =>
-                        TOOL_NAMES.includes(toolCall.toolName),
+                    .filter(
+                        (toolCall) =>
+                            ToolNameSchema.safeParse(toolCall.toolName).success,
                     )
                     .map((toolCall) => {
-                        const toolDescription =
-                            TOOL_DISPLAY_MESSAGES[
-                                toolCall.toolName as keyof typeof TOOL_DISPLAY_MESSAGES
-                            ];
-
-                        if (!toolDescription) return null;
-
-                        return (
-                            <List.Item key={toolCall.toolCallId}>
-                                <Text size="xs" c="dimmed">
-                                    {toolDescription}
-                                </Text>
-                            </List.Item>
+                        const toolName = ToolNameSchema.safeParse(
+                            toolCall.toolName,
                         );
+                        if (toolName.success) {
+                            const toolDescription =
+                                TOOL_DISPLAY_MESSAGES[toolName.data];
+
+                            if (!toolDescription) return null;
+
+                            return (
+                                <List.Item key={toolCall.toolCallId}>
+                                    <Text size="xs" c="dimmed">
+                                        {toolDescription}
+                                    </Text>
+                                </List.Item>
+                            );
+                        }
                     })}
             </List>
         </Box>

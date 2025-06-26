@@ -1,9 +1,7 @@
 import {
-    AiChartType,
     type AiAgentMessageAssistant,
     type AiAgentMessageUser,
     type AiAgentUser,
-    type Filters,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -31,7 +29,6 @@ import { format, parseISO } from 'date-fns';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
@@ -44,10 +41,8 @@ import {
     useAiAgentThreadStreamQuery,
 } from '../../streaming/useAiAgentThreadStreamQuery';
 import { isOptimisticMessageStub } from '../../utils/thinkingMessageStub';
-import AgentToolCalls from './AgentToolCalls/AgentToolCalls';
-import AgentVisualizationFilters from './AgentVisualizationFilters';
-import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
 import { AiChartVisualization } from './AiChartVisualization';
+import AgentToolCalls from './ToolCalls/AgentToolCalls';
 
 export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
     message,
@@ -113,7 +108,7 @@ const AssistantBubbleContent: FC<{ message: AiAgentMessageAssistant }> = ({
 
     return (
         <>
-            {isStreaming ? <AgentToolCalls /> : null}
+            {isStreaming && <AgentToolCalls />}
             <MDEditor.Markdown
                 source={messageContent}
                 style={{ backgroundColor: 'transparent' }}
@@ -231,36 +226,12 @@ export const AssistantBubble: FC<{
                         </Stack>
                     ) : (
                         <AiChartVisualization
-                            metadata={queryExecutionHandle.data.metadata}
-                            query={queryExecutionHandle.data.query}
-                            vizConfig={vizConfig}
                             results={queryResults}
-                            type={queryExecutionHandle.data.type}
+                            message={message}
+                            queryExecutionHandle={queryExecutionHandle}
                             projectUuid={projectUuid}
                         />
                     )}
-                    <Stack gap="xs">
-                        <ErrorBoundary>
-                            {queryExecutionHandle.data &&
-                                queryExecutionHandle.data.type !==
-                                    AiChartType.CSV && (
-                                    <AgentVisualizationMetricsAndDimensions
-                                        metricQuery={metricQuery}
-                                        fieldsMap={
-                                            queryExecutionHandle.data.query
-                                                .fields
-                                        }
-                                    />
-                                )}
-
-                            {message.filtersOutput && (
-                                <AgentVisualizationFilters
-                                    // TODO: fix this using schema
-                                    filters={message.filtersOutput as Filters}
-                                />
-                            )}
-                        </ErrorBoundary>
-                    </Stack>
                 </Paper>
             )}
             <Group gap={0} display={isPreview ? 'none' : 'flex'}>

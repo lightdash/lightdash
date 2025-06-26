@@ -16,7 +16,10 @@ import {
     CreateSlackThread,
     CreateWebAppPrompt,
     CreateWebAppThread,
+    isFindFieldsToolArgs,
+    isToolName,
     SlackPrompt,
+    ToolName,
     UpdateSlackResponse,
     UpdateSlackResponseTs,
     UpdateWebAppResponse,
@@ -667,14 +670,28 @@ export class AiAgentModel {
                     filtersOutput: row.filters_output,
                     metricQuery: row.metric_query,
                     humanScore: row.human_score,
-                    toolCalls: toolCalls.map((toolCall) => ({
-                        uuid: toolCall.ai_agent_tool_call_uuid,
-                        promptUuid: toolCall.ai_prompt_uuid,
-                        toolCallId: toolCall.tool_call_id,
-                        toolName: toolCall.tool_name,
-                        toolArgs: toolCall.tool_args,
-                        createdAt: toolCall.created_at,
-                    })),
+                    toolCalls: toolCalls
+                        .filter((tc) => isToolName(tc.tool_name))
+                        .map((tc) => ({
+                            uuid: tc.ai_agent_tool_call_uuid,
+                            promptUuid: tc.ai_prompt_uuid,
+                            toolCallId: tc.tool_call_id,
+                            createdAt: tc.created_at,
+                            // TODO: handle this typing better
+                            ...(isFindFieldsToolArgs(tc.tool_args) &&
+                            tc.tool_name === 'findFields'
+                                ? {
+                                      toolName: 'findFields',
+                                      toolArgs: tc.tool_args,
+                                  }
+                                : {
+                                      toolName: tc.tool_name as Exclude<
+                                          ToolName,
+                                          'findFields'
+                                      >,
+                                      toolArgs: tc.tool_args,
+                                  }),
+                        })),
                 });
             }
 
@@ -823,14 +840,28 @@ export class AiAgentModel {
                     filtersOutput: row.filters_output,
                     metricQuery: row.metric_query,
                     humanScore: row.human_score,
-                    toolCalls: toolCalls.map((toolCall) => ({
-                        uuid: toolCall.ai_agent_tool_call_uuid,
-                        promptUuid: toolCall.ai_prompt_uuid,
-                        toolCallId: toolCall.tool_call_id,
-                        toolName: toolCall.tool_name,
-                        toolArgs: toolCall.tool_args,
-                        createdAt: toolCall.created_at,
-                    })),
+                    toolCalls: toolCalls
+                        .filter((tc) => isToolName(tc.tool_name))
+                        .map((tc) => ({
+                            uuid: tc.ai_agent_tool_call_uuid,
+                            promptUuid: tc.ai_prompt_uuid,
+                            toolCallId: tc.tool_call_id,
+                            createdAt: tc.created_at,
+                            // TODO: handle this typing better
+                            ...(isFindFieldsToolArgs(tc.tool_args) &&
+                            tc.tool_name === 'findFields'
+                                ? {
+                                      toolName: 'findFields',
+                                      toolArgs: tc.tool_args,
+                                  }
+                                : {
+                                      toolName: tc.tool_name as Exclude<
+                                          ToolName,
+                                          'findFields'
+                                      >,
+                                      toolArgs: tc.tool_args,
+                                  }),
+                        })),
                 } satisfies AiAgentMessageAssistant;
             default:
                 return assertUnreachable(role, `Unknown role ${role}`);
