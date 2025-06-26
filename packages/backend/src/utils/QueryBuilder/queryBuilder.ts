@@ -406,6 +406,24 @@ export class MetricQueryBuilder {
         return limit !== undefined ? `LIMIT ${limit}` : undefined;
     }
 
+    private getBaseTableFromSQL() {
+        const {
+            explore,
+            warehouseClient,
+            intrinsicUserAttributes,
+            userAttributes = {},
+        } = this.args;
+        const baseTable = replaceUserAttributesRaw(
+            explore.tables[explore.baseTable].sqlTable,
+            intrinsicUserAttributes,
+            userAttributes,
+        );
+        const fieldQuoteChar = getFieldQuoteChar(
+            warehouseClient.credentials.type,
+        );
+        return `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
+    }
+
     /**
      * Compiles a database query based on the provided metric query, explores, user attributes, and warehouse-specific configurations.
      *
@@ -432,19 +450,12 @@ export class MetricQueryBuilder {
             additionalMetrics,
             compiledCustomDimensions,
         } = compiledMetricQuery;
-        const baseTable = replaceUserAttributesRaw(
-            explore.tables[explore.baseTable].sqlTable,
-            intrinsicUserAttributes,
-            userAttributes,
-        );
         const fieldQuoteChar = getFieldQuoteChar(
             warehouseClient.credentials.type,
         );
         const startOfWeek = warehouseClient.getStartOfWeek();
 
         const dimensionsSQL = this.getDimensionsSQL();
-
-        const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
 
         const metricSelects = metrics.map((field) => {
             const alias = field;
@@ -652,6 +663,7 @@ export class MetricQueryBuilder {
             ...metricSelects,
             ...filteredMetricSelects,
         ].join(',\n')}`;
+        const sqlFrom = this.getBaseTableFromSQL();
         const sqlLimit = this.getLimitSQL();
         const { sqlOrderBy, requiresQueryInCTE } = this.getSortSQL();
         if (
