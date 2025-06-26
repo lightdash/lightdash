@@ -11,6 +11,7 @@ import {
     type DownloadOptions,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
+    isApiError,
     MAX_SAFE_INTEGER,
     type MetricQuery,
     ParameterError,
@@ -250,6 +251,7 @@ export const useInfiniteQueryResults = (
     projectUuid?: string,
     queryUuid?: string,
     chartName?: string,
+    reExecuteQuery?: () => Promise<unknown>,
 ): InfiniteQueryResults => {
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
@@ -329,71 +331,86 @@ export const useInfiniteQueryResults = (
         queryKey: ['query-page', fetchArgs],
         queryFn: async () => {
             const startTime = performance.now();
-            const results = await getResultsPage(
-                fetchArgs.projectUuid!,
-                fetchArgs.queryUuid!,
-                fetchArgs.page,
-                fetchArgs.pageSize,
-            );
 
-            const { status } = results;
+            try {
+                const results = await getResultsPage(
+                    fetchArgs.projectUuid!,
+                    fetchArgs.queryUuid!,
+                    fetchArgs.page,
+                    fetchArgs.pageSize,
+                );
 
-            const clientFetchTimeMs = performance.now() - startTime;
+                const { status } = results;
+                const clientFetchTimeMs = performance.now() - startTime;
 
-            switch (status) {
-                case QueryHistoryStatus.ERROR: {
-                    backoffRef.current = 250;
-                    throw <ApiError>{
-                        status: 'error',
-                        error: {
-                            name: 'Error',
-                            statusCode: 500,
-                            message: results.error ?? 'Query failed',
-                            data: {},
-                        },
-                    };
-                }
-                case QueryHistoryStatus.CANCELLED: {
-                    backoffRef.current = 250;
-                    throw <ApiError>{
-                        status: 'error',
-                        error: {
-                            name: 'Error',
-                            statusCode: 500,
-                            message: 'Query cancelled',
-                            data: {},
-                        },
-                    };
-                }
-                case QueryHistoryStatus.PENDING: {
-                    // Invalidate page. Note we can't use refetch as it bypasses the "enabled" check: https://github.com/TanStack/query/issues/1965
-                    void sleep(backoffRef.current).then(() =>
-                        queryClient.invalidateQueries([
-                            'query-page',
-                            fetchArgs,
-                        ]),
-                    );
-                    // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
-                    if (backoffRef.current < 1000) {
-                        backoffRef.current = Math.min(
-                            backoffRef.current * 2,
-                            1000,
-                        );
+                switch (status) {
+                    case QueryHistoryStatus.ERROR: {
+                        backoffRef.current = 250;
+                        throw <ApiError>{
+                            status: 'error',
+                            error: {
+                                name: 'Error',
+                                statusCode: 500,
+                                message: results.error ?? 'Query failed',
+                                data: {},
+                            },
+                        };
                     }
-                    return {
-                        ...results,
-                        clientFetchTimeMs,
-                    };
+                    case QueryHistoryStatus.CANCELLED: {
+                        backoffRef.current = 250;
+                        throw <ApiError>{
+                            status: 'error',
+                            error: {
+                                name: 'Error',
+                                statusCode: 500,
+                                message: 'Query cancelled',
+                                data: {},
+                            },
+                        };
+                    }
+                    case QueryHistoryStatus.PENDING: {
+                        // Invalidate page. Note we can't use refetch as it bypasses the "enabled" check: https://github.com/TanStack/query/issues/1965
+                        void sleep(backoffRef.current).then(() =>
+                            queryClient.invalidateQueries([
+                                'query-page',
+                                fetchArgs,
+                            ]),
+                        );
+                        // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
+                        if (backoffRef.current < 1000) {
+                            backoffRef.current = Math.min(
+                                backoffRef.current * 2,
+                                1000,
+                            );
+                        }
+                        return {
+                            ...results,
+                            clientFetchTimeMs,
+                        };
+                    }
+                    case QueryHistoryStatus.READY: {
+                        backoffRef.current = 250;
+                        return {
+                            ...results,
+                            clientFetchTimeMs,
+                        };
+                    }
+                    default:
+                        return assertUnreachable(
+                            status,
+                            'Unknown query status',
+                        );
                 }
-                case QueryHistoryStatus.READY: {
-                    backoffRef.current = 250;
-                    return {
-                        ...results,
-                        clientFetchTimeMs,
-                    };
+            } catch (error) {
+                if (
+                    isApiError(error) &&
+                    error.error.statusCode === 406 &&
+                    error.error.name === 'ExpiredError'
+                ) {
+                    // Execute query doesn't have queryUuid in the query cache key, so we need to explicitly re-execute it, can't just invalidate the query
+                    await reExecuteQuery?.();
                 }
-                default:
-                    return assertUnreachable(status, 'Unknown query status');
+                throw error;
             }
         },
         staleTime: Infinity, // the data will never be considered stale

@@ -1293,6 +1293,8 @@ const ExplorerProvider: FC<
         validQueryArgs?.projectUuid,
         // get last value from queryUuidHistory
         queryUuidHistory[queryUuidHistory.length - 1],
+        undefined,
+        query.refetch,
     );
     const getDownloadQueryUuid = useCallback(
         async (limit: number | null) => {

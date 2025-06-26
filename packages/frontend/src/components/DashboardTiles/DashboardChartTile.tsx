@@ -1551,6 +1551,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         readyQuery.data?.chart.projectUuid,
         readyQuery.data?.executeQueryResponse.queryUuid,
         readyQuery.data?.chart.name,
+        readyQuery.refetch,
     );
 
     const isLoading = useMemo(() => {
