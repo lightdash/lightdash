@@ -256,7 +256,6 @@ export * from './types/scheduler';
 export * from './types/schedulerLog';
 export * from './types/schedulerTaskList';
 export * from './types/search';
-export * from './types/semanticLayer';
 export * from './types/share';
 export * from './types/slack';
 export * from './types/slackSettings';

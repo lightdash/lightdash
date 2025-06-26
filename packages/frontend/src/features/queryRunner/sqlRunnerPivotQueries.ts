@@ -5,14 +5,14 @@ import {
     type QueryExecutionContext,
     type ResultColumns,
     type RunPivotQuery,
-    type SemanticLayerField,
-    type SemanticLayerQuery,
     type SortField,
+    type SqlRunnerField,
     type SqlRunnerPivotQueryBody,
+    type SqlRunnerQuery,
     type VizColumn,
     type VizSortBy,
 } from '@lightdash/common';
-import { getVizIndexTypeFromSemanticLayerFieldType } from './BaseResultsRunner';
+import { getVizIndexTypeFromSqlRunnerFieldType } from './BaseResultsRunner';
 import {
     executeDashboardSqlChartPivotQuery,
     executeSqlChartPivotQuery,
@@ -20,9 +20,9 @@ import {
 } from './executeQuery';
 
 // TODO: REMOVE THIS - temporary mapping logic - also needs access to fields :(
-const convertSemanticLayerQueryToSqlRunnerPivotQuery = (
-    query: SemanticLayerQuery,
-    fields: SemanticLayerField[],
+const convertSqlRunnerQueryToSqlRunnerPivotQuery = (
+    query: SqlRunnerQuery,
+    fields: SqlRunnerField[],
 ): Pick<
     SqlRunnerPivotQueryBody,
     'indexColumn' | 'groupByColumns' | 'valuesColumns'
@@ -60,7 +60,7 @@ const convertSemanticLayerQueryToSqlRunnerPivotQuery = (
     return {
         indexColumn: {
             reference: index.name,
-            type: getVizIndexTypeFromSemanticLayerFieldType(index.type),
+            type: getVizIndexTypeFromSqlRunnerFieldType(index.type),
         },
         valuesColumns: values.map((value) => ({
             reference: value.name,
@@ -82,10 +82,10 @@ export const getPivotQueryFunctionForSqlQuery = ({
     limit?: number;
     sql: string;
     sortBy?: VizSortBy[];
-    fields: SemanticLayerField[];
+    fields: SqlRunnerField[];
     context?: QueryExecutionContext;
 }): RunPivotQuery => {
-    return async (query: SemanticLayerQuery) => {
+    return async (query: SqlRunnerQuery) => {
         const index = query.pivot?.index[0];
 
         if (index === undefined) {
@@ -101,7 +101,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
         }
 
         const { indexColumn, valuesColumns, groupByColumns } =
-            convertSemanticLayerQueryToSqlRunnerPivotQuery(query, fields);
+            convertSqlRunnerQueryToSqlRunnerPivotQuery(query, fields);
 
         const pivotResults = await executeSqlPivotQuery(projectUuid, {
             context,
