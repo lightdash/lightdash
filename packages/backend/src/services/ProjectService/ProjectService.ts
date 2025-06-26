@@ -117,7 +117,6 @@ import {
     type RunQueryTags,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
-    type SemanticLayerConnectionUpdate,
     SessionUser,
     snakeCaseName,
     SortByDirection,
@@ -5650,42 +5649,6 @@ export class ProjectService extends BaseService {
         });
 
         return { name: virtualView.name };
-    }
-
-    async updateSemanticLayerConnection(
-        user: SessionUser,
-        projectUuid: string,
-        payload: SemanticLayerConnectionUpdate,
-    ) {
-        const project = await this.projectModel.getSummary(projectUuid);
-
-        if (user.ability.cannot('update', subject('Project', project))) {
-            throw new ForbiddenError();
-        }
-
-        const updatedProject =
-            await this.projectModel.updateSemanticLayerConnection(
-                projectUuid,
-                payload,
-            );
-
-        return updatedProject;
-    }
-
-    async deleteSemanticLayerConnection(
-        user: SessionUser,
-        projectUuid: string,
-    ) {
-        const project = await this.projectModel.getSummary(projectUuid);
-
-        if (user.ability.cannot('update', subject('Project', project))) {
-            throw new ForbiddenError();
-        }
-
-        const updatedProject =
-            await this.projectModel.deleteSemanticLayerConnection(projectUuid);
-
-        return updatedProject;
     }
 
     async updateVirtualView(
