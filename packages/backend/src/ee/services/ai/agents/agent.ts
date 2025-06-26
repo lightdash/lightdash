@@ -188,6 +188,17 @@ export const generateAgentResponse = async ({
                         }),
                     );
                 }
+                if (step.toolResults && step.toolResults.length > 0) {
+                    // Batch store all tool results in a single operation
+                    await dependencies.storeToolResults(
+                        step.toolResults.map((toolResult) => ({
+                            promptUuid: args.promptUuid,
+                            toolCallId: toolResult.toolCallId,
+                            toolName: toolResult.toolName,
+                            result: toolResult.result,
+                        })),
+                    );
+                }
             },
             experimental_telemetry: getAgentTelemetryConfig(
                 'generateAgentResponse',
@@ -268,6 +279,21 @@ export const streamAgentResponse = async ({
                         })
                         .catch((error) => {
                             Logger.error('Failed to store tool call', error);
+                            Sentry.captureException(error);
+                        });
+                }
+                if (event.chunk.type === 'tool-result') {
+                    void dependencies
+                        .storeToolResults([
+                            {
+                                promptUuid: args.promptUuid,
+                                toolCallId: event.chunk.toolCallId,
+                                toolName: event.chunk.toolName,
+                                result: event.chunk.result,
+                            },
+                        ])
+                        .catch((error) => {
+                            Logger.error('Failed to store tool result', error);
                             Sentry.captureException(error);
                         });
                 }

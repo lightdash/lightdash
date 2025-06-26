@@ -29,6 +29,7 @@ import { Knex } from 'knex';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import {
     AiAgentToolCallTableName,
+    AiAgentToolResultTableName,
     AiPromptTableName,
     AiSlackPromptTableName,
     AiSlackThreadTableName,
@@ -36,6 +37,7 @@ import {
     AiWebAppPromptTableName,
     AiWebAppThreadTableName,
     DbAiAgentToolCall,
+    DbAiAgentToolResult,
     DbAiPrompt,
     DbAiSlackPrompt,
     DbAiSlackThread,
@@ -1365,5 +1367,31 @@ export class AiAgentModel {
         return this.database(AiAgentToolCallTableName)
             .where('ai_prompt_uuid', promptUuid)
             .orderBy('created_at', 'asc');
+    }
+
+    async createToolResults(
+        data: Array<{
+            promptUuid: string;
+            toolCallId: string;
+            toolName: string;
+            result: string;
+        }>,
+    ): Promise<string[]> {
+        if (data.length === 0) return [];
+
+        return this.database.transaction(async (trx) => {
+            const toolResults = await trx(AiAgentToolResultTableName)
+                .insert(
+                    data.map((item) => ({
+                        ai_prompt_uuid: item.promptUuid,
+                        tool_call_id: item.toolCallId,
+                        tool_name: item.toolName,
+                        result: item.result,
+                    })),
+                )
+                .returning('ai_agent_tool_result_uuid');
+
+            return toolResults.map((tr) => tr.ai_agent_tool_result_uuid);
+        });
     }
 }

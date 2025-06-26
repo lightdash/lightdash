@@ -59,6 +59,7 @@ import {
     SearchFieldsFn,
     SendFileFn,
     StoreToolCallFn,
+    StoreToolResultsFn,
     UpdateProgressFn,
 } from './ai/types/aiAgentDependencies';
 import { AiAgentExploreSummary } from './ai/types/aiAgentExploreSummary';
@@ -1213,6 +1214,10 @@ export class AiAgentService {
             await this.aiAgentModel.createToolCall(data);
         };
 
+        const storeToolResults: StoreToolResultsFn = async (data) => {
+            await this.aiAgentModel.createToolResults(data);
+        };
+
         return {
             getExplore,
             searchFields: this.lightdashConfig.ai.copilot.embeddingSearchEnabled
@@ -1223,6 +1228,7 @@ export class AiAgentService {
             runMiniMetricQuery,
             sendFile,
             storeToolCall,
+            storeToolResults,
         };
     }
 
@@ -1297,6 +1303,7 @@ export class AiAgentService {
             runMiniMetricQuery,
             sendFile,
             storeToolCall,
+            storeToolResults,
         } = this.getAiAgentDependencies(
             user,
             prompt,
@@ -1330,6 +1337,7 @@ export class AiAgentService {
             getPrompt,
             sendFile,
             storeToolCall,
+            storeToolResults,
             // avoid binding
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (

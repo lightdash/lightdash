@@ -146,3 +146,23 @@ export type AiAgentToolCallTable = Knex.CompositeTableType<
     >,
     never
 >;
+
+export const AiAgentToolResultTableName = 'ai_agent_tool_result';
+
+export type DbAiAgentToolResult = {
+    ai_agent_tool_result_uuid: string;
+    ai_prompt_uuid: string;
+    tool_call_id: string;
+    tool_name: string;
+    result: string;
+    created_at: Date;
+};
+
+export type AiAgentToolResultTable = Knex.CompositeTableType<
+    DbAiAgentToolResult,
+    Pick<
+        DbAiAgentToolResult,
+        'ai_prompt_uuid' | 'tool_call_id' | 'tool_name' | 'result'
+    >,
+    never
+>;
