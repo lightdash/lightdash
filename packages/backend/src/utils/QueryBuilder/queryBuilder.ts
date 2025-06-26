@@ -75,6 +75,7 @@ export class MetricQueryBuilder {
         joins: string[];
         tables: string[];
         selects: string[];
+        groupBySQL: string | undefined;
     } {
         const {
             explore,
@@ -167,12 +168,17 @@ export class MetricQueryBuilder {
         if (customSqlDimensionSql?.selects) {
             selects.push(...customSqlDimensionSql.selects);
         }
+        const groupBySQL =
+            selects.length > 0
+                ? `GROUP BY ${selects.map((val, i) => i + 1).join(',')}`
+                : undefined;
 
         return {
             ctes,
             joins,
             tables,
             selects,
+            groupBySQL,
         };
     }
 
@@ -423,7 +429,6 @@ export class MetricQueryBuilder {
         const {
             metrics,
             filters,
-            limit,
             additionalMetrics,
             compiledCustomDimensions,
         } = compiledMetricQuery;
@@ -582,18 +587,6 @@ export class MetricQueryBuilder {
             return acc.includes(renderedSql) ? acc : [...acc, renderedSql];
         }, []);
 
-        const sqlSelect = `SELECT\n${[
-            ...dimensionsSQL.selects,
-            ...metricSelects,
-            ...filteredMetricSelects,
-        ].join(',\n')}`;
-
-        const groups = dimensionsSQL.selects;
-        const sqlGroupBy =
-            groups.length > 0
-                ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}`
-                : '';
-
         const requiredDimensionFilterSql =
             this.getNestedDimensionFilterSQLFromModelFilters(
                 explore.tables[explore.baseTable],
@@ -654,6 +647,11 @@ export class MetricQueryBuilder {
             Logger.error('Error during metric inflation detection', e);
         }
 
+        const sqlSelect = `SELECT\n${[
+            ...dimensionsSQL.selects,
+            ...metricSelects,
+            ...filteredMetricSelects,
+        ].join(',\n')}`;
         const sqlLimit = this.getLimitSQL();
         const { sqlOrderBy, requiresQueryInCTE } = this.getSortSQL();
         if (
@@ -667,7 +665,7 @@ export class MetricQueryBuilder {
                 sqlJoins,
                 ...dimensionsSQL.joins,
                 sqlWhere,
-                sqlGroupBy,
+                dimensionsSQL.groupBySQL,
             ]
                 .filter((l) => l !== undefined)
                 .join('\n');
@@ -726,7 +724,7 @@ export class MetricQueryBuilder {
             sqlJoins,
             ...dimensionsSQL.joins,
             sqlWhere,
-            sqlGroupBy,
+            dimensionsSQL.groupBySQL,
             sqlOrderBy,
             sqlLimit,
         ]
