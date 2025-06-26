@@ -217,8 +217,7 @@ const MinimalDashboard: FC = () => {
                                     onDelete={() => {}}
                                     onEdit={() => {}}
                                 />
-                            ) : tile.type ===
-                              DashboardTileTypes.SEMANTIC_VIEWER_CHART ? null : ( // TODO: update this type
+                            ) : (
                                 assertUnreachable(
                                     tile,
                                     `Dashboard tile type is not recognised`,

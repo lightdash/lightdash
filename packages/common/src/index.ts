@@ -161,12 +161,6 @@ import type { QueryHistoryStatus } from './types/queryHistory';
 import { type ApiRenameFieldsResponse } from './types/rename';
 import { type SchedulerWithLogs } from './types/schedulerLog';
 import {
-    type ApiSemanticLayerClientInfo,
-    type ApiSemanticViewerChartCreate,
-    type ApiSemanticViewerChartGet,
-    type ApiSemanticViewerChartUpdate,
-} from './types/semanticLayer';
-import {
     type ApiCreateSqlChart,
     type ApiCreateVirtualView,
     type ApiGithubDbtWritePreview,
@@ -224,7 +218,6 @@ export * from './types/content';
 export * from './types/csv';
 export * from './types/dashboard';
 export * from './types/dbt';
-export * from './types/dbtSemanticLayer';
 export * from './types/downloadFile';
 export * from './types/email';
 export * from './types/errors';
@@ -309,7 +302,6 @@ export * from './utils/promises';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
 export * from './utils/searchParams';
-export * from './utils/semanticLayer';
 export * from './utils/sleep';
 export * from './utils/slugs';
 export * from './utils/subtotals';
@@ -895,10 +887,6 @@ type ApiResults =
     | ApiContentResponse['results']
     | ApiChartContentResponse['results']
     | ApiSqlRunnerJobStatusResponse['results']
-    | ApiSemanticLayerClientInfo['results']
-    | ApiSemanticViewerChartCreate['results']
-    | ApiSemanticViewerChartGet['results']
-    | ApiSemanticViewerChartUpdate['results']
     | ApiCreateVirtualView['results']
     | ApiGithubDbtWritePreview['results']
     | ApiMetricsCatalog['results']

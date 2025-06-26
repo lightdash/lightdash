@@ -891,13 +891,7 @@
                 "type": "object"
             },
             "DashboardTileTypes": {
-                "enum": [
-                    "saved_chart",
-                    "sql_chart",
-                    "semantic_viewer_chart",
-                    "markdown",
-                    "loom"
-                ],
+                "enum": ["saved_chart", "sql_chart", "markdown", "loom"],
                 "type": "string"
             },
             "Required_CreateDashboardTileBase_": {
@@ -1126,54 +1120,6 @@
                     }
                 ]
             },
-            "DashboardTileTypes.SEMANTIC_VIEWER_CHART": {
-                "enum": ["semantic_viewer_chart"],
-                "type": "string"
-            },
-            "DashboardSemanticViewerChartTileProperties": {
-                "properties": {
-                    "properties": {
-                        "properties": {
-                            "chartSlug": {
-                                "type": "string"
-                            },
-                            "hideTitle": {
-                                "type": "boolean"
-                            },
-                            "chartName": {
-                                "type": "string"
-                            },
-                            "savedSemanticViewerChartUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "title": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "chartName",
-                            "savedSemanticViewerChartUuid"
-                        ],
-                        "type": "object"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/DashboardTileTypes.SEMANTIC_VIEWER_CHART"
-                    }
-                },
-                "required": ["properties", "type"],
-                "type": "object"
-            },
-            "DashboardSemanticViewerChartTile": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/DashboardTileBase"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTileProperties"
-                    }
-                ]
-            },
             "DashboardTile": {
                 "anyOf": [
                     {
@@ -1187,9 +1133,6 @@
                     },
                     {
                         "$ref": "#/components/schemas/DashboardSqlChartTile"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTile"
                     }
                 ]
             },
@@ -3843,6 +3786,12 @@
                     "orderFieldsBy": {
                         "$ref": "#/components/schemas/OrderFieldsByStrategy"
                     },
+                    "primaryKey": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "sqlTable": {
                         "type": "string"
                     },
@@ -5364,8 +5313,47 @@
                 ],
                 "type": "object"
             },
+            "AiAgentToolCall": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "toolArgs": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "toolName": {
+                        "type": "string"
+                    },
+                    "toolCallId": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "toolArgs",
+                    "toolName",
+                    "toolCallId",
+                    "promptUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
             "AiAgentMessageAssistant": {
                 "properties": {
+                    "toolCalls": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentToolCall"
+                        },
+                        "type": "array"
+                    },
                     "humanScore": {
                         "type": "number",
                         "format": "double",
@@ -5407,6 +5395,7 @@
                     }
                 },
                 "required": [
+                    "toolCalls",
                     "humanScore",
                     "metricQuery",
                     "filtersOutput",
@@ -8431,7 +8420,7 @@
                 "type": "string"
             },
             "ChartSourceType": {
-                "enum": ["dbt_explore", "sql", "semantic_layer"],
+                "enum": ["dbt_explore", "sql"],
                 "type": "string"
             },
             "ChartSummary": {
@@ -9440,7 +9429,6 @@
                     "compileProject",
                     "createProjectWithCompile",
                     "testAndCompileProject",
-                    "semanticLayer",
                     "sqlRunner",
                     "sqlRunnerPivotQuery",
                     "replaceCustomFields",
@@ -11175,57 +11163,6 @@
                     }
                 ]
             },
-            "SemanticLayerType.DBT": {
-                "enum": ["DBT"],
-                "type": "string"
-            },
-            "DbtSemanticLayerConnection": {
-                "properties": {
-                    "token": {
-                        "type": "string"
-                    },
-                    "domain": {
-                        "type": "string"
-                    },
-                    "environmentId": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/SemanticLayerType.DBT"
-                    }
-                },
-                "required": ["token", "domain", "environmentId", "type"],
-                "type": "object"
-            },
-            "SemanticLayerType.CUBE": {
-                "enum": ["CUBE"],
-                "type": "string"
-            },
-            "CubeSemanticLayerConnection": {
-                "properties": {
-                    "token": {
-                        "type": "string"
-                    },
-                    "domain": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/SemanticLayerType.CUBE"
-                    }
-                },
-                "required": ["token", "domain", "type"],
-                "type": "object"
-            },
-            "SemanticLayerConnection": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/DbtSemanticLayerConnection"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CubeSemanticLayerConnection"
-                    }
-                ]
-            },
             "Project": {
                 "properties": {
                     "createdByUserUuid": {
@@ -11234,9 +11171,6 @@
                     },
                     "schedulerTimezone": {
                         "type": "string"
-                    },
-                    "semanticLayerConnection": {
-                        "$ref": "#/components/schemas/SemanticLayerConnection"
                     },
                     "dbtVersion": {
                         "$ref": "#/components/schemas/DbtVersionOption"
@@ -11707,75 +11641,6 @@
                 },
                 "type": "object"
             },
-            "Partial_DbtSemanticLayerConnection_": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/SemanticLayerType.DBT"
-                    },
-                    "environmentId": {
-                        "type": "string"
-                    },
-                    "domain": {
-                        "type": "string"
-                    },
-                    "token": {
-                        "type": "string"
-                    }
-                },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "Partial_CubeSemanticLayerConnection_": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/SemanticLayerType.CUBE"
-                    },
-                    "domain": {
-                        "type": "string"
-                    },
-                    "token": {
-                        "type": "string"
-                    }
-                },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "SemanticLayerConnectionUpdate": {
-                "anyOf": [
-                    {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Partial_DbtSemanticLayerConnection_"
-                            },
-                            {
-                                "properties": {
-                                    "type": {
-                                        "$ref": "#/components/schemas/SemanticLayerType.DBT"
-                                    }
-                                },
-                                "required": ["type"],
-                                "type": "object"
-                            }
-                        ]
-                    },
-                    {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Partial_CubeSemanticLayerConnection_"
-                            },
-                            {
-                                "properties": {
-                                    "type": {
-                                        "$ref": "#/components/schemas/SemanticLayerType.CUBE"
-                                    }
-                                },
-                                "required": ["type"],
-                                "type": "object"
-                            }
-                        ]
-                    }
-                ]
-            },
             "DashboardBasicDetailsWithTileTypes": {
                 "allOf": [
                     {
@@ -11909,16 +11774,6 @@
                     }
                 ]
             },
-            "CreateDashboardSemanticViewerChartTile": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CreateDashboardTileBase"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTileProperties"
-                    }
-                ]
-            },
             "Pick_UpdatedByUser.userUuid_": {
                 "properties": {
                     "userUuid": {
@@ -11963,9 +11818,6 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CreateDashboardSqlChartTile"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/CreateDashboardSemanticViewerChartTile"
                                 }
                             ]
                         },
@@ -12574,22 +12426,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART-or-DashboardTileTypes.SEMANTIC_VIEWER_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -13998,9 +13850,6 @@
                     },
                     "dbtVersion": {
                         "$ref": "#/components/schemas/DbtVersionOption"
-                    },
-                    "semanticLayerConnection": {
-                        "$ref": "#/components/schemas/SemanticLayerConnection"
                     }
                 },
                 "required": ["name", "type", "dbtConnection", "dbtVersion"],
@@ -16208,726 +16057,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "SemanticLayerClientInfo": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "features": {
-                        "properties": {
-                            "views": {
-                                "type": "boolean"
-                            }
-                        },
-                        "required": ["views"],
-                        "type": "object"
-                    },
-                    "config": {
-                        "properties": {
-                            "maxQueryLimit": {
-                                "type": "number",
-                                "format": "double"
-                            }
-                        },
-                        "required": ["maxQueryLimit"],
-                        "type": "object"
-                    }
-                },
-                "required": ["name", "features", "config"],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "ApiSemanticLayerClientInfo": {
-                "properties": {
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    },
-                    "results": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/SemanticLayerClientInfo"
-                            }
-                        ],
-                        "nullable": true
-                    }
-                },
-                "required": ["status", "results"],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "SemanticLayerView": {
-                "properties": {
-                    "visible": {
-                        "type": "boolean"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "required": ["visible", "label", "name"],
-                "type": "object"
-            },
-            "SemanticLayerFieldType": {
-                "enum": ["time", "number", "string", "boolean"],
-                "type": "string"
-            },
-            "SemanticLayerTimeGranularity": {
-                "enum": [
-                    "NANOSECOND",
-                    "MICROSECOND",
-                    "MILLISECOND",
-                    "SECOND",
-                    "MINUTE",
-                    "HOUR",
-                    "DAY",
-                    "WEEK",
-                    "MONTH",
-                    "QUARTER",
-                    "YEAR"
-                ],
-                "type": "string"
-            },
-            "SemanticLayerFilterBaseOperator": {
-                "enum": ["IS", "IS_NOT"],
-                "type": "string"
-            },
-            "SemanticLayerField": {
-                "properties": {
-                    "availableOperators": {
-                        "items": {
-                            "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
-                        },
-                        "type": "array"
-                    },
-                    "availableGranularities": {
-                        "items": {
-                            "$ref": "#/components/schemas/SemanticLayerTimeGranularity"
-                        },
-                        "type": "array"
-                    },
-                    "aggType": {
-                        "$ref": "#/components/schemas/VizAggregationOptions"
-                    },
-                    "visible": {
-                        "type": "boolean"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "kind": {
-                        "$ref": "#/components/schemas/FieldType"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/SemanticLayerFieldType"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "availableOperators",
-                    "availableGranularities",
-                    "visible",
-                    "kind",
-                    "type",
-                    "label",
-                    "name"
-                ],
-                "type": "object"
-            },
-            "Pick_SemanticLayerField.name_": {
-                "properties": {},
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_SemanticLayerTimeDimension.name-or-granularity_": {
-                "properties": {},
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_SemanticLayerQuery.dimensions-or-timeDimensions-or-metrics_": {
-                "properties": {
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
-                        },
-                        "type": "array"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
-                        },
-                        "type": "array"
-                    },
-                    "timeDimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/Pick_SemanticLayerTimeDimension.name-or-granularity_"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["metrics", "dimensions", "timeDimensions"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_SemanticLayerField.name-or-kind_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "kind": {
-                        "$ref": "#/components/schemas/FieldType"
-                    }
-                },
-                "required": ["name", "kind"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "SemanticLayerSortBy": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_SemanticLayerField.name-or-kind_"
-                    },
-                    {
-                        "properties": {
-                            "direction": {
-                                "$ref": "#/components/schemas/SortByDirection"
-                            }
-                        },
-                        "required": ["direction"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "SemanticLayerPivot": {
-                "properties": {
-                    "values": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "index": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "on": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["values", "index", "on"],
-                "type": "object"
-            },
-            "SemanticLayerFilterBase": {
-                "properties": {
-                    "fieldType": {
-                        "$ref": "#/components/schemas/SemanticLayerFieldType"
-                    },
-                    "fieldKind": {
-                        "$ref": "#/components/schemas/FieldType"
-                    },
-                    "fieldRef": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["fieldType", "fieldKind", "fieldRef", "uuid"],
-                "type": "object"
-            },
-            "SemanticLayerFieldType.STRING": {
-                "enum": ["string"],
-                "type": "string"
-            },
-            "SemanticLayerStringFilter": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
-                    },
-                    {
-                        "properties": {
-                            "values": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "operator": {
-                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
-                            },
-                            "fieldType": {
-                                "$ref": "#/components/schemas/SemanticLayerFieldType.STRING"
-                            }
-                        },
-                        "required": ["values", "operator", "fieldType"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "SemanticLayerFieldType.TIME": {
-                "enum": ["time"],
-                "type": "string"
-            },
-            "SemanticLayerExactTimeFilter": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
-                    },
-                    {
-                        "properties": {
-                            "values": {
-                                "properties": {
-                                    "time": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": ["time"],
-                                "type": "object"
-                            },
-                            "operator": {
-                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
-                            },
-                            "fieldType": {
-                                "$ref": "#/components/schemas/SemanticLayerFieldType.TIME"
-                            }
-                        },
-                        "required": ["values", "operator", "fieldType"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "SemanticLayerFilterRelativeTimeValue": {
-                "enum": ["TODAY", "YESTERDAY", "LAST_7_DAYS", "LAST_30_DAYS"],
-                "type": "string"
-            },
-            "SemanticLayerRelativeTimeFilter": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
-                    },
-                    {
-                        "properties": {
-                            "values": {
-                                "properties": {
-                                    "relativeTime": {
-                                        "$ref": "#/components/schemas/SemanticLayerFilterRelativeTimeValue"
-                                    }
-                                },
-                                "required": ["relativeTime"],
-                                "type": "object"
-                            },
-                            "operator": {
-                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
-                            },
-                            "fieldType": {
-                                "$ref": "#/components/schemas/SemanticLayerFieldType.TIME"
-                            }
-                        },
-                        "required": ["values", "operator", "fieldType"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "SemanticLayerTimeFilter": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerExactTimeFilter"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerRelativeTimeFilter"
-                    }
-                ]
-            },
-            "SemanticLayerFilterTypes": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerStringFilter"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerTimeFilter"
-                    }
-                ]
-            },
-            "SemanticLayerFilter": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerFilterTypes"
-                    },
-                    {
-                        "properties": {
-                            "or": {
-                                "items": {
-                                    "$ref": "#/components/schemas/SemanticLayerFilter"
-                                },
-                                "type": "array"
-                            },
-                            "and": {
-                                "items": {
-                                    "$ref": "#/components/schemas/SemanticLayerFilter"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "type": "object"
-                    }
-                ]
-            },
-            "Pick_SemanticLayerField.name-or-aggType_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "aggType": {
-                        "$ref": "#/components/schemas/VizAggregationOptions"
-                    }
-                },
-                "required": ["name"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "SemanticLayerQuery": {
-                "properties": {
-                    "customMetrics": {
-                        "items": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/components/schemas/Pick_SemanticLayerField.name-or-aggType_"
-                                },
-                                {
-                                    "properties": {
-                                        "baseDimension": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            ]
-                        },
-                        "type": "array"
-                    },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "filters": {
-                        "items": {
-                            "$ref": "#/components/schemas/SemanticLayerFilter"
-                        },
-                        "type": "array"
-                    },
-                    "pivot": {
-                        "$ref": "#/components/schemas/SemanticLayerPivot"
-                    },
-                    "timezone": {
-                        "type": "string"
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sortBy": {
-                        "items": {
-                            "$ref": "#/components/schemas/SemanticLayerSortBy"
-                        },
-                        "type": "array"
-                    },
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
-                        },
-                        "type": "array"
-                    },
-                    "timeDimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/Pick_SemanticLayerTimeDimension.name-or-granularity_"
-                        },
-                        "type": "array"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "filters",
-                    "sortBy",
-                    "metrics",
-                    "timeDimensions",
-                    "dimensions"
-                ],
-                "type": "object"
-            },
-            "SemanticViewerChartCreateResult": {
-                "properties": {
-                    "slug": {
-                        "type": "string"
-                    },
-                    "savedSemanticViewerChartUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["slug", "savedSemanticViewerChartUuid"],
-                "type": "object"
-            },
-            "ApiSemanticViewerChartCreate": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/SemanticViewerChartCreateResult"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "SemanticViewerChartCreate": {
-                "properties": {
-                    "spaceUuid": {
-                        "type": "string"
-                    },
-                    "config": {
-                        "$ref": "#/components/schemas/AllVizChartConfig"
-                    },
-                    "semanticLayerQuery": {
-                        "$ref": "#/components/schemas/SemanticLayerQuery"
-                    },
-                    "semanticLayerView": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "spaceUuid",
-                    "config",
-                    "semanticLayerQuery",
-                    "semanticLayerView",
-                    "description",
-                    "name"
-                ],
-                "type": "object"
-            },
-            "SavedSemanticViewerChart": {
-                "properties": {
-                    "lastViewedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "firstViewedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "organization": {
-                        "$ref": "#/components/schemas/Pick_Organization.organizationUuid_"
-                    },
-                    "project": {
-                        "$ref": "#/components/schemas/Pick_Project.projectUuid_"
-                    },
-                    "dashboard": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-name_"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "space": {
-                        "$ref": "#/components/schemas/Pick_SpaceSummary.uuid-or-name-or-isPrivate-or-userAccess_"
-                    },
-                    "lastUpdatedBy": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "lastUpdatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdBy": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "chartKind": {
-                        "$ref": "#/components/schemas/ChartKind"
-                    },
-                    "semanticLayerQuery": {
-                        "$ref": "#/components/schemas/SemanticLayerQuery"
-                    },
-                    "semanticLayerView": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "config": {
-                        "$ref": "#/components/schemas/AllVizChartConfig"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "savedSemanticViewerChartUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "lastViewedAt",
-                    "firstViewedAt",
-                    "views",
-                    "organization",
-                    "project",
-                    "dashboard",
-                    "space",
-                    "lastUpdatedBy",
-                    "lastUpdatedAt",
-                    "createdBy",
-                    "createdAt",
-                    "chartKind",
-                    "semanticLayerQuery",
-                    "semanticLayerView",
-                    "config",
-                    "slug",
-                    "description",
-                    "name",
-                    "savedSemanticViewerChartUuid"
-                ],
-                "type": "object"
-            },
-            "ApiSemanticViewerChartGet": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/SavedSemanticViewerChart"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "SemanticViewerChartUpdateResult": {
-                "properties": {
-                    "savedSemanticViewerChartVersionUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "savedSemanticViewerChartUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "savedSemanticViewerChartVersionUuid",
-                    "savedSemanticViewerChartUuid"
-                ],
-                "type": "object"
-            },
-            "ApiSemanticViewerChartUpdate": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/SemanticViewerChartUpdateResult"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "SemanticViewerChartUpdate": {
-                "properties": {
-                    "versionedData": {
-                        "properties": {
-                            "chartKind": {
-                                "$ref": "#/components/schemas/ChartKind"
-                            },
-                            "config": {
-                                "$ref": "#/components/schemas/AllVizChartConfig"
-                            },
-                            "semanticLayerQuery": {
-                                "$ref": "#/components/schemas/SemanticLayerQuery"
-                            },
-                            "semanticLayerView": {
-                                "type": "string",
-                                "nullable": true
-                            }
-                        },
-                        "required": [
-                            "chartKind",
-                            "config",
-                            "semanticLayerQuery",
-                            "semanticLayerView"
-                        ],
-                        "type": "object"
-                    },
-                    "unversionedData": {
-                        "properties": {
-                            "spaceUuid": {
-                                "type": "string"
-                            },
-                            "description": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "name": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["spaceUuid", "description", "name"],
-                        "type": "object"
-                    }
-                },
-                "type": "object"
-            },
             "ResultsPaginationMetadata_ResultRow_": {
                 "allOf": [
                     {
@@ -18495,7 +17624,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1758.0",
+        "version": "0.1760.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -23379,92 +22508,6 @@
                         }
                     }
                 }
-            }
-        },
-        "/api/v1/projects/{projectUuid}/semantic-layer-connection": {
-            "patch": {
-                "operationId": "updateProjectSemanticLayerConnection",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": ["Projects"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SemanticLayerConnectionUpdate"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "operationId": "deleteProjectSemanticLayerConnection",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": ["Projects"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
             }
         },
         "/api/v1/projects/{projectUuid}/dashboards": {

@@ -44,7 +44,7 @@ const AiAgentThreadPage = () => {
     }
 
     return (
-        <Stack h="100%" justify="space-between" py="xl">
+        <Stack h="100%" justify="space-between" pb="md">
             <AgentChatDisplay
                 thread={thread}
                 agentName={agentQuery.data?.name ?? 'AI'}

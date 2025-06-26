@@ -27,7 +27,7 @@ import {
     IconThumbUpFilled,
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
-import dayjs from 'dayjs';
+import { format, parseISO } from 'date-fns';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -52,25 +52,29 @@ import { AiChartVisualization } from './AiChartVisualization';
 export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
     message,
 }) => {
-    const timeAgo = useTimeAgo(new Date(message.createdAt));
+    const timeAgo = useTimeAgo(message.createdAt);
     const name = message.user.name;
     const app = useApp();
     const showUserName = app.user?.data?.userUuid !== message.user.uuid;
 
     return (
-        <Stack gap="sm" style={{ alignSelf: 'flex-end' }}>
+        <Stack gap="xs" style={{ alignSelf: 'flex-end' }}>
             <Stack gap={0} align="flex-end">
                 {showUserName ? (
                     <Text size="sm" c="gray.7" fw={600}>
                         {name}
                     </Text>
                 ) : null}
-                <Tooltip label={dayjs(message.createdAt).format()} withinPortal>
+                <Tooltip
+                    label={format(parseISO(message.createdAt), 'PPpp')}
+                    withinPortal
+                >
                     <Text size="xs" c="dimmed">
                         {timeAgo}
                     </Text>
                 </Tooltip>
             </Stack>
+
             <Card
                 pos="relative"
                 radius="md"
@@ -100,15 +104,16 @@ const AssistantBubbleContent: FC<{ message: AiAgentMessageAssistant }> = ({
     const isStubbed = isOptimisticMessageStub(message.message);
     const isStreaming =
         useAiAgentThreadStreaming(message.threadUuid) && isStubbed;
-    const messageContent = isStreaming
-        ? streamingState.content
-        : isStubbed // avoid brief flash of `THINKING_STUB`
-        ? ''
-        : message.message ?? 'No response...';
+    const messageContent =
+        isStreaming && streamingState
+            ? streamingState.content
+            : isStubbed // avoid brief flash of `THINKING_STUB`
+            ? ''
+            : message.message ?? 'No response...';
 
     return (
         <>
-            <AgentToolCalls />
+            {isStreaming ? <AgentToolCalls /> : null}
             <MDEditor.Markdown
                 source={messageContent}
                 style={{ backgroundColor: 'transparent' }}

@@ -117,7 +117,6 @@ import {
     type RunQueryTags,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
-    type SemanticLayerConnectionUpdate,
     SessionUser,
     snakeCaseName,
     SortByDirection,
@@ -2695,6 +2694,7 @@ export class ProjectService extends BaseService {
         return results;
     }
 
+    // TODO: consider removing this method in milestone #212
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. We know that the warehouse client method shouldn't be in a model, but instead it should be its own client.
     async streamSqlQueryIntoFile({
         userUuid,
@@ -4644,16 +4644,8 @@ export class ProjectService extends BaseService {
         const savedSqlCharts = await this.spaceModel.getSpaceSqlCharts(
             allowedSpaceUuids,
         );
-        const savedSemanticViewerCharts =
-            await this.spaceModel.getSpaceSemanticViewerCharts(
-                allowedSpaceUuids,
-            );
 
-        return [
-            ...savedQueries,
-            ...savedSqlCharts,
-            ...savedSemanticViewerCharts,
-        ];
+        return [...savedQueries, ...savedSqlCharts];
     }
 
     async getChartSummaries(
@@ -4756,13 +4748,6 @@ export class ProjectService extends BaseService {
                 mostPopular: true,
             },
         );
-        const mostPopularSemanticViewerCharts =
-            await this.spaceModel.getSpaceSemanticViewerCharts(
-                allowedSpaces.map(({ uuid }) => uuid),
-                {
-                    mostPopular: true,
-                },
-            );
         const mostPopularDashboards = await this.spaceModel.getSpaceDashboards(
             allowedSpaces.map(({ uuid }) => uuid),
             {
@@ -4773,7 +4758,6 @@ export class ProjectService extends BaseService {
         return [
             ...mostPopularCharts,
             ...mostPopularSqlCharts,
-            ...mostPopularSemanticViewerCharts,
             ...mostPopularDashboards,
         ];
     }
@@ -4794,13 +4778,6 @@ export class ProjectService extends BaseService {
                     recentlyUpdated: true,
                 },
             );
-        const recentlyUpdatedSemanticViewerCharts =
-            await this.spaceModel.getSpaceSemanticViewerCharts(
-                allowedSpaces.map(({ uuid }) => uuid),
-                {
-                    recentlyUpdated: true,
-                },
-            );
         const recentlyUpdatedDashboards =
             await this.spaceModel.getSpaceDashboards(
                 allowedSpaces.map(({ uuid }) => uuid),
@@ -4811,7 +4788,6 @@ export class ProjectService extends BaseService {
         return [
             ...recentlyUpdatedCharts,
             ...recentlyUpdatedSqlCharts,
-            ...recentlyUpdatedSemanticViewerCharts,
             ...recentlyUpdatedDashboards,
         ];
     }
@@ -5674,42 +5650,6 @@ export class ProjectService extends BaseService {
         });
 
         return { name: virtualView.name };
-    }
-
-    async updateSemanticLayerConnection(
-        user: SessionUser,
-        projectUuid: string,
-        payload: SemanticLayerConnectionUpdate,
-    ) {
-        const project = await this.projectModel.getSummary(projectUuid);
-
-        if (user.ability.cannot('update', subject('Project', project))) {
-            throw new ForbiddenError();
-        }
-
-        const updatedProject =
-            await this.projectModel.updateSemanticLayerConnection(
-                projectUuid,
-                payload,
-            );
-
-        return updatedProject;
-    }
-
-    async deleteSemanticLayerConnection(
-        user: SessionUser,
-        projectUuid: string,
-    ) {
-        const project = await this.projectModel.getSummary(projectUuid);
-
-        if (user.ability.cannot('update', subject('Project', project))) {
-            throw new ForbiddenError();
-        }
-
-        const updatedProject =
-            await this.projectModel.deleteSemanticLayerConnection(projectUuid);
-
-        return updatedProject;
     }
 
     async updateVirtualView(

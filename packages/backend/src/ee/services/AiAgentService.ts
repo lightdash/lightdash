@@ -1799,7 +1799,7 @@ export class AiAgentService {
             },
         );
 
-        await this.aiAgentModel.updateWebAppResponse({
+        await this.aiAgentModel.updateModelResponse({
             promptUuid: webAppPrompt.promptUuid,
             response,
         });

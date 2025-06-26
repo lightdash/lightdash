@@ -1,3 +1,24 @@
+## [0.1760.3](https://github.com/lightdash/lightdash/compare/0.1760.2...0.1760.3) (2025-06-26)
+
+
+### Bug Fixes
+
+* only show agent tool calls during streaming ([#15573](https://github.com/lightdash/lightdash/issues/15573)) ([b244726](https://github.com/lightdash/lightdash/commit/b2447267f9453ae6a162b117298b051524f198a7))
+
+## [0.1760.2](https://github.com/lightdash/lightdash/compare/0.1760.1...0.1760.2) (2025-06-26)
+
+
+### Bug Fixes
+
+* change paddings on a chat conversation container ([#15551](https://github.com/lightdash/lightdash/issues/15551)) ([124691c](https://github.com/lightdash/lightdash/commit/124691c217c2cae958bc31663ac3d0d96f8eab06))
+
+## [0.1760.1](https://github.com/lightdash/lightdash/compare/0.1760.0...0.1760.1) (2025-06-26)
+
+
+### Bug Fixes
+
+* handle null streamingState in AI agent chat components ([#15566](https://github.com/lightdash/lightdash/issues/15566)) ([b9b3e72](https://github.com/lightdash/lightdash/commit/b9b3e7209954f34ef9600e1eb3502180e51a9cdd))
+
 # [0.1760.0](https://github.com/lightdash/lightdash/compare/0.1759.0...0.1760.0) (2025-06-25)
 
 

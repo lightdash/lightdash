@@ -75,6 +75,7 @@ export class MetricQueryBuilder {
         joins: string[];
         tables: string[];
         selects: string[];
+        groupBySQL: string | undefined;
     } {
         const {
             explore,
@@ -167,12 +168,96 @@ export class MetricQueryBuilder {
         if (customSqlDimensionSql?.selects) {
             selects.push(...customSqlDimensionSql.selects);
         }
+        const groupBySQL =
+            selects.length > 0
+                ? `GROUP BY ${selects.map((val, i) => i + 1).join(',')}`
+                : undefined;
 
         return {
             ctes,
             joins,
             tables,
             selects,
+            groupBySQL,
+        };
+    }
+
+    private getMetricsSQL() {
+        const {
+            explore,
+            compiledMetricQuery,
+            warehouseClient,
+            userAttributes = {},
+        } = this.args;
+        const { metrics, filters, additionalMetrics } = compiledMetricQuery;
+        const adapterType: SupportedDbtAdapter =
+            warehouseClient.getAdapterType();
+        const fieldQuoteChar = getFieldQuoteChar(
+            warehouseClient.credentials.type,
+        );
+        const startOfWeek = warehouseClient.getStartOfWeek();
+
+        // Validate custom metrics
+        if (additionalMetrics) {
+            additionalMetrics.forEach((metric) => {
+                if (
+                    metric.baseDimensionName === undefined ||
+                    !metrics.includes(`${metric.table}_${metric.name}`)
+                )
+                    return;
+
+                const dimensionId = getCustomMetricDimensionId(metric);
+                const dimension = getDimensionFromId(
+                    dimensionId,
+                    explore,
+                    adapterType,
+                    startOfWeek,
+                );
+
+                assertValidDimensionRequiredAttribute(
+                    dimension,
+                    userAttributes,
+                    `custom metric: "${metric.name}"`,
+                );
+            });
+        }
+
+        // Find metrics from metric query
+        const selects = metrics.map((field) => {
+            const alias = field;
+            const metric = getMetricFromId(field, explore, compiledMetricQuery);
+            return `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
+        });
+
+        // Find metrics in filters
+        const selectsFromFilters = getFilterRulesFromGroup(
+            filters.metrics,
+        ).reduce<string[]>((acc, filter) => {
+            const metricInSelect = metrics.find(
+                (metric) => metric === filter.target.fieldId,
+            );
+            if (metricInSelect !== undefined) {
+                return acc;
+            }
+            const alias = filter.target.fieldId;
+            const metric = getMetricFromId(
+                filter.target.fieldId,
+                explore,
+                compiledMetricQuery,
+            );
+            const renderedSql = `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
+            return acc.includes(renderedSql) ? acc : [...acc, renderedSql];
+        }, []);
+
+        // Tables
+        const tables = metrics.reduce<string[]>((acc, field) => {
+            const metric = getMetricFromId(field, explore, compiledMetricQuery);
+            return [...acc, ...(metric.tablesReferences || [metric.table])];
+        }, []);
+
+        return {
+            selects: [...selects, ...selectsFromFilters],
+            tables,
         };
     }
 
@@ -400,6 +485,24 @@ export class MetricQueryBuilder {
         return limit !== undefined ? `LIMIT ${limit}` : undefined;
     }
 
+    private getBaseTableFromSQL() {
+        const {
+            explore,
+            warehouseClient,
+            intrinsicUserAttributes,
+            userAttributes = {},
+        } = this.args;
+        const baseTable = replaceUserAttributesRaw(
+            explore.tables[explore.baseTable].sqlTable,
+            intrinsicUserAttributes,
+            userAttributes,
+        );
+        const fieldQuoteChar = getFieldQuoteChar(
+            warehouseClient.credentials.type,
+        );
+        return `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
+    }
+
     /**
      * Compiles a database query based on the provided metric query, explores, user attributes, and warehouse-specific configurations.
      *
@@ -420,65 +523,18 @@ export class MetricQueryBuilder {
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
         const adapterType: SupportedDbtAdapter =
             warehouseClient.getAdapterType();
-        const {
-            metrics,
-            filters,
-            limit,
-            additionalMetrics,
-            compiledCustomDimensions,
-        } = compiledMetricQuery;
-        const baseTable = replaceUserAttributesRaw(
-            explore.tables[explore.baseTable].sqlTable,
-            intrinsicUserAttributes,
-            userAttributes,
-        );
+        const { metrics, filters, compiledCustomDimensions } =
+            compiledMetricQuery;
         const fieldQuoteChar = getFieldQuoteChar(
             warehouseClient.credentials.type,
         );
         const startOfWeek = warehouseClient.getStartOfWeek();
 
         const dimensionsSQL = this.getDimensionsSQL();
-
-        const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
-
-        const metricSelects = metrics.map((field) => {
-            const alias = field;
-            const metric = getMetricFromId(field, explore, compiledMetricQuery);
-            return `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
-        });
-
-        if (additionalMetrics)
-            additionalMetrics.forEach((metric) => {
-                if (
-                    metric.baseDimensionName === undefined ||
-                    !metrics.includes(`${metric.table}_${metric.name}`)
-                )
-                    return;
-
-                const dimensionId = getCustomMetricDimensionId(metric);
-                const dimension = getDimensionFromId(
-                    dimensionId,
-                    explore,
-                    adapterType,
-                    startOfWeek,
-                );
-
-                assertValidDimensionRequiredAttribute(
-                    dimension,
-                    userAttributes,
-                    `custom metric: "${metric.name}"`,
-                );
-            });
+        const metricsSQL = this.getMetricsSQL();
 
         const selectedTables = new Set<string>([
-            ...metrics.reduce<string[]>((acc, field) => {
-                const metric = getMetricFromId(
-                    field,
-                    explore,
-                    compiledMetricQuery,
-                );
-                return [...acc, ...(metric.tablesReferences || [metric.table])];
-            }, []),
+            ...metricsSQL.tables,
             ...dimensionsSQL.tables,
             ...getFilterRulesFromGroup(filters.dimensions).reduce<string[]>(
                 (acc, filterRule) => {
@@ -563,37 +619,6 @@ export class MetricQueryBuilder {
             })
             .join('\n');
 
-        const filteredMetricSelects = getFilterRulesFromGroup(
-            filters.metrics,
-        ).reduce<string[]>((acc, filter) => {
-            const metricInSelect = metrics.find(
-                (metric) => metric === filter.target.fieldId,
-            );
-            if (metricInSelect !== undefined) {
-                return acc;
-            }
-            const alias = filter.target.fieldId;
-            const metric = getMetricFromId(
-                filter.target.fieldId,
-                explore,
-                compiledMetricQuery,
-            );
-            const renderedSql = `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
-            return acc.includes(renderedSql) ? acc : [...acc, renderedSql];
-        }, []);
-
-        const sqlSelect = `SELECT\n${[
-            ...dimensionsSQL.selects,
-            ...metricSelects,
-            ...filteredMetricSelects,
-        ].join(',\n')}`;
-
-        const groups = dimensionsSQL.selects;
-        const sqlGroupBy =
-            groups.length > 0
-                ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}`
-                : '';
-
         const requiredDimensionFilterSql =
             this.getNestedDimensionFilterSQLFromModelFilters(
                 explore.tables[explore.baseTable],
@@ -654,6 +679,11 @@ export class MetricQueryBuilder {
             Logger.error('Error during metric inflation detection', e);
         }
 
+        const sqlSelect = `SELECT\n${[
+            ...dimensionsSQL.selects,
+            ...metricsSQL.selects,
+        ].join(',\n')}`;
+        const sqlFrom = this.getBaseTableFromSQL();
         const sqlLimit = this.getLimitSQL();
         const { sqlOrderBy, requiresQueryInCTE } = this.getSortSQL();
         if (
@@ -667,7 +697,7 @@ export class MetricQueryBuilder {
                 sqlJoins,
                 ...dimensionsSQL.joins,
                 sqlWhere,
-                sqlGroupBy,
+                dimensionsSQL.groupBySQL,
             ]
                 .filter((l) => l !== undefined)
                 .join('\n');
@@ -726,7 +756,7 @@ export class MetricQueryBuilder {
             sqlJoins,
             ...dimensionsSQL.joins,
             sqlWhere,
-            sqlGroupBy,
+            dimensionsSQL.groupBySQL,
             sqlOrderBy,
             sqlLimit,
         ]

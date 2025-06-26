@@ -39,7 +39,6 @@ const getOmnibarItemIcon = (itemType: SearchItemType) => {
         case SearchItemType.DASHBOARD_TAB:
             return IconLayoutNavbarInactive;
 
-        case SearchItemType.SEMANTIC_VIEWER_CHART:
         case SearchItemType.CHART:
             return IconChartBar;
         case SearchItemType.SPACE:

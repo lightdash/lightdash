@@ -2,8 +2,8 @@ import { useSelector } from 'react-redux';
 import { type AiAgentThreadStreamState } from './AiAgentThreadStreamStore';
 
 export const useAiAgentThreadStreamQuery = (threadUuid: string) => {
-    const threadStream = useSelector(
-        (state: AiAgentThreadStreamState) => state.threads[threadUuid],
+    const threadStream = useSelector((state: AiAgentThreadStreamState) =>
+        threadUuid in state.threads ? state.threads[threadUuid] : null,
     );
 
     return threadStream;

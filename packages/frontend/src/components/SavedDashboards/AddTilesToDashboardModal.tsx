@@ -2,7 +2,6 @@ import {
     DashboardTileTypes,
     assertUnreachable,
     getDefaultChartTileSize,
-    type DashboardBasicDetailsWithTileTypes,
     type DashboardTile,
 } from '@lightdash/common';
 import {
@@ -24,14 +23,7 @@ import {
     IconLayoutDashboard,
     IconPlus,
 } from '@tabler/icons-react';
-import {
-    forwardRef,
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-    type FC,
-} from 'react';
+import { forwardRef, useEffect, useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import { useSavedSqlChart } from '../../features/sqlRunner/hooks/useSavedSqlCharts';
 import {
@@ -156,9 +148,6 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     },
                 };
 
-            case DashboardTileTypes.SEMANTIC_VIEWER_CHART:
-            // TODO: update this type
-
             case DashboardTileTypes.LOOM:
             case DashboardTileTypes.MARKDOWN:
                 throw new Error(
@@ -198,47 +187,16 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
 
     const currentSpace = spaces?.find((s) => s.uuid === tile?.props.spaceUuid);
 
-    const isDashboardSelectItemDisabled = useCallback(
-        (dashboard: DashboardBasicDetailsWithTileTypes) => {
-            switch (dashboardTileType) {
-                case DashboardTileTypes.SAVED_CHART:
-                case DashboardTileTypes.SQL_CHART:
-                    return dashboard.tileTypes.includes(
-                        DashboardTileTypes.SEMANTIC_VIEWER_CHART,
-                    );
-                case DashboardTileTypes.SEMANTIC_VIEWER_CHART:
-                    return (
-                        dashboard.tileTypes.includes(
-                            DashboardTileTypes.SAVED_CHART,
-                        ) ||
-                        dashboard.tileTypes.includes(
-                            DashboardTileTypes.SQL_CHART,
-                        )
-                    );
-                case DashboardTileTypes.LOOM:
-                case DashboardTileTypes.MARKDOWN:
-                    return false;
-                default:
-                    return assertUnreachable(
-                        dashboardTileType,
-                        `Unknown tile type: ${dashboardTileType}`,
-                    );
-            }
-        },
-        [dashboardTileType],
-    );
-
     const dashboardSelectItems = useMemo(() => {
         return (
             dashboards?.map<ItemProps>((d) => ({
                 value: d.uuid,
                 label: d.name,
                 group: spaces?.find((s) => s.uuid === d.spaceUuid)?.name,
-                disabled: isDashboardSelectItemDisabled(d),
                 spaceUuid: d.spaceUuid, // ? Adding spaceUuid here for simplicity of selecting the default value in the select
             })) ?? []
         );
-    }, [dashboards, isDashboardSelectItemDisabled, spaces]);
+    }, [dashboards, spaces]);
 
     const form = useForm({
         initialValues: {

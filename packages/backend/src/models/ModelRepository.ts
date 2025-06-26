@@ -27,7 +27,6 @@ import { ProjectModel } from './ProjectModel/ProjectModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { SavedChartModel } from './SavedChartModel';
-import { SavedSemanticViewerChartModel } from './SavedSemanticViewerChartModel';
 import { SavedSqlModel } from './SavedSqlModel';
 import { SchedulerModel } from './SchedulerModel';
 import { SearchModel } from './SearchModel';
@@ -85,7 +84,6 @@ export type ModelManifest = {
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
-    SavedSemanticViewerChartModel: SavedSemanticViewerChartModel;
     contentModel: ContentModel;
     tagsModel: TagsModel;
     featureFlagModel: FeatureFlagModel;
@@ -484,16 +482,6 @@ export class ModelRepository
         return this.getModel(
             'savedSqlModel',
             () => new SavedSqlModel({ database: this.database }),
-        );
-    }
-
-    public getSavedSemanticViewerChartModel(): SavedSemanticViewerChartModel {
-        return this.getModel(
-            'SavedSemanticViewerChartModel',
-            () =>
-                new SavedSemanticViewerChartModel({
-                    database: this.database,
-                }),
         );
     }
 

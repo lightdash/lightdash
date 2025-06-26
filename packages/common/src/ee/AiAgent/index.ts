@@ -109,13 +109,18 @@ export type AiAgentMessageAssistant = {
     uuid: string;
     threadUuid: string;
 
-    message: string | null; // ai_prompt.response
-    createdAt: string | null; // ai_prompt.responded_at
+    // ai_prompt.response
+    message: string | null;
+    // ai_prompt.responded_at but this can not be null because
+    // we check for null before creating the agent message
+    createdAt: string;
 
     vizConfigOutput: object | null;
     filtersOutput: object | null;
     metricQuery: object | null;
     humanScore: number | null;
+
+    toolCalls: AiAgentToolCall[];
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
@@ -252,3 +257,12 @@ export type ApiGetUserAgentPreferencesResponse =
 export type ApiUpdateUserAgentPreferences = AiAgentUserPreferences;
 
 export type ApiUpdateUserAgentPreferencesResponse = ApiSuccessEmpty;
+
+export type AiAgentToolCall = {
+    uuid: string;
+    promptUuid: string;
+    toolCallId: string;
+    toolName: string;
+    toolArgs: object;
+    createdAt: Date;
+};
