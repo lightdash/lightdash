@@ -86,7 +86,7 @@ export class MetricQueryBuilder {
         } = this.args;
         const adapterType: SupportedDbtAdapter =
             warehouseClient.getAdapterType();
-        const { dimensions, sorts, compiledCustomDimensions } =
+        const { dimensions, sorts, compiledCustomDimensions, filters } =
             compiledMetricQuery;
         const fieldQuoteChar = getFieldQuoteChar(
             warehouseClient.credentials.type,
@@ -154,6 +154,23 @@ export class MetricQueryBuilder {
         if (customSqlDimensionSql?.tables) {
             tables.push(...customSqlDimensionSql.tables);
         }
+        // Add tables referenced in dimension filters
+        getFilterRulesFromGroup(filters.dimensions)
+            .reduce<string[]>((acc, filterRule) => {
+                const dim = getDimensionFromFilterTargetId(
+                    filterRule.target.fieldId,
+                    explore,
+                    compiledCustomDimensions.filter(
+                        isCompiledCustomSqlDimension,
+                    ),
+                    adapterType,
+                    startOfWeek,
+                );
+                return [...acc, ...(dim.tablesReferences || [dim.table])];
+            }, [])
+            .forEach((table) => {
+                tables.push(table);
+            });
 
         // Selects
         const selects = dimensionsObjects.map(
@@ -254,6 +271,19 @@ export class MetricQueryBuilder {
             const metric = getMetricFromId(field, explore, compiledMetricQuery);
             return [...acc, ...(metric.tablesReferences || [metric.table])];
         }, []);
+        // Add tables referenced in metrics filters
+        getFilterRulesFromGroup(filters.metrics)
+            .reduce<string[]>((acc, filterRule) => {
+                const metric = getMetricFromId(
+                    filterRule.target.fieldId,
+                    explore,
+                    compiledMetricQuery,
+                );
+                return [...acc, ...(metric.tablesReferences || [metric.table])];
+            }, [])
+            .forEach((table) => {
+                tables.push(table);
+            });
 
         return {
             selects: [...selects, ...selectsFromFilters],
@@ -521,14 +551,10 @@ export class MetricQueryBuilder {
             userAttributes = {},
         } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
-        const adapterType: SupportedDbtAdapter =
-            warehouseClient.getAdapterType();
-        const { metrics, filters, compiledCustomDimensions } =
-            compiledMetricQuery;
+        const { metrics, filters } = compiledMetricQuery;
         const fieldQuoteChar = getFieldQuoteChar(
             warehouseClient.credentials.type,
         );
-        const startOfWeek = warehouseClient.getStartOfWeek();
 
         const dimensionsSQL = this.getDimensionsSQL();
         const metricsSQL = this.getMetricsSQL();
@@ -536,35 +562,6 @@ export class MetricQueryBuilder {
         const selectedTables = new Set<string>([
             ...metricsSQL.tables,
             ...dimensionsSQL.tables,
-            ...getFilterRulesFromGroup(filters.dimensions).reduce<string[]>(
-                (acc, filterRule) => {
-                    const dim = getDimensionFromFilterTargetId(
-                        filterRule.target.fieldId,
-                        explore,
-                        compiledCustomDimensions.filter(
-                            isCompiledCustomSqlDimension,
-                        ),
-                        adapterType,
-                        startOfWeek,
-                    );
-                    return [...acc, ...(dim.tablesReferences || [dim.table])];
-                },
-                [],
-            ),
-            ...getFilterRulesFromGroup(filters.metrics).reduce<string[]>(
-                (acc, filterRule) => {
-                    const metric = getMetricFromId(
-                        filterRule.target.fieldId,
-                        explore,
-                        compiledMetricQuery,
-                    );
-                    return [
-                        ...acc,
-                        ...(metric.tablesReferences || [metric.table]),
-                    ];
-                },
-                [],
-            ),
         ]);
 
         const tableCompiledSqlWhere =
