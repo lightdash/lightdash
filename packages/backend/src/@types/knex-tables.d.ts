@@ -230,6 +230,8 @@ import {
 } from '../database/entities/warehouseAvailableTables';
 import {
     AiAgentToolCallTableName,
+    AiAgentToolResultTable,
+    AiAgentToolResultTableName,
     AiPromptTable,
     AiPromptTableName,
     AiSlackPromptTable,
@@ -350,6 +352,7 @@ declare module 'knex/types/tables' {
         [AiAgentInstructionVersionsTableName]: AiAgentInstructionVersionsTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;
         [AiAgentUserPreferencesTableName]: AiAgentUserPreferencesTable;
+        [AiAgentToolResultTableName]: AiAgentToolResultTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
         [DashboardSummariesTableName]: DashboardSummariesTable;

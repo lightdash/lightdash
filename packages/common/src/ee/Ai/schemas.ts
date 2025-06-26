@@ -500,3 +500,46 @@ export const csvFileVizConfigSchema = VisualizationMetadataSchema.extend({
 });
 
 export type CsvFileVizConfigSchemaType = z.infer<typeof csvFileVizConfigSchema>;
+
+// Derived types from schemas
+export type FindFieldsToolArgs = z.infer<typeof aiFindFieldsToolSchema>;
+
+// define tool names
+export const ToolNameSchema = z.enum([
+    'findFields',
+    'generateBarVizConfig',
+    'generateCsv',
+    'generateQueryFilters',
+    'generateTimeSeriesVizConfig',
+]);
+
+export type ToolName = z.infer<typeof ToolNameSchema>;
+
+export const isToolName = (toolName: string): toolName is ToolName =>
+    ToolNameSchema.safeParse(toolName).success;
+
+export const isFindFieldsToolArgs = (
+    toolArgs: unknown,
+): toolArgs is FindFieldsToolArgs =>
+    aiFindFieldsToolSchema.safeParse(toolArgs).success;
+
+// display messages schema
+export const ToolDisplayMessagesSchema = z.record(ToolNameSchema, z.string());
+
+export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
+    findFields: 'Finding relevant fields',
+    generateBarVizConfig: 'Generating a bar chart',
+    generateCsv: 'Generating CSV file',
+    generateQueryFilters: 'Applying filters to the query',
+    generateTimeSeriesVizConfig: 'Generating a line chart',
+});
+
+// after-tool-call messages
+export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
+    ToolDisplayMessagesSchema.parse({
+        findFields: 'Found relevant fields',
+        generateBarVizConfig: 'Generated a bar chart',
+        generateCsv: 'Generated CSV file',
+        generateQueryFilters: 'Applied filters to the query',
+        generateTimeSeriesVizConfig: 'Generated a line chart',
+    });

@@ -70,12 +70,61 @@ export type BuildQueryProps = {
 export class MetricQueryBuilder {
     constructor(private args: BuildQueryProps) {}
 
+    private getDimensionsFilterSQL() {
+        const {
+            explore,
+            compiledMetricQuery,
+            warehouseClient,
+            userAttributes = {},
+            intrinsicUserAttributes,
+        } = this.args;
+        const { filters } = compiledMetricQuery;
+
+        const requiredDimensionFilterSql =
+            this.getNestedDimensionFilterSQLFromModelFilters(
+                explore.tables[explore.baseTable],
+                filters.dimensions,
+            );
+        const tableCompiledSqlWhere =
+            explore.tables[explore.baseTable].sqlWhere;
+
+        const tableSqlWhereWithReplacedAttributes = tableCompiledSqlWhere
+            ? [
+                  replaceUserAttributesAsStrings(
+                      tableCompiledSqlWhere,
+                      intrinsicUserAttributes,
+                      userAttributes,
+                      warehouseClient,
+                  ),
+              ]
+            : [];
+
+        const nestedFilterSql = this.getNestedFilterSQLFromGroup(
+            filters.dimensions,
+            FieldType.DIMENSION,
+        );
+        const requiredFiltersWhere = requiredDimensionFilterSql
+            ? [requiredDimensionFilterSql]
+            : [];
+        const nestedFilterWhere = nestedFilterSql ? [nestedFilterSql] : [];
+        const allSqlFilters = [
+            ...tableSqlWhereWithReplacedAttributes,
+            ...nestedFilterWhere,
+            ...requiredFiltersWhere,
+        ];
+
+        return allSqlFilters.length > 0
+            ? `WHERE ${allSqlFilters.join(' AND ')}`
+            : undefined;
+    }
+
     private getDimensionsSQL(): {
         ctes: string[];
         joins: string[];
         tables: string[];
         selects: string[];
         groupBySQL: string | undefined;
+        filtersSQL: string | undefined;
     } {
         const {
             explore,
@@ -190,16 +239,24 @@ export class MetricQueryBuilder {
                 ? `GROUP BY ${selects.map((val, i) => i + 1).join(',')}`
                 : undefined;
 
+        // Filters
+        const filtersSQL = this.getDimensionsFilterSQL();
+
         return {
             ctes,
             joins,
             tables,
             selects,
             groupBySQL,
+            filtersSQL,
         };
     }
 
-    private getMetricsSQL() {
+    private getMetricsSQL(): {
+        tables: string[];
+        selects: string[];
+        filtersSQL: string | undefined;
+    } {
         const {
             explore,
             compiledMetricQuery,
@@ -285,9 +342,16 @@ export class MetricQueryBuilder {
                 tables.push(table);
             });
 
+        // Filters
+        const filtersSQL = this.getNestedFilterSQLFromGroup(
+            filters.metrics,
+            FieldType.METRIC,
+        );
+
         return {
             selects: [...selects, ...selectsFromFilters],
             tables,
+            filtersSQL: filtersSQL ? `WHERE ${filtersSQL}` : undefined,
         };
     }
 
@@ -564,9 +628,6 @@ export class MetricQueryBuilder {
             ...dimensionsSQL.tables,
         ]);
 
-        const tableCompiledSqlWhere =
-            explore.tables[explore.baseTable].sqlWhere;
-
         const tableSqlWhere =
             explore.tables[explore.baseTable].uncompiledSqlWhere;
 
@@ -616,47 +677,6 @@ export class MetricQueryBuilder {
             })
             .join('\n');
 
-        const requiredDimensionFilterSql =
-            this.getNestedDimensionFilterSQLFromModelFilters(
-                explore.tables[explore.baseTable],
-                filters.dimensions,
-            );
-
-        const tableSqlWhereWithReplacedAttributes = tableCompiledSqlWhere
-            ? [
-                  replaceUserAttributesAsStrings(
-                      tableCompiledSqlWhere,
-                      intrinsicUserAttributes,
-                      userAttributes,
-                      warehouseClient,
-                  ),
-              ]
-            : [];
-
-        const nestedFilterSql = this.getNestedFilterSQLFromGroup(
-            filters.dimensions,
-            FieldType.DIMENSION,
-        );
-        const requiredFiltersWhere = requiredDimensionFilterSql
-            ? [requiredDimensionFilterSql]
-            : [];
-        const nestedFilterWhere = nestedFilterSql ? [nestedFilterSql] : [];
-        const allSqlFilters = [
-            ...tableSqlWhereWithReplacedAttributes,
-            ...nestedFilterWhere,
-            ...requiredFiltersWhere,
-        ];
-
-        const sqlWhere =
-            allSqlFilters.length > 0
-                ? `WHERE ${allSqlFilters.join(' AND ')}`
-                : '';
-
-        const whereMetricFilters = this.getNestedFilterSQLFromGroup(
-            filters.metrics,
-            FieldType.METRIC,
-        );
-
         const tableCalculationFilters = this.getNestedFilterSQLFromGroup(
             filters.tableCalculations,
         );
@@ -685,7 +705,7 @@ export class MetricQueryBuilder {
         const { sqlOrderBy, requiresQueryInCTE } = this.getSortSQL();
         if (
             compiledMetricQuery.compiledTableCalculations.length > 0 ||
-            whereMetricFilters ||
+            metricsSQL.filtersSQL ||
             requiresQueryInCTE
         ) {
             const cteSql = [
@@ -693,7 +713,7 @@ export class MetricQueryBuilder {
                 sqlFrom,
                 sqlJoins,
                 ...dimensionsSQL.joins,
-                sqlWhere,
+                dimensionsSQL.filtersSQL,
                 dimensionsSQL.groupBySQL,
             ]
                 .filter((l) => l !== undefined)
@@ -715,12 +735,9 @@ export class MetricQueryBuilder {
                 ...tableCalculationSelects,
             ].join(',\n')}`;
             const finalFrom = `FROM ${cteName}`;
-            const finalSqlWhere = whereMetricFilters
-                ? `WHERE ${whereMetricFilters}`
-                : '';
-            const secondQuery = [finalSelect, finalFrom, finalSqlWhere].join(
-                '\n',
-            );
+            const secondQuery = [finalSelect, finalFrom, metricsSQL.filtersSQL]
+                .filter((l) => l !== undefined)
+                .join('\n');
 
             let finalQuery = secondQuery;
             if (tableCalculationFilters) {
@@ -752,7 +769,7 @@ export class MetricQueryBuilder {
             sqlFrom,
             sqlJoins,
             ...dimensionsSQL.joins,
-            sqlWhere,
+            dimensionsSQL.filtersSQL,
             dimensionsSQL.groupBySQL,
             sqlOrderBy,
             sqlLimit,

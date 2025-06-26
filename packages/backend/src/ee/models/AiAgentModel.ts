@@ -16,7 +16,10 @@ import {
     CreateSlackThread,
     CreateWebAppPrompt,
     CreateWebAppThread,
+    isFindFieldsToolArgs,
+    isToolName,
     SlackPrompt,
+    ToolName,
     UpdateSlackResponse,
     UpdateSlackResponseTs,
     UpdateWebAppResponse,
@@ -26,6 +29,7 @@ import { Knex } from 'knex';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import {
     AiAgentToolCallTableName,
+    AiAgentToolResultTableName,
     AiPromptTableName,
     AiSlackPromptTableName,
     AiSlackThreadTableName,
@@ -33,6 +37,7 @@ import {
     AiWebAppPromptTableName,
     AiWebAppThreadTableName,
     DbAiAgentToolCall,
+    DbAiAgentToolResult,
     DbAiPrompt,
     DbAiSlackPrompt,
     DbAiSlackThread,
@@ -667,14 +672,28 @@ export class AiAgentModel {
                     filtersOutput: row.filters_output,
                     metricQuery: row.metric_query,
                     humanScore: row.human_score,
-                    toolCalls: toolCalls.map((toolCall) => ({
-                        uuid: toolCall.ai_agent_tool_call_uuid,
-                        promptUuid: toolCall.ai_prompt_uuid,
-                        toolCallId: toolCall.tool_call_id,
-                        toolName: toolCall.tool_name,
-                        toolArgs: toolCall.tool_args,
-                        createdAt: toolCall.created_at,
-                    })),
+                    toolCalls: toolCalls
+                        .filter((tc) => isToolName(tc.tool_name))
+                        .map((tc) => ({
+                            uuid: tc.ai_agent_tool_call_uuid,
+                            promptUuid: tc.ai_prompt_uuid,
+                            toolCallId: tc.tool_call_id,
+                            createdAt: tc.created_at,
+                            // TODO: handle this typing better
+                            ...(isFindFieldsToolArgs(tc.tool_args) &&
+                            tc.tool_name === 'findFields'
+                                ? {
+                                      toolName: 'findFields',
+                                      toolArgs: tc.tool_args,
+                                  }
+                                : {
+                                      toolName: tc.tool_name as Exclude<
+                                          ToolName,
+                                          'findFields'
+                                      >,
+                                      toolArgs: tc.tool_args,
+                                  }),
+                        })),
                 });
             }
 
@@ -823,14 +842,28 @@ export class AiAgentModel {
                     filtersOutput: row.filters_output,
                     metricQuery: row.metric_query,
                     humanScore: row.human_score,
-                    toolCalls: toolCalls.map((toolCall) => ({
-                        uuid: toolCall.ai_agent_tool_call_uuid,
-                        promptUuid: toolCall.ai_prompt_uuid,
-                        toolCallId: toolCall.tool_call_id,
-                        toolName: toolCall.tool_name,
-                        toolArgs: toolCall.tool_args,
-                        createdAt: toolCall.created_at,
-                    })),
+                    toolCalls: toolCalls
+                        .filter((tc) => isToolName(tc.tool_name))
+                        .map((tc) => ({
+                            uuid: tc.ai_agent_tool_call_uuid,
+                            promptUuid: tc.ai_prompt_uuid,
+                            toolCallId: tc.tool_call_id,
+                            createdAt: tc.created_at,
+                            // TODO: handle this typing better
+                            ...(isFindFieldsToolArgs(tc.tool_args) &&
+                            tc.tool_name === 'findFields'
+                                ? {
+                                      toolName: 'findFields',
+                                      toolArgs: tc.tool_args,
+                                  }
+                                : {
+                                      toolName: tc.tool_name as Exclude<
+                                          ToolName,
+                                          'findFields'
+                                      >,
+                                      toolArgs: tc.tool_args,
+                                  }),
+                        })),
                 } satisfies AiAgentMessageAssistant;
             default:
                 return assertUnreachable(role, `Unknown role ${role}`);
@@ -1334,5 +1367,31 @@ export class AiAgentModel {
         return this.database(AiAgentToolCallTableName)
             .where('ai_prompt_uuid', promptUuid)
             .orderBy('created_at', 'asc');
+    }
+
+    async createToolResults(
+        data: Array<{
+            promptUuid: string;
+            toolCallId: string;
+            toolName: string;
+            result: string;
+        }>,
+    ): Promise<string[]> {
+        if (data.length === 0) return [];
+
+        return this.database.transaction(async (trx) => {
+            const toolResults = await trx(AiAgentToolResultTableName)
+                .insert(
+                    data.map((item) => ({
+                        ai_prompt_uuid: item.promptUuid,
+                        tool_call_id: item.toolCallId,
+                        tool_name: item.toolName,
+                        result: item.result,
+                    })),
+                )
+                .returning('ai_agent_tool_result_uuid');
+
+            return toolResults.map((tr) => tr.ai_agent_tool_result_uuid);
+        });
     }
 }

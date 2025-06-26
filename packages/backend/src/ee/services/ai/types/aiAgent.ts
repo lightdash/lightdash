@@ -6,6 +6,7 @@ import {
     SearchFieldsFn,
     SendFileFn,
     StoreToolCallFn,
+    StoreToolResultsFn,
     UpdateProgressFn,
     UpdatePromptFn,
 } from './aiAgentDependencies';
@@ -32,6 +33,7 @@ export type AiAgentDependencies = {
     updatePrompt: UpdatePromptFn;
     updateProgress: UpdateProgressFn;
     storeToolCall: StoreToolCallFn;
+    storeToolResults: StoreToolResultsFn;
 };
 
 export type AiGenerateAgentResponseArgs = AiAgentArgs;
