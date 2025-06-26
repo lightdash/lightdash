@@ -1,9 +1,11 @@
 import { z } from 'zod';
+import { type Organization } from '../../types/organization';
 import { type LightdashUser } from '../../types/user';
 import assertUnreachable from '../../utils/assertUnreachable';
 
 export type Embed = {
     projectUuid: string;
+    organization: Pick<Organization, 'organizationUuid'>;
     encodedSecret: string;
     dashboardUuids: string[];
     allowAllDashboards: boolean;
