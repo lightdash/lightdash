@@ -3,13 +3,11 @@ import {
     CreateDashboardChartTile,
     CreateDashboardLoomTile,
     CreateDashboardMarkdownTile,
-    CreateDashboardSemanticViewerChartTile,
     CreateDashboardSqlChartTile,
     DashboardChartTile,
     DashboardDAO,
     DashboardLoomTile,
     DashboardMarkdownTile,
-    DashboardSemanticViewerChartTile,
     DashboardSqlChartTile,
     DashboardTab,
     DashboardTileTypes,
@@ -26,7 +24,6 @@ import {
     isDashboardChartTileType,
     isDashboardLoomTileType,
     isDashboardMarkdownTileType,
-    isDashboardSemanticViewerChartTile,
     isDashboardSqlChartTile,
     sanitizeHtml,
     type DashboardBasicDetailsWithTileTypes,
@@ -169,7 +166,6 @@ export class DashboardModel {
             | (CreateDashboardMarkdownTile & { uuid: string })
             | (CreateDashboardLoomTile & { uuid: string })
             | (CreateDashboardSqlChartTile & { uuid: string })
-            | (CreateDashboardSemanticViewerChartTile & { uuid: string })
         > = version.tiles.map((tile) => ({
             ...tile,
             uuid: tile.uuid || uuidv4(),
@@ -263,22 +259,6 @@ export class DashboardModel {
                     dashboard_version_id: versionId.dashboard_version_id,
                     dashboard_tile_uuid: uuid,
                     saved_sql_uuid: properties.savedSqlUuid,
-                    hide_title: properties.hideTitle,
-                    title: properties.title,
-                })),
-            );
-        }
-
-        const semanticViewerChartTiles = tilesWithUuids.filter(
-            isDashboardSemanticViewerChartTile,
-        );
-        if (semanticViewerChartTiles.length > 0) {
-            await trx(DashboardTileSemanticViewerChartTableName).insert(
-                semanticViewerChartTiles.map(({ uuid, properties }) => ({
-                    dashboard_version_id: versionId.dashboard_version_id,
-                    dashboard_tile_uuid: uuid,
-                    saved_semantic_viewer_chart_uuid:
-                        properties.savedSemanticViewerChartUuid,
                     hide_title: properties.hideTitle,
                     title: properties.title,
                 })),
@@ -1006,18 +986,6 @@ export class DashboardModel {
                                     ...commonProperties,
                                     chartName: name,
                                     savedSqlUuid: saved_sql_uuid,
-                                    chartSlug: chart_slug,
-                                },
-                            };
-                        case DashboardTileTypes.SEMANTIC_VIEWER_CHART:
-                            return <DashboardSemanticViewerChartTile>{
-                                ...base,
-                                type: DashboardTileTypes.SEMANTIC_VIEWER_CHART,
-                                properties: {
-                                    ...commonProperties,
-                                    chartName: name,
-                                    savedSemanticViewerChartUuid:
-                                        saved_semantic_viewer_chart_uuid,
                                     chartSlug: chart_slug,
                                 },
                             };

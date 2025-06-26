@@ -70,6 +70,8 @@ export type SemanticLayerPivot = {
     values: string[];
 };
 
+// NOTE: this type got re-used in a lot of places that aren't striclty
+// related to semantic layer -- we need to keep and rename it.
 export type SemanticLayerQuery = {
     dimensions: Pick<SemanticLayerField, 'name'>[];
     timeDimensions: Pick<SemanticLayerTimeDimension, 'name' | 'granularity'>[];
@@ -151,6 +153,7 @@ export type SemanticLayerQueryPayload = TraceTaskBase & {
     chartUuid?: string;
 };
 
+// NOTE: unused
 export const isSemanticLayerTimeDimension = (
     field: SemanticLayerField,
 ): field is SemanticLayerTimeDimension => 'granularity' in field;
@@ -167,6 +170,7 @@ export type SemanticLayerJobStatusErrorDetails = {
     createdByUserUuid: string;
 };
 
+// NOTE: unused
 export type ApiSemanticLayerJobStatusResponse = {
     status: 'ok';
     results:
@@ -188,6 +192,7 @@ export type ApiSemanticLayerJobStatusResponse = {
           };
 };
 
+// NOTE: unused
 export type ApiSemanticLayerJobSuccessResponse =
     ApiSemanticLayerJobStatusResponse & {
         results: {
