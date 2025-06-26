@@ -52,7 +52,7 @@ export enum FeatureFlags {
     BigquerySSO = 'bigquery-sso',
 
     /**
-     * Show query warnings in explore page
+     * Generate new experimental CTE and show query warnings in explore page
      * This feature flag is temporary while we work on the new query warnings for metric inflation.
      */
     ShowQueryWarnings = 'show-query-warnings',

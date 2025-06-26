@@ -29,6 +29,7 @@ import {
     type ExecuteAsyncUnderlyingDataRequestParams,
     ExpiredError,
     Explore,
+    FeatureFlags,
     FieldType,
     ForbiddenError,
     formatRow,
@@ -88,6 +89,7 @@ import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClie
 import { measureTime } from '../../logging/measureTime';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { wrapSentryTransaction } from '../../utils';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import {
@@ -1281,6 +1283,18 @@ export class AsyncQueryService extends ProjectService {
             ? getIntrinsicUserAttributes(user)
             : {};
 
+        const useExperimentalMetricCtes = await isFeatureFlagEnabled(
+            FeatureFlags.ShowQueryWarnings,
+            user,
+            { throwOnTimeout: false },
+            false, // default value
+        );
+
+        console.log(
+            '#### useExperimentalMetricCtes',
+            useExperimentalMetricCtes,
+        );
+
         const fullQuery = await ProjectService._compileQuery(
             metricQuery,
             explore,
@@ -1289,6 +1303,7 @@ export class AsyncQueryService extends ProjectService {
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
             dateZoom,
+            useExperimentalMetricCtes,
         );
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(
