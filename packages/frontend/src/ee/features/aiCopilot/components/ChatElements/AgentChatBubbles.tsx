@@ -27,7 +27,7 @@ import {
     IconThumbUpFilled,
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
-import dayjs from 'dayjs';
+import { format, parseISO } from 'date-fns';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -58,19 +58,23 @@ export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
     const showUserName = app.user?.data?.userUuid !== message.user.uuid;
 
     return (
-        <Stack gap="sm" style={{ alignSelf: 'flex-end' }}>
+        <Stack gap="xs" style={{ alignSelf: 'flex-end' }}>
             <Stack gap={0} align="flex-end">
                 {showUserName ? (
                     <Text size="sm" c="gray.7" fw={600}>
                         {name}
                     </Text>
                 ) : null}
-                <Tooltip label={dayjs(message.createdAt).format()} withinPortal>
+                <Tooltip
+                    label={format(parseISO(message.createdAt), 'PPpp')}
+                    withinPortal
+                >
                     <Text size="xs" c="dimmed">
                         {timeAgo}
                     </Text>
                 </Tooltip>
             </Stack>
+
             <Card
                 pos="relative"
                 radius="md"

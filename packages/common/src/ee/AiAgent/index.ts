@@ -109,8 +109,11 @@ export type AiAgentMessageAssistant = {
     uuid: string;
     threadUuid: string;
 
-    message: string | null; // ai_prompt.response
-    createdAt: string | null; // ai_prompt.responded_at
+    // ai_prompt.response
+    message: string | null;
+    // ai_prompt.responded_at but this can not be null because
+    // we check for null before creating the agent message
+    createdAt: string;
 
     vizConfigOutput: object | null;
     filtersOutput: object | null;
