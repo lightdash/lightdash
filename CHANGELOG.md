@@ -1,3 +1,10 @@
+# [0.1761.0](https://github.com/lightdash/lightdash/compare/0.1760.4...0.1761.0) (2025-06-26)
+
+
+### Features
+
+* show tool calls on how it's calculated & find fields schema ([#15574](https://github.com/lightdash/lightdash/issues/15574)) ([d74b282](https://github.com/lightdash/lightdash/commit/d74b282df88e4fc8a1584fbe11cd4bf8056b39c8))
+
 ## [0.1760.4](https://github.com/lightdash/lightdash/compare/0.1760.3...0.1760.4) (2025-06-26)
 
 
