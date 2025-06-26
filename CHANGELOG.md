@@ -1,3 +1,10 @@
+## [0.1760.4](https://github.com/lightdash/lightdash/compare/0.1760.3...0.1760.4) (2025-06-26)
+
+
+### Bug Fixes
+
+* add all compact aliases to lightdashMetadata.json ([#15575](https://github.com/lightdash/lightdash/issues/15575)) ([791e6f2](https://github.com/lightdash/lightdash/commit/791e6f2e9837811e42015fe5885149b242b1611f))
+
 ## [0.1760.3](https://github.com/lightdash/lightdash/compare/0.1760.2...0.1760.3) (2025-06-26)
 
 
