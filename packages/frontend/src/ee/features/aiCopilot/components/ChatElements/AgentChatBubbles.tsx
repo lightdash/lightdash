@@ -109,7 +109,7 @@ const AssistantBubbleContent: FC<{ message: AiAgentMessageAssistant }> = ({
 
     return (
         <>
-            <AgentToolCalls />
+            {isStreaming ? <AgentToolCalls /> : null}
             <MDEditor.Markdown
                 source={messageContent}
                 style={{ backgroundColor: 'transparent' }}
