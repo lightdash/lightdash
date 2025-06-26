@@ -1,6 +1,5 @@
 import {
     ApiAiAgentResponse,
-    ApiAiAgentStartThreadResponse,
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,

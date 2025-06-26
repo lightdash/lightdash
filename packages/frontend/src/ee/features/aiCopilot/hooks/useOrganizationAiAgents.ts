@@ -218,6 +218,7 @@ const createOptimisticMessages = (
             filtersOutput: null,
             metricQuery: null,
             humanScore: null,
+            toolCalls: [],
         },
     ];
 };
