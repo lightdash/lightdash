@@ -55,7 +55,6 @@ import {
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
-import { SavedSemanticViewerChartsTableName } from '../database/entities/savedSemanticViewerCharts';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import {
     DbSpace,

@@ -8,12 +8,7 @@ import { SpaceTableName } from '../database/entities/spaces';
 
 export const generateUniqueSlug = async (
     trx: Knex,
-    tableName:
-        | 'saved_semantic_viewer_charts'
-        | 'saved_queries'
-        | 'saved_sql'
-        | 'dashboards'
-        | 'spaces',
+    tableName: 'saved_queries' | 'saved_sql' | 'dashboards' | 'spaces',
     name: string,
 ) => {
     const baseSlug = generateSlug(name);
@@ -58,12 +53,7 @@ export const generateUniqueSpaceSlug = async (
 export const generateUniqueSlugScopedToProject = async (
     trx: Knex,
     projectUuid: string,
-    tableName:
-        | 'saved_semantic_viewer_charts'
-        | 'saved_queries'
-        | 'saved_sql'
-        | 'dashboards'
-        | 'spaces',
+    tableName: 'saved_queries' | 'saved_sql' | 'dashboards' | 'spaces',
     name: string,
 ) => {
     const baseSlug = generateSlug(name);
@@ -116,7 +106,6 @@ export const generateUniqueSlugScopedToProject = async (
             break;
         case 'saved_sql':
         case 'spaces':
-        case 'saved_semantic_viewer_charts':
             throw new Error('Not implemented');
         default:
             return assertUnreachable(
