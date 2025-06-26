@@ -1,3 +1,10 @@
+## [0.1760.3](https://github.com/lightdash/lightdash/compare/0.1760.2...0.1760.3) (2025-06-26)
+
+
+### Bug Fixes
+
+* only show agent tool calls during streaming ([#15573](https://github.com/lightdash/lightdash/issues/15573)) ([b244726](https://github.com/lightdash/lightdash/commit/b2447267f9453ae6a162b117298b051524f198a7))
+
 ## [0.1760.2](https://github.com/lightdash/lightdash/compare/0.1760.1...0.1760.2) (2025-06-26)
 
 
