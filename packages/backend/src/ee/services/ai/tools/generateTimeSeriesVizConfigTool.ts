@@ -83,7 +83,7 @@ Rules for generating the time series chart visualization:
                     await sendFile(sentfileArgs);
                 }
 
-                return `A line chart has been successfully generated and shown to the user.`;
+                return `Success`;
             } catch (e) {
                 return toolErrorHandler(e, `Error generating line chart.`);
             }

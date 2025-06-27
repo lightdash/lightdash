@@ -38,7 +38,14 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
-import { CoreMessage } from 'ai';
+import {
+    CoreAssistantMessage,
+    CoreMessage,
+    CoreToolMessage,
+    CoreUserMessage,
+    ToolCallPart,
+    ToolResultPart,
+} from 'ai';
 import _, { pick } from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -50,11 +57,9 @@ import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQuerySe
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
 import { AiAgentModel } from '../models/AiAgentModel';
-import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
 import { generateEmbeddingsNameAndDescription } from './ai/embeds/embed';
 import { getModel } from './ai/models';
-import { getChatHistoryFromThreadMessages } from './ai/prompts/conversationHistory';
 import {
     GetExploreFn,
     GetPromptFn,
@@ -103,7 +108,6 @@ type AiAgentServiceDependencies = {
     projectService: ProjectService;
     catalogService: CommercialCatalogService;
     slackClient: SlackClient;
-    schedulerClient: CommercialSchedulerClient;
     asyncQueryService: AsyncQueryService;
 };
 
@@ -124,8 +128,6 @@ export class AiAgentService {
 
     private readonly slackClient: SlackClient;
 
-    private readonly schedulerClient: CommercialSchedulerClient;
-
     private readonly asyncQueryService: AsyncQueryService;
 
     constructor(dependencies: AiAgentServiceDependencies) {
@@ -137,7 +139,6 @@ export class AiAgentService {
         this.catalogService = dependencies.catalogService;
         this.projectService = dependencies.projectService;
         this.slackClient = dependencies.slackClient;
-        this.schedulerClient = dependencies.schedulerClient;
         this.asyncQueryService = dependencies.asyncQueryService;
     }
 
@@ -736,7 +737,7 @@ export class AiAgentService {
 
         try {
             const chatHistoryMessages =
-                getChatHistoryFromThreadMessages(threadMessages);
+                await this.getChatHistoryFromThreadMessages(threadMessages);
 
             const response = await this.generateOrStreamAgentResponse(
                 user,
@@ -1094,7 +1095,6 @@ export class AiAgentService {
         });
     }
 
-    // eventually this should become a "getExplores" tool
     private async getMinimalExploreInformation(
         user: SessionUser,
         projectUuid: string,
@@ -1163,9 +1163,81 @@ export class AiAgentService {
         return agentSettings;
     }
 
+    private async getChatHistoryFromThreadMessages(
+        // TODO: move getThreadMessages to AiAgentModel and improve types
+        // also, it should be called through a service method...
+        threadMessages: Awaited<
+            ReturnType<typeof AiAgentModel.prototype.getThreadMessages>
+        >,
+    ): Promise<CoreMessage[]> {
+        const messagesWithToolCalls = await Promise.all(
+            threadMessages.map(async (message) => {
+                const messages: CoreMessage[] = [
+                    {
+                        role: 'user',
+                        content: message.prompt,
+                    } satisfies CoreUserMessage,
+                ];
+
+                const toolCallsAndResults =
+                    await this.aiAgentModel.getToolCallsAndResultsForPrompt(
+                        message.ai_prompt_uuid,
+                    );
+
+                messages.push({
+                    role: 'assistant',
+                    content: toolCallsAndResults.map(
+                        (toolCallAndResult) =>
+                            ({
+                                type: 'tool-call',
+                                toolCallId: toolCallAndResult.tool_call_id,
+                                toolName: toolCallAndResult.tool_name,
+                                args: toolCallAndResult.tool_args,
+                            } satisfies ToolCallPart),
+                    ),
+                } satisfies CoreAssistantMessage);
+
+                messages.push({
+                    role: 'tool',
+                    content: toolCallsAndResults.map(
+                        (toolCallAndResult) =>
+                            ({
+                                type: 'tool-result',
+                                toolCallId: toolCallAndResult.tool_call_id,
+                                toolName: toolCallAndResult.tool_name,
+                                result: toolCallAndResult.result,
+                            } satisfies ToolResultPart),
+                    ),
+                } satisfies CoreToolMessage);
+
+                if (message.response) {
+                    messages.push({
+                        role: 'assistant',
+                        content: message.response,
+                    } satisfies CoreAssistantMessage);
+                }
+
+                if (message.human_score) {
+                    messages.push({
+                        role: 'user',
+                        content:
+                            // TODO: we don't have a neutral option, we are storing -1 and 1 at the moment
+                            message.human_score > 0
+                                ? 'I liked this response'
+                                : 'I did not like this response',
+                    } satisfies CoreUserMessage);
+                }
+
+                return messages;
+            }),
+        );
+
+        return messagesWithToolCalls.flat();
+    }
+
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack
     // This is scoped to the project, user and prompt (closure)
-    public getAiAgentDependencies(
+    private getAiAgentDependencies(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
     ) {
@@ -1386,7 +1458,7 @@ export class AiAgentService {
             sendFile,
             storeToolCall,
             storeToolResults,
-        } = await this.getAiAgentDependencies(user, prompt);
+        } = this.getAiAgentDependencies(user, prompt);
 
         const model = getModel(this.lightdashConfig.ai.copilot);
         const agentSettings = await this.getAgentSettings(user, prompt);
@@ -1608,7 +1680,7 @@ export class AiAgentService {
         let response: string | undefined;
         try {
             const chatHistoryMessages =
-                getChatHistoryFromThreadMessages(threadMessages);
+                await this.getChatHistoryFromThreadMessages(threadMessages);
 
             response = await this.generateOrStreamAgentResponse(
                 user,

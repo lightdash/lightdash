@@ -61,8 +61,7 @@ Rules for fetching the result:
 
                 await updateProgress('🙌 Got the answer!!!');
 
-                return `Successfully generated the result:
-
+                return `Here's the result:
 ${serializeData(result.rows, 'json')}`;
             } catch (e) {
                 return toolErrorHandler(e, `Error getting one line result.`);
