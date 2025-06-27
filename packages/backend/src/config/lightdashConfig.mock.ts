@@ -97,7 +97,7 @@ export const lightdashConfigMock: LightdashConfig = {
     pylon: {
         appId: '',
     },
-    lightdashSecret: '',
+    lightdashSecret: 'look away this is a secret',
     logging: {
         level: 'debug',
         format: 'pretty',
