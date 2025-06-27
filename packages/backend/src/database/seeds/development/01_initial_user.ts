@@ -176,7 +176,6 @@ export async function seed(knex: Knex): Promise<void> {
             organization_id: organizationId,
             dbt_connection: encryptedProjectSettings,
             dbt_version: SupportedDbtVersions.V1_7,
-            semantic_layer_connection: null,
             created_by_user_uuid: user.user_uuid,
         })
         .returning(['project_id', 'project_uuid']);
