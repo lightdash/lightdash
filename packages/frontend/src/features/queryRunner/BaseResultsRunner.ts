@@ -140,7 +140,7 @@ export class BaseResultsRunner implements IResultsRunner {
     }
 
     getPivotQueryCustomMetrics(): VizCustomMetricLayoutOptions[] {
-        // this will return custom metrics for both runners but we don't have to use them on semantic viewer
+        // this will return custom metrics
         return this.availableFields.reduce<VizCustomMetricLayoutOptions[]>(
             (acc, field) => {
                 if (field.kind === FieldType.METRIC) {

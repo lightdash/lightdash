@@ -16378,7 +16378,6 @@
                     "ai",
                     "api",
                     "cli",
-                    "semanticViewer",
                     "metricsExplorer"
                 ],
                 "type": "string"
