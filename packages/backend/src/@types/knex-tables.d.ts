@@ -174,12 +174,6 @@ import {
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
 import {
-    SavedSemanticViewerChartsTable,
-    SavedSemanticViewerChartsTableName,
-    SavedSemanticViewerChartVersionsTable,
-    SavedSemanticViewerChartVersionsTableName,
-} from '../database/entities/savedSemanticViewerCharts';
-import {
     SavedSqlTable,
     SavedSqlTableName,
     SavedSqlVersionsTable,
@@ -288,8 +282,6 @@ declare module 'knex/types/tables' {
         [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SavedSqlTableName]: SavedSqlTable;
         [SavedSqlVersionsTableName]: SavedSqlVersionsTable;
-        [SavedSemanticViewerChartsTableName]: SavedSemanticViewerChartsTable;
-        [SavedSemanticViewerChartVersionsTableName]: SavedSemanticViewerChartVersionsTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
         [DashboardVersionsTableName]: DashboardVersionTable;

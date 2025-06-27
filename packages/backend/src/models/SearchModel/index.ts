@@ -30,7 +30,6 @@ import {
     ProjectTableName,
 } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
-import { SavedSemanticViewerChartsTableName } from '../../database/entities/savedSemanticViewerCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
