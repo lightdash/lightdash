@@ -1,3 +1,0 @@
-packages:
-  - git: "https://github.com/lightdash/lightdash-demo-saas.git"
-    revision: "main"

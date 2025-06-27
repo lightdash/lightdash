@@ -22,17 +22,9 @@ models:
     materialized: table
     staging:
       materialized: view
-  lightdash_demo_saas:
-    +materialized: table
-    +meta:
-      group_label: saas
     fanouts_examples:
       +meta:
         group_label: fanouts
-    users:
-      alias: demo_saas_users
-    tracks:
-      alias: demo_saas_tracks
 seeds:
   jaffle_shop:
     raw_customers:

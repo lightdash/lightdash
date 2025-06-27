@@ -10,9 +10,3 @@ spotlight:
     sales:
       label: "Sales"
       color: green
-    kpi: # used in SAAS package
-      label: Company KPI
-      color: "blue"
-    marketing: # used in SAAS package
-      label: Marketing
-      color: "red"
