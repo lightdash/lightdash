@@ -11,6 +11,7 @@ import {
     ParseError,
     WarehouseCatalog,
 } from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
@@ -32,6 +33,7 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     vars: string | undefined;
     verbose: boolean;
     startOfWeek?: number;
+    warehouseCredentials?: boolean;
 };
 
 export const compile = async (options: CompileHandlerOptions) => {
@@ -54,13 +56,6 @@ export const compile = async (options: CompileHandlerOptions) => {
     GlobalState.debug(`> Compiling with project dir ${absoluteProjectPath}`);
 
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
-    const { warehouseClient } = await getWarehouseClient({
-        isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
-        profilesDir: options.profilesDir,
-        profile: options.profile || context.profileName,
-        target: options.target,
-        startOfWeek: options.startOfWeek,
-    });
 
     const compiledModelIds: string[] | undefined =
         await maybeCompileModelsAndJoins(
@@ -93,6 +88,13 @@ ${errors.join('')}`),
     // Skipping assumes yml has the field types.
     let catalog: WarehouseCatalog = {};
     if (!options.skipWarehouseCatalog) {
+        const { warehouseClient } = await getWarehouseClient({
+            isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
+            profilesDir: options.profilesDir,
+            profile: options.profile || context.profileName,
+            target: options.target,
+            startOfWeek: options.startOfWeek,
+        });
         GlobalState.debug('> Fetching warehouse catalog');
         catalog = await warehouseClient.getCatalog(
             getSchemaStructureFromDbtModels(validModels),
@@ -135,6 +137,11 @@ ${errors.join('')}`),
 
     GlobalState.debug(`> Loaded lightdash project config`);
 
+    const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+        adapterType,
+        options.startOfWeek,
+    );
+
     const validExplores = await convertExplores(
         validModelsWithTypes,
         false,
@@ -146,7 +153,7 @@ ${errors.join('')}`),
         ].includes(manifestVersion)
             ? []
             : Object.values(manifest.metrics),
-        warehouseClient,
+        warehouseSqlBuilder,
         lightdashProjectConfig,
     );
     console.error('');
@@ -182,7 +189,14 @@ ${errors.join('')}`),
     });
     return explores;
 };
-export const compileHandler = async (options: CompileHandlerOptions) => {
+export const compileHandler = async (
+    originalOptions: CompileHandlerOptions,
+) => {
+    const options = { ...originalOptions };
+    if (originalOptions.warehouseCredentials === false) {
+        options.skipDbtCompile = true;
+        options.skipWarehouseCatalog = true;
+    }
     GlobalState.setVerbose(options.verbose);
     const explores = await compile(options);
     const errorsCount = explores.filter((e) => isExploreError(e)).length;
