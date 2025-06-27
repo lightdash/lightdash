@@ -1,3 +1,10 @@
+# [0.1764.0](https://github.com/lightdash/lightdash/compare/0.1763.1...0.1764.0) (2025-06-27)
+
+
+### Features
+
+* add metric inflation warning detection for custom bin dimensions ([#15562](https://github.com/lightdash/lightdash/issues/15562)) ([5655eca](https://github.com/lightdash/lightdash/commit/5655ecab6c0980c9b28ba9e1c51a79dd3909dec5))
+
 ## [0.1763.1](https://github.com/lightdash/lightdash/compare/0.1763.0...0.1763.1) (2025-06-27)
 
 
