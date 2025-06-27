@@ -10,8 +10,6 @@ import { getDefaultMetricSql } from '../utils/sql';
 export default abstract class WarehouseBaseSqlBuilder
     implements WarehouseSqlBuilder
 {
-    abstract readonly type: WarehouseTypes;
-
     protected startOfWeek: WeekDay | null | undefined;
 
     constructor(startOfWeek?: WeekDay | null) {
@@ -23,6 +21,10 @@ export default abstract class WarehouseBaseSqlBuilder
     }
 
     abstract getAdapterType(): SupportedDbtAdapter;
+
+    getFieldQuoteChar(): string {
+        return '"';
+    }
 
     getStringQuoteChar(): string {
         return "'";
