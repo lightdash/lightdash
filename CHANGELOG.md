@@ -1,3 +1,10 @@
+## [0.1763.1](https://github.com/lightdash/lightdash/compare/0.1763.0...0.1763.1) (2025-06-27)
+
+
+### Bug Fixes
+
+* transform filters on tool call ([#15578](https://github.com/lightdash/lightdash/issues/15578)) ([8432a7c](https://github.com/lightdash/lightdash/commit/8432a7ccff254c96b854d11649e08ee09b2bb5f6))
+
 # [0.1763.0](https://github.com/lightdash/lightdash/compare/0.1762.0...0.1763.0) (2025-06-27)
 
 
