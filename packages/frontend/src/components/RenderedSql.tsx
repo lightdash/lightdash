@@ -1,7 +1,7 @@
 import { Alert, Loader, Stack, Title } from '@mantine/core';
-import { Prism } from '@mantine/prism';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCompiledSql } from '../hooks/useCompiledSql';
+import { MonacoSqlEditor } from './common/MonacoSqlEditor';
 
 export const RenderedSql = () => {
     const { data, error, isInitialLoading } = useCompiledSql();
@@ -52,9 +52,5 @@ export const RenderedSql = () => {
         );
     }
 
-    return (
-        <Prism m="sm" language="sql" withLineNumbers>
-            {data || ''}
-        </Prism>
-    );
+    return <MonacoSqlEditor value={data || ''} readOnly={true} />;
 };
