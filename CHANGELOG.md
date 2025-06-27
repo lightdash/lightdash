@@ -1,3 +1,10 @@
+## [0.1765.2](https://github.com/lightdash/lightdash/compare/0.1765.1...0.1765.2) (2025-06-27)
+
+
+### Bug Fixes
+
+* improve access token UI with dropdown menu and UUID copy modal ([#15558](https://github.com/lightdash/lightdash/issues/15558)) ([d44936b](https://github.com/lightdash/lightdash/commit/d44936b0ceba9f5d153a9ba1cf3d17a8e5e84091)), closes [#15554](https://github.com/lightdash/lightdash/issues/15554)
+
 ## [0.1765.1](https://github.com/lightdash/lightdash/compare/0.1765.0...0.1765.1) (2025-06-27)
 
 
