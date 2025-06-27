@@ -765,66 +765,54 @@ export class MetricQueryBuilder {
         const sqlFrom = this.getBaseTableFromSQL();
         const sqlLimit = this.getLimitSQL();
         const { sqlOrderBy, requiresQueryInCTE } = this.getSortSQL();
+        const ctes = [...dimensionsSQL.ctes];
+        let finalSelectParts: Array<string | undefined> = [
+            sqlSelect,
+            sqlFrom,
+            joins.joinSQL,
+            ...dimensionsSQL.joins,
+            dimensionsSQL.filtersSQL,
+            dimensionsSQL.groupBySQL,
+        ];
         if (
             tableCalculationSQL.selects.length > 0 ||
             metricsSQL.filtersSQL ||
             requiresQueryInCTE
         ) {
-            const cteSql = MetricQueryBuilder.assembleSqlParts([
-                sqlSelect,
-                sqlFrom,
-                joins.joinSQL,
-                ...dimensionsSQL.joins,
-                dimensionsSQL.filtersSQL,
-                dimensionsSQL.groupBySQL,
-            ]);
+            // Move latest select to CTE and define new final select with table calculations and metric filters
             const cteName = 'metrics';
-            const ctes = [
-                ...dimensionsSQL.ctes,
-                `${cteName} AS (\n${cteSql}\n)`,
+            ctes.push(
+                `${cteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                    finalSelectParts,
+                )}\n)`,
+            );
+            finalSelectParts = [
+                `SELECT\n${['  *', ...tableCalculationSQL.selects].join(
+                    ',\n',
+                )}`,
+                `FROM ${cteName}`,
+                metricsSQL.filtersSQL,
             ];
-            const queryWithTableCalculations =
-                MetricQueryBuilder.assembleSqlParts([
-                    `SELECT\n${['  *', ...tableCalculationSQL.selects].join(
-                        ',\n',
-                    )}`,
-                    `FROM ${cteName}`,
-                    metricsSQL.filtersSQL,
-                ]);
-
-            let finalQuery = queryWithTableCalculations;
             if (tableCalculationSQL.filtersSQL) {
+                // Move latest select to CTE and define new final select with table calculation filters
                 const queryResultCteName = 'table_calculations';
                 ctes.push(
-                    `${queryResultCteName} AS (\n${queryWithTableCalculations}\n)`,
+                    `${queryResultCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                        finalSelectParts,
+                    )}\n)`,
                 );
-
-                finalQuery = `SELECT *
-                              FROM ${queryResultCteName}
-                              ${tableCalculationSQL.filtersSQL}`;
+                finalSelectParts = [
+                    'SELECT *',
+                    `FROM ${queryResultCteName}`,
+                    tableCalculationSQL.filtersSQL,
+                ];
             }
-
-            return {
-                query: MetricQueryBuilder.assembleSqlParts([
-                    MetricQueryBuilder.buildCtesSQL(ctes),
-                    finalQuery,
-                    sqlOrderBy,
-                    sqlLimit,
-                ]),
-                fields,
-                warnings,
-            };
         }
 
         return {
             query: MetricQueryBuilder.assembleSqlParts([
-                MetricQueryBuilder.buildCtesSQL(dimensionsSQL.ctes),
-                sqlSelect,
-                sqlFrom,
-                joins.joinSQL,
-                ...dimensionsSQL.joins,
-                dimensionsSQL.filtersSQL,
-                dimensionsSQL.groupBySQL,
+                MetricQueryBuilder.buildCtesSQL(ctes),
+                ...finalSelectParts,
                 sqlOrderBy,
                 sqlLimit,
             ]),
