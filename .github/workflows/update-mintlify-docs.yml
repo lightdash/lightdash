@@ -2,9 +2,8 @@ name: Update Mintlify Docs
 
 on:
   push:
-    # Changed from main to any branch for testing
-    # branches:
-    #   - main
+    branches:
+      - main
     paths:
       - "packages/backend/src/generated/swagger.json"
 
