@@ -1,19 +1,19 @@
 // organize-imports-ignore
 // eslint-disable-next-line import/order
 import './sentry'; // Sentry has to be initialized before anything else
-
 import {
+    Account,
     AnyType,
     ApiError,
+    CreateEmbedJwt,
+    EmbedJwt,
     LightdashError,
     LightdashMode,
     LightdashVersionHeader,
+    Project,
+    ServiceAccount,
     SessionUser,
     UnexpectedServerError,
-    ServiceAccount,
-    EmbedJwt,
-    Project,
-    Account,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
@@ -71,7 +71,7 @@ import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 import PrometheusMetrics from './prometheus';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
-import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
+import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware/jwtAuthMiddleware';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -90,7 +90,7 @@ declare global {
              * @deprecated Clients should be used inside services. This will be removed soon.
              */
             clients: ClientRepository;
-            account: Account<EmbedJwt>;
+            account: Account<CreateEmbedJwt>;
         }
 
         interface User extends SessionUser {}

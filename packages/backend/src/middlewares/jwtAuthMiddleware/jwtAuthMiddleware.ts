@@ -1,14 +1,9 @@
-import {
-    Account,
-    EmbedJwt,
-    ForbiddenError,
-    ParameterError,
-    SessionUser,
-} from '@lightdash/common';
+import { ForbiddenError, ParameterError } from '@lightdash/common';
 import { NextFunction, Request, Response } from 'express';
-import { EmbedService } from '../ee/services/EmbedService/EmbedService';
-import Logger from '../logging/logger';
-import { decodeJwt, JWT_HEADER_NAME } from '../utils/JwtUtil';
+import { EmbedService } from '../../ee/services/EmbedService/EmbedService';
+import Logger from '../../logging/logger';
+import { decodeJwt, JWT_HEADER_NAME } from '../../utils/JwtUtil';
+import { hydrateEmbeddedAccount } from './utils';
 
 /**
  * We don't have the parsed routes yet, so we get the path params in a
@@ -55,7 +50,7 @@ export async function jwtAuthMiddleware(
             return;
         }
 
-        const embedService = req.services.getEmbedService() as EmbedService;
+        const embedService = req.services.getEmbedService<EmbedService>();
         if (!embedService) {
             Logger.error('Services are not initialized for embed token');
             next();
@@ -66,17 +61,23 @@ export async function jwtAuthMiddleware(
         const { encodedSecret, organization } =
             await embedService.getEmbeddingByProjectId(projectUuid);
         const decodedToken = decodeJwt(embedToken, encodedSecret);
+        const dashboardUuid = await embedService.getDashboardUuidFromContent(
+            decodedToken,
+            projectUuid,
+        );
 
-        req.account = {
-            authentication: {
-                type: 'embed',
-                data: decodedToken,
-                source: embedToken,
-            },
+        if (!dashboardUuid) {
+            throw new ForbiddenError('Dashboard ID not found');
+        }
+
+        const account = hydrateEmbeddedAccount(
             organization,
-            // FIXME: This is temporary until we parse user and abilities
-            user: {} as SessionUser,
-        } as Account<EmbedJwt>;
+            decodedToken,
+            embedToken,
+        );
+
+        req.account = account;
+        req.user = account.user;
 
         next();
     } catch (error) {

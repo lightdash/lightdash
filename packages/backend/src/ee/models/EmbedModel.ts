@@ -15,6 +15,11 @@ export class EmbedModel {
         const [embed] = await this.database('embedding')
             .select()
             .leftJoin('users', 'embedding.created_by', 'users.user_uuid')
+            .leftJoin(
+                'organizations',
+                'users.organization_uuid',
+                'organizations.organization_uuid',
+            )
             .where('project_uuid', projectUuid);
 
         if (!embed) {
@@ -42,6 +47,7 @@ export class EmbedModel {
             projectUuid: embed.project_uuid,
             organization: {
                 organizationUuid: embed.user_organization_uuid,
+                name: embed.organization_name,
             },
             encodedSecret: embed.encoded_secret,
             dashboardUuids: validDashboardUuids,
