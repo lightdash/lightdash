@@ -12,7 +12,7 @@ describe('Space', () => {
         cy.login();
     });
 
-    it('I can create a private space with private content', () => {
+    const createPrivateSpace = () => {
         const timestamp = new Date().toISOString();
 
         // Create private space
@@ -25,7 +25,7 @@ describe('Space', () => {
         // Create new chart
         cy.get('.tabler-icon-plus').click();
         cy.contains('Create new chart').click();
-        cy.contains('Orders').click();
+        cy.contains(/^Orders$/).click();
         cy.contains('Total order amount').click();
         cy.contains('Status').click();
         cy.contains('Save chart').click();
@@ -73,9 +73,11 @@ describe('Space', () => {
         cy.contains('All').click();
         cy.contains(`Private dashboard ${timestamp}`);
         cy.contains(`Private chart ${timestamp}`);
-    });
+    };
 
     it('Another non-admin user cannot see private content', () => {
+        createPrivateSpace();
+
         // We assume the previous test has been run and the private space has been created
         // If this is causing issues, try reusing the `createPrivateChart` from spacePermissions.cy.ts
         cy.request({

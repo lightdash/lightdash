@@ -16,6 +16,7 @@ type UserAbilityBuilderArgs = {
     permissionsConfig: OrganizationMemberAbilitiesArgs['permissionsConfig'];
 };
 
+export * from './scopeAbility';
 export * from './serviceAccountAbility';
 
 export const getUserAbilityBuilder = ({
