@@ -1,3 +1,10 @@
+# [0.1765.0](https://github.com/lightdash/lightdash/compare/0.1764.1...0.1765.0) (2025-06-27)
+
+
+### Features
+
+* Introduce larger custom widths for scheduled deliveries + screenshot improvs ([#15581](https://github.com/lightdash/lightdash/issues/15581)) ([9d2364e](https://github.com/lightdash/lightdash/commit/9d2364e342358c7639e9a7a43103ebd89b319498))
+
 ## [0.1764.1](https://github.com/lightdash/lightdash/compare/0.1764.0...0.1764.1) (2025-06-27)
 
 
