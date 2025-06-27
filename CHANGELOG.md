@@ -1,3 +1,10 @@
+## [0.1765.1](https://github.com/lightdash/lightdash/compare/0.1765.0...0.1765.1) (2025-06-27)
+
+
+### Bug Fixes
+
+* remove z.infer ToolName from tsoa type ([#15602](https://github.com/lightdash/lightdash/issues/15602)) ([d6ad5ae](https://github.com/lightdash/lightdash/commit/d6ad5aea15287ce8d786ebc57951450af5a4ddd3))
+
 # [0.1765.0](https://github.com/lightdash/lightdash/compare/0.1764.1...0.1765.0) (2025-06-27)
 
 
