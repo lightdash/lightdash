@@ -32,7 +32,6 @@ export const getGenerateTimeSeriesVizConfig = ({
 
     return tool({
         description: `Generate Time Series Chart Visualization and show it to the user.
-
 This tool works well for questions about data over time, e.g. "per day/week/month".
 
 Example questions:

@@ -6,6 +6,7 @@ import {
     TextPart,
 } from 'ai';
 import { AiAgentModel } from '../../../models/AiAgentModel';
+import { serializeData } from '../utils/serializeData';
 
 export const getChatHistoryFromThreadMessages = (
     // TODO: move getThreadMessages to AiAgentModel and improve types
@@ -31,11 +32,8 @@ export const getChatHistoryFromThreadMessages = (
                 // TODO: this should be a tool call
                 assistantMessageParts.push({
                     type: 'text',
-                    text: `Metric Query: ${JSON.stringify(
-                        message.metric_query,
-                        null,
-                        2,
-                    )}`,
+                    text: `Metric Query:
+${serializeData(message.metric_query, 'json')}`,
                 });
             }
 
@@ -43,11 +41,8 @@ export const getChatHistoryFromThreadMessages = (
                 // TODO: this should be a tool call
                 assistantMessageParts.push({
                     type: 'text',
-                    text: `Filters Output: ${JSON.stringify(
-                        message.filters_output,
-                        null,
-                        2,
-                    )}`,
+                    text: `Filters Output:
+${serializeData(message.filters_output, 'json')}`,
                 });
             }
 
@@ -55,11 +50,8 @@ export const getChatHistoryFromThreadMessages = (
                 // TODO: this should be a tool call
                 assistantMessageParts.push({
                     type: 'text',
-                    text: `Viz Config Output: ${JSON.stringify(
-                        message.viz_config_output,
-                        null,
-                        2,
-                    )}`,
+                    text: `Viz Config Output:
+${serializeData(message.viz_config_output, 'json')}`,
                 });
             }
 

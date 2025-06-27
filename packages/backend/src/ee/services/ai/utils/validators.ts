@@ -9,6 +9,7 @@ import {
     SupportedDbtAdapter,
     WeekDay,
 } from '@lightdash/common';
+import { serializeData } from './serializeData';
 
 /**
  * Validate that all selected fields exist in the explore
@@ -50,10 +51,7 @@ function validateFilterRule(filterRule: FilterRule, field: CompiledField) {
         throw new Error(`
 Error: ${getErrorMessage(e)}
 Filter Rule:
-
-\`\`\`json
-${JSON.stringify(filterRule, null, 2)}
-\`\`\``);
+${serializeData(filterRule, 'json')}`);
     }
 }
 
@@ -71,15 +69,11 @@ export function validateFilterRules(
 
         if (!field) {
             filterRuleErrors.push(
-                `
-Error: the field with id "${
+                `Error: the field with id "${
                     rule.target.fieldId
                 }" does not exist in the selected explore.
 FilterRule:
-
-\`\`\`json
-${JSON.stringify(rule, null, 2)}
-\`\`\``,
+${serializeData(rule, 'json')}`,
             );
             return;
         }
