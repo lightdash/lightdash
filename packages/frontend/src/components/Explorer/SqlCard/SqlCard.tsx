@@ -41,6 +41,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             isOpen={sqlIsOpen}
             onToggle={() => toggleExpandedSection(ExplorerSection.SQL)}
             disabled={!unsavedChartVersionTableName}
+            isVisualizationCard
             headerElement={
                 hovered && data && isSuccess && !sqlIsOpen ? (
                     <CopyButton value={data || ''} timeout={2000}>
