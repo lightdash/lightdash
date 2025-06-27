@@ -1,0 +1,116 @@
+organization,department,team,employee_count,budget_total,budget_use
+Tech,Engineering,Frontend,36,1824.37,1795.42
+Tech,Engineering,Backend,34,1523.98,1692.67
+Tech,Engineering,Mobile,49,2551.38,2021.97
+Tech,Engineering,Infrastructure,8,481.11,552.69
+Tech,Engineering,DevOps,36,1581.8,1607.56
+Tech,Product,UX,15,659.08,525.65
+Tech,Product,UI,43,2608.26,2196.17
+Tech,Product,Product Management,13,691.25,682.18
+Tech,Product,Research,18,751.85,743.13
+Tech,Data Science,Analytics,23,1175.29,1390.29
+Tech,Data Science,Machine Learning,16,669.2,716.76
+Tech,Data Science,BI,23,961.49,1092.73
+Tech,Data Science,Data Engineering,49,2368.09,1767.87
+Tech,IT Support,Hardware,14,398.41,379.17
+Tech,IT Support,Software,47,1419.15,1163.34
+Tech,IT Support,Network,9,368.22,407.7
+Tech,IT Support,Security,32,1176.31,1230.49
+Tech,QA,Manual Testing,14,685.93,596.77
+Tech,QA,Automation,16,603.62,524.54
+Tech,QA,Performance Testing,34,1124.61,904.83
+Tech,QA,Security Testing,12,715.32,802.72
+Finance,Accounting,AP,48,2112.77,1973.45
+Finance,Accounting,AR,19,887.68,862.66
+Finance,Accounting,General Ledger,4,131.85,134.45
+Finance,Accounting,Tax,27,1109.12,944.73
+Finance,Investments,Portfolio Management,5,235.6,255.74
+Finance,Investments,Analysis,48,1703.33,1921.22
+Finance,Investments,Trading,35,1734.65,1968.5
+Finance,Investments,Risk,45,1825.2,2110.75
+Finance,Payroll,Processing,15,651.12,701.34
+Finance,Payroll,Compliance,20,811.0,572.1
+Finance,Payroll,Systems,30,1895.24,2123.51
+Finance,Audit,Internal,33,1517.11,1572.09
+Finance,Audit,External,7,254.42,284.18
+Finance,Audit,Compliance,17,912.58,772.26
+Finance,Planning,Budgeting,19,662.0,560.36
+Finance,Planning,Forecasting,21,1008.49,827.53
+Finance,Planning,Analysis,15,420.46,356.82
+Operations,Supply Chain,Planning,27,914.01,1070.38
+Operations,Supply Chain,Sourcing,16,766.6,690.69
+Operations,Supply Chain,Distribution,4,211.62,213.03
+Operations,Logistics,Transportation,20,953.55,909.74
+Operations,Logistics,Warehousing,20,900.63,953.87
+Operations,Logistics,Inventory,12,519.86,480.2
+Operations,Facilities,Maintenance,9,292.2,206.02
+Operations,Facilities,Security,34,1341.67,951.07
+Operations,Facilities,Real Estate,21,878.87,713.72
+Operations,Procurement,Strategic,29,1619.47,1523.68
+Operations,Procurement,Tactical,15,738.98,861.14
+Operations,Procurement,Systems,12,358.12,321.28
+Operations,Safety,Compliance,48,2356.1,1894.19
+Operations,Safety,Training,13,553.12,662.55
+Operations,Safety,Risk Management,7,279.0,321.45
+HR,Recruitment,Technical,25,1293.42,1291.97
+HR,Recruitment,Non-technical,7,389.22,378.52
+HR,Recruitment,Executive,28,1531.14,1120.73
+HR,Training,Onboarding,50,1918.02,1880.3
+HR,Training,Development,45,1946.11,2221.59
+HR,Training,Leadership,46,2260.98,1879.81
+HR,Benefits,Health,7,385.64,440.18
+HR,Benefits,Retirement,34,1417.11,1698.55
+HR,Benefits,Compensation,34,1509.12,1619.44
+HR,Employee Relations,Engagement,14,502.57,574.7
+HR,Employee Relations,Conflict Resolution,30,1052.07,1111.59
+HR,Employee Relations,Culture,29,1554.07,1602.94
+HR,Compliance,Legal,20,1172.03,1020.21
+HR,Compliance,Policy,37,1681.05,1362.28
+HR,Compliance,Documentation,39,2158.64,1767.8
+Marketing,Digital,SEO,5,247.16,195.67
+Marketing,Digital,SEM,40,1606.0,1163.32
+Marketing,Digital,Social Media,46,2273.76,2365.58
+Marketing,Digital,Email,16,964.44,783.3
+Marketing,Content,Blog,22,1006.88,779.53
+Marketing,Content,Video,44,2663.01,2986.03
+Marketing,Content,Design,28,614.45,708.95
+Marketing,Content,Copy,25,1341.88,1341.23
+Marketing,Events,Conferences,24,1125.6,860.4
+Marketing,Events,Webinars,31,1343.57,953.49
+Marketing,Events,Trade Shows,44,2065.52,2464.03
+Marketing,Brand,Identity,41,1138.7,1189.11
+Marketing,Brand,Strategy,35,1542.53,1232.35
+Marketing,Brand,Partnerships,47,2321.33,2568.49
+Marketing,Analytics,Performance,40,2388.92,2666.61
+Marketing,Analytics,Attribution,25,1032.98,1171.83
+Marketing,Analytics,Reporting,17,656.94,463.53
+Tech,Engineering,,163,7962.639999999999,7670.3099999999995
+Tech,Product,,89,4710.4400000000005,4147.13
+Tech,Data Science,,111,5174.07,4967.65
+Tech,IT Support,,102,3362.09,3180.7
+Tech,QA,,76,3129.48,2828.8599999999997
+Finance,Accounting,,98,4241.42,3915.29
+Finance,Investments,,133,5498.78,6256.21
+Finance,Payroll,,65,3357.3599999999997,3396.9500000000003
+Finance,Audit,,57,2684.11,2628.5299999999997
+Finance,Planning,,55,2090.95,1744.7099999999998
+Operations,Supply Chain,,47,1892.23,1974.1000000000001
+Operations,Logistics,,52,2374.04,2343.81
+Operations,Facilities,,64,2512.7400000000002,1870.8100000000002
+Operations,Procurement,,56,2716.5699999999997,2706.1000000000004
+Operations,Safety,,68,3188.22,2878.1899999999996
+HR,Recruitment,,60,3213.78,2791.2200000000003
+HR,Training,,141,6125.110000000001,5981.700000000001
+HR,Benefits,,75,3311.87,3758.17
+HR,Employee Relations,,73,3108.71,3289.23
+HR,Compliance,,96,5011.719999999999,4150.29
+Marketing,Digital,,107,5091.360000000001,4507.87
+Marketing,Content,,119,5626.22,5815.74
+Marketing,Events,,99,4534.6900000000005,4277.92
+Marketing,Brand,,123,5002.5599999999995,4989.95
+Marketing,Analytics,,82,4078.84,4301.97
+Tech,,,541,24338.72,22794.650000000005
+Finance,,,408,17872.62,17941.69
+Operations,,,287,12683.800000000001,11773.010000000002
+HR,,,445,20771.189999999995,19970.609999999997
+Marketing,,,530,24333.67,23893.45

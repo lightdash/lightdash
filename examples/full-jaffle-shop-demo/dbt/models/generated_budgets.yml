@@ -1,0 +1,50 @@
+version: 2
+models:
+  - name: generated_budgets
+    description: "Budget and usage data by organization, department, and team. Generated from raw_generated_budgets."
+    columns:
+      - name: organization
+        description: Organization name
+      - name: department
+        description: Department name
+      - name: team
+        description: Team name
+      - name: employee_count
+        description: Number of employees in the team
+        meta:
+          metrics:
+            total_employee_count:
+              type: sum
+              label: Total Employee Count
+              description: Sum of employees in the team
+              round: 0
+          dimension:
+            hidden: true
+      - name: budget_total
+        description: Total budget allocated to the team
+        meta:
+          metrics:
+            total_budget:
+              type: sum
+              label: Total Budget
+              description: Sum of total budget allocated to the team
+              format: usd
+          dimension:
+            hidden: true
+      - name: budget_use
+        description: Actual budget used by the team
+        meta:
+          metrics:
+            total_budget_used:
+              type: sum
+              label: Total Budget Used
+              description: Sum of actual budget used by the team
+              format: usd
+            average_budget_use_percentage:
+              type: number
+              label: Average Budget Use Percentage
+              description: Average percentage of budget used by the team
+              sql: "SUM(budget_use) / NULLIF(SUM(budget_total), 0)"
+              format: percent
+          dimension:
+            hidden: true
