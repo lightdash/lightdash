@@ -40,8 +40,8 @@ export const Layout: React.FC = () => {
 
         selectedSizeMetric,
         sizeMetricChange,
-        shouldSumSizeMetric,
-        toggleShouldSumSizeMetric,
+        autoAggregateMetrics,
+        toggleAutoAggregateMetrics,
 
         useDynamicColors,
         toggleDynamicColors,
@@ -175,13 +175,13 @@ export const Layout: React.FC = () => {
                         />
                     </Group>
                     <Group spacing="xs">
-                        <Config.Label>Auto-sum parent size</Config.Label>
+                        <Config.Label>Auto-aggregate group values</Config.Label>
                         <Tooltip
                             withinPortal={true}
                             maw={350}
                             variant="xs"
                             multiline
-                            label="When enabled, calculate the parent size by summing the metric values of its children. When disabled, parent size should be defined in the data by a row with null for the child dimension value."
+                            label="When enabled, calculate the parent values by aggregating the metric values of its children. When disabled, parent values should be defined in the data by a row with null for the child dimension value."
                         >
                             <MantineIcon
                                 icon={IconHelpCircle}
@@ -191,8 +191,8 @@ export const Layout: React.FC = () => {
                             />
                         </Tooltip>
                         <Switch
-                            checked={shouldSumSizeMetric}
-                            onChange={toggleShouldSumSizeMetric}
+                            checked={autoAggregateMetrics}
+                            onChange={toggleAutoAggregateMetrics}
                         />
                     </Group>
                 </Config.Section>

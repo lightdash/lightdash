@@ -5,12 +5,14 @@ import type {
     Dimension,
     ItemsMap,
     Metric,
+    MetricQuery,
     TableCalculation,
     TableCalculationMetadata,
     TreemapChart,
 } from '@lightdash/common';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCalculateSubtotals } from './useCalculateSubtotals';
 import { type InfiniteQueryResults } from './useQueryResults';
 
 type TreemapChartConfig = {
@@ -22,8 +24,8 @@ type TreemapChartConfig = {
     sizeMetricId: string | null;
     selectedSizeMetric: Metric | TableCalculation | undefined;
     sizeMetricChange: (sizeMetricId: string | null) => void;
-    shouldSumSizeMetric: boolean;
-    toggleShouldSumSizeMetric: () => void;
+    autoAggregateMetrics: boolean;
+    toggleAutoAggregateMetrics: () => void;
 
     colorMetricId: string | null;
     selectedColorMetric: Metric | TableCalculation | undefined;
@@ -65,7 +67,12 @@ type TreemapNode = {
 
 export type TreemapChartConfigFn = (
     treemapConfig: TreemapChart | undefined,
-    resultsData: InfiniteQueryResults | undefined,
+    resultsData:
+        | (InfiniteQueryResults & {
+              metricQuery?: MetricQuery;
+              fields?: ItemsMap;
+          })
+        | undefined,
     itemsMap: ItemsMap | undefined,
     dimensions: Record<string, CustomDimension | Dimension>,
     numericMetrics: Record<string, Metric | TableCalculation>,
@@ -104,8 +111,8 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
     const [sizeMetricId, setSizeMetricId] = useState(
         treemapConfig?.sizeMetricId ?? null,
     );
-    const [shouldSumSizeMetric, setShouldSumSizeMetric] = useState(
-        treemapConfig?.shouldSumSizeMetric ?? true,
+    const [autoAggregateMetrics, setAutoAggregateMetrics] = useState(
+        treemapConfig?.autoAggregateMetrics ?? true,
     );
     const [colorMetricId, setColorMetricId] = useState(
         treemapConfig?.colorMetricId ?? null,
@@ -135,8 +142,8 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         });
     }, []);
 
-    const toggleShouldSumSizeMetric = useCallback(() => {
-        setShouldSumSizeMetric((prev) => !prev);
+    const toggleAutoAggregateMetrics = useCallback(() => {
+        setAutoAggregateMetrics((prev) => !prev);
     }, []);
 
     const allNumericMetricIds = useMemo(
@@ -212,6 +219,14 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         [],
     );
 
+    const { data: groupedSubtotals } = useCalculateSubtotals({
+        metricQuery: resultsData?.metricQuery,
+        explore: resultsData?.metricQuery?.exploreName,
+        showSubtotals: autoAggregateMetrics,
+        columnOrder: groupFieldIds,
+        pivotDimensions: undefined,
+    });
+
     const data = useMemo(() => {
         if (!resultsData) return [];
         if (
@@ -274,9 +289,6 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
                                 rowColorMetricValue,
                             ];
                         }
-                        if (shouldSumSizeMetric) {
-                            parent.value[0] += rowSizeMetricValue;
-                        }
                         parent = parent.children[dimensionValueStr];
                     }
                 }
@@ -299,14 +311,45 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
             ];
         };
 
+        // Iterate on the grouped subtotals, adjusting the parent values in the treemap with the subtotal aggregated values
+        if (groupedSubtotals && autoAggregateMetrics) {
+            Object.entries(groupedSubtotals).forEach(
+                ([key, levelSubtotals]) => {
+                    const subtotalDimensionNames = key.split(':');
+                    levelSubtotals.forEach((subtotalValueObject) => {
+                        let parent = rootTreemapNode;
+                        const subtotalDimensionValues =
+                            subtotalDimensionNames.map(
+                                (k) => subtotalValueObject[k],
+                            ); // Values of the dimensions
+
+                        subtotalDimensionValues.forEach((dimValue, index) => {
+                            if (index === subtotalDimensionNames.length - 1) {
+                                if (parent.children[dimValue]) {
+                                    // Handles null values
+                                    parent.children[dimValue].value[0] =
+                                        subtotalValueObject[sizeMetricId];
+                                    if (colorMetricId) {
+                                        parent.children[dimValue].value[1] =
+                                            subtotalValueObject[colorMetricId];
+                                    }
+                                }
+                            }
+                            parent = parent.children?.[dimValue];
+                        });
+                    });
+                },
+            );
+        }
         return convertToArray(rootTreemapNode)[0].children || [];
     }, [
         resultsData,
         groupFieldIds,
         selectedSizeMetric,
         sizeMetricId,
-        shouldSumSizeMetric,
+        autoAggregateMetrics,
         colorMetricId,
+        groupedSubtotals,
     ]);
 
     const validConfig: TreemapChart = useMemo(() => {
@@ -315,7 +358,7 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
             leafDepth,
             groupFieldIds,
             sizeMetricId: sizeMetricId ?? undefined,
-            shouldSumSizeMetric,
+            autoAggregateMetrics,
             useDynamicColors,
             colorMetricId: colorMetricId ?? undefined,
             startColor,
@@ -328,7 +371,7 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         leafDepth,
         groupFieldIds,
         sizeMetricId,
-        shouldSumSizeMetric,
+        autoAggregateMetrics,
         useDynamicColors,
         colorMetricId,
         startColor,
@@ -346,8 +389,8 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         selectedSizeMetric,
         sizeMetricId,
         sizeMetricChange: setSizeMetricId,
-        shouldSumSizeMetric,
-        toggleShouldSumSizeMetric,
+        autoAggregateMetrics: autoAggregateMetrics,
+        toggleAutoAggregateMetrics: toggleAutoAggregateMetrics,
 
         selectedColorMetric,
         colorMetricId,
