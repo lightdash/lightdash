@@ -225,17 +225,26 @@ export const filtersSchema = z.object({
 /**
  * Raw filters schema with transformed filter rules.
  */
-const filtersSchemaAndFilterRulesTransformed = z.object({
-    type: z.enum(['and', 'or']).describe('Type of filter group operation'),
-    dimensions: z.array(filterRuleSchemaTransformed).nullable(),
-    metrics: z.array(filterRuleSchemaTransformed).nullable(),
-});
+const filtersSchemaAndFilterRulesTransformed = z
+    .object({
+        type: z.enum(['and', 'or']).describe('Type of filter group operation'),
+        dimensions: z.array(filterRuleSchemaTransformed).nullable(),
+        metrics: z.array(filterRuleSchemaTransformed).nullable(),
+    })
+    // Filters can be null
+    .nullable();
 
 /**
  * Final output schema for filters that are passed to the query.
  */
 export const filtersSchemaTransformed =
     filtersSchemaAndFilterRulesTransformed.transform((data): Filters => {
+        if (!data) {
+            return {
+                dimensions: { id: uuid(), and: [] },
+                metrics: { id: uuid(), and: [] },
+            };
+        }
         switch (data.type) {
             case 'and':
                 return {
@@ -527,8 +536,90 @@ export const csvFileVizConfigSchema = VisualizationMetadataSchema.extend({
 
 export type CsvFileVizConfigSchemaType = z.infer<typeof csvFileVizConfigSchema>;
 
-// Derived types from schemas
+// TOOL ARGS SCHEMAS
+
+// FIND FIELDS TOOL ARGS
 export type FindFieldsToolArgs = z.infer<typeof aiFindFieldsToolSchema>;
+
+export const isFindFieldsToolArgs = (
+    toolArgs: unknown,
+): toolArgs is FindFieldsToolArgs =>
+    aiFindFieldsToolSchema.safeParse(toolArgs).success;
+
+// GENERATE QUERY FILTERS TOOL ARGS
+export const generateQueryFiltersToolArgsSchema = z.object({
+    exploreName: z.string().describe('Name of the selected explore'),
+    filters: filtersSchema,
+});
+export type GenerateQueryFiltersToolArgs = z.infer<
+    typeof generateQueryFiltersToolArgsSchema
+>;
+export const isGenerateQueryFiltersToolArgs = (
+    toolArgs: unknown,
+): toolArgs is GenerateQueryFiltersToolArgs =>
+    generateQueryFiltersToolSchema.safeParse(toolArgs).success;
+
+export const generateQueryFiltersToolArgsSchemaTransformed = z.object({
+    exploreName: z.string().describe('Name of the selected explore'),
+    filters: filtersSchemaTransformed,
+});
+
+// GENERATE BAR VIZ CONFIG TOOL ARGS
+export const verticalBarMetricVizConfigToolArgsSchema = z.object({
+    vizConfig: verticalBarMetricVizConfigSchema,
+    filters: filtersSchema,
+});
+export type VerticalBarMetricVizConfigToolArgs = z.infer<
+    typeof verticalBarMetricVizConfigToolArgsSchema
+>;
+export const isVerticalBarMetricVizConfigToolArgs = (
+    toolArgs: unknown,
+): toolArgs is VerticalBarMetricVizConfigToolArgs =>
+    verticalBarMetricVizConfigToolArgsSchema.safeParse(toolArgs).success;
+
+// -- Used for tool call args transformation
+export const verticalBarMetricVizConfigToolArgsSchemaTransformed = z.object({
+    vizConfig: verticalBarMetricVizConfigSchema,
+    filters: filtersSchemaTransformed,
+});
+
+// GENERATE TIME SERIES VIZ CONFIG TOOL ARGS
+export const timeSeriesMetricVizConfigToolArgsSchema = z.object({
+    vizConfig: timeSeriesMetricVizConfigSchema,
+    filters: filtersSchema,
+});
+export type TimeSeriesMetricVizConfigToolArgs = z.infer<
+    typeof timeSeriesMetricVizConfigToolArgsSchema
+>;
+export const isTimeSeriesMetricVizConfigToolArgs = (
+    toolArgs: unknown,
+): toolArgs is TimeSeriesMetricVizConfigToolArgs =>
+    timeSeriesMetricVizConfigToolArgsSchema.safeParse(toolArgs).success;
+
+// -- Used for tool call args transformation
+export const timeSeriesMetricVizConfigToolArgsSchemaTransformed = z.object({
+    vizConfig: timeSeriesMetricVizConfigSchema,
+    filters: filtersSchemaTransformed,
+});
+
+// GENERATE CSV VIZ CONFIG TOOL ARGS
+export const CsvFileVizConfigToolArgsSchema = z.object({
+    vizConfig: csvFileVizConfigSchema,
+    filters: filtersSchema.nullable(),
+});
+export type CsvFileVizConfigToolArgs = z.infer<
+    typeof CsvFileVizConfigToolArgsSchema
+>;
+export const isCsvFileVizConfigToolArgs = (
+    toolArgs: unknown,
+): toolArgs is CsvFileVizConfigToolArgs =>
+    CsvFileVizConfigToolArgsSchema.safeParse(toolArgs).success;
+
+// -- Used for tool call args transformation
+export const CsvFileVizConfigToolArgsSchemaTransformed = z.object({
+    vizConfig: csvFileVizConfigSchema,
+    filters: filtersSchemaTransformed,
+});
 
 // define tool names
 export const ToolNameSchema = z.enum([
@@ -543,11 +634,6 @@ export type ToolName = z.infer<typeof ToolNameSchema>;
 
 export const isToolName = (toolName: string): toolName is ToolName =>
     ToolNameSchema.safeParse(toolName).success;
-
-export const isFindFieldsToolArgs = (
-    toolArgs: unknown,
-): toolArgs is FindFieldsToolArgs =>
-    aiFindFieldsToolSchema.safeParse(toolArgs).success;
 
 // display messages schema
 export const ToolDisplayMessagesSchema = z.record(ToolNameSchema, z.string());
@@ -565,7 +651,7 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
     ToolDisplayMessagesSchema.parse({
         findFields: 'Found relevant fields',
         generateBarVizConfig: 'Generated a bar chart',
-        generateCsv: 'Generated CSV file',
+        generateCsv: 'Generated a table',
         generateQueryFilters: 'Applied filters to the query',
         generateTimeSeriesVizConfig: 'Generated a line chart',
     });
