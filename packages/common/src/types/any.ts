@@ -1,4 +1,4 @@
-/** This AnyType is an alias for any test
+/** This AnyType is an alias for any
  * The goal is to make it easier to identify any type in the codebase
  * without having to eslint-disable all the time
  * These are only used on legacy `any` types, don't use it for new types.
