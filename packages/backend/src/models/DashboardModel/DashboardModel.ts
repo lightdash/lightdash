@@ -303,7 +303,6 @@ export class DashboardModel {
             .where({ dashboard_version_id: versionId.dashboard_version_id });
     }
 
-    // TODO: This can be removed once we can have a semantic layer as a project connection
     private async getDashboardVersionTileTypes(dashboardVersionId: number) {
         const tileTypes = await this.database(DashboardTilesTableName)
             .select<
@@ -460,7 +459,6 @@ export class DashboardModel {
                     validation_errors,
                     dashboard_version_id,
                 }) => {
-                    // TODO: This can be removed once we can have a semantic layer as a project connection
                     const tileTypes = await this.getDashboardVersionTileTypes(
                         dashboard_version_id,
                     );

@@ -432,7 +432,7 @@ export class CartesianChartDataModel {
                 ) ?? [],
             values: metrics.map((metric) => metric.name),
         };
-        const semanticQuery: SqlRunnerQuery = {
+        const query: SqlRunnerQuery = {
             sql,
             limit,
             filters,
@@ -443,7 +443,7 @@ export class CartesianChartDataModel {
             pivot,
             customMetrics,
         };
-        const pivotedChartData = await this.getTransformedData(semanticQuery);
+        const pivotedChartData = await this.getTransformedData(query);
 
         this.pivotedChartData = pivotedChartData;
 
