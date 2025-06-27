@@ -1,5 +1,6 @@
 import {
     AiChartType,
+    assertUnreachable,
     ChartType,
     ECHARTS_DEFAULT_COLORS,
     type AiAgentMessageAssistant,
@@ -9,6 +10,7 @@ import {
 import { Box, Group, SegmentedControl, Stack } from '@mantine-8/core';
 import { type QueryObserverSuccessResult } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';
+import { z } from 'zod';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
 import VisualizationProvider from '../../../../../components/LightdashVisualization/VisualizationProvider';
@@ -38,6 +40,19 @@ type Props = {
     message: AiAgentMessageAssistant;
 };
 
+const activeTabsSchema = z.enum(['chart', 'calculation']);
+const activeTabsDataSchema = z.array(
+    z.object({
+        label: z.string(),
+        value: activeTabsSchema,
+    }),
+);
+
+const activeTabsData = activeTabsDataSchema.parse([
+    { label: 'Chart', value: 'chart' },
+    { label: "How it's calculated", value: 'calculation' },
+]);
+
 export const AiChartVisualization: FC<Props> = ({
     results,
     queryExecutionHandle,
@@ -52,7 +67,9 @@ export const AiChartVisualization: FC<Props> = ({
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartSeriesClickEvent | null>(null);
     const [echartSeries, setEchartSeries] = useState<EChartSeries[]>([]);
-    const [activeTab, setActiveTab] = useState('chart');
+    const [activeTab, setActiveTab] = useState<'chart' | 'calculation'>(
+        'chart',
+    );
 
     const toolCalls = message.toolCalls;
 
@@ -82,83 +99,80 @@ export const AiChartVisualization: FC<Props> = ({
     );
 
     return (
-        <Stack gap="xs">
-            <Group>
-                <SegmentedControl
-                    value={activeTab}
-                    onChange={setActiveTab}
-                    data={[
-                        { label: 'Chart', value: 'chart' },
-                        { label: "How it's calculated", value: 'calculation' },
-                    ]}
-                    size="xs"
-                    radius="md"
-                    color="gray"
-                />
-            </Group>
-
-            {activeTab === 'chart' ? (
-                <>
-                    <Box h="100%" mih={350}>
-                        <MetricQueryDataProvider
-                            metricQuery={metricQuery}
-                            tableName={tableName}
-                            explore={explore}
-                            queryUuid={
-                                queryExecutionHandle.data.query.queryUuid
+        <MetricQueryDataProvider
+            metricQuery={metricQuery}
+            tableName={tableName}
+            explore={explore}
+            queryUuid={queryExecutionHandle.data.query.queryUuid}
+        >
+            <VisualizationProvider
+                resultsData={resultsData}
+                chartConfig={chartConfig}
+                columnOrder={[
+                    ...metricQuery.dimensions,
+                    ...metricQuery.metrics,
+                ]}
+                pivotTableMaxColumnLimit={
+                    health?.pivotTable.maxColumnLimit ?? 60
+                }
+                initialPivotDimensions={
+                    // TODO :: fix this using schema
+                    message.vizConfigOutput &&
+                    'breakdownByDimension' in message.vizConfigOutput
+                        ? // TODO :: fix this using schema
+                          [
+                              message.vizConfigOutput
+                                  .breakdownByDimension as string,
+                          ]
+                        : undefined
+                }
+                colorPalette={
+                    organization?.chartColors ?? ECHARTS_DEFAULT_COLORS
+                }
+                isLoading={resultsData.isFetchingRows}
+                onSeriesContextMenu={(
+                    e: EchartSeriesClickEvent,
+                    series: EChartSeries[],
+                ) => {
+                    setEchartsClickEvent(e);
+                    setEchartSeries(series);
+                }}
+            >
+                <Stack gap="md" h="100%" mih={400}>
+                    <Group justify="space-between" align="start">
+                        <SegmentedControl
+                            value={activeTab}
+                            onChange={(value) =>
+                                setActiveTab(activeTabsSchema.parse(value))
                             }
-                        >
-                            <VisualizationProvider
-                                resultsData={resultsData}
-                                chartConfig={chartConfig}
-                                columnOrder={[
-                                    ...metricQuery.dimensions,
-                                    ...metricQuery.metrics,
-                                ]}
-                                pivotTableMaxColumnLimit={
-                                    health?.pivotTable.maxColumnLimit ?? 60
-                                }
-                                initialPivotDimensions={
-                                    // TODO :: fix this using schema
-                                    message.vizConfigOutput &&
-                                    'breakdownByDimension' in
-                                        message.vizConfigOutput
-                                        ? // TODO :: fix this using schema
-                                          [
-                                              message.vizConfigOutput
-                                                  .breakdownByDimension as string,
-                                          ]
-                                        : undefined
-                                }
-                                colorPalette={
-                                    organization?.chartColors ??
-                                    ECHARTS_DEFAULT_COLORS
-                                }
-                                isLoading={resultsData.isFetchingRows}
-                                onSeriesContextMenu={(
-                                    e: EchartSeriesClickEvent,
-                                    series: EChartSeries[],
-                                ) => {
-                                    setEchartsClickEvent(e);
-                                    setEchartSeries(series);
+                            data={activeTabsData}
+                            size="xs"
+                            radius="md"
+                            color="gray"
+                        />
+
+                        {activeTab === 'chart' && (
+                            <AiChartQuickOptions
+                                projectUuid={projectUuid}
+                                saveChartOptions={{
+                                    name: queryExecutionHandle.data.metadata
+                                        .title,
+                                    description:
+                                        queryExecutionHandle.data.metadata
+                                            .description,
                                 }}
-                            >
-                                <Group justify="flex-end" w="100%">
-                                    <AiChartQuickOptions
-                                        projectUuid={projectUuid}
-                                        saveChartOptions={{
-                                            name: queryExecutionHandle.data
-                                                .metadata.title,
-                                            description:
-                                                queryExecutionHandle.data
-                                                    .metadata.description,
-                                        }}
-                                    />
-                                </Group>
+                            />
+                        )}
+                    </Group>
+
+                    <Box flex="1 0 0">
+                        {activeTab === 'chart' ? (
+                            <>
                                 <LightdashVisualization
                                     className="sentry-block ph-no-capture"
                                     data-testid="ai-visualization"
                                 />
+
                                 {chartConfig.type === ChartType.CARTESIAN && (
                                     <SeriesContextMenu
                                         echartSeriesClickEvent={
@@ -169,42 +183,45 @@ export const AiChartVisualization: FC<Props> = ({
                                         explore={explore}
                                     />
                                 )}
-                            </VisualizationProvider>
-                            <UnderlyingDataModal />
-                            <DrillDownModal />
-                        </MetricQueryDataProvider>
+                                <UnderlyingDataModal />
+                                <DrillDownModal />
+                            </>
+                        ) : activeTab === 'calculation' ? (
+                            <AiChartToolCalls toolCalls={toolCalls} />
+                        ) : (
+                            assertUnreachable(activeTab, 'Invalid active tab')
+                        )}
                     </Box>
-                    <Stack gap="xs">
-                        <ErrorBoundary>
-                            {queryExecutionHandle.data &&
-                                queryExecutionHandle.data.type !==
-                                    AiChartType.CSV && (
-                                    <AgentVisualizationMetricsAndDimensions
-                                        metricQuery={
-                                            queryExecutionHandle.data.query
-                                                .metricQuery
-                                        }
-                                        fieldsMap={
-                                            queryExecutionHandle.data.query
-                                                .fields
-                                        }
+
+                    {activeTab === 'chart' && (
+                        <Stack gap="xs">
+                            <ErrorBoundary>
+                                {queryExecutionHandle.data &&
+                                    queryExecutionHandle.data.type !==
+                                        AiChartType.CSV && (
+                                        <AgentVisualizationMetricsAndDimensions
+                                            metricQuery={
+                                                queryExecutionHandle.data.query
+                                                    .metricQuery
+                                            }
+                                            fieldsMap={
+                                                queryExecutionHandle.data.query
+                                                    .fields
+                                            }
+                                        />
+                                    )}
+
+                                {message.filtersOutput && (
+                                    <AgentVisualizationFilters
+                                        // TODO: fix this using schema
+                                        filters={message.filtersOutput}
                                     />
                                 )}
-
-                            {message.filtersOutput && (
-                                <AgentVisualizationFilters
-                                    // TODO: fix this using schema
-                                    filters={message.filtersOutput}
-                                />
-                            )}
-                        </ErrorBoundary>
-                    </Stack>
-                </>
-            ) : (
-                <Box mih={350} mt="sm">
-                    <AiChartToolCalls toolCalls={toolCalls} />
-                </Box>
-            )}
-        </Stack>
+                            </ErrorBoundary>
+                        </Stack>
+                    )}
+                </Stack>
+            </VisualizationProvider>
+        </MetricQueryDataProvider>
     );
 };
