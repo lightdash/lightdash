@@ -23,6 +23,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lightdashApi } from '../api';
+import { getEmbedAsyncQueryResults } from '../ee/features/embed/EmbedDashboard/api';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
@@ -250,6 +251,8 @@ export const useInfiniteQueryResults = (
     projectUuid?: string,
     queryUuid?: string,
     chartName?: string,
+    isEmbedMode?: boolean,
+    embedToken?: string,
 ): InfiniteQueryResults => {
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
@@ -326,15 +329,24 @@ export const useInfiniteQueryResults = (
         ApiError
     >({
         enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
-        queryKey: ['query-page', fetchArgs],
+        queryKey: ['query-page', fetchArgs, isEmbedMode ? 'embed' : 'regular'],
         queryFn: async () => {
             const startTime = performance.now();
-            const results = await getResultsPage(
-                fetchArgs.projectUuid!,
-                fetchArgs.queryUuid!,
-                fetchArgs.page,
-                fetchArgs.pageSize,
-            );
+            const results =
+                isEmbedMode && embedToken
+                    ? await getEmbedAsyncQueryResults(
+                          fetchArgs.projectUuid!,
+                          fetchArgs.queryUuid!,
+                          embedToken,
+                          fetchArgs.page,
+                          fetchArgs.pageSize,
+                      )
+                    : await getResultsPage(
+                          fetchArgs.projectUuid!,
+                          fetchArgs.queryUuid!,
+                          fetchArgs.page,
+                          fetchArgs.pageSize,
+                      );
 
             const { status } = results;
 
@@ -371,6 +383,7 @@ export const useInfiniteQueryResults = (
                         queryClient.invalidateQueries([
                             'query-page',
                             fetchArgs,
+                            isEmbedMode ? 'embed' : 'regular',
                         ]),
                     );
                     // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
