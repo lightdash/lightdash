@@ -5313,18 +5313,11 @@
                 ],
                 "type": "object"
             },
-            "AiAgentToolCall": {
+            "BaseAiAgentToolCall": {
                 "properties": {
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "toolArgs": {
-                        "additionalProperties": true,
-                        "type": "object"
-                    },
-                    "toolName": {
-                        "type": "string"
                     },
                     "toolCallId": {
                         "type": "string"
@@ -5336,15 +5329,57 @@
                         "type": "string"
                     }
                 },
-                "required": [
-                    "createdAt",
-                    "toolArgs",
-                    "toolName",
-                    "toolCallId",
-                    "promptUuid",
-                    "uuid"
-                ],
+                "required": ["createdAt", "toolCallId", "promptUuid", "uuid"],
                 "type": "object"
+            },
+            "Exclude_ToolName.findFields_": {
+                "type": "string",
+                "enum": [
+                    "generateBarVizConfig",
+                    "generateCsv",
+                    "generateQueryFilters",
+                    "generateTimeSeriesVizConfig"
+                ],
+                "description": "Exclude from T those types that are assignable to U"
+            },
+            "AiAgentToolCall": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/BaseAiAgentToolCall"
+                    },
+                    {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "toolArgs": {
+                                        "additionalProperties": true,
+                                        "type": "object"
+                                    },
+                                    "toolName": {
+                                        "type": "string",
+                                        "enum": ["findFields"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["toolArgs", "toolName"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "toolArgs": {
+                                        "additionalProperties": true,
+                                        "type": "object"
+                                    },
+                                    "toolName": {
+                                        "$ref": "#/components/schemas/Exclude_ToolName.findFields_"
+                                    }
+                                },
+                                "required": ["toolArgs", "toolName"],
+                                "type": "object"
+                            }
+                        ]
+                    }
+                ]
             },
             "AiAgentMessageAssistant": {
                 "properties": {
@@ -5375,8 +5410,7 @@
                         "nullable": true
                     },
                     "createdAt": {
-                        "type": "string",
-                        "nullable": true
+                        "type": "string"
                     },
                     "message": {
                         "type": "string",
@@ -17624,7 +17658,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1760.3",
+        "version": "0.1764.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

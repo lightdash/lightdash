@@ -673,26 +673,20 @@ export class AiAgentModel {
                     metricQuery: row.metric_query,
                     humanScore: row.human_score,
                     toolCalls: toolCalls
-                        .filter((tc) => isToolName(tc.tool_name))
+                        .filter(
+                            (
+                                tc,
+                            ): tc is DbAiAgentToolCall & {
+                                tool_name: ToolName;
+                            } => isToolName(tc.tool_name),
+                        )
                         .map((tc) => ({
                             uuid: tc.ai_agent_tool_call_uuid,
                             promptUuid: tc.ai_prompt_uuid,
                             toolCallId: tc.tool_call_id,
                             createdAt: tc.created_at,
-                            // TODO: handle this typing better
-                            ...(isFindFieldsToolArgs(tc.tool_args) &&
-                            tc.tool_name === 'findFields'
-                                ? {
-                                      toolName: 'findFields',
-                                      toolArgs: tc.tool_args,
-                                  }
-                                : {
-                                      toolName: tc.tool_name as Exclude<
-                                          ToolName,
-                                          'findFields'
-                                      >,
-                                      toolArgs: tc.tool_args,
-                                  }),
+                            toolName: tc.tool_name,
+                            toolArgs: tc.tool_args,
                         })),
                 });
             }
@@ -843,26 +837,20 @@ export class AiAgentModel {
                     metricQuery: row.metric_query,
                     humanScore: row.human_score,
                     toolCalls: toolCalls
-                        .filter((tc) => isToolName(tc.tool_name))
+                        .filter(
+                            (
+                                tc,
+                            ): tc is DbAiAgentToolCall & {
+                                tool_name: ToolName;
+                            } => isToolName(tc.tool_name),
+                        )
                         .map((tc) => ({
                             uuid: tc.ai_agent_tool_call_uuid,
                             promptUuid: tc.ai_prompt_uuid,
                             toolCallId: tc.tool_call_id,
                             createdAt: tc.created_at,
-                            // TODO: handle this typing better
-                            ...(isFindFieldsToolArgs(tc.tool_args) &&
-                            tc.tool_name === 'findFields'
-                                ? {
-                                      toolName: 'findFields',
-                                      toolArgs: tc.tool_args,
-                                  }
-                                : {
-                                      toolName: tc.tool_name as Exclude<
-                                          ToolName,
-                                          'findFields'
-                                      >,
-                                      toolArgs: tc.tool_args,
-                                  }),
+                            toolName: tc.tool_name,
+                            toolArgs: tc.tool_args,
                         })),
                 } satisfies AiAgentMessageAssistant;
             default:

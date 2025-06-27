@@ -1,6 +1,7 @@
 import {
     type AiAgentToolCall,
     assertUnreachable,
+    isFindFieldsToolArgs,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
 } from '@lightdash/common';
 import { Badge, Group, Stack, Text, Timeline } from '@mantine-8/core';
@@ -42,6 +43,9 @@ const getToolDescription = (toolCall: AiAgentToolCall) => {
 
     switch (toolName) {
         case 'findFields':
+            if (!isFindFieldsToolArgs(toolCall.toolArgs)) {
+                return null;
+            }
             const fields = toolCall.toolArgs.embeddingSearchQueries || [];
             const exploreName = toolCall.toolArgs.exploreName;
 
