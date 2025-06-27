@@ -10,6 +10,7 @@ import type {
     GetExploreFn,
     SearchFieldsFn,
 } from '../types/aiAgentDependencies';
+import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
@@ -58,7 +59,7 @@ export const getFindFields = ({ getExplore, searchFields }: Dependencies) => {
     };
 
     return tool({
-        description: `Pick an explore and generate embedded search queries by breaking down user input into questions, ensuring each part of the input is addressed.
+        description: `Pick an explore/model and generate embedded search queries by breaking down user input into questions, ensuring each part of the input is addressed.
 Include all relevant information without omitting any names, companies, dates, or other pertinent details.
 Assume all potential fields, including company names and personal names, exist in the explore.
 It is important to find fields for the filters as well.`,
@@ -72,12 +73,10 @@ It is important to find fields for the filters as well.`,
                 });
 
                 return `Here are the available fields for explore named "${exploreName}":
-    - Read field labels and descriptions carefully to understand their usage.
-    - Look for hints in the field descriptions on how to/when to use the fields and ask the user for clarification if the field information is ambiguous or incomplete.
+- Read field labels and descriptions carefully to understand their usage.
+- Look for hints in the field descriptions on how to/when to use the fields and ask the user for clarification if the field information is ambiguous or incomplete.
 
-\`\`\`json
-${JSON.stringify(tables, null, 4)}
-\`\`\``;
+${serializeData(tables, 'json')}`;
             } catch (error) {
                 return toolErrorHandler(
                     error,
