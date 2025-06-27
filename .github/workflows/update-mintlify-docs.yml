@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: lightdash/mintlify-docs
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
           path: mintlify-docs
 
       - name: Create branch name
@@ -62,7 +62,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
           repository: lightdash/mintlify-docs
           branch: ${{ steps.branch-name.outputs.branch_name }}
           title: "Update swagger.json from lightdash/lightdash"
