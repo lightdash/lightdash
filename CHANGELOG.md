@@ -1,3 +1,10 @@
+# [0.1763.0](https://github.com/lightdash/lightdash/compare/0.1762.0...0.1763.0) (2025-06-27)
+
+
+### Features
+
+* redesign chat UI with sticky input and improved scrolling ([#15564](https://github.com/lightdash/lightdash/issues/15564)) ([358436b](https://github.com/lightdash/lightdash/commit/358436bebc4fee21a2fc72b1baf55773ac0eb5f2))
+
 # [0.1762.0](https://github.com/lightdash/lightdash/compare/0.1761.0...0.1762.0) (2025-06-26)
 
 
