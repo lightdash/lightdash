@@ -1,10 +1,13 @@
 export enum ServiceAccountScope {
     SCIM_MANAGE = 'scim:manage',
     ORG_ADMIN = 'org:admin',
+    ORG_EDIT = 'org:edit',
+    ORG_READ = 'org:read',
 }
 
 export type ServiceAccount = {
     uuid: string;
+    createdByUserUuid: string | null;
     organizationUuid: string;
     createdAt: Date;
     expiresAt: Date | null;

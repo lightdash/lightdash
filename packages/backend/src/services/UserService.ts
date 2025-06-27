@@ -1872,4 +1872,39 @@ export class UserService extends BaseService {
             redirectUri: undefined,
         };
     }
+
+    /* 
+    For service accounts, we get the admin user from the userUuid who created the user 
+    if this user no longer exist, then we will get another admin user from the org
+    */
+    async getAdminUser(userUuid: string | null, organizationUuid: string) {
+        try {
+            if (!userUuid) {
+                throw new Error('User uuid is required');
+            }
+            return await this.userModel.findSessionUserAndOrgByUuid(
+                userUuid,
+                organizationUuid,
+            );
+        } catch (error) {
+            const members =
+                await this.organizationMemberProfileModel.getOrganizationMembers(
+                    {
+                        organizationUuid,
+                        searchQuery: 'admin', // Filtering by role
+                    },
+                );
+
+            const adminUser = members.data.find(
+                (member) => member.role === 'admin',
+            );
+            if (adminUser) {
+                return await this.userModel.findSessionUserAndOrgByUuid(
+                    adminUser.userUuid,
+                    organizationUuid,
+                );
+            }
+            throw new Error('No admin user found');
+        }
+    }
 }

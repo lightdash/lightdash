@@ -175,14 +175,12 @@ export const executeQueryAndWaitForResults = async (
 };
 
 export const useGetReadyQueryResults = (data: QueryResultsProps | null) => {
-    const setErrorResponse = useQueryError({
-        forceToastOnForbidden: true,
-        forbiddenToastTitle: 'Error running query',
-    });
+    const setErrorResponse = useQueryError();
 
     const result = useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
         enabled: !!data,
         queryKey: ['create-query', data],
+        keepPreviousData: true, // needed to keep the last metric query which could break cartesian chart config
         queryFn: ({ signal }) => {
             return executeAsyncQuery(data, signal);
         },
@@ -251,10 +249,14 @@ export type InfiniteQueryResults = Partial<
 export const useInfiniteQueryResults = (
     projectUuid?: string,
     queryUuid?: string,
+    chartName?: string,
 ): InfiniteQueryResults => {
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
-        forbiddenToastTitle: 'Error running query',
+        forbiddenToastTitle: chartName
+            ? `Error running query for chart '${chartName}'`
+            : 'Error running query',
+        chartName,
     });
     const [fetchArgs, setFetchArgs] = useState<{
         queryUuid?: string;

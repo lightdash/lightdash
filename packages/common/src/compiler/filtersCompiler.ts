@@ -22,6 +22,7 @@ import {
     type FilterRule,
 } from '../types/filter';
 import assertUnreachable from '../utils/assertUnreachable';
+import { convertToBooleanValue } from '../utils/booleanConverter';
 import { formatDate } from '../utils/formatting';
 import { getItemId } from '../utils/item';
 import { getMomentDateWithCustomStartOfWeek } from '../utils/time';
@@ -340,16 +341,19 @@ export const renderDateFilterSql = (
     }
 };
 
-const renderBooleanFilterSql = (
+export const renderBooleanFilterSql = (
     dimensionSql: string,
     filter: FilterRule<FilterOperator, unknown>,
 ): string => {
     switch (filter.operator) {
         case 'equals':
-            return `(${dimensionSql}) = ${!!filter.values?.[0]}`;
+            return `(${dimensionSql}) = ${convertToBooleanValue(
+                filter.values?.[0],
+            )}`;
         case 'notEquals':
-            return `((${dimensionSql}) != ${!!filter
-                .values?.[0]} OR (${dimensionSql}) IS NULL)`;
+            return `((${dimensionSql}) != ${convertToBooleanValue(
+                filter.values?.[0],
+            )} OR (${dimensionSql}) IS NULL)`;
         case 'isNull':
             return `(${dimensionSql}) IS NULL`;
         case 'notNull':

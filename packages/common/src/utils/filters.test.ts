@@ -1,5 +1,5 @@
-import { ConditionalOperator } from '../types/conditionalRule';
 import {
+    FilterOperator,
     type AndFilterGroup,
     type DashboardFilterRule,
     type FilterGroup,
@@ -76,14 +76,14 @@ describe('overrideChartFilter', () => {
                     target: { fieldId: 'field-1' },
                     values: ['1', '2', '3'],
                     disabled: false,
-                    operator: ConditionalOperator.EQUALS,
+                    operator: FilterOperator.EQUALS,
                 },
                 {
                     id: '2',
                     target: { fieldId: 'field-2' },
                     values: ['2'],
                     disabled: false,
-                    operator: ConditionalOperator.EQUALS,
+                    operator: FilterOperator.EQUALS,
                 },
             ],
         });
@@ -103,14 +103,14 @@ describe('overrideChartFilter', () => {
                     target: { fieldId: 'field-1' },
                     values: ['1', '2', '3'],
                     disabled: false,
-                    operator: ConditionalOperator.EQUALS,
+                    operator: FilterOperator.EQUALS,
                 },
                 {
                     id: '4',
                     target: { fieldId: 'field-2' },
                     values: ['2'],
                     disabled: false,
-                    operator: ConditionalOperator.EQUALS,
+                    operator: FilterOperator.EQUALS,
                 },
             ],
         });
@@ -130,14 +130,14 @@ describe('overrideChartFilter', () => {
                     target: { fieldId: 'field-1' },
                     values: ['1', '2', '3'],
                     disabled: false,
-                    operator: ConditionalOperator.NOT_EQUALS,
+                    operator: FilterOperator.NOT_EQUALS,
                 },
                 {
                     id: '2',
                     target: { fieldId: 'field-2' },
                     values: ['2'],
                     disabled: false,
-                    operator: ConditionalOperator.EQUALS,
+                    operator: FilterOperator.EQUALS,
                 },
             ],
         });
@@ -248,13 +248,13 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
                 {
                     id: 'month-filter',
                     target: { fieldId: 'order_date_month' },
-                    operator: ConditionalOperator.EQUALS,
+                    operator: FilterOperator.EQUALS,
                     values: ['2024-03'],
                 },
                 {
                     id: 'week-filter',
                     target: { fieldId: 'order_date_week' },
-                    operator: ConditionalOperator.EQUALS,
+                    operator: FilterOperator.EQUALS,
                     values: ['2024-03-25'],
                 },
             ],
@@ -267,7 +267,7 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
                 fieldId: 'order_date_year',
                 tableName: 'orders',
             },
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
             values: ['2024'],
         };
 
@@ -289,7 +289,7 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
                 {
                     id: 'status-filter',
                     target: { fieldId: 'status' },
-                    operator: ConditionalOperator.EQUALS,
+                    operator: FilterOperator.EQUALS,
                     values: ['completed'],
                 },
             ],
@@ -302,7 +302,7 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
                 fieldId: 'status',
                 tableName: 'orders',
             },
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
             values: ['shipped'],
         };
 
@@ -322,19 +322,19 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
                 {
                     id: 'month-filter',
                     target: { fieldId: 'order_date_month' },
-                    operator: ConditionalOperator.EQUALS,
+                    operator: FilterOperator.EQUALS,
                     values: ['2024-03'],
                 },
                 {
                     id: 'week-filter',
                     target: { fieldId: 'order_date_week' },
-                    operator: ConditionalOperator.EQUALS,
+                    operator: FilterOperator.EQUALS,
                     values: ['2024-03-25'],
                 },
                 {
                     id: 'year-filter',
                     target: { fieldId: 'order_date_year' },
-                    operator: ConditionalOperator.EQUALS,
+                    operator: FilterOperator.EQUALS,
                     values: ['2024'],
                 },
             ],
@@ -347,7 +347,7 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
                 fieldId: 'order_date_year',
                 tableName: 'orders',
             },
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
             values: ['2024'],
         };
 
@@ -373,7 +373,7 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
                 {
                     id: 'status-filter',
                     target: { fieldId: 'status' },
-                    operator: ConditionalOperator.EQUALS,
+                    operator: FilterOperator.EQUALS,
                     values: ['completed'],
                 },
             ],
@@ -386,7 +386,7 @@ describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
                 fieldId: 'order_date_year',
                 tableName: 'orders',
             },
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
             values: ['2024'],
         };
 
@@ -414,7 +414,7 @@ describe('getDashboardFilterRulesForTileAndReferences', () => {
                     tableName: 'table-1',
                     isSqlColumn: true,
                 },
-                operator: ConditionalOperator.EQUALS,
+                operator: FilterOperator.EQUALS,
                 values: ['value-1'],
                 tileTargets: {
                     [mockTileUuid]: {
@@ -451,7 +451,7 @@ describe('getDashboardFilterRulesForTileAndReferences', () => {
                     tableName: 'table-1',
                     isSqlColumn: false,
                 },
-                operator: ConditionalOperator.EQUALS,
+                operator: FilterOperator.EQUALS,
                 values: ['value-2'],
                 tileTargets: {
                     [mockTileUuid]: {
@@ -486,7 +486,7 @@ describe('getDashboardFilterRulesForTileAndReferences', () => {
                     tableName: 'table-1',
                     isSqlColumn: true,
                 },
-                operator: ConditionalOperator.EQUALS,
+                operator: FilterOperator.EQUALS,
                 values: ['value-3'],
                 tileTargets: {
                     [mockTileUuid]: {

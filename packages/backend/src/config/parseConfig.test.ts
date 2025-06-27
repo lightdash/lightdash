@@ -391,4 +391,47 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
             );
         });
     });
+
+    describe('environment variables for API tokens', () => {
+        beforeEach(() => {
+            jest.useFakeTimers();
+            jest.setSystemTime(new Date('2025-06-19'));
+
+            process.env.LD_SETUP_ADMIN_EMAIL = 'admin@example.com';
+            process.env.LD_SETUP_SERVICE_ACCOUNT_EXPIRATION = '0';
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
+        test('should parse service account token', () => {
+            process.env.LD_SETUP_SERVICE_ACCOUNT_TOKEN =
+                'ldsvc_service-account-token';
+            const config = parseConfig();
+            expect(config.initialSetup?.serviceAccount).toEqual({
+                token: 'ldsvc_service-account-token',
+                expirationTime: null,
+            });
+        });
+
+        test('should parse personal access token', () => {
+            process.env.LD_SETUP_PROJECT_PAT = 'ldpat_personal-access-token';
+            const config = parseConfig();
+            expect(config.initialSetup?.project?.personalAccessToken).toBe(
+                'ldpat_personal-access-token',
+            );
+        });
+
+        test('should throw error if service account token is not prefixed with "svc_"', () => {
+            process.env.LD_SETUP_SERVICE_ACCOUNT_TOKEN =
+                'service-account-token';
+            expect(() => parseConfig()).toThrowError(ParseError);
+        });
+
+        test('should throw error if personal access token is not prefixed with "pat-"', () => {
+            process.env.LD_SETUP_PROJECT_PAT = 'personal-access-token';
+            expect(() => parseConfig()).toThrowError(ParseError);
+        });
+    });
 });

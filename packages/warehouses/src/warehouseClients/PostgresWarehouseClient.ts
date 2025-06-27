@@ -11,6 +11,7 @@ import {
     WarehouseCatalog,
     WarehouseQueryError,
     WarehouseResults,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { readFileSync } from 'fs';
 import path from 'path';
@@ -21,6 +22,7 @@ import * as tls from 'tls';
 import { rootCertificates } from 'tls';
 import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
+import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
 types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
 types.setTypeParser(types.builtins.INT8, BigInt);
@@ -135,13 +137,44 @@ const convertDataTypeIdToDimensionType = (
     }
 };
 
+export class PostgresSqlBuilder extends WarehouseBaseSqlBuilder {
+    type = WarehouseTypes.POSTGRES;
+
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.POSTGRES;
+    }
+
+    getEscapeStringQuoteChar(): string {
+        return "'";
+    }
+
+    getMetricSql(sql: string, metric: Metric): string {
+        switch (metric.type) {
+            case MetricType.AVERAGE:
+                return `AVG(${sql}::DOUBLE PRECISION)`;
+            case MetricType.PERCENTILE:
+                return `PERCENTILE_CONT(${
+                    (metric.percentile ?? 50) / 100
+                }) WITHIN GROUP (ORDER BY ${sql})`;
+            case MetricType.MEDIAN:
+                return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${sql})`;
+            default:
+                return super.getMetricSql(sql, metric);
+        }
+    }
+
+    concatString(...args: string[]): string {
+        return `(${args.join(' || ')})`;
+    }
+}
+
 export class PostgresClient<
     T extends CreatePostgresLikeCredentials,
 > extends WarehouseBaseClient<T> {
     config: pg.PoolConfig;
 
     constructor(credentials: T, config: pg.PoolConfig) {
-        super(credentials);
+        super(credentials, new PostgresSqlBuilder(credentials.startOfWeek));
         this.config = config;
     }
 
@@ -467,37 +500,6 @@ export class PostgresClient<
         const { rows } = await this.runQuery(query, tags, undefined, values);
 
         return this.parseWarehouseCatalog(rows, mapFieldType);
-    }
-
-    getStringQuoteChar() {
-        return "'";
-    }
-
-    getEscapeStringQuoteChar() {
-        return "'";
-    }
-
-    getAdapterType(): SupportedDbtAdapter {
-        return SupportedDbtAdapter.POSTGRES;
-    }
-
-    getMetricSql(sql: string, metric: Metric) {
-        switch (metric.type) {
-            case MetricType.AVERAGE:
-                return `AVG(${sql}::DOUBLE PRECISION)`;
-            case MetricType.PERCENTILE:
-                return `PERCENTILE_CONT(${
-                    (metric.percentile ?? 50) / 100
-                }) WITHIN GROUP (ORDER BY ${sql})`;
-            case MetricType.MEDIAN:
-                return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${sql})`;
-            default:
-                return super.getMetricSql(sql, metric);
-        }
-    }
-
-    concatString(...args: string[]) {
-        return `(${args.join(' || ')})`;
     }
 
     parseError(error: pg.DatabaseError, query: string = '') {

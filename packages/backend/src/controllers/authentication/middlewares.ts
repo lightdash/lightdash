@@ -6,11 +6,18 @@ import {
     DeactivatedAccountError,
     InvalidUser,
     LightdashMode,
+    SessionUser,
 } from '@lightdash/common';
-import { ErrorRequestHandler, Request, RequestHandler } from 'express';
+import {
+    ErrorRequestHandler,
+    NextFunction,
+    Request,
+    RequestHandler,
+} from 'express';
 import passport from 'passport';
 import { URL } from 'url';
 import { lightdashConfig } from '../../config/lightdashConfig';
+import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
@@ -40,16 +47,36 @@ export const unauthorisedInDemo: RequestHandler = (req, res, next) => {
     }
 };
 
+/*
+This middleware is used to enable Api tokens and service accounts
+We first check service accounts (bearer header),
+then we check Personal access tokens (ApiKey header), which can throw an error if the token is invalid
+*/
 export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
     if (req.isAuthenticated()) {
         next();
         return;
     }
 
-    if (!lightdashConfig.auth.pat.enabled) {
-        throw new AuthorizationError('Personal access tokens are disabled');
+    const authenticateWithPat = () => {
+        if (req.isAuthenticated()) {
+            next();
+            return;
+        }
+        if (!lightdashConfig.auth.pat.enabled) {
+            throw new AuthorizationError('Personal access tokens are disabled');
+        }
+        passport.authenticate('headerapikey', { session: false })(
+            req,
+            res,
+            next,
+        );
+    };
+    try {
+        authenticateServiceAccount(req, res, authenticateWithPat);
+    } catch (e) {
+        authenticateWithPat();
     }
-    passport.authenticate('headerapikey', { session: false })(req, res, next);
 };
 
 export const storeOIDCRedirect: RequestHandler = (req, res, next) => {

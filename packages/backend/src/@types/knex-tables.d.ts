@@ -174,12 +174,6 @@ import {
     QueryHistoryTableName,
 } from '../database/entities/queryHistory';
 import {
-    SavedSemanticViewerChartsTable,
-    SavedSemanticViewerChartsTableName,
-    SavedSemanticViewerChartVersionsTable,
-    SavedSemanticViewerChartVersionsTableName,
-} from '../database/entities/savedSemanticViewerCharts';
-import {
     SavedSqlTable,
     SavedSqlTableName,
     SavedSqlVersionsTable,
@@ -229,6 +223,9 @@ import {
     WarehouseAvailableTablesTableName,
 } from '../database/entities/warehouseAvailableTables';
 import {
+    AiAgentToolCallTableName,
+    AiAgentToolResultTable,
+    AiAgentToolResultTableName,
     AiPromptTable,
     AiPromptTableName,
     AiSlackPromptTable,
@@ -237,6 +234,8 @@ import {
     AiSlackThreadTableName,
     AiThreadTable,
     AiThreadTableName,
+    AiWebAppPromptTable,
+    AiWebAppPromptTableName,
 } from '../ee/database/entities/ai';
 import {
     AiAgentInstructionVersionsTable,
@@ -247,6 +246,10 @@ import {
     AiAgentTable,
     AiAgentTableName,
 } from '../ee/database/entities/aiAgent';
+import {
+    AiAgentUserPreferencesTable,
+    AiAgentUserPreferencesTableName,
+} from '../ee/database/entities/aiAgentUserPreferences';
 import {
     DashboardSummariesTable,
     DashboardSummariesTableName,
@@ -279,8 +282,6 @@ declare module 'knex/types/tables' {
         [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SavedSqlTableName]: SavedSqlTable;
         [SavedSqlVersionsTableName]: SavedSqlVersionsTable;
-        [SavedSemanticViewerChartsTableName]: SavedSemanticViewerChartsTable;
-        [SavedSemanticViewerChartVersionsTableName]: SavedSemanticViewerChartVersionsTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
         [DashboardVersionsTableName]: DashboardVersionTable;
@@ -336,10 +337,14 @@ declare module 'knex/types/tables' {
         [AiSlackThreadTableName]: AiSlackThreadTable;
         [AiPromptTableName]: AiPromptTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
+        [AiWebAppPromptTableName]: AiWebAppPromptTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentIntegrationTableName]: AiAgentIntegrationTable;
         [AiAgentSlackIntegrationTableName]: AiAgentSlackIntegrationTable;
         [AiAgentInstructionVersionsTableName]: AiAgentInstructionVersionsTable;
+        [AiAgentToolCallTableName]: AiAgentToolCallTable;
+        [AiAgentUserPreferencesTableName]: AiAgentUserPreferencesTable;
+        [AiAgentToolResultTableName]: AiAgentToolResultTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
         [DashboardSummariesTableName]: DashboardSummariesTable;

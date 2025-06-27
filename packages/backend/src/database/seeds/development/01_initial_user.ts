@@ -175,8 +175,7 @@ export async function seed(knex: Knex): Promise<void> {
             ...SEED_PROJECT,
             organization_id: organizationId,
             dbt_connection: encryptedProjectSettings,
-            dbt_version: SupportedDbtVersions.V1_4,
-            semantic_layer_connection: null,
+            dbt_version: SupportedDbtVersions.V1_7,
             created_by_user_uuid: user.user_uuid,
         })
         .returning(['project_id', 'project_uuid']);
@@ -248,7 +247,7 @@ export async function seed(knex: Knex): Promise<void> {
                 warehouseCatalog: undefined,
                 onWarehouseCatalogChange: () => {},
             },
-            SupportedDbtVersions.V1_4,
+            SupportedDbtVersions.V1_7,
         );
         const explores = await adapter.compileAllExplores({
             userUuid: user.user_uuid,

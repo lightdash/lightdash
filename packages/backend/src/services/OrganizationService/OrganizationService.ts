@@ -31,6 +31,7 @@ import {
     ParameterError,
     ProjectType,
     RequestMethod,
+    ServiceAccountScope,
     SessionUser,
     UnexpectedServerError,
     UpdateAllowedEmailDomains,
@@ -42,6 +43,7 @@ import {
 import { groupBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { ServiceAccountModel } from '../../ee/models/ServiceAccountModel';
 import { PersonalAccessTokenModel } from '../../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../../models/EmailModel';
 import { GroupsModel } from '../../models/GroupsModel';
@@ -70,6 +72,7 @@ type OrganizationServiceArguments = {
     personalAccessTokenModel: PersonalAccessTokenModel;
     emailModel: EmailModel;
     projectService: ProjectService; // For compiling project on new setup
+    serviceAccountModel?: ServiceAccountModel; // For creating service account on new setup
 };
 
 export class OrganizationService extends BaseService {
@@ -99,6 +102,8 @@ export class OrganizationService extends BaseService {
 
     private readonly projectService: ProjectService;
 
+    private readonly serviceAccountModel?: ServiceAccountModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -113,6 +118,7 @@ export class OrganizationService extends BaseService {
         personalAccessTokenModel,
         emailModel,
         projectService,
+        serviceAccountModel,
     }: OrganizationServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -129,6 +135,7 @@ export class OrganizationService extends BaseService {
         this.personalAccessTokenModel = personalAccessTokenModel;
         this.emailModel = emailModel;
         this.projectService = projectService;
+        this.serviceAccountModel = serviceAccountModel;
     }
 
     async get(user: SessionUser): Promise<Organization> {
@@ -146,6 +153,12 @@ export class OrganizationService extends BaseService {
             ...organization,
             needsProject,
         };
+    }
+
+    async getOrganizationByUuid(
+        organizationUuid: string,
+    ): Promise<Organization> {
+        return this.organizationModel.get(organizationUuid);
     }
 
     async updateOrg(
@@ -902,6 +915,25 @@ export class OrganizationService extends BaseService {
             } else {
                 this.logger.info(
                     `Initial setup: No whitelisted domain, skipping`,
+                );
+            }
+
+            if (setup.serviceAccount && this.serviceAccountModel) {
+                this.logger.debug(`Initial setup: creating service account`);
+                await this.serviceAccountModel.save(
+                    sessionUser,
+                    {
+                        organizationUuid,
+                        expiresAt: setup.serviceAccount.expirationTime,
+                        description: 'Initial setup service account',
+                        scopes: [ServiceAccountScope.ORG_ADMIN],
+                    },
+                    setup.serviceAccount.token,
+                );
+                this.logger.info(`Initial setup: service account created`);
+            } else {
+                this.logger.info(
+                    `Initial setup: No service account token provided, skipping`,
                 );
             }
 

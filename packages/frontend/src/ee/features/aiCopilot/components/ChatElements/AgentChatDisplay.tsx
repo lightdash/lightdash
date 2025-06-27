@@ -1,8 +1,9 @@
 import { type AiAgentMessage, type AiAgentThread } from '@lightdash/common';
-import { Divider, ScrollArea, Stack } from '@mantine-8/core';
-import { Fragment, useLayoutEffect, useRef, type FC } from 'react';
+import { Box, Divider, Flex, getDefaultZIndex, Stack } from '@mantine-8/core';
+import { Fragment, useRef, type FC, type PropsWithChildren } from 'react';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { AssistantBubble, UserBubble } from './AgentChatBubbles';
+import ThreadScrollToBottom from './ScrollToBottom';
 import { ChatElementsUtils } from './utils';
 
 type AiThreadMessageProps = {
@@ -33,85 +34,77 @@ type AgentChatDisplayProps = {
     showScrollbar?: boolean;
     enableAutoScroll?: boolean;
     padding?: string;
-    isGenerating?: boolean;
-    isPreview?: boolean;
+    mode: 'preview' | 'interactive';
 };
 
-export const AgentChatDisplay: FC<AgentChatDisplayProps> = ({
+export const AgentChatDisplay: FC<PropsWithChildren<AgentChatDisplayProps>> = ({
     thread,
     agentName = 'AI',
     height = '100%',
-    showScrollbar = true,
     enableAutoScroll = false,
-    padding = 'xl',
-    isGenerating = false,
-    isPreview = false,
+    mode,
+    children,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
 
-    useLayoutEffect(() => {
-        if (!enableAutoScroll || !viewport.current) return;
-
-        const scrollToBottom = () => {
-            const element = viewport.current!;
-            element.scrollTo({
-                top: element.scrollHeight,
-                behavior: 'smooth',
-            });
-        };
-
-        const raf = requestAnimationFrame(scrollToBottom);
-        const timeout = setTimeout(scrollToBottom, 300);
-
-        return () => {
-            cancelAnimationFrame(raf);
-            clearTimeout(timeout);
-        };
-    }, [enableAutoScroll, isGenerating, thread?.messages.length]);
-
     return (
-        <ScrollArea
+        <Flex
+            key={thread.uuid}
+            ref={viewport}
+            direction="column"
             h={height}
-            type={showScrollbar ? 'hover' : 'never'}
-            offsetScrollbars="y"
-            styles={{
-                content: {
-                    flex: 1,
-                },
-            }}
-            viewportRef={viewport}
+            style={{ flexGrow: 1, overflowY: 'auto' }}
+            pt="md"
         >
             <Stack
                 {...ChatElementsUtils.centeredElementProps}
                 gap="xl"
-                //  Padding left to make up space from the scrollbar
-                pl={padding}
+                style={{ flexGrow: 1 }}
             >
-                {thread.messages.map((message, i, xs) => {
-                    return (
-                        <Fragment key={`${message.role}-${message.uuid}`}>
-                            {ChatElementsUtils.shouldRenderDivider(
-                                message,
-                                i,
-                                xs,
-                            ) && (
-                                <Divider
-                                    label={ChatElementsUtils.getDividerLabel(
-                                        message.createdAt,
-                                    )}
-                                    labelPosition="center"
-                                    my="sm"
+                <Stack flex={1} style={{ flexGrow: 1 }}>
+                    {thread.messages.map((message, i, xs) => {
+                        return (
+                            <Fragment key={`${message.role}-${message.uuid}`}>
+                                {ChatElementsUtils.shouldRenderDivider(
+                                    message,
+                                    i,
+                                    xs,
+                                ) && (
+                                    <Divider
+                                        label={
+                                            message.createdAt
+                                                ? ChatElementsUtils.getDividerLabel(
+                                                      message.createdAt,
+                                                  )
+                                                : undefined
+                                        }
+                                        labelPosition="center"
+                                        my="sm"
+                                    />
+                                )}
+                                <AiThreadMessage
+                                    message={message}
+                                    agentName={agentName}
+                                    isPreview={mode === 'preview'}
                                 />
-                            )}
-                            <AiThreadMessage
-                                message={message}
-                                agentName={agentName}
-                                isPreview={isPreview}
-                            />
-                        </Fragment>
-                    );
-                })}
+                            </Fragment>
+                        );
+                    })}
+                </Stack>
+
+                {enableAutoScroll ? (
+                    <ThreadScrollToBottom scrollAreaRef={viewport} />
+                ) : null}
+
+                <Box
+                    pos="sticky"
+                    bottom={0}
+                    w="100%"
+                    style={{ zIndex: getDefaultZIndex('app') - 1 }}
+                >
+                    {children}
+                </Box>
             </Stack>
-        </ScrollArea>
+        </Flex>
     );
 };

@@ -1,8 +1,6 @@
 import {
-    ActionIcon,
     Badge,
     Button,
-    CopyButton,
     Group,
     HoverCard,
     Paper,
@@ -12,12 +10,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-    IconCheck,
-    IconCopy,
-    IconInfoCircle,
-    IconTrash,
-} from '@tabler/icons-react';
+import { IconInfoCircle, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -34,7 +27,7 @@ const TableRow: FC<{
     onClickDelete: (serviceAccount: ServiceAccount) => void;
     serviceAccount: ServiceAccount;
 }> = ({ onClickDelete, serviceAccount }) => {
-    const { description, scopes, lastUsedAt, uuid, rotatedAt, expiresAt } =
+    const { description, scopes, lastUsedAt, rotatedAt, expiresAt } =
         serviceAccount;
 
     const scopeBadges = scopes.map((scope) => (
@@ -105,33 +98,6 @@ const TableRow: FC<{
                     </Tooltip>
                 )}
             </td>
-            <td>
-                <Group align="center" position="left" spacing="xs">
-                    <Tooltip withinPortal position="top" maw={350} label={uuid}>
-                        <span>{uuid.substring(0, 4)}...</span>
-                    </Tooltip>
-                    <CopyButton value={uuid}>
-                        {({ copied, copy }) => (
-                            <Tooltip
-                                label={copied ? 'Copied' : 'Copy'}
-                                withArrow
-                                position="right"
-                            >
-                                <ActionIcon
-                                    size="xs"
-                                    onClick={copy}
-                                    variant={'transparent'}
-                                >
-                                    <MantineIcon
-                                        color={'gray.6'}
-                                        icon={copied ? IconCheck : IconCopy}
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </CopyButton>
-                </Group>
-            </td>
             <td width="1%">
                 <Button
                     px="xs"
@@ -191,7 +157,6 @@ export const ServiceAccountsTable: FC<TableProps> = ({
                             <th>Scopes</th>
                             <th>Expires at</th>
                             <th>Last used at</th>
-                            <th>UUID</th>
                             <th></th>
                         </tr>
                     </thead>

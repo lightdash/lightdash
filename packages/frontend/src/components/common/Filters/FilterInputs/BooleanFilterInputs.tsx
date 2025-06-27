@@ -1,14 +1,14 @@
 import {
     FilterOperator,
     isFilterRule,
-    type ConditionalRule,
+    type BaseFilterRule,
 } from '@lightdash/common';
 import { Select } from '@mantine/core';
 import { type FilterInputsProps } from '.';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import DefaultFilterInputs from './DefaultFilterInputs';
 
-const BooleanFilterInputs = <T extends ConditionalRule>(
+const BooleanFilterInputs = <T extends BaseFilterRule>(
     props: FilterInputsProps<T>,
 ) => {
     const { rule, onChange, disabled, filterType, popoverProps } = props;

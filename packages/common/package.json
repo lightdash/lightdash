@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.1728.0",
+    "version": "0.1766.0",
     "main": "dist/cjs/index.js",
     "module": "dist/esm/index.js",
     "types": "dist/types/index.d.ts",
@@ -39,6 +39,7 @@
     "scripts": {
         "dev": "tsc --build --watch --preserveWatchOutput --incremental ./tsconfig.build.json",
         "build": "tsc --build ./tsconfig.build.json",
+        "typecheck": "tsc --project tsconfig.json --noEmit",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "pnpm run linter ./src",

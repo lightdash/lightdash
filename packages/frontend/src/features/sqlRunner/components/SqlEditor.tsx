@@ -19,6 +19,15 @@ import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import '../../../styles/monaco.css';
+import { useDetectedTableFields } from '../hooks/useDetectedTableFields';
+import {
+    useSqlEditorPreferences,
+    type SqlEditorPreferences,
+} from '../hooks/useSqlEditorPreferences';
+import {
+    useTableFields,
+    type WarehouseTableFieldWithContext,
+} from '../hooks/useTableFields';
 import { useTables, type TablesBySchema } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';
@@ -131,8 +140,10 @@ const registerCustomCompletionProvider = (
     language: string,
     quoteChar: string,
     tables: string[],
+    fields?: WarehouseTableFieldWithContext[],
+    settings?: SqlEditorPreferences,
 ) => {
-    monaco.languages.registerCompletionItemProvider(language, {
+    return monaco.languages.registerCompletionItemProvider(language, {
         provideCompletionItems: (model, position) => {
             const wordUntilPosition = model.getWordUntilPosition(position);
             const range = {
@@ -149,31 +160,96 @@ const registerCustomCompletionProvider = (
                 endColumn: position.column,
             });
 
-            const suggestions: languages.CompletionItem[] = tables.map(
-                (table) => {
-                    const parts = table.split('.');
-                    const typedParts = textUntilPosition.split('.');
-                    const insertParts = parts.slice(typedParts.length - 1);
+            const suggestions: languages.CompletionItem[] = [];
 
-                    // Check if the last typed part is already quoted
-                    const lastTypedPart = typedParts[typedParts.length - 1];
-                    const isLastPartQuoted =
-                        lastTypedPart.startsWith(`${quoteChar}`) &&
-                        !lastTypedPart.endsWith(`${quoteChar}`);
+            const formatFieldName = (fieldName: string): string => {
+                let formattedName = fieldName;
 
-                    let insertText = insertParts.join('.');
-                    if (isLastPartQuoted) {
-                        // Remove the opening quote from the first part to insert
-                        insertText = insertText.replace(/^${quoteChar}/, '');
-                    }
-                    return {
-                        label: table,
-                        kind: monaco.languages.CompletionItemKind.Class,
-                        insertText: insertText,
+                // Apply quote preference (only always or never)
+                // First apply case preference
+                if (settings?.casePreference === 'lowercase') {
+                    formattedName = formattedName.toLowerCase();
+                } else if (settings?.casePreference === 'uppercase') {
+                    formattedName = formattedName.toUpperCase();
+                }
+
+                // Then apply quote preference
+                if (!settings || settings?.quotePreference === 'always') {
+                    return `${quoteChar}${formattedName}${quoteChar}`;
+                }
+
+                return formattedName;
+            };
+
+            // Add field suggestions first (top priority)
+            if (fields && fields.length > 0) {
+                const fieldSuggestions: languages.CompletionItem[] = [];
+
+                fields.forEach((field) => {
+                    // Check if field has table context information
+                    const hasTableContext =
+                        'table' in field && 'schema' in field;
+                    const tableContext = hasTableContext
+                        ? ` from ${field.schema}.${field.table}`
+                        : '';
+
+                    const formattedFieldName = formatFieldName(field.name);
+                    const displayName =
+                        settings?.casePreference === 'lowercase'
+                            ? field.name.toLowerCase()
+                            : settings?.casePreference === 'uppercase'
+                            ? field.name.toUpperCase()
+                            : field.name;
+
+                    fieldSuggestions.push({
+                        label: `${displayName} (${field.type})${tableContext}`,
+                        kind: monaco.languages.CompletionItemKind.Field,
+                        insertText: formattedFieldName,
                         range,
-                    };
-                },
-            );
+                        sortText: `0${displayName}`, // High priority
+                        detail: `Column: ${field.type}${tableContext}`,
+                    });
+                });
+
+                // Deduplicate by label
+                const fieldMap = new Map();
+                fieldSuggestions.forEach((suggestion) => {
+                    fieldMap.set(suggestion.label, suggestion);
+                });
+                suggestions.push(...fieldMap.values());
+            }
+
+            // Add table suggestions (lower priority)
+            const tableSuggestions = tables.map((table) => {
+                const parts = table.split('.');
+                const typedParts = textUntilPosition.split('.');
+                const insertParts = parts.slice(typedParts.length - 1);
+
+                // Check if the last typed part is already quoted
+                const lastTypedPart = typedParts[typedParts.length - 1];
+                const isLastPartQuoted =
+                    lastTypedPart.startsWith(`${quoteChar}`) &&
+                    !lastTypedPart.endsWith(`${quoteChar}`);
+
+                let insertText = insertParts.join('.');
+                if (isLastPartQuoted) {
+                    // Remove the opening quote from the first part to insert
+                    insertText = insertText.replace(
+                        new RegExp(`^${quoteChar}`),
+                        '',
+                    );
+                }
+
+                return {
+                    label: table,
+                    kind: monaco.languages.CompletionItemKind.Class,
+                    insertText,
+                    range,
+                    sortText: `1${table}`, // Lower priority with '1' prefix
+                    detail: 'Table',
+                };
+            });
+            suggestions.push(...tableSuggestions);
 
             return { suggestions };
         },
@@ -183,15 +259,49 @@ const registerCustomCompletionProvider = (
 const generateTableCompletions = (
     quoteChar: string,
     data: { database: string; tablesBySchema: TablesBySchema },
+    settings?: SqlEditorPreferences,
 ) => {
     if (!data) return;
 
     const database = data.database;
+
+    // Helper function to format table names based on settings
+    const formatTableName = (
+        db: string,
+        schema: string,
+        table: string,
+    ): string => {
+        let formattedDb = db;
+        let formattedSchema = schema;
+        let formattedTable = table;
+
+        if (!settings) {
+            return `${quoteChar}${formattedDb}${quoteChar}.${quoteChar}${formattedSchema}${quoteChar}.${quoteChar}${formattedTable}${quoteChar}`;
+        }
+
+        // Apply case preference (only lowercase or uppercase)
+        if (settings.casePreference === 'lowercase') {
+            formattedDb = formattedDb.toLowerCase();
+            formattedSchema = formattedSchema.toLowerCase();
+            formattedTable = formattedTable.toLowerCase();
+        } else if (settings.casePreference === 'uppercase') {
+            formattedDb = formattedDb.toUpperCase();
+            formattedSchema = formattedSchema.toUpperCase();
+            formattedTable = formattedTable.toUpperCase();
+        }
+
+        // Apply quote preference (only always or never)
+        if (settings.quotePreference === 'always') {
+            return `${quoteChar}${formattedDb}${quoteChar}.${quoteChar}${formattedSchema}${quoteChar}.${quoteChar}${formattedTable}${quoteChar}`;
+        }
+
+        return `${formattedDb}.${formattedSchema}.${formattedTable}`;
+    };
+
     const tablesList = data.tablesBySchema
         ?.map((s) =>
-            Object.keys(s.tables).map(
-                (t) =>
-                    `${quoteChar}${database}${quoteChar}.${quoteChar}${s.schema}${quoteChar}.${quoteChar}${t}${quoteChar}`,
+            Object.keys(s.tables).map((t) =>
+                formatTableName(database, s.schema.toString(), t),
             ),
         )
         .flat();
@@ -211,9 +321,25 @@ export const SqlEditor: FC<{
     const warehouseConnectionType = useAppSelector(
         (state) => state.sqlRunner.warehouseConnectionType,
     );
+
+    const [settings] = useSqlEditorPreferences(warehouseConnectionType);
+
     const { data: tablesData, isLoading: isTablesDataLoading } = useTables({
         projectUuid,
     });
+
+    const currentTable = useAppSelector((state) => state.sqlRunner.activeTable);
+    const currentSchema = useAppSelector(
+        (state) => state.sqlRunner.activeSchema,
+    );
+
+    const { data: tableFieldsData } = useTableFields({
+        projectUuid,
+        tableName: currentTable,
+        schema: currentSchema,
+        search: undefined,
+    });
+
     const transformedData:
         | { database: string; tablesBySchema: TablesBySchema }
         | undefined = useMemo(() => {
@@ -230,6 +356,15 @@ export const SqlEditor: FC<{
             tablesBySchema,
         };
     }, [tablesData]);
+
+    // Use React Query to fetch field data for all detected tables in SQL
+    const { data: detectedTablesFieldData } = useDetectedTableFields({
+        sql,
+        quoteChar,
+        projectUuid,
+        transformedData,
+    });
+
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
 
     const language = useMemo(
@@ -245,28 +380,14 @@ export const SqlEditor: FC<{
                 inherit: true,
                 ...LIGHTDASH_THEME,
             });
-
-            if (transformedData && quoteChar) {
-                const tablesList = generateTableCompletions(
-                    quoteChar,
-                    transformedData,
-                );
-                if (tablesList && tablesList.length > 0) {
-                    registerCustomCompletionProvider(
-                        monaco,
-                        language,
-                        quoteChar,
-                        tablesList,
-                    );
-                }
-            }
         },
-        [language, quoteChar, transformedData],
+        [language],
     );
 
     const monaco = useMonaco();
     const decorationsCollectionRef =
         useRef<editor.IEditorDecorationsCollection | null>(null); // Ref to store the decorations collection
+    const completionProviderRef = useRef<{ dispose: () => void } | null>(null); // Ref to store the completion provider
 
     const onMount: OnMount = useCallback(
         (editorObj, monacoObj) => {
@@ -287,6 +408,64 @@ export const SqlEditor: FC<{
         },
         [onSubmit],
     );
+
+    // Register completion provider reactively when data changes
+    useEffect(() => {
+        // Setup logic only runs when all dependencies are available
+        if (monaco && transformedData && quoteChar) {
+            // Dispose of the previous completion provider
+            if (completionProviderRef.current) {
+                completionProviderRef.current.dispose();
+                completionProviderRef.current = null;
+            }
+            const tablesList = generateTableCompletions(
+                quoteChar,
+                transformedData,
+                settings,
+            );
+            // Transform current table fields to include context and combine with detected table fields
+            const currentTableFieldsWithContext = (tableFieldsData || []).map(
+                (field) => ({
+                    ...field,
+                    table: currentTable || '',
+                    schema: currentSchema || '',
+                }),
+            );
+            const allFieldsData = [
+                ...currentTableFieldsWithContext,
+                ...(detectedTablesFieldData || []),
+            ];
+            if (tablesList && tablesList.length > 0) {
+                const provider = registerCustomCompletionProvider(
+                    monaco,
+                    language,
+                    quoteChar,
+                    tablesList,
+                    allFieldsData.length > 0 ? allFieldsData : undefined,
+                    settings,
+                );
+                completionProviderRef.current = provider;
+            }
+        }
+        // Cleanup function always runs on unmount regardless of conditions
+        return () => {
+            if (completionProviderRef.current) {
+                completionProviderRef.current.dispose();
+                completionProviderRef.current = null;
+            }
+        };
+    }, [
+        monaco,
+        language,
+        quoteChar,
+        transformedData,
+        tableFieldsData,
+        detectedTablesFieldData,
+        currentTable,
+        currentSchema,
+        warehouseConnectionType,
+        settings,
+    ]);
 
     useEffect(() => {
         // remove any existing decorations

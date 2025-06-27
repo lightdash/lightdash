@@ -1,5 +1,5 @@
 import {
-    ConditionalOperator,
+    FilterOperator,
     countTotalFilterRules,
     getItemId,
     getTotalFilterRules,
@@ -244,8 +244,8 @@ const FiltersCard: FC = memo(() => {
                 return (
                     <div key={field.name}>
                         {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}
-                        {filterRule.operator !== ConditionalOperator.NULL &&
-                        filterRule.operator !== ConditionalOperator.NOT_NULL ? (
+                        {filterRule.operator !== FilterOperator.NULL &&
+                        filterRule.operator !== FilterOperator.NOT_NULL ? (
                             <Text span fw={700}>
                                 {filterRuleLabels.value}
                             </Text>

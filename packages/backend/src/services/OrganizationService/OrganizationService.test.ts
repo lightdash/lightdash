@@ -1,6 +1,7 @@
 import { LightdashInstallType } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { ServiceAccountModel } from '../../ee/models/ServiceAccountModel';
 import { PersonalAccessTokenModel } from '../../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../../models/EmailModel';
 import { GroupsModel } from '../../models/GroupsModel';
@@ -38,6 +39,7 @@ describe('organization service', () => {
         personalAccessTokenModel: {} as PersonalAccessTokenModel,
         emailModel: {} as EmailModel,
         projectService: {} as ProjectService,
+        serviceAccountModel: {} as ServiceAccountModel,
     });
 
     afterEach(() => {

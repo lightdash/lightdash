@@ -1,7 +1,6 @@
 import {
-    GenerateQueryFiltersToolSchema,
-    getFields,
-    getFiltersFromGroup,
+    filtersSchemaTransformed,
+    generateQueryFiltersToolSchema,
     getTotalFilterRules,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -23,7 +22,7 @@ export const getGenerateQueryFilters = ({
     promptUuid,
     updatePrompt,
 }: Dependencies) => {
-    const schema = GenerateQueryFiltersToolSchema;
+    const schema = generateQueryFiltersToolSchema;
 
     return tool({
         description: `Generate the filters necessary to fetch the correct data from the database.
@@ -35,27 +34,27 @@ Rules for generating filters:
 - If the field you are filtering is a timestamp/date field, ensure the values are JavaScript Date-compatible strings.
 `,
         parameters: schema,
-        execute: async ({ exploreName, filterGroup }) => {
+        execute: async ({ exploreName, filters }) => {
             try {
                 const explore = await getExplore({ exploreName });
 
-                const exploreFields = getFields(explore);
-
-                const filters = getFiltersFromGroup(filterGroup, exploreFields);
-                const filterRules = getTotalFilterRules(filters);
+                // Transform filters to the correct format for the query and keep the original format for the tool call args
+                const transformedFilters =
+                    filtersSchemaTransformed.parse(filters);
+                const filterRules = getTotalFilterRules(transformedFilters);
 
                 validateFilterRules(explore, filterRules);
 
                 await updatePrompt({
                     promptUuid,
-                    filtersOutput: filters,
+                    filtersOutput: transformedFilters,
                 });
 
                 return `Filters have been successfully generated.
 
 Filters:
 \`\`\`json
-${JSON.stringify(filters, null, 4)}
+${JSON.stringify(transformedFilters, null, 4)}
 \`\`\``;
             } catch (e) {
                 return toolErrorHandler(e, `Error generating filters.`);

@@ -1,10 +1,9 @@
 import {
     AiChartType,
     AiMetricQuery,
-    filterSchema,
-    FilterSchemaType,
+    filtersSchema,
+    filtersSchemaTransformed,
     MetricQuery,
-    SortFieldSchema,
     timeSeriesMetricVizConfigSchema,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -29,7 +28,7 @@ const vizConfigSchema = timeSeriesMetricVizConfigSchema.extend({
 
 export const generateTimeSeriesVizConfigToolSchema = z.object({
     vizConfig: vizConfigSchema,
-    filters: filterSchema
+    filters: filtersSchema
         .nullable()
         .describe(
             'Filters to apply to the query. Filtered fields must exist in the selected explore.',
@@ -45,7 +44,7 @@ export const isTimeSeriesMetricChartConfig = (
 
 export const metricQueryTimeSeriesChartMetric = (
     config: TimeSeriesMetricChartConfig,
-    filters: FilterSchemaType | null,
+    filters: z.infer<typeof filtersSchemaTransformed> = {},
 ): AiMetricQuery => {
     const metrics = config.yMetrics;
     const dimensions = [
@@ -60,11 +59,7 @@ export const metricQueryTimeSeriesChartMetric = (
         limit: getValidAiQueryLimit(limit),
         sorts,
         exploreName: config.exploreName,
-        // TODO: fix types
-        filters: {
-            metrics: filters?.metrics ?? undefined,
-            dimensions: filters?.dimensions ?? undefined,
-        },
+        filters,
     };
 };
 
@@ -136,13 +131,13 @@ type RenderTimeseriesChartArgs = {
         metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
     vizConfig: TimeSeriesMetricChartConfig;
-    filters: FilterSchemaType | null;
+    filters: z.infer<typeof filtersSchemaTransformed> | undefined;
 };
 
 export const renderTimeseriesChart = async ({
     runMetricQuery,
     vizConfig,
-    filters,
+    filters = {},
 }: RenderTimeseriesChartArgs): Promise<{
     type: AiChartType.TIME_SERIES_CHART;
     metricQuery: AiMetricQuery;

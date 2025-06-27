@@ -2,11 +2,13 @@ version: 2
 models:
   - name: membership
     meta:
+      primary_key: id
       required_attributes:
         is_admin: 'true'
       joins:
         - join: plan
           sql_on: ${membership.plan_id} = ${plan.id}
+          relationship: many-to-one
     columns:
       - name: id
       - name: customer_id

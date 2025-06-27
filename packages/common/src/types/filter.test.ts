@@ -1,11 +1,11 @@
 import { cloneDeep } from 'lodash';
-import { ConditionalOperator } from './conditionalRule';
 import {
     type AndFilterGroup,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
     type DashboardTileTarget,
     type FilterGroup,
+    FilterOperator,
     isFilterRuleDefinedForFieldId,
     removeFieldFromFilterGroup,
 } from './filter';
@@ -15,7 +15,7 @@ describe('compress and uncompress dashboard filters', () => {
         const DUMMY_DIMENSION = {
             id: 'filter-id',
             label: 'A label',
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
             target: {
                 fieldId: 'payments_payment_method',
                 tableName: 'payments',
@@ -174,7 +174,7 @@ describe('compress and uncompress dashboard filters', () => {
         const DUMMY_URL_FILTER = {
             id: 'url-dimension',
             label: 'a label',
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
             target: {
                 fieldId: 'payments_payment_method',
                 tableName: 'payments',
@@ -306,7 +306,7 @@ describe('removeFieldFromFilterGroup', () => {
                 target: {
                     fieldId: fieldToBeRemoved,
                 },
-                operator: ConditionalOperator.EQUALS,
+                operator: FilterOperator.EQUALS,
                 values: ['metric_value_1'],
             },
             {
@@ -317,7 +317,7 @@ describe('removeFieldFromFilterGroup', () => {
                         target: {
                             fieldId: fieldToBeRemoved,
                         },
-                        operator: ConditionalOperator.EQUALS,
+                        operator: FilterOperator.EQUALS,
                         values: ['metric_value_2'],
                     },
                 ],
@@ -339,7 +339,7 @@ describe('removeFieldFromFilterGroup', () => {
             target: {
                 fieldId: 'metric_field_id_3',
             },
-            operator: ConditionalOperator.EQUALS,
+            operator: FilterOperator.EQUALS,
             values: ['metric_value_3'],
         };
         const filterGroupWithRemainingMetrics = cloneDeep(filterGroup);
@@ -376,7 +376,7 @@ describe('isFilterRuleDefinedForFieldId', () => {
                 target: {
                     fieldId: fieldToBeFound1,
                 },
-                operator: ConditionalOperator.EQUALS,
+                operator: FilterOperator.EQUALS,
                 values: ['metric_value_1'],
             },
             {
@@ -384,7 +384,7 @@ describe('isFilterRuleDefinedForFieldId', () => {
                 target: {
                     fieldId: `${fieldToBeFound3}_to_be_found`,
                 },
-                operator: ConditionalOperator.EQUALS,
+                operator: FilterOperator.EQUALS,
                 values: ['metric_value_3'],
             },
             {
@@ -395,7 +395,7 @@ describe('isFilterRuleDefinedForFieldId', () => {
                         target: {
                             fieldId: fieldToBeFound2,
                         },
-                        operator: ConditionalOperator.EQUALS,
+                        operator: FilterOperator.EQUALS,
                         values: ['metric_value_2'],
                     },
                 ],

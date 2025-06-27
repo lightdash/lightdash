@@ -1,9 +1,10 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.1728.0",
+    "version": "0.1766.0",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
+        "typecheck-sdk": "tsc --project tsconfig.json --noEmit",
         "dev": "vite",
         "build": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build",
         "build-sdk": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build --config vite.config.sdk.ts",
@@ -45,7 +46,7 @@
         "@monaco-editor/react": "^4.6.0",
         "@popsql/monaco-sql-languages": "^0.2.0",
         "@reduxjs/toolkit": "^2.2.6",
-        "@sentry/react": "^9.4.0",
+        "@sentry/react": "^9.31.0",
         "@sentry/vite-plugin": "^3.2.2",
         "@shopify/react-web-worker": "^5.0.13",
         "@tabler/icons-react": "^2.32.0",
@@ -64,6 +65,7 @@
         "@uiw/react-md-editor": "^4.0.5",
         "@xyflow/react": "^12.3.5",
         "ace-builds": "^1.4.14",
+        "ai": "^4.3.16",
         "canvas-confetti": "^1.6.0",
         "colorjs.io": "^0.5.2",
         "cron-converter": "^2.0.0",

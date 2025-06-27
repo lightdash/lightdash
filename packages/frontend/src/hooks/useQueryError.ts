@@ -7,11 +7,13 @@ import useToaster from './toaster/useToaster';
 type opts = {
     forbiddenToastTitle?: string;
     forceToastOnForbidden?: boolean;
+    chartName?: string;
 };
 
 const useQueryError = ({
     forbiddenToastTitle,
     forceToastOnForbidden,
+    chartName,
 }: opts = {}): Dispatch<SetStateAction<ApiError | undefined>> => {
     const queryClient = useQueryClient();
     const [errorResponse, setErrorResponse] = useState<ApiError | undefined>();
@@ -72,6 +74,9 @@ const useQueryError = ({
                     }
                 } else {
                     addToastError({
+                        title: chartName
+                            ? `Chart '${chartName}': Error`
+                            : undefined,
                         apiError: error,
                     });
                 }
@@ -81,6 +86,7 @@ const useQueryError = ({
         errorResponse,
         forbiddenToastTitle,
         forceToastOnForbidden,
+        chartName,
         queryClient,
         showToastError,
         addToastError,

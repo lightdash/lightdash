@@ -1,4 +1,4 @@
-import { isSlackPrompt } from '@lightdash/common';
+import { filtersSchemaTransformed, isSlackPrompt } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     GetPromptFn,
@@ -45,6 +45,9 @@ Rules for generating the time series chart visualization:
         parameters: schema,
         execute: async ({ filters, vizConfig }) => {
             try {
+                // Transform filters to the correct format for the query and keep the original format for the tool call args
+                const transformedFilters =
+                    filtersSchemaTransformed.parse(filters);
                 await updateProgress(
                     '🔍 Running a query for your line chart...',
                 );
@@ -57,7 +60,7 @@ Rules for generating the time series chart visualization:
                     await renderTimeseriesChart({
                         runMetricQuery: runMiniMetricQuery,
                         vizConfig,
-                        filters,
+                        filters: transformedFilters ?? undefined,
                     });
 
                 const file = await renderEcharts(chartOptions);

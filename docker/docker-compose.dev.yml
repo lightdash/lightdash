@@ -12,6 +12,7 @@ services:
             - MINIO_ROOT_USER=${MINIO_ROOT_USER}
             - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
             - MINIO_DEFAULT_BUCKETS=${MINIO_DEFAULT_BUCKETS}
+            - MINIO_BROWSER=${MINIO_BROWSER:-off}
 
     lightdash-dev:
         build:

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    addDashboardFiltersToMetricQuery,
     AndFilterGroup,
     CommercialFeatureFlags,
     CompiledDimension,
@@ -13,15 +14,25 @@ import {
     DecodedEmbed,
     Embed,
     EmbedJwt,
-    EmbedJwtSchema,
     EmbedUrl,
     Explore,
     ExploreError,
     FieldValueSearchResult,
     FilterableDimension,
     ForbiddenError,
+    formatRows,
+    getDashboardFiltersForTileAndTables,
+    getDimensions,
+    getFilterInteractivityValue,
+    getItemId,
     InteractivityOptions,
     IntrinsicUserAttributes,
+    isDashboardChartTileType,
+    isDashboardSlugContent,
+    isDashboardSqlChartTile,
+    isExploreError,
+    isFilterableDimension,
+    isFilterInteractivityEnabled,
     MetricQuery,
     NotFoundError,
     ParameterError,
@@ -31,28 +42,14 @@ import {
     SortField,
     UpdateEmbed,
     UserAttributeValueMap,
-    addDashboardFiltersToMetricQuery,
-    formatRows,
-    getDashboardFiltersForTileAndTables,
-    getDimensions,
-    getErrorMessage,
-    getFilterInteractivityValue,
-    getItemId,
-    isDashboardChartTileType,
-    isDashboardSlugContent,
-    isDashboardSqlChartTile,
-    isDashboardUuidContent,
-    isExploreError,
-    isFilterInteractivityEnabled,
-    isFilterableDimension,
-    type LightdashUser,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
-import jwt from 'jsonwebtoken';
 import { isArray } from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
-import { z } from 'zod';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import {
+    decodeLightdashJwt,
+    encodeLightdashJwt,
+} from '../../../auth/lightdashJwt';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -60,7 +57,6 @@ import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
-import { UserModel } from '../../../models/UserModel';
 import { BaseService } from '../../../services/BaseService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
@@ -76,7 +72,6 @@ type Dependencies = {
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
     projectModel: ProjectModel;
-    userModel: UserModel;
     userAttributesModel: UserAttributesModel;
     projectService: ProjectService;
     featureFlagModel: FeatureFlagModel;
@@ -98,8 +93,6 @@ export class EmbedService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
-    private readonly userModel: UserModel;
-
     private readonly userAttributesModel: UserAttributesModel;
 
     private readonly projectService: ProjectService;
@@ -117,7 +110,6 @@ export class EmbedService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.encryptionUtil = dependencies.encryptionUtil;
-        this.userModel = dependencies.userModel;
         this.userAttributesModel = dependencies.userAttributesModel;
         this.projectService = dependencies.projectService;
         this.featureFlagModel = dependencies.featureFlagModel;
@@ -149,7 +141,7 @@ export class EmbedService extends BaseService {
         }
 
         const { encodedSecret } = await this.embedModel.get(projectUuid);
-        const jwtToken = this.encodeJwt(
+        const jwtToken = encodeLightdashJwt(
             jwtData,
             encodedSecret,
             expiresIn || '1h',
@@ -260,62 +252,6 @@ export class EmbedService extends BaseService {
         });
     }
 
-    private encodeJwt(
-        jwtData: CreateEmbedJwt,
-        encodedSecret: string,
-        expiresIn: string,
-    ) {
-        const secret = this.encryptionUtil.decrypt(Buffer.from(encodedSecret));
-        return jwt.sign(jwtData, secret, { expiresIn });
-    }
-
-    // TODO test expiration
-    private decodeJwt(token: string, encodedSecret: string): EmbedJwt {
-        try {
-            const secret = this.encryptionUtil.decrypt(
-                Buffer.from(encodedSecret),
-            );
-            const decodedToken = jwt.verify(token, secret) as EmbedJwt;
-            // Alert if the token is not in the expected format so we can inform the org before enforcing validation
-            try {
-                EmbedJwtSchema.parse(decodedToken);
-            } catch (e) {
-                const errorIdentifier = isDashboardUuidContent(
-                    decodedToken.content,
-                )
-                    ? decodedToken.content.dashboardUuid
-                    : decodedToken.content.dashboardSlug;
-
-                if (e instanceof z.ZodError) {
-                    const zodErrors = e.issues
-                        .map((issue) => issue.message)
-                        .join(', ');
-                    this.logger.error(
-                        `Invalid embed token ${errorIdentifier}: ${zodErrors}`,
-                    );
-                }
-                this.logger.error(
-                    `Invalid embed token ${errorIdentifier}: ${getErrorMessage(
-                        e,
-                    )}`,
-                );
-                Sentry.captureException(e);
-            }
-            return decodedToken;
-        } catch (e) {
-            if (e instanceof jwt.TokenExpiredError) {
-                throw new ForbiddenError('Your embed token has expired.');
-            }
-            if (e instanceof z.ZodError) {
-                const zodErrors = e.issues
-                    .map((issue) => issue.message)
-                    .join(', ');
-                throw new ParameterError(`Invalid embed token: ${zodErrors}`);
-            }
-            throw e;
-        }
-    }
-
     static async _permissionsGetDashboard(
         embed: Pick<Embed, 'dashboardUuids' | 'allowAllDashboards'>,
         dashboardUuid: string,
@@ -386,7 +322,7 @@ export class EmbedService extends BaseService {
     ): Promise<Dashboard & InteractivityOptions> {
         const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
-        const decodedToken = this.decodeJwt(embedToken, encodedSecret);
+        const decodedToken = decodeLightdashJwt(embedToken, encodedSecret);
         const dashboardUuid = await this.getDashboardUuidFromContent(
             decodedToken,
             projectUuid,
@@ -466,9 +402,9 @@ export class EmbedService extends BaseService {
         savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
         checkPermissions: boolean = true,
     ): Promise<DashboardAvailableFilters> {
-        const { encodedSecret, dashboardUuids, allowAllDashboards } =
+        const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
-        const decodedToken = this.decodeJwt(embedToken, encodedSecret);
+        const decodedToken = decodeLightdashJwt(embedToken, encodedSecret);
 
         if (
             !isFilterInteractivityEnabled(
@@ -809,8 +745,7 @@ export class EmbedService extends BaseService {
     ) {
         const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
-
-        const decodedToken = this.decodeJwt(embedToken, encodedSecret);
+        const decodedToken = decodeLightdashJwt(embedToken, encodedSecret);
 
         const dashboardUuid = await this.getDashboardUuidFromContent(
             decodedToken,
@@ -924,8 +859,9 @@ export class EmbedService extends BaseService {
         dashboardFilters?: DashboardFilters,
         invalidateCache?: boolean,
     ) {
-        const { encodedSecret, user } = await this.embedModel.get(projectUuid);
-        const decodedToken = this.decodeJwt(embedToken, encodedSecret);
+        const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
+            await this.embedModel.get(projectUuid);
+        const decodedToken = decodeLightdashJwt(embedToken, encodedSecret);
 
         const dashboardUuid = await this.getDashboardUuidFromContent(
             decodedToken,
@@ -1040,9 +976,9 @@ export class EmbedService extends BaseService {
     }): Promise<FieldValueSearchResult> {
         const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
-        const embedJwt = this.decodeJwt(embedToken, encodedSecret);
+        const decodedToken = decodeLightdashJwt(embedToken, encodedSecret);
         const dashboardUuid = await this.getDashboardUuidFromContent(
-            embedJwt,
+            decodedToken,
             projectUuid,
         );
         await EmbedService._permissionsGetDashboard(
@@ -1077,9 +1013,12 @@ export class EmbedService extends BaseService {
             explore,
             queryTags: {
                 embed: 'true',
-                external_id: EmbedService.getExternalId(embedJwt, embedToken),
+                external_id: EmbedService.getExternalId(
+                    decodedToken,
+                    embedToken,
+                ),
             },
-            embedJwt,
+            embedJwt: decodedToken,
         });
 
         return {
@@ -1088,5 +1027,9 @@ export class EmbedService extends BaseService {
             refreshedAt: cacheMetadata.cacheUpdatedTime || new Date(),
             cached: cacheMetadata.cacheHit,
         };
+    }
+
+    async getEmbeddingByProjectId(projectUuid: string) {
+        return this.embedModel.get(projectUuid);
     }
 }

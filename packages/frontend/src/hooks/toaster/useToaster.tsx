@@ -179,8 +179,11 @@ const useToaster = () => {
             },
         ) => {
             const title: ReactNode | undefined = props.title ?? 'Error';
-            const subtitle: ReactNode = (
+
+            const subtitle: ReactNode = props.apiError ? (
                 <ApiErrorDisplay apiError={props.apiError} />
+            ) : (
+                ''
             );
 
             showToast({

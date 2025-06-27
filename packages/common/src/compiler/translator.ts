@@ -316,6 +316,15 @@ const convertDbtMetricToLightdashMetric = (
     };
 };
 
+function normalizePrimaryKey(
+    primaryKey: DbtModelNode['meta']['primary_key'],
+): string[] | undefined {
+    if (primaryKey) {
+        return Array.isArray(primaryKey) ? primaryKey : [primaryKey];
+    }
+    return undefined;
+}
+
 export const convertTable = (
     adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
@@ -572,6 +581,7 @@ export const convertTable = (
                 ? (meta.order_fields_by.toUpperCase() as OrderFieldsByStrategy)
                 : OrderFieldsByStrategy.LABEL,
         groupLabel: meta.group_label,
+        primaryKey: normalizePrimaryKey(meta.primary_key),
         sqlWhere: meta.sql_filter || meta.sql_where,
         requiredFilters: parseModelRequiredFilters({
             requiredFilters: meta.required_filters,
@@ -723,6 +733,7 @@ export const convertExplores = async (
                     fields: join.fields,
                     hidden: join.hidden,
                     always: join.always,
+                    relationship: join.relationship,
                 })),
                 tables: tableLookup,
                 targetDatabase: adapterType,

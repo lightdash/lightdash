@@ -5,6 +5,7 @@ import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
 const CACHE_KEY = 'service-accounts';
+type CreateServiceAccountResult = ServiceAccount & { token: string };
 
 export const useServiceAccounts = () => {
     const queryClient = useQueryClient();
@@ -18,30 +19,32 @@ export const useServiceAccounts = () => {
             }),
     });
 
-    const createAccount = useMutation<ServiceAccount, ApiError, ServiceAccount>(
-        {
-            mutationKey: [CACHE_KEY],
-            mutationFn: (newAccount: ServiceAccount) => {
-                return lightdashApi<ServiceAccount>({
-                    method: 'POST',
-                    url: '/service-accounts',
-                    body: JSON.stringify(newAccount),
-                });
-            },
-            onSuccess: async () => {
-                await queryClient.invalidateQueries([CACHE_KEY]);
-                showToastSuccess({
-                    title: `Service account created`,
-                });
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: `Failed to create service account`,
-                    apiError: error,
-                });
-            },
+    const createAccount = useMutation<
+        CreateServiceAccountResult,
+        ApiError,
+        ServiceAccount
+    >({
+        mutationKey: [CACHE_KEY],
+        mutationFn: (newAccount: ServiceAccount) => {
+            return lightdashApi<CreateServiceAccountResult>({
+                method: 'POST',
+                url: '/service-accounts',
+                body: JSON.stringify(newAccount),
+            });
         },
-    );
+        onSuccess: async () => {
+            await queryClient.invalidateQueries([CACHE_KEY]);
+            showToastSuccess({
+                title: `Service account created`,
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: `Failed to create service account`,
+                apiError: error,
+            });
+        },
+    });
 
     const deleteAccount = useMutation<undefined, ApiError, string>({
         mutationFn: async (uuid: string) => {

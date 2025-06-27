@@ -97,7 +97,7 @@ export const lightdashConfigMock: LightdashConfig = {
     pylon: {
         appId: '',
     },
-    lightdashSecret: '',
+    lightdashSecret: 'look away this is a secret',
     logging: {
         level: 'debug',
         format: 'pretty',
@@ -173,7 +173,16 @@ export const lightdashConfigMock: LightdashConfig = {
     ai: {
         copilot: {
             enabled: false,
+            telemetryEnabled: false,
             requiresFeatureFlag: false,
+            defaultProvider: 'openai',
+            providers: {
+                openai: {
+                    apiKey: 'mock_api_key',
+                    modelName: 'mock_model_name',
+                },
+            },
+            embeddingSearchEnabled: false,
         },
     },
     embedding: {
@@ -206,6 +215,9 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     appearance: {},
     microsoftTeams: {
+        enabled: false,
+    },
+    serviceAccount: {
         enabled: false,
     },
     googleCloudPlatform: {

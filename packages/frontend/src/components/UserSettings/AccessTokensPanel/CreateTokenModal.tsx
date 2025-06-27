@@ -17,6 +17,7 @@ import { type FC } from 'react';
 import useHealth from '../../../hooks/health/useHealth';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';
 import MantineIcon from '../../common/MantineIcon';
+import { useExpireOptions } from './useExpireOptions';
 
 export const CreateTokenModal: FC<{
     onBackClick: () => void;
@@ -30,35 +31,7 @@ export const CreateTokenModal: FC<{
         isSuccess,
     } = useCreateAccessToken();
 
-    const expireOptions = [
-        {
-            label: 'No expiration',
-            value: '',
-        },
-        {
-            label: '7 days',
-            value: '7',
-        },
-        {
-            label: '30 days',
-            value: '30',
-        },
-        {
-            label: '60 days',
-            value: '60',
-        },
-        {
-            label: '90 days',
-            value: '90',
-        },
-    ].filter((option) => {
-        const maxExpirationTimeInDays =
-            health.data?.auth.pat.maxExpirationTimeInDays;
-        return (
-            !maxExpirationTimeInDays ||
-            (option.value && Number(option.value) <= maxExpirationTimeInDays)
-        );
-    });
+    const expireOptions = useExpireOptions(true);
 
     const form = useForm({
         initialValues: {

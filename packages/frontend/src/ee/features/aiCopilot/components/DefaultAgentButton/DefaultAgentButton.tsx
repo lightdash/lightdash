@@ -6,7 +6,10 @@ import {
 } from '@mantine-8/core';
 import { IconStar } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useDefaultAgent } from '../../hooks/useDefaultAgent';
+import {
+    useGetUserAgentPreferences,
+    useUpdateUserAgentPreferences,
+} from '../../hooks/useUserAgentPreferences';
 import styles from './defaultAgentButton.module.css';
 
 interface Props extends ActionIconProps {
@@ -21,9 +24,13 @@ export const DefaultAgentButton: React.FC<Props> = ({
     size = 'md',
     ...props
 }) => {
-    const { defaultAgentUuid, setDefaultAgentUuid } =
-        useDefaultAgent(projectUuid);
-    const isDefault = defaultAgentUuid === agentUuid;
+    const { data: userAgentPreferences } =
+        useGetUserAgentPreferences(projectUuid);
+    const { mutateAsync: setDefaultAgentUuid } = useUpdateUserAgentPreferences(
+        projectUuid!,
+    );
+
+    const isDefault = userAgentPreferences?.defaultAgentUuid === agentUuid;
 
     return (
         <Tooltip label={isDefault ? 'Default agent' : 'Set as default agent'}>
@@ -33,7 +40,9 @@ export const DefaultAgentButton: React.FC<Props> = ({
                 variant="subtle"
                 color="gray"
                 onClick={() => {
-                    setDefaultAgentUuid(agentUuid);
+                    void setDefaultAgentUuid({
+                        defaultAgentUuid: agentUuid,
+                    });
                 }}
                 disabled={isDefault}
                 size={size}

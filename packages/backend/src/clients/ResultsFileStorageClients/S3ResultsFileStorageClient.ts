@@ -2,9 +2,10 @@ import { GetObjectCommand, NotFound } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getErrorMessage, WarehouseResults } from '@lightdash/common';
+import fs from 'fs';
 import { PassThrough, Readable, Writable } from 'stream';
 import Logger from '../../logging/logger';
-import { sanitizeGenericFileName } from '../../utils/FileDownloadUtils';
+import { createContentDispositionHeader } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import {
     S3CacheClient,
     type S3CacheClientArguments,
@@ -46,9 +47,9 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
                 Key: fileName,
                 Body: passThrough,
                 ContentType: opts.contentType,
-                ContentDisposition: `attachment; filename="${
-                    attachmentDownloadName || fileName
-                }"`,
+                ContentDisposition: createContentDispositionHeader(
+                    attachmentDownloadName || fileName,
+                ),
             },
         });
 
@@ -170,9 +171,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
                 contentType: config.contentType,
             },
             attachmentDownloadName
-                ? `${sanitizeGenericFileName(attachmentDownloadName)}.${
-                      config.extension
-                  }`
+                ? `${attachmentDownloadName}.${config.extension}`
                 : undefined,
         );
 
@@ -192,5 +191,52 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             fileUrl: url,
             truncated,
         };
+    }
+
+    /**
+     * Upload a file directly to S3 from a local file path
+     * Useful for uploading pre-generated files like Excel files
+     */
+    async uploadFile(
+        fileName: string,
+        filePath: string,
+        options: {
+            contentType: string;
+            attachmentDownloadName?: string;
+        },
+    ): Promise<string> {
+        const fileStream = fs.createReadStream(filePath);
+
+        const upload = new Upload({
+            client: this.s3,
+            params: {
+                Bucket: this.configuration.bucket,
+                Key: fileName,
+                Body: fileStream,
+                ContentType: options.contentType,
+                ContentDisposition: createContentDispositionHeader(
+                    options.attachmentDownloadName || fileName,
+                ),
+            },
+        });
+
+        try {
+            await upload.done();
+            Logger.debug(
+                `Successfully uploaded file to s3://${this.configuration.bucket}/${fileName}`,
+            );
+
+            // Determine file extension for URL generation
+            const fileExtension =
+                fileName.toLowerCase().split('.').pop() || 'xlsx';
+            return await this.getFileUrl(fileName, fileExtension);
+        } catch (error) {
+            Logger.error(
+                `Failed to upload file to s3://${
+                    this.configuration.bucket
+                }/${fileName}: ${getErrorMessage(error)}`,
+            );
+            throw error;
+        }
     }
 }

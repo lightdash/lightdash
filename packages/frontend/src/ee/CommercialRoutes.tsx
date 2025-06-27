@@ -5,7 +5,9 @@ import PrivateRoute from '../components/PrivateRoute';
 import { getMantine8ThemeOverride } from '../mantine8Theme';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
+import { AiAgentThreadStreamStoreProvider } from './features/aiCopilot/streaming/AiAgentThreadStreamStoreProvider';
 import AgentPage from './pages/AiAgents/AgentPage';
+import AgentsRedirect from './pages/AiAgents/AgentsRedirect';
 import AgentsWelcome from './pages/AiAgents/AgentsWelcome';
 import AiAgentThreadPage from './pages/AiAgents/AgentThreadPage';
 import AiAgentNewThreadPage from './pages/AiAgents/AiAgentNewThreadPage';
@@ -69,12 +71,22 @@ const COMMERCIAL_AI_ROUTES: RouteObject[] = [
 
 const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
     {
+        path: '/ai-agents/',
+        element: (
+            <PrivateRoute>
+                <AgentsRedirect />
+            </PrivateRoute>
+        ),
+    },
+    {
         path: '/projects/:projectUuid/ai-agents',
         element: (
             <PrivateRoute>
                 <NavBar />
                 <MantineProvider theme={getMantine8ThemeOverride()}>
-                    <Outlet />
+                    <AiAgentThreadStreamStoreProvider>
+                        <Outlet />
+                    </AiAgentThreadStreamStoreProvider>
                 </MantineProvider>
             </PrivateRoute>
         ),

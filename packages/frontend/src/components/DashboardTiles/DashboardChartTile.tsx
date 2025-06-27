@@ -70,6 +70,7 @@ import React, {
 } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import { formatChartErrorMessage } from '../../utils/chartErrorUtils';
 
 import { DashboardTileComments } from '../../features/comments';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
@@ -78,6 +79,7 @@ import {
     getExpectedSeriesMap,
     mergeExistingAndExpectedSeries,
 } from '../../hooks/cartesianChartConfig/utils';
+import { useDashboardChartDownload } from '../../hooks/dashboard/useDashboardChartDownload';
 import {
     useDashboardChartReadyQuery,
     type DashboardChartReadyQuery,
@@ -757,26 +759,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         chartWithDashboardFilters.metricQuery?.customDimensions;
 
     const { pathname: chartPathname, search: chartSearch } = useMemo(() => {
-        if (cannotUseCustomDimensions) {
-            const queryWithoutCustomDimensions = {
-                ...chartWithDashboardFilters,
-                metricQuery: {
-                    ...chartWithDashboardFilters.metricQuery,
-                    customDimensions: undefined,
-                },
-            };
-            return getExplorerUrlFromCreateSavedChartVersion(
-                chartWithDashboardFilters.projectUuid,
-                queryWithoutCustomDimensions,
-                true,
-            );
-        }
         return getExplorerUrlFromCreateSavedChartVersion(
             chartWithDashboardFilters.projectUuid,
             chartWithDashboardFilters,
             true,
         );
-    }, [chartWithDashboardFilters, cannotUseCustomDimensions]);
+    }, [chartWithDashboardFilters]);
 
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(
@@ -828,9 +816,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         user.data?.ability,
     ]);
 
-    const getDownloadQueryUuid = useCallback(async () => {
-        return dashboardChartReadyQuery.executeQueryResponse.queryUuid;
-    }, [dashboardChartReadyQuery.executeQueryResponse.queryUuid]);
+    // Use the custom hook for dashboard chart downloads
+    const { getDownloadQueryUuid } = useDashboardChartDownload(
+        tileUuid,
+        chart.uuid,
+        projectUuid,
+        dashboardUuid,
+    );
 
     const closeDataExportModal = useCallback(
         () => setIsDataExportModalOpen(false),
@@ -1305,7 +1297,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         )}
                         hiddenFields={getHiddenTableFields(chart.chartConfig)}
                         pivotConfig={getPivotConfig(chart)}
-                        hideLimitSelection
                         renderDialogActions={({ onExport, isExporting }) => (
                             <Group
                                 position="right"
@@ -1481,7 +1472,12 @@ export const GenericDashboardChartTile: FC<
             >
                 <SuboptimalState
                     icon={IconAlertCircle}
-                    title={error?.error?.message || 'No data available'}
+                    title={formatChartErrorMessage(
+                        dashboardChartReadyQuery?.chart?.name ||
+                            tile.properties.chartName ||
+                            undefined,
+                        error?.error?.message || 'No data available',
+                    )}
                 ></SuboptimalState>
             </TileBase>
         );
@@ -1554,6 +1550,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     const resultsData = useInfiniteQueryResults(
         readyQuery.data?.chart.projectUuid,
         readyQuery.data?.executeQueryResponse.queryUuid,
+        readyQuery.data?.chart.name,
     );
 
     const isLoading = useMemo(() => {

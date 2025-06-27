@@ -10,7 +10,6 @@ import {
     IconDatabaseCog,
     IconDatabaseExport,
     IconKey,
-    IconLayersLinked,
     IconLock,
     IconPalette,
     IconPlug,
@@ -69,15 +68,11 @@ const Settings: FC = () => {
         FeatureFlags.PassthroughLogin,
     );
 
-    const isSemanticLayerEnabled = useFeatureFlagEnabled(
-        FeatureFlags.SemanticLayerEnabled,
-    );
-
     const { data: isScimTokenManagementEnabled } = useFeatureFlag(
         CommercialFeatureFlags.Scim,
     );
 
-    const isServiceAccountsEnabled = useFeatureFlagEnabled(
+    const isServiceAccountFeatureFlagEnabled = useFeatureFlagEnabled(
         CommercialFeatureFlags.ServiceAccounts,
     );
 
@@ -117,6 +112,9 @@ const Settings: FC = () => {
         health?.auth.oidc.enabled;
 
     const isGroupManagementEnabled = UserGroupFeatureFlag?.enabled;
+    // This allows us to enable service accounts in the UI for on-premise installations
+    const isServiceAccountsEnabled =
+        health?.isServiceAccountEnabled || isServiceAccountFeatureFlagEnabled;
 
     const routes = useMemo<RouteObject[]>(() => {
         const allowedRoutes: RouteObject[] = [
@@ -575,26 +573,6 @@ const Settings: FC = () => {
                                             />
                                         }
                                     />
-
-                                    {user.ability?.can(
-                                        'manage',
-                                        subject('Project', {
-                                            organizationUuid:
-                                                project.organizationUuid,
-                                            projectUuid: project.projectUuid,
-                                        }),
-                                    ) && isSemanticLayerEnabled ? (
-                                        <RouterNavLink
-                                            label="Semantic Layer Integration"
-                                            exact
-                                            to={`/generalSettings/projectManagement/${project.projectUuid}/semanticLayer`}
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconLayersLinked}
-                                                />
-                                            }
-                                        />
-                                    ) : null}
 
                                     <RouterNavLink
                                         label="Tables configuration"

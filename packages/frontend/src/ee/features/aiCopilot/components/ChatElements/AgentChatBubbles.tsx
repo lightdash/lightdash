@@ -1,13 +1,10 @@
 import {
-    AiChartType,
     type AiAgentMessageAssistant,
     type AiAgentMessageUser,
     type AiAgentUser,
-    type FilterSchemaType,
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Button,
     Card,
     Center,
     CopyButton,
@@ -22,18 +19,16 @@ import {
     IconCheck,
     IconCopy,
     IconExclamationCircle,
-    IconExternalLink,
     IconThumbDown,
     IconThumbDownFilled,
     IconThumbUp,
     IconThumbUpFilled,
 } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
-import dayjs from 'dayjs';
+import { format, parseISO } from 'date-fns';
 import { memo, useCallback, useMemo, type FC } from 'react';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
@@ -41,33 +36,40 @@ import {
     useAiAgentThreadMessageVizQuery,
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useOrganizationAiAgents';
-import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
-import AgentVisualizationFilters from './AgentVisualizationFilters';
-import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
+import {
+    useAiAgentThreadStreaming,
+    useAiAgentThreadStreamQuery,
+} from '../../streaming/useAiAgentThreadStreamQuery';
+import { isOptimisticMessageStub } from '../../utils/thinkingMessageStub';
 import { AiChartVisualization } from './AiChartVisualization';
+import AgentToolCalls from './ToolCalls/AgentToolCalls';
 
 export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
     message,
 }) => {
-    const timeAgo = useTimeAgo(new Date(message.createdAt));
+    const timeAgo = useTimeAgo(message.createdAt);
     const name = message.user.name;
     const app = useApp();
     const showUserName = app.user?.data?.userUuid !== message.user.uuid;
 
     return (
-        <Stack gap="sm" style={{ alignSelf: 'flex-end' }}>
+        <Stack gap="xs" style={{ alignSelf: 'flex-end' }}>
             <Stack gap={0} align="flex-end">
                 {showUserName ? (
                     <Text size="sm" c="gray.7" fw={600}>
                         {name}
                     </Text>
                 ) : null}
-                <Tooltip label={dayjs(message.createdAt).format()} withinPortal>
+                <Tooltip
+                    label={format(parseISO(message.createdAt), 'PPpp')}
+                    withinPortal
+                >
                     <Text size="xs" c="dimmed">
                         {timeAgo}
                     </Text>
                 </Tooltip>
             </Stack>
+
             <Card
                 pos="relative"
                 radius="md"
@@ -87,6 +89,32 @@ export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
                 />
             </Card>
         </Stack>
+    );
+};
+
+const AssistantBubbleContent: FC<{ message: AiAgentMessageAssistant }> = ({
+    message,
+}) => {
+    const streamingState = useAiAgentThreadStreamQuery(message.threadUuid);
+    const isStubbed = isOptimisticMessageStub(message.message);
+    const isStreaming =
+        useAiAgentThreadStreaming(message.threadUuid) && isStubbed;
+    const messageContent =
+        isStreaming && streamingState
+            ? streamingState.content
+            : isStubbed // avoid brief flash of `THINKING_STUB`
+            ? ''
+            : message.message ?? 'No response...';
+
+    return (
+        <>
+            {isStreaming && <AgentToolCalls />}
+            <MDEditor.Markdown
+                source={messageContent}
+                style={{ backgroundColor: 'transparent' }}
+            />
+            {isStreaming ? <Loader type="dots" color="gray" /> : null}
+        </>
     );
 };
 
@@ -143,40 +171,17 @@ export const AssistantBubble: FC<{
         });
     }, [projectUuid, message.uuid, message.humanScore, updateFeedbackMutation]);
 
-    // TODO: Do not use hardcoded string for loading state
-    const isLoading = message.message === 'Thinking...';
     const hasRating =
         message.humanScore !== undefined && message.humanScore !== null;
 
-    const openInExploreUrl = useMemo(() => {
-        if (isQueryLoading || isQueryError) return '';
+    const isLoading =
+        useAiAgentThreadStreaming(message.threadUuid) &&
+        isOptimisticMessageStub(message.message);
 
-        return getOpenInExploreUrl({
-            metricQuery: queryExecutionHandle.data.query.metricQuery,
-            projectUuid,
-            columnOrder: [
-                ...queryExecutionHandle.data.query.metricQuery.dimensions,
-                ...queryExecutionHandle.data.query.metricQuery.metrics,
-            ],
-            type: queryExecutionHandle.data.type,
-            vizConfig: message.vizConfigOutput,
-            rows: queryResults.rows,
-            pivotColumns:
-                // TODO: fix this using schema
-                message.vizConfigOutput &&
-                'breakdownByDimension' in message.vizConfigOutput &&
-                typeof message.vizConfigOutput.breakdownByDimension === 'string'
-                    ? [message.vizConfigOutput.breakdownByDimension]
-                    : undefined,
-        });
-    }, [
-        isQueryLoading,
-        isQueryError,
-        projectUuid,
-        queryExecutionHandle.data,
-        queryResults.rows,
-        message.vizConfigOutput,
-    ]);
+    const metricQuery = queryExecutionHandle.data?.query.metricQuery;
+    const vizConfig = message.vizConfigOutput;
+
+    if (!projectUuid) throw new Error(`Project Uuid not found`);
 
     return (
         <Stack
@@ -188,20 +193,9 @@ export const AssistantBubble: FC<{
                 borderStartStartRadius: '0px',
             }}
         >
-            {isLoading ? (
-                <Loader
-                    type="dots"
-                    color="gray"
-                    delayedMessage="Processing your request, this may take a moment"
-                />
-            ) : (
-                <MDEditor.Markdown
-                    source={message.message}
-                    style={{ backgroundColor: 'transparent' }}
-                />
-            )}
+            <AssistantBubbleContent message={message} />
 
-            {message.vizConfigOutput && message.metricQuery && (
+            {vizConfig && metricQuery && (
                 <Paper
                     withBorder
                     radius="md"
@@ -232,43 +226,16 @@ export const AssistantBubble: FC<{
                         </Stack>
                     ) : (
                         <AiChartVisualization
-                            query={queryExecutionHandle.data.query}
-                            type={queryExecutionHandle.data.type}
-                            vizConfig={message.vizConfigOutput}
                             results={queryResults}
+                            message={message}
+                            queryExecutionHandle={queryExecutionHandle}
+                            projectUuid={projectUuid}
                         />
                     )}
-                    <Stack gap="xs">
-                        <ErrorBoundary>
-                            {queryExecutionHandle.data &&
-                                queryExecutionHandle.data.type !==
-                                    AiChartType.CSV && (
-                                    <AgentVisualizationMetricsAndDimensions
-                                        metricQuery={
-                                            queryExecutionHandle.data.query
-                                                .metricQuery
-                                        }
-                                        fieldsMap={
-                                            queryExecutionHandle.data.query
-                                                .fields
-                                        }
-                                    />
-                                )}
-
-                            {message.filtersOutput && (
-                                <AgentVisualizationFilters
-                                    // TODO: fix this using schema
-                                    filters={
-                                        message.filtersOutput as FilterSchemaType
-                                    }
-                                />
-                            )}
-                        </ErrorBoundary>
-                    </Stack>
                 </Paper>
             )}
             <Group gap={0} display={isPreview ? 'none' : 'flex'}>
-                <CopyButton value={message.message}>
+                <CopyButton value={message.message ?? ''}>
                     {({ copied, copy }) => (
                         <ActionIcon
                             variant="subtle"
@@ -319,23 +286,6 @@ export const AssistantBubble: FC<{
                             }
                         />
                     </ActionIcon>
-                )}
-                {!isQueryLoading && !isQueryError && (
-                    <Button
-                        variant="subtle"
-                        color="gray"
-                        size="xs"
-                        aria-label="open in explore"
-                        leftSection={<MantineIcon icon={IconExternalLink} />}
-                        component={Link}
-                        to={openInExploreUrl}
-                        target="_blank"
-                        style={{
-                            color: '#868e96',
-                        }}
-                    >
-                        Continue exploring
-                    </Button>
                 )}
             </Group>
         </Stack>

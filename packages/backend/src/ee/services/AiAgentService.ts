@@ -2,30 +2,36 @@ import { subject } from '@casl/ability';
 import {
     AiAgentThread,
     AiAgentThreadSummary,
+    AiAgentUserPreferences,
     AiChartType,
     AiConversation,
     AiConversationMessage,
     AiDuplicateSlackPromptError,
     AiMetricQuery,
+    AiVizMetadata,
     AiWebAppPrompt,
     AnyType,
+    ApiAiAgentThreadCreateRequest,
+    ApiAiAgentThreadMessageCreateRequest,
+    ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageViz,
     ApiAiAgentThreadMessageVizQuery,
     ApiCreateAiAgent,
     ApiUpdateAiAgent,
+    ApiUpdateUserAgentPreferences,
     assertUnreachable,
     CatalogType,
     CommercialFeatureFlags,
     filterExploreByTags,
-    FilterSchemaType,
     ForbiddenError,
     isSlackPrompt,
     LightdashUser,
     NotFoundError,
-    NotImplementedError,
     QueryExecutionContext,
     SlackPrompt,
     UnexpectedServerError,
+    UpdateSlackResponse,
+    UpdateWebAppResponse,
     type SessionUser,
 } from '@lightdash/common';
 import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
@@ -42,8 +48,9 @@ import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagServic
 import { ProjectService } from '../../services/ProjectService/ProjectService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
-import { runAgent } from './ai/agents/agent';
+import { generateAgentResponse, streamAgentResponse } from './ai/agents/agent';
 import { generateEmbeddingsNameAndDescription } from './ai/embeds/embed';
+import { getModel } from './ai/models';
 import { getChatHistoryFromThreadMessages } from './ai/prompts/conversationHistory';
 import {
     GetExploreFn,
@@ -51,6 +58,8 @@ import {
     RunMiniMetricQueryFn,
     SearchFieldsFn,
     SendFileFn,
+    StoreToolCallFn,
+    StoreToolResultsFn,
     UpdateProgressFn,
 } from './ai/types/aiAgentDependencies';
 import { AiAgentExploreSummary } from './ai/types/aiAgentExploreSummary';
@@ -453,6 +462,113 @@ export class AiAgentService {
         };
     }
 
+    async createAgentThread(
+        user: SessionUser,
+        agentUuid: string,
+        body: ApiAiAgentThreadCreateRequest,
+    ) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        if (
+            user.ability.cannot(
+                'create',
+                subject('AiAgentThread', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const threadUuid = await this.aiAgentModel.createWebAppThread({
+            organizationUuid,
+            projectUuid: agent.projectUuid,
+            userUuid: user.userUuid,
+            createdFrom: 'web_app',
+            agentUuid,
+        });
+
+        if (body.prompt) {
+            await this.aiAgentModel.createWebAppPrompt({
+                threadUuid,
+                createdByUserUuid: user.userUuid,
+                prompt: body.prompt,
+            });
+        }
+
+        return this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+    }
+
+    async createAgentThreadMessage(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+        body: ApiAiAgentThreadMessageCreateRequest,
+    ): Promise<ApiAiAgentThreadMessageCreateResponse['results']> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const messageUuid = await this.aiAgentModel.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: user.userUuid,
+            prompt: body.prompt,
+        });
+
+        return this.aiAgentModel.findThreadMessage('user', {
+            organizationUuid,
+            threadUuid,
+            messageUuid,
+        });
+    }
+
     public async createAgent(user: SessionUser, body: ApiCreateAiAgent) {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -566,141 +682,30 @@ export class AiAgentService {
         });
     }
 
-    async scheduleGenerateAgentThreadResponse(
+    async streamAgentThreadResponse(
         user: SessionUser,
         {
             agentUuid,
-            threadUuid: threadUuidParam,
-            prompt,
+            threadUuid,
         }: {
             agentUuid: string;
-            threadUuid?: string;
-            prompt: string;
+            threadUuid: string;
         },
-    ) {
-        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
-        if (!isCopilotEnabled) {
-            throw new ForbiddenError('Copilot is not enabled');
+    ): Promise<ReturnType<typeof streamAgentResponse>> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
         }
 
-        const { organizationUuid } = user;
-        if (!organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
-        }
-
-        let threadUuid: string | undefined;
-
-        if (threadUuidParam) {
-            const thread = await this.aiAgentModel.getThread({
-                organizationUuid,
-                agentUuid,
-                threadUuid: threadUuidParam,
-            });
-            if (!thread) {
-                throw new NotFoundError(`Thread not found: ${threadUuidParam}`);
-            }
-            if (
-                user.ability.cannot(
-                    'view',
-                    subject('AiAgentThread', {
-                        organizationUuid,
-                        projectUuid: agent.projectUuid,
-                        userUuid: thread.user.uuid,
-                    }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
-            threadUuid = thread.uuid;
-        } else {
-            if (
-                user.ability.cannot(
-                    'create',
-                    subject('AiAgentThread', {
-                        organizationUuid,
-                        projectUuid: agent.projectUuid,
-                    }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
-            threadUuid = await this.aiAgentModel.createWebAppThread({
-                organizationUuid,
-                projectUuid: agent.projectUuid,
-                userUuid: user.userUuid,
-                createdFrom: 'web_app',
-                agentUuid,
-            });
-        }
-
-        if (!threadUuid) {
-            throw new Error('Failed to create agent thread');
-        }
-
-        const webAppPromptUuid = await this.aiAgentModel.createWebAppPrompt({
-            threadUuid,
-            createdByUserUuid: user.userUuid,
-            prompt,
-        });
-
-        if (!webAppPromptUuid) {
-            throw new Error('Failed to create agent thread prompt');
-        }
-
-        this.analytics.track({
-            event: threadUuidParam
-                ? 'ai_agent.web_message_received'
-                : 'ai_agent.web_thread_created',
-            userId: user.userUuid,
-            properties: {
-                projectId: agent.projectUuid,
-                organizationId: organizationUuid,
-                agentId: agent.uuid,
-                agentName: agent.name,
-            },
-        });
-
-        const { jobId } = await this.schedulerClient.aiAgentThreadGenerate({
-            agentUuid,
-            threadUuid,
-            promptUuid: webAppPromptUuid,
-            userUuid: user.userUuid,
-            organizationUuid,
-            projectUuid: agent.projectUuid,
-        });
-
-        return { jobId, threadUuid };
-    }
-
-    async generateAgentThreadResponse({
-        agentUuid,
-        threadUuid,
-        promptUuid,
-    }: {
-        agentUuid: string;
-        threadUuid: string;
-        promptUuid: string;
-    }): Promise<void> {
         const thread = await this.aiAgentModel.findThread(threadUuid);
         if (!thread) {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
 
-        const prompt = await this.aiAgentModel.findWebAppPrompt(promptUuid);
-        if (!prompt) {
-            throw new NotFoundError(`Prompt not found: ${promptUuid}`);
-        }
-
         const { organizationUuid, projectUuid } = thread;
+
+        if (thread.organizationUuid !== user.organizationUuid) {
+            throw new ForbiddenError();
+        }
 
         const threadMessages = await this.aiAgentModel.getThreadMessages(
             organizationUuid,
@@ -710,29 +715,35 @@ export class AiAgentService {
 
         if (threadMessages.length === 0) {
             throw new Error(
-                `No messages found in thread: ${threadUuid}. ${agentUuid} ${promptUuid}`,
+                `No messages found in thread: ${threadUuid}. ${agentUuid}`,
             );
         }
 
-        const user = await this.userModel.findSessionUserAndOrgByUuid(
-            prompt.createdByUserUuid,
-            organizationUuid,
+        const prompt = await this.aiAgentModel.findWebAppPrompt(
+            threadMessages.at(-1)!.ai_prompt_uuid,
         );
+
+        if (!prompt) {
+            throw new NotFoundError(
+                `Prompt not found: ${
+                    threadMessages[threadMessages.length - 1].ai_prompt_uuid
+                }`,
+            );
+        }
 
         try {
             const chatHistoryMessages =
                 getChatHistoryFromThreadMessages(threadMessages);
 
-            const response = await this.generateExploreResult(
+            const response = await this.generateOrStreamAgentResponse(
                 user,
                 chatHistoryMessages,
-                prompt,
+                {
+                    prompt,
+                    stream: true,
+                },
             );
-
-            await this.aiAgentModel.updateWebAppResponse({
-                promptUuid,
-                response,
-            });
+            return response;
         } catch (e) {
             Logger.error('Failed to generate agent thread response:', e);
             throw new Error('Failed to generate agent thread response');
@@ -778,6 +789,7 @@ export class AiAgentService {
             messageUuid,
         });
 
+        // @ts-ignore we can keep this runtime check just in case
         if (message.role === 'user') {
             throw new ForbiddenError(
                 'User messages are not supported for this endpoint',
@@ -829,9 +841,7 @@ export class AiAgentService {
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizConfig: vizConfig.config,
                     // TODO: validate before casting
-                    filters: message.filtersOutput
-                        ? (message.filtersOutput as FilterSchemaType)
-                        : null,
+                    filters: message.filtersOutput ?? undefined,
                 });
             case 'time_series_chart':
                 return renderTimeseriesChart({
@@ -839,9 +849,7 @@ export class AiAgentService {
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizConfig: vizConfig.config,
                     // TODO: validate before casting
-                    filters: message.filtersOutput
-                        ? (message.filtersOutput as FilterSchemaType)
-                        : null,
+                    filters: message.filtersOutput ?? undefined,
                 });
             case 'csv':
                 return renderCsvFile({
@@ -849,9 +857,7 @@ export class AiAgentService {
                         this.runAiMetricQuery(user, projectUuid, q),
                     config: vizConfig.config,
                     // TODO: validate before casting
-                    filters: message.filtersOutput
-                        ? (message.filtersOutput as FilterSchemaType)
-                        : null,
+                    filters: message.filtersOutput ?? undefined,
                     maxLimit: AI_DEFAULT_MAX_QUERY_LIMIT,
                 });
             default:
@@ -898,6 +904,7 @@ export class AiAgentService {
             messageUuid,
         });
 
+        // @ts-ignore we can keep this runtime check just in case
         if (message.role === 'user') {
             throw new ForbiddenError(
                 'User messages are not supported for this endpoint',
@@ -909,6 +916,19 @@ export class AiAgentService {
                 'Viz config or metric query not found for this message',
             );
         }
+
+        const metadata = {
+            title:
+                'title' in message.vizConfigOutput &&
+                typeof message.vizConfigOutput.title === 'string'
+                    ? message.vizConfigOutput.title
+                    : null,
+            description:
+                'description' in message.vizConfigOutput &&
+                typeof message.vizConfigOutput.description === 'string'
+                    ? message.vizConfigOutput.description
+                    : null,
+        } satisfies AiVizMetadata;
 
         let vizConfig: AiAgentVizConfig;
         if (isVerticalBarMetricChartConfig(message.vizConfigOutput)) {
@@ -946,10 +966,9 @@ export class AiAgentService {
             case 'vertical_bar_chart': {
                 const metricQuery = metricQueryVerticalBarChartMetric(
                     vizConfig.config,
-                    message.filtersOutput
-                        ? (message.filtersOutput as FilterSchemaType)
-                        : null,
+                    message.filtersOutput ?? undefined,
                 );
+
                 const query = await this.executeAsyncAiMetricQuery(
                     user,
                     projectUuid,
@@ -959,14 +978,13 @@ export class AiAgentService {
                 return {
                     type: AiChartType.VERTICAL_BAR_CHART,
                     query,
+                    metadata,
                 };
             }
             case 'time_series_chart': {
                 const metricQuery = metricQueryTimeSeriesChartMetric(
                     vizConfig.config,
-                    message.filtersOutput
-                        ? (message.filtersOutput as FilterSchemaType)
-                        : null,
+                    message.filtersOutput ?? undefined,
                 );
                 const query = await this.executeAsyncAiMetricQuery(
                     user,
@@ -977,15 +995,14 @@ export class AiAgentService {
                 return {
                     type: AiChartType.TIME_SERIES_CHART,
                     query,
+                    metadata,
                 };
             }
             case 'csv':
                 const metricQuery = await metricQueryCsv(
                     vizConfig.config,
                     AI_DEFAULT_MAX_QUERY_LIMIT,
-                    message.filtersOutput
-                        ? (message.filtersOutput as FilterSchemaType)
-                        : null,
+                    message.filtersOutput ?? undefined,
                 );
                 const query = await this.executeAsyncAiMetricQuery(
                     user,
@@ -995,6 +1012,7 @@ export class AiAgentService {
                 return {
                     type: AiChartType.CSV,
                     query,
+                    metadata,
                 };
             default:
                 return assertUnreachable(vizConfig, 'Invalid viz config');
@@ -1192,6 +1210,14 @@ export class AiAgentService {
             await this.slackClient.postFileToThread(args);
         };
 
+        const storeToolCall: StoreToolCallFn = async (data) => {
+            await this.aiAgentModel.createToolCall(data);
+        };
+
+        const storeToolResults: StoreToolResultsFn = async (data) => {
+            await this.aiAgentModel.createToolResults(data);
+        };
+
         return {
             getExplore,
             searchFields: this.lightdashConfig.ai.copilot.embeddingSearchEnabled
@@ -1201,14 +1227,52 @@ export class AiAgentService {
             getPrompt,
             runMiniMetricQuery,
             sendFile,
+            storeToolCall,
+            storeToolResults,
         };
     }
 
-    async generateExploreResult(
+    async generateOrStreamAgentResponse(
         user: SessionUser,
         messageHistory: CoreMessage[],
-        slackOrWebAppPrompt: SlackPrompt | AiWebAppPrompt,
-    ): Promise<string> {
+        options: {
+            prompt: AiWebAppPrompt;
+            stream: true;
+        },
+    ): Promise<ReturnType<typeof streamAgentResponse>>;
+    async generateOrStreamAgentResponse(
+        user: SessionUser,
+        messageHistory: CoreMessage[],
+        options: {
+            prompt: AiWebAppPrompt;
+            stream: false;
+        },
+    ): Promise<string>;
+    async generateOrStreamAgentResponse(
+        user: SessionUser,
+        messageHistory: CoreMessage[],
+        options: {
+            prompt: SlackPrompt;
+            stream: false;
+        },
+    ): Promise<string>;
+    async generateOrStreamAgentResponse(
+        user: SessionUser,
+        messageHistory: CoreMessage[],
+        options:
+            | {
+                  prompt: AiWebAppPrompt;
+                  stream: true;
+              }
+            | {
+                  prompt: SlackPrompt;
+                  stream: false;
+              }
+            | {
+                  prompt: AiWebAppPrompt;
+                  stream: false;
+              },
+    ): Promise<string | ReturnType<typeof streamAgentResponse>> {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
         }
@@ -1217,17 +1281,18 @@ export class AiAgentService {
             throw new Error('AI Copilot is not enabled');
         }
 
-        const { projectUuid } = slackOrWebAppPrompt;
+        const { prompt, stream } = options;
+        const { projectUuid } = prompt;
 
         const agentSettings =
-            'slackChannelId' in slackOrWebAppPrompt
+            'slackChannelId' in prompt
                 ? await this.aiAgentModel.getAgentBySlackChannelId({
                       organizationUuid: user.organizationUuid,
-                      slackChannelId: slackOrWebAppPrompt.slackChannelId,
+                      slackChannelId: prompt.slackChannelId,
                   })
                 : await this.aiAgentModel.getAgent({
-                      organizationUuid: slackOrWebAppPrompt.organizationUuid,
-                      agentUuid: slackOrWebAppPrompt.agentUuid!,
+                      organizationUuid: prompt.organizationUuid,
+                      agentUuid: prompt.agentUuid!,
                   });
 
         const {
@@ -1237,9 +1302,11 @@ export class AiAgentService {
             getPrompt,
             runMiniMetricQuery,
             sendFile,
+            storeToolCall,
+            storeToolResults,
         } = this.getAiAgentDependencies(
             user,
-            slackOrWebAppPrompt,
+            prompt,
             agentSettings?.tags ?? null,
         );
 
@@ -1249,33 +1316,44 @@ export class AiAgentService {
             agentSettings?.tags ?? null,
         );
 
-        if (!this.lightdashConfig.ai.copilot.providers) {
-            throw new Error('AI Copilot providers not found');
-        }
+        const model = getModel(this.lightdashConfig.ai.copilot);
 
-        return runAgent({
-            args: {
-                provider: 'openai',
-                modelName: 'gpt-4.1',
-                providerConfig: this.lightdashConfig.ai.copilot.providers,
-                agentName: agentSettings.name,
-                instruction: agentSettings.instruction,
-                messageHistory,
-                aiAgentExploreSummaries,
-                promptUuid: slackOrWebAppPrompt.promptUuid,
-                maxLimit: this.lightdashConfig.query.maxLimit,
-            },
-            dependencies: {
-                getExplore,
-                searchFields,
-                runMiniMetricQuery,
-                getPrompt,
-                sendFile,
-                // avoid binding
-                updateProgress: (args) => updateProgress(args),
-                updatePrompt: (args) =>
-                    this.aiAgentModel.updateModelResponse(args),
-            },
+        const args = {
+            model,
+            agentUuid: agentSettings.uuid,
+            threadUuid: prompt.threadUuid,
+            promptUuid: prompt.promptUuid,
+            agentName: agentSettings.name,
+            instruction: agentSettings.instruction,
+            messageHistory,
+            aiAgentExploreSummaries,
+            maxLimit: this.lightdashConfig.query.maxLimit,
+        };
+
+        const dependencies = {
+            getExplore,
+            searchFields,
+            runMiniMetricQuery,
+            getPrompt,
+            sendFile,
+            storeToolCall,
+            storeToolResults,
+            // avoid binding
+            updateProgress: (progress: string) => updateProgress(progress),
+            updatePrompt: (
+                update: UpdateSlackResponse | UpdateWebAppResponse,
+            ) => this.aiAgentModel.updateModelResponse(update),
+        };
+
+        if (stream) {
+            return streamAgentResponse({
+                args,
+                dependencies,
+            });
+        }
+        return generateAgentResponse({
+            args,
+            dependencies,
         });
     }
 
@@ -1462,10 +1540,13 @@ export class AiAgentService {
             const chatHistoryMessages =
                 getChatHistoryFromThreadMessages(threadMessages);
 
-            response = await this.generateExploreResult(
+            response = await this.generateOrStreamAgentResponse(
                 user,
                 chatHistoryMessages,
-                slackPrompt,
+                {
+                    prompt: slackPrompt,
+                    stream: false,
+                },
             );
         } catch (e) {
             await this.slackClient.postMessage({
@@ -1717,13 +1798,16 @@ export class AiAgentService {
             throw new Error('Prompt not found');
         }
 
-        const response = await this.generateExploreResult(
+        const response = await this.generateOrStreamAgentResponse(
             user,
             [{ role: 'user', content: question }],
-            webAppPrompt,
+            {
+                prompt: webAppPrompt,
+                stream: false,
+            },
         );
 
-        await this.aiAgentModel.updateWebAppResponse({
+        await this.aiAgentModel.updateModelResponse({
             promptUuid: webAppPrompt.promptUuid,
             response,
         });
@@ -1751,5 +1835,70 @@ export class AiAgentService {
             prompt: finalPrompt,
             rows,
         };
+    }
+
+    async getUserAgentPreferences(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AiAgentUserPreferences | null> {
+        const { organizationUuid, userUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError(`Organization not found`);
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError(`Copilot not enabled`);
+        }
+
+        const project = await this.projectService.getProject(projectUuid, user);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError(
+                'Project does not belong to this organization',
+            );
+        }
+
+        return this.aiAgentModel.getUserAgentPreferences({
+            userUuid,
+            projectUuid,
+        });
+    }
+
+    async updateUserAgentPreferences(
+        user: SessionUser,
+        projectUuid: string,
+        body: ApiUpdateUserAgentPreferences,
+    ): Promise<void> {
+        const { organizationUuid, userUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const project = await this.projectService.getProject(projectUuid, user);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError(
+                'Project does not belong to this organization',
+            );
+        }
+
+        const agent = await this.getAgent(
+            user,
+            body.defaultAgentUuid,
+            projectUuid,
+        );
+        if (!agent) {
+            throw new NotFoundError('Agent not found');
+        }
+
+        await this.aiAgentModel.updateUserAgentPreferences({
+            userUuid,
+            projectUuid,
+            defaultAgentUuid: body.defaultAgentUuid,
+        });
     }
 }

@@ -11,6 +11,7 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
+    WarehouseTypes,
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
 } from '@lightdash/common';
@@ -22,13 +23,17 @@ import {
     createConnection,
     SnowflakeError,
     type FileAndStageBindStatement,
-    type QueryStatus,
     type RowStatement,
 } from 'snowflake-sdk';
 import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
 import { WarehouseCatalog } from '../types';
+import {
+    DEFAULT_BATCH_SIZE,
+    processPromisesInBatches,
+} from '../utils/processPromisesInBatches';
 import WarehouseBaseClient from './WarehouseBaseClient';
+import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
 const assertIsSnowflakeLoggingLevel = (
     x: string | undefined,
@@ -132,13 +137,34 @@ const parseRow = (row: Record<string, AnyType>) =>
     );
 const parseRows = (rows: Record<string, AnyType>[]) => rows.map(parseRow);
 
+export class SnowflakeSqlBuilder extends WarehouseBaseSqlBuilder {
+    readonly type = WarehouseTypes.SNOWFLAKE;
+
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.SNOWFLAKE;
+    }
+
+    getMetricSql(sql: string, metric: Metric): string {
+        switch (metric.type) {
+            case MetricType.PERCENTILE:
+                return `PERCENTILE_CONT(${
+                    (metric.percentile ?? 50) / 100
+                }) WITHIN GROUP (ORDER BY ${sql})`;
+            case MetricType.MEDIAN:
+                return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${sql})`;
+            default:
+                return super.getMetricSql(sql, metric);
+        }
+    }
+}
+
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
     connectionOptions: ConnectionOptions;
 
     quotedIdentifiersIgnoreCase?: boolean;
 
     constructor(credentials: CreateSnowflakeCredentials) {
-        super(credentials);
+        super(credentials, new SnowflakeSqlBuilder(credentials.startOfWeek));
 
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
             this.quotedIdentifiersIgnoreCase =
@@ -155,7 +181,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             };
         } else if (
             credentials.privateKey &&
-            credentials.authenticationType === 'private_key'
+            (!credentials.password ||
+                credentials.authenticationType === 'private_key')
         ) {
             if (!credentials.privateKeyPass) {
                 authenticationOptions = {
@@ -246,8 +273,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             );
         }
 
-        if (isWeekDay(this.startOfWeek)) {
-            const snowflakeStartOfWeekIndex = this.startOfWeek + 1; // 1 (Monday) to 7 (Sunday):
+        const startOfWeek = this.getStartOfWeek();
+        if (isWeekDay(startOfWeek)) {
+            const snowflakeStartOfWeekIndex = startOfWeek + 1; // 1 (Monday) to 7 (Sunday):
             sqlStatements.push(
                 `ALTER SESSION SET WEEK_START = ${snowflakeStartOfWeekIndex};`,
             );
@@ -582,12 +610,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             table: string;
         }[],
     ) {
-        const tablesMetadataPromises = config.map(
-            ({ database, schema, table }) =>
+        const tablesMetadata = await processPromisesInBatches(
+            config,
+            DEFAULT_BATCH_SIZE,
+            async ({ database, schema, table }) =>
                 this.runTableCatalogQuery(database, schema, table),
         );
-
-        const tablesMetadata = await Promise.all(tablesMetadataPromises);
 
         return tablesMetadata.reduce<WarehouseCatalog>((acc, tableMetadata) => {
             if (tableMetadata) {
@@ -617,31 +645,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             }
             return acc;
         }, {});
-    }
-
-    getStringQuoteChar() {
-        return "'";
-    }
-
-    getEscapeStringQuoteChar() {
-        return '\\';
-    }
-
-    getAdapterType(): SupportedDbtAdapter {
-        return SupportedDbtAdapter.SNOWFLAKE;
-    }
-
-    getMetricSql(sql: string, metric: Metric) {
-        switch (metric.type) {
-            case MetricType.PERCENTILE:
-                return `PERCENTILE_CONT(${
-                    (metric.percentile ?? 50) / 100
-                }) WITHIN GROUP (ORDER BY ${sql})`;
-            case MetricType.MEDIAN:
-                return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${sql})`;
-            default:
-                return super.getMetricSql(sql, metric);
-        }
     }
 
     async getAllTables() {

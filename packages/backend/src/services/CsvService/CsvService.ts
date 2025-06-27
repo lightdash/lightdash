@@ -4,6 +4,7 @@ import {
     AnyType,
     ApiSqlQueryResults,
     applyDimensionOverrides,
+    CustomSqlQueryForbiddenError,
     DashboardFilters,
     DateGranularity,
     DimensionType,
@@ -51,7 +52,6 @@ import * as fsPromise from 'fs/promises';
 import isNil from 'lodash/isNil';
 import moment from 'moment';
 import { nanoid } from 'nanoid';
-import { createInterface } from 'readline';
 import {
     pipeline,
     Readable,
@@ -83,7 +83,8 @@ import {
     isRowValueDate,
     isRowValueTimestamp,
     sanitizeGenericFileName,
-} from '../../utils/FileDownloadUtils';
+    streamJsonlData,
+} from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
@@ -154,6 +155,37 @@ export const getSchedulerCsvLimit = (
 };
 
 export class CsvService extends BaseService {
+    // Helper method to escape CSV values
+    private static escapeCsvValue(value: AnyType): string {
+        if (value === null || value === undefined) return '';
+        return `"${String(value).replace(/"/g, '""')}"`;
+    }
+
+    // Helper method to process a single JSON line to CSV
+    private static processJsonLineToCsv(
+        line: string,
+        itemMap: ItemsMap,
+        onlyRaw: boolean,
+        sortedFieldIds: string[],
+    ): string | null {
+        if (!line.trim()) return null;
+
+        try {
+            const jsonRow = JSON.parse(line.trim());
+            const csvRow = CsvService.convertRowToCsv(
+                jsonRow,
+                itemMap,
+                onlyRaw,
+                sortedFieldIds,
+            );
+
+            return csvRow.map(CsvService.escapeCsvValue).join(',');
+        } catch (error) {
+            Logger.debug(`Skipping invalid JSON line: ${error}`);
+            return null;
+        }
+    }
+
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -233,8 +265,6 @@ export class CsvService extends BaseService {
         });
     }
 
-    static sanitizeFileName = sanitizeGenericFileName;
-
     static generateFileId(
         fileName: string,
         truncated: boolean = false,
@@ -249,7 +279,9 @@ export class CsvService extends BaseService {
     }
 
     static isValidCsvFileId(fileId: string): boolean {
-        return /^csv-(incomplete_results-)?[a-z0-9_]+-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{4}\.csv$/.test(
+        // Updated regex to allow Unicode characters, spaces, mixed case, and common punctuation
+        // This matches our new sanitizeGenericFileName approach
+        return /^csv-(incomplete_results-)?[^/\\:*?"<>|]+-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{4}\.csv$/.test(
             fileId,
         );
     }
@@ -272,7 +304,6 @@ export class CsvService extends BaseService {
             delimiter: ',',
             header: true,
             columns: csvHeader,
-            bom: true,
         });
 
         const rowTransformer = new Transform({
@@ -296,6 +327,10 @@ export class CsvService extends BaseService {
 
         // Full pipeline - all streams connected with automatic backpressure
         return new Promise((resolve, reject) => {
+            // Write BOM before starting the pipeline
+            const bomBuffer = Buffer.from('\uFEFF', 'utf8');
+            writeStream.write(bomBuffer);
+
             pipeline(
                 readStream,
                 rowTransformer,
@@ -318,10 +353,8 @@ export class CsvService extends BaseService {
     }
 
     /**
-     * Stream S3 JSONL data to CSV file
-     * This method is specifically designed to handle JSONL data from S3 storage
-     * and convert it to CSV format.
-     * Uses the proven ExcelService streaming pattern with shared streamJsonlData utility.
+     * Stream JSONL data to CSV file with proper streaming patterns
+     * Processes data row-by-row to minimize memory usage
      */
     static async streamJsonlRowsToFile(
         onlyRaw: boolean,
@@ -334,72 +367,66 @@ export class CsvService extends BaseService {
         }: { readStream: Readable; writeStream: Writable },
     ): Promise<{ truncated: boolean }> {
         return new Promise((resolve, reject) => {
-            const stringifier = stringify({
-                delimiter: ',',
-                header: true,
-                columns: csvHeader,
-                bom: true,
-            });
+            // Write CSV header with BOM immediately
+            const headerWithBOM = Buffer.concat([
+                Buffer.from('\uFEFF', 'utf8'),
+                Buffer.from(`${csvHeader.join(',')}\n`, 'utf8'),
+            ]);
+            writeStream.write(headerWithBOM);
 
-            let truncated = false;
-            let waitingForDrain = false;
+            let lineBuffer = '';
+            let rowCount = 0;
 
-            // Define the drain handler outside the loop to avoid ESLint no-loop-func warning
-            const handleDrain = () => {
-                waitingForDrain = false;
-                stringifier.resume();
-            };
+            readStream.on('data', (chunk: Buffer) => {
+                lineBuffer += chunk.toString();
+                const lines = lineBuffer.split('\n');
 
-            stringifier.on('readable', () => {
-                let chunk;
-                // eslint-disable-next-line no-cond-assign
-                while ((chunk = stringifier.read()) !== null) {
-                    /*
-                     * CRITICAL BACKPRESSURE HANDLING:
-                     * writeStream.write() returns false when the internal buffer is full.
-                     * This means the destination (file/S3) can't keep up with data production.
-                     *
-                     * This implements proper stream backpressure - essential for
-                     * handling large CSV files without memory issues.
-                     */
-                    if (!writeStream.write(chunk)) {
-                        stringifier.pause();
-                        // Only add drain listener if we're not already waiting for one
-                        if (!waitingForDrain) {
-                            waitingForDrain = true;
-                            writeStream.once('drain', handleDrain);
-                        }
-                        break;
-                    }
-                }
-            });
+                // Keep last incomplete line in buffer
+                lineBuffer = lines.pop() || '';
 
-            stringifier.on('error', (err) => {
-                Logger.error(`Stringifier failed ${err}`);
-                reject(err);
-            });
-
-            stringifier.on('finish', () => {
-                writeStream.end();
-                resolve({ truncated });
-            });
-
-            CsvService.streamJsonlData({
-                readStream,
-                onRow: (parsedRow) => {
-                    const csvRow = CsvService.convertRowToCsv(
-                        parsedRow,
+                // Process complete lines
+                for (const line of lines) {
+                    const csvString = CsvService.processJsonLineToCsv(
+                        line,
                         itemMap,
                         onlyRaw,
                         sortedFieldIds,
                     );
-                    stringifier.write(csvRow);
-                },
-                onComplete: (_, isTruncated) => {
-                    truncated = isTruncated;
-                    stringifier.end();
-                },
-            }).catch(reject);
+
+                    if (csvString) {
+                        writeStream.write(`${csvString}\n`);
+                        rowCount += 1;
+                    }
+                }
+            });
+
+            readStream.on('end', () => {
+                // Process any remaining line in buffer
+                const csvString = CsvService.processJsonLineToCsv(
+                    lineBuffer,
+                    itemMap,
+                    onlyRaw,
+                    sortedFieldIds,
+                );
+
+                if (csvString) {
+                    writeStream.write(`${csvString}\n`);
+                    rowCount += 1;
+                }
+
+                Logger.debug(
+                    `streamJsonlRowsToFile: Processed ${rowCount} rows successfully`,
+                );
+                resolve({ truncated: false });
+            });
+
+            readStream.on('error', (error) => {
+                Logger.error(
+                    'streamJsonlRowsToFile: Read stream error:',
+                    error,
+                );
+                reject(error);
+            });
         });
     }
 
@@ -515,8 +542,11 @@ export class CsvService extends BaseService {
     }): Promise<AttachmentUrl> {
         const fileId = CsvService.generateFileId(fileName, truncated);
         const filePath = `/tmp/${fileId}`;
-        const csvWithBOM = `\uFEFF${csvContent}`;
-        await fsPromise.writeFile(filePath, csvWithBOM, 'utf-8');
+        const csvWithBOM = Buffer.concat([
+            Buffer.from('\uFEFF', 'utf8'),
+            Buffer.from(csvContent, 'utf8'),
+        ]);
+        await fsPromise.writeFile(filePath, csvWithBOM);
 
         if (this.s3Client.isEnabled()) {
             const s3Url = await this.s3Client.uploadCsv(csvContent, fileId);
@@ -1084,9 +1114,7 @@ This method can be memory intensive
                 }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         // If the user can't change the csv limit, default csvLimit to undefined
@@ -1157,9 +1185,7 @@ This method can be memory intensive
                 }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const baseAnalyticsProperties: DownloadCsv['properties'] = {
@@ -1429,7 +1455,7 @@ This method can be memory intensive
                 numCharts: csvFiles.length,
             },
         });
-        const zipFileName = `${CsvService.sanitizeFileName(
+        const zipFileName = `${sanitizeGenericFileName(
             dashboard.name,
         )}-${moment().format('YYYY-MM-DD-HH-mm-ss-SSSS')}.zip`;
         this.logger.info(
@@ -1477,19 +1503,37 @@ This method can be memory intensive
             pivotConfig,
         } = options;
 
-        // Load all rows from the results file using shared streaming utility
+        // Load rows from the results file using shared streaming utility
+        // Use the same logic as regular CSV exports - respect csvCellsLimit with field count
         const readStream = await storageClient.getDowloadStream(
             resultsFileName,
         );
-        const { results: rows, truncated } = await CsvService.streamJsonlData<
+
+        const fieldCount = Object.keys(fields).length;
+        const cellsLimit = this.lightdashConfig.query?.csvCellsLimit || 100000;
+
+        // Use standard csvCellsLimit calculation - same as original downloadPivotTableCsv
+        const maxRows = Math.floor(cellsLimit / fieldCount);
+
+        const { results: rows, truncated } = await streamJsonlData<
             Record<string, unknown>
         >({
             readStream,
-            onRow: (parsedRow) => parsedRow, // Just collect all rows
+            onRow: (parsedRow: Record<string, unknown>) => parsedRow, // Just collect all rows
+            maxLines: maxRows, // Use standard csvCellsLimit logic
         });
 
         if (rows.length === 0) {
             throw new Error('No data found in results file');
+        }
+
+        // Use same truncation logic as original downloadPivotTableCsv
+        const finalTruncated = truncated || this.couldBeTruncated(rows);
+
+        if (finalTruncated) {
+            Logger.warn(
+                `Pivot CSV export truncated: loaded ${rows.length} rows (csvCellsLimit: ${cellsLimit}, fieldCount: ${fieldCount})`,
+            );
         }
 
         const fileName =
@@ -1504,73 +1548,13 @@ This method can be memory intensive
             pivotConfig,
             exploreId: metricQuery.exploreName || 'explore',
             onlyRaw,
-            truncated,
+            truncated: finalTruncated,
             customLabels,
         });
 
         return {
             fileUrl: attachmentUrl.path,
-            truncated,
+            truncated: finalTruncated,
         };
-    }
-
-    /**
-     * Shared utility for streaming JSONL data from storage
-     * Can be used for both row-by-row processing and collecting all rows
-     */
-    static async streamJsonlData<T>({
-        readStream,
-        onRow,
-        onComplete,
-    }: {
-        readStream: Readable;
-        onRow?: (
-            parsedRow: Record<string, unknown>,
-            lineCount: number,
-        ) => T | void;
-        onComplete?: (results: T[], truncated: boolean) => void;
-    }): Promise<{ results: T[]; truncated: boolean }> {
-        return new Promise((resolve, reject) => {
-            const lineReader = createInterface({
-                input: readStream,
-                crlfDelay: Infinity,
-            });
-
-            let lineCount = 0;
-            const truncated = false; // CSVs can contain millions of rows, no need to truncate
-            const results: T[] = [];
-
-            lineReader.on('line', (line: string) => {
-                if (!line.trim()) return;
-                lineCount += 1;
-
-                try {
-                    const parsedRow = JSON.parse(line);
-                    if (onRow) {
-                        const result = onRow(parsedRow, lineCount);
-                        if (result !== undefined) {
-                            results.push(result);
-                        }
-                    }
-                } catch (error) {
-                    Logger.error(
-                        `Error parsing line ${lineCount}: ${getErrorMessage(
-                            error,
-                        )}`,
-                    );
-                }
-            });
-
-            lineReader.on('close', async () => {
-                if (onComplete) {
-                    await onComplete(results, truncated);
-                }
-                resolve({ results, truncated });
-            });
-
-            lineReader.on('error', (error) => {
-                reject(error);
-            });
-        });
     }
 }

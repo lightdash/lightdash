@@ -1,9 +1,11 @@
+import { CommercialFeatureFlags } from '@lightdash/common';
 import {
     Avatar,
     Box,
     Button,
     Center,
     List,
+    Loader,
     Paper,
     Stack,
     Text,
@@ -19,9 +21,11 @@ import {
 } from '@tabler/icons-react';
 import { Link, Navigate, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
-import { useDefaultAgent } from '../../features/aiCopilot/hooks/useDefaultAgent';
+import { useProjectAiAgents } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { useGetUserAgentPreferences } from '../../features/aiCopilot/hooks/useUserAgentPreferences';
 
 const AGENT_FEATURES = [
     {
@@ -54,18 +58,62 @@ const AGENT_FEATURES = [
     },
 ] as const;
 
+const AiPageLoading = () => (
+    <AiAgentPageLayout>
+        <Center h="100%">
+            <Loader color="gray" />
+        </Center>
+    </AiAgentPageLayout>
+);
+
 const AgentsWelcome = () => {
     const { projectUuid } = useParams();
     const canCreateAgent = useAiAgentPermission({ action: 'manage' });
-    const { defaultAgentUuid } = useDefaultAgent(projectUuid);
+    const aiCopilotFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiCopilot);
 
-    if (defaultAgentUuid) {
+    const isAiAgentEnabled =
+        aiCopilotFlagQuery.isSuccess && aiCopilotFlagQuery.data.enabled;
+
+    const agentsQuery = useProjectAiAgents(projectUuid, {
+        enabled: isAiAgentEnabled,
+    });
+    const userAgentPreferencesQuery = useGetUserAgentPreferences(projectUuid, {
+        enabled: isAiAgentEnabled,
+    });
+
+    if (aiCopilotFlagQuery.isLoading) {
+        return <AiPageLoading />;
+    }
+    if (!isAiAgentEnabled) {
+        return <Navigate to="/" replace />;
+    }
+
+    if (agentsQuery.isError || userAgentPreferencesQuery.isError) {
+        return <div>something went wrong...</div>;
+    }
+
+    if (agentsQuery.isLoading || userAgentPreferencesQuery.isLoading) {
+        return <AiPageLoading />;
+    }
+
+    if (userAgentPreferencesQuery.data?.defaultAgentUuid) {
         return (
             <Navigate
-                to={`/projects/${projectUuid}/ai-agents/${defaultAgentUuid}`}
+                to={`/projects/${projectUuid}/ai-agents/${userAgentPreferencesQuery.data.defaultAgentUuid}`}
+                replace
             />
         );
     }
+
+    if (agentsQuery.data.length > 0) {
+        return (
+            <Navigate
+                to={`/projects/${projectUuid}/ai-agents/${agentsQuery.data[0].uuid}`}
+                replace
+            />
+        );
+    }
+
     return (
         <AiAgentPageLayout>
             <Center h="80%">
