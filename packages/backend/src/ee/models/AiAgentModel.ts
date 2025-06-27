@@ -16,7 +16,6 @@ import {
     CreateSlackThread,
     CreateWebAppPrompt,
     CreateWebAppThread,
-    isFindFieldsToolArgs,
     isToolName,
     SlackPrompt,
     ToolName,

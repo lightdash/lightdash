@@ -27,7 +27,8 @@ const FilterRuleDisplay: FC<{
             type: DimensionType | MetricType | TableCalculationType;
         }
     >;
-}> = ({ rule }) => {
+    compact?: boolean;
+}> = ({ rule, compact = false }) => {
     const displayName = friendlyName(rule.target.fieldId);
 
     const filterType = getFilterTypeFromItemType(rule.target.type);
@@ -36,7 +37,7 @@ const FilterRuleDisplay: FC<{
 
     return (
         <Button
-            size="xs"
+            size={compact ? 'compact-xs' : 'xs'}
             variant="default"
             className={classes.filterButton}
             styles={{
@@ -68,7 +69,10 @@ const FilterRuleDisplay: FC<{
     );
 };
 
-const FilterGroupDisplay: FC<{ group: FilterGroup }> = ({ group }) => {
+const FilterGroupDisplay: FC<{ group: FilterGroup; compact?: boolean }> = ({
+    group,
+    compact = false,
+}) => {
     const rules = getFilterRulesFromGroup(group);
     const combinator = getFilterGroupItemsPropertyName(group);
 
@@ -79,6 +83,7 @@ const FilterGroupDisplay: FC<{ group: FilterGroup }> = ({ group }) => {
             {rules.map((rule, index) => (
                 <Flex key={rule.id} align="center" gap={4}>
                     <FilterRuleDisplay
+                        compact={compact}
                         rule={
                             rule as FilterRule<
                                 FilterOperator,
@@ -104,9 +109,10 @@ const FilterGroupDisplay: FC<{ group: FilterGroup }> = ({ group }) => {
 
 type Props = {
     filters: Filters;
+    compact?: boolean;
 };
 
-const AgentVisualizationFilters: FC<Props> = ({ filters }) => {
+const AgentVisualizationFilters: FC<Props> = ({ filters, compact = false }) => {
     if (!filters || (!filters.dimensions && !filters.metrics)) {
         return null;
     }
@@ -133,10 +139,16 @@ const AgentVisualizationFilters: FC<Props> = ({ filters }) => {
         <>
             <Flex gap="xs" wrap="wrap" align="center">
                 {hasDimensionFilters && filters.dimensions && (
-                    <FilterGroupDisplay group={filters.dimensions} />
+                    <FilterGroupDisplay
+                        group={filters.dimensions}
+                        compact={compact}
+                    />
                 )}
                 {hasMetricFilters && filters.metrics && (
-                    <FilterGroupDisplay group={filters.metrics} />
+                    <FilterGroupDisplay
+                        group={filters.metrics}
+                        compact={compact}
+                    />
                 )}
             </Flex>
         </>
