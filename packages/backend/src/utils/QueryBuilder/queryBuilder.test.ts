@@ -673,4 +673,41 @@ describe('Query builder', () => {
             replaceWhitespace(EXPECTED_SQL_WITH_CUSTOM_SQL_DIMENSION),
         );
     });
+
+    it('should build metric query with custom bin dimension with a CTE and a metric inflation warning', () => {
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: {
+                ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                compiledCustomDimensions: [
+                    {
+                        id: 'age_range',
+                        name: 'Age range',
+                        type: CustomDimensionType.BIN,
+                        dimensionId: 'table1_dim1',
+                        table: 'table1',
+                        binType: BinType.FIXED_NUMBER,
+                        binNumber: 10,
+                    },
+                ],
+                metrics: ['table1_metric1', 'table2_metric3'],
+            },
+            warehouseClient: warehouseClientMock,
+            userAttributes: {},
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Check that the query was generated correctly
+        expect(replaceWhitespace(result.query)).toContain(
+            replaceWhitespace('WITH age_range_cte AS'),
+        );
+
+        // Check that a warning was generated
+        expect(result.warnings).toHaveLength(1);
+        expect(result.warnings[0].message).toContain(
+            'could be inflated due to join relationships',
+        );
+        expect(result.warnings[0].tables).toContain('table2');
+    });
 });

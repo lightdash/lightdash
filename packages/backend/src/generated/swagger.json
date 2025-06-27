@@ -5315,16 +5315,16 @@
             },
             "AiAgentToolCall": {
                 "properties": {
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
                     "toolArgs": {
                         "additionalProperties": true,
                         "type": "object"
                     },
                     "toolName": {
                         "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "toolCallId": {
                         "type": "string"
@@ -5337,9 +5337,9 @@
                     }
                 },
                 "required": [
-                    "createdAt",
                     "toolArgs",
                     "toolName",
+                    "createdAt",
                     "toolCallId",
                     "promptUuid",
                     "uuid"
@@ -5375,8 +5375,7 @@
                         "nullable": true
                     },
                     "createdAt": {
-                        "type": "string",
-                        "nullable": true
+                        "type": "string"
                     },
                     "message": {
                         "type": "string",
@@ -17624,7 +17623,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1760.3",
+        "version": "0.1765.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

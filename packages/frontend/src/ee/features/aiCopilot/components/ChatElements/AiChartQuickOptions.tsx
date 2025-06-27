@@ -63,7 +63,7 @@ export const AiChartQuickOptions = ({
 
     return (
         <Fragment>
-            <Menu>
+            <Menu withArrow>
                 <Menu.Target>
                     <ActionIcon size="sm" variant="subtle" color="gray">
                         <MantineIcon icon={IconDots} size="lg" color="gray" />

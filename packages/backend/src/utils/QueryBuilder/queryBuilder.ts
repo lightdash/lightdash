@@ -70,6 +70,14 @@ export type BuildQueryProps = {
 export class MetricQueryBuilder {
     constructor(private args: BuildQueryProps) {}
 
+    static buildCtesSQL(ctes: string[]) {
+        return ctes.length > 0 ? `WITH ${ctes.join(',\n')}` : undefined;
+    }
+
+    static assembleSqlParts(parts: Array<string | undefined>) {
+        return parts.filter((l) => l !== undefined).join('\n');
+    }
+
     private getDimensionsFilterSQL() {
         const {
             explore,
@@ -355,6 +363,37 @@ export class MetricQueryBuilder {
         };
     }
 
+    private getTableCalculationsSQL(): {
+        selects: string[];
+        filtersSQL: string | undefined;
+    } {
+        const { compiledMetricQuery, warehouseClient } = this.args;
+        const { filters } = compiledMetricQuery;
+        const fieldQuoteChar = getFieldQuoteChar(
+            warehouseClient.credentials.type,
+        );
+
+        // Selects
+        const selects = compiledMetricQuery.compiledTableCalculations.map(
+            (tableCalculation) => {
+                const alias = tableCalculation.name;
+                return `  ${tableCalculation.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
+            },
+        );
+
+        // Filters
+        const tableCalculationFilters = this.getNestedFilterSQLFromGroup(
+            filters.tableCalculations,
+        );
+
+        return {
+            selects,
+            filtersSQL: tableCalculationFilters
+                ? ` WHERE ${tableCalculationFilters}`
+                : undefined,
+        };
+    }
+
     private getNestedDimensionFilterSQLFromModelFilters(
         table: CompiledTable,
         dimensionsFilterGroup: FilterGroup | undefined,
@@ -597,35 +636,29 @@ export class MetricQueryBuilder {
         return `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
     }
 
-    /**
-     * Compiles a database query based on the provided metric query, explores, user attributes, and warehouse-specific configurations.
-     *
-     * This method processes dimensions, metrics, filters, and joins across multiple dataset definitions to generate
-     * a complete SQL query string tailored for the specific warehouse type and environment. Additionally, it ensures
-     * field validation and substitution of user-specific attributes for dynamic query generation.
-     *
-     * @return {CompiledQuery} The compiled query object containing the SQL string and meta information ready for execution.
-     */
-    public compileQuery(): CompiledQuery {
+    private getJoinsSQL({
+        tablesReferencedInDimensions,
+        tablesReferencedInMetrics,
+    }: {
+        tablesReferencedInDimensions: string[];
+        tablesReferencedInMetrics: string[];
+    }): {
+        joinSQL: string;
+        tables: Set<string>;
+    } {
         const {
             explore,
-            compiledMetricQuery,
             warehouseClient,
             intrinsicUserAttributes,
             userAttributes = {},
         } = this.args;
-        const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
-        const { metrics, filters } = compiledMetricQuery;
         const fieldQuoteChar = getFieldQuoteChar(
             warehouseClient.credentials.type,
         );
 
-        const dimensionsSQL = this.getDimensionsSQL();
-        const metricsSQL = this.getMetricsSQL();
-
         const selectedTables = new Set<string>([
-            ...metricsSQL.tables,
-            ...dimensionsSQL.tables,
+            ...tablesReferencedInDimensions,
+            ...tablesReferencedInMetrics,
         ]);
 
         const tableSqlWhere =
@@ -656,7 +689,7 @@ export class MetricQueryBuilder {
             ...requiredFilterJoinedTables,
         ]);
 
-        const sqlJoins = explore.joinedTables
+        const joinSQL = explore.joinedTables
             .filter((join) => joinedTables.has(join.table) || join.always)
             .map((join) => {
                 const joinTable = replaceUserAttributesRaw(
@@ -677,10 +710,15 @@ export class MetricQueryBuilder {
             })
             .join('\n');
 
-        const tableCalculationFilters = this.getNestedFilterSQLFromGroup(
-            filters.tableCalculations,
-        );
+        return {
+            joinSQL,
+            tables: joinedTables,
+        };
+    }
 
+    private getWarnings({ joinedTables }: { joinedTables: Set<string> }) {
+        const { explore, compiledMetricQuery } = this.args;
+        const { metrics } = compiledMetricQuery;
         let warnings: QueryWarning[] = [];
         try {
             warnings = findMetricInflationWarnings({
@@ -693,8 +731,32 @@ export class MetricQueryBuilder {
                 ),
             });
         } catch (e) {
+            // Log error but don't block code execution
             Logger.error('Error during metric inflation detection', e);
         }
+        return warnings;
+    }
+
+    /**
+     * Compiles a database query based on the provided metric query, explores, user attributes, and warehouse-specific configurations.
+     *
+     * This method processes dimensions, metrics, filters, and joins across multiple dataset definitions to generate
+     * a complete SQL query string tailored for the specific warehouse type and environment. Additionally, it ensures
+     * field validation and substitution of user-specific attributes for dynamic query generation.
+     *
+     * @return {CompiledQuery} The compiled query object containing the SQL string and meta information ready for execution.
+     */
+    public compileQuery(): CompiledQuery {
+        const { explore, compiledMetricQuery } = this.args;
+        const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
+        const dimensionsSQL = this.getDimensionsSQL();
+        const metricsSQL = this.getMetricsSQL();
+        const tableCalculationSQL = this.getTableCalculationsSQL();
+        const joins = this.getJoinsSQL({
+            tablesReferencedInDimensions: dimensionsSQL.tables,
+            tablesReferencedInMetrics: metricsSQL.tables,
+        });
+        const warnings = this.getWarnings({ joinedTables: joins.tables });
 
         const sqlSelect = `SELECT\n${[
             ...dimensionsSQL.selects,
@@ -703,82 +765,57 @@ export class MetricQueryBuilder {
         const sqlFrom = this.getBaseTableFromSQL();
         const sqlLimit = this.getLimitSQL();
         const { sqlOrderBy, requiresQueryInCTE } = this.getSortSQL();
-        if (
-            compiledMetricQuery.compiledTableCalculations.length > 0 ||
-            metricsSQL.filtersSQL ||
-            requiresQueryInCTE
-        ) {
-            const cteSql = [
-                sqlSelect,
-                sqlFrom,
-                sqlJoins,
-                ...dimensionsSQL.joins,
-                dimensionsSQL.filtersSQL,
-                dimensionsSQL.groupBySQL,
-            ]
-                .filter((l) => l !== undefined)
-                .join('\n');
-            const cteName = 'metrics';
-            const ctes = [
-                ...dimensionsSQL.ctes,
-                `${cteName} AS (\n${cteSql}\n)`,
-            ];
-            const tableCalculationSelects =
-                compiledMetricQuery.compiledTableCalculations.map(
-                    (tableCalculation) => {
-                        const alias = tableCalculation.name;
-                        return `  ${tableCalculation.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
-                    },
-                );
-            const finalSelect = `SELECT\n${[
-                '  *',
-                ...tableCalculationSelects,
-            ].join(',\n')}`;
-            const finalFrom = `FROM ${cteName}`;
-            const secondQuery = [finalSelect, finalFrom, metricsSQL.filtersSQL]
-                .filter((l) => l !== undefined)
-                .join('\n');
-
-            let finalQuery = secondQuery;
-            if (tableCalculationFilters) {
-                const queryResultCteName = 'table_calculations';
-                ctes.push(`${queryResultCteName} AS (\n${secondQuery}\n)`);
-
-                finalQuery = `SELECT *
-                              FROM ${queryResultCteName}`;
-
-                if (tableCalculationFilters)
-                    finalQuery += ` WHERE ${tableCalculationFilters}`;
-            }
-            const cte = `WITH ${ctes.join(',\n')}`;
-
-            return {
-                query: [cte, finalQuery, sqlOrderBy, sqlLimit]
-                    .filter((l) => l !== undefined)
-                    .join('\n'),
-                fields,
-                warnings,
-            };
-        }
-
-        const metricQuerySql = [
-            dimensionsSQL.ctes.length > 0
-                ? `WITH ${dimensionsSQL.ctes.join(',\n')}`
-                : undefined,
+        const ctes = [...dimensionsSQL.ctes];
+        let finalSelectParts: Array<string | undefined> = [
             sqlSelect,
             sqlFrom,
-            sqlJoins,
+            joins.joinSQL,
             ...dimensionsSQL.joins,
             dimensionsSQL.filtersSQL,
             dimensionsSQL.groupBySQL,
-            sqlOrderBy,
-            sqlLimit,
-        ]
-            .filter((l) => l !== undefined)
-            .join('\n');
+        ];
+        if (
+            tableCalculationSQL.selects.length > 0 ||
+            metricsSQL.filtersSQL ||
+            requiresQueryInCTE
+        ) {
+            // Move latest select to CTE and define new final select with table calculations and metric filters
+            const cteName = 'metrics';
+            ctes.push(
+                `${cteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                    finalSelectParts,
+                )}\n)`,
+            );
+            finalSelectParts = [
+                `SELECT\n${['  *', ...tableCalculationSQL.selects].join(
+                    ',\n',
+                )}`,
+                `FROM ${cteName}`,
+                metricsSQL.filtersSQL,
+            ];
+            if (tableCalculationSQL.filtersSQL) {
+                // Move latest select to CTE and define new final select with table calculation filters
+                const queryResultCteName = 'table_calculations';
+                ctes.push(
+                    `${queryResultCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                        finalSelectParts,
+                    )}\n)`,
+                );
+                finalSelectParts = [
+                    'SELECT *',
+                    `FROM ${queryResultCteName}`,
+                    tableCalculationSQL.filtersSQL,
+                ];
+            }
+        }
 
         return {
-            query: metricQuerySql,
+            query: MetricQueryBuilder.assembleSqlParts([
+                MetricQueryBuilder.buildCtesSQL(ctes),
+                ...finalSelectParts,
+                sqlOrderBy,
+                sqlLimit,
+            ]),
             fields,
             warnings,
         };

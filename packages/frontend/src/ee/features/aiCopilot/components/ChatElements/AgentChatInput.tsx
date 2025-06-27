@@ -1,13 +1,16 @@
 import {
     ActionIcon,
-    Group,
+    alpha,
+    Box,
     Paper,
-    Stack,
+    rem,
     Text,
     Textarea,
 } from '@mantine-8/core';
 import { IconArrowUp } from '@tabler/icons-react';
 import { useLayoutEffect, useRef, useState } from 'react';
+
+import styles from './AgentChatInput.module.css';
 
 interface AgentChatInputProps {
     onSubmit: (message: string) => void;
@@ -81,18 +84,10 @@ export const AgentChatInput = ({
     }, []);
 
     return (
-        <Paper
-            bg="gray.0"
-            gap={0}
-            p={0}
-            component={Stack}
-            radius="0.75rem"
-            style={{
-                position: 'relative',
-            }}
-        >
+        <Box pos="relative" pb="lg" className={styles.backdropBackground}>
             <Textarea
                 autoFocus
+                classNames={{ input: styles.input }}
                 ref={inputRef}
                 placeholder={placeholder}
                 autosize
@@ -100,11 +95,6 @@ export const AgentChatInput = ({
                 radius="0.75rem"
                 disabled={disabled}
                 size="md"
-                styles={(theme) => ({
-                    input: {
-                        '--input-bd-focus': theme.colors.violet[5],
-                    },
-                })}
                 m={-1}
                 onChange={(e) => setValue(e.target.value)}
                 value={value}
@@ -133,18 +123,38 @@ export const AgentChatInput = ({
                     </ActionIcon>
                 }
             />
-            <Group px="sm" py="xs" gap="xs">
-                {!disabled && (
-                    <Text size="xs" c="dimmed">
-                        Agent can make mistakes. Please double-check responses.
-                    </Text>
-                )}
-                {disabled && disabledReason && (
-                    <Text size="xs" c="dimmed" style={{ flex: 1 }} ta="right">
-                        {disabledReason}
-                    </Text>
-                )}
-            </Group>
-        </Paper>
+
+            {!disabled || (disabled && disabledReason) ? (
+                <Paper
+                    px="sm"
+                    py={rem(4)}
+                    bg={alpha('var(--mantine-color-gray-1)', 0.5)}
+                    mx="md"
+                    style={{
+                        borderTopLeftRadius: 0,
+                        borderTopRightRadius: 0,
+                        borderBottomLeftRadius: rem(12),
+                        borderBottomRightRadius: rem(12),
+                    }}
+                >
+                    {!disabled && (
+                        <Text size="xs" c="dimmed">
+                            Agent can make mistakes. Please double-check
+                            responses.
+                        </Text>
+                    )}
+                    {disabled && disabledReason && (
+                        <Text
+                            size="xs"
+                            c="dimmed"
+                            style={{ flex: 1 }}
+                            ta="right"
+                        >
+                            {disabledReason}
+                        </Text>
+                    )}
+                </Paper>
+            ) : null}
+        </Box>
     );
 };

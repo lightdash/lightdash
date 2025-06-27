@@ -2,31 +2,31 @@ import {
     DimensionType,
     FieldType,
     QueryExecutionContext,
-    SemanticLayerFieldType,
+    SqlRunnerFieldType,
     assertUnreachable,
     type PivotChartData,
     type RawResultRow,
     type ResultColumns,
-    type SemanticLayerField,
+    type SqlRunnerField,
     type VizColumn,
     type VizSortBy,
 } from '@lightdash/common';
 import { BaseResultsRunner } from '../../queryRunner/BaseResultsRunner';
 import { getPivotQueryFunctionForSqlQuery } from '../../queryRunner/sqlRunnerPivotQueries';
 
-const getSemanticLayerFieldTypeFromDimensionType = (
+const getSqlRunnerFieldTypeFromDimensionType = (
     type: DimensionType,
-): SemanticLayerFieldType => {
+): SqlRunnerFieldType => {
     switch (type) {
         case DimensionType.STRING:
-            return SemanticLayerFieldType.STRING;
+            return SqlRunnerFieldType.STRING;
         case DimensionType.NUMBER:
-            return SemanticLayerFieldType.NUMBER;
+            return SqlRunnerFieldType.NUMBER;
         case DimensionType.BOOLEAN:
-            return SemanticLayerFieldType.BOOLEAN;
+            return SqlRunnerFieldType.BOOLEAN;
         case DimensionType.DATE:
         case DimensionType.TIMESTAMP:
-            return SemanticLayerFieldType.TIME;
+            return SqlRunnerFieldType.TIME;
         default:
             return assertUnreachable(type, `Unknown field type: ${type}`);
     }
@@ -48,10 +48,10 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         sql: string;
         sortBy?: VizSortBy[];
     }) {
-        const fields: SemanticLayerField[] = columns.map((column) => ({
+        const fields: SqlRunnerField[] = columns.map((column) => ({
             kind: FieldType.DIMENSION,
             name: column.reference,
-            type: getSemanticLayerFieldTypeFromDimensionType(
+            type: getSqlRunnerFieldTypeFromDimensionType(
                 column.type || DimensionType.STRING,
             ),
             visible: true,
@@ -84,11 +84,11 @@ export class SqlChartResultsRunner extends BaseResultsRunner {
         pivotChartData: PivotChartData;
         originalColumns: ResultColumns;
     }) {
-        const fields: SemanticLayerField[] = Object.values(originalColumns).map(
+        const fields: SqlRunnerField[] = Object.values(originalColumns).map(
             (column) => ({
                 kind: FieldType.DIMENSION,
                 name: column.reference,
-                type: getSemanticLayerFieldTypeFromDimensionType(
+                type: getSqlRunnerFieldTypeFromDimensionType(
                     column.type || DimensionType.STRING,
                 ),
                 visible: true,

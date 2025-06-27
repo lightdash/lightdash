@@ -405,7 +405,6 @@ export class ProjectModel {
                             ? copiedProjects[0].project_uuid
                             : null,
                     dbt_version: data.dbtVersion,
-                    semantic_layer_connection: null,
                     ...(copiedProjects.length === 1
                         ? {
                               scheduler_timezone:
@@ -529,7 +528,6 @@ export class ProjectModel {
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
                   copied_from_project_uuid?: string;
-                  semantic_layer_connection: Buffer | null;
                   scheduler_timezone: string;
                   created_by_user_uuid: string | null;
               }
@@ -543,7 +541,6 @@ export class ProjectModel {
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
                   copied_from_project_uuid?: string;
-                  semantic_layer_connection: Buffer | null;
                   scheduler_timezone: string;
                   created_by_user_uuid: string | null;
               }
@@ -593,9 +590,6 @@ export class ProjectModel {
                             .withSchema(ProjectTableName),
                         this.database
                             .ref('copied_from_project_uuid')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('semantic_layer_connection')
                             .withSchema(ProjectTableName),
                         this.database
                             .ref('scheduler_timezone')

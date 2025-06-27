@@ -4724,9 +4724,9 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                createdAt: { dataType: 'datetime', required: true },
                 toolArgs: { dataType: 'object', required: true },
                 toolName: { dataType: 'string', required: true },
+                createdAt: { dataType: 'datetime', required: true },
                 toolCallId: { dataType: 'string', required: true },
                 promptUuid: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
@@ -4777,14 +4777,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                createdAt: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
+                createdAt: { dataType: 'string', required: true },
                 message: {
                     dataType: 'union',
                     subSchemas: [

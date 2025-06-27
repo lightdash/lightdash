@@ -97,9 +97,7 @@ export const ThreadDetailsModal: FC<ThreadDetailsModalProps> = ({
                             thread={thread}
                             agentName={agentName}
                             height={400}
-                            showScrollbar={true}
                             enableAutoScroll={false}
-                            padding="md"
                             mode="preview"
                         />
                     </Paper>

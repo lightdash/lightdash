@@ -13,6 +13,7 @@ import {
     FilterOperator,
     IntrinsicUserAttributes,
     JoinModelRequiredFilterRule,
+    JoinRelationship,
     MetricType,
     SupportedDbtAdapter,
     TimeFrames,
@@ -327,6 +328,8 @@ export const EXPLORE: Explore = {
             sqlOn: '${table1.shared} = ${table2.shared}',
             compiledSqlOn: '("table1".shared) = ("table2".shared)',
             type: undefined,
+            tablesReferences: ['table1', 'table2'],
+            relationship: JoinRelationship.MANY_TO_ONE,
         },
     ],
     tables: {
@@ -336,6 +339,7 @@ export const EXPLORE: Explore = {
             database: 'database',
             schema: 'schema',
             sqlTable: '"db"."schema"."table1"',
+            primaryKey: ['dim1'],
             dimensions: {
                 dim1: {
                     type: DimensionType.NUMBER,
@@ -408,6 +412,7 @@ export const EXPLORE: Explore = {
             database: 'database',
             schema: 'schema',
             sqlTable: '"db"."schema"."table2"',
+            primaryKey: ['dim2'],
             dimensions: {
                 dim2: {
                     type: DimensionType.NUMBER,
@@ -444,6 +449,18 @@ export const EXPLORE: Explore = {
                     label: 'metric2',
                     sql: '${TABLE}.number_column',
                     compiledSql: 'MAX("table2".number_column)',
+                    tablesReferences: ['table2'],
+                    hidden: false,
+                },
+                metric3: {
+                    type: MetricType.SUM,
+                    fieldType: FieldType.METRIC,
+                    table: 'table2',
+                    tableLabel: 'table2',
+                    name: 'metric3',
+                    label: 'metric3',
+                    sql: '${TABLE}.number_column',
+                    compiledSql: 'SUM("table2".number_column)',
                     tablesReferences: ['table2'],
                     hidden: false,
                 },

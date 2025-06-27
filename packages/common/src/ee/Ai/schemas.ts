@@ -183,39 +183,59 @@ const dateFilterSchema = z.union([
     }),
 ]);
 
-const filterRuleSchema = z
-    .object({
-        type: z.enum(['or', 'and']).describe('Type of filter group operation'),
-        target: z.object({
-            fieldId: fieldIdSchema,
-            type: FieldTypeSchema,
-        }),
-        rule: z.union([
-            booleanFilterSchema.describe('Boolean filter'),
-            stringFilterSchema.describe('String filter'),
-            numberFilterSchema.describe('Number filter'),
-            dateFilterSchema.describe('Date filter'),
-        ]),
-    })
-    .transform(
-        (data): FilterRule => ({
-            id: uuid(),
-            target: data.target,
-            operator: data.rule.operator,
-            values: 'values' in data.rule ? data.rule.values : [],
-            ...('settings' in data.rule
-                ? { settings: data.rule.settings }
-                : {}),
-        }),
-    );
+/**
+ * Raw schema for filter rules that are passed to the AI.
+ */
+const filterRuleSchema = z.object({
+    type: z.enum(['or', 'and']).describe('Type of filter group operation'),
+    target: z.object({
+        fieldId: fieldIdSchema,
+        type: FieldTypeSchema,
+    }),
+    rule: z.union([
+        booleanFilterSchema.describe('Boolean filter'),
+        stringFilterSchema.describe('String filter'),
+        numberFilterSchema.describe('Number filter'),
+        dateFilterSchema.describe('Date filter'),
+    ]),
+});
 
-export const filtersSchema = z
-    .object({
-        type: z.enum(['and', 'or']).describe('Type of filter group operation'),
-        dimensions: z.array(filterRuleSchema).nullable(),
-        metrics: z.array(filterRuleSchema).nullable(),
-    })
-    .transform((data): Filters => {
+/**
+ * Transformed schema for filter rules that are passed to the query.
+ */
+const filterRuleSchemaTransformed = filterRuleSchema.transform(
+    (data): FilterRule => ({
+        id: uuid(),
+        target: data.target,
+        operator: data.rule.operator,
+        values: 'values' in data.rule ? data.rule.values : [],
+        ...('settings' in data.rule ? { settings: data.rule.settings } : {}),
+    }),
+);
+
+/**
+ * Raw schema for filters with raw filter rule schema
+ */
+export const filtersSchema = z.object({
+    type: z.enum(['and', 'or']).describe('Type of filter group operation'),
+    dimensions: z.array(filterRuleSchema).nullable(),
+    metrics: z.array(filterRuleSchema).nullable(),
+});
+
+/**
+ * Raw filters schema with transformed filter rules.
+ */
+const filtersSchemaAndFilterRulesTransformed = z.object({
+    type: z.enum(['and', 'or']).describe('Type of filter group operation'),
+    dimensions: z.array(filterRuleSchemaTransformed).nullable(),
+    metrics: z.array(filterRuleSchemaTransformed).nullable(),
+});
+
+/**
+ * Final output schema for filters that are passed to the query.
+ */
+export const filtersSchemaTransformed =
+    filtersSchemaAndFilterRulesTransformed.transform((data): Filters => {
         switch (data.type) {
             case 'and':
                 return {
@@ -357,6 +377,12 @@ export const lighterMetricQuerySchema = z.object({
     //     .nullable()
     //     .describe('Metadata about the query'),
 });
+
+export const lighterMetricQuerySchemaTransformed =
+    lighterMetricQuerySchema.transform((data) => ({
+        ...data,
+        filters: filtersSchemaTransformed.parse(data.filters),
+    }));
 
 export const aiAskForAdditionalInformationSchema = z.object({
     message: z

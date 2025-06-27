@@ -1,9 +1,8 @@
-import { Box, Center, Loader, Stack } from '@mantine-8/core';
+import { Center, Loader } from '@mantine-8/core';
 import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
-import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import {
     useAiAgent,
     useAiAgentThread,
@@ -44,31 +43,22 @@ const AiAgentThreadPage = () => {
     }
 
     return (
-        <Stack h="100%" justify="space-between" pb="md">
-            <AgentChatDisplay
-                thread={thread}
-                agentName={agentQuery.data?.name ?? 'AI'}
-                enableAutoScroll={true}
-                mode="interactive"
+        <AgentChatDisplay
+            thread={thread}
+            agentName={agentQuery.data?.name ?? 'AI'}
+            enableAutoScroll={true}
+            mode="interactive"
+        >
+            <AgentChatInput
+                disabled={
+                    thread.createdFrom === 'slack' || !isThreadFromCurrentUser
+                }
+                disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
+                loading={isCreatingMessage || isStreaming}
+                onSubmit={handleSubmit}
+                placeholder={`Ask ${agent.name} anything about your data...`}
             />
-            <Box
-                {...ChatElementsUtils.centeredElementProps}
-                pos="sticky"
-                bottom={0}
-                h="auto"
-            >
-                <AgentChatInput
-                    disabled={
-                        thread.createdFrom === 'slack' ||
-                        !isThreadFromCurrentUser
-                    }
-                    disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
-                    loading={isCreatingMessage || isStreaming}
-                    onSubmit={handleSubmit}
-                    placeholder={`Ask ${agent.name} anything about your data...`}
-                />
-            </Box>
-        </Stack>
+        </AgentChatDisplay>
     );
 };
 
