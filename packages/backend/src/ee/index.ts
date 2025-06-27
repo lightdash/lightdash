@@ -74,6 +74,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userAttributesModel: models.getUserAttributesModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     organizationModel: models.getOrganizationModel(),
+                    asyncQueryService: repository.getAsyncQueryService(),
+                    userService: repository.getUserService(),
+                    userModel: models.getUserModel(),
                 }),
             catalogService: ({ context, models }) =>
                 new CommercialCatalogService({

@@ -37,6 +37,7 @@ import {
     type AdditionalMetric,
     type MetricQuery,
     type QueryWarning,
+    type SortField,
 } from './types/metricQuery';
 import {
     OrganizationMemberRole,
@@ -54,6 +55,7 @@ import {
     type ChartHistory,
     type ChartVersion,
     type SavedChart,
+    type SavedChartDAO,
     type Series,
 } from './types/savedCharts';
 import { type SearchResults } from './types/search';
@@ -67,7 +69,7 @@ import {
     type ApiGetComments,
 } from './types/api/comments';
 import { type Email } from './types/api/email';
-import { type ApiSuccessEmpty } from './types/api/success';
+import { type ApiSuccess, type ApiSuccessEmpty } from './types/api/success';
 import { type DbtExposure } from './types/dbt';
 import { type EmailStatusExpiring } from './types/email';
 import { type FieldValueSearchResult } from './types/fieldMatch';
@@ -170,7 +172,7 @@ import {
     type GroupByColumn,
     type SortBy,
 } from './types/sqlRunner';
-import { TimeFrames } from './types/timeFrames';
+import { TimeFrames, type DateGranularity } from './types/timeFrames';
 import { type ApiWarehouseTableFields } from './types/warehouse';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
@@ -914,7 +916,9 @@ type ApiResults =
     | ApiUpdateUserAgentPreferencesResponse['results']
     | ApiGetUserAgentPreferencesResponse[`results`]
     | ApiAiAgentThreadCreateResponse['results']
-    | ApiAiAgentThreadMessageCreateResponse['results'];
+    | ApiAiAgentThreadMessageCreateResponse['results']
+    | ApiEmbedExecuteAsnycDashboardChartQueryResults['results']
+    | ApiEmbedGetAsyncQueryResults['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -1566,3 +1570,20 @@ export const SPACE_TREE_2: TreeCreateSpace[] = [
         ],
     },
 ] as const;
+
+export type ApiEmbedGetAsyncQueryResults = ApiSuccess<ApiGetAsyncQueryResults>;
+
+export type ApiEmbedExecuteAsnycDashboardChartQuery = {
+    tileUuid: string;
+    dashboardFilters?: DashboardFilters;
+    dateZoomGranularity?: DateGranularity;
+    dashboardSorts?: SortField[];
+    limit?: number | null;
+    invalidateCache?: boolean;
+};
+
+export type ApiEmbedExecuteAsnycDashboardChartQueryResults = ApiSuccess<{
+    executeQueryResponse: ApiExecuteAsyncDashboardChartQueryResults;
+    chart: SavedChartDAO;
+    explore: Omit<Explore, 'unfilteredTables'>;
+}>;
