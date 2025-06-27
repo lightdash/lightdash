@@ -40,6 +40,9 @@ export class EmbedModel {
 
         return {
             projectUuid: embed.project_uuid,
+            organization: {
+                organizationUuid: embed.user_organization_uuid,
+            },
             encodedSecret: embed.encoded_secret,
             dashboardUuids: validDashboardUuids,
             allowAllDashboards: embed.allow_all_dashboards,
