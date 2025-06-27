@@ -2,6 +2,7 @@ import {
     AiChartType,
     AiMetricQuery,
     filtersSchema,
+    filtersSchemaTransformed,
     MetricQuery,
     verticalBarMetricVizConfigSchema,
 } from '@lightdash/common';
@@ -45,7 +46,7 @@ export const isVerticalBarMetricChartConfig = (
 
 export const metricQueryVerticalBarChartMetric = (
     config: VerticalBarMetricChartConfig,
-    filters: z.infer<typeof filtersSchema> = {},
+    filters: z.infer<typeof filtersSchemaTransformed> = {},
 ): AiMetricQuery => {
     const metrics = config.yMetrics;
     const dimensions = [
@@ -132,7 +133,7 @@ type RenderVerticalBarMetricChartArgs = {
         metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
     vizConfig: VerticalBarMetricChartConfig;
-    filters: z.infer<typeof filtersSchema> | undefined;
+    filters: z.infer<typeof filtersSchemaTransformed> | undefined;
 };
 
 export const renderVerticalBarMetricChart = async ({

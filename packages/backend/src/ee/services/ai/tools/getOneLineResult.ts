@@ -1,4 +1,7 @@
-import { lighterMetricQuerySchema } from '@lightdash/common';
+import {
+    lighterMetricQuerySchema,
+    lighterMetricQuerySchemaTransformed,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     GetPromptFn,
@@ -37,22 +40,17 @@ Rules for fetching the result:
         parameters: schema,
         execute: async (metricQuery) => {
             try {
+                const transformedMetricQuery =
+                    lighterMetricQuerySchemaTransformed.parse(metricQuery);
                 const prompt = await getPrompt();
 
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,
-                    metricQuery,
+                    metricQuery: transformedMetricQuery,
                 });
 
                 await updateProgress('🔍 Fetching the results...');
-                const result = await runMiniMetricQuery({
-                    ...metricQuery,
-                    filters: {
-                        metrics: metricQuery.filters?.metrics ?? undefined,
-                        dimensions:
-                            metricQuery.filters?.dimensions ?? undefined,
-                    },
-                });
+                const result = await runMiniMetricQuery(transformedMetricQuery);
 
                 if (result.rows.length > 1) {
                     throw new Error(
