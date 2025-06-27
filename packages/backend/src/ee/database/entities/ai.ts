@@ -69,6 +69,7 @@ export type DbAiPrompt = {
     filters_output: object | null;
     human_score: number | null;
     metric_query: object | null;
+    saved_query_uuid: string | null;
 };
 
 export type AiPromptTable = Knex.CompositeTableType<
@@ -85,6 +86,7 @@ export type AiPromptTable = Knex.CompositeTableType<
             | 'filters_output'
             | 'human_score'
             | 'metric_query'
+            | 'saved_query_uuid'
         > & {
             responded_at: Knex.Raw;
         }

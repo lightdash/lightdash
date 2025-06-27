@@ -320,6 +320,32 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
+    @Patch(
+        '/projects/{projectUuid}/threads/{aiThreadUuid}/messages/{messageUuid}/savedQuery',
+    )
+    @OperationId('updateAgentThreadMessageSavedQuery')
+    async updateAgentThreadMessageSavedQuery(
+        @Request() req: express.Request,
+        @Path() messageUuid: string,
+        @Path() projectUuid: string,
+        @Body() body: { savedQueryUuid: string | null },
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.getAiAgentService().updateMessageSavedQuery(req.user!, {
+            projectUuid,
+            savedQueryUuid: body.savedQueryUuid,
+            messageUuid,
+        });
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
     @Get('/projects/{projectUuid}/conversations')
     @OperationId('getAiAgentConversations')
     async getAiAgentConversations(

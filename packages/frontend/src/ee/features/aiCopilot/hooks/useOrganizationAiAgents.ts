@@ -219,6 +219,7 @@ const createOptimisticMessages = (
             metricQuery: null,
             humanScore: null,
             toolCalls: [],
+            savedQueryUuid: null,
         },
     ];
 };

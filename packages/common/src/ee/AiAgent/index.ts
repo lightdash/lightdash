@@ -121,6 +121,7 @@ export type AiAgentMessageAssistant = {
     humanScore: number | null;
 
     toolCalls: AiAgentToolCall[];
+    savedQueryUuid: string | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =

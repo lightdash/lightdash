@@ -4,6 +4,7 @@ import type {
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
     ApiError,
+    ApiSuccessEmpty,
     ApiUpdateAiAgent,
 } from '@lightdash/common';
 import {
@@ -152,5 +153,44 @@ export const useProjectUpdateAiAgentMutation = (projectUuid: string) => {
                 apiError: error,
             });
         },
+    });
+};
+
+const savePromptQuery = async ({
+    projectUuid,
+    threadUuid,
+    messageUuid,
+    savedQueryUuid,
+}: {
+    projectUuid: string;
+    threadUuid: string;
+    messageUuid: string;
+    savedQueryUuid: string | null;
+}) =>
+    lightdashApi<ApiSuccessEmpty>({
+        url: `/aiAgents/projects/${projectUuid}/threads/${threadUuid}/messages/${messageUuid}/savedQuery`,
+        method: `PATCH`,
+        body: JSON.stringify({
+            savedQueryUuid,
+        }),
+    });
+
+export const useSavePromptQuery = (
+    projectUuid: string,
+    threadUuid: string,
+    messageUuid: string,
+) => {
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { savedQueryUuid: string | null }
+    >({
+        mutationFn: ({ savedQueryUuid }) =>
+            savePromptQuery({
+                projectUuid,
+                threadUuid,
+                messageUuid,
+                savedQueryUuid,
+            }),
     });
 };
