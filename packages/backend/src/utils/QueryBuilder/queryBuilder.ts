@@ -708,6 +708,27 @@ export class MetricQueryBuilder {
         };
     }
 
+    private getWarnings({ joinedTables }: { joinedTables: Set<string> }) {
+        const { explore, compiledMetricQuery } = this.args;
+        const { metrics } = compiledMetricQuery;
+        let warnings: QueryWarning[] = [];
+        try {
+            warnings = findMetricInflationWarnings({
+                tables: explore.tables,
+                possibleJoins: explore.joinedTables,
+                baseTable: explore.baseTable,
+                joinedTables,
+                metrics: metrics.map((field) =>
+                    getMetricFromId(field, explore, compiledMetricQuery),
+                ),
+            });
+        } catch (e) {
+            // Log error but don't block code execution
+            Logger.error('Error during metric inflation detection', e);
+        }
+        return warnings;
+    }
+
     /**
      * Compiles a database query based on the provided metric query, explores, user attributes, and warehouse-specific configurations.
      *
@@ -720,31 +741,14 @@ export class MetricQueryBuilder {
     public compileQuery(): CompiledQuery {
         const { explore, compiledMetricQuery } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
-        const { metrics } = compiledMetricQuery;
-
         const dimensionsSQL = this.getDimensionsSQL();
         const metricsSQL = this.getMetricsSQL();
         const tableCalculationSQL = this.getTableCalculationsSQL();
-
         const joins = this.getJoinsSQL({
             tablesReferencedInDimensions: dimensionsSQL.tables,
             tablesReferencedInMetrics: metricsSQL.tables,
         });
-
-        let warnings: QueryWarning[] = [];
-        try {
-            warnings = findMetricInflationWarnings({
-                tables: explore.tables,
-                possibleJoins: explore.joinedTables,
-                baseTable: explore.baseTable,
-                joinedTables: joins.tables,
-                metrics: metrics.map((field) =>
-                    getMetricFromId(field, explore, compiledMetricQuery),
-                ),
-            });
-        } catch (e) {
-            Logger.error('Error during metric inflation detection', e);
-        }
+        const warnings = this.getWarnings({ joinedTables: joins.tables });
 
         const sqlSelect = `SELECT\n${[
             ...dimensionsSQL.selects,
