@@ -8,11 +8,10 @@ import {
 import fetch, { BodyInit } from 'node-fetch';
 import { URL } from 'url';
 import { getConfig } from '../../config';
+import { CLI_VERSION } from '../../env';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 import { buildRequestHeaders } from '../utils';
-
-const { version: VERSION } = require('../../../package.json');
 
 type LightdashApiProps = {
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
@@ -70,12 +69,12 @@ export const checkLightdashVersion = async (): Promise<void> => {
             url: `/api/v1/health`,
             body: undefined,
         });
-        if (health.version !== VERSION) {
+        if (health.version !== CLI_VERSION) {
             const config = await getConfig();
             console.error(
                 `${styles.title(
                     'Warning',
-                )}: CLI (${VERSION}) is running a different version than Lightdash (${
+                )}: CLI (${CLI_VERSION}) is running a different version than Lightdash (${
                     health.version
                 }) on ${
                     config.context?.serverUrl
