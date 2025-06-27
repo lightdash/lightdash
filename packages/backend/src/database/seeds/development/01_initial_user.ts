@@ -33,6 +33,7 @@ import { Knex } from 'knex';
 import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { projectAdapterFromConfig } from '../../../projectAdapters/projectAdapter';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { DbEmailIn } from '../../entities/emails';
@@ -117,6 +118,18 @@ export async function seed(knex: Knex): Promise<void> {
 
     const { organizationId, organizationUuid } = await addOrganization(
         SEED_ORG_1,
+    );
+
+    // Add user attribute
+    await new UserAttributesModel({ database: knex }).create(
+        SEED_ORG_1.organization_uuid,
+        {
+            name: 'is_admin_saas_demo',
+            description: 'Provides access to all SAAS and fanout models',
+            attributeDefault: 'true',
+            users: [],
+            groups: [],
+        },
     );
 
     const { user } = await addUser(
