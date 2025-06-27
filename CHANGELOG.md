@@ -1,3 +1,10 @@
+## [0.1764.1](https://github.com/lightdash/lightdash/compare/0.1764.0...0.1764.1) (2025-06-27)
+
+
+### Bug Fixes
+
+* remove zod schema to unblock tsoa generate ([#15601](https://github.com/lightdash/lightdash/issues/15601)) ([727f65c](https://github.com/lightdash/lightdash/commit/727f65c435224a49724d9dd60f9082e4e326cdfb))
+
 # [0.1764.0](https://github.com/lightdash/lightdash/compare/0.1763.1...0.1764.0) (2025-06-27)
 
 
