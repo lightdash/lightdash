@@ -149,6 +149,10 @@ export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
                 return super.getMetricSql(sql, metric);
         }
     }
+
+    getFieldQuoteChar(): string {
+        return '`';
+    }
 }
 
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {

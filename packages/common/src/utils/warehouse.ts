@@ -2,6 +2,10 @@ import { WarehouseTypes } from '../types/projects';
 import { VizAggregationOptions } from '../visualizations/types';
 import assertUnreachable from './assertUnreachable';
 
+/**
+ * @deprecated use WarehouseSqlBuilder.getFieldQuoteChar instead
+ * @param warehouseType
+ */
 export const getFieldQuoteChar = (
     warehouseType: WarehouseTypes | undefined,
 ) => {
