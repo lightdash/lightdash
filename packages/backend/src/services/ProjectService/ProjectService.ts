@@ -22,12 +22,12 @@ import {
     convertExplores,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
-    CreateBigqueryCredentials,
     type CreateDatabricksCredentials,
     createDimensionWithGranularity,
     CreateJob,
     CreateProject,
     CreateProjectMember,
+    CreateProjectOptionalCredentials,
     CreateProjectTableConfiguration,
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
@@ -72,6 +72,7 @@ import {
     getSubtotalKey,
     getTimezoneLabel,
     hasIntersection,
+    hasWarehouseCredentials,
     IntrinsicUserAttributes,
     isCartesianChartConfig,
     isCustomSqlDimension,
@@ -461,7 +462,7 @@ export class ProjectService extends BaseService {
 
     private async validateProjectCreationPermissions(
         user: SessionUser,
-        data: CreateProject,
+        data: Pick<CreateProject, 'type' | 'upstreamProjectUuid'>,
     ) {
         if (!data.type) {
             throw new ParameterError('Project type must be provided');
@@ -881,7 +882,7 @@ export class ProjectService extends BaseService {
 
     async createWithoutCompile(
         user: SessionUser,
-        data: CreateProject,
+        data: CreateProjectOptionalCredentials,
         method: RequestMethod,
     ): Promise<ApiCreateProjectResults> {
         if (!isUserWithOrg(user)) {
@@ -902,15 +903,19 @@ export class ProjectService extends BaseService {
                 );
         }
 
-        const createProject = await this._resolveWarehouseClientCredentials(
-            newProjectData,
-            user.userUuid,
-        );
-        const projectUuid = await this.projectModel.create(
-            user.userUuid,
-            user.organizationUuid,
-            createProject,
-        );
+        const createProject: CreateProjectOptionalCredentials =
+            hasWarehouseCredentials(newProjectData)
+                ? await this._resolveWarehouseClientCredentials(
+                      newProjectData,
+                      user.userUuid,
+                  )
+                : newProjectData;
+        const projectUuid =
+            await this.projectModel.createWithOptionalCredentials(
+                user.userUuid,
+                user.organizationUuid,
+                createProject,
+            );
 
         // Do not give this user admin permissions on this new project,
         // as it could be an interactive viewer creating a preview
@@ -1034,29 +1039,32 @@ export class ProjectService extends BaseService {
     }
 
     static getAnalyticProperties(
-        createProject: CreateProject,
+        createProject: Pick<
+            CreateProjectOptionalCredentials,
+            'warehouseConnection' | 'name' | 'dbtConnection' | 'type'
+        >,
         projectUuid: string,
         user: SessionUser,
         method: RequestMethod,
     ): ProjectEvent['properties'] {
-        const warehouseType = createProject.warehouseConnection.type;
+        const warehouseType = createProject.warehouseConnection?.type;
         const authenticationType =
             warehouseType === WarehouseTypes.BIGQUERY ||
             warehouseType === WarehouseTypes.SNOWFLAKE
-                ? createProject.warehouseConnection.authenticationType
+                ? createProject.warehouseConnection?.authenticationType
                 : undefined;
         return {
             projectName: createProject.name,
             projectId: projectUuid,
             projectType: createProject.dbtConnection.type,
-            warehouseConnectionType: createProject.warehouseConnection.type,
+            warehouseConnectionType: createProject.warehouseConnection?.type,
             organizationId: user.organizationUuid!,
             dbtConnectionType: createProject.dbtConnection.type,
             isPreview: createProject.type === ProjectType.PREVIEW,
             method,
             authenticationType,
             requireUserCredentials:
-                createProject.warehouseConnection.requireUserCredentials,
+                createProject.warehouseConnection?.requireUserCredentials,
         };
     }
 

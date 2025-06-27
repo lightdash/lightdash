@@ -3,6 +3,7 @@ import {
     AnyType,
     BigqueryAuthenticationType,
     CreateProject,
+    CreateProjectOptionalCredentials,
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
@@ -23,7 +24,6 @@ import {
     ProjectType,
     SemanticLayerType,
     SnowflakeAuthenticationType,
-    SnowflakeCredentials,
     SpaceSummary,
     SupportedDbtVersions,
     TablesConfiguration,
@@ -36,7 +36,6 @@ import {
     WarehouseTypes,
     assertUnreachable,
     createVirtualView,
-    generateSlug,
     getLtreePathFromSlug,
     isExploreError,
     sensitiveCredentialsFieldNames,
@@ -300,18 +299,26 @@ export class ProjectModel {
                 encrypted_credentials,
             }) => {
                 try {
-                    const warehouseCredentials = JSON.parse(
-                        this.encryptionUtil.decrypt(encrypted_credentials),
-                    ) as CreateWarehouseCredentials;
+                    const warehouseCredentials =
+                        encrypted_credentials !== null
+                            ? (JSON.parse(
+                                  this.encryptionUtil.decrypt(
+                                      encrypted_credentials,
+                                  ),
+                              ) as CreateWarehouseCredentials)
+                            : undefined;
                     return {
                         name,
                         projectUuid: project_uuid,
                         type: project_type,
                         createdByUserUuid: created_by_user_uuid,
                         upstreamProjectUuid: copied_from_project_uuid,
-                        warehouseType: warehouse_type as WarehouseTypes,
+                        warehouseType:
+                            warehouse_type !== null
+                                ? (warehouse_type as WarehouseTypes)
+                                : undefined,
                         requireUserCredentials:
-                            !!warehouseCredentials.requireUserCredentials,
+                            !!warehouseCredentials?.requireUserCredentials,
                     };
                 } catch (e) {
                     throw new UnexpectedServerError(
@@ -372,6 +379,18 @@ export class ProjectModel {
         organizationUuid: string,
         data: CreateProject,
     ): Promise<string> {
+        return this.createWithOptionalCredentials(
+            userUuid,
+            organizationUuid,
+            data,
+        );
+    }
+
+    async createWithOptionalCredentials(
+        userUuid: string,
+        organizationUuid: string,
+        data: CreateProjectOptionalCredentials,
+    ): Promise<string> {
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)
             .select('*');
@@ -417,11 +436,13 @@ export class ProjectModel {
                 })
                 .returning('*');
 
-            await this.upsertWarehouseConnection(
-                trx,
-                project.project_id,
-                data.warehouseConnection,
-            );
+            if (data.warehouseConnection) {
+                await this.upsertWarehouseConnection(
+                    trx,
+                    project.project_id,
+                    data.warehouseConnection,
+                );
+            }
 
             if (data.type !== ProjectType.PREVIEW) {
                 const slug = await generateUniqueSpaceSlug(
