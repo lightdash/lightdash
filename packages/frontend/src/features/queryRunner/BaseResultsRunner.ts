@@ -1,7 +1,7 @@
 import {
     DimensionType,
     FieldType,
-    SemanticLayerFieldType,
+    SqlRunnerFieldType,
     VIZ_DEFAULT_AGGREGATION,
     VizAggregationOptions,
     VizIndexType,
@@ -10,8 +10,8 @@ import {
     type PivotChartData,
     type RawResultRow,
     type RunPivotQuery,
-    type SemanticLayerField,
-    type SemanticLayerQuery,
+    type SqlRunnerField,
+    type SqlRunnerQuery,
     type VizCustomMetricLayoutOptions,
     type VizIndexLayoutOptions,
     type VizValuesLayoutOptions,
@@ -20,17 +20,17 @@ import { type QueryClient } from '@tanstack/react-query';
 import { createQueryClient } from '../../providers/ReactQuery/createQueryClient';
 
 // TODO: clean up types
-function getDimensionTypeFromSemanticLayerFieldType(
-    type: SemanticLayerFieldType,
+function getDimensionTypeFromSqlRunnerFieldType(
+    type: SqlRunnerFieldType,
 ): DimensionType {
     switch (type) {
-        case SemanticLayerFieldType.TIME:
+        case SqlRunnerFieldType.TIME:
             return DimensionType.TIMESTAMP;
-        case SemanticLayerFieldType.STRING:
+        case SqlRunnerFieldType.STRING:
             return DimensionType.STRING;
-        case SemanticLayerFieldType.NUMBER:
+        case SqlRunnerFieldType.NUMBER:
             return DimensionType.NUMBER;
-        case SemanticLayerFieldType.BOOLEAN:
+        case SqlRunnerFieldType.BOOLEAN:
             return DimensionType.BOOLEAN;
         default:
             return assertUnreachable(type, `Unknown field type: ${type}`);
@@ -38,15 +38,15 @@ function getDimensionTypeFromSemanticLayerFieldType(
 }
 
 // Useful but belongs on chart model
-export const getVizIndexTypeFromSemanticLayerFieldType = (
-    type: SemanticLayerFieldType,
+export const getVizIndexTypeFromSqlRunnerFieldType = (
+    type: SqlRunnerFieldType,
 ): VizIndexType => {
     switch (type) {
-        case SemanticLayerFieldType.BOOLEAN:
-        case SemanticLayerFieldType.NUMBER:
-        case SemanticLayerFieldType.STRING:
+        case SqlRunnerFieldType.BOOLEAN:
+        case SqlRunnerFieldType.NUMBER:
+        case SqlRunnerFieldType.STRING:
             return VizIndexType.CATEGORY;
-        case SemanticLayerFieldType.TIME:
+        case SqlRunnerFieldType.TIME:
             return VizIndexType.TIME;
         default:
             return assertUnreachable(type, `Unknown field type: ${type}`);
@@ -54,13 +54,13 @@ export const getVizIndexTypeFromSemanticLayerFieldType = (
 };
 
 export class BaseResultsRunner implements IResultsRunner {
-    private readonly availableFields: SemanticLayerField[];
+    private readonly availableFields: SqlRunnerField[];
 
     private readonly rows: RawResultRow[];
 
-    private readonly dimensions: SemanticLayerField[];
+    private readonly dimensions: SqlRunnerField[];
 
-    private readonly metrics: SemanticLayerField[];
+    private readonly metrics: SqlRunnerField[];
 
     // NOTE: putting the query client on the Base means that
     // this is essentially a frontend only class. The backend would need it's own base.
@@ -76,7 +76,7 @@ export class BaseResultsRunner implements IResultsRunner {
     }: {
         rows: RawResultRow[];
         columnNames: string[];
-        fields: SemanticLayerField[];
+        fields: SqlRunnerField[];
         runPivotQuery: RunPivotQuery;
     }) {
         this.runPivotQuery = runPivotQuery;
@@ -98,7 +98,7 @@ export class BaseResultsRunner implements IResultsRunner {
     }
 
     async getPivotedVisualizationData(
-        query: SemanticLayerQuery,
+        query: SqlRunnerQuery,
     ): Promise<PivotChartData> {
         const emptyPivotChartData: PivotChartData = {
             queryUuid: undefined,
@@ -124,8 +124,8 @@ export class BaseResultsRunner implements IResultsRunner {
         // the same as pivotChartIndexLayoutOptions
         return this.dimensions.map((dimension) => ({
             reference: dimension.name,
-            axisType: getVizIndexTypeFromSemanticLayerFieldType(dimension.type),
-            dimensionType: getDimensionTypeFromSemanticLayerFieldType(
+            axisType: getVizIndexTypeFromSqlRunnerFieldType(dimension.type),
+            dimensionType: getDimensionTypeFromSqlRunnerFieldType(
                 dimension.type,
             ),
         }));
@@ -148,8 +148,8 @@ export class BaseResultsRunner implements IResultsRunner {
                 }
                 // TODO: can be greatly simplified
                 switch (field.type) {
-                    case SemanticLayerFieldType.BOOLEAN:
-                    case SemanticLayerFieldType.STRING:
+                    case SqlRunnerFieldType.BOOLEAN:
+                    case SqlRunnerFieldType.STRING:
                         return [
                             ...acc,
                             {
@@ -159,14 +159,14 @@ export class BaseResultsRunner implements IResultsRunner {
                                     VizAggregationOptions.COUNT,
                                 ],
                                 dimensionType:
-                                    getDimensionTypeFromSemanticLayerFieldType(
+                                    getDimensionTypeFromSqlRunnerFieldType(
                                         field.type,
                                     ),
                                 axisType: VizIndexType.CATEGORY,
                                 aggregation: VizAggregationOptions.AVERAGE, // WHY IS THIS NEEDED
                             },
                         ];
-                    case SemanticLayerFieldType.NUMBER:
+                    case SqlRunnerFieldType.NUMBER:
                         return [
                             ...acc,
                             {
@@ -180,14 +180,14 @@ export class BaseResultsRunner implements IResultsRunner {
                                     VizAggregationOptions.COUNT,
                                 ],
                                 dimensionType:
-                                    getDimensionTypeFromSemanticLayerFieldType(
+                                    getDimensionTypeFromSqlRunnerFieldType(
                                         field.type,
                                     ),
                                 axisType: VizIndexType.CATEGORY,
                                 aggregation: VizAggregationOptions.AVERAGE, // WHY IS THIS NEEDED
                             },
                         ];
-                    case SemanticLayerFieldType.TIME:
+                    case SqlRunnerFieldType.TIME:
                         return acc;
                     default:
                         return assertUnreachable(
