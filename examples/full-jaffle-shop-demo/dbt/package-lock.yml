@@ -1,0 +1,4 @@
+packages:
+  - git: https://github.com/lightdash/lightdash-demo-saas.git
+    revision: 42dfe2217417e95f1cb91317e935edb7c5da1d1a
+sha1_hash: e3653538a1052faaca83e23da00a219de3b8bb18
