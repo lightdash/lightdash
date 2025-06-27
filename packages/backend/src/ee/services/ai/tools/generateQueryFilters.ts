@@ -8,6 +8,7 @@ import type {
     GetExploreFn,
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
+import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateFilterRules } from '../utils/validators';
 
@@ -53,9 +54,7 @@ Rules for generating filters:
                 return `Filters have been successfully generated.
 
 Filters:
-\`\`\`json
-${JSON.stringify(transformedFilters, null, 4)}
-\`\`\``;
+${serializeData(transformedFilters, 'json')}`;
             } catch (e) {
                 return toolErrorHandler(e, `Error generating filters.`);
             }
