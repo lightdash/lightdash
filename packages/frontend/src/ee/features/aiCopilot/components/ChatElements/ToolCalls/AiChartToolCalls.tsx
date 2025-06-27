@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     isFindFieldsToolArgs,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
+    ToolNameSchema,
 } from '@lightdash/common';
 import { Badge, Group, Stack, Text, Timeline } from '@mantine-8/core';
 import {
@@ -29,17 +30,7 @@ const getToolIcon = (toolName: string) => {
 };
 
 const getToolDescription = (toolCall: AiAgentToolCall) => {
-    const { toolName, toolArgs } = toolCall;
-
-    // Type guard to ensure toolArgs exists
-    if (!toolArgs) {
-        return (
-            <Text c="dimmed" size="sm">
-                {TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL[toolCall.toolName] ||
-                    `Executed ${toolCall.toolName}`}
-            </Text>
-        );
-    }
+    const toolName = ToolNameSchema.parse(toolCall.toolName);
 
     switch (toolName) {
         case 'findFields':
@@ -117,6 +108,7 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({ toolCalls }) => {
             >
                 {toolCalls.map((toolCall) => {
                     const IconComponent = getToolIcon(toolCall.toolName);
+                    const toolName = ToolNameSchema.parse(toolCall.toolName);
 
                     return (
                         <Timeline.Item
@@ -131,9 +123,11 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({ toolCalls }) => {
                             }
                             title={
                                 <Text fw={500} size="sm">
-                                    {TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL[
-                                        toolCall.toolName
-                                    ] || toolCall.toolName}
+                                    {
+                                        TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL[
+                                            toolName
+                                        ]
+                                    }
                                 </Text>
                             }
                             lineVariant={'solid'}

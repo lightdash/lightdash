@@ -4719,73 +4719,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    BaseAiAgentToolCall: {
+    AiAgentToolCall: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                toolArgs: { dataType: 'object', required: true },
+                toolName: { dataType: 'string', required: true },
                 createdAt: { dataType: 'datetime', required: true },
                 toolCallId: { dataType: 'string', required: true },
                 promptUuid: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
             },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Exclude_ToolName.findFields_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['generateBarVizConfig'] },
-                { dataType: 'enum', enums: ['generateCsv'] },
-                { dataType: 'enum', enums: ['generateQueryFilters'] },
-                { dataType: 'enum', enums: ['generateTimeSeriesVizConfig'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiAgentToolCall: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'BaseAiAgentToolCall' },
-                {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                toolArgs: {
-                                    dataType: 'object',
-                                    required: true,
-                                },
-                                toolName: {
-                                    dataType: 'enum',
-                                    enums: ['findFields'],
-                                    required: true,
-                                },
-                            },
-                        },
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                toolArgs: {
-                                    dataType: 'object',
-                                    required: true,
-                                },
-                                toolName: {
-                                    ref: 'Exclude_ToolName.findFields_',
-                                    required: true,
-                                },
-                            },
-                        },
-                    ],
-                },
-            ],
             validators: {},
         },
     },

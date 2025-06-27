@@ -7,7 +7,6 @@ import type {
     CacheMetadata,
     ItemsMap,
     MetricQuery,
-    ToolName,
 } from '../..';
 
 /**
@@ -264,8 +263,7 @@ export type AiAgentToolCall = {
     promptUuid: string;
     toolCallId: string;
     createdAt: Date;
-    toolName: ToolName;
-    // TODO: Add specific types for other tools as schemas are created
-    // TODO: Check that generate-api works with zod infer schemas
+    // TODO: tsoa does not support zod infer schemas - https://github.com/lukeautry/tsoa/issues/1256
+    toolName: string; // ToolName zod enum
     toolArgs: object;
 };
