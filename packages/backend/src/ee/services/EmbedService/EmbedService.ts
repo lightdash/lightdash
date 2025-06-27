@@ -288,8 +288,8 @@ export class EmbedService extends BaseService {
         if (!isEnabled.enabled) throw new ForbiddenError('Feature not enabled');
     }
 
-    private async getDashboardUuidFromContent(
-        decodedToken: EmbedJwt,
+    async getDashboardUuidFromContent(
+        decodedToken: CreateEmbedJwt,
         projectUuid: string,
     ) {
         if (isDashboardSlugContent(decodedToken.content)) {
@@ -314,7 +314,7 @@ export class EmbedService extends BaseService {
 
     async getDashboard(
         projectUuid: string,
-        account: Account<EmbedJwt>,
+        account: Account<CreateEmbedJwt>,
         // TODO: WHY IS THIS OPTIONAL??
         checkPermissions: boolean = true,
     ): Promise<Dashboard & InteractivityOptions> {
@@ -397,7 +397,7 @@ export class EmbedService extends BaseService {
 
     async getAvailableFiltersForSavedQueries(
         projectUuid: string,
-        account: Account<EmbedJwt>,
+        account: Account<CreateEmbedJwt>,
         savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
         checkPermissions: boolean = true,
     ): Promise<DashboardAvailableFilters> {
@@ -523,7 +523,10 @@ export class EmbedService extends BaseService {
         };
     }
 
-    private static getExternalId(decodedToken: EmbedJwt, embedToken: string) {
+    private static getExternalId(
+        decodedToken: CreateEmbedJwt,
+        embedToken: string,
+    ) {
         return (
             decodedToken.user?.externalId ||
             decodedToken.iat?.toString() ||
@@ -533,7 +536,7 @@ export class EmbedService extends BaseService {
 
     private async _getEmbedUserAttributes(
         organizationUuid: string,
-        embedJwt: EmbedJwt,
+        embedJwt: CreateEmbedJwt,
     ) {
         const orgUserAttributes = await this.userAttributesModel.find({
             organizationUuid,
@@ -553,8 +556,8 @@ export class EmbedService extends BaseService {
                       let sanitizedValue: string[];
                       if (typeof value === 'string') {
                           sanitizedValue = [value];
-                      } else if (isArray(value)) {
-                          sanitizedValue = value.map((v) =>
+                      } else if (Array.isArray(value)) {
+                          sanitizedValue = (value as string[]).map((v) =>
                               typeof v === 'string' ? v : JSON.stringify(v),
                           );
                       } else {
@@ -636,7 +639,7 @@ export class EmbedService extends BaseService {
         metricQuery: MetricQuery;
         explore: Explore;
         queryTags: Record<string, string>;
-        embedJwt: EmbedJwt;
+        embedJwt: CreateEmbedJwt;
         dateZoomGranularity?: DateGranularity;
     }) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -704,7 +707,7 @@ export class EmbedService extends BaseService {
 
     // eslint-disable-next-line class-methods-use-this
     private async _getAppliedDashboardFilters(
-        decodedToken: EmbedJwt,
+        decodedToken: CreateEmbedJwt,
         explore: Explore,
         dashboard: DashboardDAO,
         tileUuid: string,
@@ -735,7 +738,7 @@ export class EmbedService extends BaseService {
 
     async getChartAndResults(
         projectUuid: string,
-        account: Account<EmbedJwt>,
+        account: Account<CreateEmbedJwt>,
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
         dateZoomGranularity?: DateGranularity,
@@ -853,7 +856,7 @@ export class EmbedService extends BaseService {
     }
 
     async calculateTotalFromSavedChart(
-        account: Account<EmbedJwt>,
+        account: Account<CreateEmbedJwt>,
         projectUuid: string,
         savedChartUuid: string,
         dashboardFilters?: DashboardFilters,
@@ -964,7 +967,7 @@ export class EmbedService extends BaseService {
         filters,
         forceRefresh,
     }: {
-        account: Account<EmbedJwt>;
+        account: Account<CreateEmbedJwt>;
         projectUuid: string;
         filterUuid: string;
         search: string;
