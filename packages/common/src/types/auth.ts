@@ -1,6 +1,7 @@
 import { type CreateEmbedJwt } from '../ee';
+import { ForbiddenError } from './errors';
 import { type Organization } from './organization';
-import { type SessionUser } from './user';
+import { type AccountUser, type ExternalUser } from './user';
 
 type AccountAuthType =
     | 'session'
@@ -48,19 +49,30 @@ type LightdashAccountAuth =
     | LightdashUserAccountAuth
     | ServiceAccountAuth;
 
+type ILightdashAccount = {
+    organization: Pick<Organization, 'organizationUuid' | 'name'>;
+    authentication: LightdashAccountAuth;
+    user: AccountUser;
+};
+
+type LightdashAccount<T extends ILightdashAccount> = T;
+
+export type ExternalAccount = LightdashAccount<{
+    organization: Pick<Organization, 'organizationUuid' | 'name'>;
+    authentication: EmbeddedAccountAuth;
+    user: ExternalUser;
+}>;
+
 /**
  * The account object is used to store the account information for the user.
  * It's meant to be agnostic of the authentication method.
  */
-export type Account = {
-    organization: Pick<Organization, 'organizationUuid'>;
-    authentication: LightdashAccountAuth;
-    user: SessionUser;
-};
+export type Account = ExternalAccount | Pick<ExternalAccount, 'authentication'>;
 
-export function getEmbeddedAuth(account: Account): EmbeddedAccountAuth {
-    if (account.authentication.type !== 'jwt') {
-        throw new Error('Account is not an embedded account');
+export function assertEmbeddedAuth(
+    account: Account | undefined,
+): asserts account is ExternalAccount {
+    if (account?.authentication.type !== 'jwt') {
+        throw new ForbiddenError('Account is not an embedded account');
     }
-    return account.authentication;
 }

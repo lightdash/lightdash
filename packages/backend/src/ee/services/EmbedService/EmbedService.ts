@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    Account,
     addDashboardFiltersToMetricQuery,
     AndFilterGroup,
     CommercialFeatureFlags,
@@ -14,17 +13,16 @@ import {
     DateGranularity,
     DecodedEmbed,
     Embed,
-    EmbedJwt,
     EmbedUrl,
     Explore,
     ExploreError,
+    ExternalAccount,
     FieldValueSearchResult,
     FilterableDimension,
     ForbiddenError,
     formatRows,
     getDashboardFiltersForTileAndTables,
     getDimensions,
-    getEmbeddedAuth,
     getFilterInteractivityValue,
     getItemId,
     InteractivityOptions,
@@ -289,7 +287,7 @@ export class EmbedService extends BaseService {
         if (!isEnabled.enabled) throw new ForbiddenError('Feature not enabled');
     }
 
-    private async getDashboardUuidFromContent(
+    async getDashboardUuidFromJwt(
         decodedToken: CreateEmbedJwt,
         projectUuid: string,
     ) {
@@ -315,15 +313,15 @@ export class EmbedService extends BaseService {
 
     async getDashboard(
         projectUuid: string,
-        account: Account,
+        account: ExternalAccount,
         // TODO: WHY IS THIS OPTIONAL??
         checkPermissions: boolean = true,
     ): Promise<Dashboard & InteractivityOptions> {
         const { data: decodedToken, source: embedToken } =
-            getEmbeddedAuth(account);
+            account.authentication;
         const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
-        const dashboardUuid = await this.getDashboardUuidFromContent(
+        const dashboardUuid = await this.getDashboardUuidFromJwt(
             decodedToken,
             projectUuid,
         );
@@ -398,11 +396,11 @@ export class EmbedService extends BaseService {
 
     async getAvailableFiltersForSavedQueries(
         projectUuid: string,
-        account: Account,
+        account: ExternalAccount,
         savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
         checkPermissions: boolean = true,
     ): Promise<DashboardAvailableFilters> {
-        const { data: decodedToken } = getEmbeddedAuth(account);
+        const { data: decodedToken } = account.authentication;
         const { dashboardUuids, allowAllDashboards } =
             await this.embedModel.get(projectUuid);
 
@@ -423,7 +421,7 @@ export class EmbedService extends BaseService {
             filters: CompiledDimension[];
         }[] = [];
 
-        const dashboardUuid = await this.getDashboardUuidFromContent(
+        const dashboardUuid = await this.getDashboardUuidFromJwt(
             decodedToken,
             projectUuid,
         );
@@ -739,7 +737,7 @@ export class EmbedService extends BaseService {
 
     async getChartAndResults(
         projectUuid: string,
-        account: Account,
+        account: ExternalAccount,
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
         dateZoomGranularity?: DateGranularity,
@@ -747,11 +745,11 @@ export class EmbedService extends BaseService {
         checkPermissions: boolean = true,
     ) {
         const { data: decodedToken, source: embedToken } =
-            getEmbeddedAuth(account);
+            account.authentication;
         const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
 
-        const dashboardUuid = await this.getDashboardUuidFromContent(
+        const dashboardUuid = await this.getDashboardUuidFromJwt(
             decodedToken,
             projectUuid,
         );
@@ -857,15 +855,15 @@ export class EmbedService extends BaseService {
     }
 
     async calculateTotalFromSavedChart(
-        account: Account,
+        account: ExternalAccount,
         projectUuid: string,
         savedChartUuid: string,
         dashboardFilters?: DashboardFilters,
         invalidateCache?: boolean,
     ) {
-        const { data: decodedToken } = getEmbeddedAuth(account);
+        const { data: decodedToken } = account.authentication;
 
-        const dashboardUuid = await this.getDashboardUuidFromContent(
+        const dashboardUuid = await this.getDashboardUuidFromJwt(
             decodedToken,
             projectUuid,
         );
@@ -968,7 +966,7 @@ export class EmbedService extends BaseService {
         filters,
         forceRefresh,
     }: {
-        account: Account;
+        account: ExternalAccount;
         projectUuid: string;
         filterUuid: string;
         search: string;
@@ -977,10 +975,10 @@ export class EmbedService extends BaseService {
         forceRefresh: boolean;
     }): Promise<FieldValueSearchResult> {
         const { data: decodedToken, source: embedToken } =
-            getEmbeddedAuth(account);
+            account.authentication;
         const { dashboardUuids, allowAllDashboards } =
             await this.embedModel.get(projectUuid);
-        const dashboardUuid = await this.getDashboardUuidFromContent(
+        const dashboardUuid = await this.getDashboardUuidFromJwt(
             decodedToken,
             projectUuid,
         );
