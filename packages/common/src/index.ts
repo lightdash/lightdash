@@ -1110,6 +1110,21 @@ export type CreateProject = Omit<
     copyContent?: boolean;
 };
 
+export type CreateProjectOptionalCredentials = Omit<
+    CreateProject,
+    'warehouseConnection'
+> & {
+    warehouseConnection?: CreateWarehouseCredentials;
+};
+
+export const hasWarehouseCredentials = (
+    createProject: CreateProjectOptionalCredentials,
+): createProject is CreateProjectOptionalCredentials & {
+    warehouseConnection: CreateWarehouseCredentials;
+} =>
+    !!createProject.warehouseConnection &&
+    Object.keys(createProject.warehouseConnection).length > 0;
+
 export type UpdateProject = Omit<
     Project,
     | 'projectUuid'
