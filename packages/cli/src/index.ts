@@ -335,6 +335,10 @@ program
         'dbt property. Do not resolve unselected nodes by deferring to the manifest within the --state directory.',
         undefined,
     )
+    .option(
+        '--no-warehouse-credentials',
+        'Compile without any warehouse credentials. Skips dbt compile + warehouse catalog',
+    )
     .action(compileHandler);
 
 program
@@ -413,11 +417,6 @@ program
         `If set to 'prod' it will copy the table configuration from prod project`,
         'all',
     )
-    .option(
-        '--skip-copy-content',
-        'Skip copying content from the source project',
-        false,
-    )
     .action(previewHandler);
 
 program
@@ -495,11 +494,6 @@ program
         '--table-configuration <prod|all>',
         `If set to 'prod' it will copy the table configuration from prod project`,
         'all',
-    )
-    .option(
-        '--skip-copy-content',
-        'Skip copying content from the source project',
-        false,
     )
     .action(startPreviewHandler);
 
@@ -639,6 +633,10 @@ program
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
         parseUseDbtListOption,
         true,
+    )
+    .option(
+        '--no-warehouse-credentials',
+        'Create project without warehouse credentials. Skips dbt compile + warehouse catalog',
     )
     .action(deployHandler);
 
