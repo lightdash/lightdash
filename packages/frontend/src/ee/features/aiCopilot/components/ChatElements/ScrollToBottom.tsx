@@ -1,3 +1,4 @@
+import { rem } from '@mantine-8/core';
 import { useCallback, useLayoutEffect, useRef } from 'react';
 import { useParams } from 'react-router';
 import { useAiAgentThread } from '../../hooks/useOrganizationAiAgents';
@@ -73,7 +74,13 @@ const ThreadScrollToBottom = ({
         scrollToBottom,
     ]);
 
-    return <div ref={messagesEndRef} data-testid="thread-scroll-to-bottom" />;
+    return (
+        <div
+            ref={messagesEndRef}
+            data-testid="thread-scroll-to-bottom"
+            style={{ marginTop: rem(-30) }}
+        />
+    );
 };
 
 export default ThreadScrollToBottom;

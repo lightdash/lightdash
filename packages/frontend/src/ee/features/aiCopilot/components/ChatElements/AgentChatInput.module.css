@@ -1,0 +1,11 @@
+.backdropBackground {
+    backdrop-filter: blur(20px);
+    background-color: rgba(255, 255, 255, 0.9);
+    border-top-left-radius: var(--mantine-radius-lg);
+    border-top-right-radius: var(--mantine-radius-lg);
+}
+
+.input {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+    --input-bd-focus: var(--mantine-color-violet-5);
+}
