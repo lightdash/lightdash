@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AiAgent,
     AiAgentThread,
     AiAgentThreadSummary,
     AiAgentUserPreferences,
@@ -1134,16 +1135,49 @@ export class AiAgentService {
         return minimalExploreInformation;
     }
 
+    private async getAgentSettings(
+        user: SessionUser,
+        prompt: SlackPrompt | AiWebAppPrompt,
+    ): Promise<AiAgent> {
+        if (!user.organizationUuid) {
+            throw new Error('Organization not found');
+        }
+
+        const agentSettings =
+            'slackChannelId' in prompt
+                ? await this.aiAgentModel.getAgentBySlackChannelId({
+                      organizationUuid: user.organizationUuid,
+                      slackChannelId: prompt.slackChannelId,
+                  })
+                : await this.aiAgentModel.getAgent({
+                      organizationUuid: prompt.organizationUuid,
+                      agentUuid: prompt.agentUuid!,
+                  });
+
+        return agentSettings;
+    }
+
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack
     // This is scoped to the project, user and prompt (closure)
     public getAiAgentDependencies(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
-        availableTags: string[] | null,
     ) {
-        const { projectUuid, organizationUuid, agentUuid } = prompt;
+        const { projectUuid, organizationUuid } = prompt;
+
+        const getExplores = async () => {
+            const agentSettings = await this.getAgentSettings(user, prompt);
+
+            return this.getMinimalExploreInformation(
+                user,
+                projectUuid,
+                agentSettings?.tags ?? null,
+            );
+        };
 
         const getExplore: GetExploreFn = async ({ exploreName }) => {
+            const agentSettings = await this.getAgentSettings(user, prompt);
+
             const explore = await this.projectService.getExplore(
                 user,
                 projectUuid,
@@ -1152,7 +1186,7 @@ export class AiAgentService {
 
             const filteredExplore = filterExploreByTags({
                 explore,
-                availableTags,
+                availableTags: agentSettings?.tags ?? null,
             });
 
             if (!filteredExplore) {
@@ -1271,6 +1305,7 @@ export class AiAgentService {
         };
 
         return {
+            getExplores,
             getExplore,
             searchFields: this.lightdashConfig.ai.copilot.embeddingSearchEnabled
                 ? searchFields
@@ -1334,20 +1369,9 @@ export class AiAgentService {
         }
 
         const { prompt, stream } = options;
-        const { projectUuid } = prompt;
-
-        const agentSettings =
-            'slackChannelId' in prompt
-                ? await this.aiAgentModel.getAgentBySlackChannelId({
-                      organizationUuid: user.organizationUuid,
-                      slackChannelId: prompt.slackChannelId,
-                  })
-                : await this.aiAgentModel.getAgent({
-                      organizationUuid: prompt.organizationUuid,
-                      agentUuid: prompt.agentUuid!,
-                  });
 
         const {
+            getExplores,
             getExplore,
             searchFields,
             updateProgress,
@@ -1356,33 +1380,22 @@ export class AiAgentService {
             sendFile,
             storeToolCall,
             storeToolResults,
-        } = this.getAiAgentDependencies(
-            user,
-            prompt,
-            agentSettings?.tags ?? null,
-        );
-
-        const aiAgentExploreSummaries = await this.getMinimalExploreInformation(
-            user,
-            projectUuid,
-            agentSettings?.tags ?? null,
-        );
+        } = await this.getAiAgentDependencies(user, prompt);
 
         const model = getModel(this.lightdashConfig.ai.copilot);
+        const agentSettings = await this.getAgentSettings(user, prompt);
 
         const args = {
             model,
-            agentUuid: agentSettings.uuid,
+            agentSettings,
             threadUuid: prompt.threadUuid,
             promptUuid: prompt.promptUuid,
-            agentName: agentSettings.name,
-            instruction: agentSettings.instruction,
             messageHistory,
-            aiAgentExploreSummaries,
             maxLimit: this.lightdashConfig.query.maxLimit,
         };
 
         const dependencies = {
+            getExplores,
             getExplore,
             searchFields,
             runMiniMetricQuery,
@@ -1397,16 +1410,15 @@ export class AiAgentService {
             ) => this.aiAgentModel.updateModelResponse(update),
         };
 
-        if (stream) {
-            return streamAgentResponse({
-                args,
-                dependencies,
-            });
-        }
-        return generateAgentResponse({
-            args,
-            dependencies,
-        });
+        return stream
+            ? streamAgentResponse({
+                  args,
+                  dependencies,
+              })
+            : generateAgentResponse({
+                  args,
+                  dependencies,
+              });
     }
 
     // TODO: user permissions
@@ -1872,8 +1884,7 @@ export class AiAgentService {
             throw new Error('Prompt not found');
         }
 
-        // TODO: this can receive project settings/available tags - like we have for slack
-        const utils = this.getAiAgentDependencies(user, finalPrompt, null);
+        const utils = this.getAiAgentDependencies(user, finalPrompt);
 
         const rows = finalPrompt.metricQuery
             ? (

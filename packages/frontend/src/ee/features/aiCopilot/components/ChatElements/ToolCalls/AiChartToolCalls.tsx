@@ -18,6 +18,7 @@ import { Badge, Group, Stack, Text, Timeline } from '@mantine-8/core';
 import {
     IconChartHistogram,
     IconChartLine,
+    IconDatabase,
     IconFileText,
     IconFilter,
     IconSearch,
@@ -30,6 +31,7 @@ import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCal
 
 const getToolIcon = (toolName: string) => {
     const iconMap = {
+        findExplores: IconDatabase,
         findFields: IconSearch,
         generateBarVizConfig: IconChartHistogram,
         generateTimeSeriesVizConfig: IconChartLine,
@@ -174,7 +176,9 @@ const ToolCallDescription: FC<{
                     sql={compiledSql}
                 />
             );
-
+        case 'findExplores':
+            // TODO: Implement findExplores tool call description
+            return null;
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);
     }

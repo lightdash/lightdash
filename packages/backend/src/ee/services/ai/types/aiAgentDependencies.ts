@@ -10,6 +10,9 @@ import {
     UpdateWebAppResponse,
 } from '@lightdash/common';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
+import { AiAgentExploreSummary } from './aiAgentExploreSummary';
+
+export type GetExploresFn = () => Promise<AiAgentExploreSummary[]>;
 
 export type GetExploreFn = (args: { exploreName: string }) => Promise<Explore>;
 
