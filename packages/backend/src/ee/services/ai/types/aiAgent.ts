@@ -1,6 +1,8 @@
+import { AiAgent } from '@lightdash/common';
 import { CoreMessage, LanguageModelV1 } from 'ai';
 import {
     GetExploreFn,
+    GetExploresFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
     SearchFieldsFn,
@@ -10,21 +12,18 @@ import {
     UpdateProgressFn,
     UpdatePromptFn,
 } from './aiAgentDependencies';
-import { AiAgentExploreSummary } from './aiAgentExploreSummary';
 
 export type AiAgentArgs = {
     model: LanguageModelV1;
-    promptUuid: string;
-    agentUuid: string;
-    threadUuid: string;
-    agentName: string;
-    instruction: string | null;
+    agentSettings: AiAgent;
     messageHistory: CoreMessage[];
-    aiAgentExploreSummaries: AiAgentExploreSummary[];
+    promptUuid: string;
+    threadUuid: string;
     maxLimit: number;
 };
 
 export type AiAgentDependencies = {
+    getExplores: GetExploresFn;
     getExplore: GetExploreFn;
     searchFields: SearchFieldsFn | undefined;
     runMiniMetricQuery: RunMiniMetricQueryFn;

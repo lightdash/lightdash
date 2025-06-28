@@ -9,6 +9,7 @@ import { Badge, Group, Stack, Text, Timeline } from '@mantine-8/core';
 import {
     IconChartHistogram,
     IconChartLine,
+    IconDatabase,
     IconFileText,
     IconFilter,
     IconSearch,
@@ -19,6 +20,7 @@ import MantineIcon from '../../../../../../components/common/MantineIcon';
 
 const getToolIcon = (toolName: string) => {
     const iconMap = {
+        findExplores: IconDatabase,
         findFields: IconSearch,
         generateBarVizConfig: IconChartHistogram,
         generateTimeSeriesVizConfig: IconChartLine,
@@ -80,6 +82,7 @@ const getToolDescription = (toolCall: AiAgentToolCall) => {
                     )}
                 </>
             );
+        case 'findExplores':
         case 'generateBarVizConfig':
         case 'generateCsv':
         case 'generateQueryFilters':

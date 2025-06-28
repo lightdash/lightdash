@@ -9,8 +9,8 @@ import {
 } from 'ai';
 import type { ZodType } from 'zod';
 import Logger from '../../../../logging/logger';
-import { getExploreInformationPrompt } from '../prompts/exploreInformation';
 import { getSystemPrompt } from '../prompts/system';
+import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
 import { getGenerateCsv } from '../tools/generateCsv';
@@ -33,10 +33,10 @@ const defaultAgentOptions = {
 const getAgentTelemetryConfig = (
     functionId: string,
     {
-        agentUuid,
+        agentSettings,
         threadUuid,
         promptUuid,
-    }: Pick<AiAgentArgs, 'agentUuid' | 'threadUuid' | 'promptUuid'>,
+    }: Pick<AiAgentArgs, 'agentSettings' | 'threadUuid' | 'promptUuid'>,
 ) =>
     ({
         functionId,
@@ -44,7 +44,7 @@ const getAgentTelemetryConfig = (
         recordInputs: true,
         recordOutputs: true,
         metadata: {
-            agentUuid,
+            agentUuid: agentSettings.uuid,
             threadUuid,
             promptUuid,
         },
@@ -54,6 +54,10 @@ const getAgentTools = (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
 ) => {
+    const findExplores = getFindExplores({
+        getExplores: dependencies.getExplores,
+    });
+
     const findFields = getFindFields({
         getExplore: dependencies.getExplore,
         searchFields: dependencies.searchFields,
@@ -98,6 +102,7 @@ const getAgentTools = (
     });
 
     const tools = {
+        findExplores,
         findFields,
         generateQueryFilters,
         generateBarVizConfig,
@@ -111,11 +116,8 @@ const getAgentTools = (
 
 const getAgentMessages = (args: AiAgentArgs) => [
     getSystemPrompt({
-        agentName: args.agentName,
-        instructions: args.instruction || undefined,
-    }),
-    getExploreInformationPrompt({
-        exploreInformation: args.aiAgentExploreSummaries,
+        agentName: args.agentSettings.name,
+        instructions: args.agentSettings.instruction || undefined,
     }),
     ...args.messageHistory,
 ];
