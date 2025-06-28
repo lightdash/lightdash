@@ -1,9 +1,10 @@
 import {
+    ALL_SCOPES,
     ApiCreateServiceAccountRequest,
     ApiErrorPayload,
     AuthTokenPrefix,
+    ScimScope,
     ServiceAccount,
-    ServiceAccountScope,
 } from '@lightdash/common';
 import {
     Body,
@@ -44,8 +45,8 @@ export class ServiceAccountsController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ServiceAccount[] }> {
         // Here all scopes but scim to get all non scim service accounts
-        const scopes = Object.values(ServiceAccountScope).filter(
-            (scope) => scope !== ServiceAccountScope.SCIM_MANAGE,
+        const scopes = Object.values(ALL_SCOPES).filter(
+            (scope) => scope !== ScimScope.MANAGE,
         );
         const results = await this.getServiceAccountService().list(
             req.user!,

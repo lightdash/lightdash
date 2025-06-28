@@ -1,6 +1,12 @@
 import { type AbilityBuilder } from '@casl/ability';
 
-import { ServiceAccountScope } from '../ee/serviceAccounts/types';
+import {
+    ContentScope,
+    OrgScope,
+    ProjectScope,
+    ScimScope,
+    type ServiceAccountScope,
+} from '../ee';
 import { ProjectType } from '../types/projects';
 import { type MemberAbility } from './types';
 
@@ -13,10 +19,71 @@ const applyServiceAccountStaticAbilities: Record<
     ServiceAccountScope,
     (args: ServiceAccountAbilitiesArgs) => void
 > = {
-    [ServiceAccountScope.ORG_READ]: ({
-        organizationUuid,
-        builder: { can },
-    }) => {
+    [ProjectScope.MANAGE]: ({ organizationUuid, builder: { can } }) => {
+        // Project management: deploy, refresh, compile
+        can('manage', 'CompileProject', {
+            organizationUuid,
+        });
+        can('create', 'Project', {
+            organizationUuid,
+            type: ProjectType.PREVIEW,
+        });
+        can('update', 'Project', {
+            organizationUuid,
+        });
+        can('delete', 'Project', {
+            organizationUuid,
+            type: ProjectType.PREVIEW,
+        });
+        can('create', 'Project', {
+            organizationUuid,
+            type: { $in: [ProjectType.DEFAULT, ProjectType.PREVIEW] },
+        });
+        can('delete', 'Project', {
+            organizationUuid,
+        });
+        can('manage', 'Project', {
+            organizationUuid,
+        });
+        can('view', 'JobStatus', {
+            organizationUuid,
+        });
+        can('create', 'Job');
+        can('view', 'Job');
+        can('manage', 'Job');
+    },
+    [ContentScope.MANAGE]: ({ organizationUuid, builder: { can } }) => {
+        // Content management: full CRUD on content
+        can('view', 'Dashboard', {
+            organizationUuid,
+        });
+        can('view', 'SavedChart', {
+            organizationUuid,
+        });
+        can('view', 'Space', {
+            organizationUuid,
+        });
+        can('manage', 'Dashboard', {
+            organizationUuid,
+        });
+        can('manage', 'SavedChart', {
+            organizationUuid,
+        });
+        can('manage', 'Space', {
+            organizationUuid,
+        });
+        can('manage', 'ContentAsCode', {
+            organizationUuid,
+        });
+        can('manage', 'Tags', {
+            organizationUuid,
+        });
+        can('manage', 'PinnedItems', {
+            organizationUuid,
+        });
+    },
+    // @deprecated do not use this scope
+    [OrgScope.READ]: ({ organizationUuid, builder: { can } }) => {
         can('view', 'OrganizationMemberProfile', {
             organizationUuid,
         });
@@ -172,11 +239,9 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
     },
-    [ServiceAccountScope.ORG_EDIT]: ({
-        organizationUuid,
-        builder: { can },
-    }) => {
-        applyServiceAccountStaticAbilities[ServiceAccountScope.ORG_READ]({
+    // @deprecated do not use this scope
+    [OrgScope.EDIT]: ({ organizationUuid, builder: { can } }) => {
+        applyServiceAccountStaticAbilities[OrgScope.READ]({
             organizationUuid,
             builder: { can },
         });
@@ -207,11 +272,9 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
     },
-    [ServiceAccountScope.ORG_ADMIN]: ({
-        organizationUuid,
-        builder: { can },
-    }) => {
-        applyServiceAccountStaticAbilities[ServiceAccountScope.ORG_EDIT]({
+    // @deprecated do not use this scope
+    [OrgScope.ADMIN]: ({ organizationUuid, builder: { can } }) => {
+        applyServiceAccountStaticAbilities[OrgScope.EDIT]({
             organizationUuid,
             builder: { can },
         });
@@ -320,7 +383,7 @@ const applyServiceAccountStaticAbilities: Record<
         });
     },
     // TODO migrate SCIM permissions to abilities
-    [ServiceAccountScope.SCIM_MANAGE]: ({
+    [ScimScope.MANAGE]: ({
         organizationUuid: _organizationUuid,
         builder: { can: _can },
     }) => {},

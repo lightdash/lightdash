@@ -5,17 +5,17 @@ import {
     getErrorMessage,
     OrganizationMemberRole,
     ScimError,
-    ServiceAccountScope,
     type MemberAbility,
 } from '@lightdash/common';
+import {
+    ScimScope,
+    ServiceAccountScope,
+} from '@lightdash/common/src/ee/serviceAccounts/scopes';
 import { RequestHandler } from 'express';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 
 const getRoleForScopes = (scopes: ServiceAccountScope[]) => {
-    if (
-        scopes.includes(ServiceAccountScope.SCIM_MANAGE) ||
-        scopes.includes(ServiceAccountScope.ORG_ADMIN)
-    ) {
+    if (scopes.includes(ScimScope.MANAGE)) {
         return OrganizationMemberRole.ADMIN;
     }
     return OrganizationMemberRole.MEMBER;

@@ -16,15 +16,15 @@ import { addDays } from 'date-fns';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
-import { ServiceAccountScope } from '@lightdash/common';
+import { ALL_SCOPES, type ServiceAccountScope } from '@lightdash/common';
 
-const AVAILABLE_SCOPES = Object.values(ServiceAccountScope)
+const AVAILABLE_SCOPES = Object.values(ALL_SCOPES)
     .map((scope) => ({
         label: scope,
         value: scope,
         group: scope.split(':')[0],
     }))
-    .filter((scope) => scope.group !== 'scim');
+    .filter((scope) => scope.group !== 'scim' && scope.group !== 'org');
 
 const expireOptions = [
     {
