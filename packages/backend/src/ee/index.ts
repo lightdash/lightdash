@@ -8,6 +8,7 @@ import { OrganizationService } from '../services/OrganizationService/Organizatio
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import LicenseClient from './clients/License/LicenseClient';
+import { OAuth2ServerClient } from './clients/OAuth2ServerClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackBot } from './clients/Slack/SlackBot';
 import { AiAgentModel } from './models/AiAgentModel';
@@ -325,6 +326,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     schedulerModel: models.getSchedulerModel(),
                 }),
+            resultsCacheStorageClient: ({ context }) =>
+                new S3ResultsCacheStorageClient({
+                    lightdashConfig: context.lightdashConfig,
+                }),
+            OAuth2ServerClient: ({ database, context }) =>
+                new OAuth2ServerClient(database, context.lightdashConfig),
         },
     };
 }
