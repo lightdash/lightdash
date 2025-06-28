@@ -111,6 +111,8 @@ export class HealthService extends BaseService {
                     googleDriveApiKey:
                         this.lightdashConfig.auth.google.googleDriveApiKey,
                     enabled: this.isGoogleSSOEnabled(),
+                    enableGCloudADC:
+                        this.lightdashConfig.auth.google.enableGCloudADC,
                 },
                 okta: {
                     loginPath: this.lightdashConfig.auth.okta.loginPath,

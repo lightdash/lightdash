@@ -1,6 +1,7 @@
 import {
     AnyType,
     assertUnreachable,
+    BigqueryAuthenticationType,
     CreateWarehouseCredentials,
     SnowflakeAuthenticationType,
     WarehouseTypes,
@@ -26,10 +27,9 @@ const credentialsTarget = (
 ): CredentialsTarget => {
     switch (credentials.type) {
         case WarehouseTypes.BIGQUERY:
-            return {
+            const bqResult: CredentialsTarget = {
                 target: {
                     type: credentials.type,
-                    method: 'service-account-json',
                     project: credentials.project,
                     dataset: credentials.dataset,
                     threads: DEFAULT_THREADS,
@@ -37,20 +37,37 @@ const credentialsTarget = (
                     priority: credentials.priority,
                     retries: credentials.retries,
                     maximum_bytes_billed: credentials.maximumBytesBilled,
-                    keyfile_json: Object.fromEntries(
-                        Object.keys(credentials.keyfileContents).map((key) => [
-                            key,
-                            envVarReference(key),
-                        ]),
-                    ),
                     execution_project: credentials.executionProject,
                 },
-                environment: Object.fromEntries(
+                environment: {},
+            };
+            if (credentials.keyfileContents) {
+                bqResult.target.method = 'service-account-json';
+                bqResult.target.keyfile_json = Object.fromEntries(
+                    Object.keys(credentials.keyfileContents).map((key) => [
+                        key,
+                        envVarReference(key),
+                    ]),
+                );
+                bqResult.environment = Object.fromEntries(
                     Object.entries(credentials.keyfileContents).map(
                         ([key, value]) => [envVar(key), value],
                     ),
-                ),
-            };
+                );
+                return bqResult;
+            }
+            if (
+                credentials.authenticationType ===
+                BigqueryAuthenticationType.ADC
+            ) {
+                // With oauth method and no keyfile contents, dbt will use the
+                // application default credentials (ADC) to authenticate
+                bqResult.target.method = 'oauth';
+                return bqResult;
+            }
+            throw new Error(
+                `Incorrect BigQuery profile. Profile should have keyfileContents or authenticationType set to ADC`,
+            );
         case WarehouseTypes.REDSHIFT:
             return {
                 target: {

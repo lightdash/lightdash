@@ -1218,9 +1218,9 @@ export class ProjectService extends BaseService {
     }
 
     /* When editing a project, most fields are optional
-    but if the user switches from one authentication type to another, 
+    but if the user switches from one authentication type to another,
     we need to validate the secrets are present */
-    static validateConfigSecrets(project: UpdateProject) {
+    validateConfigSecrets(project: UpdateProject) {
         switch (project.warehouseConnection?.type) {
             case WarehouseTypes.BIGQUERY:
                 const keyFileContents =
@@ -1230,16 +1230,28 @@ export class ProjectService extends BaseService {
                 switch (authenticationType) {
                     case undefined: // Default, for backwards compatibility
                     case BigqueryAuthenticationType.PRIVATE_KEY:
-                        if (keyFileContents.private_key === undefined) {
+                        if (keyFileContents?.private_key === undefined) {
                             throw new ParameterError(
                                 'Bigquery key file is required for private key authentication',
                             );
                         }
                         break;
                     case BigqueryAuthenticationType.SSO:
-                        if (keyFileContents.refresh_token === undefined) {
+                        if (keyFileContents?.refresh_token === undefined) {
                             throw new ParameterError(
                                 'Bigquery refresh token is required for SSO authentication',
+                            );
+                        }
+                        break;
+                    case BigqueryAuthenticationType.ADC:
+                        if (keyFileContents) {
+                            throw new ParameterError(
+                                'Bigquery ADC authentication should not have any sensitive fields set',
+                            );
+                        }
+                        if (!this.lightdashConfig.auth.google.enableGCloudADC) {
+                            throw new ParameterError(
+                                'Bigquery ADC authentication is not enabled in the configuration',
                             );
                         }
                         break;
@@ -1301,7 +1313,7 @@ export class ProjectService extends BaseService {
             savedProject,
         );
 
-        ProjectService.validateConfigSecrets(updatedProject);
+        this.validateConfigSecrets(updatedProject);
 
         await this.projectModel.update(projectUuid, updatedProject);
         await this.jobModel.create(job);

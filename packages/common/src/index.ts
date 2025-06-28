@@ -1010,6 +1010,7 @@ export type HealthState = {
             loginPath: string;
             googleDriveApiKey: string | undefined;
             enabled: boolean;
+            enableGCloudADC: boolean;
         };
         okta: {
             enabled: boolean;
