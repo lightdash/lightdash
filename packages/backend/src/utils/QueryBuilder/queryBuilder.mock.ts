@@ -73,6 +73,7 @@ export const warehouseClientMock: WarehouseClient = {
                 return sql;
         }
     },
+    getFieldQuoteChar: () => '"',
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     concatString: (...args) => `(${args.join(' || ')})`,
     getAllTables(

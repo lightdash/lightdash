@@ -11,7 +11,6 @@ import { WarehouseTypes } from '../types/projects';
 import { type WarehouseClient } from '../types/warehouse';
 import { type VizColumn } from '../visualizations/types';
 import { WeekDay } from './timeFrames';
-import { getFieldQuoteChar } from './warehouse';
 
 export const createVirtualView = (
     virtualViewName: string,
@@ -22,7 +21,7 @@ export const createVirtualView = (
 ): Explore => {
     const exploreCompiler = new ExploreCompiler(warehouseClient);
 
-    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
+    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
 
     const dimensions = columns.reduce<Record<string, Dimension>>(
         (acc, column) => {
@@ -103,6 +102,7 @@ export const createTemporaryVirtualView = (
         getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
         getStringQuoteChar: () => "'",
         getEscapeStringQuoteChar: () => "''",
+        getFieldQuoteChar: () => '"',
         getMetricSql: () => '',
         concatString: (...args) => args.join(''),
         getAllTables: async () => [],
