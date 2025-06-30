@@ -5,7 +5,7 @@ import { getErrorMessage, WarehouseResults } from '@lightdash/common';
 import fs from 'fs';
 import { PassThrough, Readable, Writable } from 'stream';
 import Logger from '../../logging/logger';
-import { sanitizeGenericFileName } from '../../utils/FileDownloadUtils';
+import { createContentDispositionHeader } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import {
     S3CacheClient,
     type S3CacheClientArguments,
@@ -47,9 +47,9 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
                 Key: fileName,
                 Body: passThrough,
                 ContentType: opts.contentType,
-                ContentDisposition: `attachment; filename="${
-                    attachmentDownloadName || fileName
-                }"`,
+                ContentDisposition: createContentDispositionHeader(
+                    attachmentDownloadName || fileName,
+                ),
             },
         });
 
@@ -171,9 +171,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
                 contentType: config.contentType,
             },
             attachmentDownloadName
-                ? `${sanitizeGenericFileName(attachmentDownloadName)}.${
-                      config.extension
-                  }`
+                ? `${attachmentDownloadName}.${config.extension}`
                 : undefined,
         );
 
@@ -216,9 +214,9 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
                 Key: fileName,
                 Body: fileStream,
                 ContentType: options.contentType,
-                ContentDisposition: `attachment; filename="${
-                    options.attachmentDownloadName || fileName
-                }"`,
+                ContentDisposition: createContentDispositionHeader(
+                    options.attachmentDownloadName || fileName,
+                ),
             },
         });
 

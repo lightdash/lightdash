@@ -1,5 +1,9 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
-import { memo, type FC } from 'react';
+import { Anchor } from '@mantine/core';
+import { IconChartBarOff } from '@tabler/icons-react';
+import { Fragment, memo, type FC } from 'react';
+import { EmptyState } from '../common/EmptyState';
+import MantineIcon from '../common/MantineIcon';
 import CustomVisualization from '../CustomVisualization';
 import FunnelChart from '../FunnelChart';
 import SimpleChart from '../SimpleChart';
@@ -24,10 +28,40 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
         className,
         ...props
     }) => {
-        const { visualizationConfig, minimal } = useVisualizationContext();
+        const { visualizationConfig, minimal, apiErrorDetail } =
+            useVisualizationContext();
 
         if (!visualizationConfig) {
             return null;
+        }
+
+        if (apiErrorDetail) {
+            return (
+                <EmptyState
+                    icon={<MantineIcon icon={IconChartBarOff} />}
+                    title="Unable to load visualization"
+                    description={
+                        <Fragment>
+                            {apiErrorDetail.message}
+                            {apiErrorDetail.data.documentationUrl && (
+                                <Fragment>
+                                    <br />
+                                    <Anchor
+                                        href={
+                                            apiErrorDetail.data.documentationUrl
+                                        }
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        Learn how to resolve this in our
+                                        documentation →
+                                    </Anchor>
+                                </Fragment>
+                            )}
+                        </Fragment>
+                    }
+                ></EmptyState>
+            );
         }
 
         switch (visualizationConfig.chartType) {

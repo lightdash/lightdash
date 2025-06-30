@@ -12,6 +12,8 @@ import {
     FieldType,
     FilterOperator,
     IntrinsicUserAttributes,
+    JoinModelRequiredFilterRule,
+    JoinRelationship,
     MetricType,
     SupportedDbtAdapter,
     TimeFrames,
@@ -326,6 +328,8 @@ export const EXPLORE: Explore = {
             sqlOn: '${table1.shared} = ${table2.shared}',
             compiledSqlOn: '("table1".shared) = ("table2".shared)',
             type: undefined,
+            tablesReferences: ['table1', 'table2'],
+            relationship: JoinRelationship.MANY_TO_ONE,
         },
     ],
     tables: {
@@ -335,6 +339,7 @@ export const EXPLORE: Explore = {
             database: 'database',
             schema: 'schema',
             sqlTable: '"db"."schema"."table1"',
+            primaryKey: ['dim1'],
             dimensions: {
                 dim1: {
                     type: DimensionType.NUMBER,
@@ -407,6 +412,7 @@ export const EXPLORE: Explore = {
             database: 'database',
             schema: 'schema',
             sqlTable: '"db"."schema"."table2"',
+            primaryKey: ['dim2'],
             dimensions: {
                 dim2: {
                     type: DimensionType.NUMBER,
@@ -443,6 +449,18 @@ export const EXPLORE: Explore = {
                     label: 'metric2',
                     sql: '${TABLE}.number_column',
                     compiledSql: 'MAX("table2".number_column)',
+                    tablesReferences: ['table2'],
+                    hidden: false,
+                },
+                metric3: {
+                    type: MetricType.SUM,
+                    fieldType: FieldType.METRIC,
+                    table: 'table2',
+                    tableLabel: 'table2',
+                    name: 'metric3',
+                    label: 'metric3',
+                    sql: '${TABLE}.number_column',
+                    compiledSql: 'SUM("table2".number_column)',
                     tablesReferences: ['table2'],
                     hidden: false,
                 },
@@ -1630,5 +1648,143 @@ export const CUSTOM_SQL_DIMENSION: CompiledCustomSqlDimension = {
     compiledSql: '"table1".dim1 < 18',
     tablesReferences: ['table1'],
 };
+
+// EXPLORE with required filters on joined tables
+export const EXPLORE_WITH_REQUIRED_FILTERS: Explore = {
+    ...EXPLORE,
+    tables: {
+        ...EXPLORE.tables,
+        table1: {
+            ...EXPLORE.tables.table1,
+            requiredFilters: [
+                {
+                    id: 'required_filter_1',
+                    target: {
+                        fieldRef: 'table2.dim2',
+                        tableName: 'table2',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: [10],
+                    required: true,
+                } satisfies JoinModelRequiredFilterRule,
+            ],
+        },
+    },
+};
+
+// Metric query with sort by dimension with timeinterval month name
+export const METRIC_QUERY_WITH_MONTH_NAME_SORT: CompiledMetricQuery = {
+    exploreName: 'table1',
+    dimensions: ['table1_dim1'],
+    metrics: ['table1_metric1'],
+    filters: {},
+    sorts: [{ fieldId: 'table1_dim1', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Expected SQL for metric query with sort by dimension with timeinterval month name
+export const METRIC_QUERY_WITH_MONTH_NAME_SORT_SQL = `WITH metrics AS (
+    SELECT "table1".dim1 AS "table1_dim1",
+           MAX("table1".number_column) AS "table1_metric1"
+    FROM "db"."schema"."table1" AS "table1"
+    GROUP BY 1
+)
+
+SELECT *
+FROM metrics
+ORDER BY (
+    CASE
+        WHEN "table1_dim1" = 'January' THEN 1
+        WHEN "table1_dim1" = 'February' THEN 2
+        WHEN "table1_dim1" = 'March' THEN 3
+        WHEN "table1_dim1" = 'April' THEN 4
+        WHEN "table1_dim1" = 'May' THEN 5
+        WHEN "table1_dim1" = 'June' THEN 6
+        WHEN "table1_dim1" = 'July' THEN 7
+        WHEN "table1_dim1" = 'August' THEN 8
+        WHEN "table1_dim1" = 'September' THEN 9
+        WHEN "table1_dim1" = 'October' THEN 10
+        WHEN "table1_dim1" = 'November' THEN 11
+        WHEN "table1_dim1" = 'December' THEN 12
+        ELSE 0
+    END
+) DESC
+LIMIT 10`;
+
+// Metric query with sort by dimension with timeinterval day of the week name
+export const METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT: CompiledMetricQuery = {
+    exploreName: 'table1',
+    dimensions: ['table1_dim1'],
+    metrics: ['table1_metric1'],
+    filters: {},
+    sorts: [{ fieldId: 'table1_dim1', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Expected SQL for metric query with sort by dimension with timeinterval day of the week name
+export const METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT_SQL = `WITH metrics AS (
+    SELECT "table1".dim1 AS "table1_dim1",
+           MAX("table1".number_column) AS "table1_metric1"
+    FROM "db"."schema"."table1" AS "table1"
+    GROUP BY 1
+)
+
+SELECT *
+FROM metrics
+ORDER BY (
+    CASE
+        WHEN "table1_dim1" = 'Sunday' THEN 1
+        WHEN "table1_dim1" = 'Monday' THEN 2
+        WHEN "table1_dim1" = 'Tuesday' THEN 3
+        WHEN "table1_dim1" = 'Wednesday' THEN 4
+        WHEN "table1_dim1" = 'Thursday' THEN 5
+        WHEN "table1_dim1" = 'Friday' THEN 6
+        WHEN "table1_dim1" = 'Saturday' THEN 7
+        ELSE 0
+    END
+) DESC
+LIMIT 10`;
+
+// Expected SQL for required filters with joined tables
+export const METRIC_QUERY_WITH_REQUIRED_FILTERS_SQL = `WITH metrics AS (
+    SELECT "table1".dim1 AS "table1_dim1",
+    MAX("table1".number_column) AS "table1_metric1"
+    FROM "db"."schema"."table1" AS "table1"
+    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+    WHERE ( ("table2".dim2) IN (10) )
+    GROUP BY 1
+)
+SELECT *, table1_dim1 + table1_metric1 AS "calc3" FROM metrics ORDER BY "table1_metric1" DESC LIMIT 10`;
+
+// Metric query with custom SQL dimension
+export const METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION: CompiledMetricQuery = {
+    exploreName: 'table1',
+    dimensions: ['table1_dim1', 'is_adult'],
+    metrics: ['table1_metric1'],
+    filters: {},
+    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [CUSTOM_SQL_DIMENSION],
+};
+
+// Expected SQL for metric query with custom SQL dimension
+export const EXPECTED_SQL_WITH_CUSTOM_SQL_DIMENSION = `SELECT "table1".dim1 AS "table1_dim1",
+       ("table1".dim1 < 18) AS "is_adult",
+       MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+GROUP BY 1,2
+ORDER BY "table1_metric1" DESC LIMIT 10`;
 
 export const QUERY_BUILDER_UTC_TIMEZONE = 'UTC';

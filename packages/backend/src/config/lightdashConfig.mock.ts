@@ -19,6 +19,7 @@ export const lightdashConfigMock: LightdashConfig = {
             oauth2ClientSecret: undefined,
             callbackPath: '',
             googleDriveApiKey: undefined,
+            enableGCloudADC: false,
             enabled: false,
         },
         okta: {
@@ -97,7 +98,7 @@ export const lightdashConfigMock: LightdashConfig = {
     pylon: {
         appId: '',
     },
-    lightdashSecret: '',
+    lightdashSecret: 'look away this is a secret',
     logging: {
         level: 'debug',
         format: 'pretty',
@@ -173,6 +174,7 @@ export const lightdashConfigMock: LightdashConfig = {
     ai: {
         copilot: {
             enabled: false,
+            telemetryEnabled: false,
             requiresFeatureFlag: false,
             defaultProvider: 'openai',
             providers: {

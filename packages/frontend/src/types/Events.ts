@@ -153,4 +153,14 @@ export enum EventName {
 
     // Spaces
     SPACE_BREADCRUMB_CLICKED = 'space_breadcrumb.clicked',
+
+    // AI Agents
+
+    AI_AGENT_CREATED = 'ai_agent.created',
+    AI_AGENT_DELETED = 'ai_agent.deleted',
+    AI_AGENT_UPDATED = 'ai_agent.updated',
+    AI_AGENT_PROMPT_CREATED = 'ai_agent_prompt.created',
+    AI_AGENT_CHART_HOW_ITS_CALCULATED_CLICKED = 'ai_agent_chart_how_its_calculated.clicked',
+    AI_AGENT_CHART_CREATED = 'ai_agent_chart.created',
+    AI_AGENT_CHART_EXPLORED = 'ai_agent_chart.explored',
 }

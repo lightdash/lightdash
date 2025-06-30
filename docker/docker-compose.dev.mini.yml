@@ -1,6 +1,6 @@
-version: '3.8'
 volumes:
-    node_modules:
+    postgres_data:
+    minio_data:
 
 services:
     minio:
@@ -12,6 +12,9 @@ services:
             - MINIO_ROOT_USER=${MINIO_ROOT_USER}
             - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
             - MINIO_DEFAULT_BUCKETS=${MINIO_DEFAULT_BUCKETS}
+            - MINIO_BROWSER=${MINIO_BROWSER:-off}
+        volumes:
+            - minio_data:/bitnami/minio/data
 
     db-dev:
         image: pgvector/pgvector:pg16
@@ -20,6 +23,8 @@ services:
             POSTGRES_PASSWORD: password
         ports:
             - '5432:5432'
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
 
     headless-browser:
         image: ghcr.io/browserless/chromium:v2.24.3

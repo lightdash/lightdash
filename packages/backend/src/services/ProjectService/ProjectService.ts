@@ -33,6 +33,7 @@ import {
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     CustomFormatType,
+    CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
     DashboardBasicDetails,
     DashboardFilters,
@@ -116,7 +117,6 @@ import {
     type RunQueryTags,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
-    type SemanticLayerConnectionUpdate,
     SessionUser,
     snakeCaseName,
     SortByDirection,
@@ -191,11 +191,15 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectAdapter } from '../../types';
-import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import {
+    runWorkerThread,
+    wrapSentryTransaction,
+    wrapSentryTransactionSync,
+} from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
-    buildQuery,
     CompiledQuery,
+    MetricQueryBuilder,
 } from '../../utils/QueryBuilder/queryBuilder';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { BaseService } from '../BaseService';
@@ -930,13 +934,16 @@ export class ProjectService extends BaseService {
                     data.upstreamProjectUuid,
                     projectUuid,
                 );
-                await this.copyContentOnPreview(
-                    data.upstreamProjectUuid,
-                    projectUuid,
-                    user,
-                );
 
-                hasContentCopy = true;
+                if (data.copyContent ?? true) {
+                    await this.copyContentOnPreview(
+                        data.upstreamProjectUuid,
+                        projectUuid,
+                        user,
+                    );
+
+                    hasContentCopy = true;
+                }
             } catch (e) {
                 Sentry.captureException(e);
                 this.logger.error(`Unable to copy content on preview ${e}`);
@@ -1211,9 +1218,9 @@ export class ProjectService extends BaseService {
     }
 
     /* When editing a project, most fields are optional
-    but if the user switches from one authentication type to another, 
+    but if the user switches from one authentication type to another,
     we need to validate the secrets are present */
-    static validateConfigSecrets(project: UpdateProject) {
+    validateConfigSecrets(project: UpdateProject) {
         switch (project.warehouseConnection?.type) {
             case WarehouseTypes.BIGQUERY:
                 const keyFileContents =
@@ -1223,16 +1230,28 @@ export class ProjectService extends BaseService {
                 switch (authenticationType) {
                     case undefined: // Default, for backwards compatibility
                     case BigqueryAuthenticationType.PRIVATE_KEY:
-                        if (keyFileContents.private_key === undefined) {
+                        if (keyFileContents?.private_key === undefined) {
                             throw new ParameterError(
                                 'Bigquery key file is required for private key authentication',
                             );
                         }
                         break;
                     case BigqueryAuthenticationType.SSO:
-                        if (keyFileContents.refresh_token === undefined) {
+                        if (keyFileContents?.refresh_token === undefined) {
                             throw new ParameterError(
                                 'Bigquery refresh token is required for SSO authentication',
+                            );
+                        }
+                        break;
+                    case BigqueryAuthenticationType.ADC:
+                        if (keyFileContents) {
+                            throw new ParameterError(
+                                'Bigquery ADC authentication should not have any sensitive fields set',
+                            );
+                        }
+                        if (!this.lightdashConfig.auth.google.enableGCloudADC) {
+                            throw new ParameterError(
+                                'Bigquery ADC authentication is not enabled in the configuration',
                             );
                         }
                         break;
@@ -1294,7 +1313,7 @@ export class ProjectService extends BaseService {
             savedProject,
         );
 
-        ProjectService.validateConfigSecrets(updatedProject);
+        this.validateConfigSecrets(updatedProject);
 
         await this.projectModel.update(projectUuid, updatedProject);
         await this.jobModel.create(job);
@@ -1633,7 +1652,7 @@ export class ProjectService extends BaseService {
             warehouseClient,
         });
 
-        const buildQueryResult = buildQuery({
+        const queryBuilder = new MetricQueryBuilder({
             explore: exploreWithOverride,
             compiledMetricQuery,
             warehouseClient,
@@ -1641,8 +1660,9 @@ export class ProjectService extends BaseService {
             userAttributes,
             timezone,
         });
-
-        return buildQueryResult;
+        return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
+            queryBuilder.compileQuery(),
+        );
     }
 
     async compileQuery(
@@ -1673,9 +1693,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const explore =
@@ -1771,9 +1789,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const queryTags: RunQueryTags = {
@@ -2086,9 +2102,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const queryTags: RunQueryTags = {
@@ -2692,6 +2706,7 @@ export class ProjectService extends BaseService {
         return results;
     }
 
+    // TODO: consider removing this method in milestone #212
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. We know that the warehouse client method shouldn't be in a model, but instead it should be its own client.
     async streamSqlQueryIntoFile({
         userUuid,
@@ -4641,16 +4656,8 @@ export class ProjectService extends BaseService {
         const savedSqlCharts = await this.spaceModel.getSpaceSqlCharts(
             allowedSpaceUuids,
         );
-        const savedSemanticViewerCharts =
-            await this.spaceModel.getSpaceSemanticViewerCharts(
-                allowedSpaceUuids,
-            );
 
-        return [
-            ...savedQueries,
-            ...savedSqlCharts,
-            ...savedSemanticViewerCharts,
-        ];
+        return [...savedQueries, ...savedSqlCharts];
     }
 
     async getChartSummaries(
@@ -4753,13 +4760,6 @@ export class ProjectService extends BaseService {
                 mostPopular: true,
             },
         );
-        const mostPopularSemanticViewerCharts =
-            await this.spaceModel.getSpaceSemanticViewerCharts(
-                allowedSpaces.map(({ uuid }) => uuid),
-                {
-                    mostPopular: true,
-                },
-            );
         const mostPopularDashboards = await this.spaceModel.getSpaceDashboards(
             allowedSpaces.map(({ uuid }) => uuid),
             {
@@ -4770,7 +4770,6 @@ export class ProjectService extends BaseService {
         return [
             ...mostPopularCharts,
             ...mostPopularSqlCharts,
-            ...mostPopularSemanticViewerCharts,
             ...mostPopularDashboards,
         ];
     }
@@ -4791,13 +4790,6 @@ export class ProjectService extends BaseService {
                     recentlyUpdated: true,
                 },
             );
-        const recentlyUpdatedSemanticViewerCharts =
-            await this.spaceModel.getSpaceSemanticViewerCharts(
-                allowedSpaces.map(({ uuid }) => uuid),
-                {
-                    recentlyUpdated: true,
-                },
-            );
         const recentlyUpdatedDashboards =
             await this.spaceModel.getSpaceDashboards(
                 allowedSpaces.map(({ uuid }) => uuid),
@@ -4808,7 +4800,6 @@ export class ProjectService extends BaseService {
         return [
             ...recentlyUpdatedCharts,
             ...recentlyUpdatedSqlCharts,
-            ...recentlyUpdatedSemanticViewerCharts,
             ...recentlyUpdatedDashboards,
         ];
     }
@@ -5231,9 +5222,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const results = await this._calculateTotal(
@@ -5408,9 +5397,7 @@ export class ProjectService extends BaseService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         // Reuse the _calculateTotal method by passing the explore, metricQuery, and organizationUuid
@@ -5675,42 +5662,6 @@ export class ProjectService extends BaseService {
         });
 
         return { name: virtualView.name };
-    }
-
-    async updateSemanticLayerConnection(
-        user: SessionUser,
-        projectUuid: string,
-        payload: SemanticLayerConnectionUpdate,
-    ) {
-        const project = await this.projectModel.getSummary(projectUuid);
-
-        if (user.ability.cannot('update', subject('Project', project))) {
-            throw new ForbiddenError();
-        }
-
-        const updatedProject =
-            await this.projectModel.updateSemanticLayerConnection(
-                projectUuid,
-                payload,
-            );
-
-        return updatedProject;
-    }
-
-    async deleteSemanticLayerConnection(
-        user: SessionUser,
-        projectUuid: string,
-    ) {
-        const project = await this.projectModel.getSummary(projectUuid);
-
-        if (user.ability.cannot('update', subject('Project', project))) {
-            throw new ForbiddenError();
-        }
-
-        const updatedProject =
-            await this.projectModel.deleteSemanticLayerConnection(projectUuid);
-
-        return updatedProject;
     }
 
     async updateVirtualView(

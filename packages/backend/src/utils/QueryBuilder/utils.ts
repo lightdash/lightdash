@@ -4,7 +4,10 @@ import {
     BinType,
     CompiledCustomSqlDimension,
     CompiledDimension,
+    CompiledExploreJoin,
+    CompiledMetric,
     CompiledMetricQuery,
+    CompiledTable,
     CustomBinDimension,
     CustomDimension,
     DbtModelJoinType,
@@ -22,14 +25,17 @@ import {
     getSqlForTruncatedDate,
     IntrinsicUserAttributes,
     isCompiledCustomSqlDimension,
+    JoinRelationship,
+    MetricType,
     parseAllReferences,
+    QueryWarning,
     SortField,
     SupportedDbtAdapter,
     UserAttributeValueMap,
     WarehouseClient,
     WeekDay,
 } from '@lightdash/common';
-import { isArray } from 'lodash';
+import { intersection, isArray } from 'lodash';
 import { hasUserAttribute } from '../../services/UserAttributesService/UserAttributeUtils';
 
 export const getDimensionFromId = (
@@ -37,11 +43,12 @@ export const getDimensionFromId = (
     explore: Explore,
     adapterType: SupportedDbtAdapter,
     startOfWeek: WeekDay | null | undefined,
+    checkUnfilteredTables: boolean = true,
 ): CompiledDimension => {
     const dimensions = getDimensions(explore);
     const dimension = dimensions.find((d) => getItemId(d) === dimId);
 
-    if (dimension === undefined) {
+    if (!dimension) {
         const { baseDimensionId, newTimeFrame } = getDateDimension(dimId);
 
         if (baseDimensionId) {
@@ -50,6 +57,7 @@ export const getDimensionFromId = (
                 explore,
                 adapterType,
                 startOfWeek,
+                checkUnfilteredTables,
             );
             if (baseField && newTimeFrame)
                 return {
@@ -69,12 +77,14 @@ export const getDimensionFromId = (
         // it is possible that the explore is a joined table and is filtered by user_attributes
         // So we check if the dimension exists in the unfiltered tables
         if (
+            checkUnfilteredTables &&
             explore.unfilteredTables &&
             getDimensionFromId(
                 dimId,
                 { ...explore, tables: explore.unfilteredTables },
                 adapterType,
                 startOfWeek,
+                false,
             )
         ) {
             throw new AuthorizationError(
@@ -509,7 +519,12 @@ export const getCustomBinDimensionSql = ({
     userAttributes: UserAttributeValueMap | undefined;
     sorts: SortField[] | undefined;
 }):
-    | { ctes: string[]; joins: string[]; tables: string[]; selects: string[] }
+    | {
+          ctes: string[];
+          join: string | undefined;
+          tables: string[];
+          selects: string[];
+      }
     | undefined => {
     const startOfWeek = warehouseClient.getStartOfWeek();
 
@@ -786,7 +801,12 @@ export const getCustomBinDimensionSql = ({
         [],
     );
 
-    return { ctes, joins, tables: [...new Set(tables)], selects };
+    return {
+        ctes,
+        join: joins.length > 0 ? `CROSS JOIN ${joins.join(',\n')}` : undefined,
+        tables: [...new Set(tables)],
+        selects,
+    };
 };
 
 export const getJoinedTables = (
@@ -816,4 +836,227 @@ export const getJoinedTables = (
         [],
     );
     return [...allNewReferences, ...getJoinedTables(explore, allNewReferences)];
+};
+
+/**
+ * Determines if a metric type is "inflation-proof" (not affected by join inflation)
+ */
+const isInflationProofMetric = (metricType: MetricType): boolean =>
+    [MetricType.COUNT_DISTINCT, MetricType.MIN, MetricType.MAX].includes(
+        metricType,
+    );
+
+const findTablesWithInflationFromJoin = (join: CompiledExploreJoin) => {
+    const tablesWithInflation = new Set<string>();
+    if (!join.tablesReferences) {
+        // Skip, as we can't detect inflation without knowing table references in join SQL
+        return tablesWithInflation;
+    }
+    if (join.relationship === JoinRelationship.ONE_TO_MANY) {
+        // The tables used to join the table can have metric inflation
+        const joinFrom = join.tablesReferences.filter(
+            (table) => table !== join.table,
+        );
+        joinFrom.forEach(tablesWithInflation.add.bind(tablesWithInflation));
+    } else if (join.relationship === JoinRelationship.MANY_TO_ONE) {
+        // The table being joined can have metric inflation
+        tablesWithInflation.add(join.table);
+    }
+
+    return tablesWithInflation;
+};
+
+const findChainedOneToOneTableJoins = ({
+    tables,
+    possibleJoins,
+}: {
+    tables: Set<string>;
+    possibleJoins: CompiledExploreJoin[];
+}) => {
+    const result = new Set<string>();
+    // Keep track of visited tables to avoid infinite recursion
+    const visited = new Set<string>();
+
+    const findReferences = (currentTables: Set<string>) => {
+        const newTables = new Set<string>();
+
+        for (const tableName of currentTables) {
+            if (!visited.has(tableName)) {
+                visited.add(tableName);
+                possibleJoins.forEach((join) => {
+                    if (
+                        join.tablesReferences &&
+                        join.tablesReferences.includes(tableName) &&
+                        (!join.relationship ||
+                            join.relationship === JoinRelationship.ONE_TO_ONE)
+                    ) {
+                        join.tablesReferences.forEach((from) => {
+                            if (!result.has(from)) {
+                                result.add(from);
+                                newTables.add(from);
+                            }
+                        });
+                    }
+                });
+            }
+        }
+
+        // Recursively process newly found tables
+        if (newTables.size > 0) {
+            findReferences(newTables);
+        }
+    };
+
+    findReferences(tables);
+    return result;
+};
+
+const findTablesWithMetricInflation = ({
+    baseTable,
+    joinedTables,
+    possibleJoins,
+    tables,
+}: Pick<
+    FindMetricInflationWarningsProps,
+    'baseTable' | 'joinedTables' | 'possibleJoins' | 'tables'
+>): {
+    tablesWithMetricInflation: Set<string>;
+    joinWithoutRelationship: Set<string>;
+    tablesWithoutPrimaryKey: Set<string>;
+} => {
+    const tablesWithMetricInflation = new Set<string>();
+    const joinWithoutRelationship = new Set<string>();
+    const tablesWithoutPrimaryKey = new Set<string>();
+
+    joinedTables.forEach((joinedTable) => {
+        if (!tables[joinedTable]?.primaryKey) {
+            // Warn the user about missing primary key so we can detect possible metric inflation
+            tablesWithoutPrimaryKey.add(joinedTable);
+        }
+
+        if (joinedTable === baseTable) {
+            // skip base table
+            return;
+        }
+
+        const join = possibleJoins.find(
+            (possibleJoin) => possibleJoin.table === joinedTable,
+        );
+        if (!join) {
+            throw new Error(`Join ${joinedTable} not found`);
+        }
+        if (!join.tablesReferences) {
+            // Skip, as we can't detect inflation without knowing table references in join SQL
+            return;
+        }
+        if (!join.relationship) {
+            // Warn the user about missing relationship so we can detect possible metric inflation
+            joinWithoutRelationship.add(joinedTable);
+        } else {
+            // Finds tables with inflation in this join
+            const tablesWithInflationFromJoin =
+                findTablesWithInflationFromJoin(join);
+            // Finds chained joins with one-to-one relationship
+            const chainedTablesWithInflation = findChainedOneToOneTableJoins({
+                tables: tablesWithInflationFromJoin,
+                possibleJoins,
+            });
+            const newTablesWithInflation = new Set([
+                ...tablesWithInflationFromJoin,
+                ...chainedTablesWithInflation,
+            ]);
+            if (
+                intersection(
+                    Array.from(tablesWithMetricInflation),
+                    Array.from(newTablesWithInflation),
+                ).length > 0
+            ) {
+                // if there are multiple one-to-many or many-to-one joins affecting the same table, all tables in the query can have metric inflation
+                joinedTables.forEach(
+                    tablesWithMetricInflation.add.bind(
+                        tablesWithMetricInflation,
+                    ),
+                );
+            } else {
+                // otherwise, add tables with inflation related to this join
+                newTablesWithInflation.forEach(
+                    tablesWithMetricInflation.add.bind(
+                        tablesWithMetricInflation,
+                    ),
+                );
+            }
+        }
+    });
+
+    return {
+        tablesWithMetricInflation,
+        joinWithoutRelationship,
+        tablesWithoutPrimaryKey,
+    };
+};
+
+type FindMetricInflationWarningsProps = {
+    tables: { [tableName: string]: Pick<CompiledTable, 'primaryKey'> };
+    possibleJoins: Explore['joinedTables']; // all joins metadata
+    baseTable: Explore['baseTable']; // query table
+    joinedTables: Set<string>; // query joined tables
+    metrics: Pick<CompiledMetric, 'name' | 'table' | 'type' | 'label'>[]; // metrics in query
+};
+
+/**
+ * Analyzes joins and metrics to identify potential metric inflation issues.
+ */
+export const findMetricInflationWarnings = ({
+    tables,
+    possibleJoins,
+    baseTable,
+    joinedTables,
+    metrics,
+}: FindMetricInflationWarningsProps): QueryWarning[] => {
+    // Early return if empty joins or metrics
+    if (metrics.length === 0 || joinedTables.size === 0) {
+        return [];
+    }
+
+    // Find tables that potentially have metric inflation and tables without relationship value
+    const {
+        tablesWithMetricInflation,
+        joinWithoutRelationship,
+        tablesWithoutPrimaryKey,
+    } = findTablesWithMetricInflation({
+        baseTable,
+        joinedTables,
+        possibleJoins,
+        tables,
+    });
+
+    // Find what metrics belong to those tables
+    const metricsWithInflation = metrics.filter(
+        (metric) =>
+            tablesWithMetricInflation.has(metric.table) &&
+            !isInflationProofMetric(metric.type),
+    );
+
+    // Generate warnings
+    const warnings: QueryWarning[] = [];
+    joinWithoutRelationship.forEach((table) => {
+        warnings.push({
+            message: `Join **"${table}"** is missing a join relationship type. This can prevent data duplication in joins. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
+            tables: [table],
+        });
+    });
+    tablesWithoutPrimaryKey.forEach((table) => {
+        warnings.push({
+            message: `Table **"${table}"** is missing a primary key definition. This can prevent data duplication in joins. [Read more](https://docs.lightdash.com/references/tables#defining-primary-keys)`,
+            tables: [table],
+        });
+    });
+    metricsWithInflation.forEach((metric) => {
+        warnings.push({
+            message: `Metric **"${metric.label}"** could be inflated due to join relationships. [Read more](https://docs.lightdash.com/references/joins#metric-inflation-in-sql-joins)`,
+            fields: [getItemId(metric)],
+            tables: [metric.table],
+        });
+    });
+    return warnings;
 };

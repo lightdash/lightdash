@@ -12,6 +12,7 @@ import {
     type ParsedMetric,
 } from './dbtFromSchema';
 import { DbtError, ParseError } from './errors';
+import { type JoinRelationship } from './explore';
 import {
     FieldType,
     friendlyName,
@@ -111,6 +112,8 @@ type DbtModelJoin = {
     hidden?: boolean;
     fields?: string[];
     always?: boolean;
+    relationship?: JoinRelationship;
+    primary_key?: string | string[];
 };
 export type DbtColumnMetadata = DbtColumnLightdashConfig & {};
 type DbtColumnLightdashConfig = {

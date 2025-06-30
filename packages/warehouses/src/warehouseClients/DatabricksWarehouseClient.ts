@@ -17,6 +17,7 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '../types';
 import {
@@ -24,6 +25,7 @@ import {
     processPromisesInBatches,
 } from '../utils/processPromisesInBatches';
 import WarehouseBaseClient from './WarehouseBaseClient';
+import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
 type SchemaResult = {
     TABLE_CAT: string;
@@ -167,6 +169,25 @@ const mapFieldType = (type: string): DimensionType => {
     }
 };
 
+export class DatabricksSqlBuilder extends WarehouseBaseSqlBuilder {
+    readonly type = WarehouseTypes.DATABRICKS;
+
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.DATABRICKS;
+    }
+
+    getMetricSql(sql: string, metric: Metric): string {
+        switch (metric.type) {
+            case MetricType.PERCENTILE:
+                return `PERCENTILE(${sql}, ${(metric.percentile ?? 50) / 100})`;
+            case MetricType.MEDIAN:
+                return `PERCENTILE(${sql}, 0.5)`;
+            default:
+                return super.getMetricSql(sql, metric);
+        }
+    }
+}
+
 export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabricksCredentials> {
     schema: string;
 
@@ -175,7 +196,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
     connectionOptions: ConnectionOptions;
 
     constructor(credentials: CreateDatabricksCredentials) {
-        super(credentials);
+        super(credentials, new DatabricksSqlBuilder(credentials.startOfWeek));
         this.schema = credentials.database;
         this.catalog = credentials.catalog;
         this.connectionOptions = {
@@ -356,29 +377,6 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             },
             { [catalog]: {} } as WarehouseCatalog,
         );
-    }
-
-    getStringQuoteChar() {
-        return "'";
-    }
-
-    getAdapterType(): SupportedDbtAdapter {
-        return SupportedDbtAdapter.DATABRICKS;
-    }
-
-    getEscapeStringQuoteChar() {
-        return '\\';
-    }
-
-    getMetricSql(sql: string, metric: Metric) {
-        switch (metric.type) {
-            case MetricType.PERCENTILE:
-                return `PERCENTILE(${sql}, ${(metric.percentile ?? 50) / 100})`;
-            case MetricType.MEDIAN:
-                return `PERCENTILE(${sql}, 0.5)`;
-            default:
-                return super.getMetricSql(sql, metric);
-        }
     }
 
     async getAllTables() {

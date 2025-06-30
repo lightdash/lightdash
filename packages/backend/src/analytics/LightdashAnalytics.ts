@@ -20,13 +20,12 @@ import {
     QueryHistoryStatus,
     RequestMethod,
     SchedulerFormat,
-    SemanticLayerQuery,
+    SqlRunnerQuery,
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
     getErrorMessage,
     getRequestMethod,
-    type SemanticLayerType,
 } from '@lightdash/common';
 import Analytics, {
     Track as AnalyticsTrack,
@@ -244,12 +243,6 @@ type SqlExecutionProperties = {
     usingStreaming: boolean;
 };
 
-type SemanticViewerExecutionProperties = {
-    semanticViewerChartId?: string;
-    usingStreaming: boolean;
-    semanticLayer: SemanticLayerType;
-};
-
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
     properties: {
@@ -261,7 +254,6 @@ type QueryExecutionEvent = BaseTrack & {
         | PaginatedMetricQueryExecutionProperties
         | MetricQueryExecutionProperties
         | SqlExecutionProperties
-        | SemanticViewerExecutionProperties
     );
 };
 
@@ -886,32 +878,6 @@ export type CreateSqlChartVersionEvent = BaseTrack & {
     };
 };
 
-export type CreateSemanticViewerChartVersionEvent = BaseTrack & {
-    event: 'semantic_viewer_chart_version.created';
-    userId: string;
-    properties: {
-        chartId: string;
-        versionId: string;
-        projectId: string;
-        organizationId: string;
-        chartKind: ChartKind;
-        semanticLayerQuery: SemanticLayerQuery;
-        barChart?: {
-            groupByCount: number;
-            yAxisCount: number;
-            aggregationTypes: string[];
-        };
-        lineChart?: {
-            groupByCount: number;
-            yAxisCount: number;
-            aggregationTypes: string[];
-        };
-        pieChart?: {
-            groupByCount: number;
-        };
-    };
-};
-
 type PromoteContent = BaseTrack & {
     event: 'promote.executed' | 'promote.error';
     userId: string;
@@ -1189,19 +1155,6 @@ export type GroupDeleteEvent = BaseTrack & {
     };
 };
 
-export type SemanticLayerView = BaseTrack & {
-    event: 'semantic_layer.get_views'; // started, completed, error suffix when using wrapEvent
-    userId: string;
-    properties: {
-        organizationId: string;
-        projectId: string;
-        // on completed
-        viewsCount?: number;
-        // on error
-        error?: string;
-    };
-};
-
 export type VirtualViewEvent = BaseTrack & {
     event:
         | 'virtual_view.created'
@@ -1422,8 +1375,6 @@ type TypedEvent =
     | SubtotalQueryEvent
     | DeprecatedRouteCalled;
 
-type WrapTypedEvent = SemanticLayerView;
-
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {
         event: Exclude<T['event'], TypedEvent['event']>;
@@ -1533,43 +1484,5 @@ export class LightdashAnalytics extends Analytics {
             ...payload,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });
-    }
-
-    async wrapEvent<T>(
-        payload: WrapTypedEvent,
-        func: () => Promise<T>,
-        extraProperties?: (r: T) => AnyType,
-    ) {
-        try {
-            this.track({
-                ...payload,
-                event: `${payload.event}.started`,
-            });
-
-            const results = await func();
-
-            const properties = extraProperties ? extraProperties(results) : {};
-            this.track({
-                ...payload,
-                event: `${payload.event}.completed`,
-                properties: {
-                    ...payload.properties,
-                    ...properties,
-                },
-            });
-
-            return results;
-        } catch (e) {
-            await this.track({
-                ...payload,
-                event: `${payload.event}.error`,
-                properties: {
-                    ...payload.properties,
-                    error: getErrorMessage(e),
-                },
-            });
-            Logger.error(`Error in scheduler task: ${e}`);
-            throw e;
-        }
     }
 }

@@ -7,6 +7,7 @@ import {
     ItemsMap,
     SlackPrompt,
     UpdateSlackResponse,
+    UpdateWebAppResponse,
 } from '@lightdash/common';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
 
@@ -32,4 +33,22 @@ export type RunMiniMetricQueryFn = (metricQuery: AiMetricQuery) => Promise<{
 
 export type SendFileFn = (args: PostSlackFile) => Promise<void>;
 
-export type UpdatePromptFn = (prompt: UpdateSlackResponse) => Promise<void>;
+export type UpdatePromptFn = (
+    prompt: UpdateWebAppResponse | UpdateSlackResponse,
+) => Promise<void>;
+
+export type StoreToolCallFn = (data: {
+    promptUuid: string;
+    toolCallId: string;
+    toolName: string;
+    toolArgs: object;
+}) => Promise<void>;
+
+export type StoreToolResultsFn = (
+    data: Array<{
+        promptUuid: string;
+        toolCallId: string;
+        toolName: string;
+        result: string;
+    }>,
+) => Promise<void>;

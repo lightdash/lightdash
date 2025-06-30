@@ -71,7 +71,6 @@ type DashboardHeaderProps = {
     dashboard: Dashboard;
     organizationUuid?: string;
     hasDashboardChanged: boolean;
-    hasNewSemanticLayerChart: boolean;
     isEditMode: boolean;
     isSaving: boolean;
     isFullScreenFeatureEnabled?: boolean;
@@ -97,7 +96,6 @@ const DashboardHeader = ({
     dashboard,
     organizationUuid,
     hasDashboardChanged,
-    hasNewSemanticLayerChart,
     isEditMode,
     isSaving,
     isMovingDashboardToSpace,
@@ -348,7 +346,6 @@ const DashboardHeader = ({
                     <AddTileButton
                         onAddTiles={onAddTiles}
                         disabled={isSaving}
-                        hasNewSemanticLayerChart={hasNewSemanticLayerChart}
                         setAddingTab={setAddingTab}
                         activeTabUuid={activeTabUuid}
                         dashboardTabs={dashboardTabs}
@@ -513,21 +510,18 @@ const DashboardHeader = ({
                                     </Menu.Item>
                                 )}
 
-                                {!!userCanCreateDeliveries &&
-                                    !hasNewSemanticLayerChart && (
-                                        <Menu.Item
-                                            icon={
-                                                <MantineIcon icon={IconSend} />
-                                            }
-                                            onClick={() => {
-                                                toggleScheduledDeliveriesModal(
-                                                    true,
-                                                );
-                                            }}
-                                        >
-                                            Scheduled deliveries
-                                        </Menu.Item>
-                                    )}
+                                {!!userCanCreateDeliveries && (
+                                    <Menu.Item
+                                        icon={<MantineIcon icon={IconSend} />}
+                                        onClick={() => {
+                                            toggleScheduledDeliveriesModal(
+                                                true,
+                                            );
+                                        }}
+                                    >
+                                        Scheduled deliveries
+                                    </Menu.Item>
+                                )}
 
                                 {userCanPromoteDashboard && dashboardUuid && (
                                     <Tooltip
@@ -564,19 +558,14 @@ const DashboardHeader = ({
                                 )}
 
                                 {(userCanExportData ||
-                                    userCanManageDashboard) &&
-                                    !hasNewSemanticLayerChart && (
-                                        <Menu.Item
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconUpload}
-                                                />
-                                            }
-                                            onClick={onExport}
-                                        >
-                                            Export dashboard
-                                        </Menu.Item>
-                                    )}
+                                    userCanManageDashboard) && (
+                                    <Menu.Item
+                                        icon={<MantineIcon icon={IconUpload} />}
+                                        onClick={onExport}
+                                    >
+                                        Export dashboard
+                                    </Menu.Item>
+                                )}
 
                                 {userCanManageDashboard && (
                                     <>

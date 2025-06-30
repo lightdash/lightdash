@@ -5,6 +5,7 @@ models:
       tags:
         - ai-tag-test
     meta:
+      primary_key: event_id
       group_details:
         events:
           label: Events

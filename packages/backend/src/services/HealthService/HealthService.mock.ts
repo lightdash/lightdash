@@ -27,6 +27,7 @@ export const BaseResponse: HealthState = {
             loginPath: '',
             oauth2ClientId: undefined,
             googleDriveApiKey: undefined,
+            enableGCloudADC: false,
         },
         okta: {
             enabled: false,

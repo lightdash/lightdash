@@ -1,7 +1,8 @@
 version: 2
 models:
   - name: users
-    meta: 
+    meta:
+      primary_key: customer_id
       sql_filter: 'customer_id = ${ld.attr.customer_id}'
     columns:
       - name: customer_id

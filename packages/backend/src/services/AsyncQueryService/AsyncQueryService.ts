@@ -16,6 +16,7 @@ import {
     createVirtualView as createVirtualViewObject,
     CreateWarehouseCredentials,
     type CustomDimension,
+    CustomSqlQueryForbiddenError,
     DashboardFilters,
     DEFAULT_RESULTS_PAGE_SIZE,
     Dimension,
@@ -88,7 +89,7 @@ import { measureTime } from '../../logging/measureTime';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import { wrapSentryTransaction } from '../../utils';
-import { processFieldsForExport } from '../../utils/FileDownloadUtils';
+import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import {
     QueryBuilder,
     ReferenceMap,
@@ -1317,6 +1318,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             sql: fullQuery.query,
             fields: fieldsWithOverrides,
+            warnings: fullQuery.warnings,
         };
     }
 
@@ -1577,9 +1579,7 @@ export class AsyncQueryService extends ProjectService {
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
         ) {
-            throw new ForbiddenError(
-                'User cannot run queries with custom SQL dimensions',
-            );
+            throw new CustomSqlQueryForbiddenError();
         }
 
         const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
@@ -1611,13 +1611,14 @@ export class AsyncQueryService extends ProjectService {
             },
         );
 
-        const { sql, fields } = await this.prepareMetricQueryAsyncQueryArgs({
-            user,
-            metricQuery,
-            dateZoom,
-            explore,
-            warehouseClient: warehouseConnection.warehouseClient,
-        });
+        const { sql, fields, warnings } =
+            await this.prepareMetricQueryAsyncQueryArgs({
+                user,
+                metricQuery,
+                dateZoom,
+                explore,
+                warehouseClient: warehouseConnection.warehouseClient,
+            });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -1642,6 +1643,7 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             metricQuery,
             fields,
+            warnings,
         };
     }
 
@@ -1750,12 +1752,13 @@ export class AsyncQueryService extends ProjectService {
             },
         );
 
-        const { sql, fields } = await this.prepareMetricQueryAsyncQueryArgs({
-            user,
-            metricQuery: metricQueryWithLimit,
-            explore,
-            warehouseClient: warehouseConnection.warehouseClient,
-        });
+        const { sql, fields, warnings } =
+            await this.prepareMetricQueryAsyncQueryArgs({
+                user,
+                metricQuery: metricQueryWithLimit,
+                explore,
+                warehouseClient: warehouseConnection.warehouseClient,
+            });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -1779,6 +1782,7 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             metricQuery: metricQueryWithLimit,
             fields,
+            warnings,
         };
     }
 
@@ -2113,13 +2117,14 @@ export class AsyncQueryService extends ProjectService {
             },
         );
 
-        const { sql, fields } = await this.prepareMetricQueryAsyncQueryArgs({
-            user,
-            metricQuery: underlyingDataMetricQuery,
-            explore,
-            dateZoom,
-            warehouseClient: warehouseConnection.warehouseClient,
-        });
+        const { sql, fields, warnings } =
+            await this.prepareMetricQueryAsyncQueryArgs({
+                user,
+                metricQuery: underlyingDataMetricQuery,
+                explore,
+                dateZoom,
+                warehouseClient: warehouseConnection.warehouseClient,
+            });
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
             await this.executeAsyncQuery(
@@ -2145,6 +2150,7 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             metricQuery: underlyingDataMetricQuery,
             fields,
+            warnings,
         };
     }
 

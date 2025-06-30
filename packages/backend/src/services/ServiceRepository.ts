@@ -29,12 +29,11 @@ import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { RenameService } from './RenameService/RenameService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
-import { SavedSemanticViewerChartService } from './SavedSemanticViewerChartService/SavedSemanticViewerChartService';
 import { SavedSqlService } from './SavedSqlService/SavedSqlService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
-import { SemanticLayerService } from './SemanticLayerService/SemanticLayerService';
 import { ShareService } from './ShareService/ShareService';
+import { ShopService } from './ShopService';
 import { SlackIntegrationService } from './SlackIntegrationService/SlackIntegrationService';
 import { SpaceService } from './SpaceService/SpaceService';
 import { SpotlightService } from './SpotlightService/SpotlightService';
@@ -68,6 +67,7 @@ interface ServiceManifest {
     schedulerService: SchedulerService;
     searchService: SearchService;
     shareService: ShareService;
+    shopService: ShopService;
     slackIntegrationService: SlackIntegrationService;
     sshKeyPairService: SshKeyPairService;
     spaceService: SpaceService;
@@ -80,8 +80,6 @@ interface ServiceManifest {
     promoteService: PromoteService;
     savedSqlService: SavedSqlService;
     contentService: ContentService;
-    semanticLayerService: SemanticLayerService;
-    savedSemanticViewerChartService: SavedSemanticViewerChartService;
     coderService: CoderService;
     featureFlagService: FeatureFlagService;
     spotlightService: SpotlightService;
@@ -224,8 +222,7 @@ abstract class ServiceRepositoryBase {
  */
 export class ServiceRepository
     extends ServiceRepositoryBase
-    implements ServiceFactoryMethod<ServiceManifest>
-{
+    implements ServiceFactoryMethod<ServiceManifest> {
     /**
      * Holds memoized instances of services after their initial instantiation:
      */
@@ -411,7 +408,6 @@ export class ServiceRepository
                         this.models.getPersonalAccessTokenModel(),
                     emailModel: this.models.getEmailModel(),
                     projectService: this.getProjectService(),
-                    serviceAccountModel: this.models.getServiceAccountModel(),
                 }),
         );
     }
@@ -581,6 +577,16 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     shareModel: this.models.getShareModel(),
+                }),
+        );
+    }
+
+    public getShopService(): ShopService {
+        return this.getService(
+            'shopService',
+            () =>
+                new ShopService({
+                    database: this.models.getUserModel()['database'],// or this.models.getDb(), depending on what `UserService` uses
                 }),
         );
     }
@@ -804,42 +810,6 @@ export class ServiceRepository
                     dashboardService: this.getDashboardService(),
                     savedChartService: this.getSavedChartService(),
                     savedSqlService: this.getSavedSqlService(),
-                    savedSemanticViewerChartService:
-                        this.getSavedSemanticViewerChartService(),
-                }),
-        );
-    }
-
-    public getSemanticLayerService(): SemanticLayerService {
-        return this.getService(
-            'semanticLayerService',
-            () =>
-                new SemanticLayerService({
-                    lightdashConfig: this.context.lightdashConfig,
-                    analytics: this.context.lightdashAnalytics,
-
-                    schedulerClient: this.clients.getSchedulerClient(),
-                    s3Client: this.clients.getS3Client(),
-
-                    savedSemanticViewerChartService:
-                        this.getSavedSemanticViewerChartService(),
-
-                    projectModel: this.models.getProjectModel(),
-                    downloadFileModel: this.models.getDownloadFileModel(),
-                }),
-        );
-    }
-
-    public getSavedSemanticViewerChartService(): SavedSemanticViewerChartService {
-        return this.getService(
-            'savedSemanticViewerChartService',
-            () =>
-                new SavedSemanticViewerChartService({
-                    analytics: this.context.lightdashAnalytics,
-                    projectModel: this.models.getProjectModel(),
-                    savedSemanticViewerChartModel:
-                        this.models.getSavedSemanticViewerChartModel(),
-                    spaceModel: this.models.getSpaceModel(),
                 }),
         );
     }

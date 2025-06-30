@@ -18,6 +18,7 @@ import { projectRouter } from './projectRouter';
 import { savedChartRouter } from './savedChartRouter';
 import { slackRouter } from './slackRouter';
 import { userRouter } from './userRouter';
+import { shopifyInstallRedirect, shopifyAuthCallback } from './shopifyRouter';
 
 export const apiV1Router = express.Router();
 
@@ -208,6 +209,9 @@ apiV1Router.get('/logout', (req, res, next) => {
     });
 });
 
+
+
+
 apiV1Router.use('/saved', savedChartRouter);
 apiV1Router.use('/invite-links', inviteLinksRouter);
 apiV1Router.use('/org', organizationRouter);
@@ -218,3 +222,6 @@ apiV1Router.use('/password-reset', passwordResetLinksRouter);
 apiV1Router.use('/jobs', jobsRouter);
 apiV1Router.use('/slack', slackRouter);
 apiV1Router.use('/headless-browser', headlessBrowserRouter);
+
+apiV1Router.get('/auth/shopify/start', shopifyInstallRedirect);
+apiV1Router.get('/auth/shopify/callback', shopifyAuthCallback);

@@ -51,26 +51,59 @@ const Register: FC = () => {
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
     const { identify } = useTracking();
+
     const redirectUrl = location.state?.from
         ? `${location.state.from.pathname}${location.state.from.search}`
         : '/';
     const { isLoading, mutate, isSuccess } = useMutation<
-        LightdashUser,
-        ApiError,
-        CreateUserArgs
-    >(registerQuery, {
-        mutationKey: ['login'],
-        onSuccess: (data) => {
-            identify({ id: data.userUuid });
-            window.location.href = redirectUrl;
-        },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to create user`,
-                apiError: error,
+    LightdashUser,
+    ApiError,
+    CreateUserArgs
+>(registerQuery, {
+    mutationKey: ['login'],
+    onSuccess: async (data) => {
+        console.log('User created successfully', data);
+        const userUuid = data.userUuid;
+        identify({ id: userUuid });
+
+        const params = new URLSearchParams(location.search);
+        const shop = params.get('shop');
+
+        if (!shop) {
+            showToastError({
+                title: 'Missing shop info',
+                subtitle: 'Shop domain was not passed from Shopify.',
             });
-        },
-    });
+            return;
+        }
+
+        try {
+            console.log('Setting up Shopify:', { shop, userUuid });
+            await lightdashApi({
+                url: '/auth/shopify/setup',
+                method: 'POST',
+                body: JSON.stringify({
+                    userUuid,
+                    shopUrl: shop,
+                }),
+            });
+
+            window.location.href = '/'; // or /dashboard
+        } catch (err) {
+            showToastError({
+                title: 'Error linking shop to user',
+                subtitle: (err as ApiError).error.message,
+            });
+        }
+    },
+    onError: ({ error }) => {
+        showToastApiError({
+            title: `Failed to create user`,
+            apiError: error,
+        });
+    },
+});
+
 
     if (health.isInitialLoading) {
         return <PageSpinner />;
@@ -98,7 +131,13 @@ const Register: FC = () => {
         <CreateUserForm
             isLoading={isLoading || isSuccess}
             onSubmit={(data: CreateUserArgs) => {
-                mutate(data);
+                const params = new URLSearchParams(location.search);
+                const shop = params.get('shop');
+                console.log('Registering user with data:', data, 'shop:', shop);
+                mutate({
+                    ...data,
+                    shopUrlParam: shop || undefined
+                });
             }}
         />
     );
