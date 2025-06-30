@@ -8,7 +8,12 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import * as jwt from 'jsonwebtoken';
+import {
+    JsonWebTokenError,
+    sign,
+    TokenExpiredError,
+    verify,
+} from 'jsonwebtoken';
 import { z } from 'zod';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
@@ -30,7 +35,7 @@ export function encodeLightdashJwt(
             ? encodedSecret
             : Buffer.from(encodedSecret),
     );
-    return jwt.sign(jwtData, secret, { expiresIn });
+    return sign(jwtData, secret, { expiresIn });
 }
 
 /**
@@ -47,7 +52,7 @@ export function decodeLightdashJwt(
                 ? encodedSecret
                 : Buffer.from(encodedSecret),
         );
-        const decodedToken = jwt.verify(token, secret) as unknown as EmbedJwt;
+        const decodedToken = verify(token, secret) as EmbedJwt;
 
         // Alert if the token is not in the expected format so we can inform the org before enforcing validation
         try {
@@ -88,10 +93,10 @@ export function decodeLightdashJwt(
         }
         return decodedToken;
     } catch (e) {
-        if (e instanceof jwt.TokenExpiredError) {
+        if (e instanceof TokenExpiredError) {
             throw new ForbiddenError('Your embed token has expired.');
         }
-        if (e instanceof jwt.JsonWebTokenError) {
+        if (e instanceof JsonWebTokenError) {
             throw new ParameterError(`Invalid embed token: ${e.message}`);
         }
         if (e instanceof z.ZodError) {
