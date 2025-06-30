@@ -409,6 +409,90 @@ type SpaceBreadcrumbClickedEvent = {
     };
 };
 
+// AI Agent Events
+type AiAgentCreatedEvent = {
+    name: EventName.AI_AGENT_CREATED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+    };
+};
+
+type AiAgentDeletedEvent = {
+    name: EventName.AI_AGENT_DELETED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+    };
+};
+
+type AiAgentUpdatedEvent = {
+    name: EventName.AI_AGENT_UPDATED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+    };
+};
+
+type AiAgentPromptCreatedEvent = {
+    name: EventName.AI_AGENT_PROMPT_CREATED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string | undefined;
+    };
+};
+
+type AiAgentChartHowItsCalculatedClickedEvent = {
+    name: EventName.AI_AGENT_CHART_HOW_ITS_CALCULATED_CLICKED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string;
+        messageId: string;
+        chartType: string;
+    };
+};
+
+type AiAgentChartCreatedEvent = {
+    name: EventName.AI_AGENT_CHART_CREATED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string;
+        messageId: string;
+        tableName: string;
+    };
+};
+
+type AiAgentChartExploredEvent = {
+    name: EventName.AI_AGENT_CHART_EXPLORED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string;
+        messageId: string;
+        tableName: string;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -443,7 +527,14 @@ export type EventData =
     | WriteBackEvent
     | DashboardChartLoadedEvent
     | CustomMetricReplacementEvent
-    | SpaceBreadcrumbClickedEvent;
+    | SpaceBreadcrumbClickedEvent
+    | AiAgentCreatedEvent
+    | AiAgentDeletedEvent
+    | AiAgentUpdatedEvent
+    | AiAgentPromptCreatedEvent
+    | AiAgentChartHowItsCalculatedClickedEvent
+    | AiAgentChartCreatedEvent
+    | AiAgentChartExploredEvent;
 
 export type IdentifyData = {
     id: string;

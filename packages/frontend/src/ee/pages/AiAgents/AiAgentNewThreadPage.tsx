@@ -18,6 +18,9 @@ import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatEleme
 import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultAgentButton/DefaultAgentButton';
 import { useCreateAgentThreadMutation } from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
 
+import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentNewThreadPage = () => {
@@ -25,6 +28,29 @@ const AiAgentNewThreadPage = () => {
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
         useCreateAgentThreadMutation(agentUuid, projectUuid);
     const { agent } = useOutletContext<AgentContext>();
+    const { user } = useApp();
+    const { track } = useTracking();
+
+    const onSubmit = (prompt: string) => {
+        if (
+            user?.data?.userUuid &&
+            user?.data?.organizationUuid &&
+            projectUuid &&
+            agentUuid
+        ) {
+            track({
+                name: EventName.AI_AGENT_PROMPT_CREATED,
+                properties: {
+                    userId: user.data.userUuid,
+                    organizationId: user.data.organizationUuid,
+                    projectId: projectUuid,
+                    aiAgentId: agentUuid,
+                    threadId: undefined,
+                },
+            });
+        }
+        void createAgentThread({ prompt });
+    };
 
     return (
         <Center h="100%">
@@ -95,9 +121,7 @@ const AiAgentNewThreadPage = () => {
                     </Stack>
 
                     <AgentChatInput
-                        onSubmit={(prompt) => {
-                            void createAgentThread({ prompt });
-                        }}
+                        onSubmit={onSubmit}
                         loading={isCreatingThread}
                         placeholder={`Ask ${agent.name} anything about your data...`}
                     />
