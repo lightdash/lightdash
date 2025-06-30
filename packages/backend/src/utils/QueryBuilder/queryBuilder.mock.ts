@@ -73,6 +73,7 @@ export const warehouseClientMock: WarehouseClient = {
                 return sql;
         }
     },
+    getFieldQuoteChar: () => '"',
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     concatString: (...args) => `(${args.join(' || ')})`,
     getAllTables(
@@ -104,6 +105,7 @@ export const bigqueryClientMock: WarehouseClient = {
     credentials: {
         type: WarehouseTypes.BIGQUERY,
     } as CreateWarehouseCredentials,
+    getFieldQuoteChar: () => '`',
     getCatalog: async () => ({
         default: {
             public: {

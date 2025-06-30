@@ -186,6 +186,10 @@ export class DatabricksSqlBuilder extends WarehouseBaseSqlBuilder {
                 return super.getMetricSql(sql, metric);
         }
     }
+
+    getFieldQuoteChar(): string {
+        return '`';
+    }
 }
 
 export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabricksCredentials> {

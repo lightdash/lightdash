@@ -39,6 +39,10 @@ export default abstract class WarehouseBaseClient<
         return this.sqlBuilder.getEscapeStringQuoteChar();
     }
 
+    getFieldQuoteChar(): string {
+        return this.sqlBuilder.getFieldQuoteChar();
+    }
+
     abstract getCatalog(
         config: { database: string; schema: string; table: string }[],
     ): Promise<WarehouseCatalog>;
