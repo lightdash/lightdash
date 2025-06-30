@@ -31,6 +31,7 @@ import {
     DEFAULT_DEFAULT_AI_PROVIDER,
     DEFAULT_OPENAI_MODEL_NAME,
 } from './aiConfigSchema';
+import { parseShopifyConfig, ShopifyAuthConfig } from './shopifyConfig';
 
 enum TokenEnvironmentVariable {
     SERVICE_ACCOUNT = 'LD_SETUP_SERVICE_ACCOUNT_TOKEN',
@@ -782,6 +783,7 @@ export type AuthConfig = {
         allowedOrgRoles: OrganizationMemberRole[];
         maxExpirationTimeInDays: number | undefined;
     };
+    shopify: ShopifyAuthConfig | undefined;
 };
 
 export type SmtpConfig = {
@@ -1019,6 +1021,7 @@ export const parseConfig = (): LightdashConfig => {
                         'PAT_MAX_EXPIRATION_TIME_IN_DAYS',
                     ) ?? undefined,
             },
+            shopify: parseShopifyConfig(),
             disablePasswordAuthentication:
                 process.env.AUTH_DISABLE_PASSWORD_AUTHENTICATION === 'true',
             enableGroupSync: process.env.AUTH_ENABLE_GROUP_SYNC === 'true',
@@ -1300,6 +1303,8 @@ export const parseConfig = (): LightdashConfig => {
         googleCloudPlatform: {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
-        initialSetup: getInitialSetupConfig(),
+        
+        // TODO: actually set env vars
+        initialSetup: undefined,// getInitialSetupConfig(),
     };
 };

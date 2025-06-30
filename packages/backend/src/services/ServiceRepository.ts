@@ -35,6 +35,7 @@ import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
 import { SemanticLayerService } from './SemanticLayerService/SemanticLayerService';
 import { ShareService } from './ShareService/ShareService';
+import { ShopService } from './ShopService';
 import { SlackIntegrationService } from './SlackIntegrationService/SlackIntegrationService';
 import { SpaceService } from './SpaceService/SpaceService';
 import { SpotlightService } from './SpotlightService/SpotlightService';
@@ -68,6 +69,7 @@ interface ServiceManifest {
     schedulerService: SchedulerService;
     searchService: SearchService;
     shareService: ShareService;
+    shopService: ShopService;
     slackIntegrationService: SlackIntegrationService;
     sshKeyPairService: SshKeyPairService;
     spaceService: SpaceService;
@@ -224,8 +226,7 @@ abstract class ServiceRepositoryBase {
  */
 export class ServiceRepository
     extends ServiceRepositoryBase
-    implements ServiceFactoryMethod<ServiceManifest>
-{
+    implements ServiceFactoryMethod<ServiceManifest> {
     /**
      * Holds memoized instances of services after their initial instantiation:
      */
@@ -581,6 +582,16 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     shareModel: this.models.getShareModel(),
+                }),
+        );
+    }
+
+    public getShopService(): ShopService {
+        return this.getService(
+            'shopService',
+            () =>
+                new ShopService({
+                    database: this.models.getUserModel()['database'],// or this.models.getDb(), depending on what `UserService` uses
                 }),
         );
     }

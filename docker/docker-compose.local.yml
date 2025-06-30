@@ -1,0 +1,124 @@
+version: '3.8'
+volumes:
+    node_modules:
+
+services:
+    minio:
+        image: bitnami/minio:latest
+        ports:
+            - '9000:9000'
+            - '9001:9001' 
+        environment:
+            - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+            - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+            - MINIO_DEFAULT_BUCKETS=${MINIO_DEFAULT_BUCKETS}
+
+    lightdash-dev:
+        build:
+            context: ..
+            dockerfile: dockerfile
+            target: dev
+        depends_on:
+            - minio
+            - db-dev
+        environment:
+            - PGHOST=${PGHOST}
+            - PGPORT=${PGPORT}
+            - PGUSER=${PGUSER}
+            - PGPASSWORD=${PGPASSWORD}
+            - PGDATABASE=${PGDATABASE}
+            - RUDDERSTACK_WRITE_KEY=${RUDDERSTACK_WRITE_KEY}
+            - RUDDERSTACK_DATA_PLANE_URL=${RUDDERSTACK_DATA_PLANE_URL}
+            - SECURE_COOKIES=${SECURE_COOKIES}
+            - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
+            - LIGHTDASH_LOG_LEVEL=${LIGHTDASH_LOG_LEVEL}
+            - LIGHTDASH_LICENSE_KEY=${LIGHTDASH_LICENSE_KEY}
+            - NODE_ENV=${NODE_ENV}
+            - DBT_DEMO_DIR=${DBT_DEMO_DIR}
+            - AUTH_DISABLE_PASSWORD_AUTHENTICATION=${AUTH_DISABLE_PASSWORD_AUTHENTICATION}
+            - AUTH_ENABLE_GROUP_SYNC=${AUTH_ENABLE_GROUP_SYNC}
+            - SITE_URL=${SITE_URL}
+            - EXPOSED_SITE_URL=${EXPOSED_SITE_URL}
+            - ALLOW_MULTIPLE_ORGS=${ALLOW_MULTIPLE_ORGS}
+            - LIGHTDASH_QUERY_MAX_LIMIT=${LIGHTDASH_QUERY_MAX_LIMIT}
+            - HEADLESS_BROWSER_HOST=${HEADLESS_BROWSER_HOST}
+            - HEADLESS_BROWSER_PORT=${HEADLESS_BROWSER_PORT}
+            - INTERNAL_LIGHTDASH_HOST=${INTERNAL_LIGHTDASH_HOST}
+            - USE_SECURE_BROWSER=${USE_SECURE_BROWSER}
+            - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
+            - GROUPS_ENABLED=${GROUPS_ENABLED}
+            - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
+            - OPENAI_API_KEY=${OPENAI_API_KEY}
+            - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+            - AI_COPILOT_ENABLED=${AI_COPILOT_ENABLED}
+            - AI_COPILOT_EMBEDDING_SEARCH_ENABLED=${AI_COPILOT_EMBEDDING_SEARCH_ENABLED}
+            - POSTHOG_FE_API_HOST=${POSTHOG_FE_API_HOST}
+            - POSTHOG_BE_API_HOST=${POSTHOG_BE_API_HOST}
+            - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
+            - SLACK_CLIENT_ID=${SLACK_CLIENT_ID}
+            - SLACK_CLIENT_SECRET=${SLACK_CLIENT_SECRET}
+            - SLACK_STATE_SECRET=${SLACK_STATE_SECRET}
+            - GITHUB_PRIVATE_KEY=${GITHUB_PRIVATE_KEY}
+            - GITHUB_APP_ID=${GITHUB_APP_ID}
+            - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+            - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+            - GITHUB_APP_NAME=${GITHUB_APP_NAME}
+            - GITHUB_REDIRECT_DOMAIN=${GITHUB_REDIRECT_DOMAIN}
+            - GOOGLE_DRIVE_API_KEY=${GOOGLE_DRIVE_API_KEY}
+            - AUTH_GOOGLE_OAUTH2_CLIENT_ID=${AUTH_GOOGLE_OAUTH2_CLIENT_ID}
+            - AUTH_GOOGLE_OAUTH2_CLIENT_SECRET=${AUTH_GOOGLE_OAUTH2_CLIENT_SECRET}
+            - S3_ENDPOINT=${S3_ENDPOINT}
+            - S3_REGION=${S3_REGION}
+            - S3_BUCKET=${S3_BUCKET}
+            - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+            - S3_SECRET_KEY=${S3_SECRET_KEY}
+            - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE}
+            - S3_EXPIRATION_TIME=${S3_EXPIRATION_TIME}
+            - RESULTS_S3_REGION=${RESULTS_S3_REGION:-${RESULTS_CACHE_S3_REGION}}
+            - RESULTS_S3_BUCKET=${RESULTS_S3_BUCKET:-${RESULTS_CACHE_S3_BUCKET}}
+            - RESULTS_S3_SECRET_KEY=${RESULTS_S3_SECRET_KEY:-${RESULTS_CACHE_S3_SECRET_KEY}}
+            - RESULTS_S3_ACCESS_KEY=${RESULTS_S3_ACCESS_KEY:-${RESULTS_CACHE_S3_ACCESS_KEY}}
+            - SHOPIFY_API_KEY=${SHOPIFY_API_KEY}
+            - SHOPIFY_API_SECRET=${SHOPIFY_API_SECRET}
+            - SHOPIFY_SCOPES=${SHOPIFY_SCOPES}
+            - SHOPIFY_REDIRECT_URI=${SHOPIFY_REDIRECT_URI}
+            - ALLOW_MULTIPLE_ORGS=${ALLOW_MULTIPLE_ORGS}
+            - LD_SETUP_ADMIN_EMAIL=${LD_SETUP_ADMIN_EMAIL}
+            - LD_SETUP_ADMIN_NAME=${LD_SETUP_ADMIN_NAME}
+            - LD_SETUP_ORGANIZATION_NAME=${LD_SETUP_ORGANIZATION_NAME}
+            - LD_SETUP_PROJECT_NAME=${LD_SETUP_PROJECT_NAME}
+            - LD_SETUP_PROJECT_SCHEMA=${LD_SETUP_PROJECT_SCHEMA}
+            - LD_SETUP_PROJECT_HOST=${LD_SETUP_PROJECT_HOST}
+            - LD_SETUP_PROJECT_HTTP_PATH=${LD_SETUP_PROJECT_HTTP_PATH}
+            - LD_SETUP_GITHUB_PAT=${LD_SETUP_GITHUB_PAT}
+            - LD_SETUP_GITHUB_REPOSITORY=${LD_SETUP_GITHUB_REPOSITORY}
+            - LD_SETUP_GITHUB_BRANCH=${LD_SETUP_GITHUB_BRANCH}
+            - LD_SETUP_GITHUB_PATH=${LD_SETUP_GITHUB_PATH}
+            - LD_SETUP_ORGANIZATION_DEFAULT_ROLE=${LD_SETUP_ORGANIZATION_DEFAULT_ROLE}
+            - LD_SETUP_ORGANIZATION_EMAIL_DOMAIN=${LD_SETUP_ORGANIZATION_EMAIL_DOMAIN}
+            - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+        volumes:
+            - '../:/usr/app'
+            - '../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt'
+            - 'node_modules:/usr/app/node_modules/' # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
+        ports:
+            - '8080:8080'
+            - '9090:9090'
+            - '3000:3000'
+            - '6006:6006'
+            - "9229:9229"
+        command: ''
+        entrypoint: ['/bin/sh', '-c', 'sleep infinity']
+    db-dev:
+        image: pgvector/pgvector:pg16
+        restart: always
+        environment:
+            POSTGRES_PASSWORD: password
+        ports:
+            - '5432:5432'
+
+    headless-browser:
+        image: ghcr.io/browserless/chromium:v2.24.3
+        restart: always
+        ports:
+            - '3001:3000'
