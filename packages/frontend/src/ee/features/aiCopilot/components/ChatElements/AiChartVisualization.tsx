@@ -141,6 +141,10 @@ export const AiChartVisualization: FC<Props> = ({
                 <Stack gap="md" h="100%" mih={400}>
                     <Group justify="space-between" align="start">
                         <SegmentedControl
+                            style={{
+                                visibility:
+                                    toolCalls.length > 0 ? 'visible' : 'hidden',
+                            }}
                             value={activeTab}
                             onChange={(value) =>
                                 setActiveTab(activeTabsSchema.parse(value))

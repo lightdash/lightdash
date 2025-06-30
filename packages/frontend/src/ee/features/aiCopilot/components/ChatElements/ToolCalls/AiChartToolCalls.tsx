@@ -1,9 +1,17 @@
 import {
     type AiAgentToolCall,
     assertUnreachable,
+    CsvFileVizConfigToolArgsSchemaTransformed,
+    generateQueryFiltersToolArgsSchemaTransformed,
+    isCsvFileVizConfigToolArgs,
     isFindFieldsToolArgs,
+    isGenerateQueryFiltersToolArgs,
+    isTimeSeriesMetricVizConfigToolArgs,
+    isVerticalBarMetricVizConfigToolArgs,
+    timeSeriesMetricVizConfigToolArgsSchemaTransformed,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
     ToolNameSchema,
+    verticalBarMetricVizConfigToolArgsSchemaTransformed,
 } from '@lightdash/common';
 import { Badge, Group, Stack, Text, Timeline } from '@mantine-8/core';
 import {
@@ -16,6 +24,8 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import AgentVisualizationFilters from '../AgentVisualizationFilters';
+import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
 
 const getToolIcon = (toolName: string) => {
     const iconMap = {
@@ -29,7 +39,9 @@ const getToolIcon = (toolName: string) => {
     return iconMap[toolName as keyof typeof iconMap] || IconSparkles;
 };
 
-const getToolDescription = (toolCall: AiAgentToolCall) => {
+const ToolCallDescription: FC<{ toolCall: AiAgentToolCall }> = ({
+    toolCall,
+}) => {
     const toolName = ToolNameSchema.parse(toolCall.toolName);
 
     switch (toolName) {
@@ -80,11 +92,90 @@ const getToolDescription = (toolCall: AiAgentToolCall) => {
                     )}
                 </>
             );
-        case 'generateBarVizConfig':
-        case 'generateCsv':
         case 'generateQueryFilters':
+            if (!isGenerateQueryFiltersToolArgs(toolCall.toolArgs)) {
+                return null;
+            }
+
+            const toolArgs =
+                generateQueryFiltersToolArgsSchemaTransformed.parse(
+                    toolCall.toolArgs,
+                );
+
+            return (
+                <Group gap="xs">
+                    <Text c="dimmed" size="xs">
+                        Generated filters for the query
+                    </Text>
+                    <AgentVisualizationFilters
+                        compact
+                        filters={toolArgs.filters}
+                    />
+                </Group>
+            );
+        case 'generateBarVizConfig':
+            if (!isVerticalBarMetricVizConfigToolArgs(toolCall.toolArgs)) {
+                return null;
+            }
+            const barVizConfigToolArgs =
+                verticalBarMetricVizConfigToolArgsSchemaTransformed.parse(
+                    toolCall.toolArgs,
+                );
+            return (
+                <AiChartGenerationToolCallDescription
+                    title={barVizConfigToolArgs.vizConfig.title}
+                    dimensions={[barVizConfigToolArgs.vizConfig.xDimension]}
+                    metrics={barVizConfigToolArgs.vizConfig.yMetrics}
+                    breakdownByDimension={
+                        barVizConfigToolArgs.vizConfig.breakdownByDimension
+                    }
+                    // TODO: VizConfig is not a metric query, it's a viz config as the name suggests
+                    // We need to change the name of the field to something more appropriate
+                    metricQuery={barVizConfigToolArgs.vizConfig}
+                />
+            );
+        case 'generateCsv':
+            if (!isCsvFileVizConfigToolArgs(toolCall.toolArgs)) {
+                return null;
+            }
+            const csvFileVizConfigToolArgs =
+                CsvFileVizConfigToolArgsSchemaTransformed.parse(
+                    toolCall.toolArgs,
+                );
+
+            return (
+                <AiChartGenerationToolCallDescription
+                    title={csvFileVizConfigToolArgs.vizConfig.title}
+                    dimensions={
+                        csvFileVizConfigToolArgs.vizConfig.dimensions ?? []
+                    }
+                    metrics={csvFileVizConfigToolArgs.vizConfig.metrics}
+                    // TODO: VizConfig is not a metric query, it's a viz config as the name suggests
+                    // We need to change the name of the field to something more appropriate
+                    metricQuery={csvFileVizConfigToolArgs.vizConfig}
+                />
+            );
         case 'generateTimeSeriesVizConfig':
-            return null;
+            if (!isTimeSeriesMetricVizConfigToolArgs(toolCall.toolArgs)) {
+                return null;
+            }
+            const timeSeriesToolCallArgs =
+                timeSeriesMetricVizConfigToolArgsSchemaTransformed.parse(
+                    toolCall.toolArgs,
+                );
+            return (
+                <AiChartGenerationToolCallDescription
+                    title={timeSeriesToolCallArgs.vizConfig.title}
+                    dimensions={[timeSeriesToolCallArgs.vizConfig.xDimension]}
+                    metrics={timeSeriesToolCallArgs.vizConfig.yMetrics}
+                    breakdownByDimension={
+                        timeSeriesToolCallArgs.vizConfig.breakdownByDimension
+                    }
+                    // TODO: VizConfig is not a metric query, it's a viz config as the name suggests
+                    // We need to change the name of the field to something more appropriate
+                    metricQuery={timeSeriesToolCallArgs.vizConfig}
+                />
+            );
 
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);
@@ -132,7 +223,7 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({ toolCalls }) => {
                             }
                             lineVariant={'solid'}
                         >
-                            {getToolDescription(toolCall)}
+                            <ToolCallDescription toolCall={toolCall} />
                         </Timeline.Item>
                     );
                 })}
