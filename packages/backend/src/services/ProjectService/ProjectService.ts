@@ -634,7 +634,10 @@ export class ProjectService extends BaseService {
                 BigqueryAuthenticationType.SSO &&
             args.warehouseConnection.keyfileContents.type !== 'authorized_user'
         ) {
-            const refreshToken = await this.userModel.getRefreshToken(userUuid);
+            const refreshToken = await this.userModel.getRefreshToken(
+                userUuid,
+                OpenIdIdentityIssuerType.GOOGLE,
+            );
 
             // Validate refresh token has the right bigquery scopes
             await UserService.generateGoogleAccessToken(
@@ -6198,6 +6201,7 @@ export class ProjectService extends BaseService {
         // Bigquery will handle the permissions
         const refreshToken = await this.userModel.getRefreshToken(
             user.userUuid,
+            OpenIdIdentityIssuerType.GOOGLE,
         );
 
         if (projectId.length === 0) {

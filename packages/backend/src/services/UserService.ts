@@ -1533,14 +1533,22 @@ export class UserService extends BaseService {
                     if (err || !accessToken) {
                         // Make sure you are passing a google's refresh token, and not a snowflake refresh token by mistake
                         // othwerise this will throw a `invalid_grant` error
+                        const lastFourDigits = refreshToken.slice(-4);
+
+                        // Extract meaningful error message from the error object
+                        const errorMessage =
+                            err?.data?.error ||
+                            err?.message ||
+                            err?.error ||
+                            'Unknown error';
+
                         console.error(
-                            `Unable to get google ${type} access token ${JSON.stringify(
-                                err,
-                            )}`,
+                            `Unable to get google "${type}" access token for "xxxx${lastFourDigits}": "${errorMessage}"`,
+                            err,
                         );
                         reject(
                             new AuthorizationError(
-                                `Authentication failed with Google ${err.data?.error}`,
+                                `Authentication failed with Google: ${errorMessage}`,
                             ),
                         );
                         return;
