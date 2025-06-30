@@ -40,7 +40,6 @@ import {
     type CalculateSubtotalsFromQuery,
     type CreateDashboard,
     type DuplicateDashboardParams,
-    type SemanticLayerConnectionUpdate,
     type Tag,
     type UpdateMultipleDashboards,
     type UpdateSchedulerSettings,
@@ -509,55 +508,6 @@ export class ProjectController extends BaseController {
         await this.services
             .getProjectService()
             .updateMetadata(req.user!, projectUuid, body);
-        return {
-            status: 'ok',
-            results: undefined,
-        };
-    }
-
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Patch('{projectUuid}/semantic-layer-connection')
-    @OperationId('updateProjectSemanticLayerConnection')
-    async updateProjectSemanticLayerConnection(
-        @Path() projectUuid: string,
-        @Body() body: SemanticLayerConnectionUpdate,
-        @Request() req: express.Request,
-    ): Promise<ApiSuccessEmpty> {
-        this.setStatus(200);
-
-        await this.services
-            .getProjectService()
-            .updateSemanticLayerConnection(req.user!, projectUuid, body);
-
-        return {
-            status: 'ok',
-            results: undefined,
-        };
-    }
-
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Delete('{projectUuid}/semantic-layer-connection')
-    @OperationId('deleteProjectSemanticLayerConnection')
-    async deleteProjectSemanticLayerConnection(
-        @Path() projectUuid: string,
-        @Request() req: express.Request,
-    ): Promise<ApiSuccessEmpty> {
-        this.setStatus(200);
-
-        await this.services
-            .getProjectService()
-            .deleteSemanticLayerConnection(req.user!, projectUuid);
-
         return {
             status: 'ok',
             results: undefined,

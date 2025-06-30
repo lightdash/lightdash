@@ -628,9 +628,9 @@ describe('ExcelService', () => {
             const fileName = 'test-results';
             const fileId = ExcelService.generateFileId(fileName);
 
-            // Format is: xlsx-test_results-YYYY-MM-DD-HH-mm-ss-SSSS.xlsx
+            // Format is: xlsx-test-results-YYYY-MM-DD-HH-mm-ss-SSSS.xlsx
             expect(fileId).toMatch(
-                /^xlsx-test_results-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{4}\.xlsx$/,
+                /^xlsx-test-results-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{4}\.xlsx$/,
             );
         });
 
@@ -638,9 +638,9 @@ describe('ExcelService', () => {
             const fileName = 'test-results';
             const fileId = ExcelService.generateFileId(fileName, true);
 
-            // Format is: xlsx-incomplete_results-test_results-YYYY-MM-DD-HH-mm-ss-SSSS.xlsx
+            // Format is: xlsx-incomplete_results-test-results-YYYY-MM-DD-HH-mm-ss-SSSS.xlsx
             expect(fileId).toMatch(
-                /^xlsx-incomplete_results-test_results-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{4}\.xlsx$/,
+                /^xlsx-incomplete_results-test-results-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{4}\.xlsx$/,
             );
         });
     });

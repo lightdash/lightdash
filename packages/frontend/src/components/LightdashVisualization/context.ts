@@ -1,4 +1,6 @@
 import {
+    type ApiErrorDetail,
+    type ChartConfig,
     type ChartType,
     type ItemsMap,
     type MetricQuery,
@@ -40,6 +42,8 @@ type VisualizationContext = {
     getSeriesColor: (seriesLike: SeriesLike) => string;
     getGroupColor: (groupPrefix: string, groupName: string) => string;
     colorPalette: string[];
+    chartConfig: ChartConfig;
+    apiErrorDetail?: ApiErrorDetail | null;
 };
 
 const Context = createContext<VisualizationContext | undefined>(undefined);

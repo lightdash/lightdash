@@ -59,8 +59,7 @@ const isAnyChartTile = (
     properties: { chartSlug: string; hideTitle: boolean };
 } =>
     tile.type === DashboardTileTypes.SAVED_CHART ||
-    tile.type === DashboardTileTypes.SQL_CHART ||
-    tile.type === DashboardTileTypes.SEMANTIC_VIEWER_CHART;
+    tile.type === DashboardTileTypes.SQL_CHART;
 
 export class CoderService extends BaseService {
     lightdashConfig: LightdashConfig;

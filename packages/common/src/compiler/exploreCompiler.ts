@@ -673,39 +673,46 @@ export class ExploreCompiler {
     }
 
     compileExploreJoinSql(
-        join: ExploreJoin,
+        join: Pick<ExploreJoin, 'sqlOn' | 'table'>,
         tables: Record<string, Table>,
-    ): string {
+    ): { sql: string; tablesReferences: Set<string> } {
+        const tablesReferences = new Set<string>([]);
         // Sql join contains references to dimensions
-        return join.sqlOn.replace(lightdashVariablePattern, (_, p1) => {
+        const sql = join.sqlOn.replace(lightdashVariablePattern, (_, p1) => {
             const compiledReference = this.compileDimensionReference(
                 p1,
                 tables,
                 join.table,
             );
-
+            // Update table references
+            compiledReference.tablesReferences.forEach((value) =>
+                tablesReferences.add(value),
+            );
             return compiledReference.sql;
         });
+        return { sql, tablesReferences };
     }
 
     compileJoin(
         join: ExploreJoin,
         tables: Record<string, Table>,
     ): CompiledExploreJoin {
+        const { sql, tablesReferences } = this.compileExploreJoinSql(
+            {
+                table: join.alias || join.table,
+                sqlOn: join.sqlOn,
+            },
+            tables,
+        );
         return {
             table: join.alias || join.table,
             sqlOn: join.sqlOn,
             type: join.type,
-            compiledSqlOn: this.compileExploreJoinSql(
-                {
-                    table: join.alias || join.table,
-                    sqlOn: join.sqlOn,
-                    always: join.always,
-                },
-                tables,
-            ),
+            compiledSqlOn: sql,
+            tablesReferences: Array.from(tablesReferences),
             hidden: join.hidden,
             always: join.always,
+            relationship: join.relationship,
         };
     }
 }

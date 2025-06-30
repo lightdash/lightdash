@@ -1,8 +1,11 @@
 import {
     BinType,
+    CompiledExploreJoin,
     CustomDimensionType,
     ForbiddenError,
     isCustomBinDimension,
+    JoinRelationship,
+    MetricType,
     WeekDay,
 } from '@lightdash/common';
 import {
@@ -23,6 +26,7 @@ import {
 import {
     applyLimitToSqlQuery,
     assertValidDimensionRequiredAttribute,
+    findMetricInflationWarnings,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
     replaceUserAttributesAsStrings,
@@ -307,7 +311,7 @@ describe('with custom dimensions', () => {
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
-            joins: ['age_range_cte'],
+            join: 'CROSS JOIN age_range_cte',
             selects: [
                 `CASE
                         WHEN "table1".dim1 IS NULL THEN NULL
@@ -353,7 +357,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
-            joins: ['age_range_cte'],
+            join: 'CROSS JOIN age_range_cte',
             selects: [
                 `CONCAT(age_range_cte.min_id, ' - ', age_range_cte.max_id) AS \`age_range\``,
             ],
@@ -384,7 +388,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                     FROM "db"."schema"."table1" AS \`table1\`
                 )`,
             ],
-            joins: ['age_range_cte'],
+            join: 'CROSS JOIN age_range_cte',
             selects: [
                 `CASE
                             WHEN "table1".dim1 IS NULL THEN NULL
@@ -784,5 +788,471 @@ describe('applyLimitToSqlQuery', () => {
             'WITH subquery AS ( SELECT * FROM orders LIMIT 10 OFFSET 5; ) SELECT * FROM subquery LIMIT 20 OFFSET 10';
 
         expect(result).toBe(expectedQuery);
+    });
+});
+
+describe('findMetricInflationWarnings', () => {
+    it('should return no warnings when there are no metrics', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: { primaryKey: ['id'] },
+            },
+            possibleJoins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    tablesReferences: ['users', 'orders'],
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['orders']),
+            metrics: [],
+        });
+
+        expect(result).toEqual([]);
+    });
+
+    it('should return no warnings when there are no joined tables', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+            },
+            possibleJoins: [],
+            baseTable: 'users',
+            joinedTables: new Set([]),
+            metrics: [
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    table: 'users',
+                    label: 'Total Revenue',
+                },
+            ],
+        });
+
+        expect(result).toEqual([]);
+    });
+
+    it('should not warn for inflation-proof metrics (COUNT_DISTINCT, MIN, MAX)', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: { primaryKey: ['id'] },
+            },
+            possibleJoins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    tablesReferences: ['users', 'orders'],
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['users', 'orders']),
+            metrics: [
+                {
+                    name: 'count_users',
+                    type: MetricType.COUNT_DISTINCT,
+                    table: 'users',
+                    label: 'count users',
+                },
+                {
+                    name: 'min_user',
+                    type: MetricType.MIN,
+                    table: 'users',
+                    label: 'Min user',
+                },
+                {
+                    name: 'max_user',
+                    type: MetricType.MAX,
+                    table: 'users',
+                    label: 'Max user',
+                },
+            ],
+        });
+
+        expect(result).toEqual([]);
+    });
+
+    it('should warn for metrics with single one-to-many joins', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: { primaryKey: ['id'] },
+            },
+            possibleJoins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                    tablesReferences: ['users', 'orders'],
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['orders']),
+            metrics: [
+                {
+                    name: 'total_users',
+                    type: MetricType.SUM,
+                    table: 'users',
+                    label: 'Total users',
+                },
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    table: 'orders',
+                    label: 'total revenue',
+                },
+            ],
+        });
+
+        expect(result).toHaveLength(1);
+        expect(result[0].fields?.[0]).toBe('users_total_users');
+    });
+
+    it('should warn for metrics with chained one-to-many joins', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: { primaryKey: ['id'] },
+                order_items: { primaryKey: ['id'] },
+            },
+            possibleJoins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                    tablesReferences: ['users', 'orders'],
+                },
+                {
+                    table: 'order_items',
+                    sqlOn: 'orders.id = order_items.order_id',
+                    compiledSqlOn: 'orders.id = order_items.order_id',
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                    tablesReferences: ['order_items', 'orders'],
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['orders', 'order_items']),
+            metrics: [
+                {
+                    name: 'total_users',
+                    type: MetricType.SUM,
+                    table: 'users',
+                    label: '',
+                },
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    table: 'orders',
+                    label: '',
+                },
+                {
+                    name: 'total_items',
+                    type: MetricType.SUM,
+                    table: 'order_items',
+                    label: '',
+                },
+            ],
+        });
+
+        expect(result).toHaveLength(2);
+        expect(result[0].fields?.[0]).toBe('users_total_users');
+        expect(result[1].fields?.[0]).toBe('orders_total_revenue');
+    });
+
+    it('should warn for metrics with multiple one-to-many joins', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: { primaryKey: ['id'] },
+                tickets: { primaryKey: ['id'] },
+            },
+            possibleJoins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                    tablesReferences: ['users', 'orders'],
+                },
+                {
+                    table: 'tickets',
+                    sqlOn: 'users.id = tickets.user_id',
+                    compiledSqlOn: 'users.id = tickets.user_id',
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                    tablesReferences: ['users', 'tickets'],
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['orders', 'tickets']),
+            metrics: [
+                {
+                    name: 'total_users',
+                    type: MetricType.SUM,
+                    table: 'users',
+                    label: '',
+                },
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    table: 'orders',
+                    label: '',
+                },
+                {
+                    name: 'total_tickets',
+                    type: MetricType.SUM,
+                    table: 'tickets',
+                    label: '',
+                },
+            ],
+        });
+
+        expect(result).toHaveLength(3);
+        expect(result[0].fields?.[0]).toBe('users_total_users');
+        expect(result[1].fields?.[0]).toBe('orders_total_revenue');
+        expect(result[2].fields?.[0]).toBe('tickets_total_tickets');
+    });
+
+    it('should warn for joins with undefined relationship', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: { primaryKey: ['id'] },
+            },
+            possibleJoins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    tablesReferences: ['users', 'orders'],
+                    // relationship not specified, should default to one-to-one
+                    compiledSqlOn: 'users.id = orders.user_id',
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['orders']),
+            metrics: [
+                {
+                    name: 'total_users',
+                    type: MetricType.SUM,
+                    table: 'users',
+                    label: '',
+                },
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    table: 'orders',
+                    label: '',
+                },
+            ],
+        });
+
+        expect(result).toHaveLength(1);
+        expect(result[0].tables?.[0]).toBe('orders');
+        expect(result[0].message).toContain('missing a join relationship type');
+    });
+
+    it('should not warn for metrics with one-to-one relationships', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                user_profiles: { primaryKey: ['id'] },
+            },
+            possibleJoins: [
+                {
+                    table: 'user_profiles',
+                    sqlOn: 'users.id = user_profiles.user_id',
+                    compiledSqlOn: 'users.id = user_profiles.user_id',
+                    tablesReferences: ['users', 'user_profiles'],
+                    relationship: JoinRelationship.ONE_TO_ONE,
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['user_profiles']),
+            metrics: [
+                {
+                    name: 'total_users',
+                    type: MetricType.SUM,
+                    table: 'users',
+                    label: '',
+                },
+                {
+                    name: 'profile_completeness',
+                    type: MetricType.SUM,
+                    table: 'user_profiles',
+                    label: '',
+                },
+            ],
+        });
+
+        expect(result).toEqual([]);
+    });
+
+    it('should warn for metrics with one-to-one and one-to-many joins', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                user_profiles: { primaryKey: ['id'] },
+                orders: { primaryKey: ['id'] },
+            },
+            possibleJoins: [
+                {
+                    table: 'user_profiles',
+                    sqlOn: 'users.id = user_profiles.user_id',
+                    compiledSqlOn: 'users.id = user_profiles.user_id',
+                    relationship: JoinRelationship.ONE_TO_ONE,
+                    tablesReferences: ['users', 'user_profiles'],
+                },
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                    tablesReferences: ['users', 'orders'],
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['user_profiles', 'orders']),
+            metrics: [
+                {
+                    name: 'total_users',
+                    type: MetricType.SUM,
+                    table: 'users',
+                    label: '',
+                },
+                {
+                    name: 'total_orders',
+                    type: MetricType.SUM,
+                    table: 'orders',
+                    label: '',
+                },
+                {
+                    name: 'total_user_profiles',
+                    type: MetricType.SUM,
+                    table: 'user_profiles',
+                    label: '',
+                },
+            ],
+        });
+
+        expect(result).toHaveLength(2);
+        expect(result[0].fields?.[0]).toBe('users_total_users');
+        expect(result[1].fields?.[0]).toBe('user_profiles_total_user_profiles');
+    });
+
+    // Example in SQL:
+    // SELECT *
+    // FROM table_A A
+    // JOIN table_C C ON C.some_field = A.some_field
+    // JOIN table_B B ON B.id = A.id AND B.user_id = C.user_id
+    it('should warn for metrics with one-to-many complex join', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                table_A: { primaryKey: ['id'] },
+                table_B: { primaryKey: ['id'] },
+                table_C: { primaryKey: ['id'] },
+            },
+            possibleJoins: [
+                {
+                    table: 'table_C',
+                    sqlOn: 'table_C.some_field = table_A.some_field',
+                    compiledSqlOn: 'table_C.some_field = table_A.some_field',
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                    tablesReferences: ['table_A', 'table_C'],
+                },
+                {
+                    table: 'table_B',
+                    sqlOn: 'table_B.id = table_A.id AND table_B.user_id = table_C.user_id',
+                    compiledSqlOn:
+                        'table_B.id = table_A.id AND table_B.user_id = table_C.user_id',
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                    tablesReferences: ['table_A', 'table_B', 'table_C'],
+                },
+            ],
+            baseTable: 'table_A',
+            joinedTables: new Set(['table_B', 'table_C']),
+            metrics: [
+                {
+                    name: 'metric_a',
+                    type: MetricType.SUM,
+                    table: 'table_A',
+                    label: '',
+                },
+                {
+                    name: 'metric_b',
+                    type: MetricType.SUM,
+                    table: 'table_B',
+                    label: '',
+                },
+                {
+                    name: 'metric_c',
+                    type: MetricType.SUM,
+                    table: 'table_C',
+                    label: '',
+                },
+            ],
+        });
+
+        expect(result).toHaveLength(3);
+        expect(result[0].fields?.[0]).toBe('table_A_metric_a');
+        expect(result[1].fields?.[0]).toBe('table_B_metric_b');
+        expect(result[2].fields?.[0]).toBe('table_C_metric_c');
+    });
+
+    it('should warn for tables with missing primary key', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                users: { primaryKey: ['id'] },
+                orders: {}, // Missing primary key
+            },
+            possibleJoins: [
+                {
+                    table: 'orders',
+                    sqlOn: 'users.id = orders.user_id',
+                    compiledSqlOn: 'users.id = orders.user_id',
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                    tablesReferences: ['users', 'orders'],
+                },
+            ],
+            baseTable: 'users',
+            joinedTables: new Set(['orders']),
+            metrics: [
+                {
+                    name: 'total_users',
+                    type: MetricType.SUM,
+                    table: 'users',
+                    label: 'Total users',
+                },
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    table: 'orders',
+                    label: 'Total revenue',
+                },
+            ],
+        });
+
+        // Should have warnings for both the missing primary key and the metric inflation
+        expect(result).toHaveLength(2);
+
+        // Check for the missing primary key warning
+        const primaryKeyWarning = result.find((warning) =>
+            warning.message.includes('missing a primary key definition'),
+        );
+        expect(primaryKeyWarning).toBeDefined();
+        expect(primaryKeyWarning?.tables?.[0]).toBe('orders');
+
+        // Check for the metric inflation warning
+        const metricWarning = result.find(
+            (warning) =>
+                warning.fields && warning.fields[0] === 'users_total_users',
+        );
+        expect(metricWarning).toBeDefined();
     });
 });

@@ -17,7 +17,6 @@ const dashboardAsCodeSchema = z.object({
                 type: z.union([
                     z.literal(DashboardTileTypes.SAVED_CHART),
                     z.literal(DashboardTileTypes.SQL_CHART),
-                    z.literal(DashboardTileTypes.SEMANTIC_VIEWER_CHART),
                 ]),
                 properties: z.object({
                     title: z.string(),

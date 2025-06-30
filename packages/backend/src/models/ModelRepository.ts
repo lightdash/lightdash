@@ -1,6 +1,5 @@
 import { Knex } from 'knex';
 import { LightdashConfig } from '../config/parseConfig';
-import { ServiceAccountModel } from '../ee/models/ServiceAccountModel';
 import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
@@ -28,7 +27,6 @@ import { ProjectModel } from './ProjectModel/ProjectModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { SavedChartModel } from './SavedChartModel';
-import { SavedSemanticViewerChartModel } from './SavedSemanticViewerChartModel';
 import { SavedSqlModel } from './SavedSqlModel';
 import { SchedulerModel } from './SchedulerModel';
 import { SearchModel } from './SearchModel';
@@ -86,7 +84,6 @@ export type ModelManifest = {
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
-    SavedSemanticViewerChartModel: SavedSemanticViewerChartModel;
     contentModel: ContentModel;
     tagsModel: TagsModel;
     featureFlagModel: FeatureFlagModel;
@@ -488,16 +485,6 @@ export class ModelRepository
         );
     }
 
-    public getSavedSemanticViewerChartModel(): SavedSemanticViewerChartModel {
-        return this.getModel(
-            'SavedSemanticViewerChartModel',
-            () =>
-                new SavedSemanticViewerChartModel({
-                    database: this.database,
-                }),
-        );
-    }
-
     public getContentModel(): ContentModel {
         return this.getModel(
             'contentModel',
@@ -512,16 +499,6 @@ export class ModelRepository
                 new FeatureFlagModel({
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
-                }),
-        );
-    }
-
-    public getServiceAccountModel(): ServiceAccountModel {
-        return this.getModel(
-            'serviceAccountModel',
-            () =>
-                new ServiceAccountModel({
-                    database: this.database,
                 }),
         );
     }
@@ -543,6 +520,10 @@ export class ModelRepository
             'tagsModel',
             () => new TagsModel({ database: this.database }),
         );
+    }
+
+    public getServiceAccountModel<ModelImplT>(): ModelImplT {
+        return this.getModel('serviceAccountModel');
     }
 
     public getSpotlightTableConfigModel(): SpotlightTableConfigModel {

@@ -1,10 +1,8 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
 import { Button, Menu } from '@mantine/core';
 import {
     IconFolder,
     IconFolderPlus,
-    IconLayersLinked,
     IconLayoutDashboard,
     IconSquareRoundedPlus,
     IconTable,
@@ -12,8 +10,6 @@ import {
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { useSemanticLayerInfo } from '../../features/semanticViewer/api/hooks';
-import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import useCreateInAnySpaceAccess from '../../hooks/user/useCreateInAnySpaceAccess';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
@@ -36,15 +32,6 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const userCanCreateDashboards = useCreateInAnySpaceAccess(
         projectUuid,
         'Dashboard',
-    );
-
-    const isSemanticLayerEnabled = useFeatureFlagEnabled(
-        FeatureFlags.SemanticLayerEnabled,
-    );
-
-    const semanticLayerInfoQuery = useSemanticLayerInfo(
-        { projectUuid },
-        { enabled: isSemanticLayerEnabled },
     );
 
     const [isOpen, setIsOpen] = useState(false);
@@ -94,27 +81,6 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             to={`/projects/${projectUuid}/tables`}
                             icon={IconTable}
                         />
-
-                        {isSemanticLayerEnabled &&
-                            semanticLayerInfoQuery.isSuccess &&
-                            semanticLayerInfoQuery.data !== null && (
-                                <Can
-                                    I="view"
-                                    this={subject('SemanticViewer', {
-                                        organizationUuid:
-                                            user.data?.organizationUuid,
-                                        projectUuid,
-                                    })}
-                                >
-                                    <LargeMenuItem
-                                        component={Link}
-                                        title={`Query from ${semanticLayerInfoQuery.data.name} semantic layer`}
-                                        description={`Build queries using your ${semanticLayerInfoQuery.data.name} semantic layer connection`}
-                                        to={`/projects/${projectUuid}/semantic-viewer`}
-                                        icon={IconLayersLinked}
-                                    />
-                                </Can>
-                            )}
 
                         <Can
                             I="manage"

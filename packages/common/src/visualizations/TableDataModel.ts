@@ -1,10 +1,8 @@
 import { type AnyType } from '../types/any';
 import { type RawResultRow } from '../types/results';
 import { type ChartKind } from '../types/savedCharts';
-import {
-    type SemanticLayerQuery,
-    type SemanticLayerSortBy,
-} from '../types/semanticLayer';
+import { type SqlRunnerQuery, type SqlRunnerSortBy } from '../types/sqlRunner';
+
 import {
     type PivotChartData,
     type VizTableConfig,
@@ -51,11 +49,11 @@ export class TableDataModel {
 
     static getTableHeaderSortConfig(
         columnNames: string[],
-        query: SemanticLayerQuery,
+        query: SqlRunnerQuery,
     ): VizTableHeaderSortConfig {
         return columnNames.reduce<VizTableHeaderSortConfig>((acc, col) => {
             const sortBy = query.sortBy.find(
-                (sort: SemanticLayerSortBy) => sort.name === col,
+                (sort: SqlRunnerSortBy) => sort.name === col,
             );
 
             return {

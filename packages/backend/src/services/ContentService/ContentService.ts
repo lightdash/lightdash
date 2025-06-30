@@ -25,7 +25,6 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
-import { SavedSemanticViewerChartService } from '../SavedSemanticViewerChartService/SavedSemanticViewerChartService';
 import { SavedSqlService } from '../SavedSqlService/SavedSqlService';
 import {
     hasViewAccessToSpace,
@@ -41,7 +40,6 @@ type ContentServiceArguments = {
     dashboardService: DashboardService;
     savedChartService: SavedChartService;
     savedSqlService: SavedSqlService;
-    savedSemanticViewerChartService: SavedSemanticViewerChartService;
 };
 
 export class ContentService extends BaseService {
@@ -61,8 +59,6 @@ export class ContentService extends BaseService {
 
     savedSqlService: SavedSqlService;
 
-    savedSemanticViewerChartService: SavedSemanticViewerChartService;
-
     constructor(args: ContentServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -75,8 +71,6 @@ export class ContentService extends BaseService {
         this.dashboardService = args.dashboardService;
         this.savedChartService = args.savedChartService;
         this.savedSqlService = args.savedSqlService;
-        this.savedSemanticViewerChartService =
-            args.savedSemanticViewerChartService;
     }
 
     async find(
@@ -192,12 +186,6 @@ export class ContentService extends BaseService {
                                     moveToSpaceArgs,
                                     moveToSpaceOptions,
                                 );
-                            case ChartSourceType.SEMANTIC_LAYER:
-                                return this.savedSemanticViewerChartService.moveToSpace(
-                                    user,
-                                    moveToSpaceArgs,
-                                    moveToSpaceOptions,
-                                );
                             default:
                                 return assertUnreachable(
                                     c.source,
@@ -280,12 +268,6 @@ export class ContentService extends BaseService {
                         );
                     case ChartSourceType.SQL:
                         return this.savedSqlService.moveToSpace(
-                            user,
-                            moveToSpaceArgs,
-                            moveToSpaceOptions,
-                        );
-                    case ChartSourceType.SEMANTIC_LAYER:
-                        return this.savedSemanticViewerChartService.moveToSpace(
                             user,
                             moveToSpaceArgs,
                             moveToSpaceOptions,

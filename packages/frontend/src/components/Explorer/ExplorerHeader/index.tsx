@@ -7,6 +7,7 @@ import { useParams } from 'react-router';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
+import useApp from '../../../providers/App/useApp';
 import useExplorerContext from '../../../providers/Explorer/useExplorerContext';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
@@ -14,9 +15,12 @@ import MantineIcon from '../../common/MantineIcon';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import TimeZonePicker from '../../common/TimeZonePicker';
 import SaveChartButton from '../SaveChartButton';
+import QueryWarnings from './QueryWarnings';
 
 const ExplorerHeader: FC = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { user } = useApp();
+
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
@@ -31,6 +35,9 @@ const ExplorerHeader: FC = memo(() => {
             context.queryResults.totalResults &&
             context.queryResults.totalResults >=
                 context.state.unsavedChartVersion.metricQuery.limit,
+    );
+    const queryWarnings = useExplorerContext(
+        (context) => context.query.data?.warnings,
     );
     const limit = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.limit,
@@ -84,6 +91,14 @@ const ExplorerHeader: FC = memo(() => {
         FeatureFlags.EnableUserTimezones,
     );
 
+    const userCanManageCompileProject = user?.data?.ability?.can(
+        'manage',
+        'CompileProject',
+    );
+    const showQueryWarningsEnabled = useFeatureFlagEnabled(
+        FeatureFlags.ShowQueryWarnings,
+    );
+
     return (
         <Group position="apart">
             <Box>
@@ -114,6 +129,13 @@ const ExplorerHeader: FC = memo(() => {
                         </Badge>
                     </Tooltip>
                 )}
+
+                {userCanManageCompileProject &&
+                    showQueryWarningsEnabled &&
+                    queryWarnings &&
+                    queryWarnings.length > 0 && (
+                        <QueryWarnings queryWarnings={queryWarnings} />
+                    )}
 
                 {userTimeZonesEnabled && (
                     <TimeZonePicker

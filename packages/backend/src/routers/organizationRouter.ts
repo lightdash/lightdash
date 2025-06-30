@@ -35,28 +35,6 @@ organizationRouter.post(
             .catch(next),
 );
 
-organizationRouter.post(
-    '/projects',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) =>
-        req.services
-            .getProjectService()
-            .createWithoutCompile(
-                req.user!,
-                req.body,
-                getRequestMethod(req.header(LightdashRequestMethodHeader)),
-            )
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next),
-);
-
 organizationRouter.delete(
     '/projects/:projectUuid',
     allowApiKeyAuthentication,

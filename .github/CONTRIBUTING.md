@@ -4,15 +4,15 @@ Thanks for taking the time to contribute ❤️ all types of contributions are e
 
 ## Table of Contents
 
--   [Code of Conduct](#code-of-conduct)
--   [How to ask for help](#how-to-ask-for-help)
--   Contributing:
-    -   [Report a bug](#how-to-report-a-bug)
-    -   [Request a feature](#how-to-request-a-new-feature)
-    -   [Contribute code](#how-to-contribute-code-to-lightdash)
--   [Opening a Pull Request](#opening-a-pull-request)
--   [Setup Development Environment](#setup-development-environment)
--   [Join The Lightdash Team](#join-the-lightdash-team)
+- [Code of Conduct](#code-of-conduct)
+- [How to ask for help](#how-to-ask-for-help)
+- Contributing:
+    - [Report a bug](#how-to-report-a-bug)
+    - [Request a feature](#how-to-request-a-new-feature)
+    - [Contribute code](#how-to-contribute-code-to-lightdash)
+- [Opening a Pull Request](#opening-a-pull-request)
+- [Setup Development Environment](#setup-development-environment)
+- [Join The Lightdash Team](#join-the-lightdash-team)
 
 ## Code of Conduct
 
@@ -25,10 +25,12 @@ to <support@lightdash.com>.
 
 Useful resources for answering your questions:
 
--   [Documentation](https://docs.lightdash.com)
--   [Issues](https://github.com/lightdash/lightdash/issues)
+- [Documentation](https://docs.lightdash.com)
+- [Issues](https://github.com/lightdash/lightdash/issues)
 
-If you cannot find an answer to your question then please join our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2uwa5s9jl-xTNyjJ7otC8wH3jB8qgCpA) and head for the `#help` channel.
+If you cannot find an answer to your question then please join
+our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2uwa5s9jl-xTNyjJ7otC8wH3jB8qgCpA)
+and head for the `#help` channel.
 
 ## How to report a bug
 
@@ -36,25 +38,25 @@ If you cannot find an answer to your question then please join our [slack commun
 
 We use GitHub issues to track bugs and errors. If you run into an issue with the project:
 
--   Open an [Issue](https://github.com/lightdash/lightdash/issues/new). (Since we can't be sure at this point whether it
-    is a bug or not, we ask you not to talk about a bug yet and not to label the issue.)
--   Explain the behavior you would expect and the actual behavior.
--   Please provide as much context as possible and describe the _reproduction steps_ that someone else can follow to
-    recreate the issue on their own. This usually includes your code. For good bug reports you should isolate the problem
-    and create a reduced test case.
+- Open an [Issue](https://github.com/lightdash/lightdash/issues/new). (Since we can't be sure at this point whether it
+  is a bug or not, we ask you not to talk about a bug yet and not to label the issue.)
+- Explain the behavior you would expect and the actual behavior.
+- Please provide as much context as possible and describe the _reproduction steps_ that someone else can follow to
+  recreate the issue on their own. This usually includes your code. For good bug reports you should isolate the problem
+  and create a reduced test case.
 
 ## How to request a new feature
 
 Enhancement suggestions are tracked as [GitHub issues](https://github.com/lightdash/lightdash/issues).
 
--   Use a **clear and descriptive title** for the issue to identify the suggestion.
--   Provide a **step-by-step description of the suggested enhancement** in as many details as possible.
--   **Describe the current behavior** and **explain which behavior you expected to see instead** and why. At this point
-    you can also tell which alternatives do not work for you.
--   You may want to **include screenshots and animated GIFs** which help you demonstrate the steps or point out the part
-    which the suggestion is related to.
--   **Explain why this enhancement would be useful** to most Lightdash users. You may also want to point out the other
-    projects that solved it better and which could serve as inspiration.
+- Use a **clear and descriptive title** for the issue to identify the suggestion.
+- Provide a **step-by-step description of the suggested enhancement** in as many details as possible.
+- **Describe the current behavior** and **explain which behavior you expected to see instead** and why. At this point
+  you can also tell which alternatives do not work for you.
+- You may want to **include screenshots and animated GIFs** which help you demonstrate the steps or point out the part
+  which the suggestion is related to.
+- **Explain why this enhancement would be useful** to most Lightdash users. You may also want to point out the other
+  projects that solved it better and which could serve as inspiration.
 
 ## How to contribute code to Lightdash
 
@@ -65,9 +67,11 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/lightd
 
 Before contributing to Lightdash you must complete the following steps:
 
--   Join our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2uwa5s9jl-xTNyjJ7otC8wH3jB8qgCpA) and introduce yourself in the `#community-contributors` channel
--   Choose an existing labelled `open-contribution`
--   Ask a member of the team to assign you to the issue
+- Join
+  our [slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2uwa5s9jl-xTNyjJ7otC8wH3jB8qgCpA)
+  and introduce yourself in the `#community-contributors` channel
+- Choose an existing labelled `open-contribution`
+- Ask a member of the team to assign you to the issue
 
 Pull requests will not be reviewed unless the previous three steps are completed.
 
@@ -179,28 +183,28 @@ The reviewers can still request adhoc changes for situations that haven't been e
 
 Packages overview:
 
--   [`frontend` - React frontend](../packages/frontend/README.md)
--   [`backend` - Node.js backend](../packages/backend/README.md)
--   `common` - Shared code between all the other packages
--   `cli` - Command line interface
--   `e2e` - End-to-end and integration tests
--   `warehouses` - Classes for connecting to different databases
+- [`frontend` - React frontend](../packages/frontend/README.md)
+- [`backend` - Node.js backend](../packages/backend/README.md)
+- `common` - Shared code between all the other packages
+- `cli` - Command line interface
+- `e2e` - End-to-end and integration tests
+- `warehouses` - Classes for connecting to different databases
 
 #### using Github Codespaces / VS Code Remote Containers
 
 The fastest way to setup a development environment is to use Github Codespaces or VS Code Remote Containers.
 This provides:
 
--   All dependencies
--   A postgres database for development
--   A sample dbt project
--   A pre-configured code editor
+- All dependencies
+- A postgres database for development
+- A sample dbt project
+- A pre-configured code editor
 
 To get started:
 
--   in Github [create a codespace](https://docs.github.com/en/codespaces/developing-in-codespaces/creating-a-codespace)
--   in VS
-    Code [install the remote containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+- in Github [create a codespace](https://docs.github.com/en/codespaces/developing-in-codespaces/creating-a-codespace)
+- in VS
+  Code [install the remote containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 
 Once connected run the following commands in the VS Code terminal:
 
@@ -222,7 +226,8 @@ Alternatively you can create a developer environment using docker compose:
 git clone https://github.com/lightdash/lightdash
 ```
 
-Copy `.env.development` into a new file called `.env.development.local` and run the following `docker compose up` command:
+Copy `.env.development` into a new file called `.env.development.local` and run the following `docker compose up`
+command:
 
 ```shell
 # Create docker containers
@@ -266,10 +271,11 @@ pnpm dev # http://localhost:3000
 
 Notes:
 
--   If you change files inside `/packages/common` you should run `pnpm common-build` before `pnpm dev`
--   If you change files inside `/packages/warehouses` you should run `pnpm warehouses-build` before `pnpm dev`
--   If you rename files the container might not recognise the changes. To fix this, stop the containers and start again.
--   If you need to change any of the environment variables, you can do so by editing `.env.development.local` and re-run the `docker compose up` command mentioned above
+- If you change files inside `/packages/common` you should run `pnpm common-build` before `pnpm dev`
+- If you change files inside `/packages/warehouses` you should run `pnpm warehouses-build` before `pnpm dev`
+- If you rename files the container might not recognise the changes. To fix this, stop the containers and start again.
+- If you need to change any of the environment variables, you can do so by editing `.env.development.local` and re-run
+  the `docker compose up` command mentioned above
 
 When you want to stop:
 
@@ -285,9 +291,11 @@ docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env
 
 #### Downloading files stored in local docker container MinIO
 
-When developing using the docker compose setup there's a MinIO container already setup to serve as the S3 compatible storage to save any files that are exported from the app - these can be images, results csv, etc.
+When developing using the docker compose setup there's a MinIO container already setup to serve as the S3 compatible
+storage to save any files that are exported from the app - these can be images, results csv, etc.
 
-Because the MinIO internal docker endpoint is not accessible to the host machine - `localhost` - it needs to be added to the `/etc/hosts` configuration in your computer otherwise it will fail with a `DNS_PROBE_FINISHED_NXDOMAIN` error.
+Because the MinIO internal docker endpoint is not accessible to the host machine - `localhost` - it needs to be added to
+the `/etc/hosts` configuration in your computer otherwise it will fail with a `DNS_PROBE_FINISHED_NXDOMAIN` error.
 
 1. Edit the hosts file using a text editor (e.g. vim, nano, etc.) with administrator privileges:
    `sudo nano /etc/hosts`
@@ -299,11 +307,11 @@ Because the MinIO internal docker endpoint is not accessible to the host machine
 
 To setup Development Environment without Docker you need following pre-requisites before running Lightdash:
 
--   node >= v18.x (20 is preferred)
--   python >= 3.3
--   pnpm
--   postgres >= 12
--   dbt 1.4.x or 1.5.x
+- node >= v18.x (20 is preferred)
+- python >= 3.3
+- pnpm
+- postgres >= 12
+- dbt 1.7.x aliased to `dbt1.7`
 
 eg. on MacOS you can follow this instructions:
 
@@ -340,7 +348,10 @@ python3 -m venv env-lightdash # or your preferred env name
 # You can deactivate python virtual env by running `deactivate` later
 source env-lightdash/bin/activate
 
-python -m pip install dbt-postgres==1.4.9
+python -m pip install 'dbt-core==1.7.*' 'dbt-postgres==1.7.*'
+
+# ALias the dbt command to `dbt1.7` so it doesn't conflict with other dbt versions
+ln -s $(which dbt) $(pwd)/env-lightdash/bin/dbt1.7
 
 # 6 Clone the repo and open it in your IDE
 git clone https://github.com/lightdash/lightdash.git
@@ -425,7 +436,7 @@ pnpm e2e-run
 
 Note:
 
--   Edit `packages/e2e/cypress.json` if you're running Lightdash on a different domain/port than `http://localhost:8080`
+- Edit `packages/e2e/cypress.json` if you're running Lightdash on a different domain/port than `http://localhost:8080`
 
 #### How to check code quality
 
@@ -447,13 +458,15 @@ pnpm generate-api
 ### Running headless browser locally
 
 Headless browser is used to generate images we use for Slack unfurls or on scheduled deliveries,
-you can find more about headless browser on [our docs](https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash).
+you can find more about headless browser
+on [our docs](https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash).
 
 If you want to debug some of these features, you should run headless browser locally on docker.
 
 #### Running Lightdash on docker and headless browser
 
-If you are running both Lightdash and Headless browser using our docker-compose yml set-up you should be ok, and everything should work as expected.
+If you are running both Lightdash and Headless browser using our docker-compose yml set-up you should be ok, and
+everything should work as expected.
 
 #### Running Lightdash without docker and headless browser on Linux
 

@@ -3,6 +3,7 @@ import {
     AiMetricQuery,
     csvFileVizConfigSchema,
     filtersSchema,
+    filtersSchemaTransformed,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
 import { z } from 'zod';
@@ -45,7 +46,7 @@ export const isCsvFileConfig = (config: unknown): config is CsvFileConfig =>
 export const metricQueryCsv = async (
     config: CsvFileConfig,
     maxLimit: number,
-    filters: z.infer<typeof filtersSchema> = {},
+    filters: z.infer<typeof filtersSchemaTransformed> = {},
 ): Promise<AiMetricQuery> => ({
     exploreName: config.exploreName,
     metrics: config.metrics,
@@ -60,7 +61,7 @@ type RenderCsvFileArgs = {
         metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
     config: CsvFileConfig;
-    filters: z.infer<typeof filtersSchema> | undefined;
+    filters: z.infer<typeof filtersSchemaTransformed> | undefined;
     maxLimit: number;
 };
 

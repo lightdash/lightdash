@@ -3,6 +3,7 @@ import {
     ChartType,
     FeatureFlags,
     isDimension,
+    type ApiErrorDetail,
     type ChartConfig,
     type DashboardFilters,
     type ItemsMap,
@@ -68,6 +69,7 @@ export type VisualizationProviderProps = {
     tableCalculationsMetadata?: TableCalculationMetadata[];
     setEchartsRef?: (ref: RefObject<EChartsReact | null>) => void;
     computedSeries?: Series[];
+    apiErrorDetail?: ApiErrorDetail | null;
 };
 
 const VisualizationProvider: FC<
@@ -92,6 +94,7 @@ const VisualizationProvider: FC<
     tableCalculationsMetadata,
     setEchartsRef,
     computedSeries,
+    apiErrorDetail,
 }) => {
     const itemsMap = useMemo(() => {
         return resultsData?.fields;
@@ -287,6 +290,7 @@ const VisualizationProvider: FC<
         chartRef,
         resultsData: lastValidResultsData,
         isLoading,
+        apiErrorDetail,
         columnOrder,
         itemsMap,
         setStacking,
@@ -297,6 +301,7 @@ const VisualizationProvider: FC<
         colorPalette,
         getGroupColor,
         getSeriesColor,
+        chartConfig,
     };
 
     switch (chartConfig.type) {

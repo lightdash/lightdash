@@ -759,26 +759,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         chartWithDashboardFilters.metricQuery?.customDimensions;
 
     const { pathname: chartPathname, search: chartSearch } = useMemo(() => {
-        if (cannotUseCustomDimensions) {
-            const queryWithoutCustomDimensions = {
-                ...chartWithDashboardFilters,
-                metricQuery: {
-                    ...chartWithDashboardFilters.metricQuery,
-                    customDimensions: undefined,
-                },
-            };
-            return getExplorerUrlFromCreateSavedChartVersion(
-                chartWithDashboardFilters.projectUuid,
-                queryWithoutCustomDimensions,
-                true,
-            );
-        }
         return getExplorerUrlFromCreateSavedChartVersion(
             chartWithDashboardFilters.projectUuid,
             chartWithDashboardFilters,
             true,
         );
-    }, [chartWithDashboardFilters, cannotUseCustomDimensions]);
+    }, [chartWithDashboardFilters]);
 
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(

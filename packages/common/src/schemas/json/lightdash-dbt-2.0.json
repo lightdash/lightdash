@@ -67,6 +67,38 @@
                                         },
                                         "always": {
                                             "type": "boolean"
+                                        },
+                                        "type": {
+                                            "type": "string",
+                                            "enum": [
+                                                "inner",
+                                                "left",
+                                                "right",
+                                                "full"
+                                            ]
+                                        },
+                                        "hidden": {
+                                            "type": "boolean"
+                                        },
+                                        "alias": {
+                                            "type": "string"
+                                        },
+                                        "label": {
+                                            "type": "string"
+                                        },
+                                        "fields": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "relationship": {
+                                            "type": "string",
+                                            "enum": [
+                                                "one-to-many",
+                                                "many-to-one",
+                                                "one-to-one"
+                                            ]
                                         }
                                     },
                                     "required": ["join", "sql_on"]
@@ -143,6 +175,86 @@
                                             },
                                             "percentile": {
                                                 "type": "number"
+                                            },
+                                            "compact": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "thousands",
+                                                    "millions",
+                                                    "billions",
+                                                    "trillions",
+                                                    "thousand",
+                                                    "million",
+                                                    "billion",
+                                                    "trillion",
+                                                    "K",
+                                                    "M",
+                                                    "B",
+                                                    "T",
+                                                    "kilobytes",
+                                                    "megabytes",
+                                                    "gigabytes",
+                                                    "terabytes",
+                                                    "petabytes",
+                                                    "kilobyte",
+                                                    "megabyte",
+                                                    "gigabyte",
+                                                    "terabyte",
+                                                    "petabyte",
+                                                    "KB",
+                                                    "MB",
+                                                    "GB",
+                                                    "TB",
+                                                    "PB",
+                                                    "kibibytes",
+                                                    "mebibytes",
+                                                    "gibibytes",
+                                                    "tebibytes",
+                                                    "pebibytes",
+                                                    "kibibyte",
+                                                    "mebibyte",
+                                                    "gibibyte",
+                                                    "tebibyte",
+                                                    "pebibyte",
+                                                    "KiB",
+                                                    "MiB",
+                                                    "GiB",
+                                                    "TiB",
+                                                    "PiB"
+                                                ]
+                                            },
+                                            "urls": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "url": {
+                                                            "type": "string"
+                                                        },
+                                                        "label": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "tags": {
+                                                "oneOf": [
+                                                    {
+                                                        "type": "string"
+                                                    },
+                                                    {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "show_underlying_values": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
                                             },
                                             "groups": {
                                                 "type": "array",
@@ -252,6 +364,45 @@
                                     { "required": ["visibility"] },
                                     { "required": ["categories"] }
                                 ]
+                            },
+                            "primary_key": {
+                                "oneOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            },
+                            "sql_where": {
+                                "type": "string"
+                            },
+                            "sql_filter": {
+                                "type": "string"
+                            },
+                            "sql_from": {
+                                "type": "string"
+                            },
+                            "required_attributes": {
+                                "type": "object",
+                                "properties": {},
+                                "additionalProperties": {
+                                    "oneOf": [
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                }
                             }
                         }
                     },
@@ -351,6 +502,86 @@
                                                         },
                                                         "percentile": {
                                                             "type": "number"
+                                                        },
+                                                        "compact": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "thousands",
+                                                                "millions",
+                                                                "billions",
+                                                                "trillions",
+                                                                "thousand",
+                                                                "million",
+                                                                "billion",
+                                                                "trillion",
+                                                                "K",
+                                                                "M",
+                                                                "B",
+                                                                "T",
+                                                                "kilobytes",
+                                                                "megabytes",
+                                                                "gigabytes",
+                                                                "terabytes",
+                                                                "petabytes",
+                                                                "kilobyte",
+                                                                "megabyte",
+                                                                "gigabyte",
+                                                                "terabyte",
+                                                                "petabyte",
+                                                                "KB",
+                                                                "MB",
+                                                                "GB",
+                                                                "TB",
+                                                                "PB",
+                                                                "kibibytes",
+                                                                "mebibytes",
+                                                                "gibibytes",
+                                                                "tebibytes",
+                                                                "pebibytes",
+                                                                "kibibyte",
+                                                                "mebibyte",
+                                                                "gibibyte",
+                                                                "tebibyte",
+                                                                "pebibyte",
+                                                                "KiB",
+                                                                "MiB",
+                                                                "GiB",
+                                                                "TiB",
+                                                                "PiB"
+                                                            ]
+                                                        },
+                                                        "urls": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "url": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "label": {
+                                                                        "type": "string"
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
+                                                        "tags": {
+                                                            "oneOf": [
+                                                                {
+                                                                    "type": "string"
+                                                                },
+                                                                {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    }
+                                                                }
+                                                            ]
+                                                        },
+                                                        "show_underlying_values": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            }
                                                         },
                                                         "groups": {
                                                             "type": "array",
@@ -506,6 +737,97 @@
                                                         "minLength": 1
                                                     },
                                                     "maxItems": 3
+                                                },
+                                                "compact": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "thousands",
+                                                        "millions",
+                                                        "billions",
+                                                        "trillions",
+                                                        "thousand",
+                                                        "million",
+                                                        "billion",
+                                                        "trillion",
+                                                        "K",
+                                                        "M",
+                                                        "B",
+                                                        "T",
+                                                        "kilobytes",
+                                                        "megabytes",
+                                                        "gigabytes",
+                                                        "terabytes",
+                                                        "petabytes",
+                                                        "kilobyte",
+                                                        "megabyte",
+                                                        "gigabyte",
+                                                        "terabyte",
+                                                        "petabyte",
+                                                        "KB",
+                                                        "MB",
+                                                        "GB",
+                                                        "TB",
+                                                        "PB",
+                                                        "kibibytes",
+                                                        "mebibytes",
+                                                        "gibibytes",
+                                                        "tebibytes",
+                                                        "pebibytes",
+                                                        "kibibyte",
+                                                        "mebibyte",
+                                                        "gibibyte",
+                                                        "tebibyte",
+                                                        "pebibyte",
+                                                        "KiB",
+                                                        "MiB",
+                                                        "GiB",
+                                                        "TiB",
+                                                        "PiB"
+                                                    ]
+                                                },
+                                                "urls": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": "string"
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                "tags": {
+                                                    "oneOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            }
+                                                        }
+                                                    ]
+                                                },
+                                                "required_attributes": {
+                                                    "type": "object",
+                                                    "properties": {},
+                                                    "additionalProperties": {
+                                                        "oneOf": [
+                                                            {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            {
+                                                                "type": "string"
+                                                            }
+                                                        ]
+                                                    }
                                                 }
                                             }
                                         },
@@ -577,6 +899,110 @@
                                                                     ]
                                                                 }
                                                             ]
+                                                        },
+                                                        "hidden": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "round": {
+                                                            "type": "number",
+                                                            "minimum": 0
+                                                        },
+                                                        "format": {
+                                                            "type": "string"
+                                                        },
+                                                        "compact": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "thousands",
+                                                                "millions",
+                                                                "billions",
+                                                                "trillions",
+                                                                "thousand",
+                                                                "million",
+                                                                "billion",
+                                                                "trillion",
+                                                                "K",
+                                                                "M",
+                                                                "B",
+                                                                "T",
+                                                                "kilobytes",
+                                                                "megabytes",
+                                                                "gigabytes",
+                                                                "terabytes",
+                                                                "petabytes",
+                                                                "kilobyte",
+                                                                "megabyte",
+                                                                "gigabyte",
+                                                                "terabyte",
+                                                                "petabyte",
+                                                                "KB",
+                                                                "MB",
+                                                                "GB",
+                                                                "TB",
+                                                                "PB",
+                                                                "kibibytes",
+                                                                "mebibytes",
+                                                                "gibibytes",
+                                                                "tebibytes",
+                                                                "pebibytes",
+                                                                "kibibyte",
+                                                                "mebibyte",
+                                                                "gibibyte",
+                                                                "tebibyte",
+                                                                "pebibyte",
+                                                                "KiB",
+                                                                "MiB",
+                                                                "GiB",
+                                                                "TiB",
+                                                                "PiB"
+                                                            ]
+                                                        },
+                                                        "group_label": {
+                                                            "type": "string"
+                                                        },
+                                                        "urls": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "url": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "label": {
+                                                                        "type": "string"
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
+                                                        "tags": {
+                                                            "oneOf": [
+                                                                {
+                                                                    "type": "string"
+                                                                },
+                                                                {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    }
+                                                                }
+                                                            ]
+                                                        },
+                                                        "required_attributes": {
+                                                            "type": "object",
+                                                            "properties": {},
+                                                            "additionalProperties": {
+                                                                "oneOf": [
+                                                                    {
+                                                                        "type": "array",
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    {
+                                                                        "type": "string"
+                                                                    }
+                                                                ]
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -647,6 +1073,86 @@
                             },
                             "format": {
                                 "type": "string"
+                            },
+                            "compact": {
+                                "type": "string",
+                                "enum": [
+                                    "thousands",
+                                    "millions",
+                                    "billions",
+                                    "trillions",
+                                    "thousand",
+                                    "million",
+                                    "billion",
+                                    "trillion",
+                                    "K",
+                                    "M",
+                                    "B",
+                                    "T",
+                                    "kilobytes",
+                                    "megabytes",
+                                    "gigabytes",
+                                    "terabytes",
+                                    "petabytes",
+                                    "kilobyte",
+                                    "megabyte",
+                                    "gigabyte",
+                                    "terabyte",
+                                    "petabyte",
+                                    "KB",
+                                    "MB",
+                                    "GB",
+                                    "TB",
+                                    "PB",
+                                    "kibibytes",
+                                    "mebibytes",
+                                    "gibibytes",
+                                    "tebibytes",
+                                    "pebibytes",
+                                    "kibibyte",
+                                    "mebibyte",
+                                    "gibibyte",
+                                    "tebibyte",
+                                    "pebibyte",
+                                    "KiB",
+                                    "MiB",
+                                    "GiB",
+                                    "TiB",
+                                    "PiB"
+                                ]
+                            },
+                            "urls": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "url": {
+                                            "type": "string"
+                                        },
+                                        "label": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "tags": {
+                                "oneOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            },
+                            "show_underlying_values": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
                             },
                             "default_time_dimension": {
                                 "type": "object",

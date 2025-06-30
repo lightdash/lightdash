@@ -242,20 +242,22 @@ export const isMetricFilterTarget = (
 export const getFilterRules = (filters: Filters): FilterRule[] => {
     const rules: FilterRule[] = [];
     const flattenFilterGroup = (filterGroup: FilterGroup): FilterRule[] => {
-        const groupRules: FilterRule[] = [];
-
-        (isAndFilterGroup(filterGroup)
+        // Explicitly checking for undefined filter groups (and || or), saved filter group somehow was undefined when saving
+        const groupItems: FilterGroupItem[] | undefined = isAndFilterGroup(
+            filterGroup,
+        )
             ? filterGroup.and
-            : filterGroup.or
-        ).forEach((item) => {
+            : filterGroup.or;
+
+        return (groupItems || []).flatMap((item) => {
             if (isFilterGroup(item)) {
-                rules.push(...flattenFilterGroup(item));
-            } else {
-                rules.push(item);
+                return flattenFilterGroup(item);
             }
+
+            return [item];
         });
-        return groupRules;
     };
+
     if (filters.dimensions) {
         rules.push(...flattenFilterGroup(filters.dimensions));
     }

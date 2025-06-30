@@ -1,13 +1,16 @@
 import {
     ActionIcon,
-    Group,
+    alpha,
+    Box,
     Paper,
-    Stack,
+    rem,
     Text,
     Textarea,
 } from '@mantine-8/core';
 import { IconArrowUp } from '@tabler/icons-react';
 import { useLayoutEffect, useRef, useState } from 'react';
+
+import styles from './AgentChatInput.module.css';
 
 interface AgentChatInputProps {
     onSubmit: (message: string) => void;
@@ -24,13 +27,24 @@ export const AgentChatInput = ({
     disabledReason,
     placeholder = 'Ask anything about your data...',
 }: AgentChatInputProps) => {
+    // this is a workaround to prevent the enter key from being pressed when
+    // the user is composing a character
+    // see https://developer.mozilla.org/en-US/docs/Web/API/CompositionEvent for more details
+    const [isComposing, setIsComposing] = useState(false);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const [value, setValue] = useState('');
+
     useLayoutEffect(() => {
         if (!inputRef.current) return;
         const elem = inputRef.current;
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Enter' && !e.shiftKey && !disabled && !loading) {
+            if (
+                e.key === 'Enter' &&
+                !e.shiftKey &&
+                !disabled &&
+                !loading &&
+                !isComposing
+            ) {
                 e.preventDefault();
                 const valueToSubmit = value.trim();
                 if (valueToSubmit) {
@@ -44,21 +58,36 @@ export const AgentChatInput = ({
         return () => {
             elem.removeEventListener('keydown', handleKeyDown);
         };
-    }, [onSubmit, disabled, loading, value]);
+    }, [onSubmit, disabled, loading, value, isComposing]);
+
+    useLayoutEffect(() => {
+        if (!inputRef.current) return;
+        const elem = inputRef.current;
+
+        function handleCompositionStart() {
+            setIsComposing(true);
+        }
+        function handleCompositionEnd() {
+            setIsComposing(false);
+        }
+
+        elem.addEventListener('compositionstart', handleCompositionStart);
+        elem.addEventListener('compositionend', handleCompositionEnd);
+
+        return () => {
+            elem.removeEventListener(
+                'compositionstart',
+                handleCompositionStart,
+            );
+            elem.removeEventListener('compositionend', handleCompositionEnd);
+        };
+    }, []);
 
     return (
-        <Paper
-            bg="gray.0"
-            gap={0}
-            p={0}
-            component={Stack}
-            radius="0.75rem"
-            style={{
-                position: 'relative',
-            }}
-        >
+        <Box pos="relative" pb="lg" className={styles.backdropBackground}>
             <Textarea
                 autoFocus
+                classNames={{ input: styles.input }}
                 ref={inputRef}
                 placeholder={placeholder}
                 autosize
@@ -66,11 +95,6 @@ export const AgentChatInput = ({
                 radius="0.75rem"
                 disabled={disabled}
                 size="md"
-                styles={(theme) => ({
-                    input: {
-                        '--input-bd-focus': theme.colors.violet[5],
-                    },
-                })}
                 m={-1}
                 onChange={(e) => setValue(e.target.value)}
                 value={value}
@@ -78,14 +102,14 @@ export const AgentChatInput = ({
                     <ActionIcon
                         variant="filled"
                         size="md"
-                        radius="md"
+                        radius="xl"
                         style={{
                             position: 'absolute',
                             bottom: 12,
                             right: 12,
                         }}
                         color="violet"
-                        disabled={disabled}
+                        disabled={disabled || isComposing}
                         loading={loading}
                         onClick={() => {
                             const valueToSubmit = value.trim();
@@ -99,18 +123,38 @@ export const AgentChatInput = ({
                     </ActionIcon>
                 }
             />
-            <Group px="sm" py="xs" gap="xs">
-                {!disabled && (
-                    <Text size="xs" c="dimmed">
-                        Agent can make mistakes. Please double-check responses.
-                    </Text>
-                )}
-                {disabled && disabledReason && (
-                    <Text size="xs" c="dimmed" style={{ flex: 1 }} ta="right">
-                        {disabledReason}
-                    </Text>
-                )}
-            </Group>
-        </Paper>
+
+            {!disabled || (disabled && disabledReason) ? (
+                <Paper
+                    px="sm"
+                    py={rem(4)}
+                    bg={alpha('var(--mantine-color-gray-1)', 0.5)}
+                    mx="md"
+                    style={{
+                        borderTopLeftRadius: 0,
+                        borderTopRightRadius: 0,
+                        borderBottomLeftRadius: rem(12),
+                        borderBottomRightRadius: rem(12),
+                    }}
+                >
+                    {!disabled && (
+                        <Text size="xs" c="dimmed">
+                            Agent can make mistakes. Please double-check
+                            responses.
+                        </Text>
+                    )}
+                    {disabled && disabledReason && (
+                        <Text
+                            size="xs"
+                            c="dimmed"
+                            style={{ flex: 1 }}
+                            ta="right"
+                        >
+                            {disabledReason}
+                        </Text>
+                    )}
+                </Paper>
+            ) : null}
+        </Box>
     );
 };

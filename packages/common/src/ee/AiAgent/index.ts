@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type {
     AnyType,
     ApiExecuteAsyncMetricQueryResults,
+    ApiSuccess,
     ApiSuccessEmpty,
     CacheMetadata,
     ItemsMap,
@@ -108,13 +109,18 @@ export type AiAgentMessageAssistant = {
     uuid: string;
     threadUuid: string;
 
-    message: string | null; // ai_prompt.response
-    createdAt: string | null; // ai_prompt.responded_at
+    // ai_prompt.response
+    message: string | null;
+    // ai_prompt.responded_at but this can not be null because
+    // we check for null before creating the agent message
+    createdAt: string;
 
     vizConfigOutput: object | null;
     filtersOutput: object | null;
     metricQuery: object | null;
     humanScore: number | null;
+
+    toolCalls: AiAgentToolCall[];
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
@@ -184,16 +190,19 @@ export type ApiAiAgentThreadResponse = {
     results: AiAgentThread;
 };
 
-export type ApiAiAgentThreadGenerateRequest = {
+export type ApiAiAgentThreadCreateRequest = {
+    prompt?: string;
+};
+
+export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;
+
+export type ApiAiAgentThreadMessageCreateRequest = {
     prompt: string;
 };
 
-export type ApiAiAgentThreadGenerateResponse = {
-    status: 'ok';
-    results: {
-        jobId: string;
-    };
-};
+export type ApiAiAgentThreadMessageCreateResponse = ApiSuccess<
+    AiAgentMessageUser<AiAgentUser>
+>;
 
 export type ApiAiAgentStartThreadResponse = {
     status: 'ok';
@@ -219,9 +228,15 @@ export type ApiAiAgentThreadMessageVizResponse = {
     results: ApiAiAgentThreadMessageViz;
 };
 
+export type AiVizMetadata = {
+    title: string | null;
+    description: string | null;
+};
+
 export type ApiAiAgentThreadMessageVizQuery = {
     type: AiChartType;
     query: ApiExecuteAsyncMetricQueryResults;
+    metadata: AiVizMetadata;
 };
 
 export type ApiAiAgentThreadMessageVizQueryResponse = {
@@ -234,11 +249,21 @@ export * from './filterExploreByTags';
 export type AiAgentUserPreferences = {
     defaultAgentUuid: AiAgent['uuid'];
 };
-export type ApiGetUserAgentPreferencesResponse = {
-    status: 'ok';
-    results: AiAgentUserPreferences | null;
-};
+
+export type ApiGetUserAgentPreferencesResponse =
+    | ApiSuccess<AiAgentUserPreferences>
+    | ApiSuccessEmpty;
 
 export type ApiUpdateUserAgentPreferences = AiAgentUserPreferences;
 
 export type ApiUpdateUserAgentPreferencesResponse = ApiSuccessEmpty;
+
+export type AiAgentToolCall = {
+    uuid: string;
+    promptUuid: string;
+    toolCallId: string;
+    createdAt: Date;
+    // TODO: tsoa does not support zod infer schemas - https://github.com/lukeautry/tsoa/issues/1256
+    toolName: string; // ToolName zod enum
+    toolArgs: object;
+};

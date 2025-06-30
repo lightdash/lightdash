@@ -55,7 +55,6 @@ import {
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
-import { SavedSemanticViewerChartsTableName } from '../database/entities/savedSemanticViewerCharts';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import {
     DbSpace,
@@ -1228,24 +1227,6 @@ export class SpaceModel {
                 name: SavedSqlTableName,
                 uuidColumnName: 'saved_sql_uuid',
                 chartSourceType: ChartSourceType.SQL,
-            },
-            spaceUuids,
-            filters,
-        );
-    }
-
-    async getSpaceSemanticViewerCharts(
-        spaceUuids: string[],
-        filters?: {
-            recentlyUpdated?: boolean;
-            mostPopular?: boolean;
-        },
-    ): Promise<SpaceQuery[]> {
-        return this.getSpaceCharts(
-            {
-                name: SavedSemanticViewerChartsTableName,
-                uuidColumnName: 'saved_semantic_viewer_chart_uuid',
-                chartSourceType: ChartSourceType.SEMANTIC_LAYER,
             },
             spaceUuids,
             filters,

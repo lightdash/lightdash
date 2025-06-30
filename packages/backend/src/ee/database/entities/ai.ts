@@ -71,22 +71,24 @@ export type DbAiPrompt = {
     metric_query: object | null;
 };
 
-type DbAiPromptUpdate = Partial<
-    Pick<
-        DbAiPrompt,
-        | 'response'
-        | 'responded_at'
-        | 'viz_config_output'
-        | 'filters_output'
-        | 'human_score'
-        | 'metric_query'
-    >
->;
-
 export type AiPromptTable = Knex.CompositeTableType<
+    // base
     DbAiPrompt,
+    // insert
     Pick<DbAiPrompt, 'ai_thread_uuid' | 'created_by_user_uuid' | 'prompt'>,
-    DbAiPromptUpdate
+    // update
+    Partial<
+        Pick<
+            DbAiPrompt,
+            | 'response'
+            | 'viz_config_output'
+            | 'filters_output'
+            | 'human_score'
+            | 'metric_query'
+        > & {
+            responded_at: Knex.Raw;
+        }
+    >
 >;
 
 export const AiSlackPromptTableName = 'ai_slack_prompt';
@@ -123,4 +125,44 @@ export type AiWebAppPromptTable = Knex.CompositeTableType<
     DbAiWebAppPrompt,
     Pick<DbAiWebAppPrompt, 'ai_prompt_uuid' | 'user_uuid'>,
     Pick<DbAiWebAppPrompt, 'user_uuid'>
+>;
+
+export const AiAgentToolCallTableName = 'ai_agent_tool_call';
+
+export type DbAiAgentToolCall = {
+    ai_agent_tool_call_uuid: string;
+    ai_prompt_uuid: string;
+    tool_call_id: string;
+    tool_name: string;
+    tool_args: object;
+    created_at: Date;
+};
+
+export type AiAgentToolCallTable = Knex.CompositeTableType<
+    DbAiAgentToolCall,
+    Pick<
+        DbAiAgentToolCall,
+        'ai_prompt_uuid' | 'tool_call_id' | 'tool_name' | 'tool_args'
+    >,
+    never
+>;
+
+export const AiAgentToolResultTableName = 'ai_agent_tool_result';
+
+export type DbAiAgentToolResult = {
+    ai_agent_tool_result_uuid: string;
+    ai_prompt_uuid: string;
+    tool_call_id: string;
+    tool_name: string;
+    result: string;
+    created_at: Date;
+};
+
+export type AiAgentToolResultTable = Knex.CompositeTableType<
+    DbAiAgentToolResult,
+    Pick<
+        DbAiAgentToolResult,
+        'ai_prompt_uuid' | 'tool_call_id' | 'tool_name' | 'result'
+    >,
+    never
 >;
