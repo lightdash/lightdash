@@ -47,7 +47,7 @@ export function decodeLightdashJwt(
                 ? encodedSecret
                 : Buffer.from(encodedSecret),
         );
-        const decodedToken = jwt.verify(token, secret) as EmbedJwt;
+        const decodedToken = jwt.verify(token, secret) as unknown as EmbedJwt;
 
         // Alert if the token is not in the expected format so we can inform the org before enforcing validation
         try {
