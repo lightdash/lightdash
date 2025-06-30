@@ -13,7 +13,18 @@ export class EmbedModel {
 
     async get(projectUuid: string): Promise<Embed> {
         const [embed] = await this.database('embedding')
-            .select()
+            .select(
+                'embedding.project_uuid',
+                'embedding.encoded_secret',
+                'embedding.dashboard_uuids',
+                'embedding.allow_all_dashboards',
+                'embedding.created_at',
+                'users.user_uuid',
+                'users.first_name',
+                'users.last_name',
+                'organizations.organization_uuid',
+                'organizations.organization_name',
+            )
             .leftJoin('users', 'embedding.created_by', 'users.user_uuid')
             .leftJoin(
                 'projects',

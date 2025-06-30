@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    AccountAccessControls,
     applyEmbeddedAbility,
     CreateEmbedJwt,
     Embed,
@@ -39,6 +40,7 @@ export function hydrateEmbeddedAccount(
     embedJwt: CreateEmbedJwt,
     rawToken: string,
     dashboardUuid: string,
+    accessControls: AccountAccessControls,
 ): ExternalAccount {
     const abilities: MemberAbility = buildEmbedAbilities(
         embedJwt,
@@ -53,6 +55,11 @@ export function hydrateEmbeddedAccount(
             source: rawToken,
         },
         organization,
+        access: {
+            dashboardId: dashboardUuid,
+            filtering: embedJwt.content.dashboardFiltersInteractivity,
+            controls: accessControls,
+        },
         // Create the fields we're able to set from the JWT
         user: {
             id: getExternalId(embedJwt, rawToken, organization),
