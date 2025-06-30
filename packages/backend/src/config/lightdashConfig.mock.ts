@@ -19,6 +19,7 @@ export const lightdashConfigMock: LightdashConfig = {
             oauth2ClientSecret: undefined,
             callbackPath: '',
             googleDriveApiKey: undefined,
+            enableGCloudADC: false,
             enabled: false,
         },
         okta: {
