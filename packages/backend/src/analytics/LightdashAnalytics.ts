@@ -550,7 +550,7 @@ export type ProjectEvent = BaseTrack & {
         projectName: string;
         projectId: string;
         projectType: DbtProjectType;
-        warehouseConnectionType: WarehouseTypes;
+        warehouseConnectionType?: WarehouseTypes;
         organizationId: string;
         dbtConnectionType: DbtProjectType;
         isPreview: boolean;
