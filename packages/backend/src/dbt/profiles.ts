@@ -41,33 +41,36 @@ const credentialsTarget = (
                 },
                 environment: {},
             };
-            if (credentials.keyfileContents) {
-                bqResult.target.method = 'service-account-json';
-                bqResult.target.keyfile_json = Object.fromEntries(
-                    Object.keys(credentials.keyfileContents).map((key) => [
-                        key,
-                        envVarReference(key),
-                    ]),
-                );
-                bqResult.environment = Object.fromEntries(
-                    Object.entries(credentials.keyfileContents).map(
-                        ([key, value]) => [envVar(key), value],
-                    ),
-                );
-                return bqResult;
+            switch (credentials.authenticationType) {
+                // for backwards compatibility, handle undefined authenticationType as private key.
+                case BigqueryAuthenticationType.PRIVATE_KEY:
+                case BigqueryAuthenticationType.SSO:
+                case undefined:
+                    bqResult.target.method = 'service-account-json';
+                    bqResult.target.keyfile_json = Object.fromEntries(
+                        Object.keys(credentials.keyfileContents).map((key) => [
+                            key,
+                            envVarReference(key),
+                        ]),
+                    );
+                    bqResult.environment = Object.fromEntries(
+                        Object.entries(credentials.keyfileContents).map(
+                            ([key, value]) => [envVar(key), value],
+                        ),
+                    );
+                    return bqResult;
+                case BigqueryAuthenticationType.ADC:
+                    // With oauth method and no keyfile contents, dbt will use the
+                    // application default credentials (ADC) to authenticate
+                    bqResult.target.method = 'oauth';
+                    return bqResult;
+                default:
+                    const { authenticationType } = credentials;
+                    return assertUnreachable(
+                        credentials,
+                        `Incorrect BigQuery profile. Received authenticationType: ${authenticationType}`,
+                    );
             }
-            if (
-                credentials.authenticationType ===
-                BigqueryAuthenticationType.ADC
-            ) {
-                // With oauth method and no keyfile contents, dbt will use the
-                // application default credentials (ADC) to authenticate
-                bqResult.target.method = 'oauth';
-                return bqResult;
-            }
-            throw new Error(
-                `Incorrect BigQuery profile. Profile should have keyfileContents or authenticationType set to ADC`,
-            );
         case WarehouseTypes.REDSHIFT:
             return {
                 target: {
