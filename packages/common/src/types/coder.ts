@@ -65,7 +65,7 @@ export type DashboardTileAsCode = Omit<DashboardTile, 'properties' | 'uuid'> & {
     properties:
         | Pick<
               DashboardChartTileProperties['properties'],
-              'title' | 'hideTitle' | 'chartSlug'
+              'title' | 'hideTitle' | 'chartSlug' | 'chartName'
           >
         | DashboardMarkdownTileProperties['properties']
         | DashboardLoomTileProperties['properties'];
