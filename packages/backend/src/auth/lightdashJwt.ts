@@ -8,7 +8,7 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
