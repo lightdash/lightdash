@@ -1,3 +1,10 @@
+# [0.1767.0](https://github.com/lightdash/lightdash/compare/0.1766.0...0.1767.0) (2025-06-30)
+
+
+### Features
+
+* add diagnostics command to CLI ([#15592](https://github.com/lightdash/lightdash/issues/15592)) ([d9b39de](https://github.com/lightdash/lightdash/commit/d9b39dee9f5e2470c7d7bef5340e5a478479470d))
+
 # [0.1766.0](https://github.com/lightdash/lightdash/compare/0.1765.2...0.1766.0) (2025-06-27)
 
 
