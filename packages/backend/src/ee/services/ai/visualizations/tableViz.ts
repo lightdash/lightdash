@@ -1,9 +1,9 @@
 import {
     AiChartType,
     AiMetricQuery,
-    csvFileVizConfigSchema,
     filtersSchema,
     filtersSchemaTransformed,
+    tableVizConfigSchema,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
 import { z } from 'zod';
@@ -12,21 +12,22 @@ import { ProjectService } from '../../../../services/ProjectService/ProjectServi
 import { FollowUpTools, followUpToolsSchema } from '../types/followUpTools';
 import { getValidAiQueryLimit } from '../utils/validators';
 
-const vizConfigSchema = csvFileVizConfigSchema
+const vizConfigSchema = tableVizConfigSchema
     .extend({
         limit: z
             .number()
             .nullable()
-            .describe('The maximum number of rows in the CSV.'),
+            .describe('The maximum number of rows in the table.'),
         followUpTools: followUpToolsSchema.describe(
-            `The actions the User can ask for after the AI has generated the CSV. NEVER include ${FollowUpTools.GENERATE_CSV} in this list.`,
+            `The actions the User can ask for after the AI has generated the table. NEVER include ${FollowUpTools.GENERATE_TABLE} in this list.`,
         ),
     })
     .describe(
         'Configuration file for generating a CSV file from a query with metrics and dimensions',
     );
 
-export const generateCsvToolSchema = z.object({
+export const generateTableVizConfigToolSchema = z.object({
+    type: z.literal(AiChartType.TABLE),
     vizConfig: vizConfigSchema,
     filters: filtersSchema
         .nullable()
@@ -35,62 +36,55 @@ export const generateCsvToolSchema = z.object({
         ),
 });
 
-export type CsvFileConfig = z.infer<typeof vizConfigSchema>;
+export type TableVizConfig = z.infer<typeof generateTableVizConfigToolSchema>;
 
-export const isCsvFileConfig = (config: unknown): config is CsvFileConfig =>
-    typeof config === 'object' &&
-    config !== null &&
-    !('yMetrics' in config) &&
-    'metrics' in config;
+export const isTableVizConfig = (config: unknown): config is TableVizConfig =>
+    generateTableVizConfigToolSchema.safeParse(config).success;
 
-export const metricQueryCsv = async (
-    config: CsvFileConfig,
+export const metricQueryTableViz = (
+    config: TableVizConfig,
     maxLimit: number,
-    filters: z.infer<typeof filtersSchemaTransformed> = {},
-): Promise<AiMetricQuery> => ({
-    exploreName: config.exploreName,
-    metrics: config.metrics,
-    dimensions: config.dimensions || [],
-    sorts: config.sorts,
-    limit: getValidAiQueryLimit(config.limit, maxLimit),
-    filters,
+): AiMetricQuery => ({
+    exploreName: config.vizConfig.exploreName,
+    metrics: config.vizConfig.metrics,
+    dimensions: config.vizConfig.dimensions || [],
+    sorts: config.vizConfig.sorts,
+    limit: getValidAiQueryLimit(config.vizConfig.limit, maxLimit),
+    filters: filtersSchemaTransformed.parse(config.filters),
 });
 
-type RenderCsvFileArgs = {
+type RenderTableVizArgs = {
     runMetricQuery: (
         metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
-    config: CsvFileConfig;
-    filters: z.infer<typeof filtersSchemaTransformed> | undefined;
+    config: TableVizConfig;
     maxLimit: number;
 };
 
-export const renderCsvFile = async ({
+export const renderTableViz = async ({
     runMetricQuery,
     config,
-    filters,
     maxLimit,
-}: RenderCsvFileArgs): Promise<{
-    type: AiChartType.CSV;
+}: RenderTableVizArgs): Promise<{
+    type: AiChartType.TABLE;
     metricQuery: AiMetricQuery;
     results: Awaited<
         ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
     >;
     csv: string;
 }> => {
-    const query = await metricQueryCsv(config, maxLimit, filters);
+    const query = metricQueryTableViz(config, maxLimit);
     const results = await runMetricQuery(query);
 
     const fields = results.rows[0] ? Object.keys(results.rows[0]) : [];
     const rows = results.rows.map((row) =>
         CsvService.convertRowToCsv(row, results.fields, true, fields),
     );
-    const csv = stringify(rows, { header: true, columns: fields });
 
     return {
-        type: AiChartType.CSV,
+        type: AiChartType.TABLE,
         metricQuery: query,
         results,
-        csv,
+        csv: stringify(rows, { header: true, columns: fields }),
     };
 };

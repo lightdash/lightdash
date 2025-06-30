@@ -1,4 +1,4 @@
-import { filtersSchemaTransformed, isSlackPrompt } from '@lightdash/common';
+import { isSlackPrompt } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     GetPromptFn,
@@ -42,35 +42,25 @@ Rules for generating the time series chart visualization:
 - The dimension and metric "fieldIds" must come from an explore. If you haven't used "findFieldsInExplore" tool, please do so before using this tool.
 - If the data needs to be filtered, generate the filters using the "generateQueryFilters" tool before using this tool.`,
         parameters: schema,
-        execute: async ({ filters, vizConfig }) => {
+        execute: async (vizConfig) => {
             try {
-                // Transform filters to the correct format for the query and keep the original format for the tool call args
-                const transformedFilters =
-                    filtersSchemaTransformed.parse(filters);
-                await updateProgress(
-                    '🔍 Running a query for your line chart...',
-                );
-
-                const prompt = await getPrompt();
-
                 await updateProgress('📈 Generating your line chart...');
 
-                const { chartOptions, metricQuery } =
-                    await renderTimeseriesChart({
-                        runMetricQuery: runMiniMetricQuery,
-                        vizConfig,
-                        filters: transformedFilters ?? undefined,
-                    });
-
-                const file = await renderEcharts(chartOptions);
-
+                const prompt = await getPrompt();
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,
                     vizConfigOutput: vizConfig,
-                    metricQuery,
                 });
 
                 if (isSlackPrompt(prompt)) {
+                    const { chartOptions } = await renderTimeseriesChart({
+                        runMetricQuery: runMiniMetricQuery,
+                        config: vizConfig,
+                    });
+
+                    const file = await renderEcharts(chartOptions);
+                    await updateProgress('✅ Done.');
+
                     const sentfileArgs = {
                         channelId: prompt.slackChannelId,
                         threadTs: prompt.slackThreadTs,

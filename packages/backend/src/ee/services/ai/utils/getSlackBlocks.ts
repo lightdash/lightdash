@@ -44,7 +44,7 @@ export function getFollowUpToolBlocks(slackPrompt: SlackPrompt): KnownBlock[] {
 export function getFeedbackBlocks(
     slackPrompt: SlackPrompt,
 ): (Block | KnownBlock)[] {
-    if (!slackPrompt.metricQuery) {
+    if (!slackPrompt.vizConfigOutput) {
         return [];
     }
 
@@ -94,11 +94,13 @@ export function getExploreBlocks(
     slackPrompt: SlackPrompt,
     siteUrl: string,
 ): (Block | KnownBlock)[] {
-    const { metricQuery: unverifiedMetricQuery } = slackPrompt;
-    if (!unverifiedMetricQuery) {
+    const { vizConfigOutput } = slackPrompt;
+    if (!vizConfigOutput) {
         return [];
     }
-    const metricQuery = unverifiedMetricQuery as MetricQuery;
+
+    // TODO: fixme
+    const metricQuery = vizConfigOutput as MetricQuery;
 
     const configState = {
         tableName: metricQuery.exploreName,
@@ -154,11 +156,7 @@ export function getDeepLinkBlocks(
     slackPrompt: SlackPrompt,
     siteUrl: string,
 ): (Block | KnownBlock)[] {
-    if (
-        !slackPrompt.metricQuery ||
-        !slackPrompt.vizConfigOutput ||
-        !slackPrompt.vizConfigOutput
-    ) {
+    if (!slackPrompt.vizConfigOutput) {
         return [];
     }
 

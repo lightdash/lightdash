@@ -27,6 +27,7 @@ const vizConfigSchema = timeSeriesMetricVizConfigSchema.extend({
 });
 
 export const generateTimeSeriesVizConfigToolSchema = z.object({
+    type: z.literal(AiChartType.TIME_SERIES_CHART),
     vizConfig: vizConfigSchema,
     filters: filtersSchema
         .nullable()
@@ -35,31 +36,34 @@ export const generateTimeSeriesVizConfigToolSchema = z.object({
         ),
 });
 
-export type TimeSeriesMetricChartConfig = z.infer<typeof vizConfigSchema>;
+export type TimeSeriesMetricChartConfig = z.infer<
+    typeof generateTimeSeriesVizConfigToolSchema
+>;
 
 export const isTimeSeriesMetricChartConfig = (
     config: unknown,
 ): config is TimeSeriesMetricChartConfig =>
-    typeof config === 'object' && config !== null && 'lineType' in config;
+    generateTimeSeriesVizConfigToolSchema.safeParse(config).success;
 
 export const metricQueryTimeSeriesChartMetric = (
     config: TimeSeriesMetricChartConfig,
-    filters: z.infer<typeof filtersSchemaTransformed> = {},
 ): AiMetricQuery => {
-    const metrics = config.yMetrics;
+    const metrics = config.vizConfig.yMetrics;
     const dimensions = [
-        config.xDimension,
-        ...(config.breakdownByDimension ? [config.breakdownByDimension] : []),
+        config.vizConfig.xDimension,
+        ...(config.vizConfig.breakdownByDimension
+            ? [config.vizConfig.breakdownByDimension]
+            : []),
     ];
-    const { limit, sorts } = config;
+    const { limit, sorts } = config.vizConfig;
 
     return {
         metrics,
         dimensions,
         limit: getValidAiQueryLimit(limit),
         sorts,
-        exploreName: config.exploreName,
-        filters,
+        exploreName: config.vizConfig.exploreName,
+        filters: filtersSchemaTransformed.parse(config.filters),
     };
 };
 
@@ -70,14 +74,14 @@ export const echartsConfigTimeSeriesMetric = async (
     sorts: MetricQuery['sorts'],
 ) => {
     let chartData = rows;
-    let metrics = config.yMetrics;
-    if (config.breakdownByDimension) {
+    let metrics = config.vizConfig.yMetrics;
+    if (config.vizConfig.breakdownByDimension) {
         // Sort the pivoted data
         const pivoted = await getPivotedResults(
             rows,
             fieldsMap,
-            config.breakdownByDimension,
-            config.yMetrics,
+            config.vizConfig.breakdownByDimension,
+            config.vizConfig.yMetrics,
             sorts,
         );
         chartData = pivoted.results;
@@ -85,7 +89,9 @@ export const echartsConfigTimeSeriesMetric = async (
     }
 
     return {
-        ...(config.title ? { title: { text: config.title } } : {}),
+        ...(config.vizConfig.title
+            ? { title: { text: config.vizConfig.title } }
+            : {}),
         ...(metrics.length > 1
             ? {
                   // This is needed so we don't have overlapping legend and grid
@@ -118,10 +124,10 @@ export const echartsConfigTimeSeriesMetric = async (
             type: 'line',
             name: metric,
             encode: {
-                x: config.xDimension,
+                x: config.vizConfig.xDimension,
                 y: metric,
             },
-            ...(config.lineType === 'area' && { areaStyle: {} }),
+            ...(config.vizConfig.lineType === 'area' && { areaStyle: {} }),
         })),
     };
 };
@@ -130,14 +136,12 @@ type RenderTimeseriesChartArgs = {
     runMetricQuery: (
         metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
-    vizConfig: TimeSeriesMetricChartConfig;
-    filters: z.infer<typeof filtersSchemaTransformed> | undefined;
+    config: TimeSeriesMetricChartConfig;
 };
 
 export const renderTimeseriesChart = async ({
     runMetricQuery,
-    vizConfig,
-    filters = {},
+    config,
 }: RenderTimeseriesChartArgs): Promise<{
     type: AiChartType.TIME_SERIES_CHART;
     metricQuery: AiMetricQuery;
@@ -146,10 +150,10 @@ export const renderTimeseriesChart = async ({
     >;
     chartOptions: object;
 }> => {
-    const metricQuery = metricQueryTimeSeriesChartMetric(vizConfig, filters);
+    const metricQuery = metricQueryTimeSeriesChartMetric(config);
     const results = await runMetricQuery(metricQuery);
     const chartOptions = await echartsConfigTimeSeriesMetric(
-        vizConfig,
+        config,
         results.rows,
         results.fields,
         metricQuery.sorts,

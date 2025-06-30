@@ -427,7 +427,6 @@ export const useAiAgentThreadMessageVizQuery = (args: {
             });
         },
         enabled:
-            !!args.message.metricQuery &&
             !!args.message.vizConfigOutput &&
             !!args.projectUuid &&
             !!health.data &&

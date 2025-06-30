@@ -358,8 +358,7 @@ const AiConversationsPage: FC = () => {
                             selectedMessage?.promptUuid === message.promptUuid;
                         const canMessageBeSelected =
                             isAiConversationMessageComplete(message) &&
-                            (!!message.filtersOutput ||
-                                !!message.vizConfigOutput ||
+                            (!!message.vizConfigOutput ||
                                 !!message.metricQuery);
 
                         return (

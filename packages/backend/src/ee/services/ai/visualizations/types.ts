@@ -1,4 +1,4 @@
-import { CsvFileConfig } from './csvFile';
+import { TableVizConfig } from './tableViz';
 import { TimeSeriesMetricChartConfig } from './timeSeriesChart';
 import { VerticalBarMetricChartConfig } from './verticalBarChart';
 
@@ -12,6 +12,6 @@ export type AiAgentVizConfig =
           config: TimeSeriesMetricChartConfig;
       }
     | {
-          type: 'csv';
-          config: CsvFileConfig;
+          type: 'table';
+          config: TableVizConfig;
       };

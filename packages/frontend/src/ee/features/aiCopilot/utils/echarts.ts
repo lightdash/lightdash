@@ -4,13 +4,14 @@ import {
     CartesianSeriesType,
     ChartType,
     type ChartConfig,
-    type CsvFileVizConfigSchemaType,
     type MetricQuery,
     type PivotReference,
     type ResultRow,
+    type TableVizConfigSchemaType,
     type TimeSeriesMetricVizConfigSchemaType,
     type VerticalBarMetricVizConfigSchemaType,
 } from '@lightdash/common';
+import { type OneLineResultSchemaType } from '@lightdash/common/src';
 import { type Axis } from 'echarts';
 import { getPivotedData } from '../../../../hooks/plottedData/getPlottedData';
 
@@ -163,12 +164,21 @@ const getTimeSeriesMetricEchartsConfig = (
     };
 };
 
-const getCsvMetricEchartsConfig = (
-    _config: CsvFileVizConfigSchemaType,
+const getTableMetricEchartsConfig = (
+    _config: TableVizConfigSchemaType,
     _rows: Record<string, unknown>[],
 ): ChartConfig => {
     return {
         type: ChartType.TABLE,
+    };
+};
+
+const getOneLineResultEchartsConfig = (
+    _config: OneLineResultSchemaType,
+    _rows: Record<string, unknown>[],
+): ChartConfig => {
+    return {
+        type: ChartType.BIG_NUMBER,
     };
 };
 
@@ -190,18 +200,40 @@ export const getChartConfigFromAiAgentVizConfig = ({
           config: TimeSeriesMetricVizConfigSchemaType;
       }
     | {
-          type: AiChartType.CSV;
-          config: CsvFileVizConfigSchemaType;
+          type: AiChartType.TABLE;
+          config: TableVizConfigSchemaType;
+      }
+    | {
+          type: AiChartType.ONE_LINE_RESULT;
+          config: OneLineResultSchemaType;
       }
 )): ChartConfig => {
+    // FIXME: typing is not working as expected
+    if (!config || !('vizConfig' in config)) {
+        throw new Error('Invalid viz config');
+    }
+
+    // FIXME: typing is not working as expected
+    const vizConfig = config.vizConfig as any;
+
     switch (type) {
         case AiChartType.VERTICAL_BAR_CHART:
-            return getVerticalBarMetricEchartsConfig(config, metricQuery, rows);
+            return getVerticalBarMetricEchartsConfig(
+                vizConfig,
+                metricQuery,
+                rows,
+            );
         case AiChartType.TIME_SERIES_CHART:
-            return getTimeSeriesMetricEchartsConfig(config, metricQuery, rows);
-        case AiChartType.CSV:
-            return getCsvMetricEchartsConfig(config, rows);
+            return getTimeSeriesMetricEchartsConfig(
+                vizConfig,
+                metricQuery,
+                rows,
+            );
+        case AiChartType.TABLE:
+            return getTableMetricEchartsConfig(vizConfig, rows);
+        case AiChartType.ONE_LINE_RESULT:
+            return getOneLineResultEchartsConfig(vizConfig, rows);
         default:
-            throw assertUnreachable(type, 'Invalid chart type');
+            return assertUnreachable(type, 'Invalid chart type');
     }
 };

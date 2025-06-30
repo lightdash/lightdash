@@ -29,6 +29,7 @@ const vizConfigSchema = verticalBarMetricVizConfigSchema.extend({
 });
 
 export const generateBarVizConfigToolSchema = z.object({
+    type: z.literal(AiChartType.VERTICAL_BAR_CHART),
     vizConfig: vizConfigSchema,
     filters: filtersSchema
         .nullable()
@@ -37,30 +38,33 @@ export const generateBarVizConfigToolSchema = z.object({
         ),
 });
 
-export type VerticalBarMetricChartConfig = z.infer<typeof vizConfigSchema>;
+export type VerticalBarMetricChartConfig = z.infer<
+    typeof generateBarVizConfigToolSchema
+>;
 
 export const isVerticalBarMetricChartConfig = (
     config: unknown,
 ): config is VerticalBarMetricChartConfig =>
-    typeof config === 'object' && config !== null && 'xAxisType' in config;
+    generateBarVizConfigToolSchema.safeParse(config).success;
 
 export const metricQueryVerticalBarChartMetric = (
     config: VerticalBarMetricChartConfig,
-    filters: z.infer<typeof filtersSchemaTransformed> = {},
 ): AiMetricQuery => {
-    const metrics = config.yMetrics;
+    const metrics = config.vizConfig.yMetrics;
     const dimensions = [
-        config.xDimension,
-        ...(config.breakdownByDimension ? [config.breakdownByDimension] : []),
+        config.vizConfig.xDimension,
+        ...(config.vizConfig.breakdownByDimension
+            ? [config.vizConfig.breakdownByDimension]
+            : []),
     ];
-    const { limit, sorts } = config;
+    const { limit, sorts } = config.vizConfig;
     return {
         metrics,
         dimensions,
         limit: getValidAiQueryLimit(limit),
         sorts,
-        exploreName: config.exploreName,
-        filters,
+        exploreName: config.vizConfig.exploreName,
+        filters: filtersSchemaTransformed.parse(config.filters),
     };
 };
 
@@ -71,13 +75,13 @@ const echartsConfigVerticalBarMetric = async (
     sorts: MetricQuery['sorts'],
 ) => {
     let chartData = rows;
-    let metrics = config.yMetrics;
-    if (config.breakdownByDimension) {
+    let metrics = config.vizConfig.yMetrics;
+    if (config.vizConfig.breakdownByDimension) {
         const pivoted = await getPivotedResults(
             rows,
             fieldsMap,
-            config.breakdownByDimension,
-            config.yMetrics,
+            config.vizConfig.breakdownByDimension,
+            config.vizConfig.yMetrics,
             sorts,
         );
         chartData = pivoted.results;
@@ -89,7 +93,9 @@ const echartsConfigVerticalBarMetric = async (
             source: chartData,
             dimensions: fields,
         },
-        ...(config.title ? { title: { text: config.title } } : {}),
+        ...(config.vizConfig.title
+            ? { title: { text: config.vizConfig.title } }
+            : {}),
         animation: false,
         backgroundColor: '#fff',
         ...(metrics.length > 1
@@ -106,24 +112,28 @@ const echartsConfigVerticalBarMetric = async (
             : {}),
         xAxis: [
             {
-                type: config.xAxisType,
-                ...(config.xAxisLabel ? { name: config.xAxisLabel } : {}),
+                type: config.vizConfig.xAxisType,
+                ...(config.vizConfig.xAxisLabel
+                    ? { name: config.vizConfig.xAxisLabel }
+                    : {}),
             },
         ],
         yAxis: [
             {
                 type: 'value',
-                ...(config.yAxisLabel ? { name: config.yAxisLabel } : {}),
+                ...(config.vizConfig.yAxisLabel
+                    ? { name: config.vizConfig.yAxisLabel }
+                    : {}),
             },
         ],
         series: metrics.map((metric) => ({
             type: 'bar',
             name: metric,
             encode: {
-                x: config.xDimension,
+                x: config.vizConfig.xDimension,
                 y: metric,
             },
-            ...(config.stackBars ? { stack: 'stack' } : {}),
+            ...(config.vizConfig.stackBars ? { stack: 'stack' } : {}),
         })),
     };
 };
@@ -132,14 +142,12 @@ type RenderVerticalBarMetricChartArgs = {
     runMetricQuery: (
         metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
-    vizConfig: VerticalBarMetricChartConfig;
-    filters: z.infer<typeof filtersSchemaTransformed> | undefined;
+    config: VerticalBarMetricChartConfig;
 };
 
 export const renderVerticalBarMetricChart = async ({
     runMetricQuery,
-    vizConfig,
-    filters,
+    config,
 }: RenderVerticalBarMetricChartArgs): Promise<{
     type: AiChartType.VERTICAL_BAR_CHART;
     results: Awaited<
@@ -148,10 +156,10 @@ export const renderVerticalBarMetricChart = async ({
     metricQuery: AiMetricQuery;
     chartOptions: object;
 }> => {
-    const metricQuery = metricQueryVerticalBarChartMetric(vizConfig, filters);
+    const metricQuery = metricQueryVerticalBarChartMetric(config);
     const results = await runMetricQuery(metricQuery);
     const chartOptions = await echartsConfigVerticalBarMetric(
-        vizConfig,
+        config,
         results.rows,
         results.fields,
         metricQuery.sorts,

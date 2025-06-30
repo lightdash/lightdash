@@ -8,6 +8,7 @@ import {
     UnitOfTime,
 } from '../../types/filter';
 import assertUnreachable from '../../utils/assertUnreachable';
+import { AiChartType } from '../AiAgent';
 
 // TODO: most of the things should live in common and some of the existing types should be inferred from here
 // we can't reuse them because there's a bug with TSOA+ZOD - we can't use zod types in TSOA controllers
@@ -273,11 +274,6 @@ export const filtersSchemaTransformed =
         }
     });
 
-export const generateQueryFiltersToolSchema = z.object({
-    exploreName: z.string().describe('Name of the selected explore'),
-    filters: filtersSchema,
-});
-
 export const SortFieldSchema = z.object({
     fieldId: fieldIdSchema.describe(
         '"fieldId" must come from the selected Metrics or Dimensions; otherwise, it will throw an error.',
@@ -331,7 +327,7 @@ export const VisualizationMetadataSchema = z.object({
 // });
 
 // TODO: fix me to be a complete schema and infer types from here.
-export const lighterMetricQuerySchema = z.object({
+const lighterMetricQuerySchema = z.object({
     exploreName: z
         .string()
         .describe('Name of the explore to query. @example: "users"'),
@@ -345,7 +341,7 @@ export const lighterMetricQuerySchema = z.object({
         .describe(
             'Dimensions to break down the metric into groups. @example: ["orders_status", "customers_first_name"]',
         ),
-    filters: filtersSchema.describe('Filters to apply to the query'),
+    filters: filtersSchema.nullable().describe('Filters to apply to the query'),
     sorts: z
         .array(SortFieldSchema)
         .describe(
@@ -387,11 +383,28 @@ export const lighterMetricQuerySchema = z.object({
     //     .describe('Metadata about the query'),
 });
 
-export const lighterMetricQuerySchemaTransformed =
-    lighterMetricQuerySchema.transform((data) => ({
+const lighterMetricQuerySchemaTransformed = lighterMetricQuerySchema.transform(
+    (data) => ({
         ...data,
         filters: filtersSchemaTransformed.parse(data.filters),
-    }));
+    }),
+);
+
+export const oneLineResultSchema = z.object({
+    type: z.literal(AiChartType.ONE_LINE_RESULT),
+    metricQuery: lighterMetricQuerySchema,
+});
+
+export type OneLineResultSchemaType = z.infer<typeof oneLineResultSchema>;
+
+export const oneLineResultSchemaTransformed = oneLineResultSchema.transform(
+    (data) => ({
+        ...data,
+        metricQuery: lighterMetricQuerySchemaTransformed.parse(
+            data.metricQuery,
+        ),
+    }),
+);
 
 export const aiAskForAdditionalInformationSchema = z.object({
     message: z
@@ -511,11 +524,11 @@ export type VerticalBarMetricVizConfigSchemaType = z.infer<
     typeof verticalBarMetricVizConfigSchema
 >;
 
-export const csvFileVizConfigSchema = VisualizationMetadataSchema.extend({
+export const tableVizConfigSchema = VisualizationMetadataSchema.extend({
     exploreName: z
         .string()
         .describe(
-            'The name of the explore containing the metrics and dimensions used for csv query',
+            'The name of the explore containing the metrics and dimensions used for table query',
         ),
     metrics: z
         .array(z.string())
@@ -534,7 +547,7 @@ export const csvFileVizConfigSchema = VisualizationMetadataSchema.extend({
         ),
 });
 
-export type CsvFileVizConfigSchemaType = z.infer<typeof csvFileVizConfigSchema>;
+export type TableVizConfigSchemaType = z.infer<typeof tableVizConfigSchema>;
 
 // TOOL ARGS SCHEMAS
 
@@ -545,24 +558,6 @@ export const isFindFieldsToolArgs = (
     toolArgs: unknown,
 ): toolArgs is FindFieldsToolArgs =>
     aiFindFieldsToolSchema.safeParse(toolArgs).success;
-
-// GENERATE QUERY FILTERS TOOL ARGS
-export const generateQueryFiltersToolArgsSchema = z.object({
-    exploreName: z.string().describe('Name of the selected explore'),
-    filters: filtersSchema,
-});
-export type GenerateQueryFiltersToolArgs = z.infer<
-    typeof generateQueryFiltersToolArgsSchema
->;
-export const isGenerateQueryFiltersToolArgs = (
-    toolArgs: unknown,
-): toolArgs is GenerateQueryFiltersToolArgs =>
-    generateQueryFiltersToolSchema.safeParse(toolArgs).success;
-
-export const generateQueryFiltersToolArgsSchemaTransformed = z.object({
-    exploreName: z.string().describe('Name of the selected explore'),
-    filters: filtersSchemaTransformed,
-});
 
 // GENERATE BAR VIZ CONFIG TOOL ARGS
 export const verticalBarMetricVizConfigToolArgsSchema = z.object({
@@ -602,22 +597,23 @@ export const timeSeriesMetricVizConfigToolArgsSchemaTransformed = z.object({
     filters: filtersSchemaTransformed,
 });
 
-// GENERATE CSV VIZ CONFIG TOOL ARGS
-export const CsvFileVizConfigToolArgsSchema = z.object({
-    vizConfig: csvFileVizConfigSchema,
+// GENERATE TABLE VIZ CONFIG TOOL ARGS
+export const tableVizConfigToolArgsSchema = z.object({
+    vizConfig: tableVizConfigSchema,
     filters: filtersSchema.nullable(),
 });
-export type CsvFileVizConfigToolArgs = z.infer<
-    typeof CsvFileVizConfigToolArgsSchema
+export type TableVizConfigToolArgs = z.infer<
+    typeof tableVizConfigToolArgsSchema
 >;
-export const isCsvFileVizConfigToolArgs = (
+
+export const isTableVizConfigToolArgs = (
     toolArgs: unknown,
-): toolArgs is CsvFileVizConfigToolArgs =>
-    CsvFileVizConfigToolArgsSchema.safeParse(toolArgs).success;
+): toolArgs is TableVizConfigToolArgs =>
+    tableVizConfigToolArgsSchema.safeParse(toolArgs).success;
 
 // -- Used for tool call args transformation
-export const CsvFileVizConfigToolArgsSchemaTransformed = z.object({
-    vizConfig: csvFileVizConfigSchema,
+export const TableVizConfigToolArgsSchemaTransformed = z.object({
+    vizConfig: tableVizConfigSchema,
     filters: filtersSchemaTransformed,
 });
 
@@ -626,8 +622,7 @@ export const ToolNameSchema = z.enum([
     'findExplores',
     'findFields',
     'generateBarVizConfig',
-    'generateCsv',
-    'generateQueryFilters',
+    'generateTableVizConfig',
     'generateTimeSeriesVizConfig',
 ]);
 
@@ -643,8 +638,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     findExplores: 'Finding relevant explores',
     findFields: 'Finding relevant fields',
     generateBarVizConfig: 'Generating a bar chart',
-    generateCsv: 'Generating CSV file',
-    generateQueryFilters: 'Applying filters to the query',
+    generateTableVizConfig: 'Generating a table',
     generateTimeSeriesVizConfig: 'Generating a line chart',
 });
 
@@ -654,7 +648,6 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         findExplores: 'Found relevant explores',
         findFields: 'Found relevant fields',
         generateBarVizConfig: 'Generated a bar chart',
-        generateCsv: 'Generated a table',
-        generateQueryFilters: 'Applied filters to the query',
+        generateTableVizConfig: 'Generated a table',
         generateTimeSeriesVizConfig: 'Generated a line chart',
     });

@@ -1118,14 +1118,10 @@ export class AiAgentModel {
             .update({
                 responded_at: this.database.fn.now(),
                 ...(data.response ? { response: data.response } : {}),
-                ...(data.filtersOutput
-                    ? { filters_output: data.filtersOutput }
-                    : {}),
                 ...(data.vizConfigOutput
                     ? { viz_config_output: data.vizConfigOutput }
                     : {}),
                 ...(data.humanScore ? { human_score: data.humanScore } : {}),
-                ...(data.metricQuery ? { metric_query: data.metricQuery } : {}),
             })
             .where({
                 ai_prompt_uuid: data.promptUuid,

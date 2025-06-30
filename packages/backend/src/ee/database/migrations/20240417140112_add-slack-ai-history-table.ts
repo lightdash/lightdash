@@ -79,6 +79,7 @@ export async function up(knex: Knex): Promise<void> {
                 .onDelete('SET NULL');
             tableBuilder.text('prompt').notNullable();
             tableBuilder.text('response').nullable();
+            // TODO: remove this column
             tableBuilder
                 .uuid('response_project_uuid')
                 .nullable()

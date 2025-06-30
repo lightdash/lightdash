@@ -81,22 +81,10 @@ import {
     AI_DEFAULT_MAX_QUERY_LIMIT,
     validateSelectedFieldsExistence,
 } from './ai/utils/validators';
-import {
-    isCsvFileConfig,
-    metricQueryCsv,
-    renderCsvFile,
-} from './ai/visualizations/csvFile';
-import {
-    isTimeSeriesMetricChartConfig,
-    metricQueryTimeSeriesChartMetric,
-    renderTimeseriesChart,
-} from './ai/visualizations/timeSeriesChart';
-import { AiAgentVizConfig } from './ai/visualizations/types';
-import {
-    isVerticalBarMetricChartConfig,
-    metricQueryVerticalBarChartMetric,
-    renderVerticalBarMetricChart,
-} from './ai/visualizations/verticalBarChart';
+import { renderTableViz } from './ai/visualizations/tableViz';
+import { renderTimeseriesChart } from './ai/visualizations/timeSeriesChart';
+import { getMetricQueryFromVizConfig } from './ai/visualizations/utils';
+import { renderVerticalBarMetricChart } from './ai/visualizations/verticalBarChart';
 import { CommercialCatalogService } from './CommercialCatalogService';
 
 type AiAgentServiceDependencies = {
@@ -800,31 +788,16 @@ export class AiAgentService {
             );
         }
 
-        if (!message.metricQuery || !message.vizConfigOutput) {
+        if (!message.vizConfigOutput) {
             throw new ForbiddenError(
                 'Viz config or metric query not found for this message',
             );
         }
 
-        let vizConfig: AiAgentVizConfig;
-        if (isVerticalBarMetricChartConfig(message.vizConfigOutput)) {
-            vizConfig = {
-                type: 'vertical_bar_chart',
-                config: message.vizConfigOutput,
-            };
-        } else if (isTimeSeriesMetricChartConfig(message.vizConfigOutput)) {
-            vizConfig = {
-                type: 'time_series_chart',
-                config: message.vizConfigOutput,
-            };
-        } else if (isCsvFileConfig(message.vizConfigOutput)) {
-            vizConfig = {
-                type: 'csv',
-                config: message.vizConfigOutput,
-            };
-        } else {
-            throw new UnexpectedServerError('Invalid viz config');
-        }
+        const { type, config } = getMetricQueryFromVizConfig(
+            message.vizConfigOutput,
+            this.lightdashConfig.query.maxLimit,
+        );
 
         this.analytics.track({
             event: 'ai_agent.web_viz_query',
@@ -834,38 +807,32 @@ export class AiAgentService {
                 organizationId: organizationUuid,
                 agentId: agent.uuid,
                 agentName: agent.name,
-                vizType: vizConfig.type,
+                vizType: type,
             },
         });
 
-        switch (vizConfig.type) {
-            case 'vertical_bar_chart':
+        switch (type) {
+            case AiChartType.VERTICAL_BAR_CHART:
                 return renderVerticalBarMetricChart({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
-                    vizConfig: vizConfig.config,
-                    // TODO: validate before casting
-                    filters: message.filtersOutput ?? undefined,
+                    config,
                 });
-            case 'time_series_chart':
+            case AiChartType.TIME_SERIES_CHART:
                 return renderTimeseriesChart({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
-                    vizConfig: vizConfig.config,
-                    // TODO: validate before casting
-                    filters: message.filtersOutput ?? undefined,
+                    config,
                 });
-            case 'csv':
-                return renderCsvFile({
+            case AiChartType.TABLE:
+                return renderTableViz({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
-                    config: vizConfig.config,
-                    // TODO: validate before casting
-                    filters: message.filtersOutput ?? undefined,
+                    config,
                     maxLimit: AI_DEFAULT_MAX_QUERY_LIMIT,
                 });
             default:
-                return assertUnreachable(vizConfig, 'Invalid viz config');
+                return assertUnreachable(type, 'Invalid viz type');
         }
     }
 
@@ -915,10 +882,8 @@ export class AiAgentService {
             );
         }
 
-        if (!message.metricQuery || !message.vizConfigOutput) {
-            throw new ForbiddenError(
-                'Viz config or metric query not found for this message',
-            );
+        if (!message.vizConfigOutput) {
+            throw new ForbiddenError('Viz config not found for this message');
         }
 
         const metadata = {
@@ -934,25 +899,16 @@ export class AiAgentService {
                     : null,
         } satisfies AiVizMetadata;
 
-        let vizConfig: AiAgentVizConfig;
-        if (isVerticalBarMetricChartConfig(message.vizConfigOutput)) {
-            vizConfig = {
-                type: 'vertical_bar_chart',
-                config: message.vizConfigOutput,
-            };
-        } else if (isTimeSeriesMetricChartConfig(message.vizConfigOutput)) {
-            vizConfig = {
-                type: 'time_series_chart',
-                config: message.vizConfigOutput,
-            };
-        } else if (isCsvFileConfig(message.vizConfigOutput)) {
-            vizConfig = {
-                type: 'csv',
-                config: message.vizConfigOutput,
-            };
-        } else {
-            throw new UnexpectedServerError('Invalid viz config');
-        }
+        const { type, metricQuery } = getMetricQueryFromVizConfig(
+            message.vizConfigOutput,
+            this.lightdashConfig.query.maxLimit,
+        );
+
+        const query = await this.executeAsyncAiMetricQuery(
+            user,
+            projectUuid,
+            metricQuery,
+        );
 
         this.analytics.track({
             event: 'ai_agent.web_viz_query',
@@ -962,65 +918,15 @@ export class AiAgentService {
                 organizationId: organizationUuid,
                 agentId: agent.uuid,
                 agentName: agent.name,
-                vizType: vizConfig.type,
+                vizType: type,
             },
         });
 
-        switch (vizConfig.type) {
-            case 'vertical_bar_chart': {
-                const metricQuery = metricQueryVerticalBarChartMetric(
-                    vizConfig.config,
-                    message.filtersOutput ?? undefined,
-                );
-
-                const query = await this.executeAsyncAiMetricQuery(
-                    user,
-                    projectUuid,
-                    metricQuery,
-                );
-
-                return {
-                    type: AiChartType.VERTICAL_BAR_CHART,
-                    query,
-                    metadata,
-                };
-            }
-            case 'time_series_chart': {
-                const metricQuery = metricQueryTimeSeriesChartMetric(
-                    vizConfig.config,
-                    message.filtersOutput ?? undefined,
-                );
-                const query = await this.executeAsyncAiMetricQuery(
-                    user,
-                    projectUuid,
-                    metricQuery,
-                );
-
-                return {
-                    type: AiChartType.TIME_SERIES_CHART,
-                    query,
-                    metadata,
-                };
-            }
-            case 'csv':
-                const metricQuery = await metricQueryCsv(
-                    vizConfig.config,
-                    AI_DEFAULT_MAX_QUERY_LIMIT,
-                    message.filtersOutput ?? undefined,
-                );
-                const query = await this.executeAsyncAiMetricQuery(
-                    user,
-                    projectUuid,
-                    metricQuery,
-                );
-                return {
-                    type: AiChartType.CSV,
-                    query,
-                    metadata,
-                };
-            default:
-                return assertUnreachable(vizConfig, 'Invalid viz config');
-        }
+        return {
+            type,
+            query,
+            metadata,
+        };
     }
 
     // TODO: user permissions
@@ -1845,8 +1751,6 @@ export class AiAgentService {
             response: message.response ?? undefined,
             respondedAt: message.responded_at ?? undefined,
             vizConfigOutput: message.viz_config_output ?? undefined,
-            filtersOutput: message.filters_output ?? undefined,
-            metricQuery: message.metric_query ?? undefined,
             humanScore: message.human_score ?? undefined,
             user: {
                 uuid: message.user_uuid,
@@ -1964,10 +1868,13 @@ export class AiAgentService {
 
         const utils = this.getAiAgentDependencies(user, finalPrompt);
 
-        const rows = finalPrompt.metricQuery
+        const rows = finalPrompt.vizConfigOutput
             ? (
                   await utils.runMiniMetricQuery(
-                      finalPrompt.metricQuery as AiMetricQuery,
+                      getMetricQueryFromVizConfig(
+                          finalPrompt.vizConfigOutput,
+                          this.lightdashConfig.query.maxLimit,
+                      ).metricQuery,
                   )
               ).rows
             : undefined;
