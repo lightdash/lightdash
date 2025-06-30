@@ -53,6 +53,7 @@ export default function mockHealthResponse(
                 oauth2ClientId: '',
                 loginPath: '/login/google',
                 enabled: false,
+                enableGCloudADC: false,
             },
             okta: {
                 loginPath: '/login/okta',

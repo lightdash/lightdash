@@ -6007,7 +6007,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     BigqueryAuthenticationType: {
         dataType: 'refEnum',
-        enums: ['sso', 'private_key'],
+        enums: ['sso', 'private_key', 'adc'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateBigqueryCredentials.type-or-keyfileContents-or-authenticationType_':
