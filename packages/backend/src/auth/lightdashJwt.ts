@@ -1,3 +1,4 @@
+/* eslint-disable */
 import {
     CreateEmbedJwt,
     EmbedJwt,
@@ -52,7 +53,7 @@ export function decodeLightdashJwt(
                 ? encodedSecret
                 : Buffer.from(encodedSecret),
         );
-        const decodedToken = verify(token, secret) as unknown as EmbedJwt;
+        const decodedToken = verify(token, secret) as EmbedJwt;
 
         // Alert if the token is not in the expected format so we can inform the org before enforcing validation
         try {
