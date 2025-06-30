@@ -61,14 +61,14 @@ export function decodeLightdashJwt(
                     errorIdentifier = decodedToken.content.dashboardSlug;
                 }
             }
-            // FIXME: This needs to be cleaned up. Need to verify current behavior
+            // FIXME: This is legacy behavior where we simply log Zod schema validation errors.
             if (e instanceof z.ZodError) {
                 const zodErrors = e.issues
                     .map((issue) => issue.message)
                     .join(', ');
 
                 Logger.error(
-                    `Invalid embed token ${errorIdentifier}: ${zodErrors}`,
+                    `Token schema validation error: ${errorIdentifier}: ${zodErrors}`,
                 );
             } else {
                 Logger.error(
@@ -78,13 +78,6 @@ export function decodeLightdashJwt(
                 );
             }
             Sentry.captureException(e);
-            if (e instanceof z.ZodError) {
-                const zodErrors = e.issues
-                    .map((issue) => issue.message)
-                    .join(', ');
-                throw new ParameterError(`Invalid embed token: ${zodErrors}`);
-            }
-            throw e;
         }
         return decodedToken;
     } catch (e) {
@@ -96,7 +89,9 @@ export function decodeLightdashJwt(
         }
         if (e instanceof z.ZodError) {
             const zodErrors = e.issues.map((issue) => issue.message).join(', ');
-            throw new ParameterError(`Invalid embed token: ${zodErrors}`);
+            throw new ParameterError(
+                `Token schema validation error: ${zodErrors}`,
+            );
         }
         throw e;
     }

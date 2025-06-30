@@ -51,10 +51,7 @@ export type ApiEmbedDashboardResponse = {
     status: 'ok';
     results: Dashboard & {
         // declare type as TSOA doesn't understand zod type InteractivityOptions
-        dashboardFiltersInteractivity?: {
-            enabled: boolean | FilterInteractivityValues;
-            allowedFilters?: string[];
-        };
+        dashboardFiltersInteractivity?: CreateEmbedJwt['content']['dashboardFiltersInteractivity'];
         canExportCsv?: boolean;
         canExportImages?: boolean;
     };
