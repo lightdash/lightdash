@@ -31,6 +31,7 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     startOfWeek?: number;
     ignoreErrors: boolean;
     tableConfiguration: CreateProjectTableConfiguration;
+    skipCopyContent?: boolean;
 };
 
 type StopPreviewHandlerOptions = {
@@ -147,6 +148,12 @@ export const previewHandler = async (
                 `\n\nDeveloper preview will be deployed without any copied content!\nPlease set a project to copy content from by running 'lightdash config set-project'.\n`,
             ),
         );
+    } else if (options.skipCopyContent) {
+        console.error(
+            styles.warning(
+                `\n\nDeveloper preview will be deployed without any copied content!\n`,
+            ),
+        );
     } else {
         console.error(
             `\n${styles.success('✔')}   Copying charts and dashboards from "${
@@ -161,6 +168,7 @@ export const previewHandler = async (
             name,
             type: ProjectType.PREVIEW,
             upstreamProjectUuid: config.context?.project,
+            copyContent: !options.skipCopyContent,
         });
 
         project = results?.project;
@@ -341,6 +349,12 @@ export const startPreviewHandler = async (
                     `\n\nDeveloper preview will be deployed without any copied content!\nPlease set a project to copy content from by running 'lightdash config set-project'.\n`,
                 ),
             );
+        } else if (options.skipCopyContent) {
+            console.error(
+                styles.warning(
+                    `\n\nDeveloper preview will be deployed without any copied content!\n`,
+                ),
+            );
         } else {
             console.error(
                 `\n${styles.success(
@@ -358,6 +372,7 @@ export const startPreviewHandler = async (
             name: projectName,
             type: ProjectType.PREVIEW,
             upstreamProjectUuid: config.context?.project,
+            copyContent: !options.skipCopyContent,
         });
 
         const project = results?.project;

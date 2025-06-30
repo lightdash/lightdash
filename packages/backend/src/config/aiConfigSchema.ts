@@ -14,6 +14,7 @@ export const aiCopilotConfigSchema = z
                 .object({
                     apiKey: z.string(),
                     modelName: z.string().default(DEFAULT_OPENAI_MODEL_NAME),
+                    baseUrl: z.string().optional(),
                 })
                 .optional(),
             azure: z
@@ -34,6 +35,7 @@ export const aiCopilotConfigSchema = z
         enabled: z.boolean(),
         requiresFeatureFlag: z.boolean(),
         embeddingSearchEnabled: z.boolean(),
+        telemetryEnabled: z.boolean(),
     })
     .refine(
         ({ providers, defaultProvider, enabled }) =>

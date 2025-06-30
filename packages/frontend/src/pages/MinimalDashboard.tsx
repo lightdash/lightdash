@@ -16,7 +16,6 @@ import {
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
-import SemanticViewerChartTile from '../components/DashboardTiles/DashboardSemanticViewerChartTile';
 import SqlChartTile from '../components/DashboardTiles/DashboardSqlChartTile';
 import MinimalDashboardTabs from '../components/MinimalDashboardTabs';
 import { useScheduler } from '../features/scheduler/hooks/useScheduler';
@@ -212,15 +211,6 @@ const MinimalDashboard: FC = () => {
                                 />
                             ) : tile.type === DashboardTileTypes.SQL_CHART ? (
                                 <SqlChartTile
-                                    key={tile.uuid}
-                                    tile={tile}
-                                    isEditMode={false}
-                                    onDelete={() => {}}
-                                    onEdit={() => {}}
-                                />
-                            ) : tile.type ===
-                              DashboardTileTypes.SEMANTIC_VIEWER_CHART ? (
-                                <SemanticViewerChartTile
                                     key={tile.uuid}
                                     tile={tile}
                                     isEditMode={false}

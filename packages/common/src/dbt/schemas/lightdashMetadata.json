@@ -24,10 +24,44 @@
                 "millions",
                 "billions",
                 "trillions",
+                "thousand",
+                "million",
+                "billion",
+                "trillion",
                 "K",
                 "M",
                 "B",
-                "T"
+                "T",
+                "kilobytes",
+                "megabytes",
+                "gigabytes",
+                "terabytes",
+                "petabytes",
+                "kilobyte",
+                "megabyte",
+                "gigabyte",
+                "terabyte",
+                "petabyte",
+                "KB",
+                "MB",
+                "GB",
+                "TB",
+                "PB",
+                "kibibytes",
+                "mebibytes",
+                "gibibytes",
+                "tebibytes",
+                "pebibytes",
+                "kibibyte",
+                "mebibyte",
+                "gibibyte",
+                "tebibyte",
+                "pebibyte",
+                "KiB",
+                "MiB",
+                "GiB",
+                "TiB",
+                "PiB"
             ]
         },
         "Format": {
@@ -264,6 +298,19 @@
             "type": "object",
             "required": [],
             "properties": {
+                "primary_key": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
+                },
                 "joins": {
                     "type": "array",
                     "items": {
@@ -282,6 +329,29 @@
                             },
                             "always": {
                                 "type": "boolean"
+                            },
+                            "hidden": {
+                                "type": "boolean"
+                            },
+                            "alias": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "fields": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "relationship": {
+                                "type": "string",
+                                "enum": [
+                                    "one-to-many",
+                                    "many-to-one",
+                                    "one-to-one"
+                                ]
                             }
                         }
                     }

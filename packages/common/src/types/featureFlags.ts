@@ -18,11 +18,6 @@ export enum FeatureFlags {
     EnableUserTimezones = 'enable-user-timezones',
 
     /**
-     * Enable the semantic layer
-     */
-    SemanticLayerEnabled = 'semantic-layer-enabled',
-
-    /**
      * Enable dashboard comments
      */
     DashboardComments = 'dashboard-comments-enabled',
@@ -45,11 +40,6 @@ export enum FeatureFlags {
     WriteBackCustomBinDimensions = 'write-back-custom-bin-dimensions',
 
     /**
-     * Enable a new API endpoint that requests results page by page.
-     */
-    QueryPagination = 'query-pagination',
-
-    /**
      * Enable the ability to show the warehouse execution time and total time in the chart tile.
      */
     ShowExecutionTime = 'show-execution-time',
@@ -60,6 +50,12 @@ export enum FeatureFlags {
     AiCustomViz = 'ai-custom-viz',
 
     BigquerySSO = 'bigquery-sso',
+
+    /**
+     * Show query warnings in explore page
+     * This feature flag is temporary while we work on the new query warnings for metric inflation.
+     */
+    ShowQueryWarnings = 'show-query-warnings',
 }
 
 export type FeatureFlag = {

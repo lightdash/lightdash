@@ -103,6 +103,8 @@ type Props = {
         customMetrics: AdditionalMetric[] | undefined;
     };
     selectedDimensions?: string[];
+    searchResults: string[];
+    isSearching: boolean;
 };
 
 const EmptyWrapper: FC<React.PropsWithChildren<{}>> = ({ children }) => (
@@ -137,11 +139,11 @@ const TableTree: FC<Props> = ({
     searchQuery,
     missingFields,
     selectedDimensions,
+    isSearching,
     ...rest
 }) => {
     const Wrapper = showTableLabel ? TableTreeWrapper : EmptyWrapper;
     const [isOpen, toggle] = useToggle(isOpenByDefault);
-    const isSearching = !!searchQuery && searchQuery !== '';
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
@@ -158,6 +160,7 @@ const TableTree: FC<Props> = ({
                         customDimensions={customDimensions}
                         missingFields={missingFields}
                         selectedDimensions={selectedDimensions}
+                        isSearching={isSearching}
                         {...rest}
                     />
                 </Wrapper>

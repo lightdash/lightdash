@@ -46,14 +46,7 @@ export const AiAgentPageLayout = ({ Sidebar, children }: Props) => {
                 </Fragment>
             )}
             <ErrorBoundary>
-                <Panel
-                    style={{
-                        backgroundColor: 'white',
-                        overflow: 'auto',
-                    }}
-                >
-                    {children}
-                </Panel>
+                <Panel style={{ backgroundColor: 'white' }}>{children}</Panel>
             </ErrorBoundary>
         </PanelGroup>
     );

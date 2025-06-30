@@ -13,6 +13,12 @@ import {
 import { type LightdashProjectConfig } from './lightdashProjectConfig';
 import { type TableBase } from './table';
 
+export enum JoinRelationship {
+    ONE_TO_MANY = 'one-to-many',
+    MANY_TO_ONE = 'many-to-one',
+    ONE_TO_ONE = 'one-to-one',
+}
+
 export type ExploreJoin = {
     table: string; // Must match a tableName in containing Explore
     sqlOn: string; // Built sql
@@ -22,13 +28,15 @@ export type ExploreJoin = {
     hidden?: boolean;
     fields?: string[]; // Optional list of fields to include from the joined table
     always?: boolean; // Optional flag to always join the table
+    relationship?: JoinRelationship;
 };
 
 export type CompiledExploreJoin = Pick<
     ExploreJoin,
-    'table' | 'sqlOn' | 'type' | 'hidden' | 'always'
+    'table' | 'sqlOn' | 'type' | 'hidden' | 'always' | 'relationship'
 > & {
-    compiledSqlOn: string; // Sql on clause with template variables resolved
+    compiledSqlOn: string; // SQL on clause with template variables resolved
+    tablesReferences?: string[]; // Tables referenced in SQL. Optional, to keep it backwards compatible.
 };
 
 export type CompiledTable = TableBase & {

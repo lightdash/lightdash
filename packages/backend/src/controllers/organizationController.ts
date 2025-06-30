@@ -14,12 +14,17 @@ import {
     CreateColorPalette,
     CreateGroup,
     CreateOrganization,
+    getRequestMethod,
     KnexPaginateArgs,
+    LightdashRequestMethodHeader,
     OrganizationMemberProfileUpdate,
     UpdateAllowedEmailDomains,
     UpdateColorPalette,
     UpdateOrganization,
     UUID,
+    type ApiCreateProjectResults,
+    type ApiSuccess,
+    type CreateProject,
 } from '@lightdash/common';
 import {
     Body,
@@ -490,6 +495,31 @@ export class OrganizationController extends BaseController {
             results: await this.services
                 .getOrganizationService()
                 .setActiveColorPalette(req.user!, colorPaletteUuid),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Post('/projects')
+    @OperationId('CreateProject')
+    async createProject(
+        @Request() req: express.Request,
+        @Body() body: CreateProject,
+    ): Promise<ApiSuccess<ApiCreateProjectResults>> {
+        const results = await this.services
+            .getProjectService()
+            .createWithoutCompile(
+                req.user!,
+                body,
+                getRequestMethod(req.header(LightdashRequestMethodHeader)),
+            );
+
+        return {
+            status: 'ok',
+            results,
         };
     }
 }

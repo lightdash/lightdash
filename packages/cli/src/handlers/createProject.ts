@@ -73,6 +73,7 @@ type CreateProjectOptions = {
     startOfWeek?: number;
     upstreamProjectUuid?: string;
     tableConfiguration?: CreateProjectTableConfiguration;
+    copyContent?: boolean;
 };
 export const createProject = async (
     options: CreateProjectOptions,
@@ -140,6 +141,7 @@ export const createProject = async (
         upstreamProjectUuid: options.upstreamProjectUuid,
         dbtVersion: dbtVersion.versionOption,
         tableConfiguration: options.tableConfiguration,
+        copyContent: options.copyContent,
     };
 
     return lightdashApi<ApiCreateProjectResults>({

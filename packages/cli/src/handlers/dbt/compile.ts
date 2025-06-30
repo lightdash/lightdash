@@ -175,6 +175,18 @@ export async function maybeCompileModelsAndJoins(
 
     // Skipping assumes manifest.json already exists.
     if (options.skipDbtCompile) {
+        // Check for incompatible selection options
+        if (
+            options.select ||
+            options.exclude ||
+            options.selector ||
+            options.models
+        ) {
+            throw new ParseError(
+                'Model selection options (--select, --exclude, --selector, --models) cannot be used with --skip-dbt-compile. ' +
+                    'Model selection requires running dbt commands to determine which models match the criteria.',
+            );
+        }
         GlobalState.debug('> Skipping dbt compile');
         return undefined;
     }

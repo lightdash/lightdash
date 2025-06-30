@@ -1,6 +1,6 @@
 import { type AiAgentMessage } from '@lightdash/common';
 import { type BoxProps } from '@mantine-8/core';
-import dayjs from 'dayjs';
+import { format, isSameDay, isToday, isYesterday, parseISO } from 'date-fns';
 
 export const ChatElementsUtils = {
     shouldRenderDivider: (
@@ -8,16 +8,21 @@ export const ChatElementsUtils = {
         index: number,
         allMessages: AiAgentMessage[],
     ) => {
-        const previousMessageDate =
-            index === 0 ? dayjs() : dayjs(allMessages[index - 1].createdAt);
-        return !previousMessageDate.isSame(message.createdAt, 'day');
+        const previousMessage: AiAgentMessage | undefined =
+            allMessages[index - 1];
+
+        const previousMessageDate = previousMessage?.createdAt
+            ? parseISO(previousMessage.createdAt)
+            : new Date();
+
+        return !isSameDay(parseISO(message.createdAt), previousMessageDate);
     },
 
     getDividerLabel: (dateString: string) => {
-        const date = dayjs(dateString);
-        if (date.isSame(dayjs(), 'day')) return 'Today';
-        if (date.isSame(dayjs().subtract(1, 'day'), 'day')) return 'Yesterday';
-        return date.format('MMMM D, YYYY');
+        const date = parseISO(dateString);
+        if (isToday(date)) return 'Today';
+        if (isYesterday(date)) return 'Yesterday';
+        return format(date, 'MMMM d, yyyy');
     },
 
     /**

@@ -43,6 +43,7 @@ export type TreeProviderProps = {
     isGithubIntegrationEnabled?: boolean; // For displaying the write back on custom metrics in TreeSingleNodeActions
     gitIntegration?: GitIntegrationConfiguration;
     onItemClick: (key: string, item: NodeItem) => void;
+    searchResults: string[];
 };
 
 export type TableTreeContext = TreeProviderProps & {
