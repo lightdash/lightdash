@@ -174,7 +174,6 @@ const routesNotSupportedInMobile = [
     '/generalSettings/:tab?',
     '/projects/:projectUuid/saved/:savedQueryUuid/history',
     '/projects/:projectUuid/sql-runner',
-    '/projects/:projectUuid/dbtsemanticlayer',
     '/projects/:projectUuid/tables/:tableId',
     '/projects/:projectUuid/tables',
     '/projects/:projectUuid/user-activity',

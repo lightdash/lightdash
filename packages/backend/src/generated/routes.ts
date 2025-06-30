@@ -15400,7 +15400,6 @@ const models: TsoaRoute.Models = {
             'ai',
             'api',
             'cli',
-            'semanticViewer',
             'metricsExplorer',
         ],
     },
