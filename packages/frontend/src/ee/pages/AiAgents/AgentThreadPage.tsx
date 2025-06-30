@@ -1,14 +1,16 @@
-import { Box, Center, Loader, Stack } from '@mantine-8/core';
+import { Center, Loader } from '@mantine-8/core';
 import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
-import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import {
     useAiAgent,
     useAiAgentThread,
-    useGenerateAgentThreadResponseMutation,
+    useCreateAgentThreadMessageMutation,
 } from '../../features/aiCopilot/hooks/useOrganizationAiAgents';
+import { useAiAgentThreadStreaming } from '../../features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = () => {
@@ -18,6 +20,7 @@ const AiAgentThreadPage = () => {
         agentUuid,
         threadUuid,
     );
+    const { track } = useTracking();
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
 
@@ -25,16 +28,31 @@ const AiAgentThreadPage = () => {
     const { agent } = useOutletContext<AgentContext>();
 
     const {
-        mutateAsync: generateAgentThreadResponse,
-        isLoading: isGenerating,
-    } = useGenerateAgentThreadResponseMutation(
-        projectUuid,
-        agentUuid,
-        threadUuid,
-    );
+        mutateAsync: createAgentThreadMessage,
+        isLoading: isCreatingMessage,
+    } = useCreateAgentThreadMessageMutation(projectUuid, agentUuid, threadUuid);
+    const isStreaming = useAiAgentThreadStreaming(threadUuid!);
 
     const handleSubmit = (prompt: string) => {
-        void generateAgentThreadResponse({ prompt });
+        if (
+            user?.data?.userUuid &&
+            user?.data?.organizationUuid &&
+            projectUuid &&
+            agentUuid
+        ) {
+            track({
+                name: EventName.AI_AGENT_PROMPT_CREATED,
+                properties: {
+                    userId: user.data.userUuid,
+                    organizationId: user.data.organizationUuid,
+                    projectId: projectUuid,
+                    aiAgentId: agentUuid,
+                    threadId: threadUuid,
+                },
+            });
+        }
+
+        void createAgentThreadMessage({ prompt });
     };
 
     if (isLoadingThread || !thread || agentQuery.isLoading) {
@@ -46,31 +64,22 @@ const AiAgentThreadPage = () => {
     }
 
     return (
-        <Stack h="100%" justify="space-between" py="xl">
-            <AgentChatDisplay
-                thread={thread}
-                agentName={agentQuery.data?.name ?? 'AI'}
-                enableAutoScroll={true}
-                isGenerating={isGenerating}
+        <AgentChatDisplay
+            thread={thread}
+            agentName={agentQuery.data?.name ?? 'AI'}
+            enableAutoScroll={true}
+            mode="interactive"
+        >
+            <AgentChatInput
+                disabled={
+                    thread.createdFrom === 'slack' || !isThreadFromCurrentUser
+                }
+                disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
+                loading={isCreatingMessage || isStreaming}
+                onSubmit={handleSubmit}
+                placeholder={`Ask ${agent.name} anything about your data...`}
             />
-            <Box
-                {...ChatElementsUtils.centeredElementProps}
-                pos="sticky"
-                bottom={0}
-                h="auto"
-            >
-                <AgentChatInput
-                    disabled={
-                        thread.createdFrom === 'slack' ||
-                        !isThreadFromCurrentUser
-                    }
-                    disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
-                    loading={isGenerating}
-                    onSubmit={handleSubmit}
-                    placeholder={`Ask ${agent.name} anything about your data...`}
-                />
-            </Box>
-        </Stack>
+        </AgentChatDisplay>
     );
 };
 

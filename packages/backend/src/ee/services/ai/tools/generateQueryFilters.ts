@@ -1,4 +1,5 @@
 import {
+    filtersSchemaTransformed,
     generateQueryFiltersToolSchema,
     getTotalFilterRules,
 } from '@lightdash/common';
@@ -36,20 +37,24 @@ Rules for generating filters:
         execute: async ({ exploreName, filters }) => {
             try {
                 const explore = await getExplore({ exploreName });
-                const filterRules = getTotalFilterRules(filters);
+
+                // Transform filters to the correct format for the query and keep the original format for the tool call args
+                const transformedFilters =
+                    filtersSchemaTransformed.parse(filters);
+                const filterRules = getTotalFilterRules(transformedFilters);
 
                 validateFilterRules(explore, filterRules);
 
                 await updatePrompt({
                     promptUuid,
-                    filtersOutput: filters,
+                    filtersOutput: transformedFilters,
                 });
 
                 return `Filters have been successfully generated.
 
 Filters:
 \`\`\`json
-${JSON.stringify(filters, null, 4)}
+${JSON.stringify(transformedFilters, null, 4)}
 \`\`\``;
             } catch (e) {
                 return toolErrorHandler(e, `Error generating filters.`);

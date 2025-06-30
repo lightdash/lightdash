@@ -1,7 +1,4 @@
-import {
-    type AiAgentThreadGenerateJobPayload,
-    type SlackPromptJobPayload,
-} from '../ee';
+import { type SlackPromptJobPayload } from '../ee';
 import { type SchedulerIndexCatalogJobPayload } from './catalog';
 import { type UploadMetricGsheetPayload } from './gdrive';
 import { type RenameResourcesPayload } from './rename';
@@ -19,7 +16,6 @@ import {
     type TraceTaskBase,
     type ValidateProjectPayload,
 } from './scheduler';
-import { type SemanticLayerQueryPayload } from './semanticLayer';
 import {
     type SqlRunnerPayload,
     type SqlRunnerPivotQueryPayload,
@@ -27,7 +23,6 @@ import {
 
 export const EE_SCHEDULER_TASKS = {
     SLACK_AI_PROMPT: 'slackAiPrompt',
-    AI_AGENT_THREAD_GENERATE: 'aiAgentThreadGenerate',
 } as const;
 
 export const SCHEDULER_TASKS = {
@@ -42,7 +37,6 @@ export const SCHEDULER_TASKS = {
     COMPILE_PROJECT: 'compileProject',
     CREATE_PROJECT_WITH_COMPILE: 'createProjectWithCompile',
     TEST_AND_COMPILE_PROJECT: 'testAndCompileProject',
-    SEMANTIC_LAYER_QUERY: 'semanticLayer',
     SQL_RUNNER: 'sqlRunner',
     SQL_RUNNER_PIVOT_QUERY: 'sqlRunnerPivotQuery',
     REPLACE_CUSTOM_FIELDS: 'replaceCustomFields',
@@ -66,7 +60,6 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.COMPILE_PROJECT]: CompileProjectPayload;
     [SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE]: SchedulerCreateProjectWithCompilePayload;
     [SCHEDULER_TASKS.TEST_AND_COMPILE_PROJECT]: CompileProjectPayload;
-    [SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY]: SemanticLayerQueryPayload;
     [SCHEDULER_TASKS.SQL_RUNNER]: SqlRunnerPayload;
     [SCHEDULER_TASKS.SQL_RUNNER_PIVOT_QUERY]: SqlRunnerPivotQueryPayload;
     [SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS]: ReplaceCustomFieldsPayload;
@@ -74,13 +67,11 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: TraceTaskBase;
     [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: ExportCsvDashboardPayload;
     [SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
-    [SCHEDULER_TASKS.AI_AGENT_THREAD_GENERATE]: AiAgentThreadGenerateJobPayload;
     [SCHEDULER_TASKS.RENAME_RESOURCES]: RenameResourcesPayload;
 }
 
 export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
-    [EE_SCHEDULER_TASKS.AI_AGENT_THREAD_GENERATE]: AiAgentThreadGenerateJobPayload;
 }
 
 export type SchedulerTaskName =

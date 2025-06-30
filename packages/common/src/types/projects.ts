@@ -25,11 +25,6 @@ export enum WarehouseTypes {
     TRINO = 'trino',
 }
 
-export enum SemanticLayerType {
-    DBT = 'DBT',
-    CUBE = 'CUBE',
-}
-
 export type SshTunnelConfiguration = {
     useSshTunnel?: boolean;
     sshTunnelHost?: string;
@@ -42,6 +37,7 @@ export type SshTunnelConfiguration = {
 export enum BigqueryAuthenticationType {
     SSO = 'sso',
     PRIVATE_KEY = 'private_key',
+    ADC = 'adc', // Application Default Credentials
 }
 export type CreateBigqueryCredentials = {
     type: WarehouseTypes.BIGQUERY;
@@ -375,27 +371,6 @@ export const maybeOverrideDbtConnection = <T extends DbtProjectConfig>(
         : undefined),
 });
 
-export type DbtSemanticLayerConnection = {
-    type: SemanticLayerType.DBT;
-    environmentId: string;
-    domain: string;
-    token: string;
-};
-
-export type CubeSemanticLayerConnection = {
-    type: SemanticLayerType.CUBE;
-    domain: string;
-    token: string;
-};
-
-export type SemanticLayerConnection =
-    | DbtSemanticLayerConnection
-    | CubeSemanticLayerConnection;
-
-export type SemanticLayerConnectionUpdate =
-    | (Partial<DbtSemanticLayerConnection> & { type: SemanticLayerType.DBT })
-    | (Partial<CubeSemanticLayerConnection> & { type: SemanticLayerType.CUBE });
-
 export type Project = {
     organizationUuid: string;
     projectUuid: string;
@@ -406,7 +381,6 @@ export type Project = {
     pinnedListUuid?: string;
     upstreamProjectUuid?: string;
     dbtVersion: DbtVersionOption;
-    semanticLayerConnection?: SemanticLayerConnection;
     schedulerTimezone: string;
     createdByUserUuid: string | null;
 };

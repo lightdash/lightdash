@@ -171,3 +171,9 @@ export type MetricQueryRequest = {
     timezone?: string;
     metricOverrides?: MetricOverrides;
 };
+
+export type QueryWarning = {
+    message: string; // message, in markdown, to be shown to the user
+    fields?: string[]; // fields that relate to this message
+    tables?: string[]; // tables that relate to this message
+};

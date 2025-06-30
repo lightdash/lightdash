@@ -183,39 +183,68 @@ const dateFilterSchema = z.union([
     }),
 ]);
 
-const filterRuleSchema = z
-    .object({
-        type: z.enum(['or', 'and']).describe('Type of filter group operation'),
-        target: z.object({
-            fieldId: fieldIdSchema,
-            type: FieldTypeSchema,
-        }),
-        rule: z.union([
-            booleanFilterSchema.describe('Boolean filter'),
-            stringFilterSchema.describe('String filter'),
-            numberFilterSchema.describe('Number filter'),
-            dateFilterSchema.describe('Date filter'),
-        ]),
-    })
-    .transform(
-        (data): FilterRule => ({
-            id: uuid(),
-            target: data.target,
-            operator: data.rule.operator,
-            values: 'values' in data.rule ? data.rule.values : [],
-            ...('settings' in data.rule
-                ? { settings: data.rule.settings }
-                : {}),
-        }),
-    );
+/**
+ * Raw schema for filter rules that are passed to the AI.
+ */
+const filterRuleSchema = z.object({
+    type: z.enum(['or', 'and']).describe('Type of filter group operation'),
+    target: z.object({
+        fieldId: fieldIdSchema,
+        type: FieldTypeSchema,
+    }),
+    rule: z.union([
+        booleanFilterSchema.describe('Boolean filter'),
+        stringFilterSchema.describe('String filter'),
+        numberFilterSchema.describe('Number filter'),
+        dateFilterSchema.describe('Date filter'),
+    ]),
+});
 
-export const filtersSchema = z
+/**
+ * Transformed schema for filter rules that are passed to the query.
+ */
+const filterRuleSchemaTransformed = filterRuleSchema.transform(
+    (data): FilterRule => ({
+        id: uuid(),
+        target: data.target,
+        operator: data.rule.operator,
+        values: 'values' in data.rule ? data.rule.values : [],
+        ...('settings' in data.rule ? { settings: data.rule.settings } : {}),
+    }),
+);
+
+/**
+ * Raw schema for filters with raw filter rule schema
+ */
+export const filtersSchema = z.object({
+    type: z.enum(['and', 'or']).describe('Type of filter group operation'),
+    dimensions: z.array(filterRuleSchema).nullable(),
+    metrics: z.array(filterRuleSchema).nullable(),
+});
+
+/**
+ * Raw filters schema with transformed filter rules.
+ */
+const filtersSchemaAndFilterRulesTransformed = z
     .object({
         type: z.enum(['and', 'or']).describe('Type of filter group operation'),
-        dimensions: z.array(filterRuleSchema).nullable(),
-        metrics: z.array(filterRuleSchema).nullable(),
+        dimensions: z.array(filterRuleSchemaTransformed).nullable(),
+        metrics: z.array(filterRuleSchemaTransformed).nullable(),
     })
-    .transform((data): Filters => {
+    // Filters can be null
+    .nullable();
+
+/**
+ * Final output schema for filters that are passed to the query.
+ */
+export const filtersSchemaTransformed =
+    filtersSchemaAndFilterRulesTransformed.transform((data): Filters => {
+        if (!data) {
+            return {
+                dimensions: { id: uuid(), and: [] },
+                metrics: { id: uuid(), and: [] },
+            };
+        }
         switch (data.type) {
             case 'and':
                 return {
@@ -260,6 +289,12 @@ export const SortFieldSchema = z.object({
         ),
 });
 
+export const VisualizationMetadataSchema = z.object({
+    title: z.string().describe('A descriptive title for the chart'),
+    description: z
+        .string()
+        .describe('A descriptive summary or explanation for the chart.'),
+});
 // export const CompactOrAliasSchema = z
 //     .nativeEnum(Compact)
 //     .or(z.enum(CompactAlias));
@@ -352,6 +387,12 @@ export const lighterMetricQuerySchema = z.object({
     //     .describe('Metadata about the query'),
 });
 
+export const lighterMetricQuerySchemaTransformed =
+    lighterMetricQuerySchema.transform((data) => ({
+        ...data,
+        filters: filtersSchemaTransformed.parse(data.filters),
+    }));
+
 export const aiAskForAdditionalInformationSchema = z.object({
     message: z
         .string()
@@ -376,106 +417,101 @@ export const aiFindFieldsToolSchema = z.object({
         ),
 });
 
-export const timeSeriesMetricVizConfigSchema = z.object({
-    title: z
-        .string()
-        .describe(
-            'The title of the chart. If not provided the chart will have no title.',
-        )
-        .nullable(),
-    exploreName: z
-        .string()
-        .describe(
-            'The name of the explore containing the metrics and dimensions used for the chart.',
-        ),
-    xDimension: z
-        .string()
-        .describe(
-            'The field id of the time dimension to be displayed on the x-axis.',
-        ),
-    yMetrics: z
-        .array(z.string())
-        .min(1)
-        .describe(
-            'At least one metric is required. The field ids of the metrics to be displayed on the y-axis. If there are multiple metrics there will be one line per metric',
-        ),
-    sorts: z
-        .array(SortFieldSchema)
-        .describe(
-            'Sort configuration for the query, it can use a combination of metrics and dimensions.',
-        ),
-    breakdownByDimension: z
-        .string()
-        .nullable()
-        .describe(
-            'The field id of the dimension used to split the metrics into series for each dimension value. For example if you wanted to split a metric into multiple series based on City you would use the City dimension field id here. If this is not provided then the metric will be displayed as a single series.',
-        ),
-    lineType: z
-        .union([z.literal('line'), z.literal('area')])
-        .describe(
-            'default line. The type of line to display. If area then the area under the line will be filled in.',
-        ),
-});
+export const timeSeriesMetricVizConfigSchema =
+    VisualizationMetadataSchema.extend({
+        exploreName: z
+            .string()
+            .describe(
+                'The name of the explore containing the metrics and dimensions used for the chart.',
+            ),
+        xDimension: z
+            .string()
+            .describe(
+                'The field id of the time dimension to be displayed on the x-axis.',
+            ),
+        yMetrics: z
+            .array(z.string())
+            .min(1)
+            .describe(
+                'At least one metric is required. The field ids of the metrics to be displayed on the y-axis. If there are multiple metrics there will be one line per metric',
+            ),
+        sorts: z
+            .array(SortFieldSchema)
+            .describe(
+                'Sort configuration for the query, it can use a combination of metrics and dimensions.',
+            ),
+        breakdownByDimension: z
+            .string()
+            .nullable()
+            .describe(
+                'The field id of the dimension used to split the metrics into series for each dimension value. For example if you wanted to split a metric into multiple series based on City you would use the City dimension field id here. If this is not provided then the metric will be displayed as a single series.',
+            ),
+        lineType: z
+            .union([z.literal('line'), z.literal('area')])
+            .describe(
+                'default line. The type of line to display. If area then the area under the line will be filled in.',
+            ),
+    });
 
 export type TimeSeriesMetricVizConfigSchemaType = z.infer<
     typeof timeSeriesMetricVizConfigSchema
 >;
 
-export const verticalBarMetricVizConfigSchema = z.object({
-    exploreName: z
-        .string()
-        .describe(
-            'The name of the explore containing the metrics and dimensions used for the chart.',
-        ),
-    xDimension: z
-        .string()
-        .describe(
-            'The field id of the dimension to be displayed on the x-axis.',
-        ),
-    yMetrics: z
-        .array(z.string())
-        .min(1)
-        .describe(
-            'At least one metric is required. The field ids of the metrics to be displayed on the y-axis. The height of the bars',
-        ),
-    sorts: z
-        .array(SortFieldSchema)
-        .describe(
-            'Sort configuration for the query, it can use a combination of metrics and dimensions.',
-        ),
-    breakdownByDimension: z
-        .string()
-        .nullable()
-        .describe(
-            'The field id of the dimension used to split the metrics into groups along the x-axis. If stacking is false then this will create multiple bars around each x value, if stacking is true then this will create multiple bars for each metric stacked on top of each other',
-        ),
-    stackBars: z
-        .boolean()
-        .nullable()
-        .describe(
-            'If using breakdownByDimension then this will stack the bars on top of each other instead of side by side.',
-        ),
-    xAxisType: z
-        .union([z.literal('category'), z.literal('time')])
-        .describe(
-            'The x-axis type can be categorical for string value or time if the dimension is a date or timestamp.',
-        ),
-    xAxisLabel: z
-        .string()
-        .nullable()
-        .describe('A helpful label to explain the x-axis'),
-    yAxisLabel: z
-        .string()
-        .nullable()
-        .describe('A helpful label to explain the y-axis'),
-    title: z.string().nullable().describe('a descriptive title for the chart'),
-});
+export const verticalBarMetricVizConfigSchema =
+    VisualizationMetadataSchema.extend({
+        exploreName: z
+            .string()
+            .describe(
+                'The name of the explore containing the metrics and dimensions used for the chart.',
+            ),
+        xDimension: z
+            .string()
+            .describe(
+                'The field id of the dimension to be displayed on the x-axis.',
+            ),
+        yMetrics: z
+            .array(z.string())
+            .min(1)
+            .describe(
+                'At least one metric is required. The field ids of the metrics to be displayed on the y-axis. The height of the bars',
+            ),
+        sorts: z
+            .array(SortFieldSchema)
+            .describe(
+                'Sort configuration for the query, it can use a combination of metrics and dimensions.',
+            ),
+        breakdownByDimension: z
+            .string()
+            .nullable()
+            .describe(
+                'The field id of the dimension used to split the metrics into groups along the x-axis. If stacking is false then this will create multiple bars around each x value, if stacking is true then this will create multiple bars for each metric stacked on top of each other',
+            ),
+        stackBars: z
+            .boolean()
+            .nullable()
+            .describe(
+                'If using breakdownByDimension then this will stack the bars on top of each other instead of side by side.',
+            ),
+        xAxisType: z
+            .union([z.literal('category'), z.literal('time')])
+            .describe(
+                'The x-axis type can be categorical for string value or time if the dimension is a date or timestamp.',
+            ),
+        xAxisLabel: z
+            .string()
+            .nullable()
+            .describe('A helpful label to explain the x-axis'),
+        yAxisLabel: z
+            .string()
+            .nullable()
+            .describe('A helpful label to explain the y-axis'),
+    });
 
 export type VerticalBarMetricVizConfigSchemaType = z.infer<
     typeof verticalBarMetricVizConfigSchema
 >;
 
-export const csvFileVizConfigSchema = z.object({
+export const csvFileVizConfigSchema = VisualizationMetadataSchema.extend({
     exploreName: z
         .string()
         .describe(
@@ -499,3 +535,123 @@ export const csvFileVizConfigSchema = z.object({
 });
 
 export type CsvFileVizConfigSchemaType = z.infer<typeof csvFileVizConfigSchema>;
+
+// TOOL ARGS SCHEMAS
+
+// FIND FIELDS TOOL ARGS
+export type FindFieldsToolArgs = z.infer<typeof aiFindFieldsToolSchema>;
+
+export const isFindFieldsToolArgs = (
+    toolArgs: unknown,
+): toolArgs is FindFieldsToolArgs =>
+    aiFindFieldsToolSchema.safeParse(toolArgs).success;
+
+// GENERATE QUERY FILTERS TOOL ARGS
+export const generateQueryFiltersToolArgsSchema = z.object({
+    exploreName: z.string().describe('Name of the selected explore'),
+    filters: filtersSchema,
+});
+export type GenerateQueryFiltersToolArgs = z.infer<
+    typeof generateQueryFiltersToolArgsSchema
+>;
+export const isGenerateQueryFiltersToolArgs = (
+    toolArgs: unknown,
+): toolArgs is GenerateQueryFiltersToolArgs =>
+    generateQueryFiltersToolSchema.safeParse(toolArgs).success;
+
+export const generateQueryFiltersToolArgsSchemaTransformed = z.object({
+    exploreName: z.string().describe('Name of the selected explore'),
+    filters: filtersSchemaTransformed,
+});
+
+// GENERATE BAR VIZ CONFIG TOOL ARGS
+export const verticalBarMetricVizConfigToolArgsSchema = z.object({
+    vizConfig: verticalBarMetricVizConfigSchema,
+    filters: filtersSchema,
+});
+export type VerticalBarMetricVizConfigToolArgs = z.infer<
+    typeof verticalBarMetricVizConfigToolArgsSchema
+>;
+export const isVerticalBarMetricVizConfigToolArgs = (
+    toolArgs: unknown,
+): toolArgs is VerticalBarMetricVizConfigToolArgs =>
+    verticalBarMetricVizConfigToolArgsSchema.safeParse(toolArgs).success;
+
+// -- Used for tool call args transformation
+export const verticalBarMetricVizConfigToolArgsSchemaTransformed = z.object({
+    vizConfig: verticalBarMetricVizConfigSchema,
+    filters: filtersSchemaTransformed,
+});
+
+// GENERATE TIME SERIES VIZ CONFIG TOOL ARGS
+export const timeSeriesMetricVizConfigToolArgsSchema = z.object({
+    vizConfig: timeSeriesMetricVizConfigSchema,
+    filters: filtersSchema,
+});
+export type TimeSeriesMetricVizConfigToolArgs = z.infer<
+    typeof timeSeriesMetricVizConfigToolArgsSchema
+>;
+export const isTimeSeriesMetricVizConfigToolArgs = (
+    toolArgs: unknown,
+): toolArgs is TimeSeriesMetricVizConfigToolArgs =>
+    timeSeriesMetricVizConfigToolArgsSchema.safeParse(toolArgs).success;
+
+// -- Used for tool call args transformation
+export const timeSeriesMetricVizConfigToolArgsSchemaTransformed = z.object({
+    vizConfig: timeSeriesMetricVizConfigSchema,
+    filters: filtersSchemaTransformed,
+});
+
+// GENERATE CSV VIZ CONFIG TOOL ARGS
+export const CsvFileVizConfigToolArgsSchema = z.object({
+    vizConfig: csvFileVizConfigSchema,
+    filters: filtersSchema.nullable(),
+});
+export type CsvFileVizConfigToolArgs = z.infer<
+    typeof CsvFileVizConfigToolArgsSchema
+>;
+export const isCsvFileVizConfigToolArgs = (
+    toolArgs: unknown,
+): toolArgs is CsvFileVizConfigToolArgs =>
+    CsvFileVizConfigToolArgsSchema.safeParse(toolArgs).success;
+
+// -- Used for tool call args transformation
+export const CsvFileVizConfigToolArgsSchemaTransformed = z.object({
+    vizConfig: csvFileVizConfigSchema,
+    filters: filtersSchemaTransformed,
+});
+
+// define tool names
+export const ToolNameSchema = z.enum([
+    'findFields',
+    'generateBarVizConfig',
+    'generateCsv',
+    'generateQueryFilters',
+    'generateTimeSeriesVizConfig',
+]);
+
+export type ToolName = z.infer<typeof ToolNameSchema>;
+
+export const isToolName = (toolName: string): toolName is ToolName =>
+    ToolNameSchema.safeParse(toolName).success;
+
+// display messages schema
+export const ToolDisplayMessagesSchema = z.record(ToolNameSchema, z.string());
+
+export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
+    findFields: 'Finding relevant fields',
+    generateBarVizConfig: 'Generating a bar chart',
+    generateCsv: 'Generating CSV file',
+    generateQueryFilters: 'Applying filters to the query',
+    generateTimeSeriesVizConfig: 'Generating a line chart',
+});
+
+// after-tool-call messages
+export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
+    ToolDisplayMessagesSchema.parse({
+        findFields: 'Found relevant fields',
+        generateBarVizConfig: 'Generated a bar chart',
+        generateCsv: 'Generated a table',
+        generateQueryFilters: 'Applied filters to the query',
+        generateTimeSeriesVizConfig: 'Generated a line chart',
+    });

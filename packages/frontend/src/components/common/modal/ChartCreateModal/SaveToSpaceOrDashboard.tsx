@@ -37,7 +37,12 @@ import useApp from '../../../../providers/App/useApp';
 import MantineIcon from '../../../common/MantineIcon';
 import SaveToDashboardForm from './SaveToDashboardForm';
 import SaveToSpaceForm from './SaveToSpaceForm';
-import { saveToDashboardSchema, saveToSpaceSchema } from './types';
+import {
+    DEFAULT_CHART_METADATA,
+    saveToDashboardSchema,
+    saveToSpaceSchema,
+    type ChartMetadata,
+} from './types';
 
 enum SaveDestination {
     Dashboard = 'dashboard',
@@ -64,27 +69,31 @@ type FormValues = z.infer<typeof saveToSpaceOrDashboardSchema>;
 type Props = {
     projectUuid?: string;
     savedData: CreateSavedChartVersion;
-    defaultSpaceUuid: string | undefined;
-    dashboardInfoFromSavedData: {
+    onConfirm: (savedData: CreateSavedChartVersion) => void;
+    onClose: () => void;
+    dashboardInfoFromSavedData?: {
         dashboardUuid: string | null;
         dashboardName: string | null;
     };
-    onConfirm: (savedData: CreateSavedChartVersion) => void;
-    onClose: () => void;
+    defaultSpaceUuid?: string | undefined;
+    chartMetadata?: ChartMetadata;
+    redirectOnSuccess?: boolean;
 };
 
 export const SaveToSpaceOrDashboard: FC<Props> = ({
     projectUuid,
     savedData,
     defaultSpaceUuid,
-    dashboardInfoFromSavedData,
     onConfirm,
     onClose,
+    dashboardInfoFromSavedData = { dashboardUuid: null, dashboardName: null },
+    chartMetadata = DEFAULT_CHART_METADATA,
+    redirectOnSuccess = true,
 }) => {
     const { user } = useApp();
 
     const { mutateAsync: createChart, isLoading: isSavingChart } =
-        useCreateMutation();
+        useCreateMutation({ redirectOnSuccess });
 
     const [saveDestination, setSaveDestination] = useState<SaveDestination>(
         SaveDestination.Space,
@@ -140,7 +149,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         staleTime: 0,
     });
 
-    const { initialize } = form;
+    const { initialize, setFieldValue } = form;
 
     useEffect(
         function initializeForm() {
@@ -148,8 +157,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             if (form.initialized) return;
 
             const initialValues: FormValues = {
-                name: '',
-                description: null,
+                ...chartMetadata,
                 newSpaceName: null,
                 dashboardUuid: dashboardInfoFromSavedData.dashboardUuid,
                 spaceUuid: null,
@@ -163,10 +171,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             dashboardInfoFromSavedData.dashboardUuid,
             isDashboardsSuccess,
             isSpacesSuccess,
+            chartMetadata,
         ],
     );
-
-    const { setFieldValue } = form;
 
     // If default space is set, set the spaceUuid to the default space
     // This happens when the user creates a chart from a space view, so that space is selected by default

@@ -80,12 +80,6 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
 
-    [SCHEDULER_TASKS.SEMANTIC_LAYER_QUERY]: (payload) => ({
-        'organization.uuid': payload.organizationUuid,
-        'user.uuid': payload.userUuid,
-        'project.uuid': payload.projectUuid,
-    }),
-
     [SCHEDULER_TASKS.SQL_RUNNER]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
@@ -122,15 +116,6 @@ const getTagsForTask: {
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,
-    }),
-
-    [SCHEDULER_TASKS.AI_AGENT_THREAD_GENERATE]: (payload) => ({
-        'organization.uuid': payload.organizationUuid,
-        'user.uuid': payload.userUuid,
-        'project.uuid': payload.projectUuid,
-        'agent.uuid': payload.agentUuid,
-        'thread.uuid': payload.threadUuid,
-        'prompt.uuid': payload.promptUuid,
     }),
 
     [SCHEDULER_TASKS.RENAME_RESOURCES]: (payload) => ({

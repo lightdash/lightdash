@@ -1,4 +1,3 @@
-import type { AnyType } from '../../types/any';
 import { type TraceTaskBase } from '../../types/scheduler';
 
 export type AiThread = {
@@ -101,12 +100,6 @@ export type SlackPromptJobPayload = TraceTaskBase & {
     slackPromptUuid: string;
 };
 
-export type AiAgentThreadGenerateJobPayload = TraceTaskBase & {
-    agentUuid: string;
-    threadUuid: string;
-    promptUuid: string;
-};
-
 export type AiConversation = {
     threadUuid: string;
     createdAt: string | Date;
@@ -155,7 +148,6 @@ export type ApiAiConversationResponse = {
     status: 'ok';
     results: {
         prompt: AiWebAppPrompt;
-        rows: Record<string, AnyType>[] | undefined;
     };
 };
 

@@ -116,8 +116,6 @@ const schedulerWorkerFactory = (context: {
         schedulerClient: context.clients.getSchedulerClient(),
         slackClient: context.clients.getSlackClient(),
         msTeamsClient: context.clients.getMsTeamsClient(),
-        semanticLayerService:
-            context.serviceRepository.getSemanticLayerService(),
         catalogService: context.serviceRepository.getCatalogService(),
         encryptionUtil: context.utils.getEncryptionUtil(),
         renameService: context.serviceRepository.getRenameService(),

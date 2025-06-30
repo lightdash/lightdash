@@ -2,6 +2,7 @@ import {
     AiChartType,
     AiMetricQuery,
     filtersSchema,
+    filtersSchemaTransformed,
     MetricQuery,
     timeSeriesMetricVizConfigSchema,
 } from '@lightdash/common';
@@ -43,7 +44,7 @@ export const isTimeSeriesMetricChartConfig = (
 
 export const metricQueryTimeSeriesChartMetric = (
     config: TimeSeriesMetricChartConfig,
-    filters: z.infer<typeof filtersSchema> = {},
+    filters: z.infer<typeof filtersSchemaTransformed> = {},
 ): AiMetricQuery => {
     const metrics = config.yMetrics;
     const dimensions = [
@@ -130,7 +131,7 @@ type RenderTimeseriesChartArgs = {
         metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
     vizConfig: TimeSeriesMetricChartConfig;
-    filters: z.infer<typeof filtersSchema> | undefined;
+    filters: z.infer<typeof filtersSchemaTransformed> | undefined;
 };
 
 export const renderTimeseriesChart = async ({

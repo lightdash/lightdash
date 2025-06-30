@@ -97,7 +97,13 @@ const MantineModal: React.FC<MantineModalProps> = ({
                     })}
                     {...modalBodyProps}
                 >
-                    <Stack px="xl" py="md" spacing="md">
+                    <Stack
+                        spacing="md"
+                        {...{
+                            px: modalBodyProps?.px ?? 'xl',
+                            py: modalBodyProps?.py ?? 'md',
+                        }}
+                    >
                         {children}
                     </Stack>
                 </Modal.Body>

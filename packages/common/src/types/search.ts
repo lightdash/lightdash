@@ -3,7 +3,6 @@ import { type Dashboard } from './dashboard';
 import { type Table } from './explore';
 import { type Dimension, type Metric } from './field';
 import { type ChartKind, type SavedChart } from './savedCharts';
-import type { SavedSemanticViewerChart } from './semanticLayer';
 import { type Space } from './space';
 import { type SqlChart } from './sqlRunner';
 import {
@@ -44,15 +43,6 @@ export type SqlChartSearchResult = Pick<
     uuid: SqlChart['savedSqlUuid'];
     chartType: ChartKind;
     spaceUuid: SqlChart['space']['uuid'];
-} & RankedItem;
-
-export type SemanticViewerChartSearchResults = Pick<
-    SavedSemanticViewerChart,
-    'name' | 'description' | 'slug'
-> & {
-    uuid: SavedSemanticViewerChart['savedSemanticViewerChartUuid'];
-    chartType: ChartKind;
-    spaceUuid: SavedSemanticViewerChart['space']['uuid'];
 } & RankedItem;
 
 export type TableSearchResult = Pick<
@@ -111,7 +101,6 @@ export type SearchResult =
     | DashboardTabResult
     | SavedChartSearchResult
     | SqlChartSearchResult
-    | SemanticViewerChartSearchResults
     | TableErrorSearchResult
     | TableSearchResult
     | FieldSearchResult
@@ -135,7 +124,6 @@ export type SearchResults = {
     dashboards: DashboardSearchResult[];
     savedCharts: SavedChartSearchResult[];
     sqlCharts: SqlChartSearchResult[];
-    semanticViewerCharts: SemanticViewerChartSearchResults[];
     tables: (TableSearchResult | TableErrorSearchResult)[];
     fields: FieldSearchResult[];
     pages: PageResult[];
@@ -160,7 +148,6 @@ export enum SearchItemType {
     DASHBOARD_TAB = 'dashboard_tab',
     CHART = 'saved_chart',
     SQL_CHART = 'sql_chart',
-    SEMANTIC_VIEWER_CHART = 'semantic_viewer_chart',
     SPACE = 'space',
     TABLE = 'table',
     FIELD = 'field',
@@ -185,8 +172,6 @@ export function getSearchItemTypeFromResultKey(
             return SearchItemType.PAGE;
         case 'sqlCharts':
             return SearchItemType.SQL_CHART;
-        case 'semanticViewerCharts':
-            return SearchItemType.SEMANTIC_VIEWER_CHART;
         case 'dashboardTabs':
             return SearchItemType.DASHBOARD_TAB;
         default:

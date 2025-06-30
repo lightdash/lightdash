@@ -14,7 +14,7 @@ import {
     ECHARTS_DEFAULT_COLORS,
     type CartesianSeriesType,
 } from '../types/savedCharts';
-import { type SemanticLayerQuery } from '../types/semanticLayer';
+import { type SqlRunnerQuery } from '../types/sqlRunner';
 import { applyCustomFormat } from '../utils/formatting';
 import {
     SortByDirection,
@@ -348,7 +348,7 @@ export class CartesianChartDataModel {
         return color;
     }
 
-    async getTransformedData(query?: SemanticLayerQuery) {
+    async getTransformedData(query?: SqlRunnerQuery) {
         if (!query) {
             return undefined;
         }
@@ -362,10 +362,9 @@ export class CartesianChartDataModel {
         filters,
         limit,
         sql,
-    }: Pick<
-        SemanticLayerQuery,
-        'sortBy' | 'filters' | 'limit' | 'sql'
-    >): Promise<PivotChartData | undefined> {
+    }: Pick<SqlRunnerQuery, 'sortBy' | 'filters' | 'limit' | 'sql'>): Promise<
+        PivotChartData | undefined
+    > {
         const allDimensionNames = new Set(
             this.resultsRunner
                 .getPivotQueryDimensions()
@@ -403,8 +402,8 @@ export class CartesianChartDataModel {
                 [[], []],
             );
         const { customMetrics, metrics } = this.fieldConfig?.y?.reduce<{
-            customMetrics: Required<SemanticLayerQuery>['customMetrics'];
-            metrics: SemanticLayerQuery['metrics'];
+            customMetrics: Required<SqlRunnerQuery>['customMetrics'];
+            metrics: SqlRunnerQuery['metrics'];
         }>(
             (acc, field) => {
                 if (allDimensionNames.has(field.reference)) {
@@ -433,7 +432,7 @@ export class CartesianChartDataModel {
                 ) ?? [],
             values: metrics.map((metric) => metric.name),
         };
-        const semanticQuery: SemanticLayerQuery = {
+        const query: SqlRunnerQuery = {
             sql,
             limit,
             filters,
@@ -444,7 +443,7 @@ export class CartesianChartDataModel {
             pivot,
             customMetrics,
         };
-        const pivotedChartData = await this.getTransformedData(semanticQuery);
+        const pivotedChartData = await this.getTransformedData(query);
 
         this.pivotedChartData = pivotedChartData;
 

@@ -124,35 +124,46 @@ export const useDetectedTableFields = ({
             return [];
         }
 
-        const filteredTables: Required<ParsedTableReference>[] =
-            detectedTables.filter(
-                (tableRef): tableRef is Required<ParsedTableReference> => {
-                    // Only include tables that exist in our catalog
-                    if (!isValidTableReference(tableRef)) {
-                        return false;
-                    }
+        return detectedTables.reduce<TableReference[]>((acc, tableRef) => {
+            // Only include tables that exist in our catalog
+            if (!isValidTableReference(tableRef)) {
+                return acc;
+            }
 
-                    const matchesCurrentDatabase =
-                        tableRef.database === transformedData.database;
-                    const schemaExists = transformedData.tablesBySchema?.some(
-                        (s) => s.schema === tableRef.schema,
-                    );
-                    const tableExists = transformedData.tablesBySchema
-                        ?.find((s) => s.schema === tableRef.schema)
-                        ?.tables.hasOwnProperty(tableRef.table);
+            const matchesCurrentDatabase =
+                tableRef.database?.toLowerCase() ===
+                transformedData.database.toLowerCase();
 
-                    return (
-                        matchesCurrentDatabase &&
-                        !!schemaExists &&
-                        !!tableExists
-                    );
-                },
+            // Find the matching schema (case-insensitive) - do this once
+            const matchingSchema = transformedData.tablesBySchema?.find(
+                (s) =>
+                    s.schema.toString().toLowerCase() ===
+                    tableRef.schema?.toLowerCase(),
             );
-        return filteredTables.map((tableRef) => ({
-            projectUuid,
-            tableName: tableRef.table,
-            schema: tableRef.schema,
-        }));
+
+            if (!matchingSchema || !matchesCurrentDatabase) {
+                return acc;
+            }
+
+            // Check if table exists in the matching schema (case-insensitive)
+            const actualTableName = Object.keys(matchingSchema.tables).find(
+                (tableName) =>
+                    tableName.toLowerCase() === tableRef.table.toLowerCase(),
+            );
+
+            if (!actualTableName) {
+                return acc;
+            }
+
+            // Add the validated and transformed table reference
+            acc.push({
+                projectUuid,
+                tableName: actualTableName, // Use actual table name from catalog
+                schema: matchingSchema.schema.toString(), // Use actual schema name from catalog
+            });
+
+            return acc;
+        }, []);
     }, [detectedTables, transformedData, projectUuid]);
 
     // Use the new multi-table fields hook

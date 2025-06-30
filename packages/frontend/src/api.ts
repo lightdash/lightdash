@@ -157,3 +157,56 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             throw handleError(err);
         });
 };
+
+export const lightdashApiStream = ({
+    method,
+    url,
+    body,
+    headers,
+    version = 'v1',
+    signal,
+}: LightdashApiProps) => {
+    const baseUrl = sessionStorage.getItem(
+        LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
+    );
+    const apiPrefix = `${baseUrl ?? BASE_API_URL}api/${version}`;
+
+    let sentryTrace: string | undefined;
+    // Manually create a span for the fetch request to be able to trace it in Sentry. This also enables Distributed Tracing.
+    startSpan(
+        {
+            op: 'http.client',
+            name: `API Streaming Request: ${method} ${url}`,
+            attributes: {
+                'http.method': method,
+                'http.url': url,
+                type: 'fetch',
+                url,
+                method,
+            },
+        },
+        (s) => {
+            sentryTrace = spanToTraceHeader(s);
+        },
+    );
+
+    return fetch(`${apiPrefix}${url}`, {
+        method,
+        headers: {
+            ...defaultHeaders,
+            ...headers,
+            ...(sentryTrace ? { 'sentry-trace': sentryTrace } : {}),
+        },
+        body,
+        signal,
+    })
+        .then((r) => {
+            if (!r.ok) {
+                throw r;
+            }
+            return r;
+        })
+        .catch((err) => {
+            throw handleError(err);
+        });
+};

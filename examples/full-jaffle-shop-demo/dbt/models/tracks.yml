@@ -1,7 +1,8 @@
 version: 2
 models:
   - name: tracks
-    meta: 
+    meta:
+      primary_key: id
       required_filters: 
         - timestamp: 'inThePast 5 years'
         - context_app_version: '0.1000.1'

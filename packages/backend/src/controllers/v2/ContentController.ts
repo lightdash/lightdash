@@ -31,7 +31,6 @@ import { BaseController } from '../baseController';
 @Route('/api/v2/content')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Content')
-@Hidden() // Hide this endpoint from the documentation for now
 export class ContentController extends BaseController {
     /**
      * Get content (charts, dashboards, spaces)

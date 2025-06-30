@@ -24,34 +24,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     payload.slackPromptUuid,
                 );
             },
-            [EE_SCHEDULER_TASKS.AI_AGENT_THREAD_GENERATE]: async (
-                payload,
-                helpers,
-            ) => {
-                try {
-                    await this.schedulerService.setJobStatus(
-                        helpers.job.id,
-                        SchedulerJobStatus.STARTED,
-                    );
-
-                    await this.aiAgentService.generateAgentThreadResponse({
-                        agentUuid: payload.agentUuid,
-                        threadUuid: payload.threadUuid,
-                        promptUuid: payload.promptUuid,
-                    });
-
-                    await this.schedulerService.setJobStatus(
-                        helpers.job.id,
-                        SchedulerJobStatus.COMPLETED,
-                    );
-                } catch (e) {
-                    await this.schedulerService.setJobStatus(
-                        helpers.job.id,
-                        SchedulerJobStatus.ERROR,
-                    );
-                    throw e;
-                }
-            },
         };
     }
 }

@@ -1,4 +1,12 @@
-import { MetricQuery, SEED_PROJECT } from '@lightdash/common';
+import {
+    DbtProjectType,
+    DbtVersionOptionLatest,
+    MetricQuery,
+    ProjectType,
+    SEED_PROJECT,
+    type CreateProject,
+} from '@lightdash/common';
+import warehouseConnections from '../../support/warehouses';
 
 const apiUrl = '/api/v1';
 
@@ -223,7 +231,7 @@ describe('Lightdash API tests for organization on different roles', () => {
         'member',
     ].forEach((role) => {
         describe(`org user with '${role}' role`, () => {
-            let email;
+            let email: Element | undefined;
 
             before(() => {
                 cy.loginWithPermissions(role, []).then((e) => {
@@ -312,7 +320,7 @@ describe('lightdash API tests for project creation permissions', () => {
         },
     ].forEach(({ role, canCreatePreview, canCreateProject }) => {
         describe(`org user with '${role}' role`, () => {
-            let email;
+            let email: Element | undefined;
 
             before(() => {
                 cy.loginWithPermissions(role, []).then((e) => {
@@ -327,14 +335,22 @@ describe('lightdash API tests for project creation permissions', () => {
             it('should get a parameter error when sending POST to project with DEFAULT and an UPSTREAM', () => {
                 const endpoint = `${apiUrl}/org/projects/`;
 
+                const body: CreateProject = {
+                    type: ProjectType.DEFAULT,
+                    upstreamProjectUuid: 'uuid',
+                    dbtConnection: {
+                        type: DbtProjectType.NONE,
+                    },
+                    dbtVersion: DbtVersionOptionLatest.LATEST,
+                    warehouseConnection: warehouseConnections.postgresSQL,
+                    name: 'testProject',
+                };
+
                 cy.request({
                     url: endpoint,
                     headers: { 'Content-type': 'application/json' },
                     method: 'POST',
-                    body: {
-                        type: 'DEFAULT',
-                        upstreamProjectUuid: 'uuid',
-                    },
+                    body,
                     failOnStatusCode: false,
                 }).then((resp) => {
                     expect(resp.status).to.eq(400);
@@ -345,13 +361,21 @@ describe('lightdash API tests for project creation permissions', () => {
                 it('Should get a forbidden error (403) from POST project', () => {
                     const endpoint = `${apiUrl}/org/projects/`;
 
+                    const body: CreateProject = {
+                        type: ProjectType.DEFAULT,
+                        dbtConnection: {
+                            type: DbtProjectType.NONE,
+                        },
+                        dbtVersion: DbtVersionOptionLatest.LATEST,
+                        warehouseConnection: warehouseConnections.postgresSQL,
+                        name: 'testProject',
+                    };
+
                     cy.request({
                         url: endpoint,
                         headers: { 'Content-type': 'application/json' },
                         method: 'POST',
-                        body: {
-                            type: 'DEFAULT',
-                        },
+                        body,
                         failOnStatusCode: false,
                     }).then((resp) => {
                         expect(resp.status).to.eq(403);
@@ -363,13 +387,21 @@ describe('lightdash API tests for project creation permissions', () => {
                 it('Should get a forbidden error (403) from POST preview project', () => {
                     const endpoint = `${apiUrl}/org/projects/`;
 
+                    const body: CreateProject = {
+                        type: ProjectType.PREVIEW,
+                        dbtConnection: {
+                            type: DbtProjectType.NONE,
+                        },
+                        dbtVersion: DbtVersionOptionLatest.LATEST,
+                        warehouseConnection: warehouseConnections.postgresSQL,
+                        name: 'testPreviewProject',
+                    };
+
                     cy.request({
                         url: endpoint,
                         headers: { 'Content-type': 'application/json' },
                         method: 'POST',
-                        body: {
-                            type: 'PREVIEW',
-                        },
+                        body,
                         failOnStatusCode: false,
                     }).then((resp) => {
                         expect(resp.status).to.eq(403);

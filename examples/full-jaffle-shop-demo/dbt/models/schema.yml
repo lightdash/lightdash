@@ -2,14 +2,17 @@ version: 2
 models:
   - name: customers
     meta:
+      primary_key: customer_id
       spotlight:
         categories: ["experimental"]
       joins:
         - join: membership
           hidden: true
           sql_on: ${customers.customer_id} = ${membership.customer_id}
+          relationship: one-to-one
         - join: plan
           sql_on: ${membership.plan_id} = ${plan.id}
+          relationship: many-to-one
     description: |
       # Customers
 
@@ -108,12 +111,14 @@ models:
 
       {{ doc("orders_status") }}
     meta:
+      primary_key: order_id
       spotlight:
         categories:
           - sales
       joins:
         - join: customers
           sql_on: ${customers.customer_id} = ${orders.customer_id}
+          relationship: many-to-one
       metrics:
         completion_percentage:
           type: number
@@ -268,11 +273,14 @@ models:
   - name: payments
     description: This table has information about individual payments
     meta:
+      primary_key: payment_id
       joins:
         - join: orders
           sql_on: ${orders.order_id} = ${payments.order_id}
+          relationship: many-to-one
         - join: customers
           sql_on: ${customers.customer_id} = ${orders.customer_id}
+          relationship: many-to-one
     columns:
       - name: payment_id
         description: This is a unique identifier for a payment

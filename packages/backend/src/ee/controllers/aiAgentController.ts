@@ -1,9 +1,10 @@
 import {
     ApiAiAgentResponse,
-    ApiAiAgentStartThreadResponse,
     ApiAiAgentSummaryResponse,
-    ApiAiAgentThreadGenerateRequest,
-    ApiAiAgentThreadGenerateResponse,
+    ApiAiAgentThreadCreateRequest,
+    ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadMessageCreateRequest,
+    ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
@@ -14,8 +15,11 @@ import {
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
     ApiErrorPayload,
+    ApiGetUserAgentPreferencesResponse,
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
+    ApiUpdateUserAgentPreferences,
+    ApiUpdateUserAgentPreferencesResponse,
 } from '@lightdash/common';
 import {
     Body,
@@ -178,53 +182,68 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('/{agentUuid}/generate')
-    @OperationId('startAgentThread')
+    @Post('/{agentUuid}/threads')
+    @OperationId('createAgentThread')
     async createAgentThread(
         @Request() req: express.Request,
         @Path() agentUuid: string,
-        @Body() body: ApiAiAgentThreadGenerateRequest,
-    ): Promise<ApiAiAgentStartThreadResponse> {
+        @Body() body: ApiAiAgentThreadCreateRequest,
+    ): Promise<ApiAiAgentThreadCreateResponse> {
         this.setStatus(200);
-        const { jobId, threadUuid } =
-            await this.getAiAgentService().scheduleGenerateAgentThreadResponse(
-                req.user!,
-                {
-                    agentUuid,
-                    threadUuid: undefined,
-                    prompt: body.prompt,
-                },
-            );
         return {
             status: 'ok',
-            results: { jobId, threadUuid },
+            results: await this.getAiAgentService().createAgentThread(
+                req.user!,
+                agentUuid,
+                body,
+            ),
         };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('/{agentUuid}/threads/{threadUuid}/generate')
-    @OperationId('generateAgentThreadResponse')
-    async generateAgentThreadResponse(
+    @Post('/{agentUuid}/threads/{threadUuid}/messages')
+    @OperationId('createAgentThreadMessage')
+    async createAgentThreadMessage(
         @Request() req: express.Request,
         @Path() agentUuid: string,
         @Path() threadUuid: string,
-        @Body() body: ApiAiAgentThreadGenerateRequest,
-    ): Promise<ApiAiAgentThreadGenerateResponse> {
+        @Body() body: ApiAiAgentThreadMessageCreateRequest,
+    ): Promise<ApiAiAgentThreadMessageCreateResponse> {
         this.setStatus(200);
-        const { jobId } =
-            await this.getAiAgentService().scheduleGenerateAgentThreadResponse(
-                req.user!,
-                {
-                    agentUuid,
-                    threadUuid,
-                    prompt: body.prompt,
-                },
-            );
         return {
             status: 'ok',
-            results: { jobId },
+            results: await this.getAiAgentService().createAgentThreadMessage(
+                req.user!,
+                agentUuid,
+                threadUuid,
+                body,
+            ),
         };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/stream')
+    @OperationId('streamAgentThreadResponse')
+    async streamAgentThreadResponse(
+        @Request() req: express.Request,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+    ): Promise<void> {
+        const stream = await this.getAiAgentService().streamAgentThreadResponse(
+            req.user!,
+            {
+                agentUuid,
+                threadUuid,
+            },
+        );
+
+        /**
+         * @ref https://github.com/lukeautry/tsoa/issues/44#issuecomment-357784246
+         * Hack to get the response object from the request
+         */
+        stream.pipeDataStreamToResponse(req.res!);
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -359,6 +378,57 @@ export class AiAgentController extends BaseController {
 
     protected getAiAgentService() {
         return this.services.getAiAgentService<AiAgentService>();
+    }
+}
+
+@Route('/api/v1/projects/{projectUuid}/aiAgents/preferences')
+@Hidden()
+@Response<ApiErrorPayload>('default', 'Error')
+export class AiAgentUserPreferencesController extends BaseController {
+    protected getAiAgentService() {
+        return this.services.getAiAgentService<AiAgentService>();
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get()
+    @OperationId('getUserAgentPreferences')
+    async getUserAgentPreferences(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiGetUserAgentPreferencesResponse> {
+        this.setStatus(200);
+
+        const userPreferences =
+            await this.getAiAgentService().getUserAgentPreferences(
+                req.user!,
+                projectUuid,
+            );
+        return {
+            status: 'ok',
+            results: userPreferences ?? undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post()
+    @OperationId('updateUserAgentPreferences')
+    async setUserDefaultAgent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiUpdateUserAgentPreferences,
+    ): Promise<ApiUpdateUserAgentPreferencesResponse> {
+        this.setStatus(200);
+        await this.getAiAgentService().updateUserAgentPreferences(
+            req.user!,
+            projectUuid,
+            body,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
     }
 }
 
