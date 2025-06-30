@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     DbtProjectType,
     ProjectType,
+    WarehouseTypes,
     type CreateWarehouseCredentials,
     type Project,
 } from '@lightdash/common';
@@ -43,6 +44,9 @@ const UpdateProjectConnection: FC<{
     } = useUpdateMutation(projectUuid);
     const onProjectError = useOnProjectError();
 
+    const warehouseType: WarehouseTypes =
+        project.warehouseConnection?.type || WarehouseTypes.SNOWFLAKE;
+
     const isDisabled =
         project.type === ProjectType.PREVIEW ||
         isSaving ||
@@ -62,14 +66,13 @@ const UpdateProjectConnection: FC<{
                 ...project.dbtConnection,
             },
             warehouse: {
-                ...warehouseDefaultValues[project.warehouseConnection!.type],
+                ...warehouseDefaultValues[warehouseType],
                 ...project.warehouseConnection,
             } as CreateWarehouseCredentials,
             dbtVersion: project.dbtVersion,
         },
         validate: {
-            warehouse:
-                warehouseValueValidators[project.warehouseConnection!.type],
+            warehouse: warehouseValueValidators[warehouseType],
             dbt: dbtFormValidators,
         },
         validateInputOnBlur: true,
@@ -90,7 +93,7 @@ const UpdateProjectConnection: FC<{
             await mutateAsync({
                 name,
                 dbtConnection,
-                warehouseConnection: warehouseConnection!,
+                warehouseConnection: warehouseConnection,
                 dbtVersion,
             });
         }
