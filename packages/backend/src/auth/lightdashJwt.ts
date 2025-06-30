@@ -52,18 +52,31 @@ export function decodeLightdashJwt(
                 ? encodedSecret
                 : Buffer.from(encodedSecret),
         );
-        const decodedToken = verify(token, secret) as EmbedJwt;
+        const decodedToken = verify(token, secret) as unknown as EmbedJwt;
 
         // Alert if the token is not in the expected format so we can inform the org before enforcing validation
         try {
-            EmbedJwtSchema.parse(decodedToken);
+            // Type assertion for the schema parse method
+            (EmbedJwtSchema as z.ZodSchema<EmbedJwt>).parse(decodedToken);
         } catch (e) {
             let errorIdentifier = 'unknown';
-            if (decodedToken?.content) {
-                if (isDashboardUuidContent(decodedToken.content)) {
-                    errorIdentifier = decodedToken.content.dashboardUuid;
-                } else if ('dashboardSlug' in decodedToken.content) {
-                    errorIdentifier = decodedToken.content.dashboardSlug;
+            // Type guard to ensure decodedToken has the expected structure
+            if (
+                decodedToken &&
+                typeof decodedToken === 'object' &&
+                'content' in decodedToken
+            ) {
+                const content =
+                    decodedToken.content as CreateEmbedJwt['content'];
+                if (isDashboardUuidContent(content)) {
+                    errorIdentifier = content.dashboardUuid;
+                } else if (
+                    typeof content === 'object' &&
+                    content !== null &&
+                    'dashboardSlug' in content
+                ) {
+                    errorIdentifier = (content as { dashboardSlug: string })
+                        .dashboardSlug;
                 }
             }
             // FIXME: This needs to be cleaned up. Need to verify current behavior
@@ -78,7 +91,7 @@ export function decodeLightdashJwt(
             } else {
                 Logger.error(
                     `Invalid embed token ${errorIdentifier}: ${getErrorMessage(
-                        e,
+                        e as Error,
                     )}`,
                 );
             }
