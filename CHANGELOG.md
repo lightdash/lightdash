@@ -1,3 +1,24 @@
+# [0.1768.0](https://github.com/lightdash/lightdash/compare/0.1767.1...0.1768.0) (2025-06-30)
+
+
+### Features
+
+* add Application Default Credentials auth method for BigQuery ([#15476](https://github.com/lightdash/lightdash/issues/15476)) ([c75293b](https://github.com/lightdash/lightdash/commit/c75293bf773fa46b150f6df1b0fcb8c915d8db61))
+
+## [0.1767.1](https://github.com/lightdash/lightdash/compare/0.1767.0...0.1767.1) (2025-06-30)
+
+
+### Bug Fixes
+
+* lightdash jwt lint ([#15616](https://github.com/lightdash/lightdash/issues/15616)) ([16243ce](https://github.com/lightdash/lightdash/commit/16243ce35dea00dbe61f3b586a507dadefb1680e))
+
+# [0.1767.0](https://github.com/lightdash/lightdash/compare/0.1766.0...0.1767.0) (2025-06-30)
+
+
+### Features
+
+* add diagnostics command to CLI ([#15592](https://github.com/lightdash/lightdash/issues/15592)) ([d9b39de](https://github.com/lightdash/lightdash/commit/d9b39dee9f5e2470c7d7bef5340e5a478479470d))
+
 # [0.1766.0](https://github.com/lightdash/lightdash/compare/0.1765.2...0.1766.0) (2025-06-27)
 
 

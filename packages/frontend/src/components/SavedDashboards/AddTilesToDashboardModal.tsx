@@ -11,11 +11,9 @@ import {
     Modal,
     Select,
     Stack,
-    Text,
     TextInput,
     Textarea,
     Title,
-    Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
@@ -23,7 +21,7 @@ import {
     IconLayoutDashboard,
     IconPlus,
 } from '@tabler/icons-react';
-import { forwardRef, useEffect, useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import { useSavedSqlChart } from '../../features/sqlRunner/hooks/useSavedSqlCharts';
 import {
@@ -54,25 +52,6 @@ interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
     disabled?: boolean;
     spaceUuid: string;
 }
-
-const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
-    ({ label, disabled, ...others }: ItemProps, ref) => (
-        <div ref={ref} {...others}>
-            <Tooltip
-                label={
-                    'Dashboard has charts created from a different semantic layer connection'
-                }
-                disabled={!disabled}
-                position="top-start"
-                withinPortal
-            >
-                <Text c={disabled ? 'dimmed' : 'gray.8'} fw={500} fz="xs">
-                    {label}
-                </Text>
-            </Tooltip>
-        </div>
-    ),
-);
 
 const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     isOpen,
@@ -334,7 +313,6 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                 }
                                 withinPortal
                                 required
-                                itemComponent={SelectItem}
                                 {...form.getInputProps('dashboardUuid')}
                             />
                             <Anchor

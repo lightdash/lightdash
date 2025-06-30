@@ -10,6 +10,7 @@ import {
 import { Box, Group, SegmentedControl, Stack } from '@mantine-8/core';
 import { type QueryObserverSuccessResult } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';
+import { useParams } from 'react-router';
 import { z } from 'zod';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
@@ -24,6 +25,9 @@ import useHealth from '../../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import useApp from '../../../../../providers/App/useApp';
+import useTracking from '../../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../../types/Events';
 import { getChartConfigFromAiAgentVizConfig } from '../../utils/echarts';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
@@ -59,6 +63,9 @@ export const AiChartVisualization: FC<Props> = ({
     projectUuid,
     message,
 }) => {
+    const { track } = useTracking();
+    const { user } = useApp();
+    const { agentUuid } = useParams();
     const { data: health } = useHealth();
     const { data: organization } = useOrganization();
     const { metricQuery, fields } = queryExecutionHandle.data.query;
@@ -97,6 +104,32 @@ export const AiChartVisualization: FC<Props> = ({
             metricQuery,
         ],
     );
+
+    const onActiveTabChange = (value: string) => {
+        setActiveTab(activeTabsSchema.parse(value));
+
+        if (
+            value === 'calculation' &&
+            user?.data?.userUuid &&
+            user?.data?.organizationUuid &&
+            agentUuid &&
+            message.threadUuid &&
+            message.uuid
+        ) {
+            track({
+                name: EventName.AI_AGENT_CHART_HOW_ITS_CALCULATED_CLICKED,
+                properties: {
+                    userId: user.data.userUuid,
+                    organizationId: user.data.organizationUuid,
+                    projectId: projectUuid,
+                    aiAgentId: agentUuid,
+                    threadId: message.threadUuid,
+                    messageId: message.uuid,
+                    chartType: chartConfig.type,
+                },
+            });
+        }
+    };
 
     return (
         <MetricQueryDataProvider
@@ -141,10 +174,12 @@ export const AiChartVisualization: FC<Props> = ({
                 <Stack gap="md" h="100%" mih={400}>
                     <Group justify="space-between" align="start">
                         <SegmentedControl
+                            style={{
+                                visibility:
+                                    toolCalls.length > 0 ? 'visible' : 'hidden',
+                            }}
                             value={activeTab}
-                            onChange={(value) =>
-                                setActiveTab(activeTabsSchema.parse(value))
-                            }
+                            onChange={onActiveTabChange}
                             data={activeTabsData}
                             size="xs"
                             radius="md"
@@ -160,6 +195,10 @@ export const AiChartVisualization: FC<Props> = ({
                                     description:
                                         queryExecutionHandle.data.metadata
                                             .description,
+                                }}
+                                message={{
+                                    threadUuid: message.threadUuid,
+                                    uuid: message.uuid,
                                 }}
                             />
                         )}
