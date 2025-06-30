@@ -1,3 +1,4 @@
+import { type AiAgentMessageAssistant } from '@lightdash/common';
 import { ActionIcon, Menu } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import {
@@ -7,11 +8,14 @@ import {
     IconExternalLink,
 } from '@tabler/icons-react';
 import { Fragment, useMemo } from 'react';
-import { Link } from 'react-router';
+import { Link, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
+import useApp from '../../../../../providers/App/useApp';
+import useTracking from '../../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../../types/Events';
 import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
 
 type Props = {
@@ -20,12 +24,18 @@ type Props = {
         name: string | null;
         description: string | null;
     };
+    message: Pick<AiAgentMessageAssistant, 'threadUuid' | 'uuid'>;
 };
 
 export const AiChartQuickOptions = ({
     projectUuid,
+    message,
     saveChartOptions = { name: '', description: '' },
 }: Props) => {
+    const { track } = useTracking();
+    const { user } = useApp();
+    const { agentUuid } = useParams();
+
     const [opened, { open, close }] = useDisclosure(false);
 
     const { visualizationConfig, columnOrder, resultsData, chartConfig } =
@@ -59,6 +69,53 @@ export const AiChartQuickOptions = ({
         vizConfig,
     ]);
 
+    const onClickExplore = () => {
+        if (
+            user?.data?.userUuid &&
+            user?.data?.organizationUuid &&
+            projectUuid &&
+            agentUuid &&
+            metricQuery?.exploreName
+        ) {
+            track({
+                name: EventName.AI_AGENT_CHART_EXPLORED,
+                properties: {
+                    userId: user.data.userUuid,
+                    organizationId: user.data.organizationUuid,
+                    projectId: projectUuid,
+                    aiAgentId: agentUuid,
+                    threadId: message.threadUuid,
+                    messageId: message.uuid,
+                    tableName: metricQuery.exploreName,
+                },
+            });
+        }
+    };
+
+    const onConfirm = () => {
+        if (
+            user?.data?.userUuid &&
+            user?.data?.organizationUuid &&
+            projectUuid &&
+            agentUuid &&
+            metricQuery?.exploreName
+        ) {
+            track({
+                name: EventName.AI_AGENT_CHART_CREATED,
+                properties: {
+                    userId: user.data.userUuid,
+                    organizationId: user.data.organizationUuid,
+                    projectId: projectUuid,
+                    aiAgentId: agentUuid,
+                    threadId: message.threadUuid,
+                    messageId: message.uuid,
+                    tableName: metricQuery.exploreName,
+                },
+            });
+        }
+        close();
+    };
+
     if (!metricQuery) return null;
 
     return (
@@ -83,6 +140,7 @@ export const AiChartQuickOptions = ({
                         target="_blank"
                         leftSection={<MantineIcon icon={IconExternalLink} />}
                         disabled={isDisabled}
+                        onClick={onClickExplore}
                     >
                         Explore from here
                     </Menu.Item>
@@ -110,7 +168,7 @@ export const AiChartQuickOptions = ({
                         chartConfig,
                         tableConfig: { columnOrder },
                     }}
-                    onConfirm={close}
+                    onConfirm={onConfirm}
                     onClose={close}
                     chartMetadata={{
                         name: saveChartOptions.name ?? '',
