@@ -1,3 +1,10 @@
+## [0.1767.1](https://github.com/lightdash/lightdash/compare/0.1767.0...0.1767.1) (2025-06-30)
+
+
+### Bug Fixes
+
+* lightdash jwt lint ([#15616](https://github.com/lightdash/lightdash/issues/15616)) ([16243ce](https://github.com/lightdash/lightdash/commit/16243ce35dea00dbe61f3b586a507dadefb1680e))
+
 # [0.1767.0](https://github.com/lightdash/lightdash/compare/0.1766.0...0.1767.0) (2025-06-30)
 
 
