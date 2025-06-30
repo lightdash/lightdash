@@ -1162,7 +1162,8 @@ export class UserService extends BaseService {
                 password: user.password,
             });
         } else {
-            await this.checkNewUserRegistrationAllowed(undefined, user.email);
+            // TODO: Removed so that any user can register without an invite code
+           // await this.checkNewUserRegistrationAllowed(undefined, user.email);
 
             lightdashUser = await this.registerUser({
                 firstName: user.firstName,
