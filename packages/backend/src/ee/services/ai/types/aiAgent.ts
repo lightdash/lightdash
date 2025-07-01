@@ -9,6 +9,7 @@ import {
     SendFileFn,
     StoreToolCallFn,
     StoreToolResultsFn,
+    TrackEventFn,
     UpdateProgressFn,
     UpdatePromptFn,
 } from './aiAgentDependencies';
@@ -20,6 +21,8 @@ export type AiAgentArgs = {
     promptUuid: string;
     threadUuid: string;
     maxLimit: number;
+    organizationId: string;
+    userId: string;
 };
 
 export type AiAgentDependencies = {
@@ -33,6 +36,7 @@ export type AiAgentDependencies = {
     updateProgress: UpdateProgressFn;
     storeToolCall: StoreToolCallFn;
     storeToolResults: StoreToolResultsFn;
+    trackEvent: TrackEventFn;
 };
 
 export type AiGenerateAgentResponseArgs = AiAgentArgs;

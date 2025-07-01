@@ -48,7 +48,15 @@ import {
 } from 'ai';
 import _, { pick } from 'lodash';
 import slackifyMarkdown from 'slackify-markdown';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import {
+    AiAgentCreatedEvent,
+    AiAgentDeletedEvent,
+    AiAgentPromptCreatedEvent,
+    AiAgentPromptFeedbackEvent,
+    AiAgentResponseStreamed,
+    AiAgentUpdatedEvent,
+    LightdashAnalytics,
+} from '../../analytics/LightdashAnalytics';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -505,6 +513,18 @@ export class AiAgentService {
                 createdByUserUuid: user.userUuid,
                 prompt: body.prompt,
             });
+
+            this.analytics.track<AiAgentPromptCreatedEvent>({
+                event: 'ai_agent_prompt.created',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: agent.projectUuid,
+                    aiAgentId: agentUuid,
+                    threadId: threadUuid,
+                    context: 'web_app',
+                },
+            });
         }
 
         return this.aiAgentModel.getThread({
@@ -555,6 +575,18 @@ export class AiAgentService {
             prompt: body.prompt,
         });
 
+        this.analytics.track<AiAgentPromptCreatedEvent>({
+            event: 'ai_agent_prompt.created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: agent.projectUuid,
+                aiAgentId: agentUuid,
+                threadId: threadUuid,
+                context: 'web_app',
+            },
+        });
+
         return this.aiAgentModel.findThreadMessage('user', {
             organizationUuid,
             threadUuid,
@@ -592,6 +624,19 @@ export class AiAgentService {
             tags: body.tags,
             integrations: body.integrations,
             instruction: body.instruction,
+        });
+
+        this.analytics.track<AiAgentCreatedEvent>({
+            event: 'ai_agent.created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: body.projectUuid,
+                aiAgentId: agent.uuid,
+                agentName: agent.name,
+                tagsCount: agent.tags?.length ?? 0,
+                integrationsCount: agent.integrations?.length ?? 0,
+            },
         });
 
         return agent;
@@ -634,6 +679,19 @@ export class AiAgentService {
             imageUrl: body.imageUrl,
         });
 
+        this.analytics.track<AiAgentUpdatedEvent>({
+            event: 'ai_agent.updated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: body.projectUuid,
+                aiAgentId: agentUuid,
+                agentName: body.name,
+                tagsCount: updatedAgent.tags?.length ?? 0,
+                integrationsCount: updatedAgent.integrations?.length ?? 0,
+            },
+        });
+
         return updatedAgent;
     }
 
@@ -668,6 +726,17 @@ export class AiAgentService {
         if (agent.organizationUuid !== organizationUuid) {
             throw new ForbiddenError('Agent not found');
         }
+
+        this.analytics.track<AiAgentDeletedEvent>({
+            event: 'ai_agent.deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: agent.projectUuid,
+                aiAgentId: agentUuid,
+                agentName: agent.name,
+            },
+        });
 
         return this.aiAgentModel.deleteAgent({
             organizationUuid,
@@ -939,7 +1008,22 @@ export class AiAgentService {
     }
 
     // TODO: user permissions
-    async updateHumanScoreForMessage(messageUuid: string, humanScore: number) {
+    async updateHumanScoreForMessage(
+        user: SessionUser,
+        messageUuid: string,
+        humanScore: number,
+    ) {
+        this.analytics.track<AiAgentPromptFeedbackEvent>({
+            event: 'ai_agent_prompt.feedback',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+                humanScore,
+                messageId: messageUuid,
+                context: 'web_app',
+            },
+        });
+
         await this.aiAgentModel.updateHumanScore({
             promptUuid: messageUuid,
             humanScore,
@@ -1386,6 +1470,8 @@ export class AiAgentService {
             promptUuid: prompt.promptUuid,
             messageHistory,
             maxLimit: this.lightdashConfig.query.maxLimit,
+            organizationId: user.organizationUuid,
+            userId: user.userUuid,
         };
 
         const dependencies = {
@@ -1402,6 +1488,8 @@ export class AiAgentService {
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
             ) => this.aiAgentModel.updateModelResponse(update),
+            trackEvent: (event: AiAgentResponseStreamed) =>
+                this.analytics.track(event),
         };
 
         return stream
@@ -1416,7 +1504,20 @@ export class AiAgentService {
     }
 
     // TODO: user permissions
-    async updateHumanScoreForPrompt(promptUuid: string, humanScore: number) {
+    async updateHumanScoreForSlackPrompt(
+        promptUuid: string,
+        humanScore: number,
+    ) {
+        this.analytics.track<AiAgentPromptFeedbackEvent>({
+            event: 'ai_agent_prompt.feedback',
+            userId: undefined,
+            properties: {
+                organizationId: undefined,
+                humanScore,
+                messageId: promptUuid,
+                context: 'slack',
+            },
+        });
         await this.aiAgentModel.updateHumanScore({
             promptUuid,
             humanScore,
@@ -1553,6 +1654,21 @@ export class AiAgentService {
             slackChannelId: data.slackChannelId,
             promptSlackTs: data.promptSlackTs,
         });
+
+        const user = await this.userModel.getUserDetailsByUuid(data.userUuid);
+        if (user.organizationUuid) {
+            this.analytics.track<AiAgentPromptCreatedEvent>({
+                event: 'ai_agent_prompt.created',
+                userId: data.userUuid,
+                properties: {
+                    organizationId: user.organizationUuid,
+                    projectId: data.projectUuid,
+                    aiAgentId: data.agentUuid || '',
+                    threadId: threadUuid,
+                    context: 'slack',
+                },
+            });
+        }
 
         return [uuid, createdThread];
     }
@@ -1767,135 +1883,6 @@ export class AiAgentService {
                 name: message.user_name,
             },
         }));
-    }
-
-    private async _createWebAppPrompt(
-        user: LightdashUser,
-        projectUuid: string,
-        prompt: string,
-    ): Promise<string> {
-        if (!user.organizationUuid) {
-            throw new Error('Organization not found');
-        }
-
-        const threadUuid = await this.aiAgentModel.createWebAppThread({
-            organizationUuid: user.organizationUuid,
-            projectUuid,
-            userUuid: user.userUuid,
-            createdFrom: 'web_app',
-            agentUuid: null,
-        });
-
-        if (threadUuid === undefined) {
-            throw new Error('Failed to create web app thread');
-        }
-
-        const promptUuid = await this.aiAgentModel.createWebAppPrompt({
-            threadUuid,
-            createdByUserUuid: user.userUuid,
-            prompt,
-        });
-
-        return promptUuid;
-    }
-
-    async createWebAppConversation(
-        user: SessionUser,
-        projectUuid: string,
-        question: string,
-    ): Promise<{
-        prompt: AiWebAppPrompt;
-        rows: Record<string, AnyType>[] | undefined;
-    }> {
-        if (!(await this.getIsCopilotEnabled(user))) {
-            throw new Error('AI Copilot is not enabled');
-        }
-
-        const userDetails = await this.userModel.getUserDetailsByUuid(
-            user.userUuid,
-        );
-
-        if (userDetails.organizationUuid === undefined) {
-            throw new Error('Organization not found');
-        }
-
-        // TODO: relax this permission after we have a proper UI for copilot/project access
-        const canManageProject = user.ability.can(
-            'manage',
-            subject('Project', {
-                organizationUuid: userDetails.organizationUuid,
-                projectUuid,
-            }),
-        );
-
-        if (!canManageProject) {
-            throw new Error('User does not have access to the project!');
-        }
-
-        await this.aiAgentModel.createWebAppThread({
-            organizationUuid: userDetails.organizationUuid,
-            projectUuid,
-            createdFrom: 'web_app',
-            userUuid: user.userUuid,
-            agentUuid: null,
-        });
-
-        const promptUuid = await this._createWebAppPrompt(
-            user,
-            projectUuid,
-            question,
-        );
-
-        const webAppPrompt = await this.aiAgentModel.findWebAppPrompt(
-            promptUuid,
-        );
-
-        if (!webAppPrompt) {
-            throw new Error('Prompt not found');
-        }
-
-        const response = await this.generateOrStreamAgentResponse(
-            user,
-            [{ role: 'user', content: question }],
-            {
-                prompt: webAppPrompt,
-                stream: false,
-            },
-        );
-
-        await this.aiAgentModel.updateModelResponse({
-            promptUuid: webAppPrompt.promptUuid,
-            response,
-        });
-
-        const finalPrompt = await this.aiAgentModel.findWebAppPrompt(
-            promptUuid,
-        );
-
-        if (!finalPrompt) {
-            throw new Error('Prompt not found');
-        }
-
-        const utils = this.getAiAgentDependencies(user, finalPrompt);
-
-        const parsedVizConfig = parseVizConfig(
-            finalPrompt.vizConfigOutput,
-            this.lightdashConfig.query.maxLimit,
-        );
-
-        const rows = parsedVizConfig
-            ? (
-                  await utils.runMiniMetricQuery(
-                      parsedVizConfig.metricQuery,
-                      this.lightdashConfig.query.maxLimit,
-                  )
-              ).rows
-            : undefined;
-
-        return {
-            prompt: finalPrompt,
-            rows,
-        };
     }
 
     async getUserAgentPreferences(

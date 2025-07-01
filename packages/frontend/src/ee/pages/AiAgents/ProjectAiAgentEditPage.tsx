@@ -36,8 +36,6 @@ import Page from '../../../components/common/Page/Page';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
 import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
-import useTracking from '../../../providers/Tracking/useTracking';
-import { EventName } from '../../../types/Events';
 import { ConversationsList } from '../../features/aiCopilot/components/ConversationsList';
 import { SlackIntegrationSteps } from '../../features/aiCopilot/components/SlackIntegrationSteps';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
@@ -82,7 +80,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     });
 
     const navigate = useNavigate();
-    const { track } = useTracking();
     const { user } = useApp();
 
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -175,42 +172,16 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         }
 
         if (isCreateMode) {
-            const result = await createAgent({
+            await createAgent({
                 ...values,
                 projectUuid,
             });
-
-            if (user.data.organizationUuid) {
-                track({
-                    name: EventName.AI_AGENT_CREATED,
-                    properties: {
-                        userId: user.data.userUuid,
-                        organizationId: user.data.organizationUuid,
-                        projectId: projectUuid,
-                        aiAgentId: result.uuid,
-                        agentName: values.name,
-                    },
-                });
-            }
         } else if (actualAgentUuid) {
             await updateAgent({
                 uuid: actualAgentUuid,
                 projectUuid,
                 ...values,
             });
-
-            if (user.data.organizationUuid) {
-                track({
-                    name: EventName.AI_AGENT_UPDATED,
-                    properties: {
-                        userId: user.data.userUuid,
-                        organizationId: user.data.organizationUuid,
-                        projectId: projectUuid,
-                        aiAgentId: actualAgentUuid,
-                        agentName: values.name,
-                    },
-                });
-            }
         }
     });
 
@@ -225,21 +196,8 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
 
         await deleteAgent(actualAgentUuid);
 
-        if (user.data.organizationUuid) {
-            track({
-                name: EventName.AI_AGENT_DELETED,
-                properties: {
-                    userId: user.data.userUuid,
-                    organizationId: user.data.organizationUuid,
-                    projectId: projectUuid,
-                    aiAgentId: actualAgentUuid,
-                    agentName: agent.name,
-                },
-            });
-        }
-
         setDeleteModalOpen(false);
-    }, [actualAgentUuid, deleteAgent, user?.data, projectUuid, agent, track]);
+    }, [actualAgentUuid, deleteAgent, user?.data, projectUuid, agent]);
 
     const handleCancelDelete = useCallback(() => {
         setDeleteModalOpen(false);

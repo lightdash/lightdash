@@ -10,7 +10,6 @@ import {
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiConversationMessages,
-    ApiAiConversationResponse,
     ApiAiConversations,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
@@ -309,6 +308,7 @@ export class AiAgentController extends BaseController {
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
         await this.getAiAgentService().updateHumanScoreForMessage(
+            req.user!,
             messageUuid,
             body.humanScore,
         );
@@ -380,26 +380,6 @@ export class AiAgentController extends BaseController {
                 req.user!,
                 projectUuid,
                 aiThreadUuid,
-            ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('/projects/{projectUuid}/conversations')
-    @OperationId('createAiAgentConversation')
-    async createAiAgentConversation(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Body() body: { question: string },
-    ): Promise<ApiAiConversationResponse> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiAgentService().createWebAppConversation(
-                req.user!,
-                projectUuid,
-                body.question,
             ),
         };
     }

@@ -109,7 +109,7 @@ export class CommercialSlackBot extends SlackBot {
                         if (!promptUuid) {
                             return;
                         }
-                        await this.aiAgentService.updateHumanScoreForPrompt(
+                        await this.aiAgentService.updateHumanScoreForSlackPrompt(
                             promptUuid,
                             1,
                         );
@@ -154,7 +154,7 @@ export class CommercialSlackBot extends SlackBot {
                         if (!promptUuid) {
                             return;
                         }
-                        await this.aiAgentService.updateHumanScoreForPrompt(
+                        await this.aiAgentService.updateHumanScoreForSlackPrompt(
                             promptUuid,
                             -1,
                         );

@@ -1,8 +1,6 @@
 import { Center, Loader } from '@mantine-8/core';
 import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
-import useTracking from '../../../providers/Tracking/useTracking';
-import { EventName } from '../../../types/Events';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import {
@@ -20,7 +18,6 @@ const AiAgentThreadPage = () => {
         agentUuid,
         threadUuid,
     );
-    const { track } = useTracking();
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
 
@@ -34,24 +31,6 @@ const AiAgentThreadPage = () => {
     const isStreaming = useAiAgentThreadStreaming(threadUuid!);
 
     const handleSubmit = (prompt: string) => {
-        if (
-            user?.data?.userUuid &&
-            user?.data?.organizationUuid &&
-            projectUuid &&
-            agentUuid
-        ) {
-            track({
-                name: EventName.AI_AGENT_PROMPT_CREATED,
-                properties: {
-                    userId: user.data.userUuid,
-                    organizationId: user.data.organizationUuid,
-                    projectId: projectUuid,
-                    aiAgentId: agentUuid,
-                    threadId: threadUuid,
-                },
-            });
-        }
-
         void createAgentThreadMessage({ prompt });
     };
 
