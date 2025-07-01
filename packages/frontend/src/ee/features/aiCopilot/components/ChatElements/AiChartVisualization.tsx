@@ -252,8 +252,10 @@ export const AiChartVisualization: FC<Props> = ({
 
                                 {message.filtersOutput && (
                                     <AgentVisualizationFilters
-                                        // TODO: fix this using schema
-                                        filters={message.filtersOutput}
+                                        filters={
+                                            queryExecutionHandle.data.query
+                                                .metricQuery.filters
+                                        }
                                     />
                                 )}
                             </ErrorBoundary>
