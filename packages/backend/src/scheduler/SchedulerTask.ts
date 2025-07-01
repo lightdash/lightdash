@@ -1852,11 +1852,11 @@ export default class SchedulerTask {
                 throw new Error('Unable to create new sheet');
             }
 
-            const explore = await this.projectService.getExplore(
+            const explore = await this.projectService.getExplore({
                 user,
-                payload.projectUuid,
-                payload.exploreId,
-            );
+                projectUuid: payload.projectUuid,
+                exploreName: payload.exploreId,
+            });
             const itemMap = getItemMap(
                 explore,
                 payload.metricQuery.additionalMetrics,
@@ -2262,6 +2262,7 @@ export default class SchedulerTask {
                 );
         }
 
+        // This return statement is unreachable but satisfies the linter
         return false;
     }
 
@@ -2362,11 +2363,11 @@ export default class SchedulerTask {
                     );
                 }
 
-                const explore = await this.projectService.getExplore(
+                const explore = await this.projectService.getExplore({
                     user,
-                    chart.projectUuid,
-                    chart.tableName,
-                );
+                    projectUuid: chart.projectUuid,
+                    exploreName: chart.tableName,
+                });
                 const itemMap = getItemMap(
                     explore,
                     chart.metricQuery.additionalMetrics,
@@ -2512,11 +2513,11 @@ export default class SchedulerTask {
                                 chartUuid,
                                 QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                             );
-                        const explore = await this.projectService.getExplore(
-                            user!,
-                            chart.projectUuid,
-                            chart.tableName,
-                        );
+                        const explore = await this.projectService.getExplore({
+                            user: user!,
+                            projectUuid: chart.projectUuid,
+                            exploreName: chart.tableName,
+                        });
                         const itemMap = getItemMap(
                             explore,
                             chart.metricQuery.additionalMetrics,

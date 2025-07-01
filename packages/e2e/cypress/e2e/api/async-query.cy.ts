@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { SEED_PROJECT } from '@lightdash/common';
 import warehouseConnections from '../../support/warehouses';
 
 const apiUrl = '/api/v2';
@@ -65,17 +66,37 @@ describe('Async Query API', () => {
     });
 
     // Helper function for test logic to avoid duplication
-    const runAsyncQueryTest = (projectUuid: string | undefined) => {
+    const runAsyncQueryTest = (
+        projectUuid: string | undefined,
+        jwtToken?: string,
+    ) => {
         if (!projectUuid) {
             cy.log(`Skipping test as project UUID is undefined`);
             expect(false).to.eq(true);
             return;
         }
 
+        // Prepare headers with optional JWT token
+        const headers: Record<string, string> = {
+            'Content-type': 'application/json',
+        };
+        if (jwtToken) {
+            headers['lightdash-embed-token'] = jwtToken;
+        }
+
+        const wrappedRequest = (options: Partial<Cypress.RequestOptions>) =>
+            cy.request({
+                ...options,
+                headers: {
+                    ...options.headers,
+                    ...headers,
+                },
+            });
+
         cy.log(
             'Check that fetching the query before having a valid query id returns 404',
         );
-        cy.request({
+        wrappedRequest({
             // Dummy queryUuid
             url: `${apiUrl}/projects/${projectUuid}/query/13a00154-d590-40f2-bb27-d541f70aa8c6`,
             method: 'GET',
@@ -88,10 +109,9 @@ describe('Async Query API', () => {
         });
 
         cy.log('First execute the async query');
-        cy.request({
+        wrappedRequest({
             url: `${apiUrl}/projects/${projectUuid}/query/metric-query`,
             method: 'POST',
-            headers: { 'Content-type': 'application/json' },
             body: runQueryBody,
         }).then((executeResp) => {
             expect(executeResp.status).to.eq(200);
@@ -103,19 +123,17 @@ describe('Async Query API', () => {
             cy.log('Poll for results until ready');
             // Poll for results until ready
             const checkResults = (): any =>
-                cy
-                    .request({
-                        url: `${apiUrl}/projects/${projectUuid}/query/${queryUuid}`,
-                        method: 'GET',
-                    })
-                    .then((resultsResp: any) => {
-                        if (resultsResp.body.results.status !== 'ready') {
-                            // If not ready, wait 200ms and try again
-                            cy.wait(200);
-                            return checkResults();
-                        }
-                        return resultsResp;
-                    });
+                wrappedRequest({
+                    url: `${apiUrl}/projects/${projectUuid}/query/${queryUuid}`,
+                    method: 'GET',
+                }).then((resultsResp: any) => {
+                    if (resultsResp.body.results.status !== 'ready') {
+                        // If not ready, wait 200ms and try again
+                        cy.wait(200);
+                        return checkResults();
+                    }
+                    return resultsResp;
+                });
 
             let pageOneResults: any;
 
@@ -137,7 +155,7 @@ describe('Async Query API', () => {
             cy.log(
                 'Get the right number of results in a page, check the page content',
             );
-            cy.request({
+            wrappedRequest({
                 url: `${apiUrl}/projects/${projectUuid}/query/${queryUuid}?page=1&pageSize=500`,
                 method: 'GET',
             }).then((resultsResp) => {
@@ -153,7 +171,7 @@ describe('Async Query API', () => {
             });
 
             cy.log('Get page 2');
-            cy.request({
+            wrappedRequest({
                 url: `${apiUrl}/projects/${projectUuid}/query/${queryUuid}?page=2&pageSize=500`,
                 method: 'GET',
             }).then((resultsResp) => {
@@ -171,7 +189,7 @@ describe('Async Query API', () => {
             cy.log(
                 'get the first 100 results and check the content against the saved 1st 100',
             );
-            cy.request({
+            wrappedRequest({
                 url: `${apiUrl}/projects/${projectUuid}/query/${queryUuid}?page=1&pageSize=100`,
                 method: 'GET',
             }).then((resultsResp) => {
@@ -187,7 +205,7 @@ describe('Async Query API', () => {
             });
 
             cy.log('Request page beyond available results');
-            cy.request({
+            wrappedRequest({
                 url: `${apiUrl}/projects/${projectUuid}/query/${queryUuid}?page=6&pageSize=500`,
                 method: 'GET',
                 failOnStatusCode: false,
@@ -264,6 +282,14 @@ describe('Async Query API', () => {
             if (projectUuid) {
                 cy.deleteProjectsByName([projectName]);
             }
+        });
+    });
+
+    describe('JWT Auth', () => {
+        it('should execute async query and get all results paged using JWT authentication', () => {
+            cy.getJwtToken(SEED_PROJECT.project_uuid).then((jwtToken) => {
+                runAsyncQueryTest(SEED_PROJECT.project_uuid, jwtToken);
+            });
         });
     });
 });

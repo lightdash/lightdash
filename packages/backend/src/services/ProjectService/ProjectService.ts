@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     addDashboardFiltersToMetricQuery,
     AlreadyExistsError,
     AlreadyProcessingError,
@@ -95,6 +96,7 @@ import {
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
+    MemberAbility,
     MetricQuery,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
@@ -218,6 +220,7 @@ import {
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
 import { ValidationService } from '../ValidationService/ValidationService';
+import { GetExploreParams, GetUserAttributesParams } from './types';
 
 export type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -556,19 +559,33 @@ export class ProjectService extends BaseService {
         }
     }
 
-    private async getUserAttributes(
-        user: SessionUser,
-        organizationUuid: string,
-    ) {
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
+    async getUserAttributes({
+        user,
+        account,
+        organizationUuid,
+    }: GetUserAttributesParams) {
+        if (account?.type === 'external' && account?.access?.controls) {
+            return account.access.controls;
+        }
+
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const userAttributesPromise =
+            this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid: organizationUuid ?? user.organizationUuid,
                 userUuid: user.userUuid,
             });
-
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+        const emailStatusPromise = this.emailModel.getPrimaryEmailStatus(
             user.userUuid,
         );
+
+        const [userAttributes, emailStatus] = await Promise.all([
+            userAttributesPromise,
+            emailStatusPromise,
+        ]);
+
         const intrinsicUserAttributes = emailStatus.isVerified
             ? getIntrinsicUserAttributes(user)
             : {};
@@ -693,7 +710,7 @@ export class ProjectService extends BaseService {
     */
     protected async getWarehouseCredentials(
         projectUuid: string,
-        userUuid: string,
+        userUuid: string | undefined,
     ) {
         let credentials =
             await this.projectModel.getWarehouseCredentialsForProject(
@@ -701,11 +718,18 @@ export class ProjectService extends BaseService {
             );
         let userWarehouseCredentialsUuid: string | undefined;
 
+        if (!userUuid) {
+            return {
+                ...credentials,
+                userWarehouseCredentialsUuid: undefined,
+            };
+        }
+
         if (credentials.requireUserCredentials) {
             const userWarehouseCredentials =
                 await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
                     projectUuid,
-                    userUuid,
+                    userUuid ?? '',
                     credentials.type,
                 );
             if (userWarehouseCredentials === undefined) {
@@ -1717,7 +1741,11 @@ export class ProjectService extends BaseService {
         const explore =
             'explore' in args
                 ? args.explore
-                : await this.getExplore(user, projectUuid, args.exploreName);
+                : await this.getExplore({
+                      user,
+                      projectUuid,
+                      exploreName: args.exploreName,
+                  });
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
@@ -1729,7 +1757,7 @@ export class ProjectService extends BaseService {
         );
 
         const { userAttributes, intrinsicUserAttributes } =
-            await this.getUserAttributes(user, organizationUuid);
+            await this.getUserAttributes({ user, organizationUuid });
 
         const useExperimentalMetricCtes = await isFeatureFlagEnabled(
             FeatureFlags.ShowQueryWarnings,
@@ -1864,12 +1892,12 @@ export class ProjectService extends BaseService {
 
         const [space, explore] = await Promise.all([
             this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
-            this.getExplore(
+            this.getExplore({
                 user,
                 projectUuid,
-                savedChart.tableName,
+                exploreName: savedChart.tableName,
                 organizationUuid,
-            ),
+            }),
         ]);
 
         const access = await this.spaceModel.getUserSpaceAccess(
@@ -1961,12 +1989,12 @@ export class ProjectService extends BaseService {
 
         const [space, explore] = await Promise.all([
             this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
-            this.getExplore(
+            this.getExplore({
                 user,
                 projectUuid,
-                savedChart.tableName,
+                exploreName: savedChart.tableName,
                 organizationUuid,
-            ),
+            }),
         ]);
 
         const access = await this.spaceModel.getUserSpaceAccess(
@@ -2140,12 +2168,12 @@ export class ProjectService extends BaseService {
             query_context: context,
         };
 
-        const explore = await this.getExplore(
+        const explore = await this.getExplore({
             user,
             projectUuid,
             exploreName,
             organizationUuid,
-        );
+        });
 
         return this.runQueryAndFormatRows({
             user,
@@ -2193,7 +2221,11 @@ export class ProjectService extends BaseService {
             async (span) => {
                 const explore =
                     validExplore ??
-                    (await this.getExplore(user, projectUuid, exploreName));
+                    (await this.getExplore({
+                        user,
+                        projectUuid,
+                        exploreName,
+                    }));
 
                 const { rows, cacheMetadata, fields } =
                     await this.runMetricQuery({
@@ -2555,7 +2587,11 @@ export class ProjectService extends BaseService {
 
                     const explore =
                         loadedExplore ??
-                        (await this.getExplore(user, projectUuid, exploreName));
+                        (await this.getExplore({
+                            user,
+                            projectUuid,
+                            exploreName,
+                        }));
 
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(
@@ -2570,22 +2606,11 @@ export class ProjectService extends BaseService {
                             },
                         );
 
-                    const userAttributes =
-                        await this.userAttributesModel.getAttributeValuesForOrgMember(
-                            {
-                                organizationUuid,
-                                userUuid: user.userUuid,
-                            },
-                        );
-
-                    const emailStatus =
-                        await this.emailModel.getPrimaryEmailStatus(
-                            user.userUuid,
-                        );
-                    const intrinsicUserAttributes = emailStatus.isVerified
-                        ? getIntrinsicUserAttributes(user)
-                        : {};
-
+                    const { userAttributes, intrinsicUserAttributes } =
+                        await this.getUserAttributes({
+                            user,
+                            organizationUuid,
+                        });
                     const fullQuery = await ProjectService._compileQuery(
                         metricQueryWithLimit,
                         explore,
@@ -3274,7 +3299,7 @@ export class ProjectService extends BaseService {
             },
         );
         const { userAttributes, intrinsicUserAttributes } =
-            await this.getUserAttributes(user, organizationUuid);
+            await this.getUserAttributes({ user, organizationUuid });
 
         const { query } = await ProjectService._compileQuery(
             metricQuery,
@@ -3739,17 +3764,26 @@ export class ProjectService extends BaseService {
             });
     }
 
-    async getAllExploresSummary(
-        user: SessionUser,
-        projectUuid: string,
-        filtered: boolean,
-        includeErrors: boolean = true,
-    ): Promise<SummaryExplore[]> {
+    async getAllExploresSummary({
+        user,
+        account,
+        projectUuid,
+        filtered,
+        includeErrors = true,
+    }: {
+        user: SessionUser;
+        account?: Account;
+        projectUuid: string;
+        filtered: boolean;
+        includeErrors?: boolean;
+    }): Promise<SummaryExplore[]> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
+
+        const ability = account?.user.ability ?? user.ability;
         if (
-            user.ability.cannot(
+            ability.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
             )
@@ -3765,11 +3799,11 @@ export class ProjectService extends BaseService {
         if (!explores) {
             return [];
         }
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+        const { userAttributes } = await this.getUserAttributes({
+            user,
+            account,
+            organizationUuid,
+        });
 
         const allExploreSummaries = explores.reduce<SummaryExplore[]>(
             (acc, explore) => {
@@ -3847,13 +3881,21 @@ export class ProjectService extends BaseService {
         return allExploreSummaries;
     }
 
-    async getExplore(
-        user: SessionUser,
-        projectUuid: string,
-        exploreName: string,
-        organizationUuid?: string,
-        includeUnfilteredTables: boolean = true,
-    ): Promise<Explore> {
+    async getExplore({
+        account,
+        user,
+        projectUuid,
+        exploreName,
+        organizationUuid,
+        includeUnfilteredTables = true,
+    }: {
+        account?: Account | undefined;
+        user?: SessionUser | undefined;
+        projectUuid: string;
+        exploreName: string;
+        organizationUuid?: string;
+        includeUnfilteredTables?: boolean;
+    }): Promise<Explore> {
         return Sentry.startSpan(
             {
                 op: 'ProjectService.getExplore',
@@ -3862,6 +3904,7 @@ export class ProjectService extends BaseService {
             async () => {
                 const exploresMap = await this.findExplores({
                     user,
+                    account,
                     projectUuid,
                     exploreNames: [exploreName],
                     organizationUuid,
@@ -3888,15 +3931,36 @@ export class ProjectService extends BaseService {
 
     async findExplores({
         user,
+        account,
         projectUuid,
         exploreNames,
         organizationUuid,
     }: {
-        user: SessionUser;
+        user?: SessionUser | undefined;
+        account?: Account | undefined;
         projectUuid: string;
         exploreNames: string[];
         organizationUuid?: string;
     }): Promise<Record<string, Explore | ExploreError>> {
+        if (!user && !account) {
+            throw new ForbiddenError('No user or account found');
+        }
+
+        if (user && account) {
+            throw new ForbiddenError('Cannot use both user and account');
+        }
+
+        const ability = account?.user.ability ?? user?.ability;
+        if (!ability) {
+            throw new ForbiddenError('No ability found for user');
+        }
+
+        const accessControls = await this.getUserAttributes({
+            user,
+            account,
+            organizationUuid,
+        });
+
         return Sentry.startSpan(
             {
                 op: 'ProjectService.findExplores',
@@ -3913,7 +3977,7 @@ export class ProjectService extends BaseService {
                     ? { organizationUuid }
                     : await this.projectModel.getSummary(projectUuid);
                 if (
-                    user.ability.cannot(
+                    ability.cannot(
                         'view',
                         subject('Project', {
                             organizationUuid: project.organizationUuid,
@@ -3928,14 +3992,6 @@ export class ProjectService extends BaseService {
                     exploreNames,
                 );
 
-                const userAttributes =
-                    await this.userAttributesModel.getAttributeValuesForOrgMember(
-                        {
-                            organizationUuid: project.organizationUuid,
-                            userUuid: user.userUuid,
-                        },
-                    );
-
                 return Object.values(explores).reduce<
                     Record<string, Explore | ExploreError>
                 >((acc, explore) => {
@@ -3949,7 +4005,7 @@ export class ProjectService extends BaseService {
                         } else {
                             acc[explore.name] = getFilteredExplore(
                                 explore,
-                                userAttributes,
+                                accessControls.userAttributes,
                             );
                         }
                     }
@@ -4290,11 +4346,11 @@ export class ProjectService extends BaseService {
                     throw new ForbiddenError();
                 }
 
-                const explore = await this.getExplore(
+                const explore = await this.getExplore({
                     user,
-                    savedChart.projectUuid,
-                    savedChart.tableName,
-                );
+                    projectUuid: savedChart.projectUuid,
+                    exploreName: savedChart.tableName,
+                });
 
                 return getDimensions(explore).filter(
                     (field) => isFilterableDimension(field) && !field.hidden,
@@ -5057,12 +5113,12 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery,
         organizationUuid: string,
     ) {
-        const explore = await this.getExplore(
+        const explore = await this.getExplore({
             user,
             projectUuid,
             exploreName,
             organizationUuid,
-        );
+        });
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
@@ -5074,7 +5130,7 @@ export class ProjectService extends BaseService {
         );
 
         const { userAttributes, intrinsicUserAttributes } =
-            await this.getUserAttributes(user, organizationUuid);
+            await this.getUserAttributes({ user, organizationUuid });
 
         const useExperimentalMetricCtes = await isFeatureFlagEnabled(
             FeatureFlags.ShowQueryWarnings,
@@ -5123,7 +5179,7 @@ export class ProjectService extends BaseService {
         );
 
         const { userAttributes, intrinsicUserAttributes } =
-            await this.getUserAttributes(user, organizationUuid);
+            await this.getUserAttributes({ user, organizationUuid });
 
         const { query, totalQuery } = await this._getCalculateTotalQuery(
             userAttributes,
@@ -5171,12 +5227,12 @@ export class ProjectService extends BaseService {
         );
         const { organizationUuid, projectUuid } = savedChart;
 
-        const explore = await this.getExplore(
+        const explore = await this.getExplore({
             user,
             projectUuid,
-            savedChart.tableName,
+            exploreName: savedChart.tableName,
             organizationUuid,
-        );
+        });
         const tables = Object.keys(explore.tables);
 
         const appliedDashboardFilters = dashboardFilters
@@ -5297,12 +5353,12 @@ export class ProjectService extends BaseService {
             pivotDimensions,
         } = data;
 
-        const explore = await this.getExplore(
+        const explore = await this.getExplore({
             user,
             projectUuid,
             exploreName,
             organizationUuid,
-        );
+        });
 
         // Order dimensions according to columnOrder
         const orderedDimensions = metricQuery.dimensions.sort((a, b) => {

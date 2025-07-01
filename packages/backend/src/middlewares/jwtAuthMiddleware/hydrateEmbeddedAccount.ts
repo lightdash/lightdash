@@ -49,6 +49,7 @@ export function hydrateEmbeddedAccount(
     );
 
     return {
+        type: 'external',
         authentication: {
             type: 'jwt',
             data: embedJwt,

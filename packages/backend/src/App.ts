@@ -624,12 +624,18 @@ export default class App {
                     error instanceof UnexpectedServerError ||
                     !(error instanceof LightdashError)
                 ) {
-                    console.error(error); // Log original error for debug purposes
+                    Logger.error(error); // Log original error for debug purposes
                 }
+
                 Logger.error(
                     `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
                     errorResponse,
                 );
+
+                if (process.env.NODE_ENV === 'development') {
+                    Logger.error(error.stack);
+                }
+
                 this.analytics.track({
                     event: 'api.error',
                     userId: req.user?.userUuid,

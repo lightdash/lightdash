@@ -29,7 +29,7 @@ export enum QueryHistoryStatus {
 export type QueryHistory = {
     queryUuid: string;
     createdAt: Date;
-    createdByUserUuid: string | null;
+    createdByUserUuid: string | null | undefined;
     organizationUuid: string;
     projectUuid: string | null;
     warehouseQueryId: string | null;
