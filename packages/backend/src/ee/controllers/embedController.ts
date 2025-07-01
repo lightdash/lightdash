@@ -3,6 +3,9 @@ import {
     AndFilterGroup,
     AnyType,
     ApiCalculateTotalResponse,
+    ApiEmbedExecuteAsnycDashboardChartQuery,
+    ApiEmbedExecuteAsnycDashboardChartQueryResults,
+    ApiEmbedGetAsyncQueryResults,
     ApiErrorPayload,
     ApiSuccessEmpty,
     CacheMetadata,
@@ -19,7 +22,9 @@ import {
     FilterInteractivityValues,
     Item,
     MetricQueryResponse,
+    QueryExecutionContext,
     SavedChart,
+    SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
     SortField,
     UpdateEmbed,
@@ -34,6 +39,7 @@ import {
     Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -232,6 +238,54 @@ export class EmbedController extends BaseController {
                 body.dashboardFilters,
                 body.dateZoomGranularity,
                 body.dashboardSorts,
+            ),
+        };
+    }
+
+    @SuccessResponse('200', 'Success')
+    @Post('/dashboard-chart')
+    @OperationId('executeEmbedAsyncDashboardChartQuery')
+    async executeEmbedAsyncDashboardChartQuery(
+        @Path() projectUuid: string,
+        @Header('Lightdash-Embed-Token') embedToken: string,
+        @Body()
+        body: ApiEmbedExecuteAsnycDashboardChartQuery,
+    ): Promise<ApiEmbedExecuteAsnycDashboardChartQueryResults> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getEmbedService().executeAsyncDashboardChart(
+                projectUuid,
+                embedToken,
+                body.tileUuid,
+                body.dashboardFilters,
+                body.dateZoomGranularity,
+                body.dashboardSorts,
+                body.limit,
+                body.invalidateCache,
+            ),
+        };
+    }
+
+    @SuccessResponse('200', 'Success')
+    @Get('/query/{queryUuid}')
+    @OperationId('getEmbedAsyncQueryResults')
+    async getEmbedAsyncQueryResults(
+        @Path() projectUuid: string,
+        @Path() queryUuid: string,
+        @Header('Lightdash-Embed-Token') embedToken: string,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiEmbedGetAsyncQueryResults> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getEmbedService().getAsyncQueryResults(
+                projectUuid,
+                queryUuid,
+                embedToken,
+                page,
+                pageSize,
             ),
         };
     }

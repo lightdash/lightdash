@@ -57,9 +57,12 @@ import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { UserModel } from '../../../models/UserModel';
+import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
+import { UserService } from '../../../services/UserService';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
@@ -76,6 +79,9 @@ type Dependencies = {
     projectService: ProjectService;
     featureFlagModel: FeatureFlagModel;
     organizationModel: OrganizationModel;
+    asyncQueryService: AsyncQueryService;
+    userService: UserService;
+    userModel: UserModel;
 };
 
 export class EmbedService extends BaseService {
@@ -101,6 +107,12 @@ export class EmbedService extends BaseService {
 
     private readonly organizationModel: OrganizationModel;
 
+    private readonly asyncQueryService: AsyncQueryService;
+
+    private readonly userService: UserService;
+
+    private readonly userModel: UserModel;
+
     constructor(dependencies: Dependencies) {
         super();
         this.analytics = dependencies.analytics;
@@ -114,6 +126,9 @@ export class EmbedService extends BaseService {
         this.projectService = dependencies.projectService;
         this.featureFlagModel = dependencies.featureFlagModel;
         this.organizationModel = dependencies.organizationModel;
+        this.asyncQueryService = dependencies.asyncQueryService;
+        this.userService = dependencies.userService;
+        this.userModel = dependencies.userModel;
     }
 
     async getEmbedUrl(
@@ -1031,5 +1046,155 @@ export class EmbedService extends BaseService {
 
     async getEmbeddingByProjectId(projectUuid: string) {
         return this.embedModel.get(projectUuid);
+    }
+
+    private async mapEmbedUserToSessionUser(userUuid: string) {
+        const user = await this.userModel.getUserDetailsByUuid(userUuid);
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        return this.userService.findSessionUser({
+            id: userUuid,
+            organization: user.organizationUuid,
+        });
+    }
+
+    async executeAsyncDashboardChart(
+        projectUuid: string,
+        embedToken: string,
+        tileUuid: string,
+        dashboardFilters?: DashboardFilters,
+        dateZoomGranularity?: DateGranularity,
+        dashboardSorts?: SortField[],
+        limit?: number | null,
+        invalidateCache?: boolean,
+        checkPermissions: boolean = true,
+    ) {
+        const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
+            await this.embedModel.get(projectUuid);
+
+        const sessionUser = await this.mapEmbedUserToSessionUser(user.userUuid);
+
+        const decodedToken = decodeLightdashJwt(embedToken, encodedSecret);
+
+        const dashboardUuid = await this.getDashboardUuidFromContent(
+            decodedToken,
+            projectUuid,
+        );
+
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        const chart = await this._getChartFromDashboardTiles(
+            dashboard,
+            tileUuid,
+        );
+
+        const { organizationUuid } = chart;
+        await this.isFeatureEnabled({
+            userUuid: user.userUuid,
+            organizationUuid,
+        });
+
+        if (checkPermissions)
+            await this._permissionsGetChartAndResults(
+                { allowAllDashboards, dashboardUuids },
+                projectUuid,
+                chart.uuid,
+                dashboardUuid,
+            );
+
+        const exploreId = chart.tableName;
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            exploreId,
+        );
+
+        if (isExploreError(explore)) {
+            throw new ForbiddenError(
+                `Explore ${exploreId} on project ${projectUuid} has errors : ${explore.errors}`,
+            );
+        }
+
+        const appliedDashboardFilters = await this._getAppliedDashboardFilters(
+            decodedToken,
+            explore,
+            dashboard,
+            tileUuid,
+            dashboardFilters,
+        );
+
+        const externalId = EmbedService.getExternalId(decodedToken, embedToken);
+        this.analytics.track<EmbedQueryViewed>({
+            anonymousId: 'embed',
+            event: 'embed_query.executed',
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                dashboardId: dashboardUuid,
+                chartId: chart.uuid,
+                externalId,
+            },
+        });
+
+        const result =
+            await this.asyncQueryService.executeAsyncDashboardChartQuery({
+                // TODO :: THIS IS A HACK TO GET THE USER TO WORK
+                user: sessionUser,
+                projectUuid,
+                chartUuid: chart.uuid,
+                dashboardUuid,
+                dashboardFilters: appliedDashboardFilters,
+                dashboardSorts: dashboardSorts || [],
+                dateZoom: dateZoomGranularity
+                    ? {
+                          granularity: dateZoomGranularity,
+                      }
+                    : undefined,
+                context: QueryExecutionContext.EMBED,
+                invalidateCache: invalidateCache || false,
+                limit,
+            });
+
+        return {
+            executeQueryResponse: result,
+            chart: {
+                ...chart,
+                isPrivate: false,
+                access: [],
+            },
+            explore,
+        };
+    }
+
+    async getAsyncQueryResults(
+        projectUuid: string,
+        queryUuid: string,
+        embedToken: string,
+        page?: number,
+        pageSize?: number,
+    ) {
+        const { encodedSecret, user } = await this.embedModel.get(projectUuid);
+
+        const sessionUser = await this.mapEmbedUserToSessionUser(user.userUuid);
+
+        // Validate embed token
+        decodeLightdashJwt(embedToken, encodedSecret);
+
+        await this.isFeatureEnabled({
+            userUuid: user.userUuid,
+            // TODO :: THIS IS A HACK TO GET THE USER TO WORK
+
+            organizationUuid: sessionUser.organizationUuid!,
+        });
+
+        return this.asyncQueryService.getAsyncQueryResults({
+            // TODO :: THIS IS A HACK TO GET THE USER TO WORK
+            user: sessionUser,
+            projectUuid,
+            queryUuid,
+            page,
+            pageSize,
+        });
     }
 }

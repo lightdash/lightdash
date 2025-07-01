@@ -5,10 +5,11 @@ import { useMemo, type ComponentProps, type FC } from 'react';
 import type DashboardChartTile from '../../../../../components/DashboardTiles/DashboardChartTile';
 import { GenericDashboardChartTile } from '../../../../../components/DashboardTiles/DashboardChartTile';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
-import type { DashboardChartReadyQuery } from '../../../../../hooks/dashboard/useDashboardChartReadyQuery';
-import type { InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import useEmbed from '../../../../providers/Embed/useEmbed';
-import { useEmbedChartAndResults } from '../hooks';
+import {
+    useEmbedExecuteAsnycDashboardChartQuery,
+    useEmbedInfiniteQueryResults,
+} from '../hooks';
 
 type Props = ComponentProps<typeof DashboardChartTile> & {
     projectUuid: string;
@@ -33,10 +34,18 @@ const EmbedDashboardChartTile: FC<Props> = ({
 }) => {
     const { languageMap } = useEmbed();
 
-    const { isLoading, data, error } = useEmbedChartAndResults(
+    const executeQuery = useEmbedExecuteAsnycDashboardChartQuery(
         projectUuid,
         embedToken,
         tile.uuid,
+    );
+
+    const chart = executeQuery.data?.chart;
+
+    const resultsData = useEmbedInfiniteQueryResults(
+        projectUuid,
+        executeQuery.data?.executeQueryResponse.queryUuid,
+        embedToken,
     );
 
     const translatedTile = useMemo(() => {
@@ -54,61 +63,17 @@ const EmbedDashboardChartTile: FC<Props> = ({
         });
     }, [dashboardSlug, languageMap, tile, tileIndex]);
 
-    const translatedChartData = useMemo(() => {
-        if (!data) return undefined;
+    const translatedChart = useMemo(() => {
+        if (!chart) return undefined;
 
-        const chartConfigLanguageMap = languageMap?.chart?.[data.chart.slug];
+        const chartConfigLanguageMap = languageMap?.chart?.[chart.slug];
 
-        if (!chartConfigLanguageMap) return data;
+        if (!chartConfigLanguageMap) return chart;
 
-        return produce(data, (draft) => {
+        return produce({ chart }, (draft) => {
             draft.chart = mergeExisting(draft.chart, chartConfigLanguageMap);
-        });
-    }, [data, languageMap?.chart]);
-
-    // Mimic the DashboardChartReadyQuery object
-    const query = useMemo<DashboardChartReadyQuery | undefined>(() => {
-        if (!translatedChartData) return undefined;
-
-        return {
-            executeQueryResponse: {
-                queryUuid: '', // Does not use paginated query therefore there's no queryUuid
-                appliedDashboardFilters:
-                    translatedChartData.appliedDashboardFilters ?? {
-                        dimensions: [],
-                        metrics: [],
-                        tableCalculations: [],
-                    },
-                cacheMetadata: translatedChartData.cacheMetadata,
-                metricQuery: translatedChartData?.metricQuery,
-                fields: translatedChartData?.fields,
-            },
-            chart: translatedChartData.chart,
-            explore: translatedChartData.explore,
-        } satisfies DashboardChartReadyQuery;
-    }, [translatedChartData]);
-
-    const resultData = useMemo<InfiniteQueryResults>(
-        () =>
-            ({
-                queryUuid: '', // Does not use paginated query therefore there's no queryUuid
-                rows: translatedChartData?.rows ?? [],
-                totalResults: translatedChartData?.rows.length,
-                initialQueryExecutionMs: 0,
-                isFetchingRows: false,
-                isFetchingAllPages: false,
-                fetchMoreRows: () => undefined,
-                setFetchAll: () => undefined,
-                fetchAll: true,
-                hasFetchedAllRows: true,
-                totalClientFetchTimeMs: 0,
-                isInitialLoading: false,
-                isFetchingFirstPage: false,
-                projectUuid: translatedChartData?.chart.projectUuid,
-                error: error,
-            } satisfies InfiniteQueryResults),
-        [translatedChartData, error],
-    );
+        }).chart;
+    }, [chart, languageMap?.chart]);
 
     if (locked) {
         return (
@@ -127,14 +92,25 @@ const EmbedDashboardChartTile: FC<Props> = ({
         <GenericDashboardChartTile
             {...rest}
             tile={translatedTile}
-            isLoading={isLoading}
+            isLoading={
+                executeQuery.isLoading ||
+                resultsData.isInitialLoading ||
+                resultsData.isFetchingRows
+            }
             canExportCsv={canExportCsv}
             canExportImages={canExportImages}
             canExportPagePdf={canExportPagePdf}
             canDateZoom={canDateZoom}
-            resultsData={resultData}
-            dashboardChartReadyQuery={query}
-            error={error}
+            resultsData={resultsData}
+            dashboardChartReadyQuery={
+                executeQuery?.data && translatedChart
+                    ? {
+                          ...executeQuery.data,
+                          chart: translatedChart,
+                      }
+                    : undefined
+            }
+            error={executeQuery.error ?? resultsData.error}
         />
     );
 };
