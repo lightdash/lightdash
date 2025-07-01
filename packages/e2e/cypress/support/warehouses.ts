@@ -4,7 +4,7 @@ import bigqueryCredentials from '../fixtures/credentials.json';
 const warehouseConnections: Record<string, CreateWarehouseCredentials> = {
     postgresSQL: {
         host: Cypress.env('PGHOST') || 'db-dev',
-        user: 'postgres',
+        user: Cypress.env('PGUSER') || 'postgres',
         password: Cypress.env('PGPASSWORD') || 'password',
         dbname: 'postgres',
 

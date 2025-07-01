@@ -36,8 +36,13 @@ const defineAbilityForEmbedUser = (
     embedUser: CreateEmbedJwt,
     dashboardUuid: string,
 ): MemberAbility => {
+    const organization = {
+        organizationUuid: 'organization-uuid-1',
+        name: 'organization-name-1',
+        createdAt: new Date(),
+    };
     const builder = new AbilityBuilder<MemberAbility>(Ability);
-    applyEmbeddedAbility(embedUser, dashboardUuid, builder);
+    applyEmbeddedAbility(embedUser, dashboardUuid, organization, builder);
     return builder.build();
 };
 

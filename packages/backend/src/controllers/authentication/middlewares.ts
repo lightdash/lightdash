@@ -21,7 +21,8 @@ import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
-    if (req.user?.userUuid) {
+    // If we have user.externalId, we've authenticated via JWT
+    if (req.user?.externalId || req.user?.userUuid) {
         if (req.user.isActive) {
             next();
         } else {

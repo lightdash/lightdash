@@ -2,6 +2,10 @@ import { defineConfig } from 'cypress';
 import cypressSplit from 'cypress-split';
 import { unlinkSync } from 'fs';
 
+// If running natively, we want to use environment variables from the host machine
+// to be added to Cypress.env()
+const env = process.env.RUNTIME === 'native' ? process.env : {};
+
 export default defineConfig({
     viewportWidth: 1920,
     viewportHeight: 1080,
@@ -65,6 +69,7 @@ export default defineConfig({
             return config;
         },
     },
+    env,
 
     video: true,
     videoCompression: true,
