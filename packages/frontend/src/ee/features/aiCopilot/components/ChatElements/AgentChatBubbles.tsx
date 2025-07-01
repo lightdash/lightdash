@@ -178,7 +178,6 @@ export const AssistantBubble: FC<{
         useAiAgentThreadStreaming(message.threadUuid) &&
         isOptimisticMessageStub(message.message);
 
-    const metricQuery = queryExecutionHandle.data?.query.metricQuery;
     const vizConfig = message.vizConfigOutput;
 
     if (!projectUuid) throw new Error(`Project Uuid not found`);
@@ -195,11 +194,12 @@ export const AssistantBubble: FC<{
         >
             <AssistantBubbleContent message={message} />
 
-            {vizConfig && metricQuery && (
+            {vizConfig && (
                 <Paper
                     withBorder
                     radius="md"
                     p="md"
+                    h="500px"
                     shadow="none"
                     {...((queryExecutionHandle.isError ||
                         queryExecutionHandle.isLoading) && {
@@ -210,8 +210,12 @@ export const AssistantBubble: FC<{
                     })}
                 >
                     {isQueryLoading ? (
-                        <Center>
-                            <Loader type="dots" color="gray" />
+                        <Center h="100%">
+                            <Loader
+                                type="dots"
+                                color="gray"
+                                delayedMessage="Loading visualization..."
+                            />
                         </Center>
                     ) : isQueryError ? (
                         <Stack gap="xs" align="center">
