@@ -171,7 +171,7 @@ export const AiChartVisualization: FC<Props> = ({
                     setEchartSeries(series);
                 }}
             >
-                <Stack gap="md" h="100%" mih={400}>
+                <Stack gap="md" h="100%">
                     <Group justify="space-between" align="start">
                         <SegmentedControl
                             style={{
@@ -204,7 +204,13 @@ export const AiChartVisualization: FC<Props> = ({
                         )}
                     </Group>
 
-                    <Box flex="1 0 0">
+                    <Box
+                        flex="1 0 0"
+                        style={{
+                            // Scrolling for tables
+                            overflow: 'auto',
+                        }}
+                    >
                         {activeTab === 'chart' ? (
                             <>
                                 <LightdashVisualization
