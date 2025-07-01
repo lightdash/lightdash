@@ -49,7 +49,6 @@ export const AgentChatDisplay: FC<PropsWithChildren<AgentChatDisplayProps>> = ({
 
     return (
         <Flex
-            key={thread.uuid}
             ref={viewport}
             direction="column"
             h={height}
