@@ -32,6 +32,7 @@ import {
     isDuplicateDashboardParams,
     type ApiCalculateSubtotalsResponse,
     type ApiCreateDashboardResponse,
+    type ApiCreatePreviewResults,
     type ApiGetDashboardsResponse,
     type ApiGetTagsResponse,
     type ApiRefreshResults,
@@ -639,7 +640,7 @@ export class ProjectController extends BaseController {
             warehouseConnectionOverrides?: { schema?: string };
         },
         @Request() req: express.Request,
-    ): Promise<{ status: 'ok'; results: string }> {
+    ): Promise<{ status: 'ok'; results: ApiCreatePreviewResults }> {
         this.setStatus(200);
 
         const results = await this.services

@@ -676,6 +676,11 @@ export type ApiRefreshResults = {
     jobUuid: string;
 };
 
+export type ApiCreatePreviewResults = {
+    projectUuid: string;
+    compileJobUuid: string;
+};
+
 export type ApiJobStartedResults = {
     jobUuid: string;
 };
@@ -799,6 +804,7 @@ type ApiResults =
     | ApiExploreResults
     | ApiStatusResults
     | ApiRefreshResults
+    | ApiCreatePreviewResults
     | ApiHealthResults
     | Organization
     | LightdashUser
