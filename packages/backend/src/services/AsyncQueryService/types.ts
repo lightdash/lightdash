@@ -1,7 +1,7 @@
 import {
+    Account,
     DownloadFileType,
     GroupByColumn,
-    ItemsMap,
     MetricQuery,
     PivotConfig,
     SortBy,
@@ -18,15 +18,16 @@ import {
     type SortField,
 } from '@lightdash/common';
 
-export type CommonAsyncQueryArgs = {
-    user: SessionUser;
+export type CommonAsyncQueryArgs<UserOverride = SessionUser> = {
+    user: UserOverride;
+    account?: Account;
     projectUuid: string;
     invalidateCache?: boolean;
     context: QueryExecutionContext;
 };
 
-export type GetAsyncQueryResultsArgs = Omit<
-    CommonAsyncQueryArgs,
+export type GetAsyncQueryResultsArgs<UserOverride = SessionUser> = Omit<
+    CommonAsyncQueryArgs<UserOverride>,
     'context' | 'invalidateCache'
 > &
     ResultsPaginationArgs & {
@@ -48,16 +49,18 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     attachmentDownloadName?: string;
 };
 
-export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
-    metricQuery: MetricQuery;
-    dateZoom?: DateZoom;
-};
+export type ExecuteAsyncMetricQueryArgs<UserOverride = SessionUser> =
+    CommonAsyncQueryArgs<UserOverride> & {
+        metricQuery: MetricQuery;
+        dateZoom?: DateZoom;
+    };
 
-export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
-    chartUuid: string;
-    versionUuid?: string;
-    limit?: number | null | undefined;
-};
+export type ExecuteAsyncSavedChartQueryArgs<UserOverride = SessionUser> =
+    CommonAsyncQueryArgs<UserOverride> & {
+        chartUuid: string;
+        versionUuid?: string;
+        limit?: number | null | undefined;
+    };
 
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     chartUuid: string;

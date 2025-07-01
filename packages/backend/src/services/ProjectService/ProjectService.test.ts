@@ -219,50 +219,50 @@ describe('ProjectService', () => {
     });
     describe('getAllExploresSummary', () => {
         test('should get all explores summary without filtering', async () => {
-            const result = await service.getAllExploresSummary(
+            const result = await service.getAllExploresSummary({
                 user,
                 projectUuid,
-                false,
-            );
+                filtered: false,
+            });
             expect(result).toEqual(expectedAllExploreSummary);
         });
         test('should get all explores summary with filtering', async () => {
-            const result = await service.getAllExploresSummary(
+            const result = await service.getAllExploresSummary({
                 user,
                 projectUuid,
-                true,
-            );
+                filtered: true,
+            });
             expect(result).toEqual(expectedAllExploreSummary);
         });
         test('should get explores summary filtered by tag', async () => {
             (
                 projectModel.getTablesConfiguration as jest.Mock
             ).mockImplementationOnce(async () => tablesConfigurationWithTags);
-            const result = await service.getAllExploresSummary(
+            const result = await service.getAllExploresSummary({
                 user,
                 projectUuid,
-                true,
-            );
+                filtered: true,
+            });
             expect(result).toEqual(expectedExploreSummaryFilteredByTags);
         });
         test('should get explores summary filtered by name', async () => {
             (
                 projectModel.getTablesConfiguration as jest.Mock
             ).mockImplementationOnce(async () => tablesConfigurationWithNames);
-            const result = await service.getAllExploresSummary(
+            const result = await service.getAllExploresSummary({
                 user,
                 projectUuid,
-                true,
-            );
+                filtered: true,
+            });
             expect(result).toEqual(expectedExploreSummaryFilteredByName);
         });
         test('should get all explores summary that do not have errors', async () => {
-            const result = await service.getAllExploresSummary(
+            const result = await service.getAllExploresSummary({
                 user,
                 projectUuid,
-                false,
-                false,
-            );
+                filtered: false,
+                includeErrors: false,
+            });
             expect(result).toEqual(expectedAllExploreSummaryWithoutErrors);
         });
     });

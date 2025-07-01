@@ -76,12 +76,13 @@ export type AccountAccess = {
      * */
     dashboardId: string;
     filtering?: DashboardFilterInteractivityOptions;
-    controls?: AccountAccessControls;
+    controls: AccountAccessControls;
 };
 
 type AccountOrganization = Pick<Organization, 'organizationUuid' | 'name'>;
 
 type ILightdashAccount = {
+    type: 'external' | 'lightdash';
     organization: AccountOrganization;
     authentication: LightdashAccountAuth;
     user: AccountUser;
@@ -90,6 +91,7 @@ type ILightdashAccount = {
 type LightdashAccount<T extends ILightdashAccount> = {} & T;
 
 export type ExternalAccount = LightdashAccount<{
+    type: 'external';
     organization: AccountOrganization;
     authentication: EmbeddedAccountAuth;
     user: ExternalUser;
@@ -98,6 +100,7 @@ export type ExternalAccount = LightdashAccount<{
 }>;
 
 export type SessionAccount = LightdashAccount<{
+    type: 'lightdash';
     organization: AccountOrganization;
     authentication: LightdashUserAccountAuth;
     user: LightdashSessionUser;

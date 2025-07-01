@@ -74,7 +74,8 @@ export class QueryController extends BaseController {
         const results = await this.services
             .getAsyncQueryService()
             .getAsyncQueryResults({
-                user: req.user!,
+                user: req.user,
+                account: req.account,
                 projectUuid,
                 queryUuid,
                 page,
@@ -142,7 +143,8 @@ export class QueryController extends BaseController {
         const results = await this.services
             .getAsyncQueryService()
             .executeAsyncMetricQuery({
-                user: req.user!,
+                user: req.user,
+                account: req.account,
                 projectUuid,
                 invalidateCache: body.invalidateCache,
                 metricQuery,
@@ -174,7 +176,8 @@ export class QueryController extends BaseController {
         const results = await this.services
             .getAsyncQueryService()
             .executeAsyncSavedChartQuery({
-                user: req.user!,
+                user: req.user,
+                account: req.account,
                 projectUuid,
                 invalidateCache: body.invalidateCache,
                 chartUuid: body.chartUuid,

@@ -25,6 +25,14 @@ const addBaseAbilities: EmbeddedAbilityBuilder = ({
         dashboardUuid,
         organizationUuid: organization.organizationUuid,
     });
+    can('view', 'Explore', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embedUser.content.projectUuid,
+    });
+    can('view', 'Project', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embedUser.content.projectUuid,
+    });
     return { embedUser, dashboardUuid, organization, builder };
 };
 
@@ -40,6 +48,7 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     if (content.canExportCsv) {
         can('export', 'Dashboard', {
             organizationUuid: organization.organizationUuid,
+            dashboardUuid,
             type: 'csv',
         });
     }
@@ -47,6 +56,7 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     if (content.canExportPagePdf) {
         can('export', 'Dashboard', {
             organizationUuid: organization.organizationUuid,
+            dashboardUuid,
             type: 'pdf',
         });
     }
@@ -54,6 +64,7 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     if (content.canExportImages) {
         can('export', 'Dashboard', {
             organizationUuid: organization.organizationUuid,
+            dashboardUuid,
             type: 'images',
         });
     }
@@ -73,6 +84,7 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
     can('view', 'Dashboard', {
         dateZoom: content.canDateZoom ?? false,
         organizationUuid: organization.organizationUuid,
+        dashboardUuid,
     });
     return { embedUser, dashboardUuid, organization, builder };
 };

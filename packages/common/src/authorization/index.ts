@@ -1,6 +1,8 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
+import { type Account } from '../types/auth';
+import { ForbiddenError } from '../types/errors';
 import { type ProjectMemberProfile } from '../types/projectMemberProfile';
-import { type LightdashUser } from '../types/user';
+import { type LightdashUser, type SessionUser } from '../types/user';
 import applyOrganizationMemberAbilities, {
     type OrganizationMemberAbilitiesArgs,
 } from './organizationMemberAbility';
@@ -65,3 +67,18 @@ export const defineUserAbility = (
     });
     return builder.build();
 };
+
+export function getAbilityOrThrow(account?: Account, user?: SessionUser) {
+    if (account && user) {
+        throw new ForbiddenError('Cannot use both account and user');
+    }
+
+    if (account?.user.ability) {
+        return account.user.ability;
+    }
+    if (user?.ability) {
+        return user.ability;
+    }
+
+    throw new ForbiddenError('User has no ability');
+}

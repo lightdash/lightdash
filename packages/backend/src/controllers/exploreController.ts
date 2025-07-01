@@ -70,11 +70,12 @@ export class ExploreController extends BaseController {
         this.setStatus(200);
         const results: ApiExploresResults = await this.services
             .getProjectService()
-            .getAllExploresSummary(
-                req.user!,
+            .getAllExploresSummary({
+                user: req.user!,
                 projectUuid,
-                req.query.filtered === 'true',
-            );
+                filtered: req.query.filtered === 'true',
+                includeErrors: true,
+            });
 
         return {
             status: 'ok',
@@ -93,9 +94,13 @@ export class ExploreController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiExploreResults }> {
         this.setStatus(200);
-        const results = await this.services
-            .getProjectService()
-            .getExplore(req.user!, projectUuid, exploreId, undefined, false);
+        const results = await this.services.getProjectService().getExplore({
+            user: req.user!,
+            projectUuid,
+            exploreName: exploreId,
+            organizationUuid: undefined,
+            includeUnfilteredTables: false,
+        });
 
         return {
             status: 'ok',

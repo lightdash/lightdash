@@ -116,7 +116,7 @@ export class QueryHistoryModel {
         const [result] = await this.database(QueryHistoryTableName)
             .insert({
                 status: QueryHistoryStatus.PENDING,
-                created_by_user_uuid: queryHistory.createdByUserUuid,
+                created_by_user_uuid: queryHistory?.createdByUserUuid || null,
                 organization_uuid: queryHistory.organizationUuid,
                 project_uuid: queryHistory.projectUuid,
                 compiled_sql: queryHistory.compiledSql,
@@ -151,14 +151,20 @@ export class QueryHistoryModel {
     async update(
         queryUuid: string,
         projectUuid: string,
-        userUuid: string,
+        userUuid: string | null | undefined,
         update: DbQueryHistoryUpdate,
     ) {
         const query = this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
             .andWhere('project_uuid', projectUuid)
-            .andWhere('created_by_user_uuid', userUuid)
             .update(update);
+
+        if (userUuid) {
+            // This isn't a floating promise, we handle it below.
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            query.andWhere('created_by_user_uuid', userUuid);
+        }
+
         // only update pending queries to ready
         if (update.status === QueryHistoryStatus.READY) {
             void query.andWhere('status', QueryHistoryStatus.PENDING);
@@ -166,12 +172,18 @@ export class QueryHistoryModel {
         return query;
     }
 
-    async get(queryUuid: string, projectUuid: string, userUuid: string) {
-        const result = await this.database(QueryHistoryTableName)
+    async get(queryUuid: string, projectUuid: string, userUuid: string | null) {
+        const query = this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
-            .andWhere('project_uuid', projectUuid)
-            .andWhere('created_by_user_uuid', userUuid)
-            .first();
+            .andWhere('project_uuid', projectUuid);
+
+        if (userUuid) {
+            // This isn't a floating promise, we handle it below.
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            query.andWhere('created_by_user_uuid', userUuid);
+        }
+
+        const result = await query.first();
 
         if (!result) {
             throw new NotFoundError(

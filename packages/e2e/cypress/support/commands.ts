@@ -26,6 +26,7 @@
 import {
     ApiChartSummaryListResponse,
     CreateChartInSpace,
+    CreateEmbedJwt,
     CreatePersonalAccessToken,
     CreateWarehouseCredentials,
     DashboardBasicDetails,
@@ -101,6 +102,17 @@ declare global {
                 dragSelector: string,
                 dropSelector: string,
             ): Chainable<Element>;
+            getJwtToken(
+                projectUuid: string,
+                options?: {
+                    userEmail?: string;
+                    userExternalId?: string;
+                    canExportCsv?: boolean;
+                    canExportImages?: boolean;
+                    canExportPagePdf?: boolean;
+                    canDateZoom?: boolean;
+                },
+            ): Chainable<string>;
         }
     }
 }
@@ -445,6 +457,7 @@ Cypress.Commands.add(
                     target: '',
                     environment: [],
                     type: 'dbt',
+                    project_dir: Cypress.env('DBT_PROJECT_DIR'),
                 },
                 dbtVersion: 'v1.7',
                 warehouseConnection: warehouseConfig || {
@@ -634,5 +647,96 @@ Cypress.Commands.add(
                         });
                 }
             });
+    },
+);
+
+Cypress.Commands.add(
+    'getJwtToken',
+    (
+        projectUuid: string,
+        options: {
+            userEmail?: string;
+            userExternalId?: string;
+            canExportCsv?: boolean;
+            canExportImages?: boolean;
+            canExportPagePdf?: boolean;
+            canDateZoom?: boolean;
+        } = {},
+    ) => {
+        const {
+            userEmail = 'test@example.com',
+            userExternalId = 'test-user-123',
+            canExportCsv = false,
+            canExportImages = false,
+            canExportPagePdf = false,
+            canDateZoom = false,
+        } = options;
+
+        // First login to get embed configuration and dashboard UUID
+        cy.login();
+
+        let dashboardUuid: string;
+
+        // Get a dashboard UUID from the project
+        cy.request({
+            url: `api/v1/projects/${projectUuid}/dashboards`,
+            method: 'GET',
+        }).then((dashboardsResponse) => {
+            expect(dashboardsResponse.status).to.eq(200);
+            expect(dashboardsResponse.body.results).to.have.length.greaterThan(
+                0,
+            );
+            dashboardUuid = dashboardsResponse.body.results[0].uuid;
+
+            // Get embed configuration to get the encoded secret
+            cy.request({
+                url: `api/v1/embed/${projectUuid}/config`,
+                method: 'GET',
+            }).then((configResponse) => {
+                expect(configResponse.status).to.eq(200);
+
+                // Create JWT data structure
+                const jwtData: CreateEmbedJwt = {
+                    content: {
+                        type: 'dashboard',
+                        projectUuid,
+                        dashboardUuid,
+                        canExportCsv,
+                        canExportImages,
+                        canExportPagePdf,
+                        canDateZoom,
+                    },
+                    userAttributes: {
+                        email: userEmail,
+                        externalId: userExternalId,
+                    },
+                    user: {
+                        email: userEmail,
+                        externalId: userExternalId,
+                    },
+                    expiresIn: '1h',
+                };
+
+                // Create embed URL to get the JWT token
+                cy.request({
+                    url: `api/v1/embed/${projectUuid}/get-embed-url`,
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: jwtData,
+                }).then((embedUrlResponse) => {
+                    expect(embedUrlResponse.status).to.eq(200);
+
+                    // Extract JWT token from the URL (it's in the hash fragment)
+                    const { url } = embedUrlResponse.body.results;
+                    const jwtToken = url.split('#')[1];
+
+                    // Logout to clear session
+                    cy.logout();
+
+                    // Return the JWT token
+                    cy.wrap(jwtToken);
+                });
+            });
+        });
     },
 );
