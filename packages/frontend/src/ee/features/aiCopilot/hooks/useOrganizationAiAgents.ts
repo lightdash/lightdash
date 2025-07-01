@@ -479,12 +479,6 @@ export const useUpdatePromptFeedbackMutation = (
                 },
             );
         },
-        onSuccess: () => {
-            // Invalidate relevant queries to refresh the data
-            void queryClient.invalidateQueries({
-                queryKey: [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
-            });
-        },
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to submit feedback',
