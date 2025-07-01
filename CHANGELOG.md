@@ -1,3 +1,10 @@
+## [0.1769.6](https://github.com/lightdash/lightdash/compare/0.1769.5...0.1769.6) (2025-07-01)
+
+
+### Bug Fixes
+
+* don't refetch previous visualizations in the thread when a new vizualization is generated ([#15645](https://github.com/lightdash/lightdash/issues/15645)) ([66717d5](https://github.com/lightdash/lightdash/commit/66717d511021d9cfd256c6640e2e96fd6bd19aa3))
+
 ## [0.1769.5](https://github.com/lightdash/lightdash/compare/0.1769.4...0.1769.5) (2025-07-01)
 
 
