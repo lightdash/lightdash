@@ -1,3 +1,33 @@
+## [0.1769.2](https://github.com/lightdash/lightdash/compare/0.1769.1...0.1769.2) (2025-07-01)
+
+
+### Bug Fixes
+
+* show compile status when creating a preview from UI ([#15639](https://github.com/lightdash/lightdash/issues/15639)) ([425984d](https://github.com/lightdash/lightdash/commit/425984d6d51b4fbf95a75d39a9b764621c78a3da))
+
+## [0.1769.1](https://github.com/lightdash/lightdash/compare/0.1769.0...0.1769.1) (2025-07-01)
+
+
+### Bug Fixes
+
+* refresh strategies on scheduler ([#15637](https://github.com/lightdash/lightdash/issues/15637)) ([20eae73](https://github.com/lightdash/lightdash/commit/20eae73c2d0360d7cfb942f35a7f5a14a032128b))
+
+# [0.1769.0](https://github.com/lightdash/lightdash/compare/0.1768.0...0.1769.0) (2025-07-01)
+
+
+### Bug Fixes
+
+* chartName in language maps ([#15624](https://github.com/lightdash/lightdash/issues/15624)) ([09635c9](https://github.com/lightdash/lightdash/commit/09635c9df11c45cef3a634266696bcebb964c54e))
+* disable tracking UI form when rudder is disabled ([#15618](https://github.com/lightdash/lightdash/issues/15618)) ([eb541a8](https://github.com/lightdash/lightdash/commit/eb541a807c5d608c36667894a1ded1d2545427c1))
+* improve error logs sso ([#15627](https://github.com/lightdash/lightdash/issues/15627)) ([366fa9b](https://github.com/lightdash/lightdash/commit/366fa9bea79924cad8874248422802951abc6e98))
+* remove hard limit on validation page ([#15612](https://github.com/lightdash/lightdash/issues/15612)) ([fef01ed](https://github.com/lightdash/lightdash/commit/fef01ed6af5d4899819f30dda0647a1339897d6d))
+
+
+### Features
+
+* allow create projects without warehouse credentials ([#15594](https://github.com/lightdash/lightdash/issues/15594)) ([5363e91](https://github.com/lightdash/lightdash/commit/5363e91384e7540335a79aafb1543f2317b14582))
+* display how an ai chart is calculated ([#15610](https://github.com/lightdash/lightdash/issues/15610)) ([cafe3e7](https://github.com/lightdash/lightdash/commit/cafe3e776e0030687afa98935125f9cfdcd358a8))
+
 # [0.1768.0](https://github.com/lightdash/lightdash/compare/0.1767.1...0.1768.0) (2025-06-30)
 
 

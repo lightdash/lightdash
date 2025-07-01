@@ -6,6 +6,7 @@ import {
     AndFilterGroup,
     AnyType,
     ApiChartAndResults,
+    ApiCreatePreviewResults,
     type ApiCreateProjectResults,
     ApiQueryResults,
     ApiSqlQueryResults,
@@ -635,7 +636,10 @@ export class ProjectService extends BaseService {
                 BigqueryAuthenticationType.SSO &&
             args.warehouseConnection.keyfileContents.type !== 'authorized_user'
         ) {
-            const refreshToken = await this.userModel.getRefreshToken(userUuid);
+            const refreshToken = await this.userModel.getRefreshToken(
+                userUuid,
+                OpenIdIdentityIssuerType.GOOGLE,
+            );
 
             // Validate refresh token has the right bigquery scopes
             await UserService.generateGoogleAccessToken(
@@ -4859,7 +4863,7 @@ export class ProjectService extends BaseService {
             warehouseConnectionOverrides?: { schema?: string };
         },
         context: RequestMethod,
-    ): Promise<string> {
+    ): Promise<ApiCreatePreviewResults> {
         // create preview project permissions are checked in `createWithoutCompile`
         const project = await this.projectModel.getWithSensitiveFields(
             projectUuid,
@@ -4894,13 +4898,16 @@ export class ProjectService extends BaseService {
         // it is possible that the user `abilities` are not uptodate
         // Before we check permissions on scheduleCompileProject
         // Permissions will be checked again with the uptodate user on scheduler
-        await this.scheduleCompileProject(
+        const { jobUuid } = await this.scheduleCompileProject(
             user,
             previewProject.project.projectUuid,
             context,
             true, // Skip permission check
         );
-        return previewProject.project.projectUuid;
+        return {
+            projectUuid: previewProject.project.projectUuid,
+            compileJobUuid: jobUuid,
+        };
     }
 
     /*
@@ -6206,6 +6213,7 @@ export class ProjectService extends BaseService {
         // Bigquery will handle the permissions
         const refreshToken = await this.userModel.getRefreshToken(
             user.userUuid,
+            OpenIdIdentityIssuerType.GOOGLE,
         );
 
         if (projectId.length === 0) {
