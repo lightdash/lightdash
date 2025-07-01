@@ -1,3 +1,10 @@
+## [0.1769.4](https://github.com/lightdash/lightdash/compare/0.1769.3...0.1769.4) (2025-07-01)
+
+
+### Bug Fixes
+
+* render filters based on metric query instead of ai_prompt.filtersOutput ([#15643](https://github.com/lightdash/lightdash/issues/15643)) ([f70eb32](https://github.com/lightdash/lightdash/commit/f70eb32bdb327e9cd2f43231f1dcbf456d260bc4))
+
 ## [0.1769.3](https://github.com/lightdash/lightdash/compare/0.1769.2...0.1769.3) (2025-07-01)
 
 
