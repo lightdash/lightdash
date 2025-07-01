@@ -325,7 +325,7 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
 
                         subtotalDimensionValues.forEach((dimValue, index) => {
                             if (index === subtotalDimensionNames.length - 1) {
-                                if (parent.children[dimValue]) {
+                                if (parent?.children?.[dimValue]) {
                                     // Handles null values
                                     parent.children[dimValue].value[0] =
                                         subtotalValueObject[sizeMetricId];
@@ -335,7 +335,7 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
                                     }
                                 }
                             }
-                            parent = parent.children?.[dimValue];
+                            parent = parent?.children?.[dimValue];
                         });
                     });
                 },

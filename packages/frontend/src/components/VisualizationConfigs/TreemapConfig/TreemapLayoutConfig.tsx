@@ -57,39 +57,49 @@ export const Layout: React.FC = () => {
         setEndColorThreshold,
     } = visualizationConfig.chartConfig;
 
-    const orderedDimensions = groupFieldIds.map((dimensionId, index) => {
-        if (!itemsMap || !dimensionId) return null;
+    const orderedDimensions = !itemsMap
+        ? null
+        : groupFieldIds
+              .filter((id) => id !== null && id !== undefined)
+              .filter((id) => itemsMap[id])
+              .map((dimensionId, index) => {
+                  const dimension = itemsMap[dimensionId];
 
-        const dimension = itemsMap[dimensionId];
-
-        return (
-            <Draggable
-                key={dimensionId}
-                index={index}
-                draggableId={dimensionId}
-            >
-                {(provided, snapshot) => (
-                    <DraggablePortalHandler snapshot={snapshot}>
-                        <div
-                            className={`${classes.item} ${
-                                snapshot.isDragging ? classes.itemDragging : ''
-                            }`}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            ref={provided.innerRef}
-                        >
-                            <div className={classes.dragHandle}>
-                                <IconGripVertical size={18} stroke={1.5} />
-                            </div>
-                            <Text>
-                                {getItemLabelWithoutTableName(dimension)}
-                            </Text>
-                        </div>
-                    </DraggablePortalHandler>
-                )}
-            </Draggable>
-        );
-    });
+                  return (
+                      <Draggable
+                          key={dimensionId}
+                          index={index}
+                          draggableId={dimensionId}
+                      >
+                          {(provided, snapshot) => (
+                              <DraggablePortalHandler snapshot={snapshot}>
+                                  <div
+                                      className={`${classes.item} ${
+                                          snapshot.isDragging
+                                              ? classes.itemDragging
+                                              : ''
+                                      }`}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      ref={provided.innerRef}
+                                  >
+                                      <div className={classes.dragHandle}>
+                                          <IconGripVertical
+                                              size={18}
+                                              stroke={1.5}
+                                          />
+                                      </div>
+                                      <Text>
+                                          {getItemLabelWithoutTableName(
+                                              dimension,
+                                          )}
+                                      </Text>
+                                  </div>
+                              </DraggablePortalHandler>
+                          )}
+                      </Draggable>
+                  );
+              });
 
     return (
         <Stack>
