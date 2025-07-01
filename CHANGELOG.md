@@ -1,3 +1,10 @@
+## [0.1769.1](https://github.com/lightdash/lightdash/compare/0.1769.0...0.1769.1) (2025-07-01)
+
+
+### Bug Fixes
+
+* refresh strategies on scheduler ([#15637](https://github.com/lightdash/lightdash/issues/15637)) ([20eae73](https://github.com/lightdash/lightdash/commit/20eae73c2d0360d7cfb942f35a7f5a14a032128b))
+
 # [0.1769.0](https://github.com/lightdash/lightdash/compare/0.1768.0...0.1769.0) (2025-07-01)
 
 
