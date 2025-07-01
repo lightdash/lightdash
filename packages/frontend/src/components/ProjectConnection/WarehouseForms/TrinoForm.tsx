@@ -71,7 +71,7 @@ const TrinoForm: FC<{
                     name="warehouse.password"
                     label="Password"
                     description="This is the database user password."
-                    required={requireSecrets}
+                    // required={requireSecrets}
                     placeholder={
                         disabled || !requireSecrets
                             ? '**************'
