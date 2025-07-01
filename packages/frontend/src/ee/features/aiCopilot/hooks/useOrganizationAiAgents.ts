@@ -406,12 +406,12 @@ export const useAiAgentThreadMessageVizQuery = (args: {
     return useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
         queryKey: [
             AI_AGENTS_KEY,
+            'viz-query',
             args.agentUuid,
             'threads',
             args.message.threadUuid,
             'message',
             args.message.uuid,
-            'viz-query',
         ],
         queryFn: () =>
             getAgentThreadMessageVizQuery({
