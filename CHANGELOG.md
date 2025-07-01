@@ -1,3 +1,10 @@
+## [0.1769.3](https://github.com/lightdash/lightdash/compare/0.1769.2...0.1769.3) (2025-07-01)
+
+
+### Bug Fixes
+
+* do not invalidate on human score change ([#15649](https://github.com/lightdash/lightdash/issues/15649)) ([df9e142](https://github.com/lightdash/lightdash/commit/df9e1423d9d3524cf699f1ba3741a0d6e9c35ed4))
+
 ## [0.1769.2](https://github.com/lightdash/lightdash/compare/0.1769.1...0.1769.2) (2025-07-01)
 
 
