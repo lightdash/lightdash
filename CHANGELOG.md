@@ -1,3 +1,10 @@
+## [0.1769.2](https://github.com/lightdash/lightdash/compare/0.1769.1...0.1769.2) (2025-07-01)
+
+
+### Bug Fixes
+
+* show compile status when creating a preview from UI ([#15639](https://github.com/lightdash/lightdash/issues/15639)) ([425984d](https://github.com/lightdash/lightdash/commit/425984d6d51b4fbf95a75d39a9b764621c78a3da))
+
 ## [0.1769.1](https://github.com/lightdash/lightdash/compare/0.1769.0...0.1769.1) (2025-07-01)
 
 
