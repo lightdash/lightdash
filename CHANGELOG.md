@@ -1,3 +1,10 @@
+## [0.1769.5](https://github.com/lightdash/lightdash/compare/0.1769.4...0.1769.5) (2025-07-01)
+
+
+### Bug Fixes
+
+* scroll-to-bottom behavior when loading charts ([#15644](https://github.com/lightdash/lightdash/issues/15644)) ([f5b61f2](https://github.com/lightdash/lightdash/commit/f5b61f2f99a6633c8ea0aa05eeb93db550c1affe)), closes [#15432](https://github.com/lightdash/lightdash/issues/15432)
+
 ## [0.1769.4](https://github.com/lightdash/lightdash/compare/0.1769.3...0.1769.4) (2025-07-01)
 
 
