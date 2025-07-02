@@ -3167,32 +3167,33 @@ export default class SchedulerTask {
 
                 try {
                     // Get warehouse client using the projectService
-                    const warehouseConnection =
-                        await this.projectService._getWarehouseClient(
+                    const { warehouseClient, sshTunnel: warehouseSshTunnel } =
+                        await this.asyncQueryService._getWarehouseClient(
                             projectUuid,
                             warehouseCredentials,
                         );
-                    sshTunnel = warehouseConnection.sshTunnel;
+
+                    sshTunnel = warehouseSshTunnel;
 
                     const fileName =
                         QueryHistoryModel.createUniqueResultsFileName(cacheKey);
 
                     // Create upload stream for storing results
-                    stream =
-                        this.asyncQueryService.storageClient.createUploadStream(
-                            S3ResultsFileStorageClient.sanitizeFileExtension(
-                                fileName,
-                            ),
-                            {
-                                contentType: 'application/jsonl',
-                            },
-                        );
+                    // If S3 is not configured, we don't write to S3
+                    stream = this.asyncQueryService.storageClient.isEnabled
+                        ? this.asyncQueryService.storageClient.createUploadStream(
+                              S3ResultsFileStorageClient.sanitizeFileExtension(
+                                  fileName,
+                              ),
+                              {
+                                  contentType: 'application/jsonl',
+                              },
+                          )
+                        : undefined;
 
                     const createdAt = new Date();
-                    // Use a simple cache expiration calculation (24 hours)
-                    const newExpiresAt = new Date(
-                        createdAt.getTime() + 24 * 60 * 60 * 1000,
-                    );
+                    const newExpiresAt =
+                        this.asyncQueryService.getCacheExpiresAt(createdAt);
 
                     this.analytics.track({
                         userId: userUuid,
@@ -3205,7 +3206,6 @@ export default class SchedulerTask {
                             expiresAt: newExpiresAt,
                         },
                     });
-
                     const {
                         warehouseResults: {
                             durationMs,
@@ -3216,10 +3216,10 @@ export default class SchedulerTask {
                         pivotDetails,
                         columns,
                     } = await AsyncQueryService.runQueryAndTransformRows({
-                        warehouseClient: warehouseConnection.warehouseClient,
+                        warehouseClient,
                         query,
                         queryTags,
-                        write: stream.write,
+                        write: stream?.write,
                         pivotConfiguration,
                     });
 
@@ -3229,9 +3229,7 @@ export default class SchedulerTask {
                         properties: {
                             queryId: queryHistoryUuid,
                             projectId: projectUuid,
-                            warehouseType:
-                                warehouseConnection.warehouseClient.credentials
-                                    .type,
+                            warehouseType: warehouseCredentials.type,
                             warehouseExecutionTimeMs: durationMs,
                             columnsCount:
                                 pivotDetails?.totalColumnCount ??
@@ -3241,24 +3239,25 @@ export default class SchedulerTask {
                         },
                     });
 
-                    // Wait for the cache to be written before marking the query as ready
                     if (stream) {
+                        // Wait for the file to be written before marking the query as ready
                         await stream.close();
-                    }
 
-                    this.analytics.track({
-                        userId: userUuid,
-                        event: 'results_cache.write',
-                        properties: {
-                            queryId: queryHistoryUuid,
-                            projectId: projectUuid,
-                            cacheKey,
-                            totalRowCount: pivotDetails?.totalRows ?? totalRows,
-                            pivotTotalColumnCount:
-                                pivotDetails?.totalColumnCount,
-                            isPivoted: pivotDetails !== null,
-                        },
-                    });
+                        this.analytics.track({
+                            userId: userUuid,
+                            event: 'results_cache.write',
+                            properties: {
+                                queryId: queryHistoryUuid,
+                                projectId: projectUuid,
+                                cacheKey,
+                                totalRowCount:
+                                    pivotDetails?.totalRows ?? totalRows,
+                                pivotTotalColumnCount:
+                                    pivotDetails?.totalColumnCount,
+                                isPivoted: pivotDetails !== null,
+                            },
+                        });
+                    }
 
                     await this.asyncQueryService.queryHistoryModel.update(
                         queryHistoryUuid,
@@ -3279,10 +3278,10 @@ export default class SchedulerTask {
                                       pivotDetails.valuesColumns.entries(),
                                   )
                                 : null,
-                            results_file_name: fileName,
-                            results_created_at: createdAt,
-                            results_updated_at: new Date(),
-                            results_expires_at: newExpiresAt,
+                            results_file_name: stream ? fileName : null,
+                            results_created_at: stream ? createdAt : null,
+                            results_updated_at: stream ? new Date() : null,
+                            results_expires_at: stream ? newExpiresAt : null,
                             columns,
                             original_columns: originalColumns,
                         },
@@ -3295,10 +3294,8 @@ export default class SchedulerTask {
                             queryId: queryHistoryUuid,
                             projectId: projectUuid,
                             warehouseType: warehouseCredentials.type,
-                            error: getErrorMessage(e),
                         },
                     });
-
                     await this.asyncQueryService.queryHistoryModel.update(
                         queryHistoryUuid,
                         projectUuid,
@@ -3310,10 +3307,9 @@ export default class SchedulerTask {
                     );
                 } finally {
                     void sshTunnel?.disconnect();
-                    if (stream) {
-                        void stream.close();
-                    }
+                    void stream?.close();
                 }
+
                 return {};
             },
         );

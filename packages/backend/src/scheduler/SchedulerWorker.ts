@@ -1,8 +1,11 @@
 import {
+    ALL_TASK_NAMES,
     getErrorMessage,
     getSchedulerUuid,
+    isSchedulerTaskName,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
+    type SchedulerTaskName,
 } from '@lightdash/common';
 import {
     Logger as GraphileLogger,
@@ -14,7 +17,7 @@ import moment from 'moment';
 import Logger from '../logging/logger';
 import { SchedulerClient } from './SchedulerClient';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
-import SchedulerTask from './SchedulerTask';
+import SchedulerTask, { type SchedulerTaskArguments } from './SchedulerTask';
 import { traceTasks } from './SchedulerTaskTracer';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
 import { TypedTaskList } from './types';
@@ -33,6 +36,13 @@ export class SchedulerWorker extends SchedulerTask {
     runner: Runner | undefined;
 
     isRunning: boolean = false;
+
+    enabledTasks: Array<SchedulerTaskName>;
+
+    constructor(schedulerTaskArgs: SchedulerTaskArguments & {}) {
+        super(schedulerTaskArgs);
+        this.enabledTasks = this.lightdashConfig.scheduler.tasks;
+    }
 
     async run() {
         // Wait for graphile utils to finish migration and prevent race conditions
@@ -67,7 +77,17 @@ export class SchedulerWorker extends SchedulerTask {
         });
     }
 
-    protected getTaskList(): TypedTaskList {
+    protected getTaskList(): Partial<TypedTaskList> {
+        return Object.fromEntries(
+            Object.entries(this.getFullTaskList()).filter(
+                ([taskKey]) =>
+                    isSchedulerTaskName(taskKey) &&
+                    this.enabledTasks.includes(taskKey),
+            ),
+        );
+    }
+
+    protected getFullTaskList(): TypedTaskList {
         return {
             [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: async () => {
                 const currentDateStartOfDay = moment()

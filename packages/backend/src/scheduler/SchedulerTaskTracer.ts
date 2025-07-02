@@ -275,7 +275,7 @@ export const traceTask = <T extends SchedulerTaskName>(
  * @param tasks - The list of tasks to trace
  * @returns A list of traced tasks that can be used in a Graphile Worker
  */
-export const traceTasks = (tasks: TypedTaskList) => {
+export const traceTasks = (tasks: Partial<TypedTaskList>) => {
     const tracedTasks = Object.keys(tasks).reduce<TaskList>(
         (accTasks, taskName) => ({
             ...accTasks,

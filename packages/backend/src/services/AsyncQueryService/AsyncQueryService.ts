@@ -214,7 +214,7 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
-    private getCacheExpiresAt(baseDate: Date) {
+    public getCacheExpiresAt(baseDate: Date) {
         return new Date(
             baseDate.getTime() +
                 this.lightdashConfig.results.cacheStateTimeSeconds * 1000,
@@ -1143,6 +1143,7 @@ export class AsyncQueryService extends ProjectService {
 
     /**
      * Runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
+     * TODO: Remove once feature flag `WorkerQueryExecution` is completely removed as this is duplicated in SchedulerTask.runAsyncWarehouseQuery
      */
     private async runAsyncWarehouseQuery({
         user,
@@ -1150,8 +1151,7 @@ export class AsyncQueryService extends ProjectService {
         query,
         fieldsMap,
         queryTags,
-        warehouseClient,
-        sshTunnel,
+        warehouseCredentials,
         queryHistoryUuid,
         cacheKey,
         pivotConfiguration,
@@ -1164,8 +1164,7 @@ export class AsyncQueryService extends ProjectService {
         fieldsMap: ItemsMap;
         queryHistoryUuid: string;
         cacheKey: string;
-        warehouseClient: WarehouseClient;
-        sshTunnel: SshTunnel<CreateWarehouseCredentials>;
+        warehouseCredentials: CreateWarehouseCredentials;
         pivotConfiguration?: {
             indexColumn: PivotIndexColum;
             valuesColumns: ValuesColumn[];
@@ -1180,7 +1179,19 @@ export class AsyncQueryService extends ProjectService {
                   close: () => Promise<void>;
               }
             | undefined;
+
+        let sshTunnel: SshTunnel<CreateWarehouseCredentials> | undefined;
+
         try {
+            // Get warehouse client using the projectService
+            const { warehouseClient, sshTunnel: warehouseSshTunnel } =
+                await this._getWarehouseClient(
+                    projectUuid,
+                    warehouseCredentials,
+                );
+
+            sshTunnel = warehouseSshTunnel;
+
             const fileName =
                 QueryHistoryModel.createUniqueResultsFileName(cacheKey);
 
@@ -1293,7 +1304,7 @@ export class AsyncQueryService extends ProjectService {
                 properties: {
                     queryId: queryHistoryUuid,
                     projectId: projectUuid,
-                    warehouseType: warehouseClient.credentials.type,
+                    warehouseType: warehouseCredentials.type,
                 },
             });
             await this.queryHistoryModel.update(
@@ -1306,7 +1317,7 @@ export class AsyncQueryService extends ProjectService {
                 },
             );
         } finally {
-            void sshTunnel.disconnect();
+            void sshTunnel?.disconnect();
             void stream?.close();
         }
     }
@@ -1574,24 +1585,53 @@ export class AsyncQueryService extends ProjectService {
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
+                    const isWorkerQueryExecutionEnabled =
+                        await isFeatureFlagEnabled(
+                            FeatureFlags.WorkerQueryExecution,
+                            user,
+                            { throwOnTimeout: false },
+                            false, // default value
+                        );
+
                     // Trigger query in the background, update query history when complete
-                    await this.schedulerClient.scheduleTask(
-                        SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
-                        {
-                            organizationUuid,
-                            userUuid: user.userUuid,
+                    if (isWorkerQueryExecutionEnabled) {
+                        this.logger.info(
+                            `Queuing query ${queryHistoryUuid} for execution in a worker`,
+                        );
+                        await this.schedulerClient.scheduleTask(
+                            SCHEDULER_TASKS.RUN_ASYNC_WAREHOUSE_QUERY,
+                            {
+                                organizationUuid,
+                                userUuid: user.userUuid,
+                                projectUuid,
+                                queryTags,
+                                query,
+                                fieldsMap,
+                                queryHistoryUuid,
+                                cacheKey,
+                                warehouseCredentials, // These credentials already have overrides applied from _getWarehouseClient
+                                pivotConfiguration,
+                                originalColumns,
+                            },
+                            JobPriority.HIGH,
+                        );
+                    } else {
+                        this.logger.info(
+                            `Executing query ${queryHistoryUuid} in the main loop`,
+                        );
+                        void this.runAsyncWarehouseQuery({
+                            user,
                             projectUuid,
-                            queryTags,
                             query,
                             fieldsMap,
-                            queryHistoryUuid,
-                            cacheKey,
+                            queryTags,
                             warehouseCredentials, // These credentials already have overrides applied from _getWarehouseClient
+                            queryHistoryUuid,
                             pivotConfiguration,
+                            cacheKey,
                             originalColumns,
-                        },
-                        JobPriority.HIGH,
-                    );
+                        });
+                    }
 
                     return {
                         queryUuid: queryHistoryUuid,
