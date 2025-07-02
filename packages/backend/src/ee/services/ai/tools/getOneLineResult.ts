@@ -3,6 +3,8 @@ import {
     lighterMetricQuerySchemaTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { stringify } from 'csv-stringify/sync';
+import { CsvService } from '../../../../services/CsvService/CsvService';
 import type {
     GetPromptFn,
     RunMiniMetricQueryFn,
@@ -51,18 +53,31 @@ Rules for fetching the result:
                 });
 
                 await updateProgress('🔍 Fetching the results...');
-                const result = await runMiniMetricQuery(transformedMetricQuery);
-
-                if (result.rows.length > 1) {
+                const results = await runMiniMetricQuery(
+                    transformedMetricQuery,
+                );
+                if (results.rows.length > 1) {
                     throw new Error(
                         'Expected a single row result, got multiple rows. Use a different tool if the result is expected to have multiple rows.',
                     );
                 }
 
+                const fields = results.rows[0]
+                    ? Object.keys(results.rows[0])
+                    : [];
+                const rows = results.rows.map((row) =>
+                    CsvService.convertRowToCsv(
+                        row,
+                        results.fields,
+                        true,
+                        fields,
+                    ),
+                );
+                const csv = stringify(rows, { header: true, columns: fields });
                 await updateProgress('🙌 Got the answer!!!');
 
                 return `Here's the result:
-${serializeData(result.rows, 'json')}`;
+${serializeData(csv, 'csv')}`;
             } catch (e) {
                 return toolErrorHandler(e, `Error getting one line result.`);
             }

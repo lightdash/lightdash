@@ -80,11 +80,11 @@ export const renderCsvFile = async ({
 }> => {
     const query = await metricQueryCsv(config, maxLimit, filters);
     const results = await runMetricQuery(query);
+
     const fields = results.rows[0] ? Object.keys(results.rows[0]) : [];
     const rows = results.rows.map((row) =>
         CsvService.convertRowToCsv(row, results.fields, true, fields),
     );
-
     const csv = stringify(rows, { header: true, columns: fields });
 
     return {
