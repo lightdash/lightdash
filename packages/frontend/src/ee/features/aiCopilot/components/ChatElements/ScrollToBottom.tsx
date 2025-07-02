@@ -4,11 +4,15 @@ import { useParams } from 'react-router';
 import { useAiAgentThread } from '../../hooks/useOrganizationAiAgents';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 
-const SCROLL_TO_BOTTOM_THRESHOLD = 200;
+const SCROLL_TO_BOTTOM_THRESHOLD = {
+    streaming: 200,
+    chart: 500,
+};
 
 type ScrollToBottomOptions = {
     behavior?: 'auto' | 'smooth';
     checkCurrentScrollPosition?: boolean;
+    type?: 'streaming' | 'chart';
 };
 
 function useAutoScroll(scrollAreaRef: React.RefObject<HTMLDivElement | null>) {
@@ -18,6 +22,7 @@ function useAutoScroll(scrollAreaRef: React.RefObject<HTMLDivElement | null>) {
         ({
             behavior = 'smooth',
             checkCurrentScrollPosition = false,
+            type = 'streaming',
         }: ScrollToBottomOptions = {}) => {
             if (checkCurrentScrollPosition) {
                 if (!scrollAreaRef.current) return;
@@ -25,7 +30,7 @@ function useAutoScroll(scrollAreaRef: React.RefObject<HTMLDivElement | null>) {
                     scrollAreaRef.current?.scrollHeight -
                         scrollAreaRef.current?.scrollTop -
                         scrollAreaRef.current?.clientHeight <
-                    SCROLL_TO_BOTTOM_THRESHOLD;
+                    SCROLL_TO_BOTTOM_THRESHOLD[type];
 
                 if (!nearBottom) return;
             }
@@ -59,7 +64,7 @@ const ThreadScrollToBottom = ({
 
     // Scroll to bottom when the thread is loaded/switched
     useLayoutEffect(() => {
-        scrollToBottom();
+        return scrollToBottom();
     }, [thread.data?.messages.length, threadUuid, scrollToBottom]);
 
     // Scroll to bottom when the thread is streaming, if user has manually scrolled up do not autoscroll
@@ -73,6 +78,20 @@ const ThreadScrollToBottom = ({
         streamingState?.toolCalls?.length,
         scrollToBottom,
     ]);
+
+    // Scroll to bottom when the last message gets a chart visualization
+    const lastMessage = thread.data?.messages?.at(-1);
+    const lastMessageViz =
+        lastMessage?.role === 'assistant' && lastMessage?.vizConfigOutput;
+
+    useLayoutEffect(() => {
+        if (!lastMessageViz) return;
+        return scrollToBottom({
+            checkCurrentScrollPosition: true,
+            behavior: 'auto',
+            type: 'chart',
+        });
+    }, [lastMessageViz, scrollToBottom]);
 
     return (
         <div

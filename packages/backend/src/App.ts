@@ -656,6 +656,8 @@ export default class App {
                 userService,
             }),
         );
+
+        // Refresh strategies also need to be registered on SchedulerApp
         if (googlePassportStrategy) {
             passport.use(googlePassportStrategy);
             refresh.use(googlePassportStrategy);

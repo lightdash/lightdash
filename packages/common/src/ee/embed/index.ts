@@ -39,7 +39,8 @@ export const FilterInteractivityValuesSchema = z.enum([
 
 export const DashboardFilterInteractivityOptionsSchema = z.object({
     enabled: z.union([z.boolean(), FilterInteractivityValuesSchema]),
-    allowedFilters: z.array(z.string()).optional(),
+    // Nullish because we have python clients that serialize None to null
+    allowedFilters: z.array(z.string()).nullish(),
 });
 
 export type DashboardFilterInteractivityOptions = z.infer<
@@ -101,7 +102,7 @@ type CommonEmbedJwtContent = {
     isPreview?: boolean;
     dashboardFiltersInteractivity?: {
         enabled: FilterInteractivityValues | boolean;
-        allowedFilters?: string[];
+        allowedFilters?: string[] | null;
     };
     canExportCsv?: boolean;
     canExportImages?: boolean;

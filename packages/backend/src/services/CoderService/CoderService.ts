@@ -56,7 +56,7 @@ type CoderServiceArguments = {
 const isAnyChartTile = (
     tile: DashboardTileAsCode | DashboardTile,
 ): tile is DashboardTile & {
-    properties: { chartSlug: string; hideTitle: boolean };
+    properties: { chartSlug: string; hideTitle: boolean; chartName?: string };
 } =>
     tile.type === DashboardTileTypes.SAVED_CHART ||
     tile.type === DashboardTileTypes.SQL_CHART;
@@ -273,6 +273,7 @@ export class CoderService extends BaseService {
                             title: tile.properties.title,
                             hideTitle: tile.properties.hideTitle,
                             chartSlug: tile.properties.chartSlug,
+                            chartName: tile.properties.chartName,
                         },
                     };
                 }

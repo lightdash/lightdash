@@ -23,6 +23,7 @@ import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { type EChartSeries } from '../../../../../hooks/echarts/useEchartsCartesianConfig';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../../hooks/organization/useOrganization';
+import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import useApp from '../../../../../providers/App/useApp';
@@ -79,6 +80,12 @@ export const AiChartVisualization: FC<Props> = ({
     );
 
     const toolCalls = message.toolCalls;
+
+    const { data: compiledSql } = useCompiledSqlFromMetricQuery({
+        tableName,
+        projectUuid,
+        metricQuery,
+    });
 
     const resultsData = useMemo(
         () => ({
@@ -171,7 +178,7 @@ export const AiChartVisualization: FC<Props> = ({
                     setEchartSeries(series);
                 }}
             >
-                <Stack gap="md" h="100%" mih={400}>
+                <Stack gap="md" h="100%">
                     <Group justify="space-between" align="start">
                         <SegmentedControl
                             style={{
@@ -188,6 +195,7 @@ export const AiChartVisualization: FC<Props> = ({
 
                         {activeTab === 'chart' && (
                             <AiChartQuickOptions
+                                message={message}
                                 projectUuid={projectUuid}
                                 saveChartOptions={{
                                     name: queryExecutionHandle.data.metadata
@@ -196,15 +204,17 @@ export const AiChartVisualization: FC<Props> = ({
                                         queryExecutionHandle.data.metadata
                                             .description,
                                 }}
-                                message={{
-                                    threadUuid: message.threadUuid,
-                                    uuid: message.uuid,
-                                }}
                             />
                         )}
                     </Group>
 
-                    <Box flex="1 0 0">
+                    <Box
+                        flex="1 0 0"
+                        style={{
+                            // Scrolling for tables
+                            overflow: 'auto',
+                        }}
+                    >
                         {activeTab === 'chart' ? (
                             <>
                                 <LightdashVisualization
@@ -226,7 +236,10 @@ export const AiChartVisualization: FC<Props> = ({
                                 <DrillDownModal />
                             </>
                         ) : activeTab === 'calculation' ? (
-                            <AiChartToolCalls toolCalls={toolCalls} />
+                            <AiChartToolCalls
+                                toolCalls={toolCalls}
+                                compiledSql={compiledSql}
+                            />
                         ) : (
                             assertUnreachable(activeTab, 'Invalid active tab')
                         )}
@@ -252,8 +265,10 @@ export const AiChartVisualization: FC<Props> = ({
 
                                 {message.filtersOutput && (
                                     <AgentVisualizationFilters
-                                        // TODO: fix this using schema
-                                        filters={message.filtersOutput}
+                                        filters={
+                                            queryExecutionHandle.data.query
+                                                .metricQuery.filters
+                                        }
                                     />
                                 )}
                             </ErrorBoundary>

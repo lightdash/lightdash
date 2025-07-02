@@ -6,6 +6,7 @@ import {
     AndFilterGroup,
     AnyType,
     ApiChartAndResults,
+    ApiCreatePreviewResults,
     type ApiCreateProjectResults,
     ApiQueryResults,
     ApiSqlQueryResults,
@@ -22,12 +23,12 @@ import {
     convertExplores,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
-    CreateBigqueryCredentials,
     type CreateDatabricksCredentials,
     createDimensionWithGranularity,
     CreateJob,
     CreateProject,
     CreateProjectMember,
+    CreateProjectOptionalCredentials,
     CreateProjectTableConfiguration,
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
@@ -72,6 +73,7 @@ import {
     getSubtotalKey,
     getTimezoneLabel,
     hasIntersection,
+    hasWarehouseCredentials,
     IntrinsicUserAttributes,
     isCartesianChartConfig,
     isCustomSqlDimension,
@@ -461,7 +463,7 @@ export class ProjectService extends BaseService {
 
     private async validateProjectCreationPermissions(
         user: SessionUser,
-        data: CreateProject,
+        data: Pick<CreateProject, 'type' | 'upstreamProjectUuid'>,
     ) {
         if (!data.type) {
             throw new ParameterError('Project type must be provided');
@@ -634,7 +636,10 @@ export class ProjectService extends BaseService {
                 BigqueryAuthenticationType.SSO &&
             args.warehouseConnection.keyfileContents.type !== 'authorized_user'
         ) {
-            const refreshToken = await this.userModel.getRefreshToken(userUuid);
+            const refreshToken = await this.userModel.getRefreshToken(
+                userUuid,
+                OpenIdIdentityIssuerType.GOOGLE,
+            );
 
             // Validate refresh token has the right bigquery scopes
             await UserService.generateGoogleAccessToken(
@@ -881,7 +886,7 @@ export class ProjectService extends BaseService {
 
     async createWithoutCompile(
         user: SessionUser,
-        data: CreateProject,
+        data: CreateProjectOptionalCredentials,
         method: RequestMethod,
     ): Promise<ApiCreateProjectResults> {
         if (!isUserWithOrg(user)) {
@@ -902,15 +907,19 @@ export class ProjectService extends BaseService {
                 );
         }
 
-        const createProject = await this._resolveWarehouseClientCredentials(
-            newProjectData,
-            user.userUuid,
-        );
-        const projectUuid = await this.projectModel.create(
-            user.userUuid,
-            user.organizationUuid,
-            createProject,
-        );
+        const createProject: CreateProjectOptionalCredentials =
+            hasWarehouseCredentials(newProjectData)
+                ? await this._resolveWarehouseClientCredentials(
+                      newProjectData,
+                      user.userUuid,
+                  )
+                : newProjectData;
+        const projectUuid =
+            await this.projectModel.createWithOptionalCredentials(
+                user.userUuid,
+                user.organizationUuid,
+                createProject,
+            );
 
         // Do not give this user admin permissions on this new project,
         // as it could be an interactive viewer creating a preview
@@ -1034,29 +1043,32 @@ export class ProjectService extends BaseService {
     }
 
     static getAnalyticProperties(
-        createProject: CreateProject,
+        createProject: Pick<
+            CreateProjectOptionalCredentials,
+            'warehouseConnection' | 'name' | 'dbtConnection' | 'type'
+        >,
         projectUuid: string,
         user: SessionUser,
         method: RequestMethod,
     ): ProjectEvent['properties'] {
-        const warehouseType = createProject.warehouseConnection.type;
+        const warehouseType = createProject.warehouseConnection?.type;
         const authenticationType =
             warehouseType === WarehouseTypes.BIGQUERY ||
             warehouseType === WarehouseTypes.SNOWFLAKE
-                ? createProject.warehouseConnection.authenticationType
+                ? createProject.warehouseConnection?.authenticationType
                 : undefined;
         return {
             projectName: createProject.name,
             projectId: projectUuid,
             projectType: createProject.dbtConnection.type,
-            warehouseConnectionType: createProject.warehouseConnection.type,
+            warehouseConnectionType: createProject.warehouseConnection?.type,
             organizationId: user.organizationUuid!,
             dbtConnectionType: createProject.dbtConnection.type,
             isPreview: createProject.type === ProjectType.PREVIEW,
             method,
             authenticationType,
             requireUserCredentials:
-                createProject.warehouseConnection.requireUserCredentials,
+                createProject.warehouseConnection?.requireUserCredentials,
         };
     }
 
@@ -3163,6 +3175,14 @@ export class ProjectService extends BaseService {
                 operator: FilterOperator.INCLUDE,
                 values: [search],
             },
+            {
+                id: uuidv4(),
+                target: {
+                    fieldId,
+                },
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
         ];
         if (filters) {
             const filtersCompatibleWithExplore = filters.and.filter(
@@ -4851,7 +4871,7 @@ export class ProjectService extends BaseService {
             warehouseConnectionOverrides?: { schema?: string };
         },
         context: RequestMethod,
-    ): Promise<string> {
+    ): Promise<ApiCreatePreviewResults> {
         // create preview project permissions are checked in `createWithoutCompile`
         const project = await this.projectModel.getWithSensitiveFields(
             projectUuid,
@@ -4886,13 +4906,16 @@ export class ProjectService extends BaseService {
         // it is possible that the user `abilities` are not uptodate
         // Before we check permissions on scheduleCompileProject
         // Permissions will be checked again with the uptodate user on scheduler
-        await this.scheduleCompileProject(
+        const { jobUuid } = await this.scheduleCompileProject(
             user,
             previewProject.project.projectUuid,
             context,
             true, // Skip permission check
         );
-        return previewProject.project.projectUuid;
+        return {
+            projectUuid: previewProject.project.projectUuid,
+            compileJobUuid: jobUuid,
+        };
     }
 
     /*
@@ -6198,6 +6221,7 @@ export class ProjectService extends BaseService {
         // Bigquery will handle the permissions
         const refreshToken = await this.userModel.getRefreshToken(
             user.userUuid,
+            OpenIdIdentityIssuerType.GOOGLE,
         );
 
         if (projectId.length === 0) {

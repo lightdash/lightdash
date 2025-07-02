@@ -1,3 +1,131 @@
+## [0.1775.2](https://github.com/lightdash/lightdash/compare/0.1775.1...0.1775.2) (2025-07-02)
+
+
+### Bug Fixes
+
+* allow schema validation errors for jwts again ([#15619](https://github.com/lightdash/lightdash/issues/15619)) ([cabaab0](https://github.com/lightdash/lightdash/commit/cabaab087f684f93963d99f7acd7145ceb1d001d))
+
+## [0.1775.1](https://github.com/lightdash/lightdash/compare/0.1775.0...0.1775.1) (2025-07-02)
+
+
+### Bug Fixes
+
+* scroll-to-bottom behavior when a new visualization is generated ([#15650](https://github.com/lightdash/lightdash/issues/15650)) ([5d936a5](https://github.com/lightdash/lightdash/commit/5d936a5135430f220acc7f5f39de3bd1e9f22f42)), closes [#15432](https://github.com/lightdash/lightdash/issues/15432)
+
+# [0.1775.0](https://github.com/lightdash/lightdash/compare/0.1774.1...0.1775.0) (2025-07-02)
+
+
+### Features
+
+* show sql instead of metric query ([#15659](https://github.com/lightdash/lightdash/issues/15659)) ([fd91ba0](https://github.com/lightdash/lightdash/commit/fd91ba065c03e45b465abfedd18daf55ea6ddd8b))
+
+## [0.1774.1](https://github.com/lightdash/lightdash/compare/0.1774.0...0.1774.1) (2025-07-02)
+
+
+### Bug Fixes
+
+* dont apply custom labels and hidden columns when exporting from results table ([#15662](https://github.com/lightdash/lightdash/issues/15662)) ([abb5ff2](https://github.com/lightdash/lightdash/commit/abb5ff2fa89dc2bd601ae1a755ba8bb9ffd524e1))
+
+# [0.1774.0](https://github.com/lightdash/lightdash/compare/0.1773.0...0.1774.0) (2025-07-02)
+
+
+### Features
+
+* Link saved charts to ai prompts ([#15609](https://github.com/lightdash/lightdash/issues/15609)) ([2fba68a](https://github.com/lightdash/lightdash/commit/2fba68a5ef697e2503000e996cf964dd1ba02357)), closes [#15552](https://github.com/lightdash/lightdash/issues/15552) [#15452](https://github.com/lightdash/lightdash/issues/15452)
+
+# [0.1773.0](https://github.com/lightdash/lightdash/compare/0.1772.0...0.1773.0) (2025-07-02)
+
+
+### Features
+
+* improve validation output with color-coded errors and last updated info ([#15646](https://github.com/lightdash/lightdash/issues/15646)) ([8528c0d](https://github.com/lightdash/lightdash/commit/8528c0d4cfc54d502021341d93914adf684f982c))
+
+# [0.1772.0](https://github.com/lightdash/lightdash/compare/0.1771.0...0.1772.0) (2025-07-02)
+
+
+### Features
+
+* exclude null values from filter suggestions ([#15642](https://github.com/lightdash/lightdash/issues/15642)) ([bc6da2a](https://github.com/lightdash/lightdash/commit/bc6da2afb50b0c6f6de582caf2a611166d4691f8))
+
+# [0.1771.0](https://github.com/lightdash/lightdash/compare/0.1770.0...0.1771.0) (2025-07-02)
+
+
+### Features
+
+* add support for custom charts in i18n and make axis names optional ([#15658](https://github.com/lightdash/lightdash/issues/15658)) ([21750bd](https://github.com/lightdash/lightdash/commit/21750bd6fda475ef8d00809907953dc39311915d))
+
+# [0.1770.0](https://github.com/lightdash/lightdash/compare/0.1769.7...0.1770.0) (2025-07-02)
+
+
+### Features
+
+* support `tags` + `meta` under `config` ([#15291](https://github.com/lightdash/lightdash/issues/15291)) ([c7a7953](https://github.com/lightdash/lightdash/commit/c7a79539574773a25766c42b6af802b254fa07b0))
+
+## [0.1769.7](https://github.com/lightdash/lightdash/compare/0.1769.6...0.1769.7) (2025-07-02)
+
+
+### Bug Fixes
+
+* return cache hit when there's cache valid within 10 min buffer ([#15598](https://github.com/lightdash/lightdash/issues/15598)) ([8e529bc](https://github.com/lightdash/lightdash/commit/8e529bc6682c27a83f2ae640aeffc02dd69bbdea))
+
+## [0.1769.6](https://github.com/lightdash/lightdash/compare/0.1769.5...0.1769.6) (2025-07-01)
+
+
+### Bug Fixes
+
+* don't refetch previous visualizations in the thread when a new vizualization is generated ([#15645](https://github.com/lightdash/lightdash/issues/15645)) ([66717d5](https://github.com/lightdash/lightdash/commit/66717d511021d9cfd256c6640e2e96fd6bd19aa3))
+
+## [0.1769.5](https://github.com/lightdash/lightdash/compare/0.1769.4...0.1769.5) (2025-07-01)
+
+
+### Bug Fixes
+
+* scroll-to-bottom behavior when loading charts ([#15644](https://github.com/lightdash/lightdash/issues/15644)) ([f5b61f2](https://github.com/lightdash/lightdash/commit/f5b61f2f99a6633c8ea0aa05eeb93db550c1affe)), closes [#15432](https://github.com/lightdash/lightdash/issues/15432)
+
+## [0.1769.4](https://github.com/lightdash/lightdash/compare/0.1769.3...0.1769.4) (2025-07-01)
+
+
+### Bug Fixes
+
+* render filters based on metric query instead of ai_prompt.filtersOutput ([#15643](https://github.com/lightdash/lightdash/issues/15643)) ([f70eb32](https://github.com/lightdash/lightdash/commit/f70eb32bdb327e9cd2f43231f1dcbf456d260bc4))
+
+## [0.1769.3](https://github.com/lightdash/lightdash/compare/0.1769.2...0.1769.3) (2025-07-01)
+
+
+### Bug Fixes
+
+* do not invalidate on human score change ([#15649](https://github.com/lightdash/lightdash/issues/15649)) ([df9e142](https://github.com/lightdash/lightdash/commit/df9e1423d9d3524cf699f1ba3741a0d6e9c35ed4))
+
+## [0.1769.2](https://github.com/lightdash/lightdash/compare/0.1769.1...0.1769.2) (2025-07-01)
+
+
+### Bug Fixes
+
+* show compile status when creating a preview from UI ([#15639](https://github.com/lightdash/lightdash/issues/15639)) ([425984d](https://github.com/lightdash/lightdash/commit/425984d6d51b4fbf95a75d39a9b764621c78a3da))
+
+## [0.1769.1](https://github.com/lightdash/lightdash/compare/0.1769.0...0.1769.1) (2025-07-01)
+
+
+### Bug Fixes
+
+* refresh strategies on scheduler ([#15637](https://github.com/lightdash/lightdash/issues/15637)) ([20eae73](https://github.com/lightdash/lightdash/commit/20eae73c2d0360d7cfb942f35a7f5a14a032128b))
+
+# [0.1769.0](https://github.com/lightdash/lightdash/compare/0.1768.0...0.1769.0) (2025-07-01)
+
+
+### Bug Fixes
+
+* chartName in language maps ([#15624](https://github.com/lightdash/lightdash/issues/15624)) ([09635c9](https://github.com/lightdash/lightdash/commit/09635c9df11c45cef3a634266696bcebb964c54e))
+* disable tracking UI form when rudder is disabled ([#15618](https://github.com/lightdash/lightdash/issues/15618)) ([eb541a8](https://github.com/lightdash/lightdash/commit/eb541a807c5d608c36667894a1ded1d2545427c1))
+* improve error logs sso ([#15627](https://github.com/lightdash/lightdash/issues/15627)) ([366fa9b](https://github.com/lightdash/lightdash/commit/366fa9bea79924cad8874248422802951abc6e98))
+* remove hard limit on validation page ([#15612](https://github.com/lightdash/lightdash/issues/15612)) ([fef01ed](https://github.com/lightdash/lightdash/commit/fef01ed6af5d4899819f30dda0647a1339897d6d))
+
+
+### Features
+
+* allow create projects without warehouse credentials ([#15594](https://github.com/lightdash/lightdash/issues/15594)) ([5363e91](https://github.com/lightdash/lightdash/commit/5363e91384e7540335a79aafb1543f2317b14582))
+* display how an ai chart is calculated ([#15610](https://github.com/lightdash/lightdash/issues/15610)) ([cafe3e7](https://github.com/lightdash/lightdash/commit/cafe3e776e0030687afa98935125f9cfdcd358a8))
+
 # [0.1768.0](https://github.com/lightdash/lightdash/compare/0.1767.1...0.1768.0) (2025-06-30)
 
 

@@ -676,6 +676,11 @@ export type ApiRefreshResults = {
     jobUuid: string;
 };
 
+export type ApiCreatePreviewResults = {
+    projectUuid: string;
+    compileJobUuid: string;
+};
+
 export type ApiJobStartedResults = {
     jobUuid: string;
 };
@@ -799,6 +804,7 @@ type ApiResults =
     | ApiExploreResults
     | ApiStatusResults
     | ApiRefreshResults
+    | ApiCreatePreviewResults
     | ApiHealthResults
     | Organization
     | LightdashUser
@@ -1110,6 +1116,21 @@ export type CreateProject = Omit<
     copyContent?: boolean;
 };
 
+export type CreateProjectOptionalCredentials = Omit<
+    CreateProject,
+    'warehouseConnection'
+> & {
+    warehouseConnection?: CreateWarehouseCredentials;
+};
+
+export const hasWarehouseCredentials = (
+    createProject: CreateProjectOptionalCredentials,
+): createProject is CreateProjectOptionalCredentials & {
+    warehouseConnection: CreateWarehouseCredentials;
+} =>
+    !!createProject.warehouseConnection &&
+    Object.keys(createProject.warehouseConnection).length > 0;
+
 export type UpdateProject = Omit<
     Project,
     | 'projectUuid'
@@ -1125,6 +1146,7 @@ export const getResultValueArray = (
     rows: ResultRow[],
     preferRaw: boolean = false,
     calculateMinAndMax: boolean = false,
+    excludeNulls: boolean = false,
 ): {
     results: Record<string, unknown>[];
     minsAndMaxes?: Record<string, { min: number; max: number }>;
@@ -1133,6 +1155,9 @@ export const getResultValueArray = (
 
     const results = rows.map((row) =>
         Object.keys(row).reduce<Record<string, unknown>>((acc, key) => {
+            if (excludeNulls && row[key]?.value.raw === null) {
+                return acc;
+            }
             const rawWithFallback =
                 row[key]?.value.raw ?? row[key]?.value.formatted; // using nullish coalescing operator to handle null and undefined only
             const formattedWithFallback =
