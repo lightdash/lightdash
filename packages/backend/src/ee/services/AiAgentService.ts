@@ -23,8 +23,10 @@ import {
     assertUnreachable,
     CatalogType,
     CommercialFeatureFlags,
+    Explore,
     filterExploreByTags,
     ForbiddenError,
+    isExploreError,
     isSlackPrompt,
     LightdashUser,
     NotFoundError,
@@ -1106,13 +1108,17 @@ export class AiAgentService {
                 false,
             );
 
-        const explores = await Promise.all(
-            exploreSummaries.map((s) =>
-                this.projectService.getExplore(user, projectUuid, s.name),
-            ),
+        const explores = await this.projectService.findExplores({
+            user,
+            projectUuid,
+            exploreNames: exploreSummaries.map((s) => s.name),
+        });
+
+        const exploresWithoutErrors = Object.values(explores).filter(
+            (e): e is Explore => !isExploreError(e),
         );
 
-        const exploresWithDescriptions = explores
+        const exploresWithDescriptions = exploresWithoutErrors
             .map((explore) =>
                 filterExploreByTags({
                     explore,
