@@ -567,7 +567,7 @@ export const generateQueryFiltersToolArgsSchemaTransformed = z.object({
 // GENERATE BAR VIZ CONFIG TOOL ARGS
 export const verticalBarMetricVizConfigToolArgsSchema = z.object({
     vizConfig: verticalBarMetricVizConfigSchema,
-    filters: filtersSchema,
+    filters: filtersSchema.nullable(),
 });
 export type VerticalBarMetricVizConfigToolArgs = z.infer<
     typeof verticalBarMetricVizConfigToolArgsSchema
@@ -586,7 +586,7 @@ export const verticalBarMetricVizConfigToolArgsSchemaTransformed = z.object({
 // GENERATE TIME SERIES VIZ CONFIG TOOL ARGS
 export const timeSeriesMetricVizConfigToolArgsSchema = z.object({
     vizConfig: timeSeriesMetricVizConfigSchema,
-    filters: filtersSchema,
+    filters: filtersSchema.nullable(),
 });
 export type TimeSeriesMetricVizConfigToolArgs = z.infer<
     typeof timeSeriesMetricVizConfigToolArgsSchema

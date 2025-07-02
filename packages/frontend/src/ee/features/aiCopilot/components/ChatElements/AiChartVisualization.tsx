@@ -23,6 +23,7 @@ import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { type EChartSeries } from '../../../../../hooks/echarts/useEchartsCartesianConfig';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../../hooks/organization/useOrganization';
+import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import useApp from '../../../../../providers/App/useApp';
@@ -79,6 +80,12 @@ export const AiChartVisualization: FC<Props> = ({
     );
 
     const toolCalls = message.toolCalls;
+
+    const { data: compiledSql } = useCompiledSqlFromMetricQuery({
+        tableName,
+        projectUuid,
+        metricQuery,
+    });
 
     const resultsData = useMemo(
         () => ({
@@ -229,7 +236,10 @@ export const AiChartVisualization: FC<Props> = ({
                                 <DrillDownModal />
                             </>
                         ) : activeTab === 'calculation' ? (
-                            <AiChartToolCalls toolCalls={toolCalls} />
+                            <AiChartToolCalls
+                                toolCalls={toolCalls}
+                                compiledSql={compiledSql}
+                            />
                         ) : (
                             assertUnreachable(activeTab, 'Invalid active tab')
                         )}

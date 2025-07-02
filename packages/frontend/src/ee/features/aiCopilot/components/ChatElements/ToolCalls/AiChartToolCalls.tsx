@@ -1,5 +1,6 @@
 import {
     type AiAgentToolCall,
+    type ApiCompiledQueryResults,
     assertUnreachable,
     CsvFileVizConfigToolArgsSchemaTransformed,
     generateQueryFiltersToolArgsSchemaTransformed,
@@ -39,9 +40,10 @@ const getToolIcon = (toolName: string) => {
     return iconMap[toolName as keyof typeof iconMap] || IconSparkles;
 };
 
-const ToolCallDescription: FC<{ toolCall: AiAgentToolCall }> = ({
-    toolCall,
-}) => {
+const ToolCallDescription: FC<{
+    toolCall: AiAgentToolCall;
+    compiledSql: ApiCompiledQueryResults | undefined;
+}> = ({ toolCall, compiledSql }) => {
     const toolName = ToolNameSchema.parse(toolCall.toolName);
 
     switch (toolName) {
@@ -121,6 +123,7 @@ const ToolCallDescription: FC<{ toolCall: AiAgentToolCall }> = ({
                 verticalBarMetricVizConfigToolArgsSchemaTransformed.parse(
                     toolCall.toolArgs,
                 );
+
             return (
                 <AiChartGenerationToolCallDescription
                     title={barVizConfigToolArgs.vizConfig.title}
@@ -129,9 +132,7 @@ const ToolCallDescription: FC<{ toolCall: AiAgentToolCall }> = ({
                     breakdownByDimension={
                         barVizConfigToolArgs.vizConfig.breakdownByDimension
                     }
-                    // TODO: VizConfig is not a metric query, it's a viz config as the name suggests
-                    // We need to change the name of the field to something more appropriate
-                    metricQuery={barVizConfigToolArgs.vizConfig}
+                    sql={compiledSql}
                 />
             );
         case 'generateCsv':
@@ -150,9 +151,7 @@ const ToolCallDescription: FC<{ toolCall: AiAgentToolCall }> = ({
                         csvFileVizConfigToolArgs.vizConfig.dimensions ?? []
                     }
                     metrics={csvFileVizConfigToolArgs.vizConfig.metrics}
-                    // TODO: VizConfig is not a metric query, it's a viz config as the name suggests
-                    // We need to change the name of the field to something more appropriate
-                    metricQuery={csvFileVizConfigToolArgs.vizConfig}
+                    sql={compiledSql}
                 />
             );
         case 'generateTimeSeriesVizConfig':
@@ -163,6 +162,7 @@ const ToolCallDescription: FC<{ toolCall: AiAgentToolCall }> = ({
                 timeSeriesMetricVizConfigToolArgsSchemaTransformed.parse(
                     toolCall.toolArgs,
                 );
+
             return (
                 <AiChartGenerationToolCallDescription
                     title={timeSeriesToolCallArgs.vizConfig.title}
@@ -171,9 +171,7 @@ const ToolCallDescription: FC<{ toolCall: AiAgentToolCall }> = ({
                     breakdownByDimension={
                         timeSeriesToolCallArgs.vizConfig.breakdownByDimension
                     }
-                    // TODO: VizConfig is not a metric query, it's a viz config as the name suggests
-                    // We need to change the name of the field to something more appropriate
-                    metricQuery={timeSeriesToolCallArgs.vizConfig}
+                    sql={compiledSql}
                 />
             );
 
@@ -184,9 +182,13 @@ const ToolCallDescription: FC<{ toolCall: AiAgentToolCall }> = ({
 
 type AiChartToolCallsProps = {
     toolCalls: AiAgentToolCall[] | undefined;
+    compiledSql: ApiCompiledQueryResults | undefined;
 };
 
-export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({ toolCalls }) => {
+export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
+    toolCalls,
+    compiledSql,
+}) => {
     if (!toolCalls || toolCalls.length === 0) return null;
 
     return (
@@ -223,7 +225,10 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({ toolCalls }) => {
                             }
                             lineVariant={'solid'}
                         >
-                            <ToolCallDescription toolCall={toolCall} />
+                            <ToolCallDescription
+                                toolCall={toolCall}
+                                compiledSql={compiledSql}
+                            />
                         </Timeline.Item>
                     );
                 })}
