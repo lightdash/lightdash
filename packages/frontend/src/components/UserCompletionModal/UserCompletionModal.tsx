@@ -22,6 +22,7 @@ import { zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, type FC } from 'react';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import useApp from '../../providers/App/useApp';
+import UserCompletionMessage from './UserCompletionMessage';
 
 const jobTitles = [
     ...shuffle([
@@ -232,11 +233,11 @@ const UserCompletionModal: FC = () => {
 const UserCompletionModalWithUser = () => {
     const { user } = useApp();
 
-    if (!user.isSuccess) {
+    if (!user.isSuccess || user.data?.isSetupComplete) {
         return null;
     }
 
-    return <UserCompletionModal />;
+    return <UserCompletionMessage />;
 };
 
 export default UserCompletionModalWithUser;

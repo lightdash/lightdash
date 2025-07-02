@@ -1,0 +1,19 @@
+#!/bin/sh
+
+bash "$(dirname "$0")/runGitSecrets.sh"
+
+# Check if profiles.yml has been modified
+if git diff --cached --name-only | grep -q "examples/full-jaffle-shop-demo/profiles/profiles.yml"; then
+  echo "\033[1;31m"
+  echo "╔════════════════════════════════════════════════════════════════╗"
+  echo "║                           ERROR                                ║"
+  echo "║ Modifications to profiles.yml are not allowed!                 ║"
+  echo "║ Please revert changes to:                                      ║"
+  echo "║ examples/full-jaffle-shop-demo/profiles/profiles.yml           ║"
+  echo "╚════════════════════════════════════════════════════════════════╝"
+  echo "\033[0m"
+  exit 1
+fi
+
+npx lint-staged
+pnpm -F frontend unused-exports

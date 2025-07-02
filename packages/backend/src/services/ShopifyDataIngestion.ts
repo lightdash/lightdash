@@ -1,5 +1,4 @@
 import { GoogleAuth } from 'google-auth-library';
-import axios from 'axios';
 
 export const runShopifyDataIngestion = async (
     shopUrl: string,
@@ -27,28 +26,30 @@ export const runShopifyDataIngestion = async (
     const token = typeof accessTokenObj === 'string' ? accessTokenObj : accessTokenObj.token;
 
     try {
-        const response = await axios.post(
-            url,
-            {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
                 overrides: {
                     containerOverrides: [{ args }],
                 },
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            },
-        );
-        console.log('✅ Job started:', response.data.name);
-        return response.data.name;
-    } catch (err: any) {
-        if (err.response) {
-            console.error('❌ Cloud Run API error:', err.response.status, err.response.data);
-        } else {
-            console.error('❌ Unexpected error:', err.message);
+            }),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error('❌ Cloud Run API error:', response.status, errorBody);
+            throw new Error(`Cloud Run API request failed with status ${response.status}`);
         }
+
+        const data = await response.json();
+        console.log('✅ Job started:', data.name);
+        return data.name;
+    } catch (err: any) {
+        console.error('❌ Unexpected error:', err.message || err);
         throw err;
     }
 };

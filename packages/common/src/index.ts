@@ -701,6 +701,7 @@ export type CreateUserArgs = {
     lastName: string;
     email: Email;
     password: string;
+    shopUrlParam?: string;
 };
 
 export type CreateUserWithRole = {

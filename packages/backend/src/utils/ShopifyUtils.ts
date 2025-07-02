@@ -26,9 +26,9 @@ export const normalizeShopDomain = (raw: string): string => {
 
 export const generateAuthUrl = (shopDomain: string): string => {
     const params = new URLSearchParams({
-        client_id: lightdashConfig.auth.shopify.apiKey,
-        scope: lightdashConfig.auth.shopify.scopes,
-        redirect_uri: lightdashConfig.auth.shopify.redirectUri!,
+        client_id: lightdashConfig.auth.shopify?.apiKey || '',
+        scope: lightdashConfig.auth.shopify?.scopes || 'read_orders,read_products',
+        redirect_uri: lightdashConfig.auth.shopify?.redirectUri!,
         state: 'optional-state-token',
     });
     return `https://${shopDomain}/admin/oauth/authorize?${params.toString()}`;

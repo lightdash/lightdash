@@ -91,3 +91,5 @@ data/
 
 # environment
 .env*
+
+/secrets
