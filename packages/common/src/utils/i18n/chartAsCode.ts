@@ -22,14 +22,14 @@ const chartAsCodeSchema = z.object({
                         xAxis: z
                             .array(
                                 z.object({
-                                    name: z.string(),
+                                    name: z.string().optional(),
                                 }),
                             )
                             .optional(),
                         yAxis: z
                             .array(
                                 z.object({
-                                    name: z.string(),
+                                    name: z.string().optional(),
                                 }),
                             )
                             .optional(),
@@ -109,6 +109,18 @@ const chartAsCodeSchema = z.object({
                             }),
                         )
                         .optional(),
+                })
+                .nullable()
+                .optional()
+                .transform((value) => value ?? undefined),
+        }),
+
+        // custom chart schema
+        z.object({
+            type: z.literal(ChartType.CUSTOM),
+            config: z
+                .object({
+                    spec: z.record(z.unknown()).optional(),
                 })
                 .nullable()
                 .optional()
