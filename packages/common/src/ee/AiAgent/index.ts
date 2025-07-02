@@ -9,6 +9,10 @@ import type {
     MetricQuery,
 } from '../..';
 
+export * from './constants';
+export * from './filterExploreByTags';
+export * from './followUpTools';
+
 /**
  * Supported AI visualization chart types
  */
@@ -245,8 +249,6 @@ export type ApiAiAgentThreadMessageVizQueryResponse = {
     status: 'ok';
     results: ApiAiAgentThreadMessageVizQuery;
 };
-
-export * from './filterExploreByTags';
 
 export type AiAgentUserPreferences = {
     defaultAgentUuid: AiAgent['uuid'];

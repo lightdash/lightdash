@@ -7,12 +7,12 @@ import type {
     UpdateProgressFn,
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
+import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { renderEcharts } from '../visualizations/renderEcharts';
 import {
-    generateTimeSeriesVizConfigToolSchema,
-    renderTimeseriesChart,
-} from '../visualizations/timeSeriesChart';
+    renderTimeSeriesViz,
+    timeSeriesVizToolSchema,
+} from '../visualizations/timeSeriesViz';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;
@@ -28,7 +28,7 @@ export const getGenerateTimeSeriesVizConfig = ({
     sendFile,
     updatePrompt,
 }: Dependencies) => {
-    const schema = generateTimeSeriesVizConfigToolSchema;
+    const schema = timeSeriesVizToolSchema;
 
     return tool({
         description: `Generate Time Series Chart Visualization and show it to the user.
@@ -42,20 +42,20 @@ Rules for generating the time series chart visualization:
 - The dimension and metric "fieldIds" must come from an explore. If you haven't used "findFieldsInExplore" tool, please do so before using this tool.
 - If the data needs to be filtered, generate the filters using the "generateQueryFilters" tool before using this tool.`,
         parameters: schema,
-        execute: async (vizConfig) => {
+        execute: async (vizToolResult) => {
             try {
                 await updateProgress('📈 Generating your line chart...');
 
                 const prompt = await getPrompt();
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,
-                    vizConfigOutput: vizConfig,
+                    vizConfigOutput: vizToolResult,
                 });
 
                 if (isSlackPrompt(prompt)) {
-                    const { chartOptions } = await renderTimeseriesChart({
+                    const { chartOptions } = await renderTimeSeriesViz({
                         runMetricQuery: runMiniMetricQuery,
-                        config: vizConfig,
+                        vizTool: vizToolResult,
                     });
 
                     const file = await renderEcharts(chartOptions);

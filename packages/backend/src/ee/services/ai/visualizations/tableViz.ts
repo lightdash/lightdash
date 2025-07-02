@@ -3,69 +3,65 @@ import {
     AiMetricQuery,
     filtersSchema,
     filtersSchemaTransformed,
+    FollowUpTools,
     tableVizConfigSchema,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
 import { z } from 'zod';
 import { CsvService } from '../../../../services/CsvService/CsvService';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
-import { FollowUpTools, followUpToolsSchema } from '../types/followUpTools';
 import { getValidAiQueryLimit } from '../utils/validators';
 
-const vizConfigSchema = tableVizConfigSchema
-    .extend({
-        limit: z
-            .number()
-            .nullable()
-            .describe('The maximum number of rows in the table.'),
-        followUpTools: followUpToolsSchema.describe(
-            `The actions the User can ask for after the AI has generated the table. NEVER include ${FollowUpTools.GENERATE_TABLE} in this list.`,
-        ),
-    })
-    .describe(
-        'Configuration file for generating a CSV file from a query with metrics and dimensions',
-    );
-
-export const generateTableVizConfigToolSchema = z.object({
+export const tableVizToolSchema = z.object({
     type: z.literal(AiChartType.TABLE),
-    vizConfig: vizConfigSchema,
+    vizConfig: tableVizConfigSchema,
     filters: filtersSchema
         .nullable()
         .describe(
             'Filters to apply to the query. Filtered fields must exist in the selected explore.',
         ),
+    followUpTools: z
+        .array(
+            z.union([
+                z.literal(FollowUpTools.GENERATE_BAR_VIZ),
+                z.literal(FollowUpTools.GENERATE_TIME_SERIES_VIZ),
+            ]),
+        )
+        .describe(
+            'The actions the User can ask for after the AI has generated the table.',
+        ),
 });
 
-export type TableVizConfig = z.infer<typeof generateTableVizConfigToolSchema>;
+export type TableVizTool = z.infer<typeof tableVizToolSchema>;
 
-export const isTableVizConfig = (config: unknown): config is TableVizConfig =>
-    generateTableVizConfigToolSchema.safeParse(config).success;
+export const isTableVizConfigTool = (config: unknown): config is TableVizTool =>
+    tableVizToolSchema
+        .omit({ type: true, followUpTools: true })
+        .safeParse(config).success;
 
 export const metricQueryTableViz = (
-    config: TableVizConfig,
+    vizTool: Pick<TableVizTool, 'vizConfig' | 'filters'>,
     maxLimit: number,
 ): AiMetricQuery => ({
-    exploreName: config.vizConfig.exploreName,
-    metrics: config.vizConfig.metrics,
-    dimensions: config.vizConfig.dimensions || [],
-    sorts: config.vizConfig.sorts,
-    limit: getValidAiQueryLimit(config.vizConfig.limit, maxLimit),
-    filters: filtersSchemaTransformed.parse(config.filters),
+    exploreName: vizTool.vizConfig.exploreName,
+    metrics: vizTool.vizConfig.metrics,
+    dimensions: vizTool.vizConfig.dimensions || [],
+    sorts: vizTool.vizConfig.sorts,
+    limit: getValidAiQueryLimit(vizTool.vizConfig.limit, maxLimit),
+    filters: filtersSchemaTransformed.parse(vizTool.filters),
 });
-
-type RenderTableVizArgs = {
-    runMetricQuery: (
-        metricQuery: AiMetricQuery,
-    ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
-    config: TableVizConfig;
-    maxLimit: number;
-};
 
 export const renderTableViz = async ({
     runMetricQuery,
-    config,
+    vizTool,
     maxLimit,
-}: RenderTableVizArgs): Promise<{
+}: {
+    runMetricQuery: (
+        metricQuery: AiMetricQuery,
+    ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
+    vizTool: Pick<TableVizTool, 'vizConfig' | 'filters'>;
+    maxLimit: number;
+}): Promise<{
     type: AiChartType.TABLE;
     metricQuery: AiMetricQuery;
     results: Awaited<
@@ -73,7 +69,7 @@ export const renderTableViz = async ({
     >;
     csv: string;
 }> => {
-    const query = metricQueryTableViz(config, maxLimit);
+    const query = metricQueryTableViz(vizTool, maxLimit);
     const results = await runMetricQuery(query);
 
     const fields = results.rows[0] ? Object.keys(results.rows[0]) : [];

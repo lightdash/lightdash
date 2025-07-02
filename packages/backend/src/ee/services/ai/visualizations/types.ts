@@ -1,17 +1,17 @@
-import { TableVizConfig } from './tableViz';
-import { TimeSeriesMetricChartConfig } from './timeSeriesChart';
-import { VerticalBarMetricChartConfig } from './verticalBarChart';
+import { TableVizTool } from './tableViz';
+import { TimeSeriesVizTool } from './timeSeriesViz';
+import { VerticalBarVizTool } from './verticalBarViz';
 
 export type AiAgentVizConfig =
     | {
           type: 'vertical_bar_chart';
-          config: VerticalBarMetricChartConfig;
+          config: VerticalBarVizTool;
       }
     | {
           type: 'time_series_chart';
-          config: TimeSeriesMetricChartConfig;
+          config: TimeSeriesVizTool;
       }
     | {
           type: 'table';
-          config: TableVizConfig;
+          config: TableVizTool;
       };

@@ -1,58 +1,65 @@
 import { AiChartType, UnexpectedServerError } from '@lightdash/common';
 import {
-    generateTableVizConfigToolSchema,
-    isTableVizConfig,
+    isTableVizConfigTool,
     metricQueryTableViz,
+    tableVizToolSchema,
 } from './tableViz';
 import {
-    generateTimeSeriesVizConfigToolSchema,
-    isTimeSeriesMetricChartConfig,
+    isTimeSeriesVizTool,
     metricQueryTimeSeriesChartMetric,
-} from './timeSeriesChart';
+    timeSeriesVizToolSchema,
+} from './timeSeriesViz';
 import {
-    generateBarVizConfigToolSchema,
-    isVerticalBarMetricChartConfig,
+    isVerticalBarVizTool,
     metricQueryVerticalBarChartMetric,
-} from './verticalBarChart';
+    verticalBarVizToolSchema,
+} from './verticalBarViz';
 
 // TODO: this folder should be refactored and each visualization type should be a class extending a base class
 // that has the common methods and properties
 // this method will not be needed anymore
 
-export const getMetricQueryFromVizConfig = (
-    vizConfigUnknown: unknown,
+export const parseVizConfig = (
+    vizConfigUnknown: object | null,
     maxLimit: number,
 ) => {
-    if (isVerticalBarMetricChartConfig(vizConfigUnknown)) {
-        const vizConfig =
-            generateBarVizConfigToolSchema.parse(vizConfigUnknown);
-        const metricQuery = metricQueryVerticalBarChartMetric(vizConfig);
+    if (!vizConfigUnknown) {
+        return null;
+    }
+
+    if (isVerticalBarVizTool(vizConfigUnknown)) {
+        const vizTool = verticalBarVizToolSchema
+            .omit({ type: true, followUpTools: true })
+            .parse(vizConfigUnknown);
+        const metricQuery = metricQueryVerticalBarChartMetric(vizTool);
         return {
             type: AiChartType.VERTICAL_BAR_CHART,
-            config: vizConfig,
+            vizTool,
             metricQuery,
         } as const;
     }
-    if (isTimeSeriesMetricChartConfig(vizConfigUnknown)) {
-        const vizConfig =
-            generateTimeSeriesVizConfigToolSchema.parse(vizConfigUnknown);
-        const metricQuery = metricQueryTimeSeriesChartMetric(vizConfig);
+    if (isTimeSeriesVizTool(vizConfigUnknown)) {
+        const vizTool = timeSeriesVizToolSchema
+            .omit({ type: true, followUpTools: true })
+            .parse(vizConfigUnknown);
+        const metricQuery = metricQueryTimeSeriesChartMetric(vizTool);
         return {
             type: AiChartType.TIME_SERIES_CHART,
-            config: vizConfig,
+            vizTool,
             metricQuery,
         } as const;
     }
-    if (isTableVizConfig(vizConfigUnknown)) {
-        const vizConfig =
-            generateTableVizConfigToolSchema.parse(vizConfigUnknown);
-        const metricQuery = metricQueryTableViz(vizConfig, maxLimit);
+    if (isTableVizConfigTool(vizConfigUnknown)) {
+        const vizTool = tableVizToolSchema
+            .omit({ type: true, followUpTools: true })
+            .parse(vizConfigUnknown);
+        const metricQuery = metricQueryTableViz(vizTool, maxLimit);
         return {
             type: AiChartType.TABLE,
-            config: vizConfig,
+            vizTool,
             metricQuery,
         } as const;
     }
 
-    throw new UnexpectedServerError('Invalid chart type');
+    return null;
 };

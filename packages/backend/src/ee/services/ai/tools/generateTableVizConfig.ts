@@ -8,10 +8,7 @@ import type {
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import {
-    generateTableVizConfigToolSchema,
-    renderTableViz,
-} from '../visualizations/tableViz';
+import { renderTableViz, tableVizToolSchema } from '../visualizations/tableViz';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;
@@ -29,27 +26,27 @@ export const getGenerateTableVizConfig = ({
     updateProgress,
     maxLimit,
 }: Dependencies) => {
-    const schema = generateTableVizConfigToolSchema;
+    const schema = tableVizToolSchema;
 
     return tool({
         description: `Generate a table and show it to the user.
 The dimension and metric "fieldIds" must come from an explore.
 If you haven't used "findFieldsInExplore" tool, please do so before using this tool.`,
         parameters: schema,
-        execute: async (vizConfig) => {
+        execute: async (vizToolResult) => {
             try {
                 await updateProgress('🔢 Generating your table...');
 
                 const prompt = await getPrompt();
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,
-                    vizConfigOutput: vizConfig,
+                    vizConfigOutput: vizToolResult,
                 });
 
                 if (isSlackPrompt(prompt)) {
                     const { csv } = await renderTableViz({
                         runMetricQuery: runMiniMetricQuery,
-                        config: vizConfig,
+                        vizTool: vizToolResult,
                         maxLimit,
                     });
 

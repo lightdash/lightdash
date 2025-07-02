@@ -8,12 +8,16 @@ import {
     UnitOfTime,
 } from '../../types/filter';
 import assertUnreachable from '../../utils/assertUnreachable';
-import { AiChartType } from '../AiAgent';
+import {
+    AI_DEFAULT_MAX_QUERY_LIMIT,
+    AiChartType,
+    FollowUpTools,
+} from '../AiAgent';
 
 // TODO: most of the things should live in common and some of the existing types should be inferred from here
 // we can't reuse them because there's a bug with TSOA+ZOD - we can't use zod types in TSOA controllers
 
-const DimensionTypeSchema = z.union([
+const dimensionTypeSchema = z.union([
     z.literal(DimensionType.BOOLEAN),
     z.literal(DimensionType.DATE),
     z.literal(DimensionType.NUMBER),
@@ -21,7 +25,7 @@ const DimensionTypeSchema = z.union([
     z.literal(DimensionType.TIMESTAMP),
 ]);
 
-const MetricTypeSchema = z.union([
+const metricTypeSchema = z.union([
     z.literal(MetricType.PERCENTILE),
     z.literal(MetricType.AVERAGE),
     z.literal(MetricType.COUNT),
@@ -37,7 +41,7 @@ const MetricTypeSchema = z.union([
     z.literal(MetricType.BOOLEAN),
 ]);
 
-const FieldTypeSchema = z.union([DimensionTypeSchema, MetricTypeSchema]);
+const fieldTypeSchema = z.union([dimensionTypeSchema, metricTypeSchema]);
 
 const fieldIdSchema = z
     .string()
@@ -191,7 +195,7 @@ const filterRuleSchema = z.object({
     type: z.enum(['or', 'and']).describe('Type of filter group operation'),
     target: z.object({
         fieldId: fieldIdSchema,
-        type: FieldTypeSchema,
+        type: fieldTypeSchema,
     }),
     rule: z.union([
         booleanFilterSchema.describe('Boolean filter'),
@@ -274,7 +278,7 @@ export const filtersSchemaTransformed =
         }
     });
 
-export const SortFieldSchema = z.object({
+export const sortFieldSchema = z.object({
     fieldId: fieldIdSchema.describe(
         '"fieldId" must come from the selected Metrics or Dimensions; otherwise, it will throw an error.',
     ),
@@ -285,7 +289,7 @@ export const SortFieldSchema = z.object({
         ),
 });
 
-export const VisualizationMetadataSchema = z.object({
+export const visualizationMetadataSchema = z.object({
     title: z.string().describe('A descriptive title for the chart'),
     description: z
         .string()
@@ -343,7 +347,7 @@ const lighterMetricQuerySchema = z.object({
         ),
     filters: filtersSchema.nullable().describe('Filters to apply to the query'),
     sorts: z
-        .array(SortFieldSchema)
+        .array(sortFieldSchema)
         .describe(
             'Sort configuration for the MetricQuery. Should be an empty array if no sorting is needed',
         ),
@@ -431,7 +435,7 @@ export const aiFindFieldsToolSchema = z.object({
 });
 
 export const timeSeriesMetricVizConfigSchema =
-    VisualizationMetadataSchema.extend({
+    visualizationMetadataSchema.extend({
         exploreName: z
             .string()
             .describe(
@@ -449,7 +453,7 @@ export const timeSeriesMetricVizConfigSchema =
                 'At least one metric is required. The field ids of the metrics to be displayed on the y-axis. If there are multiple metrics there will be one line per metric',
             ),
         sorts: z
-            .array(SortFieldSchema)
+            .array(sortFieldSchema)
             .describe(
                 'Sort configuration for the query, it can use a combination of metrics and dimensions.',
             ),
@@ -464,14 +468,39 @@ export const timeSeriesMetricVizConfigSchema =
             .describe(
                 'default line. The type of line to display. If area then the area under the line will be filled in.',
             ),
+        limit: z
+            .number()
+            .max(AI_DEFAULT_MAX_QUERY_LIMIT)
+            .nullable()
+            .describe(`The total number of data points allowed on the chart.`),
     });
 
 export type TimeSeriesMetricVizConfigSchemaType = z.infer<
     typeof timeSeriesMetricVizConfigSchema
 >;
 
+export const timeSeriesVizToolSchema = z.object({
+    type: z.literal(AiChartType.TIME_SERIES_CHART),
+    vizConfig: timeSeriesMetricVizConfigSchema,
+    filters: filtersSchema
+        .nullable()
+        .describe(
+            'Filters to apply to the query. Filtered fields must exist in the selected explore.',
+        ),
+    followUpTools: z
+        .array(
+            z.union([
+                z.literal(FollowUpTools.GENERATE_BAR_VIZ),
+                z.literal(FollowUpTools.GENERATE_TIME_SERIES_VIZ),
+            ]),
+        )
+        .describe(
+            `The actions the User can ask for after the AI has generated the chart. NEVER include ${FollowUpTools.GENERATE_TIME_SERIES_VIZ} in this list.`,
+        ),
+});
+
 export const verticalBarMetricVizConfigSchema =
-    VisualizationMetadataSchema.extend({
+    visualizationMetadataSchema.extend({
         exploreName: z
             .string()
             .describe(
@@ -489,9 +518,16 @@ export const verticalBarMetricVizConfigSchema =
                 'At least one metric is required. The field ids of the metrics to be displayed on the y-axis. The height of the bars',
             ),
         sorts: z
-            .array(SortFieldSchema)
+            .array(sortFieldSchema)
             .describe(
                 'Sort configuration for the query, it can use a combination of metrics and dimensions.',
+            ),
+        limit: z
+            .number()
+            .max(AI_DEFAULT_MAX_QUERY_LIMIT)
+            .nullable()
+            .describe(
+                `The total number of data points / bars allowed on the chart.`,
             ),
         breakdownByDimension: z
             .string()
@@ -524,28 +560,39 @@ export type VerticalBarMetricVizConfigSchemaType = z.infer<
     typeof verticalBarMetricVizConfigSchema
 >;
 
-export const tableVizConfigSchema = VisualizationMetadataSchema.extend({
-    exploreName: z
-        .string()
-        .describe(
-            'The name of the explore containing the metrics and dimensions used for table query',
-        ),
-    metrics: z
-        .array(z.string())
-        .min(1)
-        .describe(
-            'At least one metric is required. The field ids of the metrics to be calculated for the CSV. They will be grouped by the dimensions.',
-        ),
-    dimensions: z
-        .array(z.string())
-        .nullable()
-        .describe('The field id for the dimensions to group the metrics by'),
-    sorts: z
-        .array(SortFieldSchema)
-        .describe(
-            'Sort configuration for the query, it can use a combination of metrics and dimensions.',
-        ),
-});
+export const tableVizConfigSchema = visualizationMetadataSchema
+    .extend({
+        exploreName: z
+            .string()
+            .describe(
+                'The name of the explore containing the metrics and dimensions used for table query',
+            ),
+        metrics: z
+            .array(z.string())
+            .min(1)
+            .describe(
+                'At least one metric is required. The field ids of the metrics to be calculated for the CSV. They will be grouped by the dimensions.',
+            ),
+        dimensions: z
+            .array(z.string())
+            .nullable()
+            .describe(
+                'The field id for the dimensions to group the metrics by',
+            ),
+        sorts: z
+            .array(sortFieldSchema)
+            .describe(
+                'Sort configuration for the query, it can use a combination of metrics and dimensions.',
+            ),
+
+        limit: z
+            .number()
+            .nullable()
+            .describe('The maximum number of rows in the table.'),
+    })
+    .describe(
+        'Configuration file for generating a CSV file from a query with metrics and dimensions',
+    );
 
 export type TableVizConfigSchemaType = z.infer<typeof tableVizConfigSchema>;
 

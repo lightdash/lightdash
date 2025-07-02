@@ -1,4 +1,5 @@
 import {
+    AI_DEFAULT_MAX_QUERY_LIMIT,
     CompiledField,
     Explore,
     FilterRule,
@@ -98,7 +99,6 @@ ${filterRuleErrorStrings}`);
     }
 }
 
-export const AI_DEFAULT_MAX_QUERY_LIMIT = 1000;
 export function getValidAiQueryLimit(
     limit: number | null,
     maxLimit: number = AI_DEFAULT_MAX_QUERY_LIMIT, // ! Allow limit override

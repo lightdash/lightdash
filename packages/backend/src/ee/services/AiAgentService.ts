@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AI_DEFAULT_MAX_QUERY_LIMIT,
     AiAgent,
     AiAgentThread,
     AiAgentThreadSummary,
@@ -32,7 +33,6 @@ import {
     NotFoundError,
     QueryExecutionContext,
     SlackPrompt,
-    UnexpectedServerError,
     UpdateSlackResponse,
     UpdateWebAppResponse,
     type SessionUser,
@@ -77,14 +77,11 @@ import {
     getFeedbackBlocks,
     getFollowUpToolBlocks,
 } from './ai/utils/getSlackBlocks';
-import {
-    AI_DEFAULT_MAX_QUERY_LIMIT,
-    validateSelectedFieldsExistence,
-} from './ai/utils/validators';
+import { validateSelectedFieldsExistence } from './ai/utils/validators';
 import { renderTableViz } from './ai/visualizations/tableViz';
-import { renderTimeseriesChart } from './ai/visualizations/timeSeriesChart';
-import { getMetricQueryFromVizConfig } from './ai/visualizations/utils';
-import { renderVerticalBarMetricChart } from './ai/visualizations/verticalBarChart';
+import { renderTimeSeriesViz } from './ai/visualizations/timeSeriesViz';
+import { parseVizConfig } from './ai/visualizations/utils';
+import { renderVerticalBarViz } from './ai/visualizations/verticalBarViz';
 import { CommercialCatalogService } from './CommercialCatalogService';
 
 type AiAgentServiceDependencies = {
@@ -788,16 +785,14 @@ export class AiAgentService {
             );
         }
 
-        if (!message.vizConfigOutput) {
-            throw new ForbiddenError(
-                'Viz config or metric query not found for this message',
-            );
-        }
-
-        const { type, config } = getMetricQueryFromVizConfig(
+        const parsedVizConfig = parseVizConfig(
             message.vizConfigOutput,
             this.lightdashConfig.query.maxLimit,
         );
+
+        if (!parsedVizConfig) {
+            throw new ForbiddenError('Could not generate a visualization');
+        }
 
         this.analytics.track({
             event: 'ai_agent.web_viz_query',
@@ -807,32 +802,32 @@ export class AiAgentService {
                 organizationId: organizationUuid,
                 agentId: agent.uuid,
                 agentName: agent.name,
-                vizType: type,
+                vizType: parsedVizConfig.type,
             },
         });
 
-        switch (type) {
+        switch (parsedVizConfig.type) {
             case AiChartType.VERTICAL_BAR_CHART:
-                return renderVerticalBarMetricChart({
+                return renderVerticalBarViz({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
-                    config,
+                    vizTool: parsedVizConfig.vizTool,
                 });
             case AiChartType.TIME_SERIES_CHART:
-                return renderTimeseriesChart({
+                return renderTimeSeriesViz({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
-                    config,
+                    vizTool: parsedVizConfig.vizTool,
                 });
             case AiChartType.TABLE:
                 return renderTableViz({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
-                    config,
+                    vizTool: parsedVizConfig.vizTool,
                     maxLimit: AI_DEFAULT_MAX_QUERY_LIMIT,
                 });
             default:
-                return assertUnreachable(type, 'Invalid viz type');
+                return assertUnreachable(parsedVizConfig, 'Invalid viz type');
         }
     }
 
@@ -899,15 +894,19 @@ export class AiAgentService {
                     : null,
         } satisfies AiVizMetadata;
 
-        const { type, metricQuery } = getMetricQueryFromVizConfig(
+        const parsedVizConfig = parseVizConfig(
             message.vizConfigOutput,
             this.lightdashConfig.query.maxLimit,
         );
 
+        if (!parsedVizConfig) {
+            throw new ForbiddenError('Could not generate a visualization');
+        }
+
         const query = await this.executeAsyncAiMetricQuery(
             user,
             projectUuid,
-            metricQuery,
+            parsedVizConfig.metricQuery,
         );
 
         this.analytics.track({
@@ -918,12 +917,12 @@ export class AiAgentService {
                 organizationId: organizationUuid,
                 agentId: agent.uuid,
                 agentName: agent.name,
-                vizType: type,
+                vizType: parsedVizConfig.type,
             },
         });
 
         return {
-            type,
+            type: parsedVizConfig.type,
             query,
             metadata,
         };
@@ -1868,15 +1867,13 @@ export class AiAgentService {
 
         const utils = this.getAiAgentDependencies(user, finalPrompt);
 
-        const rows = finalPrompt.vizConfigOutput
-            ? (
-                  await utils.runMiniMetricQuery(
-                      getMetricQueryFromVizConfig(
-                          finalPrompt.vizConfigOutput,
-                          this.lightdashConfig.query.maxLimit,
-                      ).metricQuery,
-                  )
-              ).rows
+        const parsedVizConfig = parseVizConfig(
+            finalPrompt.vizConfigOutput,
+            this.lightdashConfig.query.maxLimit,
+        );
+
+        const rows = parsedVizConfig
+            ? (await utils.runMiniMetricQuery(parsedVizConfig.metricQuery)).rows
             : undefined;
 
         return {

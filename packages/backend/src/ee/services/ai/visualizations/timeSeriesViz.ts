@@ -3,50 +3,46 @@ import {
     AiMetricQuery,
     filtersSchema,
     filtersSchemaTransformed,
+    FollowUpTools,
     MetricQuery,
     timeSeriesMetricVizConfigSchema,
 } from '@lightdash/common';
 import { z } from 'zod';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
-import { FollowUpTools, followUpToolsSchema } from '../types/followUpTools';
-import {
-    AI_DEFAULT_MAX_QUERY_LIMIT,
-    getValidAiQueryLimit,
-} from '../utils/validators';
-import { getPivotedResults } from './getPivotedResults';
+import { getPivotedResults } from '../utils/getPivotedResults';
+import { getValidAiQueryLimit } from '../utils/validators';
 
-const vizConfigSchema = timeSeriesMetricVizConfigSchema.extend({
-    limit: z
-        .number()
-        .max(AI_DEFAULT_MAX_QUERY_LIMIT)
-        .nullable()
-        .describe(`The total number of data points allowed on the chart.`),
-    followUpTools: followUpToolsSchema.describe(
-        `The actions the User can ask for after the AI has generated the chart. NEVER include ${FollowUpTools.GENERATE_TIME_SERIES_VIZ} in this list.`,
-    ),
-});
-
-export const generateTimeSeriesVizConfigToolSchema = z.object({
+export const timeSeriesVizToolSchema = z.object({
     type: z.literal(AiChartType.TIME_SERIES_CHART),
-    vizConfig: vizConfigSchema,
+    vizConfig: timeSeriesMetricVizConfigSchema,
     filters: filtersSchema
         .nullable()
         .describe(
             'Filters to apply to the query. Filtered fields must exist in the selected explore.',
         ),
+    followUpTools: z
+        .array(
+            z.union([
+                z.literal(FollowUpTools.GENERATE_BAR_VIZ),
+                z.literal(FollowUpTools.GENERATE_TIME_SERIES_VIZ),
+            ]),
+        )
+        .describe(
+            `The actions the User can ask for after the AI has generated the chart. NEVER include ${FollowUpTools.GENERATE_TIME_SERIES_VIZ} in this list.`,
+        ),
 });
 
-export type TimeSeriesMetricChartConfig = z.infer<
-    typeof generateTimeSeriesVizConfigToolSchema
->;
+export type TimeSeriesVizTool = z.infer<typeof timeSeriesVizToolSchema>;
 
-export const isTimeSeriesMetricChartConfig = (
+export const isTimeSeriesVizTool = (
     config: unknown,
-): config is TimeSeriesMetricChartConfig =>
-    generateTimeSeriesVizConfigToolSchema.safeParse(config).success;
+): config is TimeSeriesVizTool =>
+    timeSeriesVizToolSchema
+        .omit({ type: true, followUpTools: true })
+        .safeParse(config).success;
 
 export const metricQueryTimeSeriesChartMetric = (
-    config: TimeSeriesMetricChartConfig,
+    config: Pick<TimeSeriesVizTool, 'vizConfig' | 'filters'>,
 ): AiMetricQuery => {
     const metrics = config.vizConfig.yMetrics;
     const dimensions = [
@@ -68,20 +64,20 @@ export const metricQueryTimeSeriesChartMetric = (
 };
 
 export const echartsConfigTimeSeriesMetric = async (
-    config: TimeSeriesMetricChartConfig,
+    vizTool: Pick<TimeSeriesVizTool, 'vizConfig' | 'filters'>,
     rows: Record<string, unknown>[],
     fieldsMap: Record<string, unknown>,
     sorts: MetricQuery['sorts'],
 ) => {
     let chartData = rows;
-    let metrics = config.vizConfig.yMetrics;
-    if (config.vizConfig.breakdownByDimension) {
+    let metrics = vizTool.vizConfig.yMetrics;
+    if (vizTool.vizConfig.breakdownByDimension) {
         // Sort the pivoted data
         const pivoted = await getPivotedResults(
             rows,
             fieldsMap,
-            config.vizConfig.breakdownByDimension,
-            config.vizConfig.yMetrics,
+            vizTool.vizConfig.breakdownByDimension,
+            vizTool.vizConfig.yMetrics,
             sorts,
         );
         chartData = pivoted.results;
@@ -89,8 +85,8 @@ export const echartsConfigTimeSeriesMetric = async (
     }
 
     return {
-        ...(config.vizConfig.title
-            ? { title: { text: config.vizConfig.title } }
+        ...(vizTool.vizConfig.title
+            ? { title: { text: vizTool.vizConfig.title } }
             : {}),
         ...(metrics.length > 1
             ? {
@@ -124,25 +120,23 @@ export const echartsConfigTimeSeriesMetric = async (
             type: 'line',
             name: metric,
             encode: {
-                x: config.vizConfig.xDimension,
+                x: vizTool.vizConfig.xDimension,
                 y: metric,
             },
-            ...(config.vizConfig.lineType === 'area' && { areaStyle: {} }),
+            ...(vizTool.vizConfig.lineType === 'area' && { areaStyle: {} }),
         })),
     };
 };
 
-type RenderTimeseriesChartArgs = {
+export const renderTimeSeriesViz = async ({
+    runMetricQuery,
+    vizTool,
+}: {
     runMetricQuery: (
         metricQuery: AiMetricQuery,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
-    config: TimeSeriesMetricChartConfig;
-};
-
-export const renderTimeseriesChart = async ({
-    runMetricQuery,
-    config,
-}: RenderTimeseriesChartArgs): Promise<{
+    vizTool: Pick<TimeSeriesVizTool, 'vizConfig' | 'filters'>;
+}): Promise<{
     type: AiChartType.TIME_SERIES_CHART;
     metricQuery: AiMetricQuery;
     results: Awaited<
@@ -150,10 +144,10 @@ export const renderTimeseriesChart = async ({
     >;
     chartOptions: object;
 }> => {
-    const metricQuery = metricQueryTimeSeriesChartMetric(config);
+    const metricQuery = metricQueryTimeSeriesChartMetric(vizTool);
     const results = await runMetricQuery(metricQuery);
     const chartOptions = await echartsConfigTimeSeriesMetric(
-        config,
+        vizTool,
         results.rows,
         results.fields,
         metricQuery.sorts,

@@ -7,12 +7,12 @@ import type {
     UpdateProgressFn,
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
+import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { renderEcharts } from '../visualizations/renderEcharts';
 import {
-    generateBarVizConfigToolSchema,
-    renderVerticalBarMetricChart,
-} from '../visualizations/verticalBarChart';
+    renderVerticalBarViz,
+    verticalBarVizToolSchema,
+} from '../visualizations/verticalBarViz';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;
@@ -29,7 +29,7 @@ export const getGenerateBarVizConfig = ({
     sendFile,
     updatePrompt,
 }: Dependencies) => {
-    const schema = generateBarVizConfigToolSchema;
+    const schema = verticalBarVizToolSchema;
 
     return tool({
         description: `Generate Bar Chart Visualization and show it to the user.
@@ -49,12 +49,10 @@ Rules for generating the bar chart visualization:
                 });
 
                 if (isSlackPrompt(prompt)) {
-                    const { chartOptions } = await renderVerticalBarMetricChart(
-                        {
-                            runMetricQuery: runMiniMetricQuery,
-                            config: vizConfig,
-                        },
-                    );
+                    const { chartOptions } = await renderVerticalBarViz({
+                        runMetricQuery: runMiniMetricQuery,
+                        vizTool: vizConfig,
+                    });
 
                     const file = await renderEcharts(chartOptions);
                     await updateProgress('✅ Done.');
