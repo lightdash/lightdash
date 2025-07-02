@@ -30,11 +30,6 @@ export const toolVerticalBarArgsSchema = z.object({
 
 export type ToolVerticalBarArgs = z.infer<typeof toolVerticalBarArgsSchema>;
 
-export const isToolVerticalBarArgs = (
-    config: unknown,
-): config is ToolVerticalBarArgs =>
-    toolVerticalBarArgsSchema.safeParse(config).success;
-
 export const toolVerticalBarArgsSchemaTransformed =
     toolVerticalBarArgsSchema.transform(
         (

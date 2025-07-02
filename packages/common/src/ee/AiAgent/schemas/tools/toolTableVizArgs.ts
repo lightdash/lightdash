@@ -30,11 +30,6 @@ export const toolTableVizArgsSchema = z.object({
 
 export type ToolTableVizArgs = z.infer<typeof toolTableVizArgsSchema>;
 
-export const isToolTableVizArgs = (
-    toolArgs: unknown,
-): toolArgs is ToolTableVizArgs =>
-    toolTableVizArgsSchema.safeParse(toolArgs).success;
-
 export const toolTableVizArgsSchemaTransformed =
     toolTableVizArgsSchema.transform(
         (

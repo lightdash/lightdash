@@ -5,6 +5,7 @@ import { filtersSchema, filtersSchemaTransformed } from '../filters';
 import sortFieldSchema from '../sortField';
 
 const lighterMetricQuerySchema = z.object({
+    type: z.literal(AiResultType.ONE_LINE_RESULT),
     exploreName: z
         .string()
         .describe('Name of the explore to query. @example: "users"'),
@@ -44,9 +45,6 @@ export const toolOneLineArgsSchemaTransformed = toolOneLineArgsSchema.transform(
         filters: filtersSchemaTransformed.parse(data.filters),
     }),
 );
-
-export const isToolOneLineArgs = (vizConfigUnknown: unknown): boolean =>
-    toolOneLineArgsSchema.safeParse(vizConfigUnknown).success;
 
 export type ToolOneLineArgsTransformed = z.infer<
     typeof toolOneLineArgsSchemaTransformed

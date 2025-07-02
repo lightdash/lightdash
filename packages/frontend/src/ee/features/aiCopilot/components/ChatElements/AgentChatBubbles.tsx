@@ -44,7 +44,7 @@ import {
 } from '../../streaming/useAiAgentThreadStreamQuery';
 import { isOptimisticMessageStub } from '../../utils/thinkingMessageStub';
 import { AiChartVisualization } from './AiChartVisualization';
-import AgentToolCalls from './ToolCalls/AgentToolCalls';
+import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
 
 export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
     message,
@@ -110,7 +110,14 @@ const AssistantBubbleContent: FC<{ message: AiAgentMessageAssistant }> = ({
 
     return (
         <>
-            {isStreaming && <AgentToolCalls />}
+            {isStreaming && (
+                <AiChartToolCalls
+                    toolCalls={streamingState?.toolCalls}
+                    type="streaming"
+                    compiledSql={undefined}
+                />
+            )}
+
             <MDEditor.Markdown
                 source={messageContent}
                 style={{ backgroundColor: 'transparent' }}

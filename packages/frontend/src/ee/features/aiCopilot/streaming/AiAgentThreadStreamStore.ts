@@ -1,16 +1,15 @@
-import { type AnyType } from '@lightdash/common';
+import { type AgentToolCallArgs, type ToolName } from '@lightdash/common';
 import {
     configureStore,
     createSlice,
     type PayloadAction,
 } from '@reduxjs/toolkit';
 
-interface ToolCall {
+type ToolCall = {
     toolCallId: string;
-    toolName: string;
-    args: Record<string, AnyType>;
-    isStreaming?: boolean;
-}
+    toolName: ToolName;
+    toolArgs: AgentToolCallArgs;
+};
 
 export interface StreamingState {
     threadUuid: string;
@@ -72,14 +71,10 @@ const threadStreamSlice = createSlice({
         },
         addToolCall: (
             state,
-            action: PayloadAction<{
-                threadUuid: string;
-                toolCallId: string;
-                toolName: string;
-                args: Record<string, any>;
-            }>,
+            action: PayloadAction<ToolCall & { threadUuid: string }>,
         ) => {
-            const { threadUuid, toolCallId, toolName, args } = action.payload;
+            const { threadUuid, toolCallId, toolName, toolArgs } =
+                action.payload;
             const streamingThread = state[threadUuid];
             if (streamingThread) {
                 const existingIndex = streamingThread.toolCalls.findIndex(
@@ -89,13 +84,13 @@ const threadStreamSlice = createSlice({
                     streamingThread.toolCalls[existingIndex] = {
                         ...streamingThread.toolCalls[existingIndex],
                         toolName,
-                        args,
+                        toolArgs,
                     };
                 } else {
                     streamingThread.toolCalls.push({
                         toolCallId,
                         toolName,
-                        args,
+                        toolArgs,
                     });
                 }
             }

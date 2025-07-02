@@ -30,11 +30,6 @@ export const toolTimeSeriesArgsSchema = z.object({
 
 export type ToolTimeSeriesArgs = z.infer<typeof toolTimeSeriesArgsSchema>;
 
-export const isToolTimeSeriesArgs = (
-    config: unknown,
-): config is ToolTimeSeriesArgs =>
-    toolTimeSeriesArgsSchema.safeParse(config).success;
-
 export const toolTimeSeriesArgsSchemaTransformed =
     toolTimeSeriesArgsSchema.transform(
         (

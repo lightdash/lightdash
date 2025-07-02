@@ -1,9 +1,5 @@
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
 import {
-    isToolOneLineArgs,
-    isToolTableVizArgs,
-    isToolTimeSeriesArgs,
-    isToolVerticalBarArgs,
     metricQueryTableViz,
     metricQueryTimeSeriesViz,
     metricQueryVerticalBarViz,
@@ -22,9 +18,10 @@ export const parseVizConfig = (
         return null;
     }
 
-    if (isToolVerticalBarArgs(vizConfigUnknown)) {
-        const vizTool =
-            toolVerticalBarArgsSchemaTransformed.parse(vizConfigUnknown);
+    const toolVerticalBarArgsParsed =
+        toolVerticalBarArgsSchemaTransformed.safeParse(vizConfigUnknown);
+    if (toolVerticalBarArgsParsed.success) {
+        const vizTool = toolVerticalBarArgsParsed.data;
         const metricQuery = metricQueryVerticalBarViz(
             vizTool.vizConfig,
             vizTool.filters,
@@ -36,9 +33,11 @@ export const parseVizConfig = (
             metricQuery,
         } as const;
     }
-    if (isToolTimeSeriesArgs(vizConfigUnknown)) {
-        const vizTool =
-            toolTimeSeriesArgsSchemaTransformed.parse(vizConfigUnknown);
+
+    const toolTimeSeriesArgsParsed =
+        toolTimeSeriesArgsSchemaTransformed.safeParse(vizConfigUnknown);
+    if (toolTimeSeriesArgsParsed.success) {
+        const vizTool = toolTimeSeriesArgsParsed.data;
         const metricQuery = metricQueryTimeSeriesViz(
             vizTool.vizConfig,
             vizTool.filters,
@@ -50,9 +49,11 @@ export const parseVizConfig = (
             metricQuery,
         } as const;
     }
-    if (isToolTableVizArgs(vizConfigUnknown)) {
-        const vizTool =
-            toolTableVizArgsSchemaTransformed.parse(vizConfigUnknown);
+
+    const toolTableVizArgsParsed =
+        toolTableVizArgsSchemaTransformed.safeParse(vizConfigUnknown);
+    if (toolTableVizArgsParsed.success) {
+        const vizTool = toolTableVizArgsParsed.data;
         const metricQuery = metricQueryTableViz(
             vizTool.vizConfig,
             vizTool.filters,
@@ -65,9 +66,10 @@ export const parseVizConfig = (
         } as const;
     }
 
-    if (isToolOneLineArgs(vizConfigUnknown)) {
-        const vizTool =
-            toolOneLineArgsSchemaTransformed.parse(vizConfigUnknown);
+    const toolOneLineArgsParsed =
+        toolOneLineArgsSchemaTransformed.safeParse(vizConfigUnknown);
+    if (toolOneLineArgsParsed.success) {
+        const vizTool = toolOneLineArgsParsed.data;
         const metricQuery = {
             ...vizTool.metricQuery,
             filters: vizTool.filters,
