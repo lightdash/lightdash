@@ -1,3 +1,10 @@
+## [0.1775.2](https://github.com/lightdash/lightdash/compare/0.1775.1...0.1775.2) (2025-07-02)
+
+
+### Bug Fixes
+
+* allow schema validation errors for jwts again ([#15619](https://github.com/lightdash/lightdash/issues/15619)) ([cabaab0](https://github.com/lightdash/lightdash/commit/cabaab087f684f93963d99f7acd7145ceb1d001d))
+
 ## [0.1775.1](https://github.com/lightdash/lightdash/compare/0.1775.0...0.1775.1) (2025-07-02)
 
 
