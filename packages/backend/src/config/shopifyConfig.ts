@@ -8,10 +8,10 @@ export type ShopifyAuthConfig = {
 };
 
 export const parseShopifyConfig = (): ShopifyAuthConfig => {
-    const apiKey = process.env.SHOPIFY_API_KEY;
-    const apiSecret = process.env.SHOPIFY_API_SECRET;
+    const apiKey = process.env.SHOPIFY_API_KEY || '';
+    const apiSecret = process.env.SHOPIFY_API_SECRET || '';
     const scopes = process.env.SHOPIFY_SCOPES || 'read_orders,read_products';
-    const redirectUri = process.env.SHOPIFY_REDIRECT_URI;
+    const redirectUri = process.env.SHOPIFY_REDIRECT_URI || '';
   //  const redirectFrontend = process.env.SHOPIFY_REDIRECT_FRONTEND;
 
     if (!apiKey || !apiSecret || !redirectUri ) {

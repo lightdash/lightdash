@@ -41,8 +41,9 @@ export const shopifyAuthCallback = async (req: Request, res: Response) => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    client_id: lightdashConfig.auth.shopify.apiKey,
-                    client_secret: lightdashConfig.auth.shopify.apiSecret,
+                    client_id: lightdashConfig.auth.shopify?.apiKey || '',
+                    client_secret: lightdashConfig.auth.shopify?.apiSecret || '',
+
                     code,
                 }),
             },

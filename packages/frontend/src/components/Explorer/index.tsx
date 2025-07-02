@@ -17,9 +17,11 @@ import ResultsCard from './ResultsCard/ResultsCard';
 import SqlCard from './SqlCard/SqlCard';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
 import { WriteBackModal } from './WriteBackModal';
+import useApp from '../../providers/App/useApp';
 
 const Explorer: FC<{ hideHeader?: boolean }> = memo(
     ({ hideHeader = false }) => {
+        const { user }=  useApp();
         const unsavedChartVersionTableName = useExplorerContext(
             (context) => context.state.unsavedChartVersion.tableName,
         );
@@ -62,7 +64,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
                     <ResultsCard />
 
-                    {!!projectUuid && <SqlCard projectUuid={projectUuid} />}
+                    {!!projectUuid && user.is_admin && <SqlCard projectUuid={projectUuid} />}
                 </Stack>
 
                 <UnderlyingDataModal />

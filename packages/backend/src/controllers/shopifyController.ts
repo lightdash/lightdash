@@ -44,13 +44,19 @@ export class ShopifyAuthController extends BaseController {
 
             const user = await userService.getSessionByUserUuid(userUuid);
             const shop = await shopService.getByShopUrl(shopUrl);
+            console.log(`Setting up user ${userUuid} for shop ${shopUrl}`);
+            console.log(`Found user: ${JSON.stringify(user)}`);
+
 
             if (!shop) {
                 throw new ParameterError(`No shop found for URL: ${shopUrl}`);
             }
-
+            console.log(`Found shop: ${JSON.stringify(shop)}`);
             await shopService.setupUserForShop(shop, user);
-            runShopifyDataIngestion(shopUrl, ['products', 'orders']);
+            console.log(`User ${userUuid} setup for shop ${shopUrl}`);
+            runShopifyDataIngestion(shopUrl);
+            console.log(`Started data ingestion for shop ${shopUrl}`);
+
 
             return { status: 'ok', results: undefined };
         } catch (e: any) {

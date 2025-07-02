@@ -275,6 +275,9 @@ importers:
       fuse.js:
         specifier: ^6.4.6
         version: 6.5.3
+      google-auth-library:
+        specifier: ^8.9.0
+        version: 8.9.0(encoding@0.1.13)
       googleapis:
         specifier: '105'
         version: 105.0.0(encoding@0.1.13)
@@ -8421,10 +8424,6 @@ packages:
     resolution: {integrity: sha512-FNTkdNEnBdlqF2oatizolQqNANMrcqJt6AAYt99B3y1aLLC8Hc5IOBb+ZnnzllodEEf6xMBp6wRcBbc16fa65w==}
     engines: {node: '>=12'}
 
-  gcp-metadata@6.1.0:
-    resolution: {integrity: sha512-Jh/AIwwgaxan+7ZUUmRLCjtchyDiqh4KjBJ5tW3plBZb5iL/BPcso8A5DlzeD9qlw0duCamnNdpFjxwaT0KyKg==}
-    engines: {node: '>=14'}
-
   gcp-metadata@6.1.1:
     resolution: {integrity: sha512-a4tiq7E0/5fTjxPAaH4jpjkSv/uCaU2p5KC6HVGrvl0cDjA8iBZv4vv1gyzlmK0ZUKqwpOyQMKzZQe3lTit77A==}
     engines: {node: '>=14'}
@@ -8575,10 +8574,6 @@ packages:
   google-auth-library@8.9.0:
     resolution: {integrity: sha512-f7aQCJODJFmYWN6PeNKzgvy9LI2tYmXnzpNDHEjG5sDNPgGb2FXQyTBnXeSH+PAtpKESFD+LmHw3Ox3mN7e1Fg==}
     engines: {node: '>=12'}
-
-  google-auth-library@9.12.0:
-    resolution: {integrity: sha512-5pWjpxJMNJ5UTuhK7QPD5KFPsbosWkX4ajMDeZwXllTtwwqeiIzPWbHIddkLBkkn0mUPboTmukT5rd30Ec9igQ==}
-    engines: {node: '>=14'}
 
   google-auth-library@9.15.1:
     resolution: {integrity: sha512-Jb6Z0+nvECVz+2lzSMt9u98UsoakXxA2HGHMCxh+so3n90XgYWkq5dur19JAJV7ONiJY22yBTyJB1TSkvPq9Ng==}
@@ -16139,7 +16134,7 @@ snapshots:
       arrify: 2.0.1
       duplexify: 4.1.3
       extend: 3.0.2
-      google-auth-library: 9.12.0(encoding@0.1.13)
+      google-auth-library: 9.15.1(encoding@0.1.13)
       html-entities: 2.5.2
       retry-request: 7.0.2(encoding@0.1.13)
       teeny-request: 9.0.0(encoding@0.1.13)
@@ -23464,14 +23459,6 @@ snapshots:
       - encoding
       - supports-color
 
-  gcp-metadata@6.1.0(encoding@0.1.13):
-    dependencies:
-      gaxios: 6.7.1(encoding@0.1.13)
-      json-bigint: 1.0.0
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
   gcp-metadata@6.1.1(encoding@0.1.13):
     dependencies:
       gaxios: 6.7.1(encoding@0.1.13)
@@ -23661,18 +23648,6 @@ snapshots:
       gtoken: 6.1.2(encoding@0.1.13)
       jws: 4.0.0
       lru-cache: 6.0.0
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
-  google-auth-library@9.12.0(encoding@0.1.13):
-    dependencies:
-      base64-js: 1.5.1
-      ecdsa-sig-formatter: 1.0.11
-      gaxios: 6.7.1(encoding@0.1.13)
-      gcp-metadata: 6.1.0(encoding@0.1.13)
-      gtoken: 7.1.0(encoding@0.1.13)
-      jws: 4.0.0
     transitivePeerDependencies:
       - encoding
       - supports-color

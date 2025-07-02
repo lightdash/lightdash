@@ -9,6 +9,12 @@ export const lightdashConfigMock: LightdashConfig = {
             allowedOrgRoles: Object.values(OrganizationMemberRole),
             maxExpirationTimeInDays: undefined,
         },
+        shopify: {
+            apiKey: 'mock-api-key',
+            apiSecret: 'mock-api-secret',
+            scopes: 'read_orders',
+            redirectUri: 'https://mock-redirect.com',
+        },
         enableGroupSync: false,
         disablePasswordAuthentication: false,
         enableOidcLinking: false,
