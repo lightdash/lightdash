@@ -322,7 +322,6 @@ eg. on MacOS you can follow this instructions:
 # 2 Install nvm (https://github.com/nvm-sh/nvm#troubleshooting-on-macos) and other required dependencies
 brew update
 brew install nvm
-brew install pkg-config cairo pango libpng jpeg giflib librsvg pixman python-setuptools
 
 # 3 Install specified node version using NVM (https://github.com/nvm-sh/nvm)
 

@@ -66,9 +66,17 @@ credentials.json
 packages/backend/target/
 venv/
 .venv/
+.venvs/
 dbt_modules/
 logs/
+
+# direnv
 /.envrc
+.direnv/
+
+# nix flakes
+flake.nix
+flake.lock
 
 # dangerfile
 dangerfile.development.ts

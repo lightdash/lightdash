@@ -381,7 +381,7 @@ describe('ProjectService', () => {
             expect(replaceWhitespace(runQueryMock.mock.calls[0][0])).toEqual(
                 replaceWhitespace(`SELECT AS "a_dim1"
                                    FROM test.table AS "a"
-                                   WHERE (( LOWER() LIKE LOWER('%%') ))
+                                   WHERE (( LOWER() LIKE LOWER('%%') ) AND ( () IS NOT NULL ))
                                    GROUP BY 1
                                    ORDER BY "a_dim1"
                                    LIMIT 10`),
@@ -439,7 +439,7 @@ describe('ProjectService', () => {
                 replaceWhitespace(`SELECT AS "a_dim1"
                                         FROM test.table AS "a"
                                         LEFT OUTER JOIN public.b AS "b" ON ("a".dim1) = ("b".dim1)
-                                        WHERE (( LOWER() LIKE LOWER('%%') ) AND ( () IN ('test') ) AND ( () IN ('test') ))
+                                        WHERE (( LOWER() LIKE LOWER('%%') ) AND ( () IS NOT NULL ) AND ( () IN ('test') ) AND ( () IN ('test') ))
                                         GROUP BY 1
                                         ORDER BY "a_dim1"
                                         LIMIT 10`),

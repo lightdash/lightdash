@@ -1027,6 +1027,58 @@ export class AiAgentService {
         });
     }
 
+    async updateMessageSavedQuery(
+        user: SessionUser,
+        {
+            agentUuid,
+            messageUuid,
+            threadUuid,
+            savedQueryUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+            savedQueryUuid: string | null;
+        },
+    ): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError(`Organization not found`);
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled)
+            throw new ForbiddenError(`Copilot is not enabled`);
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
+        const message = await this.aiAgentModel.findThreadMessage('assistant', {
+            organizationUuid,
+            threadUuid,
+            messageUuid,
+        });
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('AiAgentThread', {
+                    projectUuid: agent.projectUuid,
+                    userUuid: user.userUuid,
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.aiAgentModel.updateMessageSavedQuery({
+            messageUuid,
+            savedQueryUuid,
+        });
+    }
+
     private async updateSlackResponseWithProgress(
         slackPrompt: SlackPrompt,
         progress: string,

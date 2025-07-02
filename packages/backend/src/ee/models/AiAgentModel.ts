@@ -594,6 +594,7 @@ export class AiAgentModel {
                     | 'viz_config_output'
                     | 'metric_query'
                     | 'human_score'
+                    | 'saved_query_uuid'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -611,6 +612,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.viz_config_output`,
                 `${AiPromptTableName}.metric_query`,
                 `${AiPromptTableName}.human_score`,
+                `${AiPromptTableName}.saved_query_uuid`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -687,6 +689,7 @@ export class AiAgentModel {
                             toolName: tc.tool_name,
                             toolArgs: tc.tool_args,
                         })),
+                    savedQueryUuid: row.saved_query_uuid,
                 });
             }
 
@@ -745,6 +748,7 @@ export class AiAgentModel {
                     | 'viz_config_output'
                     | 'metric_query'
                     | 'human_score'
+                    | 'saved_query_uuid'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -762,6 +766,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.viz_config_output`,
                 `${AiPromptTableName}.metric_query`,
                 `${AiPromptTableName}.human_score`,
+                `${AiPromptTableName}.saved_query_uuid`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -851,6 +856,7 @@ export class AiAgentModel {
                             toolName: tc.tool_name,
                             toolArgs: tc.tool_args,
                         })),
+                    savedQueryUuid: row.saved_query_uuid,
                 } satisfies AiAgentMessageAssistant;
             default:
                 return assertUnreachable(role, `Unknown role ${role}`);
@@ -1137,6 +1143,19 @@ export class AiAgentModel {
             })
             .where({
                 ai_prompt_uuid: data.promptUuid,
+            });
+    }
+
+    async updateMessageSavedQuery(data: {
+        messageUuid: string;
+        savedQueryUuid: string | null;
+    }): Promise<void> {
+        await this.database(AiPromptTableName)
+            .update({
+                saved_query_uuid: data.savedQueryUuid,
+            })
+            .where({
+                ai_prompt_uuid: data.messageUuid,
             });
     }
 
