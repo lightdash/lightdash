@@ -1,4 +1,5 @@
 import {
+    formatDate,
     type ApiError,
     type ApiJobScheduledResponse,
     type CreateDashboard,
@@ -238,7 +239,17 @@ export const useExportCsvDashboard = () => {
                 pollJobStatus(job.jobId)
                     .then(async (details) => {
                         if (details?.url) {
-                            window.open(details.url, '_blank');
+                            const link = document.createElement('a');
+                            link.href = details.url;
+                            link.setAttribute(
+                                'download',
+                                `${data.dashboard.name}-${formatDate(
+                                    Date.now(),
+                                )}`,
+                            );
+                            document.body.appendChild(link);
+                            link.click();
+                            link.remove(); // Remove the link from the DOM
                             showToastSuccess({
                                 key: 'dashboard_export_toast',
                                 title: `Success! ${data.dashboard.name} was exported.`,
