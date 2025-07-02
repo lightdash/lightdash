@@ -188,6 +188,7 @@ export const AiChartVisualization: FC<Props> = ({
 
                         {activeTab === 'chart' && (
                             <AiChartQuickOptions
+                                message={message}
                                 projectUuid={projectUuid}
                                 saveChartOptions={{
                                     name: queryExecutionHandle.data.metadata
@@ -195,10 +196,6 @@ export const AiChartVisualization: FC<Props> = ({
                                     description:
                                         queryExecutionHandle.data.metadata
                                             .description,
-                                }}
-                                message={{
-                                    threadUuid: message.threadUuid,
-                                    uuid: message.uuid,
                                 }}
                             />
                         )}
