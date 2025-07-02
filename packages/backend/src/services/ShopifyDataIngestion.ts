@@ -50,6 +50,7 @@ export const runShopifyDataIngestion = async (
         return data.name;
     } catch (err: any) {
         console.error('❌ Unexpected error:', err.message || err);
+
         throw err;
     }
 };

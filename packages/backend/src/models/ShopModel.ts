@@ -1,5 +1,6 @@
 import {
     AlreadyExistsError,
+
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DbShop, ShopTableName } from '../database/entities/shopifyShop';
@@ -16,6 +17,7 @@ export class ShopModel {
     }
 
     async create(data: any): Promise<DbShop> {
+
         const existing = await this.database(ShopTableName)
             .where('shop_url', data.shop_url)
             .first();

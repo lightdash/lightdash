@@ -47,6 +47,7 @@ export class ShopifyAuthController extends BaseController {
             console.log(`Setting up user ${userUuid} for shop ${shopUrl}`);
             console.log(`Found user: ${JSON.stringify(user)}`);
 
+
             if (!shop) {
                 throw new ParameterError(`No shop found for URL: ${shopUrl}`);
             }
@@ -55,6 +56,7 @@ export class ShopifyAuthController extends BaseController {
             console.log(`User ${userUuid} setup for shop ${shopUrl}`);
             runShopifyDataIngestion(shopUrl);
             console.log(`Started data ingestion for shop ${shopUrl}`);
+
 
             return { status: 'ok', results: undefined };
         } catch (e: any) {
