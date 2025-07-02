@@ -1,3 +1,10 @@
+# [0.1772.0](https://github.com/lightdash/lightdash/compare/0.1771.0...0.1772.0) (2025-07-02)
+
+
+### Features
+
+* exclude null values from filter suggestions ([#15642](https://github.com/lightdash/lightdash/issues/15642)) ([bc6da2a](https://github.com/lightdash/lightdash/commit/bc6da2afb50b0c6f6de582caf2a611166d4691f8))
+
 # [0.1771.0](https://github.com/lightdash/lightdash/compare/0.1770.0...0.1771.0) (2025-07-02)
 
 
