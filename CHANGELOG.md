@@ -1,3 +1,10 @@
+## [0.1769.7](https://github.com/lightdash/lightdash/compare/0.1769.6...0.1769.7) (2025-07-02)
+
+
+### Bug Fixes
+
+* return cache hit when there's cache valid within 10 min buffer ([#15598](https://github.com/lightdash/lightdash/issues/15598)) ([8e529bc](https://github.com/lightdash/lightdash/commit/8e529bc6682c27a83f2ae640aeffc02dd69bbdea))
+
 ## [0.1769.6](https://github.com/lightdash/lightdash/compare/0.1769.5...0.1769.6) (2025-07-01)
 
 
