@@ -1,3 +1,10 @@
+# [0.1775.0](https://github.com/lightdash/lightdash/compare/0.1774.1...0.1775.0) (2025-07-02)
+
+
+### Features
+
+* show sql instead of metric query ([#15659](https://github.com/lightdash/lightdash/issues/15659)) ([fd91ba0](https://github.com/lightdash/lightdash/commit/fd91ba065c03e45b465abfedd18daf55ea6ddd8b))
+
 ## [0.1774.1](https://github.com/lightdash/lightdash/compare/0.1774.0...0.1774.1) (2025-07-02)
 
 
