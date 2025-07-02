@@ -21,6 +21,210 @@ export const fieldRename = createRenameFactory({
     toFieldName: 'user_id',
 });
 
+export const chartWithCustomMetric = {
+    uuid: '1382da19-a74e-4e32-afd6-1c5c9ac46ee3',
+    projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+    name: 'min customer id 1',
+    description: '',
+    tableName: 'customers',
+    updatedAt: new Date('2025-07-01T15:21:02.181Z'),
+    updatedByUser: {
+        userUuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
+        firstName: 'David',
+        lastName: 'Attenborough',
+    },
+    metricQuery: {
+        exploreName: 'customers',
+        dimensions: ['customers_first_name'],
+        metrics: ['customers_Customer_ID_min_of_Customer_ID_10'],
+        filters: {},
+        sorts: [{ fieldId: 'customers_first_name', descending: false }],
+        limit: 500,
+        metricOverrides: {},
+        tableCalculations: [],
+        additionalMetrics: [
+            {
+                name: 'Customer_ID_min_of_Customer_ID_10',
+                label: 'Min of Customer id 10',
+                description:
+                    'Min of Min of Customer id on the table Customers with filters customers.Customer_ID',
+                uuid: '595f9b6e-0d75-4c1f-a39a-f0b734695607',
+                sql: '${TABLE}.Customer_ID',
+                table: 'customers',
+                type: 'min',
+                baseDimensionName: 'Customer_ID',
+                filters: [
+                    {
+                        id: '0ce8a9c0-be16-46ac-b428-cd1ed4003ab0',
+                        target: { fieldRef: 'customers.Customer_ID' },
+                        values: [10],
+                        operator: 'greaterThan',
+                    },
+                ],
+                formatOptions: { type: 'default', separator: 'default' },
+            },
+        ],
+        customDimensions: [],
+    },
+    chartConfig: {
+        type: 'cartesian',
+        config: {
+            layout: {
+                xField: 'customers_first_name',
+                yField: ['customers_Customer_ID_min_of_Customer_ID_10'],
+            },
+            eChartsConfig: {
+                series: [
+                    {
+                        type: 'bar',
+                        encode: {
+                            xRef: { field: 'customers_first_name' },
+                            yRef: {
+                                field: 'customers_Customer_ID_min_of_Customer_ID_10',
+                            },
+                        },
+                        yAxisIndex: 0,
+                        isFilteredOut: false,
+                    },
+                ],
+            },
+        },
+    },
+    tableConfig: {
+        columnOrder: [
+            'customers_first_name',
+            'customers_Customer_ID_min_of_Customer_ID_10',
+        ],
+    },
+    organizationUuid: '172a2270-000f-42be-9c68-c4752c23ae51',
+    spaceUuid: '85ca5b1e-f950-4b32-b701-2d864dd091df',
+    spaceName: 'Testint space',
+    pinnedListUuid: null,
+    pinnedListOrder: null,
+    dashboardUuid: null,
+    dashboardName: null,
+    colorPalette: [
+        '#5470c6',
+        '#fc8452',
+        '#91cc75',
+        '#fac858',
+        '#ee6666',
+        '#73c0de',
+        '#3ba272',
+        '#9a60b4',
+        '#ea7ccc',
+    ],
+    slug: 'min-customer-id-1',
+} as SavedChartDAO;
+
+export const expectedRenamedChartWithCustomMetric = {
+    uuid: '1382da19-a74e-4e32-afd6-1c5c9ac46ee3',
+    projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+    name: 'min customer id 1',
+    description: '',
+    tableName: 'customers',
+    updatedAt: new Date('2025-07-01T15:21:02.181Z'),
+    updatedByUser: {
+        userUuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
+        firstName: 'David',
+        lastName: 'Attenborough',
+    },
+    metricQuery: {
+        exploreName: 'customers',
+        dimensions: ['customers_first_name'],
+        metrics: ['customers_Customer_ID_min_of_Customer_ID_10'],
+        filters: {},
+        sorts: [
+            {
+                fieldId: 'customers_first_name',
+                descending: false,
+            },
+        ],
+        limit: 500,
+        metricOverrides: {},
+        tableCalculations: [],
+        additionalMetrics: [
+            {
+                name: 'Customer_ID_min_of_Customer_ID_10',
+                label: 'Min of Customer id 10',
+                description:
+                    'Min of Min of Customer id on the table Customers with filters customers.Customer_ID',
+                uuid: '595f9b6e-0d75-4c1f-a39a-f0b734695607',
+                sql: '${TABLE}.customer_id',
+                table: 'customers',
+                type: 'min',
+                baseDimensionName: 'customer_id',
+                filters: [
+                    {
+                        id: '0ce8a9c0-be16-46ac-b428-cd1ed4003ab0',
+                        target: {
+                            fieldRef: 'customers.customer_id',
+                        },
+                        values: [10],
+                        operator: 'greaterThan',
+                    },
+                ],
+                formatOptions: {
+                    type: 'default',
+                    separator: 'default',
+                },
+            },
+        ],
+        customDimensions: [],
+    },
+    chartConfig: {
+        type: 'cartesian',
+        config: {
+            layout: {
+                xField: 'customers_first_name',
+                yField: ['customers_Customer_ID_min_of_Customer_ID_10'],
+            },
+            eChartsConfig: {
+                series: [
+                    {
+                        type: 'bar',
+                        encode: {
+                            xRef: {
+                                field: 'customers_first_name',
+                            },
+                            yRef: {
+                                field: 'customers_Customer_ID_min_of_Customer_ID_10',
+                            },
+                        },
+                        yAxisIndex: 0,
+                        isFilteredOut: false,
+                    },
+                ],
+            },
+        },
+    },
+    tableConfig: {
+        columnOrder: [
+            'customers_first_name',
+            'customers_Customer_ID_min_of_Customer_ID_10',
+        ],
+    },
+    organizationUuid: '172a2270-000f-42be-9c68-c4752c23ae51',
+    spaceUuid: '85ca5b1e-f950-4b32-b701-2d864dd091df',
+    spaceName: 'Testint space',
+    pinnedListUuid: null,
+    pinnedListOrder: null,
+    dashboardUuid: null,
+    dashboardName: null,
+    colorPalette: [
+        '#5470c6',
+        '#fc8452',
+        '#91cc75',
+        '#fac858',
+        '#ee6666',
+        '#73c0de',
+        '#3ba272',
+        '#9a60b4',
+        '#ea7ccc',
+    ],
+    slug: 'min-customer-id-1',
+} as SavedChartDAO;
+
 // TO replace order_status with orders_order_type
 export const chartMocked = {
     uuid: 'cf24cd76-d7b0-424d-b482-02d886b77afc',
@@ -448,4 +652,100 @@ export const expectedRenamedChartMocked = {
     dashboardName: null,
     colorPalette: ['#7162FF'],
     slug: 'custom-metric-filter',
+} as SavedChartDAO;
+
+export const chartWithCustomMetricWithSimilarName = {
+    uuid: '1382da19-a74e-4e32-afd6-1c5c9ac46ee3',
+    projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+    name: 'min customer id 1',
+    description: '',
+    tableName: 'customers',
+    updatedAt: new Date('2025-07-01T15:21:02.181Z'),
+    updatedByUser: {
+        userUuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
+        firstName: 'David',
+        lastName: 'Attenborough',
+    },
+    metricQuery: {
+        exploreName: 'customers',
+        dimensions: ['customers_first_name'],
+        metrics: ['customers_Customer_ID_min_of_Customer_ID_10'],
+        filters: {},
+        sorts: [{ fieldId: 'customers_first_name', descending: false }],
+        limit: 500,
+        metricOverrides: {},
+        tableCalculations: [],
+        additionalMetrics: [
+            {
+                name: 'Customer_ID_min_of_Customer_ID_10',
+                label: 'Min of Customer id 10',
+                description:
+                    'Min of Min of Customer id on the table Customers with filters customers.another_Customer_ID',
+                uuid: '595f9b6e-0d75-4c1f-a39a-f0b734695607',
+                sql: '${TABLE}.another_Customer_ID',
+                table: 'customers',
+                type: 'min',
+                baseDimensionName: 'another_Customer_ID',
+                filters: [
+                    {
+                        id: '0ce8a9c0-be16-46ac-b428-cd1ed4003ab0',
+                        target: { fieldRef: 'customers.another_Customer_ID' },
+                        values: [10],
+                        operator: 'greaterThan',
+                    },
+                ],
+                formatOptions: { type: 'default', separator: 'default' },
+            },
+        ],
+        customDimensions: [],
+    },
+    chartConfig: {
+        type: 'cartesian',
+        config: {
+            layout: {
+                xField: 'customers_first_name',
+                yField: ['customers_Customer_ID_min_of_Customer_ID_10'],
+            },
+            eChartsConfig: {
+                series: [
+                    {
+                        type: 'bar',
+                        encode: {
+                            xRef: { field: 'customers_first_name' },
+                            yRef: {
+                                field: 'customers_Customer_ID_min_of_Customer_ID_10',
+                            },
+                        },
+                        yAxisIndex: 0,
+                        isFilteredOut: false,
+                    },
+                ],
+            },
+        },
+    },
+    tableConfig: {
+        columnOrder: [
+            'customers_first_name',
+            'customers_Customer_ID_min_of_Customer_ID_10',
+        ],
+    },
+    organizationUuid: '172a2270-000f-42be-9c68-c4752c23ae51',
+    spaceUuid: '85ca5b1e-f950-4b32-b701-2d864dd091df',
+    spaceName: 'Testint space',
+    pinnedListUuid: null,
+    pinnedListOrder: null,
+    dashboardUuid: null,
+    dashboardName: null,
+    colorPalette: [
+        '#5470c6',
+        '#fc8452',
+        '#91cc75',
+        '#fac858',
+        '#ee6666',
+        '#73c0de',
+        '#3ba272',
+        '#9a60b4',
+        '#ea7ccc',
+    ],
+    slug: 'min-customer-id-1',
 } as SavedChartDAO;
