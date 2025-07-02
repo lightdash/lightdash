@@ -1,66 +1,12 @@
 import {
     AiChartType,
     AiMetricQuery,
-    filtersSchema,
-    filtersSchemaTransformed,
-    FollowUpTools,
     MetricQuery,
-    verticalBarMetricVizConfigSchema,
+    metricQueryVerticalBarViz,
+    VerticalBarVizTool,
 } from '@lightdash/common';
-import { z } from 'zod';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
 import { getPivotedResults } from '../utils/getPivotedResults';
-import { getValidAiQueryLimit } from '../utils/validators';
-
-export const verticalBarVizToolSchema = z.object({
-    type: z.literal(AiChartType.VERTICAL_BAR_CHART),
-    vizConfig: verticalBarMetricVizConfigSchema,
-    filters: filtersSchema
-        .nullable()
-        .describe(
-            'Filters to apply to the query. Filtered fields must exist in the selected explore.',
-        ),
-    followUpTools: z
-        .array(
-            z.union([
-                z.literal(FollowUpTools.GENERATE_BAR_VIZ),
-                z.literal(FollowUpTools.GENERATE_TIME_SERIES_VIZ),
-            ]),
-        )
-        .describe(
-            `The actions the User can ask for after the AI has generated the chart. NEVER include ${FollowUpTools.GENERATE_BAR_VIZ} in this list.`,
-        ),
-});
-
-export type VerticalBarVizTool = z.infer<typeof verticalBarVizToolSchema>;
-
-export const isVerticalBarVizTool = (
-    config: unknown,
-): config is VerticalBarVizTool =>
-    verticalBarVizToolSchema
-        .omit({ type: true, followUpTools: true })
-        .safeParse(config).success;
-
-export const metricQueryVerticalBarChartMetric = (
-    config: Pick<VerticalBarVizTool, 'vizConfig' | 'filters'>,
-): AiMetricQuery => {
-    const metrics = config.vizConfig.yMetrics;
-    const dimensions = [
-        config.vizConfig.xDimension,
-        ...(config.vizConfig.breakdownByDimension
-            ? [config.vizConfig.breakdownByDimension]
-            : []),
-    ];
-    const { limit, sorts } = config.vizConfig;
-    return {
-        metrics,
-        dimensions,
-        limit: getValidAiQueryLimit(limit),
-        sorts,
-        exploreName: config.vizConfig.exploreName,
-        filters: filtersSchemaTransformed.parse(config.filters),
-    };
-};
 
 const echartsConfigVerticalBarMetric = async (
     vizTool: Pick<VerticalBarVizTool, 'vizConfig' | 'filters'>,
@@ -148,7 +94,7 @@ export const renderVerticalBarViz = async ({
     metricQuery: AiMetricQuery;
     chartOptions: object;
 }> => {
-    const metricQuery = metricQueryVerticalBarChartMetric(vizTool);
+    const metricQuery = metricQueryVerticalBarViz(vizTool);
     const results = await runMetricQuery(metricQuery);
     const chartOptions = await echartsConfigVerticalBarMetric(
         vizTool,

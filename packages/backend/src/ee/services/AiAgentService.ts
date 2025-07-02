@@ -31,6 +31,7 @@ import {
     isSlackPrompt,
     LightdashUser,
     NotFoundError,
+    parseVizConfig,
     QueryExecutionContext,
     SlackPrompt,
     UpdateSlackResponse,
@@ -80,7 +81,6 @@ import {
 import { validateSelectedFieldsExistence } from './ai/utils/validators';
 import { renderTableViz } from './ai/visualizations/tableViz';
 import { renderTimeSeriesViz } from './ai/visualizations/timeSeriesViz';
-import { parseVizConfig } from './ai/visualizations/utils';
 import { renderVerticalBarViz } from './ai/visualizations/verticalBarViz';
 import { CommercialCatalogService } from './CommercialCatalogService';
 

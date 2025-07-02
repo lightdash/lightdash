@@ -1,4 +1,4 @@
-import { isSlackPrompt } from '@lightdash/common';
+import { isSlackPrompt, verticalBarVizToolSchema } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     GetPromptFn,
@@ -9,10 +9,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import {
-    renderVerticalBarViz,
-    verticalBarVizToolSchema,
-} from '../visualizations/verticalBarViz';
+import { renderVerticalBarViz } from '../visualizations/verticalBarViz';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;

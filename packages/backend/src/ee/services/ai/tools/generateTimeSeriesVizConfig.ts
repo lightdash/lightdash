@@ -1,4 +1,4 @@
-import { isSlackPrompt } from '@lightdash/common';
+import { isSlackPrompt, timeSeriesVizToolSchema } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     GetPromptFn,
@@ -9,10 +9,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import {
-    renderTimeSeriesViz,
-    timeSeriesVizToolSchema,
-} from '../visualizations/timeSeriesViz';
+import { renderTimeSeriesViz } from '../visualizations/timeSeriesViz';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;

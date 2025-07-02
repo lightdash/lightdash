@@ -1,4 +1,4 @@
-import { isSlackPrompt } from '@lightdash/common';
+import { isSlackPrompt, tableVizToolSchema } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     GetPromptFn,
@@ -8,7 +8,7 @@ import type {
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { renderTableViz, tableVizToolSchema } from '../visualizations/tableViz';
+import { renderTableViz } from '../visualizations/tableViz';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;

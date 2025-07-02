@@ -1,67 +1,12 @@
 import {
     AiChartType,
     AiMetricQuery,
-    filtersSchema,
-    filtersSchemaTransformed,
-    FollowUpTools,
     MetricQuery,
-    timeSeriesMetricVizConfigSchema,
+    metricQueryTimeSeriesViz,
+    TimeSeriesVizTool,
 } from '@lightdash/common';
-import { z } from 'zod';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
 import { getPivotedResults } from '../utils/getPivotedResults';
-import { getValidAiQueryLimit } from '../utils/validators';
-
-export const timeSeriesVizToolSchema = z.object({
-    type: z.literal(AiChartType.TIME_SERIES_CHART),
-    vizConfig: timeSeriesMetricVizConfigSchema,
-    filters: filtersSchema
-        .nullable()
-        .describe(
-            'Filters to apply to the query. Filtered fields must exist in the selected explore.',
-        ),
-    followUpTools: z
-        .array(
-            z.union([
-                z.literal(FollowUpTools.GENERATE_BAR_VIZ),
-                z.literal(FollowUpTools.GENERATE_TIME_SERIES_VIZ),
-            ]),
-        )
-        .describe(
-            `The actions the User can ask for after the AI has generated the chart. NEVER include ${FollowUpTools.GENERATE_TIME_SERIES_VIZ} in this list.`,
-        ),
-});
-
-export type TimeSeriesVizTool = z.infer<typeof timeSeriesVizToolSchema>;
-
-export const isTimeSeriesVizTool = (
-    config: unknown,
-): config is TimeSeriesVizTool =>
-    timeSeriesVizToolSchema
-        .omit({ type: true, followUpTools: true })
-        .safeParse(config).success;
-
-export const metricQueryTimeSeriesChartMetric = (
-    config: Pick<TimeSeriesVizTool, 'vizConfig' | 'filters'>,
-): AiMetricQuery => {
-    const metrics = config.vizConfig.yMetrics;
-    const dimensions = [
-        config.vizConfig.xDimension,
-        ...(config.vizConfig.breakdownByDimension
-            ? [config.vizConfig.breakdownByDimension]
-            : []),
-    ];
-    const { limit, sorts } = config.vizConfig;
-
-    return {
-        metrics,
-        dimensions,
-        limit: getValidAiQueryLimit(limit),
-        sorts,
-        exploreName: config.vizConfig.exploreName,
-        filters: filtersSchemaTransformed.parse(config.filters),
-    };
-};
 
 export const echartsConfigTimeSeriesMetric = async (
     vizTool: Pick<TimeSeriesVizTool, 'vizConfig' | 'filters'>,
@@ -144,7 +89,7 @@ export const renderTimeSeriesViz = async ({
     >;
     chartOptions: object;
 }> => {
-    const metricQuery = metricQueryTimeSeriesChartMetric(vizTool);
+    const metricQuery = metricQueryTimeSeriesViz(vizTool);
     const results = await runMetricQuery(metricQuery);
     const chartOptions = await echartsConfigTimeSeriesMetric(
         vizTool,

@@ -3,10 +3,10 @@ import {
     type ApiCompiledQueryResults,
     assertUnreachable,
     isFindFieldsToolArgs,
-    isTableVizConfigToolArgs,
+    isTableVizTool,
     isTimeSeriesMetricVizConfigToolArgs,
     isVerticalBarMetricVizConfigToolArgs,
-    TableVizConfigToolArgsSchemaTransformed,
+    tableVizToolSchemaTransformed,
     timeSeriesMetricVizConfigToolArgsSchemaTransformed,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
     type ToolName,
@@ -114,13 +114,12 @@ const ToolCallDescription: FC<{
                 />
             );
         case 'generateTableVizConfig':
-            if (!isTableVizConfigToolArgs(toolCall.toolArgs)) {
+            if (!isTableVizTool(toolCall.toolArgs)) {
                 return null;
             }
-            const tableVizConfigToolArgs =
-                TableVizConfigToolArgsSchemaTransformed.parse(
-                    toolCall.toolArgs,
-                );
+            const tableVizConfigToolArgs = tableVizToolSchemaTransformed.parse(
+                toolCall.toolArgs,
+            );
 
             return (
                 <AiChartGenerationToolCallDescription

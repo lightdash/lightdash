@@ -11,8 +11,10 @@ import assertUnreachable from '../../utils/assertUnreachable';
 import {
     AI_DEFAULT_MAX_QUERY_LIMIT,
     AiChartType,
+    type AiMetricQuery,
     FollowUpTools,
 } from '../AiAgent';
+import { getValidAiQueryLimit } from '../AiAgent/validators';
 
 // TODO: most of the things should live in common and some of the existing types should be inferred from here
 // we can't reuse them because there's a bug with TSOA+ZOD - we can't use zod types in TSOA controllers
@@ -499,6 +501,15 @@ export const timeSeriesVizToolSchema = z.object({
         ),
 });
 
+export type TimeSeriesVizTool = z.infer<typeof timeSeriesVizToolSchema>;
+
+export const isTimeSeriesVizTool = (
+    config: unknown,
+): config is TimeSeriesVizTool =>
+    timeSeriesVizToolSchema
+        .omit({ type: true, followUpTools: true })
+        .safeParse(config).success;
+
 export const verticalBarMetricVizConfigSchema =
     visualizationMetadataSchema.extend({
         exploreName: z
@@ -559,6 +570,35 @@ export const verticalBarMetricVizConfigSchema =
 export type VerticalBarMetricVizConfigSchemaType = z.infer<
     typeof verticalBarMetricVizConfigSchema
 >;
+
+export const verticalBarVizToolSchema = z.object({
+    type: z.literal(AiChartType.VERTICAL_BAR_CHART),
+    vizConfig: verticalBarMetricVizConfigSchema,
+    filters: filtersSchema
+        .nullable()
+        .describe(
+            'Filters to apply to the query. Filtered fields must exist in the selected explore.',
+        ),
+    followUpTools: z
+        .array(
+            z.union([
+                z.literal(FollowUpTools.GENERATE_BAR_VIZ),
+                z.literal(FollowUpTools.GENERATE_TIME_SERIES_VIZ),
+            ]),
+        )
+        .describe(
+            `The actions the User can ask for after the AI has generated the chart. NEVER include ${FollowUpTools.GENERATE_BAR_VIZ} in this list.`,
+        ),
+});
+
+export type VerticalBarVizTool = z.infer<typeof verticalBarVizToolSchema>;
+
+export const isVerticalBarVizTool = (
+    config: unknown,
+): config is VerticalBarVizTool =>
+    verticalBarVizToolSchema
+        .omit({ type: true, followUpTools: true })
+        .safeParse(config).success;
 
 export const tableVizConfigSchema = visualizationMetadataSchema
     .extend({
@@ -645,24 +685,36 @@ export const timeSeriesMetricVizConfigToolArgsSchemaTransformed = z.object({
 });
 
 // GENERATE TABLE VIZ CONFIG TOOL ARGS
-export const tableVizConfigToolArgsSchema = z.object({
+export const tableVizToolSchema = z.object({
+    type: z.literal(AiChartType.TABLE),
     vizConfig: tableVizConfigSchema,
-    filters: filtersSchema.nullable(),
+    filters: filtersSchema
+        .nullable()
+        .describe(
+            'Filters to apply to the query. Filtered fields must exist in the selected explore.',
+        ),
+    followUpTools: z
+        .array(
+            z.union([
+                z.literal(FollowUpTools.GENERATE_BAR_VIZ),
+                z.literal(FollowUpTools.GENERATE_TIME_SERIES_VIZ),
+            ]),
+        )
+        .describe(
+            'The actions the User can ask for after the AI has generated the table.',
+        ),
 });
-export type TableVizConfigToolArgs = z.infer<
-    typeof tableVizConfigToolArgsSchema
->;
+export type TableVizTool = z.infer<typeof tableVizToolSchema>;
 
-export const isTableVizConfigToolArgs = (
-    toolArgs: unknown,
-): toolArgs is TableVizConfigToolArgs =>
-    tableVizConfigToolArgsSchema.safeParse(toolArgs).success;
+export const isTableVizTool = (toolArgs: unknown): toolArgs is TableVizTool =>
+    tableVizToolSchema.safeParse(toolArgs).success;
 
-// -- Used for tool call args transformation
-export const TableVizConfigToolArgsSchemaTransformed = z.object({
-    vizConfig: tableVizConfigSchema,
-    filters: filtersSchemaTransformed,
-});
+export const tableVizToolSchemaTransformed = tableVizToolSchema.transform(
+    (data) => ({
+        ...data,
+        filters: filtersSchemaTransformed.parse(data.filters),
+    }),
+);
 
 // define tool names
 export const ToolNameSchema = z.enum([
@@ -698,3 +750,117 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         generateTableVizConfig: 'Generated a table',
         generateTimeSeriesVizConfig: 'Generated a line chart',
     });
+
+export type AiAgentVizConfig =
+    | {
+          type: 'vertical_bar_chart';
+          config: VerticalBarVizTool;
+      }
+    | {
+          type: 'time_series_chart';
+          config: TimeSeriesVizTool;
+      }
+    | {
+          type: 'table';
+          config: TableVizTool;
+      };
+
+export const metricQueryTableViz = (
+    vizTool: Pick<TableVizTool, 'vizConfig' | 'filters'>,
+    maxLimit: number,
+): AiMetricQuery => ({
+    exploreName: vizTool.vizConfig.exploreName,
+    metrics: vizTool.vizConfig.metrics,
+    dimensions: vizTool.vizConfig.dimensions || [],
+    sorts: vizTool.vizConfig.sorts,
+    limit: getValidAiQueryLimit(vizTool.vizConfig.limit, maxLimit),
+    filters: filtersSchemaTransformed.parse(vizTool.filters),
+});
+
+export const metricQueryTimeSeriesViz = (
+    config: Pick<TimeSeriesVizTool, 'vizConfig' | 'filters'>,
+): AiMetricQuery => {
+    const metrics = config.vizConfig.yMetrics;
+    const dimensions = [
+        config.vizConfig.xDimension,
+        ...(config.vizConfig.breakdownByDimension
+            ? [config.vizConfig.breakdownByDimension]
+            : []),
+    ];
+    const { limit, sorts } = config.vizConfig;
+
+    return {
+        metrics,
+        dimensions,
+        limit: getValidAiQueryLimit(limit),
+        sorts,
+        exploreName: config.vizConfig.exploreName,
+        filters: filtersSchemaTransformed.parse(config.filters),
+    };
+};
+
+export const metricQueryVerticalBarViz = (
+    config: Pick<VerticalBarVizTool, 'vizConfig' | 'filters'>,
+): AiMetricQuery => {
+    const metrics = config.vizConfig.yMetrics;
+    const dimensions = [
+        config.vizConfig.xDimension,
+        ...(config.vizConfig.breakdownByDimension
+            ? [config.vizConfig.breakdownByDimension]
+            : []),
+    ];
+    const { limit, sorts } = config.vizConfig;
+    return {
+        metrics,
+        dimensions,
+        limit: getValidAiQueryLimit(limit),
+        sorts,
+        exploreName: config.vizConfig.exploreName,
+        filters: filtersSchemaTransformed.parse(config.filters),
+    };
+};
+
+export const parseVizConfig = (
+    vizConfigUnknown: object | null,
+    maxLimit: number,
+) => {
+    if (!vizConfigUnknown) {
+        return null;
+    }
+
+    if (isVerticalBarVizTool(vizConfigUnknown)) {
+        const vizTool = verticalBarVizToolSchema
+            .omit({ type: true, followUpTools: true })
+            .parse(vizConfigUnknown);
+        const metricQuery = metricQueryVerticalBarViz(vizTool);
+        return {
+            type: AiChartType.VERTICAL_BAR_CHART,
+            vizTool,
+            metricQuery,
+        } as const;
+    }
+    if (isTimeSeriesVizTool(vizConfigUnknown)) {
+        const vizTool = timeSeriesVizToolSchema
+            .omit({ type: true, followUpTools: true })
+            .parse(vizConfigUnknown);
+        const metricQuery = metricQueryTimeSeriesViz(vizTool);
+        return {
+            type: AiChartType.TIME_SERIES_CHART,
+            vizTool,
+            metricQuery,
+        } as const;
+    }
+    if (isTableVizTool(vizConfigUnknown)) {
+        const vizTool = tableVizToolSchema
+            .omit({ type: true, followUpTools: true })
+            .parse(vizConfigUnknown);
+        const metricQuery = metricQueryTableViz(vizTool, maxLimit);
+        return {
+            type: AiChartType.TABLE,
+            vizTool,
+            metricQuery,
+        } as const;
+    }
+
+    return null;
+};
