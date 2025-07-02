@@ -41,6 +41,10 @@ const FilterRuleDisplay: FC<{
             variant="default"
             className={classes.filterButton}
             styles={{
+                root: {
+                    cursor: 'default',
+                    pointerEvents: 'none',
+                },
                 inner: {
                     color: 'black',
                 },
