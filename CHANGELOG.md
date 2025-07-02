@@ -1,3 +1,10 @@
+# [0.1774.0](https://github.com/lightdash/lightdash/compare/0.1773.0...0.1774.0) (2025-07-02)
+
+
+### Features
+
+* Link saved charts to ai prompts ([#15609](https://github.com/lightdash/lightdash/issues/15609)) ([2fba68a](https://github.com/lightdash/lightdash/commit/2fba68a5ef697e2503000e996cf964dd1ba02357)), closes [#15552](https://github.com/lightdash/lightdash/issues/15552) [#15452](https://github.com/lightdash/lightdash/issues/15452)
+
 # [0.1773.0](https://github.com/lightdash/lightdash/compare/0.1772.0...0.1773.0) (2025-07-02)
 
 
