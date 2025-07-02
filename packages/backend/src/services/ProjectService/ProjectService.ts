@@ -3175,6 +3175,14 @@ export class ProjectService extends BaseService {
                 operator: FilterOperator.INCLUDE,
                 values: [search],
             },
+            {
+                id: uuidv4(),
+                target: {
+                    fieldId,
+                },
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
         ];
         if (filters) {
             const filtersCompatibleWithExplore = filters.and.filter(

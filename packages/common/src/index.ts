@@ -1146,6 +1146,7 @@ export const getResultValueArray = (
     rows: ResultRow[],
     preferRaw: boolean = false,
     calculateMinAndMax: boolean = false,
+    excludeNulls: boolean = false,
 ): {
     results: Record<string, unknown>[];
     minsAndMaxes?: Record<string, { min: number; max: number }>;
@@ -1154,6 +1155,9 @@ export const getResultValueArray = (
 
     const results = rows.map((row) =>
         Object.keys(row).reduce<Record<string, unknown>>((acc, key) => {
+            if (excludeNulls && row[key]?.value.raw === null) {
+                return acc;
+            }
             const rawWithFallback =
                 row[key]?.value.raw ?? row[key]?.value.formatted; // using nullish coalescing operator to handle null and undefined only
             const formattedWithFallback =
