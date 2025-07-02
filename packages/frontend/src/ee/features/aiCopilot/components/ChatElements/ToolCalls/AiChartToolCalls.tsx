@@ -2,16 +2,16 @@ import {
     type AiAgentToolCall,
     type ApiCompiledQueryResults,
     assertUnreachable,
-    isFindFieldsToolArgs,
-    isTableVizTool,
-    isTimeSeriesMetricVizConfigToolArgs,
-    isVerticalBarMetricVizConfigToolArgs,
-    tableVizToolSchemaTransformed,
-    timeSeriesMetricVizConfigToolArgsSchemaTransformed,
+    isToolFindFieldsArgs,
+    isToolTableVizArgs,
+    isToolTimeSeriesArgs,
+    isToolVerticalBarArgs,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
     type ToolName,
     ToolNameSchema,
-    verticalBarMetricVizConfigToolArgsSchemaTransformed,
+    toolTableVizArgsSchemaTransformed,
+    toolTimeSeriesArgsSchemaTransformed,
+    toolVerticalBarArgsSchemaTransformed,
 } from '@lightdash/common';
 import { Badge, Group, Stack, Text, Timeline } from '@mantine-8/core';
 import {
@@ -46,8 +46,11 @@ const ToolCallDescription: FC<{
     const toolName = ToolNameSchema.parse(toolCall.toolName);
 
     switch (toolName) {
+        case 'findExplores':
+            // TODO: Implement findExplores tool call description
+            return null;
         case 'findFields':
-            if (!isFindFieldsToolArgs(toolCall.toolArgs)) {
+            if (!isToolFindFieldsArgs(toolCall.toolArgs)) {
                 return null;
             }
             const fields = toolCall.toolArgs.embeddingSearchQueries || [];
@@ -94,14 +97,11 @@ const ToolCallDescription: FC<{
                 </>
             );
         case 'generateBarVizConfig':
-            if (!isVerticalBarMetricVizConfigToolArgs(toolCall.toolArgs)) {
+            if (!isToolVerticalBarArgs(toolCall.toolArgs)) {
                 return null;
             }
             const barVizConfigToolArgs =
-                verticalBarMetricVizConfigToolArgsSchemaTransformed.parse(
-                    toolCall.toolArgs,
-                );
-
+                toolVerticalBarArgsSchemaTransformed.parse(toolCall.toolArgs);
             return (
                 <AiChartGenerationToolCallDescription
                     title={barVizConfigToolArgs.vizConfig.title}
@@ -114,12 +114,11 @@ const ToolCallDescription: FC<{
                 />
             );
         case 'generateTableVizConfig':
-            if (!isTableVizTool(toolCall.toolArgs)) {
+            if (!isToolTableVizArgs(toolCall.toolArgs)) {
                 return null;
             }
-            const tableVizConfigToolArgs = tableVizToolSchemaTransformed.parse(
-                toolCall.toolArgs,
-            );
+            const tableVizConfigToolArgs =
+                toolTableVizArgsSchemaTransformed.parse(toolCall.toolArgs);
 
             return (
                 <AiChartGenerationToolCallDescription
@@ -132,14 +131,11 @@ const ToolCallDescription: FC<{
                 />
             );
         case 'generateTimeSeriesVizConfig':
-            if (!isTimeSeriesMetricVizConfigToolArgs(toolCall.toolArgs)) {
+            if (!isToolTimeSeriesArgs(toolCall.toolArgs)) {
                 return null;
             }
             const timeSeriesToolCallArgs =
-                timeSeriesMetricVizConfigToolArgsSchemaTransformed.parse(
-                    toolCall.toolArgs,
-                );
-
+                toolTimeSeriesArgsSchemaTransformed.parse(toolCall.toolArgs);
             return (
                 <AiChartGenerationToolCallDescription
                     title={timeSeriesToolCallArgs.vizConfig.title}
@@ -151,9 +147,6 @@ const ToolCallDescription: FC<{
                     sql={compiledSql}
                 />
             );
-        case 'findExplores':
-            // TODO: Implement findExplores tool call description
-            return null;
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);
     }

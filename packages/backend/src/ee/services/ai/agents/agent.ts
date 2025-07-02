@@ -68,6 +68,7 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         updatePrompt: dependencies.updatePrompt,
         sendFile: dependencies.sendFile,
+        maxLimit: args.maxLimit,
     });
 
     const generateTimeSeriesVizConfig = getGenerateTimeSeriesVizConfig({
@@ -76,6 +77,7 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         updatePrompt: dependencies.updatePrompt,
         sendFile: dependencies.sendFile,
+        maxLimit: args.maxLimit,
     });
 
     const generateTableVizConfig = getGenerateTableVizConfig({

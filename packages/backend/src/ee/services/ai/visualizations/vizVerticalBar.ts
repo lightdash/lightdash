@@ -1,15 +1,15 @@
 import {
-    AiChartType,
-    AiMetricQuery,
+    AiResultType,
     MetricQuery,
     metricQueryVerticalBarViz,
-    VerticalBarVizTool,
+    type ToolVerticalBarArgsTransformed,
 } from '@lightdash/common';
+import { AiMetricQueryWithFilters } from '@lightdash/common/dist/types/ee/AiAgent/types';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
 import { getPivotedResults } from '../utils/getPivotedResults';
 
 const echartsConfigVerticalBarMetric = async (
-    vizTool: Pick<VerticalBarVizTool, 'vizConfig' | 'filters'>,
+    vizTool: ToolVerticalBarArgsTransformed,
     rows: Record<string, unknown>[],
     fieldsMap: Record<string, unknown>,
     sorts: MetricQuery['sorts'],
@@ -81,31 +81,37 @@ const echartsConfigVerticalBarMetric = async (
 export const renderVerticalBarViz = async ({
     runMetricQuery,
     vizTool,
+    maxLimit,
 }: {
     runMetricQuery: (
-        metricQuery: AiMetricQuery,
+        metricQuery: AiMetricQueryWithFilters,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
-    vizTool: Pick<VerticalBarVizTool, 'vizConfig' | 'filters'>;
+    vizTool: ToolVerticalBarArgsTransformed;
+    maxLimit: number;
 }): Promise<{
-    type: AiChartType.VERTICAL_BAR_CHART;
+    type: AiResultType.VERTICAL_BAR_RESULT;
     results: Awaited<
         ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
     >;
-    metricQuery: AiMetricQuery;
+    metricQuery: AiMetricQueryWithFilters;
     chartOptions: object;
 }> => {
-    const metricQuery = metricQueryVerticalBarViz(vizTool);
-    const results = await runMetricQuery(metricQuery);
+    const metricQueryWithFilters = metricQueryVerticalBarViz(
+        vizTool.vizConfig,
+        vizTool.filters,
+        maxLimit,
+    );
+    const results = await runMetricQuery(metricQueryWithFilters);
     const chartOptions = await echartsConfigVerticalBarMetric(
         vizTool,
         results.rows,
         results.fields,
-        metricQuery.sorts,
+        metricQueryWithFilters.sorts,
     );
 
     return {
-        type: AiChartType.VERTICAL_BAR_CHART,
-        metricQuery,
+        type: AiResultType.VERTICAL_BAR_RESULT,
+        metricQuery: metricQueryWithFilters,
         results,
         chartOptions,
     };

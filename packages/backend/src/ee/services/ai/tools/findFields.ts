@@ -1,7 +1,7 @@
 import {
     Explore,
-    aiFindFieldsToolSchema,
     getItemId,
+    toolFindFieldsArgsSchema,
     type CompiledField,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -19,6 +19,8 @@ type Dependencies = {
 };
 
 export const getFindFields = ({ getExplore, searchFields }: Dependencies) => {
+    const schema = toolFindFieldsArgsSchema;
+
     const getMinimalTableInformation = async ({
         explore,
         embeddingSearchQueries,
@@ -63,7 +65,7 @@ export const getFindFields = ({ getExplore, searchFields }: Dependencies) => {
 Include all relevant information without omitting any names, companies, dates, or other pertinent details.
 Assume all potential fields, including company names and personal names, exist in the explore.
 It is important to find fields for the filters as well.`,
-        parameters: aiFindFieldsToolSchema,
+        parameters: schema,
         execute: async ({ exploreName, embeddingSearchQueries }) => {
             try {
                 const explore = await getExplore({ exploreName });

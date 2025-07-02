@@ -1,15 +1,15 @@
 import {
-    AiChartType,
-    AiMetricQuery,
+    AiResultType,
     MetricQuery,
     metricQueryTimeSeriesViz,
-    TimeSeriesVizTool,
+    ToolTimeSeriesArgsTransformed,
 } from '@lightdash/common';
+import { AiMetricQueryWithFilters } from '@lightdash/common/dist/types/ee/AiAgent/types';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
 import { getPivotedResults } from '../utils/getPivotedResults';
 
 export const echartsConfigTimeSeriesMetric = async (
-    vizTool: Pick<TimeSeriesVizTool, 'vizConfig' | 'filters'>,
+    vizTool: ToolTimeSeriesArgsTransformed,
     rows: Record<string, unknown>[],
     fieldsMap: Record<string, unknown>,
     sorts: MetricQuery['sorts'],
@@ -76,20 +76,26 @@ export const echartsConfigTimeSeriesMetric = async (
 export const renderTimeSeriesViz = async ({
     runMetricQuery,
     vizTool,
+    maxLimit,
 }: {
     runMetricQuery: (
-        metricQuery: AiMetricQuery,
+        metricQuery: AiMetricQueryWithFilters,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
-    vizTool: Pick<TimeSeriesVizTool, 'vizConfig' | 'filters'>;
+    vizTool: ToolTimeSeriesArgsTransformed;
+    maxLimit: number;
 }): Promise<{
-    type: AiChartType.TIME_SERIES_CHART;
-    metricQuery: AiMetricQuery;
+    type: AiResultType.TIME_SERIES_RESULT;
+    metricQuery: AiMetricQueryWithFilters;
     results: Awaited<
         ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
     >;
     chartOptions: object;
 }> => {
-    const metricQuery = metricQueryTimeSeriesViz(vizTool);
+    const metricQuery = metricQueryTimeSeriesViz(
+        vizTool.vizConfig,
+        vizTool.filters,
+        maxLimit,
+    );
     const results = await runMetricQuery(metricQuery);
     const chartOptions = await echartsConfigTimeSeriesMetric(
         vizTool,
@@ -99,7 +105,7 @@ export const renderTimeSeriesViz = async ({
     );
 
     return {
-        type: AiChartType.TIME_SERIES_CHART,
+        type: AiResultType.TIME_SERIES_RESULT,
         metricQuery,
         results,
         chartOptions,

@@ -1,4 +1,8 @@
-import { isSlackPrompt, timeSeriesVizToolSchema } from '@lightdash/common';
+import {
+    isSlackPrompt,
+    toolTimeSeriesArgsSchema,
+    toolTimeSeriesArgsSchemaTransformed,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     GetPromptFn,
@@ -9,7 +13,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { renderTimeSeriesViz } from '../visualizations/timeSeriesViz';
+import { renderTimeSeriesViz } from '../visualizations/vizTimeSeries';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;
@@ -17,6 +21,7 @@ type Dependencies = {
     getPrompt: GetPromptFn;
     updatePrompt: UpdatePromptFn;
     sendFile: SendFileFn;
+    maxLimit: number;
 };
 export const getGenerateTimeSeriesVizConfig = ({
     updateProgress,
@@ -24,8 +29,9 @@ export const getGenerateTimeSeriesVizConfig = ({
     getPrompt,
     sendFile,
     updatePrompt,
+    maxLimit,
 }: Dependencies) => {
-    const schema = timeSeriesVizToolSchema;
+    const schema = toolTimeSeriesArgsSchema;
 
     return tool({
         description: `Generate Time Series Chart Visualization and show it to the user.
@@ -50,9 +56,15 @@ Rules for generating the time series chart visualization:
                 });
 
                 if (isSlackPrompt(prompt)) {
+                    const vizTool =
+                        toolTimeSeriesArgsSchemaTransformed.parse(
+                            vizToolResult,
+                        );
+
                     const { chartOptions } = await renderTimeSeriesViz({
-                        runMetricQuery: runMiniMetricQuery,
-                        vizTool: vizToolResult,
+                        runMetricQuery: (q) => runMiniMetricQuery(q, maxLimit),
+                        vizTool,
+                        maxLimit,
                     });
 
                     const file = await renderEcharts(chartOptions);

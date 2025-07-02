@@ -4914,7 +4914,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiChartType: {
+    AiResultType: {
         dataType: 'refEnum',
         enums: ['time_series_chart', 'vertical_bar_chart', 'csv'],
     },
@@ -4989,7 +4989,7 @@ const models: TsoaRoute.Models = {
                 },
                 chartOptions: { dataType: 'object' },
                 metricQuery: { ref: 'AiMetricQuery', required: true },
-                type: { ref: 'AiChartType', required: true },
+                type: { ref: 'AiResultType', required: true },
             },
             validators: {},
         },
@@ -5094,7 +5094,7 @@ const models: TsoaRoute.Models = {
                     ref: 'ApiExecuteAsyncMetricQueryResults',
                     required: true,
                 },
-                type: { ref: 'AiChartType', required: true },
+                type: { ref: 'AiResultType', required: true },
             },
             validators: {},
         },

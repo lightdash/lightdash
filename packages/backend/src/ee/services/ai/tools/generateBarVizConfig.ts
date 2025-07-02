@@ -1,4 +1,8 @@
-import { isSlackPrompt, verticalBarVizToolSchema } from '@lightdash/common';
+import {
+    isSlackPrompt,
+    toolVerticalBarArgsSchema,
+    toolVerticalBarArgsSchemaTransformed,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     GetPromptFn,
@@ -9,7 +13,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { renderVerticalBarViz } from '../visualizations/verticalBarViz';
+import { renderVerticalBarViz } from '../visualizations/vizVerticalBar';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;
@@ -17,6 +21,7 @@ type Dependencies = {
     getPrompt: GetPromptFn;
     updatePrompt: UpdatePromptFn;
     sendFile: SendFileFn;
+    maxLimit: number;
 };
 
 export const getGenerateBarVizConfig = ({
@@ -25,8 +30,9 @@ export const getGenerateBarVizConfig = ({
     getPrompt,
     sendFile,
     updatePrompt,
+    maxLimit,
 }: Dependencies) => {
-    const schema = verticalBarVizToolSchema;
+    const schema = toolVerticalBarArgsSchema;
 
     return tool({
         description: `Generate Bar Chart Visualization and show it to the user.
@@ -46,9 +52,12 @@ Rules for generating the bar chart visualization:
                 });
 
                 if (isSlackPrompt(prompt)) {
+                    const vizTool =
+                        toolVerticalBarArgsSchemaTransformed.parse(vizConfig);
                     const { chartOptions } = await renderVerticalBarViz({
-                        runMetricQuery: runMiniMetricQuery,
-                        vizTool: vizConfig,
+                        runMetricQuery: (q) => runMiniMetricQuery(q, maxLimit),
+                        vizTool,
+                        maxLimit,
                     });
 
                     const file = await renderEcharts(chartOptions);

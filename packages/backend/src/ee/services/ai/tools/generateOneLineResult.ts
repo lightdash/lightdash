@@ -1,6 +1,6 @@
 import {
-    oneLineResultSchema,
-    oneLineResultSchemaTransformed,
+    toolOneLineArgsSchema,
+    toolOneLineArgsSchemaTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
@@ -27,7 +27,7 @@ export const getGenerateOneLineResult = ({
     runMiniMetricQuery,
     updatePrompt,
 }: Dependencies) => {
-    const schema = oneLineResultSchema;
+    const schema = toolOneLineArgsSchema;
 
     return tool({
         description: `Get a single line result from the database. E.g. how many users signed up today?
@@ -52,9 +52,13 @@ Rules for fetching the result:
                 });
 
                 const transformedOneLineResult =
-                    oneLineResultSchemaTransformed.parse(vizConfig);
+                    toolOneLineArgsSchemaTransformed.parse(vizConfig);
                 const results = await runMiniMetricQuery(
-                    transformedOneLineResult.metricQuery,
+                    {
+                        ...transformedOneLineResult.metricQuery,
+                        filters: transformedOneLineResult.filters,
+                    },
+                    1,
                 );
                 if (results.rows.length > 1) {
                     throw new Error(

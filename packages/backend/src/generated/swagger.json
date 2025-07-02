@@ -5506,7 +5506,7 @@
                 "required": ["prompt"],
                 "type": "object"
             },
-            "AiChartType": {
+            "AiResultType": {
                 "description": "Supported AI visualization chart types",
                 "enum": ["time_series_chart", "vertical_bar_chart", "csv"],
                 "type": "string"
@@ -5590,7 +5590,7 @@
                         "$ref": "#/components/schemas/AiMetricQuery"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/AiChartType"
+                        "$ref": "#/components/schemas/AiResultType"
                     }
                 },
                 "required": ["results", "metricQuery", "type"],
@@ -5691,7 +5691,7 @@
                         "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/AiChartType"
+                        "$ref": "#/components/schemas/AiResultType"
                     }
                 },
                 "required": ["metadata", "query", "type"],

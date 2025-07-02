@@ -1,4 +1,8 @@
-import { isSlackPrompt, tableVizToolSchema } from '@lightdash/common';
+import {
+    isSlackPrompt,
+    toolTableVizArgsSchema,
+    toolTableVizArgsSchemaTransformed,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     GetPromptFn,
@@ -8,7 +12,7 @@ import type {
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { renderTableViz } from '../visualizations/tableViz';
+import { renderTableViz } from '../visualizations/vizTable';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;
@@ -26,7 +30,7 @@ export const getGenerateTableVizConfig = ({
     updateProgress,
     maxLimit,
 }: Dependencies) => {
-    const schema = tableVizToolSchema;
+    const schema = toolTableVizArgsSchema;
 
     return tool({
         description: `Generate a table and show it to the user.
@@ -44,9 +48,12 @@ If you haven't used "findFieldsInExplore" tool, please do so before using this t
                 });
 
                 if (isSlackPrompt(prompt)) {
+                    const vizTool =
+                        toolTableVizArgsSchemaTransformed.parse(vizToolResult);
+
                     const { csv } = await renderTableViz({
-                        runMetricQuery: runMiniMetricQuery,
-                        vizTool: vizToolResult,
+                        runMetricQuery: (q) => runMiniMetricQuery(q, maxLimit),
+                        vizTool,
                         maxLimit,
                     });
 

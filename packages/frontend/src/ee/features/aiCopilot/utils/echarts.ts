@@ -1,8 +1,9 @@
 import {
-    AiChartType,
+    AiResultType,
     assertUnreachable,
     CartesianSeriesType,
     ChartType,
+    parseVizConfig,
     type ChartConfig,
     type MetricQuery,
     type PivotReference,
@@ -11,7 +12,6 @@ import {
     type TimeSeriesMetricVizConfigSchemaType,
     type VerticalBarMetricVizConfigSchemaType,
 } from '@lightdash/common';
-import { type OneLineResultSchemaType } from '@lightdash/common/src';
 import { type Axis } from 'echarts';
 import { getPivotedData } from '../../../../hooks/plottedData/getPlottedData';
 
@@ -173,67 +173,43 @@ const getTableMetricEchartsConfig = (
     };
 };
 
-const getOneLineResultEchartsConfig = (
-    _config: OneLineResultSchemaType,
-    _rows: Record<string, unknown>[],
-): ChartConfig => {
-    return {
-        type: ChartType.BIG_NUMBER,
-    };
-};
-
 export const getChartConfigFromAiAgentVizConfig = ({
-    config,
-    rows,
-    type,
+    vizConfigOutput,
     metricQuery,
+    rows,
+    maxQueryLimit,
 }: {
+    vizConfigOutput: object | null;
     metricQuery: MetricQuery;
     rows: Record<string, unknown>[];
-} & (
-    | {
-          type: AiChartType.VERTICAL_BAR_CHART;
-          config: VerticalBarMetricVizConfigSchemaType;
-      }
-    | {
-          type: AiChartType.TIME_SERIES_CHART;
-          config: TimeSeriesMetricVizConfigSchemaType;
-      }
-    | {
-          type: AiChartType.TABLE;
-          config: TableVizConfigSchemaType;
-      }
-    | {
-          type: AiChartType.ONE_LINE_RESULT;
-          config: OneLineResultSchemaType;
-      }
-)): ChartConfig => {
-    // FIXME: typing is not working as expected
-    if (!config || !('vizConfig' in config)) {
+    maxQueryLimit?: number;
+}): ChartConfig => {
+    const parsedConfig = parseVizConfig(vizConfigOutput, maxQueryLimit);
+    if (!parsedConfig) {
         throw new Error('Invalid viz config');
     }
 
-    // FIXME: typing is not working as expected
-    const vizConfig = config.vizConfig as any;
-
-    switch (type) {
-        case AiChartType.VERTICAL_BAR_CHART:
+    switch (parsedConfig.type) {
+        case AiResultType.VERTICAL_BAR_RESULT:
             return getVerticalBarMetricEchartsConfig(
-                vizConfig,
+                parsedConfig.vizTool.vizConfig,
                 metricQuery,
                 rows,
             );
-        case AiChartType.TIME_SERIES_CHART:
+        case AiResultType.TIME_SERIES_RESULT:
             return getTimeSeriesMetricEchartsConfig(
-                vizConfig,
+                parsedConfig.vizTool.vizConfig,
                 metricQuery,
                 rows,
             );
-        case AiChartType.TABLE:
-            return getTableMetricEchartsConfig(vizConfig, rows);
-        case AiChartType.ONE_LINE_RESULT:
-            return getOneLineResultEchartsConfig(vizConfig, rows);
+        case AiResultType.TABLE_RESULT:
+            return getTableMetricEchartsConfig(
+                parsedConfig.vizTool.vizConfig,
+                rows,
+            );
+        case AiResultType.ONE_LINE_RESULT:
+            throw new Error('One line result does not have a visualization');
         default:
-            return assertUnreachable(type, 'Invalid chart type');
+            return assertUnreachable(parsedConfig, 'Invalid chart type');
     }
 };

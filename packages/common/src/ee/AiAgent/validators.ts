@@ -1,9 +1,4 @@
-import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
-
-export function getValidAiQueryLimit(
-    limit: number | null,
-    maxLimit: number = AI_DEFAULT_MAX_QUERY_LIMIT, // ! Allow limit override
-) {
+export function getValidAiQueryLimit(limit: number | null, maxLimit: number) {
     if (!limit) {
         return maxLimit;
     }

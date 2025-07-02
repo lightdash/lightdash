@@ -1,8 +1,10 @@
 import {
+    parseVizConfig,
     type AiAgentMessageAssistant,
     type AiAgentMessageUser,
     type AiAgentUser,
 } from '@lightdash/common';
+import { AiResultType } from '@lightdash/common/src';
 import {
     ActionIcon,
     Card,
@@ -124,11 +126,22 @@ export const AssistantBubble: FC<{
 }> = memo(({ message, isPreview = false }) => {
     const { agentUuid, projectUuid } = useParams();
 
-    const queryExecutionHandle = useAiAgentThreadMessageVizQuery({
-        agentUuid: agentUuid!,
-        message,
-        projectUuid,
-    });
+    if (!projectUuid) throw new Error(`Project Uuid not found`);
+    if (!agentUuid) throw new Error(`Agent Uuid not found`);
+
+    const vizConfig = parseVizConfig(message.vizConfigOutput);
+    const isVisualizationAvailable =
+        !!vizConfig && vizConfig?.type !== AiResultType.ONE_LINE_RESULT;
+
+    const queryExecutionHandle = useAiAgentThreadMessageVizQuery(
+        {
+            projectUuid,
+            agentUuid,
+            threadUuid: message.threadUuid,
+            messageUuid: message.uuid,
+        },
+        { enabled: isVisualizationAvailable },
+    );
 
     const queryResults = useInfiniteQueryResults(
         projectUuid,
@@ -178,8 +191,6 @@ export const AssistantBubble: FC<{
         useAiAgentThreadStreaming(message.threadUuid) &&
         isOptimisticMessageStub(message.message);
 
-    const vizConfig = message.vizConfigOutput;
-
     if (!projectUuid) throw new Error(`Project Uuid not found`);
 
     return (
@@ -194,7 +205,7 @@ export const AssistantBubble: FC<{
         >
             <AssistantBubbleContent message={message} />
 
-            {vizConfig && (
+            {isVisualizationAvailable && (
                 <Paper
                     withBorder
                     radius="md"
