@@ -1,3 +1,10 @@
+## [0.1775.3](https://github.com/lightdash/lightdash/compare/0.1775.2...0.1775.3) (2025-07-02)
+
+
+### Bug Fixes
+
+* download dashboard CSVs ([#15681](https://github.com/lightdash/lightdash/issues/15681)) ([733b46c](https://github.com/lightdash/lightdash/commit/733b46cbff55131a934c08d1a5ccb0e9cdc578fe))
+
 ## [0.1775.2](https://github.com/lightdash/lightdash/compare/0.1775.1...0.1775.2) (2025-07-02)
 
 
