@@ -1,3 +1,10 @@
+# [0.1773.0](https://github.com/lightdash/lightdash/compare/0.1772.0...0.1773.0) (2025-07-02)
+
+
+### Features
+
+* improve validation output with color-coded errors and last updated info ([#15646](https://github.com/lightdash/lightdash/issues/15646)) ([8528c0d](https://github.com/lightdash/lightdash/commit/8528c0d4cfc54d502021341d93914adf684f982c))
+
 # [0.1772.0](https://github.com/lightdash/lightdash/compare/0.1771.0...0.1772.0) (2025-07-02)
 
 
