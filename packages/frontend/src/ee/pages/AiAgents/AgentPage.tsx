@@ -167,6 +167,7 @@ const AgentPage = () => {
                                 >
                                     Threads
                                 </Title>
+
                                 <Button
                                     size="compact-xs"
                                     variant="dark"
@@ -178,6 +179,11 @@ const AgentPage = () => {
                                     }
                                     component={Link}
                                     to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
+                                    style={{
+                                        visibility: threadUuid
+                                            ? 'visible'
+                                            : 'hidden',
+                                    }}
                                 >
                                     New thread
                                 </Button>

@@ -137,12 +137,6 @@ export const AgentChatInput = ({
                         borderBottomRightRadius: rem(12),
                     }}
                 >
-                    {!disabled && (
-                        <Text size="xs" c="dimmed">
-                            Agent can make mistakes. Please double-check
-                            responses.
-                        </Text>
-                    )}
                     {disabled && disabledReason && (
                         <Text
                             size="xs"
