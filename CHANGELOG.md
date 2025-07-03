@@ -1,3 +1,10 @@
+# [0.1779.0](https://github.com/lightdash/lightdash/compare/0.1778.1...0.1779.0) (2025-07-03)
+
+
+### Features
+
+* improve AI Agent streamed tool calls UI ([#15680](https://github.com/lightdash/lightdash/issues/15680)) ([5415814](https://github.com/lightdash/lightdash/commit/541581444def5d982a7742cf9e497773d5205ac6)), closes [#15665](https://github.com/lightdash/lightdash/issues/15665)
+
 ## [0.1778.1](https://github.com/lightdash/lightdash/compare/0.1778.0...0.1778.1) (2025-07-03)
 
 
