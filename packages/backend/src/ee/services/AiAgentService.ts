@@ -1949,4 +1949,31 @@ export class AiAgentService {
             defaultAgentUuid: body.defaultAgentUuid,
         });
     }
+
+    async deleteUserAgentPreferences(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const { organizationUuid, userUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const project = await this.projectService.getProject(projectUuid, user);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError(
+                'Project does not belong to this organization',
+            );
+        }
+
+        await this.aiAgentModel.deleteUserAgentPreferences({
+            userUuid,
+            projectUuid,
+        });
+    }
 }
