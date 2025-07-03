@@ -238,6 +238,7 @@ export const AiChartVisualization: FC<Props> = ({
                             <AiChartToolCalls
                                 toolCalls={toolCalls}
                                 compiledSql={compiledSql}
+                                type="persisted"
                             />
                         ) : (
                             assertUnreachable(activeTab, 'Invalid active tab')

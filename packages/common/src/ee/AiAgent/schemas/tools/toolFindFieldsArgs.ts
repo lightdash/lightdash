@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const toolFindFieldsArgsSchema = z.object({
+    type: z.literal('find_fields'),
     exploreName: z.string().describe('Name of the selected explore'),
     embeddingSearchQueries: z
         .array(
@@ -16,7 +17,5 @@ export const toolFindFieldsArgsSchema = z.object({
 
 export type ToolFindFieldsArgs = z.infer<typeof toolFindFieldsArgsSchema>;
 
-export const isToolFindFieldsArgs = (
-    toolArgs: unknown,
-): toolArgs is ToolFindFieldsArgs =>
-    toolFindFieldsArgsSchema.safeParse(toolArgs).success;
+export const toolFindFieldsArgsSchemaTransformed = toolFindFieldsArgsSchema;
+export type ToolFindFieldsArgsTransformed = ToolFindFieldsArgs;

@@ -1,17 +1,13 @@
 import {
+    AgentToolCallArgsSchema,
     type AiAgentToolCall,
+    AiResultType,
     type ApiCompiledQueryResults,
     assertUnreachable,
-    isToolFindFieldsArgs,
-    isToolTableVizArgs,
-    isToolTimeSeriesArgs,
-    isToolVerticalBarArgs,
+    TOOL_DISPLAY_MESSAGES,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
     type ToolName,
     ToolNameSchema,
-    toolTableVizArgsSchemaTransformed,
-    toolTimeSeriesArgsSchemaTransformed,
-    toolVerticalBarArgsSchemaTransformed,
 } from '@lightdash/common';
 import { Badge, Group, Stack, Text, Timeline } from '@mantine-8/core';
 import {
@@ -39,22 +35,24 @@ const getToolIcon = (toolName: ToolName) => {
     return iconMap[toolName];
 };
 
+type ToolCallDisplayType = 'streaming' | 'persisted';
+type ToolCallSummary = Omit<
+    AiAgentToolCall,
+    'createdAt' | 'uuid' | 'promptUuid'
+>;
+
 const ToolCallDescription: FC<{
-    toolCall: AiAgentToolCall;
+    toolCall: ToolCallSummary;
     compiledSql: ApiCompiledQueryResults | undefined;
 }> = ({ toolCall, compiledSql }) => {
     const toolName = ToolNameSchema.parse(toolCall.toolName);
+    const toolArgs = AgentToolCallArgsSchema.parse(toolCall.toolArgs);
 
-    switch (toolName) {
-        case 'findExplores':
-            // TODO: Implement findExplores tool call description
+    switch (toolArgs.type) {
+        case 'find_explores':
             return null;
-        case 'findFields':
-            if (!isToolFindFieldsArgs(toolCall.toolArgs)) {
-                return null;
-            }
-            const fields = toolCall.toolArgs.embeddingSearchQueries || [];
-            const exploreName = toolCall.toolArgs.exploreName;
+        case 'find_fields':
+            const { embeddingSearchQueries: fields, exploreName } = toolArgs;
 
             return (
                 <>
@@ -96,12 +94,9 @@ const ToolCallDescription: FC<{
                     )}
                 </>
             );
-        case 'generateBarVizConfig':
-            if (!isToolVerticalBarArgs(toolCall.toolArgs)) {
-                return null;
-            }
-            const barVizConfigToolArgs =
-                toolVerticalBarArgsSchemaTransformed.parse(toolCall.toolArgs);
+        case AiResultType.VERTICAL_BAR_RESULT:
+            const barVizConfigToolArgs = toolArgs;
+
             return (
                 <AiChartGenerationToolCallDescription
                     title={barVizConfigToolArgs.vizConfig.title}
@@ -113,13 +108,9 @@ const ToolCallDescription: FC<{
                     sql={compiledSql}
                 />
             );
-        case 'generateTableVizConfig':
-            if (!isToolTableVizArgs(toolCall.toolArgs)) {
-                return null;
-            }
-            const tableVizConfigToolArgs =
-                toolTableVizArgsSchemaTransformed.parse(toolCall.toolArgs);
 
+        case AiResultType.TABLE_RESULT:
+            const tableVizConfigToolArgs = toolArgs;
             return (
                 <AiChartGenerationToolCallDescription
                     title={tableVizConfigToolArgs.vizConfig.title}
@@ -130,12 +121,8 @@ const ToolCallDescription: FC<{
                     sql={compiledSql}
                 />
             );
-        case 'generateTimeSeriesVizConfig':
-            if (!isToolTimeSeriesArgs(toolCall.toolArgs)) {
-                return null;
-            }
-            const timeSeriesToolCallArgs =
-                toolTimeSeriesArgsSchemaTransformed.parse(toolCall.toolArgs);
+        case AiResultType.TIME_SERIES_RESULT:
+            const timeSeriesToolCallArgs = toolArgs;
             return (
                 <AiChartGenerationToolCallDescription
                     title={timeSeriesToolCallArgs.vizConfig.title}
@@ -147,21 +134,30 @@ const ToolCallDescription: FC<{
                     sql={compiledSql}
                 />
             );
+        case AiResultType.ONE_LINE_RESULT:
+            return null;
         default:
-            return assertUnreachable(toolName, `Unknown tool name ${toolName}`);
+            return assertUnreachable(toolArgs, `Unknown tool name ${toolName}`);
     }
 };
 
 type AiChartToolCallsProps = {
-    toolCalls: AiAgentToolCall[] | undefined;
-    compiledSql: ApiCompiledQueryResults | undefined;
+    toolCalls: ToolCallSummary[] | undefined;
+    compiledSql?: ApiCompiledQueryResults;
+    type: ToolCallDisplayType;
 };
 
 export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
     toolCalls,
     compiledSql,
+    type,
 }) => {
     if (!toolCalls || toolCalls.length === 0) return null;
+
+    const texts =
+        type === 'streaming'
+            ? TOOL_DISPLAY_MESSAGES
+            : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL;
 
     return (
         <Stack>
@@ -172,15 +168,19 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
                 color="indigo.6"
             >
                 {toolCalls.map((toolCall) => {
-                    const IconComponent = getToolIcon(
-                        // TODO: Fix this type cast
-                        toolCall.toolName as ToolName,
+                    const toolNameParsed = ToolNameSchema.safeParse(
+                        toolCall.toolName,
                     );
-                    const toolName = ToolNameSchema.parse(toolCall.toolName);
+                    if (!toolNameParsed.success) {
+                        return null;
+                    }
+
+                    const toolName = toolNameParsed.data;
+                    const IconComponent = getToolIcon(toolName);
 
                     return (
                         <Timeline.Item
-                            key={toolCall.uuid}
+                            key={toolCall.toolCallId}
                             radius="md"
                             bullet={
                                 <MantineIcon
@@ -191,18 +191,18 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
                             }
                             title={
                                 <Text fw={500} size="sm">
-                                    {
-                                        TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL[
-                                            toolName
-                                        ]
-                                    }
+                                    {texts[toolName]}
                                 </Text>
                             }
                             lineVariant={'solid'}
                         >
                             <ToolCallDescription
                                 toolCall={toolCall}
-                                compiledSql={compiledSql}
+                                compiledSql={
+                                    type === 'persisted'
+                                        ? compiledSql
+                                        : undefined
+                                }
                             />
                         </Timeline.Item>
                     );
