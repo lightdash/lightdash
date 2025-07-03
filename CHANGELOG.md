@@ -1,3 +1,10 @@
+# [0.1778.0](https://github.com/lightdash/lightdash/compare/0.1777.0...0.1778.0) (2025-07-03)
+
+
+### Features
+
+* Use JWT Middleware in EmbedController ([#15579](https://github.com/lightdash/lightdash/issues/15579)) ([a499ece](https://github.com/lightdash/lightdash/commit/a499eced6aadd068963a8bbf2319311cf488875e))
+
 # [0.1777.0](https://github.com/lightdash/lightdash/compare/0.1776.0...0.1777.0) (2025-07-03)
 
 
