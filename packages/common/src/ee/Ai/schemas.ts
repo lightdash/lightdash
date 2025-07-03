@@ -623,6 +623,7 @@ export const CsvFileVizConfigToolArgsSchemaTransformed = z.object({
 
 // define tool names
 export const ToolNameSchema = z.enum([
+    'findExplores',
     'findFields',
     'generateBarVizConfig',
     'generateCsv',
@@ -639,6 +640,7 @@ export const isToolName = (toolName: string): toolName is ToolName =>
 export const ToolDisplayMessagesSchema = z.record(ToolNameSchema, z.string());
 
 export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
+    findExplores: 'Finding relevant explores',
     findFields: 'Finding relevant fields',
     generateBarVizConfig: 'Generating a bar chart',
     generateCsv: 'Generating CSV file',
@@ -649,6 +651,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
 // after-tool-call messages
 export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
     ToolDisplayMessagesSchema.parse({
+        findExplores: 'Found relevant explores',
         findFields: 'Found relevant fields',
         generateBarVizConfig: 'Generated a bar chart',
         generateCsv: 'Generated a table',

@@ -574,7 +574,7 @@ export class ProjectService extends BaseService {
         return { userAttributes, intrinsicUserAttributes };
     }
 
-    /* 
+    /*
     This method is used to refresh the credentials for the warehouse client
     This runs on every request to the warehouse, to refresh the token if needed when an accessToken is requested
     Bigquery uses the refresh token directly on the warehouse connection, so there is no need to refresh it
@@ -607,7 +607,7 @@ export class ProjectService extends BaseService {
     }
 
     /*
-    This method is used when the user is creating a project 
+    This method is used when the user is creating a project
     This does not depend on `requireUserCredentials` flag (check getWarehouseCredentials for more details about that)
     In here, we will load on runtime SSH credentials or refresh tokens for SSO
     */
@@ -683,9 +683,9 @@ export class ProjectService extends BaseService {
     }
 
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. Perhaps this information can be passed as a prop to the client so that other services can use the warehouse client credentials logic?
-    /* 
-        This method is used when the user is making requests to the warehouse 
-        and . 
+    /*
+        This method is used when the user is making requests to the warehouse
+        and .
         Then if `requireUserCredentials` flag is enabled, we load the tokens from `userWarehouseCredentials` and replace them with the credentials from the project.
         If `requireUserCredentials` flag is disabled, we just get access token if needed for the warehouse (like nowflake on SSO).
     */
@@ -2872,8 +2872,8 @@ export class ProjectService extends BaseService {
 
             // Generate filtered rows and total columns so that we can apply a max column limit but also count the total number of columns if we exceed the MAX_PIVOT_COLUMN_LIMIT
             let pivotedSql = `
-            WITH original_query AS (${userSql}), 
-                 group_by_query AS (${groupByQuery}), 
+            WITH original_query AS (${userSql}),
+                 group_by_query AS (${groupByQuery}),
                  pivot_query AS (${pivotQuery}),
                  filtered_rows AS (
                     SELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${
@@ -3871,7 +3871,7 @@ export class ProjectService extends BaseService {
         );
     }
 
-    private async findExplores({
+    async findExplores({
         user,
         projectUuid,
         exploreNames,
