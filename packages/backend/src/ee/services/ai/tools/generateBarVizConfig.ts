@@ -79,7 +79,7 @@ Rules for generating the bar chart visualization:
 
                 await updateProgress('✅ Done.');
 
-                return `A bar chart has been successfully generated and shown to the user.`;
+                return `Success`;
             } catch (e) {
                 return toolErrorHandler(e, `Error generating bar chart.`);
             }

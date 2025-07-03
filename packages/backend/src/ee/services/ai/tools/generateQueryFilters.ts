@@ -51,10 +51,7 @@ Rules for generating filters:
                     filtersOutput: transformedFilters,
                 });
 
-                return `Filters have been successfully generated.
-
-Filters:
-${serializeData(transformedFilters, 'json')}`;
+                return `Success`;
             } catch (e) {
                 return toolErrorHandler(e, `Error generating filters.`);
             }

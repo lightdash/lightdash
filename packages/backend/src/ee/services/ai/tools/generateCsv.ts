@@ -80,7 +80,7 @@ Rules for generating the CSV file:
                     await sendFile(sentfileArgs);
                 }
 
-                return `A CSV file has been successfully generated and shown to the user.`;
+                return `Success`;
             } catch (e) {
                 return toolErrorHandler(e, `Error generating CSV.`);
             }
