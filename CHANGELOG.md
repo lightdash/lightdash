@@ -1,3 +1,10 @@
+## [0.1780.3](https://github.com/lightdash/lightdash/compare/0.1780.2...0.1780.3) (2025-07-03)
+
+
+### Bug Fixes
+
+* Legend scroll arrows don't work when chart title is hidden on a dashboard ([#15685](https://github.com/lightdash/lightdash/issues/15685)) ([37db117](https://github.com/lightdash/lightdash/commit/37db117a9d10d8b2e54c4692a6554f39550c537e)), closes [#15654](https://github.com/lightdash/lightdash/issues/15654)
+
 ## [0.1780.2](https://github.com/lightdash/lightdash/compare/0.1780.1...0.1780.2) (2025-07-03)
 
 
