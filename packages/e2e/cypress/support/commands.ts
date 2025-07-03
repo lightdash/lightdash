@@ -446,7 +446,7 @@ Cypress.Commands.add(
                     environment: [],
                     type: 'dbt',
                 },
-                dbtVersion: 'v1.4',
+                dbtVersion: 'v1.7',
                 warehouseConnection: warehouseConfig || {
                     host: Cypress.env('PGHOST') || 'localhost',
                     user: 'postgres',
