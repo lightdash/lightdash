@@ -102,6 +102,7 @@ export class AiAgentModel {
                      ORDER BY created_at DESC LIMIT 1)
                     `),
                 imageUrl: `${AiAgentTableName}.image_url`,
+                minimumAccessRole: `${AiAgentTableName}.minimum_access_role`,
             } satisfies Record<keyof AiAgent, unknown>)
             .leftJoin(
                 AiAgentIntegrationTableName,
@@ -169,6 +170,7 @@ export class AiAgentModel {
                      ORDER BY created_at DESC LIMIT 1)
                     `),
                 imageUrl: `${AiAgentTableName}.image_url`,
+                minimumAccessRole: `${AiAgentTableName}.minimum_access_role`,
             } satisfies Record<keyof AiAgentSummary, unknown>)
             .leftJoin(
                 AiAgentIntegrationTableName,
@@ -238,6 +240,7 @@ export class AiAgentModel {
             'name' | 'projectUuid' | 'tags' | 'integrations' | 'instruction'
         > & {
             organizationUuid: string;
+            minimumAccessRole?: ApiCreateAiAgent['minimumAccessRole'];
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
@@ -250,8 +253,10 @@ export class AiAgentModel {
                     description: null,
                     // FIXME: add image_url from args
                     image_url: null,
-                    // TODO: add minimum_access_role
-                    minimum_access_role: null,
+                    minimum_access_role:
+                        args.minimumAccessRole !== undefined
+                            ? args.minimumAccessRole
+                            : null,
                 })
                 .returning('*');
 
@@ -307,6 +312,7 @@ export class AiAgentModel {
                 updatedAt: agent.updated_at,
                 instruction: args.instruction,
                 imageUrl: agent.image_url,
+                minimumAccessRole: agent.minimum_access_role,
             };
         });
     }
@@ -332,6 +338,9 @@ export class AiAgentModel {
                         : {}),
                     ...(args.projectUuid !== undefined
                         ? { project_uuid: args.projectUuid }
+                        : {}),
+                    ...(args.minimumAccessRole !== undefined
+                        ? { minimum_access_role: args.minimumAccessRole }
                         : {}),
                 })
                 .returning('*');
@@ -403,6 +412,7 @@ export class AiAgentModel {
                 updatedAt: agent.updated_at,
                 instruction,
                 imageUrl: agent.image_url,
+                minimumAccessRole: agent.minimum_access_role,
             };
         });
     }
