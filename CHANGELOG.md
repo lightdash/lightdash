@@ -1,3 +1,10 @@
+# [0.1782.0](https://github.com/lightdash/lightdash/compare/0.1781.0...0.1782.0) (2025-07-03)
+
+
+### Features
+
+* make s3 optional for snowflake ([#15692](https://github.com/lightdash/lightdash/issues/15692)) ([61f434d](https://github.com/lightdash/lightdash/commit/61f434deeefa9239bd2d26b02e1560b6379404bc))
+
 # [0.1781.0](https://github.com/lightdash/lightdash/compare/0.1780.3...0.1781.0) (2025-07-03)
 
 
