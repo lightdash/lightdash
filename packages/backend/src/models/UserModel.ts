@@ -1040,4 +1040,151 @@ export class UserModel {
             .select('openid_identities.issuer_type');
         return rows.map((row) => row.issuer_type);
     }
+
+    /**
+     * Get all project roles for a user (both direct project roles and roles from group memberships)
+     * Used by services that need to check user's effective role for specific projects
+     */
+    async getAllProjectRolesForUser(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<
+        Pick<ProjectMemberProfile, 'projectUuid' | 'role' | 'userUuid'>[]
+    > {
+        // Get user details to extract user_id and organization_id
+        const userQuery = await this.database('users')
+            .leftJoin(
+                'organization_memberships',
+                'users.user_id',
+                'organization_memberships.user_id',
+            )
+            .leftJoin(
+                'organizations',
+                'organization_memberships.organization_id',
+                'organizations.organization_id',
+            )
+            .where('users.user_uuid', userUuid)
+            .andWhere('organizations.organization_uuid', organizationUuid)
+            .select('users.user_id', 'organizations.organization_id')
+            .first();
+
+        if (!userQuery) {
+            return []; // User not found or not in organization
+        }
+
+        // Get both direct project roles and group project roles
+        const [directProjectRoles, groupProjectRoles] = await Promise.all([
+            this.getUserProjectRoles(userQuery.user_id, userUuid),
+            this.getUserGroupProjectRoles(
+                userQuery.user_id,
+                userQuery.organization_id,
+                userUuid,
+            ),
+        ]);
+
+        return [...directProjectRoles, ...groupProjectRoles];
+    }
+
+    /**
+     * Get project roles for a user for a specific project (both direct and group memberships)
+     * More efficient than getAllProjectRolesForUser when checking access to a single project
+     */
+    async getProjectRolesForUser(
+        userUuid: string,
+        organizationUuid: string,
+        projectUuid: string,
+    ): Promise<
+        Pick<ProjectMemberProfile, 'projectUuid' | 'role' | 'userUuid'>[]
+    > {
+        // Get user details to extract user_id and organization_id
+        const userQuery = await this.database('users')
+            .leftJoin(
+                'organization_memberships',
+                'users.user_id',
+                'organization_memberships.user_id',
+            )
+            .leftJoin(
+                'organizations',
+                'organization_memberships.organization_id',
+                'organizations.organization_id',
+            )
+            .where('users.user_uuid', userUuid)
+            .andWhere('organizations.organization_uuid', organizationUuid)
+            .select('users.user_id', 'organizations.organization_id')
+            .first();
+
+        if (!userQuery) {
+            return []; // User not found or not in organization
+        }
+
+        // Get both direct project roles and group project roles, filtered by project
+        const [directProjectRoles, groupProjectRoles] = await Promise.all([
+            this.getUserProjectRolesForSpecificProject(
+                userQuery.user_id,
+                userUuid,
+                projectUuid,
+            ),
+            this.getUserGroupProjectRolesForSpecificProject(
+                userQuery.user_id,
+                userQuery.organization_id,
+                userUuid,
+                projectUuid,
+            ),
+        ]);
+
+        return [...directProjectRoles, ...groupProjectRoles];
+    }
+
+    private async getUserProjectRolesForSpecificProject(
+        userId: number,
+        userUuid: string,
+        projectUuid: string,
+    ): Promise<
+        Pick<ProjectMemberProfile, 'projectUuid' | 'role' | 'userUuid'>[]
+    > {
+        const projectMemberships = await this.database('project_memberships')
+            .leftJoin(
+                'projects',
+                'project_memberships.project_id',
+                'projects.project_id',
+            )
+            .select('projects.project_uuid', 'project_memberships.role')
+            .where('project_memberships.user_id', userId)
+            .andWhere('projects.project_uuid', projectUuid);
+
+        return projectMemberships.map((membership) => ({
+            projectUuid: membership.project_uuid,
+            role: membership.role,
+            userUuid,
+        }));
+    }
+
+    private async getUserGroupProjectRolesForSpecificProject(
+        userId: number,
+        organizationId: number,
+        userUuid: string,
+        projectUuid: string,
+    ): Promise<
+        Pick<ProjectMemberProfile, 'projectUuid' | 'role' | 'userUuid'>[]
+    > {
+        const projectMemberships = await this.database('group_memberships')
+            .innerJoin(
+                'project_group_access',
+                'project_group_access.group_uuid',
+                'group_memberships.group_uuid',
+            )
+            .where('group_memberships.organization_id', organizationId)
+            .andWhere('group_memberships.user_id', userId)
+            .andWhere('project_group_access.project_uuid', projectUuid)
+            .select(
+                'project_group_access.project_uuid',
+                'project_group_access.role',
+            );
+
+        return projectMemberships.map((membership) => ({
+            projectUuid: membership.project_uuid,
+            role: membership.role,
+            userUuid,
+        }));
+    }
 }

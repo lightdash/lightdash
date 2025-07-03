@@ -1,4 +1,4 @@
-import { type BaseAiAgent } from '@lightdash/common';
+import { ProjectMemberRole, type BaseAiAgent } from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
@@ -9,6 +9,7 @@ import {
     Group,
     LoadingOverlay,
     MultiSelect,
+    Select,
     Stack,
     Tabs,
     TagsInput,
@@ -52,7 +53,12 @@ import {
 const formSchema: z.ZodType<
     Pick<
         BaseAiAgent,
-        'name' | 'integrations' | 'tags' | 'instruction' | 'imageUrl'
+        | 'name'
+        | 'integrations'
+        | 'tags'
+        | 'instruction'
+        | 'imageUrl'
+        | 'minimumAccessRole'
     >
 > = z.object({
     name: z.string().min(1),
@@ -65,6 +71,7 @@ const formSchema: z.ZodType<
     tags: z.array(z.string()).nullable(),
     instruction: z.string().nullable(),
     imageUrl: z.string().url().nullable(),
+    minimumAccessRole: z.nativeEnum(ProjectMemberRole).nullable(),
 });
 
 type Props = {
@@ -142,6 +149,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             tags: null,
             instruction: null,
             imageUrl: null,
+            minimumAccessRole: null,
         },
         validate: zodResolver(formSchema),
     });
@@ -158,6 +166,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 tags: agent.tags && agent.tags.length > 0 ? agent.tags : null,
                 instruction: agent.instruction,
                 imageUrl: agent.imageUrl,
+                minimumAccessRole: agent.minimumAccessRole,
             };
             form.setValues(values);
             form.resetDirty(values);
@@ -333,7 +342,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
 
                     <Tabs.Panel value="setup" pt="lg">
                         <form onSubmit={handleSubmit}>
-                            <Group gap="xxl" align="flex-start">
+                            <Group gap="xxl" wrap="nowrap" align="flex-start">
                                 <Stack gap="xs" align="center" maw={300}>
                                     <LightdashUserAvatar
                                         name={
@@ -350,6 +359,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                         }
                                     />
                                     <TextInput
+                                        radius="md"
                                         style={{ flexGrow: 1 }}
                                         miw={200}
                                         labelProps={{
@@ -390,40 +400,104 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                     {/* Basic Agent Info */}
                                     <Stack gap="sm">
                                         <TextInput
+                                            radius="md"
                                             label="Agent Name"
                                             placeholder="Enter a name for this agent"
                                             {...form.getInputProps('name')}
                                             style={{ flexGrow: 1 }}
                                         />
 
-                                        <TextInput
-                                            label="Project"
-                                            placeholder="Enter a project"
-                                            value={project?.name}
-                                            readOnly
-                                        />
+                                        <Group grow>
+                                            <TextInput
+                                                radius="md"
+                                                label="Project"
+                                                placeholder="Enter a project"
+                                                value={project?.name}
+                                                readOnly
+                                            />
 
-                                        <TagsInput
-                                            label="Tags"
-                                            placeholder="Select tags"
-                                            {...form.getInputProps('tags')}
-                                            value={
-                                                form.getInputProps('tags')
-                                                    .value ?? []
-                                            }
-                                            onChange={(value) => {
-                                                form.setFieldValue(
-                                                    'tags',
-                                                    value.length > 0
-                                                        ? value
-                                                        : null,
-                                                );
-                                            }}
-                                        />
+                                            <TagsInput
+                                                radius="md"
+                                                label="Tags"
+                                                placeholder="Select tags"
+                                                {...form.getInputProps('tags')}
+                                                value={
+                                                    form.getInputProps('tags')
+                                                        .value ?? []
+                                                }
+                                                onChange={(value) => {
+                                                    form.setFieldValue(
+                                                        'tags',
+                                                        value.length > 0
+                                                            ? value
+                                                            : null,
+                                                    );
+                                                }}
+                                            />
+                                        </Group>
                                     </Stack>
+
+                                    <Select
+                                        label="Minimum Access Role"
+                                        description={(() => {
+                                            const role =
+                                                form.values.minimumAccessRole;
+                                            if (!role)
+                                                return 'All project members can interact with this agent';
+
+                                            const roleDescriptions = {
+                                                [ProjectMemberRole.VIEWER]:
+                                                    'Only Viewers and above can interact (Viewer, Interactive Viewer, Editor, Developer, Admin)',
+                                                [ProjectMemberRole.INTERACTIVE_VIEWER]:
+                                                    'Only Interactive Viewers and above can interact (Interactive Viewer, Editor, Developer, Admin)',
+                                                [ProjectMemberRole.EDITOR]:
+                                                    'Only Editors and above can interact (Editor, Developer, Admin)',
+                                                [ProjectMemberRole.DEVELOPER]:
+                                                    'Only Developers and Admins can interact (Developer, Admin)',
+                                                [ProjectMemberRole.ADMIN]:
+                                                    'Only Admins can interact with this agent',
+                                            };
+                                            return roleDescriptions[role];
+                                        })()}
+                                        placeholder="Select minimum role"
+                                        data={[
+                                            {
+                                                value: '',
+                                                label: 'All users',
+                                            },
+                                            {
+                                                value: ProjectMemberRole.VIEWER,
+                                                label: 'Viewer and above',
+                                            },
+                                            {
+                                                value: ProjectMemberRole.INTERACTIVE_VIEWER,
+                                                label: 'Interactive Viewer and above',
+                                            },
+                                            {
+                                                value: ProjectMemberRole.EDITOR,
+                                                label: 'Editor and above',
+                                            },
+                                            {
+                                                value: ProjectMemberRole.DEVELOPER,
+                                                label: 'Developers and Admins',
+                                            },
+                                        ]}
+                                        value={
+                                            form.values.minimumAccessRole || ''
+                                        }
+                                        onChange={(value) => {
+                                            form.setFieldValue(
+                                                'minimumAccessRole',
+                                                value === ''
+                                                    ? null
+                                                    : (value as ProjectMemberRole),
+                                            );
+                                        }}
+                                    />
 
                                     <Stack gap="sm">
                                         <Textarea
+                                            radius="md"
                                             label="Instructions"
                                             description="Instructions set the overall behavior and task for the agent. This defines how it should respond and what its purpose is."
                                             placeholder="You are a helpful assistant that specializes in sales data analytics."
@@ -494,70 +568,66 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                         )}
                                                     />
 
-                                                    <Stack gap="xs">
-                                                        <MultiSelect
-                                                            disabled={
-                                                                isRefreshing ||
-                                                                !slackInstallation?.organizationUuid
-                                                            }
-                                                            description={
-                                                                !slackInstallation?.organizationUuid
-                                                                    ? 'You need to connect Slack first in the Integrations settings before you can configure AI agents.'
-                                                                    : undefined
-                                                            }
-                                                            labelProps={{
-                                                                style: {
-                                                                    width: '100%',
-                                                                },
-                                                            }}
-                                                            label="Channels"
-                                                            placeholder="Pick a channel"
-                                                            data={
-                                                                slackChannelOptions
-                                                            }
-                                                            value={form.values.integrations.map(
-                                                                (i) =>
-                                                                    i.channelId,
-                                                            )}
-                                                            searchable
-                                                            rightSectionPointerEvents="all"
-                                                            rightSection={
-                                                                <Tooltip
-                                                                    withArrow
-                                                                    withinPortal
-                                                                    label="Refresh Slack Channels"
+                                                    <MultiSelect
+                                                        radius="md"
+                                                        disabled={
+                                                            isRefreshing ||
+                                                            !slackInstallation?.organizationUuid
+                                                        }
+                                                        description={
+                                                            !slackInstallation?.organizationUuid
+                                                                ? 'You need to connect Slack first in the Integrations settings before you can configure AI agents.'
+                                                                : undefined
+                                                        }
+                                                        labelProps={{
+                                                            style: {
+                                                                width: '100%',
+                                                            },
+                                                        }}
+                                                        label="Channels"
+                                                        placeholder="Pick a channel"
+                                                        data={
+                                                            slackChannelOptions
+                                                        }
+                                                        value={form.values.integrations.map(
+                                                            (i) => i.channelId,
+                                                        )}
+                                                        searchable
+                                                        rightSectionPointerEvents="all"
+                                                        rightSection={
+                                                            <Tooltip
+                                                                withArrow
+                                                                withinPortal
+                                                                label="Refresh Slack Channels"
+                                                            >
+                                                                <ActionIcon
+                                                                    variant="transparent"
+                                                                    onClick={
+                                                                        refreshChannels
+                                                                    }
                                                                 >
-                                                                    <ActionIcon
-                                                                        variant="transparent"
-                                                                        onClick={
-                                                                            refreshChannels
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            IconRefresh
                                                                         }
-                                                                    >
-                                                                        <MantineIcon
-                                                                            icon={
-                                                                                IconRefresh
-                                                                            }
-                                                                        />
-                                                                    </ActionIcon>
-                                                                </Tooltip>
-                                                            }
-                                                            onChange={(
-                                                                value,
-                                                            ) => {
-                                                                form.setFieldValue(
-                                                                    'integrations',
-                                                                    value.map(
-                                                                        (v) =>
-                                                                            ({
-                                                                                type: 'slack',
-                                                                                channelId:
-                                                                                    v,
-                                                                            } as const),
-                                                                    ),
-                                                                );
-                                                            }}
-                                                        />
-                                                    </Stack>
+                                                                    />
+                                                                </ActionIcon>
+                                                            </Tooltip>
+                                                        }
+                                                        onChange={(value) => {
+                                                            form.setFieldValue(
+                                                                'integrations',
+                                                                value.map(
+                                                                    (v) =>
+                                                                        ({
+                                                                            type: 'slack',
+                                                                            channelId:
+                                                                                v,
+                                                                        } as const),
+                                                                ),
+                                                            );
+                                                        }}
+                                                    />
                                                 </Box>
                                             )}
                                         </Stack>

@@ -22,11 +22,15 @@ import {
     assertUnreachable,
     CatalogType,
     CommercialFeatureFlags,
+    convertOrganizationRoleToProjectRole,
     filterExploreByTags,
     ForbiddenError,
+    getHighestProjectRole,
     isSlackPrompt,
     LightdashUser,
     NotFoundError,
+    ProjectMemberRole,
+    ProjectRoleOrder,
     QueryExecutionContext,
     SlackPrompt,
     UnexpectedServerError,
@@ -238,6 +242,105 @@ export class AiAgentService {
         return aiCopilotFlag.enabled;
     }
 
+    /**
+     * Get user's effective role for a specific project by combining org role, direct project role, and group roles
+     */
+    private static getUserEffectiveRoleForProject(
+        user: SessionUser,
+        projectUuid: string,
+        userProjectRoles: Array<{
+            projectUuid: string;
+            role: ProjectMemberRole;
+            userUuid: string;
+        }>,
+    ): ProjectMemberRole | undefined {
+        // Find all roles for this specific project
+        const projectSpecificRoles = userProjectRoles.filter(
+            (role) => role.projectUuid === projectUuid,
+        );
+
+        // Build inherited roles array
+        const inheritedRoles = [
+            {
+                type: 'organization' as const,
+                role: user.role
+                    ? convertOrganizationRoleToProjectRole(user.role)
+                    : undefined,
+            },
+            // Add all project-specific roles (could be direct project roles or group roles)
+            ...projectSpecificRoles.map((role) => ({
+                type: 'project' as const, // We treat both direct and group roles as project-level
+                role: role.role,
+            })),
+        ];
+
+        const effectiveRole = getHighestProjectRole(inheritedRoles);
+        return effectiveRole?.role;
+    }
+
+    /**
+     * Check if user has access to an AI agent based on CASL permissions and minimum access role
+     */
+    private static checkAgentAccess(
+        user: SessionUser,
+        agent: {
+            projectUuid: string;
+            organizationUuid: string;
+            minimumAccessRole?: ProjectMemberRole | null;
+        },
+        userProjectRoles: Array<{
+            projectUuid: string;
+            role: ProjectMemberRole;
+            userUuid: string;
+        }>,
+    ): { hasAccess: boolean; reason?: string } {
+        // First check basic CASL permission
+        if (
+            user.ability.cannot(
+                'view',
+                subject('AiAgent', {
+                    projectUuid: agent.projectUuid,
+                    organizationUuid: agent.organizationUuid,
+                }),
+            )
+        ) {
+            return {
+                hasAccess: false,
+                reason: 'Insufficient role to access this agent',
+            };
+        }
+
+        // Then check minimum access role if specified
+        if (agent.minimumAccessRole) {
+            const userEffectiveRole =
+                AiAgentService.getUserEffectiveRoleForProject(
+                    user,
+                    agent.projectUuid,
+                    userProjectRoles,
+                );
+
+            if (!userEffectiveRole) {
+                return {
+                    hasAccess: false,
+                    reason: 'Insufficient role to access this agent - no project access',
+                };
+            }
+
+            // Compare role levels using ProjectRoleOrder
+            if (
+                ProjectRoleOrder[userEffectiveRole] <
+                ProjectRoleOrder[agent.minimumAccessRole]
+            ) {
+                return {
+                    hasAccess: false,
+                    reason: `Insufficient role to access this agent`,
+                };
+            }
+        }
+
+        return { hasAccess: true };
+    }
+
     public async getAgent(
         user: SessionUser,
         agentUuid: string,
@@ -253,14 +356,28 @@ export class AiAgentService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        // TODO:
-        // permissions
-
         const agent = await this.aiAgentModel.getAgent({
             organizationUuid,
             agentUuid,
             projectUuid,
         });
+
+        // Check agent access permissions - use more efficient method for single project
+        const userProjectRoles = await this.userModel.getProjectRolesForUser(
+            user.userUuid,
+            organizationUuid,
+            agent.projectUuid,
+        );
+
+        const accessCheck = AiAgentService.checkAgentAccess(
+            user,
+            agent,
+            userProjectRoles,
+        );
+
+        if (!accessCheck.hasAccess) {
+            throw new ForbiddenError(accessCheck.reason!);
+        }
 
         return agent;
     }
@@ -281,7 +398,24 @@ export class AiAgentService {
             projectUuid,
         });
 
-        return agents;
+        // Get user's project roles once for efficiency (includes both direct and group roles)
+        const allUserProjectRoles =
+            await this.userModel.getAllProjectRolesForUser(
+                user.userUuid,
+                organizationUuid,
+            );
+
+        // Filter agents based on CASL permissions and minimum access role
+        const accessibleAgents = agents.filter((agent) => {
+            const accessCheck = AiAgentService.checkAgentAccess(
+                user,
+                agent,
+                allUserProjectRoles,
+            );
+            return accessCheck.hasAccess;
+        });
+
+        return accessibleAgents;
     }
 
     async listAgentThreads(
@@ -299,14 +433,7 @@ export class AiAgentService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
-        }
+        const agent = await this.getAgent(user, agentUuid);
 
         // Check if user has admin permissions to view all threads
         const canViewAllThreads =
@@ -381,14 +508,7 @@ export class AiAgentService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
-        }
+        const agent = await this.getAgent(user, agentUuid);
 
         const thread = await this.aiAgentModel.getThread({
             organizationUuid,
@@ -477,14 +597,7 @@ export class AiAgentService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
-        }
+        const agent = await this.getAgent(user, agentUuid);
 
         if (
             user.ability.cannot(
@@ -537,14 +650,7 @@ export class AiAgentService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
-        }
+        const agent = await this.getAgent(user, agentUuid);
 
         const thread = await this.aiAgentModel.getThread({
             organizationUuid,
@@ -599,6 +705,7 @@ export class AiAgentService {
             tags: body.tags,
             integrations: body.integrations,
             instruction: body.instruction,
+            minimumAccessRole: body.minimumAccessRole ?? null,
         });
 
         return agent;
@@ -639,6 +746,7 @@ export class AiAgentService {
             integrations: body.integrations,
             instruction: body.instruction,
             imageUrl: body.imageUrl,
+            minimumAccessRole: body.minimumAccessRole,
         });
 
         return updatedAgent;
@@ -695,6 +803,9 @@ export class AiAgentService {
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }
+
+        // Check agent access permissions first
+        await this.getAgent(user, agentUuid);
 
         const thread = await this.aiAgentModel.findThread(threadUuid);
         if (!thread) {
@@ -772,14 +883,7 @@ export class AiAgentService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
-        }
+        const agent = await this.getAgent(user, agentUuid);
 
         const { projectUuid } = agent;
 
@@ -887,14 +991,7 @@ export class AiAgentService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
-        }
+        const agent = await this.getAgent(user, agentUuid);
 
         const { projectUuid } = agent;
 
@@ -1049,10 +1146,7 @@ export class AiAgentService {
         if (!isCopilotEnabled)
             throw new ForbiddenError(`Copilot is not enabled`);
 
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
+        const agent = await this.getAgent(user, agentUuid);
 
         const message = await this.aiAgentModel.findThreadMessage('assistant', {
             organizationUuid,
@@ -1342,10 +1436,7 @@ export class AiAgentService {
                       organizationUuid: user.organizationUuid,
                       slackChannelId: prompt.slackChannelId,
                   })
-                : await this.aiAgentModel.getAgent({
-                      organizationUuid: prompt.organizationUuid,
-                      agentUuid: prompt.agentUuid!,
-                  });
+                : await this.getAgent(user, prompt.agentUuid!);
 
         const {
             getExplore,

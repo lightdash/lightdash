@@ -1,13 +1,13 @@
 import { z } from 'zod';
-import type {
-    AnyType,
-    ApiExecuteAsyncMetricQueryResults,
-    ApiSuccess,
-    ApiSuccessEmpty,
-    CacheMetadata,
-    ItemsMap,
-    MetricQuery,
+import {
+    type ApiExecuteAsyncMetricQueryResults,
+    type CacheMetadata,
+    type ItemsMap,
 } from '../..';
+import { type AnyType } from '../../types/any';
+import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
+import { type MetricQuery } from '../../types/metricQuery';
+import { ProjectMemberRole } from '../../types/projectMemberRole';
 
 /**
  * Supported AI visualization chart types
@@ -57,6 +57,7 @@ export const baseAgentSchema = z.object({
         .nullable(),
     provider: z.string(),
     model: z.string(),
+    minimumAccessRole: z.nativeEnum(ProjectMemberRole).nullable(),
 });
 
 export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
@@ -73,6 +74,7 @@ export type AiAgent = Pick<
     | 'updatedAt'
     | 'instruction'
     | 'imageUrl'
+    | 'minimumAccessRole'
 >;
 
 export type AiAgentSummary = Pick<
@@ -87,6 +89,7 @@ export type AiAgentSummary = Pick<
     | 'updatedAt'
     | 'instruction'
     | 'imageUrl'
+    | 'minimumAccessRole'
 >;
 
 export type AiAgentUser = {
@@ -160,6 +163,7 @@ export type ApiCreateAiAgent = Pick<
     | 'name'
     | 'instruction'
     | 'imageUrl'
+    | 'minimumAccessRole'
 >;
 
 export type ApiUpdateAiAgent = Partial<
@@ -171,6 +175,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'name'
         | 'instruction'
         | 'imageUrl'
+        | 'minimumAccessRole'
     >
 > & {
     uuid: string;

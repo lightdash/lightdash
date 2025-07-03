@@ -77,17 +77,30 @@ const getAgentThreadMessageVizQuery = async (args: {
 
 export const useAiAgent = (agentUuid: string | undefined) => {
     const { showToastApiError } = useToaster();
+    const { data: activeProjectUuid } = useActiveProject();
+    const navigate = useNavigate();
 
     return useQuery<ApiAiAgentResponse['results'], ApiError>({
         queryKey: [AI_AGENTS_KEY, agentUuid],
         queryFn: () => getAgent(agentUuid!),
         onError: (error) => {
-            showToastApiError({
-                title: `Failed to fetch AI agent details`,
-                apiError: error.error,
-            });
+            if (error.error?.statusCode === 403) {
+                void navigate(`/projects/${activeProjectUuid}/home`);
+            } else {
+                showToastApiError({
+                    title: `Failed to fetch AI agent details`,
+                    apiError: error.error,
+                });
+            }
         },
         enabled: !!agentUuid,
+        retry: (failureCount, error) => {
+            // Don't retry permission errors
+            if (error.error?.statusCode === 403) {
+                return false;
+            }
+            return failureCount < 3;
+        },
     });
 };
 
@@ -158,12 +171,22 @@ export const useAiAgentThreads = (
         ],
         queryFn: () => listAgentThreads(agentUuid!, allUsers),
         onError: (error) => {
-            showToastApiError({
-                title: 'Failed to fetch AI agent threads',
-                apiError: error.error,
-            });
+            // Don't show error toast for permission errors - let the UI handle it gracefully
+            if (error.error?.statusCode !== 403) {
+                showToastApiError({
+                    title: 'Failed to fetch AI agent threads',
+                    apiError: error.error,
+                });
+            }
         },
         enabled: !!agentUuid,
+        retry: (failureCount, error) => {
+            // Don't retry permission errors
+            if (error.error?.statusCode === 403) {
+                return false;
+            }
+            return failureCount < 3;
+        },
     });
 };
 
@@ -172,17 +195,30 @@ export const useAiAgentThread = (
     threadUuid: string | null | undefined,
 ) => {
     const { showToastApiError } = useToaster();
+    const { data: activeProjectUuid } = useActiveProject();
+    const navigate = useNavigate();
 
     return useQuery<ApiAiAgentThreadResponse['results'], ApiError>({
         queryKey: [AI_AGENTS_KEY, agentUuid, 'threads', threadUuid],
         queryFn: () => getAgentThread(agentUuid!, threadUuid!),
         onError: (error) => {
-            showToastApiError({
-                title: 'Failed to fetch AI agent thread',
-                apiError: error.error,
-            });
+            if (error.error?.statusCode === 403) {
+                void navigate(`/projects/${activeProjectUuid}/home`);
+            } else {
+                showToastApiError({
+                    title: 'Failed to fetch AI agent thread',
+                    apiError: error.error,
+                });
+            }
         },
         enabled: !!agentUuid && !!threadUuid,
+        retry: (failureCount, error) => {
+            // Don't retry permission errors
+            if (error.error?.statusCode === 403) {
+                return false;
+            }
+            return failureCount < 3;
+        },
     });
 };
 

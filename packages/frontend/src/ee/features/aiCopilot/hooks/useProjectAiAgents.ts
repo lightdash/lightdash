@@ -48,10 +48,12 @@ export const useProjectAiAgents = (
         queryFn: () => listProjectAgents(projectUuid!),
         ...options,
         onError: (error) => {
-            showToastApiError({
-                title: 'Failed to fetch project AI agents',
-                apiError: error.error,
-            });
+            if (error.error?.statusCode !== 403) {
+                showToastApiError({
+                    title: 'Failed to fetch project AI agents',
+                    apiError: error.error,
+                });
+            }
 
             if (options?.onError) {
                 options.onError(error);
@@ -66,17 +68,28 @@ export const useProjectAiAgent = (
     agentUuid: string | undefined,
 ) => {
     const { showToastApiError } = useToaster();
+    const navigate = useNavigate();
 
     return useQuery<ApiAiAgentResponse['results'], ApiError>({
         queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid, agentUuid],
         queryFn: () => getProjectAgent(projectUuid!, agentUuid!),
         onError: (error) => {
-            showToastApiError({
-                title: `Failed to fetch project AI agent details`,
-                apiError: error.error,
-            });
+            if (error.error?.statusCode === 403) {
+                void navigate(`/projects/${projectUuid}/home`);
+            } else {
+                showToastApiError({
+                    title: `Failed to fetch project AI agent details`,
+                    apiError: error.error,
+                });
+            }
         },
         enabled: !!projectUuid && !!agentUuid,
+        retry: (failureCount, error) => {
+            if (error.error?.statusCode === 403) {
+                return false;
+            }
+            return failureCount < 3;
+        },
     });
 };
 
