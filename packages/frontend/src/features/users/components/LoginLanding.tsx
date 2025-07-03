@@ -196,13 +196,14 @@ const Login: FC<{}> = () => {
 
     return (
         <>
-            <Image
+            {/* <Image
                 src={LightdashLogo}
                 alt="lightdash logo"
                 width={130}
                 mx="auto"
                 my="lg"
-            />
+            /> */}
+            <Title ta="center" order={2}>Solucia Analytics</Title>
             <Card p="xl" radius="xs" withBorder shadow="xs">
                 <Title order={3} ta="center" mb="md">
                     Sign in

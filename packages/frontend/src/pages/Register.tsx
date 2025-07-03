@@ -162,13 +162,14 @@ const Register: FC = () => {
     return (
         <Page title="Register" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
-                <Image
+                {/* <Image
                     src={LightdashLogo}
                     alt="lightdash logo"
                     width={130}
                     mx="auto"
                     my="lg"
-                />
+                /> */}
+                <Title ta="center" order={2}>Solucia Analytics</Title>
                 <Card p="xl" radius="xs" withBorder shadow="xs">
                     <Title order={3} ta="center" mb="md">
                         Sign up
