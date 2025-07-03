@@ -7,7 +7,7 @@ import {
     AiConversation,
     AiConversationMessage,
     AiDuplicateSlackPromptError,
-    AiMetricQuery,
+    AiMetricQueryWithFilters,
     AiResultType,
     AiVizMetadata,
     AiWebAppPrompt,
@@ -25,7 +25,6 @@ import {
     CommercialFeatureFlags,
     Explore,
     filterExploreByTags,
-    Filters,
     ForbiddenError,
     isExploreError,
     isSlackPrompt,
@@ -38,7 +37,6 @@ import {
     UpdateWebAppResponse,
     type SessionUser,
 } from '@lightdash/common';
-import { AiMetricQueryWithFilters } from '@lightdash/common/dist/types/ee/AiAgent/types';
 import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
 import {
     CoreAssistantMessage,

@@ -1,10 +1,10 @@
 import {
+    AiResultType,
     parseVizConfig,
     type AiAgentMessageAssistant,
     type AiAgentMessageUser,
     type AiAgentUser,
 } from '@lightdash/common';
-import { AiResultType } from '@lightdash/common/src';
 import {
     ActionIcon,
     Card,

@@ -1,4 +1,5 @@
 import {
+    AiMetricQueryWithFilters,
     AiWebAppPrompt,
     AnyType,
     CacheMetadata,
@@ -8,7 +9,6 @@ import {
     UpdateSlackResponse,
     UpdateWebAppResponse,
 } from '@lightdash/common';
-import { AiMetricQueryWithFilters } from '@lightdash/common/dist/types/ee/AiAgent/types';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
 import { AiAgentExploreSummary } from './aiAgentExploreSummary';
 

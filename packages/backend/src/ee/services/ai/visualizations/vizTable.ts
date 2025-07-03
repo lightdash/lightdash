@@ -1,9 +1,9 @@
 import {
+    AiMetricQueryWithFilters,
     AiResultType,
     metricQueryTableViz,
     ToolTableVizArgsTransformed,
 } from '@lightdash/common';
-import { AiMetricQueryWithFilters } from '@lightdash/common/dist/types/ee/AiAgent/types';
 import { stringify } from 'csv-stringify/sync';
 import { CsvService } from '../../../../services/CsvService/CsvService';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';

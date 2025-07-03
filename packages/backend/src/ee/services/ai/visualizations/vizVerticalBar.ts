@@ -1,10 +1,10 @@
 import {
+    AiMetricQueryWithFilters,
     AiResultType,
     MetricQuery,
     metricQueryVerticalBarViz,
     type ToolVerticalBarArgsTransformed,
 } from '@lightdash/common';
-import { AiMetricQueryWithFilters } from '@lightdash/common/dist/types/ee/AiAgent/types';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
 import { getPivotedResults } from '../utils/getPivotedResults';
 
