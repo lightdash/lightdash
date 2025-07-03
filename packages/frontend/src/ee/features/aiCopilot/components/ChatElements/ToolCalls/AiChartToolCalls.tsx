@@ -2,15 +2,14 @@ import {
     type AiAgentToolCall,
     type ApiCompiledQueryResults,
     assertUnreachable,
-    CsvFileVizConfigToolArgsSchemaTransformed,
-    generateQueryFiltersToolArgsSchemaTransformed,
-    isCsvFileVizConfigToolArgs,
     isFindFieldsToolArgs,
-    isGenerateQueryFiltersToolArgs,
+    isTableVizTool,
     isTimeSeriesMetricVizConfigToolArgs,
     isVerticalBarMetricVizConfigToolArgs,
+    tableVizToolSchemaTransformed,
     timeSeriesMetricVizConfigToolArgsSchemaTransformed,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
+    type ToolName,
     ToolNameSchema,
     verticalBarMetricVizConfigToolArgsSchemaTransformed,
 } from '@lightdash/common';
@@ -19,27 +18,25 @@ import {
     IconChartHistogram,
     IconChartLine,
     IconDatabase,
-    IconFileText,
-    IconFilter,
     IconSearch,
-    IconSparkles,
+    IconTable,
+    type TablerIconsProps,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, type JSX } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import AgentVisualizationFilters from '../AgentVisualizationFilters';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
 
-const getToolIcon = (toolName: string) => {
-    const iconMap = {
-        findExplores: IconDatabase,
-        findFields: IconSearch,
-        generateBarVizConfig: IconChartHistogram,
-        generateTimeSeriesVizConfig: IconChartLine,
-        generateQueryFilters: IconFilter,
-        generateCsv: IconFileText,
-    } as const;
+const getToolIcon = (toolName: ToolName) => {
+    const iconMap: Record<ToolName, (props: TablerIconsProps) => JSX.Element> =
+        {
+            findExplores: IconDatabase,
+            findFields: IconSearch,
+            generateBarVizConfig: IconChartHistogram,
+            generateTimeSeriesVizConfig: IconChartLine,
+            generateTableVizConfig: IconTable,
+        };
 
-    return iconMap[toolName as keyof typeof iconMap] || IconSparkles;
+    return iconMap[toolName];
 };
 
 const ToolCallDescription: FC<{
@@ -96,27 +93,6 @@ const ToolCallDescription: FC<{
                     )}
                 </>
             );
-        case 'generateQueryFilters':
-            if (!isGenerateQueryFiltersToolArgs(toolCall.toolArgs)) {
-                return null;
-            }
-
-            const toolArgs =
-                generateQueryFiltersToolArgsSchemaTransformed.parse(
-                    toolCall.toolArgs,
-                );
-
-            return (
-                <Group gap="xs">
-                    <Text c="dimmed" size="xs">
-                        Generated filters for the query
-                    </Text>
-                    <AgentVisualizationFilters
-                        compact
-                        filters={toolArgs.filters}
-                    />
-                </Group>
-            );
         case 'generateBarVizConfig':
             if (!isVerticalBarMetricVizConfigToolArgs(toolCall.toolArgs)) {
                 return null;
@@ -137,22 +113,21 @@ const ToolCallDescription: FC<{
                     sql={compiledSql}
                 />
             );
-        case 'generateCsv':
-            if (!isCsvFileVizConfigToolArgs(toolCall.toolArgs)) {
+        case 'generateTableVizConfig':
+            if (!isTableVizTool(toolCall.toolArgs)) {
                 return null;
             }
-            const csvFileVizConfigToolArgs =
-                CsvFileVizConfigToolArgsSchemaTransformed.parse(
-                    toolCall.toolArgs,
-                );
+            const tableVizConfigToolArgs = tableVizToolSchemaTransformed.parse(
+                toolCall.toolArgs,
+            );
 
             return (
                 <AiChartGenerationToolCallDescription
-                    title={csvFileVizConfigToolArgs.vizConfig.title}
+                    title={tableVizConfigToolArgs.vizConfig.title}
                     dimensions={
-                        csvFileVizConfigToolArgs.vizConfig.dimensions ?? []
+                        tableVizConfigToolArgs.vizConfig.dimensions ?? []
                     }
-                    metrics={csvFileVizConfigToolArgs.vizConfig.metrics}
+                    metrics={tableVizConfigToolArgs.vizConfig.metrics}
                     sql={compiledSql}
                 />
             );
@@ -204,7 +179,10 @@ export const AiChartToolCalls: FC<AiChartToolCallsProps> = ({
                 color="indigo.6"
             >
                 {toolCalls.map((toolCall) => {
-                    const IconComponent = getToolIcon(toolCall.toolName);
+                    const IconComponent = getToolIcon(
+                        // TODO: Fix this type cast
+                        toolCall.toolName as ToolName,
+                    );
                     const toolName = ToolNameSchema.parse(toolCall.toolName);
 
                     return (

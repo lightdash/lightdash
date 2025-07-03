@@ -1,4 +1,4 @@
-import { filtersSchemaTransformed, isSlackPrompt } from '@lightdash/common';
+import { isSlackPrompt, timeSeriesVizToolSchema } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     GetPromptFn,
@@ -7,12 +7,9 @@ import type {
     UpdateProgressFn,
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
+import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { renderEcharts } from '../visualizations/renderEcharts';
-import {
-    generateTimeSeriesVizConfigToolSchema,
-    renderTimeseriesChart,
-} from '../visualizations/timeSeriesChart';
+import { renderTimeSeriesViz } from '../visualizations/timeSeriesViz';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;
@@ -28,7 +25,7 @@ export const getGenerateTimeSeriesVizConfig = ({
     sendFile,
     updatePrompt,
 }: Dependencies) => {
-    const schema = generateTimeSeriesVizConfigToolSchema;
+    const schema = timeSeriesVizToolSchema;
 
     return tool({
         description: `Generate Time Series Chart Visualization and show it to the user.
@@ -42,35 +39,25 @@ Rules for generating the time series chart visualization:
 - The dimension and metric "fieldIds" must come from an explore. If you haven't used "findFieldsInExplore" tool, please do so before using this tool.
 - If the data needs to be filtered, generate the filters using the "generateQueryFilters" tool before using this tool.`,
         parameters: schema,
-        execute: async ({ filters, vizConfig }) => {
+        execute: async (vizToolResult) => {
             try {
-                // Transform filters to the correct format for the query and keep the original format for the tool call args
-                const transformedFilters =
-                    filtersSchemaTransformed.parse(filters);
-                await updateProgress(
-                    '🔍 Running a query for your line chart...',
-                );
-
-                const prompt = await getPrompt();
-
                 await updateProgress('📈 Generating your line chart...');
 
-                const { chartOptions, metricQuery } =
-                    await renderTimeseriesChart({
-                        runMetricQuery: runMiniMetricQuery,
-                        vizConfig,
-                        filters: transformedFilters ?? undefined,
-                    });
-
-                const file = await renderEcharts(chartOptions);
-
+                const prompt = await getPrompt();
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,
-                    vizConfigOutput: vizConfig,
-                    metricQuery,
+                    vizConfigOutput: vizToolResult,
                 });
 
                 if (isSlackPrompt(prompt)) {
+                    const { chartOptions } = await renderTimeSeriesViz({
+                        runMetricQuery: runMiniMetricQuery,
+                        vizTool: vizToolResult,
+                    });
+
+                    const file = await renderEcharts(chartOptions);
+                    await updateProgress('✅ Done.');
+
                     const sentfileArgs = {
                         channelId: prompt.slackChannelId,
                         threadTs: prompt.slackThreadTs,

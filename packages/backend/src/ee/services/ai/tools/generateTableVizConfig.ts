@@ -1,4 +1,4 @@
-import { filtersSchemaTransformed, isSlackPrompt } from '@lightdash/common';
+import { isSlackPrompt, tableVizToolSchema } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     GetPromptFn,
@@ -8,10 +8,7 @@ import type {
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import {
-    generateCsvToolSchema,
-    renderCsvFile,
-} from '../visualizations/csvFile';
+import { renderTableViz } from '../visualizations/tableViz';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;
@@ -21,7 +18,7 @@ type Dependencies = {
     sendFile: SendFileFn;
     maxLimit: number;
 };
-export const getGenerateCsv = ({
+export const getGenerateTableVizConfig = ({
     runMiniMetricQuery,
     getPrompt,
     sendFile,
@@ -29,44 +26,33 @@ export const getGenerateCsv = ({
     updateProgress,
     maxLimit,
 }: Dependencies) => {
-    const schema = generateCsvToolSchema;
+    const schema = tableVizToolSchema;
 
     return tool({
-        description: `Generate a CSV file and show it to the user.
-
-Rules for generating the CSV file:
-- The dimension and metric "fieldIds" must come from an explore. If you haven't used "findFieldsInExplore" tool, please do so before using this tool.
-- If the data needs to be filtered, generate the filters using the "generateQueryFilters" tool before using this tool.`,
+        description: `Generate a table and show it to the user.
+The dimension and metric "fieldIds" must come from an explore.
+If you haven't used "findFieldsInExplore" tool, please do so before using this tool.`,
         parameters: schema,
-        execute: async ({ filters, vizConfig }) => {
+        execute: async (vizToolResult) => {
             try {
-                // Transform filters to the correct format for the query and keep the original format for the tool call args
-                const transformedFilters =
-                    filtersSchemaTransformed.parse(filters);
-                await updateProgress(
-                    '🔍 Running a query for your bar chart...',
-                );
+                await updateProgress('🔢 Generating your table...');
 
                 const prompt = await getPrompt();
-
-                await updateProgress('🔢 Generating your CSV...');
-
-                const { csv, metricQuery } = await renderCsvFile({
-                    runMetricQuery: runMiniMetricQuery,
-                    config: vizConfig,
-                    filters: transformedFilters ?? undefined,
-                    maxLimit,
-                });
-
-                const file = Buffer.from(csv, 'utf8');
-
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,
-                    vizConfigOutput: vizConfig,
-                    metricQuery,
+                    vizConfigOutput: vizToolResult,
                 });
 
                 if (isSlackPrompt(prompt)) {
+                    const { csv } = await renderTableViz({
+                        runMetricQuery: runMiniMetricQuery,
+                        vizTool: vizToolResult,
+                        maxLimit,
+                    });
+
+                    const file = Buffer.from(csv, 'utf8');
+                    await updateProgress('✅ Done.');
+
                     const sentfileArgs = {
                         channelId: prompt.slackChannelId,
                         threadTs: prompt.slackThreadTs,

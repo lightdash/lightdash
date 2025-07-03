@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     ChartType,
     ECHARTS_DEFAULT_COLORS,
+    filtersSchemaTransformed,
     type AiAgentMessageAssistant,
     type ApiAiAgentThreadMessageVizQuery,
     type ApiError,
@@ -99,7 +100,7 @@ export const AiChartVisualization: FC<Props> = ({
     const chartConfig = useMemo(
         () =>
             getChartConfigFromAiAgentVizConfig({
-                config: message.vizConfigOutput as any,
+                config: message.vizConfigOutput as any, // TODO: fix this using schema parsing
                 rows: results.rows,
                 type: queryExecutionHandle.data.type,
                 metricQuery,
@@ -250,7 +251,7 @@ export const AiChartVisualization: FC<Props> = ({
                             <ErrorBoundary>
                                 {queryExecutionHandle.data &&
                                     queryExecutionHandle.data.type !==
-                                        AiChartType.CSV && (
+                                        AiChartType.TABLE && (
                                         <AgentVisualizationMetricsAndDimensions
                                             metricQuery={
                                                 queryExecutionHandle.data.query
@@ -263,14 +264,16 @@ export const AiChartVisualization: FC<Props> = ({
                                         />
                                     )}
 
-                                {message.filtersOutput && (
+                                {message.vizConfigOutput &&
+                                'filters' in message.vizConfigOutput &&
+                                message.vizConfigOutput.filters ? (
                                     <AgentVisualizationFilters
                                         filters={
                                             queryExecutionHandle.data.query
                                                 .metricQuery.filters
                                         }
                                     />
-                                )}
+                                ) : null}
                             </ErrorBoundary>
                         </Stack>
                     )}

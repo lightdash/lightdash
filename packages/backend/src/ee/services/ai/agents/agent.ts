@@ -13,10 +13,9 @@ import { getSystemPrompt } from '../prompts/system';
 import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
-import { getGenerateCsv } from '../tools/generateCsv';
-import { getGenerateQueryFilters } from '../tools/generateQueryFilters';
-import { getGenerateTimeSeriesVizConfig } from '../tools/generateTimeSeriesVizConfigTool';
-import { getGetOneLineResult } from '../tools/getOneLineResult';
+import { getGenerateOneLineResult } from '../tools/generateOneLineResult';
+import { getGenerateTableVizConfig } from '../tools/generateTableVizConfig';
+import { getGenerateTimeSeriesVizConfig } from '../tools/generateTimeSeriesVizConfig';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
@@ -63,12 +62,6 @@ const getAgentTools = (
         searchFields: dependencies.searchFields,
     });
 
-    const generateQueryFilters = getGenerateQueryFilters({
-        getExplore: dependencies.getExplore,
-        promptUuid: args.promptUuid,
-        updatePrompt: dependencies.updatePrompt,
-    });
-
     const generateBarVizConfig = getGenerateBarVizConfig({
         updateProgress: dependencies.updateProgress,
         runMiniMetricQuery: dependencies.runMiniMetricQuery,
@@ -85,7 +78,7 @@ const getAgentTools = (
         sendFile: dependencies.sendFile,
     });
 
-    const generateCsv = getGenerateCsv({
+    const generateTableVizConfig = getGenerateTableVizConfig({
         updateProgress: dependencies.updateProgress,
         runMiniMetricQuery: dependencies.runMiniMetricQuery,
         getPrompt: dependencies.getPrompt,
@@ -94,7 +87,7 @@ const getAgentTools = (
         maxLimit: args.maxLimit,
     });
 
-    const getOneLineResult = getGetOneLineResult({
+    const generateOneLineResult = getGenerateOneLineResult({
         updateProgress: dependencies.updateProgress,
         runMiniMetricQuery: dependencies.runMiniMetricQuery,
         getPrompt: dependencies.getPrompt,
@@ -104,11 +97,10 @@ const getAgentTools = (
     const tools = {
         findExplores,
         findFields,
-        generateQueryFilters,
         generateBarVizConfig,
-        generateCsv,
         generateTimeSeriesVizConfig,
-        getOneLineResult,
+        generateTableVizConfig,
+        generateOneLineResult,
     };
 
     return tools;

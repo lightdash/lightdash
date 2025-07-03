@@ -1,6 +1,6 @@
 import {
-    lighterMetricQuerySchema,
-    lighterMetricQuerySchemaTransformed,
+    oneLineResultSchema,
+    oneLineResultSchemaTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
@@ -21,13 +21,13 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
 };
 
-export const getGetOneLineResult = ({
+export const getGenerateOneLineResult = ({
     getPrompt,
     updateProgress,
     runMiniMetricQuery,
     updatePrompt,
 }: Dependencies) => {
-    const schema = lighterMetricQuerySchema;
+    const schema = oneLineResultSchema;
 
     return tool({
         description: `Get a single line result from the database. E.g. how many users signed up today?
@@ -41,20 +41,20 @@ Rules for fetching the result:
 - Only apply sort if needed and make sure sort "fieldId"s are from the selected "Metric" and "Dimension" "fieldId"s.
 `,
         parameters: schema,
-        execute: async (metricQuery) => {
+        execute: async (vizConfig) => {
             try {
-                const transformedMetricQuery =
-                    lighterMetricQuerySchemaTransformed.parse(metricQuery);
-                const prompt = await getPrompt();
+                await updateProgress('🧮 Calculating the result...');
 
+                const prompt = await getPrompt();
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,
-                    metricQuery: transformedMetricQuery,
+                    vizConfigOutput: vizConfig,
                 });
 
-                await updateProgress('🔍 Fetching the results...');
+                const transformedOneLineResult =
+                    oneLineResultSchemaTransformed.parse(vizConfig);
                 const results = await runMiniMetricQuery(
-                    transformedMetricQuery,
+                    transformedOneLineResult.metricQuery,
                 );
                 if (results.rows.length > 1) {
                     throw new Error(
@@ -74,7 +74,7 @@ Rules for fetching the result:
                     ),
                 );
                 const csv = stringify(rows, { header: true, columns: fields });
-                await updateProgress('🙌 Got the answer!!!');
+                await updateProgress('✅ Done.');
 
                 return `Here's the result:
 ${serializeData(csv, 'csv')}`;

@@ -9,6 +9,10 @@ import type {
     MetricQuery,
 } from '../..';
 
+export * from './constants';
+export * from './filterExploreByTags';
+export * from './followUpTools';
+
 /**
  * Supported AI visualization chart types
  */
@@ -16,7 +20,8 @@ import type {
 export enum AiChartType {
     TIME_SERIES_CHART = 'time_series_chart',
     VERTICAL_BAR_CHART = 'vertical_bar_chart',
-    CSV = 'csv', // TABLE -  this is also table
+    ONE_LINE_RESULT = 'one_line_result',
+    TABLE = 'table',
 }
 
 export type AiMetricQuery = Pick<
@@ -244,8 +249,6 @@ export type ApiAiAgentThreadMessageVizQueryResponse = {
     status: 'ok';
     results: ApiAiAgentThreadMessageVizQuery;
 };
-
-export * from './filterExploreByTags';
 
 export type AiAgentUserPreferences = {
     defaultAgentUuid: AiAgent['uuid'];

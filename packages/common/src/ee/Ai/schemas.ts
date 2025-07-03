@@ -8,11 +8,18 @@ import {
     UnitOfTime,
 } from '../../types/filter';
 import assertUnreachable from '../../utils/assertUnreachable';
+import {
+    AI_DEFAULT_MAX_QUERY_LIMIT,
+    AiChartType,
+    type AiMetricQuery,
+    FollowUpTools,
+} from '../AiAgent';
+import { getValidAiQueryLimit } from '../AiAgent/validators';
 
 // TODO: most of the things should live in common and some of the existing types should be inferred from here
 // we can't reuse them because there's a bug with TSOA+ZOD - we can't use zod types in TSOA controllers
 
-const DimensionTypeSchema = z.union([
+const dimensionTypeSchema = z.union([
     z.literal(DimensionType.BOOLEAN),
     z.literal(DimensionType.DATE),
     z.literal(DimensionType.NUMBER),
@@ -20,7 +27,7 @@ const DimensionTypeSchema = z.union([
     z.literal(DimensionType.TIMESTAMP),
 ]);
 
-const MetricTypeSchema = z.union([
+const metricTypeSchema = z.union([
     z.literal(MetricType.PERCENTILE),
     z.literal(MetricType.AVERAGE),
     z.literal(MetricType.COUNT),
@@ -36,7 +43,7 @@ const MetricTypeSchema = z.union([
     z.literal(MetricType.BOOLEAN),
 ]);
 
-const FieldTypeSchema = z.union([DimensionTypeSchema, MetricTypeSchema]);
+const fieldTypeSchema = z.union([dimensionTypeSchema, metricTypeSchema]);
 
 const fieldIdSchema = z
     .string()
@@ -190,7 +197,7 @@ const filterRuleSchema = z.object({
     type: z.enum(['or', 'and']).describe('Type of filter group operation'),
     target: z.object({
         fieldId: fieldIdSchema,
-        type: FieldTypeSchema,
+        type: fieldTypeSchema,
     }),
     rule: z.union([
         booleanFilterSchema.describe('Boolean filter'),
@@ -273,12 +280,7 @@ export const filtersSchemaTransformed =
         }
     });
 
-export const generateQueryFiltersToolSchema = z.object({
-    exploreName: z.string().describe('Name of the selected explore'),
-    filters: filtersSchema,
-});
-
-export const SortFieldSchema = z.object({
+export const sortFieldSchema = z.object({
     fieldId: fieldIdSchema.describe(
         '"fieldId" must come from the selected Metrics or Dimensions; otherwise, it will throw an error.',
     ),
@@ -289,7 +291,7 @@ export const SortFieldSchema = z.object({
         ),
 });
 
-export const VisualizationMetadataSchema = z.object({
+export const visualizationMetadataSchema = z.object({
     title: z.string().describe('A descriptive title for the chart'),
     description: z
         .string()
@@ -331,7 +333,7 @@ export const VisualizationMetadataSchema = z.object({
 // });
 
 // TODO: fix me to be a complete schema and infer types from here.
-export const lighterMetricQuerySchema = z.object({
+const lighterMetricQuerySchema = z.object({
     exploreName: z
         .string()
         .describe('Name of the explore to query. @example: "users"'),
@@ -345,9 +347,9 @@ export const lighterMetricQuerySchema = z.object({
         .describe(
             'Dimensions to break down the metric into groups. @example: ["orders_status", "customers_first_name"]',
         ),
-    filters: filtersSchema.describe('Filters to apply to the query'),
+    filters: filtersSchema.nullable().describe('Filters to apply to the query'),
     sorts: z
-        .array(SortFieldSchema)
+        .array(sortFieldSchema)
         .describe(
             'Sort configuration for the MetricQuery. Should be an empty array if no sorting is needed',
         ),
@@ -387,11 +389,28 @@ export const lighterMetricQuerySchema = z.object({
     //     .describe('Metadata about the query'),
 });
 
-export const lighterMetricQuerySchemaTransformed =
-    lighterMetricQuerySchema.transform((data) => ({
+const lighterMetricQuerySchemaTransformed = lighterMetricQuerySchema.transform(
+    (data) => ({
         ...data,
         filters: filtersSchemaTransformed.parse(data.filters),
-    }));
+    }),
+);
+
+export const oneLineResultSchema = z.object({
+    type: z.literal(AiChartType.ONE_LINE_RESULT),
+    metricQuery: lighterMetricQuerySchema,
+});
+
+export type OneLineResultSchemaType = z.infer<typeof oneLineResultSchema>;
+
+export const oneLineResultSchemaTransformed = oneLineResultSchema.transform(
+    (data) => ({
+        ...data,
+        metricQuery: lighterMetricQuerySchemaTransformed.parse(
+            data.metricQuery,
+        ),
+    }),
+);
 
 export const aiAskForAdditionalInformationSchema = z.object({
     message: z
@@ -418,7 +437,7 @@ export const aiFindFieldsToolSchema = z.object({
 });
 
 export const timeSeriesMetricVizConfigSchema =
-    VisualizationMetadataSchema.extend({
+    visualizationMetadataSchema.extend({
         exploreName: z
             .string()
             .describe(
@@ -436,7 +455,7 @@ export const timeSeriesMetricVizConfigSchema =
                 'At least one metric is required. The field ids of the metrics to be displayed on the y-axis. If there are multiple metrics there will be one line per metric',
             ),
         sorts: z
-            .array(SortFieldSchema)
+            .array(sortFieldSchema)
             .describe(
                 'Sort configuration for the query, it can use a combination of metrics and dimensions.',
             ),
@@ -451,14 +470,48 @@ export const timeSeriesMetricVizConfigSchema =
             .describe(
                 'default line. The type of line to display. If area then the area under the line will be filled in.',
             ),
+        limit: z
+            .number()
+            .max(AI_DEFAULT_MAX_QUERY_LIMIT)
+            .nullable()
+            .describe(`The total number of data points allowed on the chart.`),
     });
 
 export type TimeSeriesMetricVizConfigSchemaType = z.infer<
     typeof timeSeriesMetricVizConfigSchema
 >;
 
+export const timeSeriesVizToolSchema = z.object({
+    type: z.literal(AiChartType.TIME_SERIES_CHART),
+    vizConfig: timeSeriesMetricVizConfigSchema,
+    filters: filtersSchema
+        .nullable()
+        .describe(
+            'Filters to apply to the query. Filtered fields must exist in the selected explore.',
+        ),
+    followUpTools: z
+        .array(
+            z.union([
+                z.literal(FollowUpTools.GENERATE_BAR_VIZ),
+                z.literal(FollowUpTools.GENERATE_TIME_SERIES_VIZ),
+            ]),
+        )
+        .describe(
+            `The actions the User can ask for after the AI has generated the chart. NEVER include ${FollowUpTools.GENERATE_TIME_SERIES_VIZ} in this list.`,
+        ),
+});
+
+export type TimeSeriesVizTool = z.infer<typeof timeSeriesVizToolSchema>;
+
+export const isTimeSeriesVizTool = (
+    config: unknown,
+): config is TimeSeriesVizTool =>
+    timeSeriesVizToolSchema
+        .omit({ type: true, followUpTools: true })
+        .safeParse(config).success;
+
 export const verticalBarMetricVizConfigSchema =
-    VisualizationMetadataSchema.extend({
+    visualizationMetadataSchema.extend({
         exploreName: z
             .string()
             .describe(
@@ -476,9 +529,16 @@ export const verticalBarMetricVizConfigSchema =
                 'At least one metric is required. The field ids of the metrics to be displayed on the y-axis. The height of the bars',
             ),
         sorts: z
-            .array(SortFieldSchema)
+            .array(sortFieldSchema)
             .describe(
                 'Sort configuration for the query, it can use a combination of metrics and dimensions.',
+            ),
+        limit: z
+            .number()
+            .max(AI_DEFAULT_MAX_QUERY_LIMIT)
+            .nullable()
+            .describe(
+                `The total number of data points / bars allowed on the chart.`,
             ),
         breakdownByDimension: z
             .string()
@@ -511,30 +571,70 @@ export type VerticalBarMetricVizConfigSchemaType = z.infer<
     typeof verticalBarMetricVizConfigSchema
 >;
 
-export const csvFileVizConfigSchema = VisualizationMetadataSchema.extend({
-    exploreName: z
-        .string()
-        .describe(
-            'The name of the explore containing the metrics and dimensions used for csv query',
-        ),
-    metrics: z
-        .array(z.string())
-        .min(1)
-        .describe(
-            'At least one metric is required. The field ids of the metrics to be calculated for the CSV. They will be grouped by the dimensions.',
-        ),
-    dimensions: z
-        .array(z.string())
+export const verticalBarVizToolSchema = z.object({
+    type: z.literal(AiChartType.VERTICAL_BAR_CHART),
+    vizConfig: verticalBarMetricVizConfigSchema,
+    filters: filtersSchema
         .nullable()
-        .describe('The field id for the dimensions to group the metrics by'),
-    sorts: z
-        .array(SortFieldSchema)
         .describe(
-            'Sort configuration for the query, it can use a combination of metrics and dimensions.',
+            'Filters to apply to the query. Filtered fields must exist in the selected explore.',
+        ),
+    followUpTools: z
+        .array(
+            z.union([
+                z.literal(FollowUpTools.GENERATE_BAR_VIZ),
+                z.literal(FollowUpTools.GENERATE_TIME_SERIES_VIZ),
+            ]),
+        )
+        .describe(
+            `The actions the User can ask for after the AI has generated the chart. NEVER include ${FollowUpTools.GENERATE_BAR_VIZ} in this list.`,
         ),
 });
 
-export type CsvFileVizConfigSchemaType = z.infer<typeof csvFileVizConfigSchema>;
+export type VerticalBarVizTool = z.infer<typeof verticalBarVizToolSchema>;
+
+export const isVerticalBarVizTool = (
+    config: unknown,
+): config is VerticalBarVizTool =>
+    verticalBarVizToolSchema
+        .omit({ type: true, followUpTools: true })
+        .safeParse(config).success;
+
+export const tableVizConfigSchema = visualizationMetadataSchema
+    .extend({
+        exploreName: z
+            .string()
+            .describe(
+                'The name of the explore containing the metrics and dimensions used for table query',
+            ),
+        metrics: z
+            .array(z.string())
+            .min(1)
+            .describe(
+                'At least one metric is required. The field ids of the metrics to be calculated for the CSV. They will be grouped by the dimensions.',
+            ),
+        dimensions: z
+            .array(z.string())
+            .nullable()
+            .describe(
+                'The field id for the dimensions to group the metrics by',
+            ),
+        sorts: z
+            .array(sortFieldSchema)
+            .describe(
+                'Sort configuration for the query, it can use a combination of metrics and dimensions.',
+            ),
+
+        limit: z
+            .number()
+            .nullable()
+            .describe('The maximum number of rows in the table.'),
+    })
+    .describe(
+        'Configuration file for generating a CSV file from a query with metrics and dimensions',
+    );
+
+export type TableVizConfigSchemaType = z.infer<typeof tableVizConfigSchema>;
 
 // TOOL ARGS SCHEMAS
 
@@ -545,24 +645,6 @@ export const isFindFieldsToolArgs = (
     toolArgs: unknown,
 ): toolArgs is FindFieldsToolArgs =>
     aiFindFieldsToolSchema.safeParse(toolArgs).success;
-
-// GENERATE QUERY FILTERS TOOL ARGS
-export const generateQueryFiltersToolArgsSchema = z.object({
-    exploreName: z.string().describe('Name of the selected explore'),
-    filters: filtersSchema,
-});
-export type GenerateQueryFiltersToolArgs = z.infer<
-    typeof generateQueryFiltersToolArgsSchema
->;
-export const isGenerateQueryFiltersToolArgs = (
-    toolArgs: unknown,
-): toolArgs is GenerateQueryFiltersToolArgs =>
-    generateQueryFiltersToolSchema.safeParse(toolArgs).success;
-
-export const generateQueryFiltersToolArgsSchemaTransformed = z.object({
-    exploreName: z.string().describe('Name of the selected explore'),
-    filters: filtersSchemaTransformed,
-});
 
 // GENERATE BAR VIZ CONFIG TOOL ARGS
 export const verticalBarMetricVizConfigToolArgsSchema = z.object({
@@ -602,32 +684,44 @@ export const timeSeriesMetricVizConfigToolArgsSchemaTransformed = z.object({
     filters: filtersSchemaTransformed,
 });
 
-// GENERATE CSV VIZ CONFIG TOOL ARGS
-export const CsvFileVizConfigToolArgsSchema = z.object({
-    vizConfig: csvFileVizConfigSchema,
-    filters: filtersSchema.nullable(),
+// GENERATE TABLE VIZ CONFIG TOOL ARGS
+export const tableVizToolSchema = z.object({
+    type: z.literal(AiChartType.TABLE),
+    vizConfig: tableVizConfigSchema,
+    filters: filtersSchema
+        .nullable()
+        .describe(
+            'Filters to apply to the query. Filtered fields must exist in the selected explore.',
+        ),
+    followUpTools: z
+        .array(
+            z.union([
+                z.literal(FollowUpTools.GENERATE_BAR_VIZ),
+                z.literal(FollowUpTools.GENERATE_TIME_SERIES_VIZ),
+            ]),
+        )
+        .describe(
+            'The actions the User can ask for after the AI has generated the table.',
+        ),
 });
-export type CsvFileVizConfigToolArgs = z.infer<
-    typeof CsvFileVizConfigToolArgsSchema
->;
-export const isCsvFileVizConfigToolArgs = (
-    toolArgs: unknown,
-): toolArgs is CsvFileVizConfigToolArgs =>
-    CsvFileVizConfigToolArgsSchema.safeParse(toolArgs).success;
+export type TableVizTool = z.infer<typeof tableVizToolSchema>;
 
-// -- Used for tool call args transformation
-export const CsvFileVizConfigToolArgsSchemaTransformed = z.object({
-    vizConfig: csvFileVizConfigSchema,
-    filters: filtersSchemaTransformed,
-});
+export const isTableVizTool = (toolArgs: unknown): toolArgs is TableVizTool =>
+    tableVizToolSchema.safeParse(toolArgs).success;
+
+export const tableVizToolSchemaTransformed = tableVizToolSchema.transform(
+    (data) => ({
+        ...data,
+        filters: filtersSchemaTransformed.parse(data.filters),
+    }),
+);
 
 // define tool names
 export const ToolNameSchema = z.enum([
     'findExplores',
     'findFields',
     'generateBarVizConfig',
-    'generateCsv',
-    'generateQueryFilters',
+    'generateTableVizConfig',
     'generateTimeSeriesVizConfig',
 ]);
 
@@ -643,8 +737,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     findExplores: 'Finding relevant explores',
     findFields: 'Finding relevant fields',
     generateBarVizConfig: 'Generating a bar chart',
-    generateCsv: 'Generating CSV file',
-    generateQueryFilters: 'Applying filters to the query',
+    generateTableVizConfig: 'Generating a table',
     generateTimeSeriesVizConfig: 'Generating a line chart',
 });
 
@@ -654,7 +747,120 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         findExplores: 'Found relevant explores',
         findFields: 'Found relevant fields',
         generateBarVizConfig: 'Generated a bar chart',
-        generateCsv: 'Generated a table',
-        generateQueryFilters: 'Applied filters to the query',
+        generateTableVizConfig: 'Generated a table',
         generateTimeSeriesVizConfig: 'Generated a line chart',
     });
+
+export type AiAgentVizConfig =
+    | {
+          type: 'vertical_bar_chart';
+          config: VerticalBarVizTool;
+      }
+    | {
+          type: 'time_series_chart';
+          config: TimeSeriesVizTool;
+      }
+    | {
+          type: 'table';
+          config: TableVizTool;
+      };
+
+export const metricQueryTableViz = (
+    vizTool: Pick<TableVizTool, 'vizConfig' | 'filters'>,
+    maxLimit: number,
+): AiMetricQuery => ({
+    exploreName: vizTool.vizConfig.exploreName,
+    metrics: vizTool.vizConfig.metrics,
+    dimensions: vizTool.vizConfig.dimensions || [],
+    sorts: vizTool.vizConfig.sorts,
+    limit: getValidAiQueryLimit(vizTool.vizConfig.limit, maxLimit),
+    filters: filtersSchemaTransformed.parse(vizTool.filters),
+});
+
+export const metricQueryTimeSeriesViz = (
+    config: Pick<TimeSeriesVizTool, 'vizConfig' | 'filters'>,
+): AiMetricQuery => {
+    const metrics = config.vizConfig.yMetrics;
+    const dimensions = [
+        config.vizConfig.xDimension,
+        ...(config.vizConfig.breakdownByDimension
+            ? [config.vizConfig.breakdownByDimension]
+            : []),
+    ];
+    const { limit, sorts } = config.vizConfig;
+
+    return {
+        metrics,
+        dimensions,
+        limit: getValidAiQueryLimit(limit),
+        sorts,
+        exploreName: config.vizConfig.exploreName,
+        filters: filtersSchemaTransformed.parse(config.filters),
+    };
+};
+
+export const metricQueryVerticalBarViz = (
+    config: Pick<VerticalBarVizTool, 'vizConfig' | 'filters'>,
+): AiMetricQuery => {
+    const metrics = config.vizConfig.yMetrics;
+    const dimensions = [
+        config.vizConfig.xDimension,
+        ...(config.vizConfig.breakdownByDimension
+            ? [config.vizConfig.breakdownByDimension]
+            : []),
+    ];
+    const { limit, sorts } = config.vizConfig;
+    return {
+        metrics,
+        dimensions,
+        limit: getValidAiQueryLimit(limit),
+        sorts,
+        exploreName: config.vizConfig.exploreName,
+        filters: filtersSchemaTransformed.parse(config.filters),
+    };
+};
+
+export const parseVizConfig = (
+    vizConfigUnknown: object | null,
+    maxLimit: number,
+) => {
+    if (!vizConfigUnknown) {
+        return null;
+    }
+
+    if (isVerticalBarVizTool(vizConfigUnknown)) {
+        const vizTool = verticalBarVizToolSchema
+            .omit({ type: true, followUpTools: true })
+            .parse(vizConfigUnknown);
+        const metricQuery = metricQueryVerticalBarViz(vizTool);
+        return {
+            type: AiChartType.VERTICAL_BAR_CHART,
+            vizTool,
+            metricQuery,
+        } as const;
+    }
+    if (isTimeSeriesVizTool(vizConfigUnknown)) {
+        const vizTool = timeSeriesVizToolSchema
+            .omit({ type: true, followUpTools: true })
+            .parse(vizConfigUnknown);
+        const metricQuery = metricQueryTimeSeriesViz(vizTool);
+        return {
+            type: AiChartType.TIME_SERIES_CHART,
+            vizTool,
+            metricQuery,
+        } as const;
+    }
+    if (isTableVizTool(vizConfigUnknown)) {
+        const vizTool = tableVizToolSchema
+            .omit({ type: true, followUpTools: true })
+            .parse(vizConfigUnknown);
+        const metricQuery = metricQueryTableViz(vizTool, maxLimit);
+        return {
+            type: AiChartType.TABLE,
+            vizTool,
+            metricQuery,
+        } as const;
+    }
+
+    return null;
+};
