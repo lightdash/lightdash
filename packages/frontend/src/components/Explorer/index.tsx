@@ -64,7 +64,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
                     <ResultsCard />
 
-                    {!!projectUuid && user.is_admin && <SqlCard projectUuid={projectUuid} />}
+                    {!!projectUuid && user.data?.role === 'admin' && <SqlCard projectUuid={projectUuid} />}
                 </Stack>
 
                 <UnderlyingDataModal />
