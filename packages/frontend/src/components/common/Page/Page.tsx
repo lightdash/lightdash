@@ -7,7 +7,7 @@ import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-import AboutFooter from '../../AboutFooter';
+import AboutFooter from '../../Shopify/AboutFooter';
 import Sidebar from './Sidebar';
 import {
     BANNER_HEIGHT,
