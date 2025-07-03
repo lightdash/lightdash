@@ -871,7 +871,8 @@ export class EmbedService extends BaseService {
         dashboardFilters?: DashboardFilters,
         invalidateCache?: boolean,
     ) {
-        const { data: decodedToken, source: embedToken } = getEmbeddedAuth(account);
+        const { data: decodedToken, source: embedToken } =
+            getEmbeddedAuth(account);
 
         const dashboardUuid = await this.getDashboardUuidFromContent(
             decodedToken,
