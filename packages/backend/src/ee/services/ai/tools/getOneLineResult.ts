@@ -9,6 +9,7 @@ import type {
     UpdateProgressFn,
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
+import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
@@ -62,9 +63,7 @@ Rules for fetching the result:
 
                 return `Successfully generated the result:
 
-\`\`\`json
-${JSON.stringify(result.rows, null, 4)}
-\`\`\``;
+${serializeData(result.rows, 'json')}`;
             } catch (e) {
                 return toolErrorHandler(e, `Error getting one line result.`);
             }
