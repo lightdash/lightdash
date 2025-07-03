@@ -183,7 +183,7 @@ export const getChartConfigFromAiAgentVizConfig = ({
     metricQuery: MetricQuery;
     rows: Record<string, unknown>[];
     maxQueryLimit?: number;
-}): ChartConfig => {
+}) => {
     const parsedConfig = parseVizConfig(vizConfigOutput, maxQueryLimit);
     if (!parsedConfig) {
         throw new Error('Invalid viz config');
@@ -191,22 +191,31 @@ export const getChartConfigFromAiAgentVizConfig = ({
 
     switch (parsedConfig.type) {
         case AiResultType.VERTICAL_BAR_RESULT:
-            return getVerticalBarMetricEchartsConfig(
-                parsedConfig.vizTool.vizConfig,
-                metricQuery,
-                rows,
-            );
+            return {
+                ...parsedConfig,
+                echartsConfig: getVerticalBarMetricEchartsConfig(
+                    parsedConfig.vizTool.vizConfig,
+                    metricQuery,
+                    rows,
+                ),
+            };
         case AiResultType.TIME_SERIES_RESULT:
-            return getTimeSeriesMetricEchartsConfig(
-                parsedConfig.vizTool.vizConfig,
-                metricQuery,
-                rows,
-            );
+            return {
+                ...parsedConfig,
+                echartsConfig: getTimeSeriesMetricEchartsConfig(
+                    parsedConfig.vizTool.vizConfig,
+                    metricQuery,
+                    rows,
+                ),
+            };
         case AiResultType.TABLE_RESULT:
-            return getTableMetricEchartsConfig(
-                parsedConfig.vizTool.vizConfig,
-                rows,
-            );
+            return {
+                ...parsedConfig,
+                echartsConfig: getTableMetricEchartsConfig(
+                    parsedConfig.vizTool.vizConfig,
+                    rows,
+                ),
+            };
         case AiResultType.ONE_LINE_RESULT:
             throw new Error('One line result does not have a visualization');
         default:

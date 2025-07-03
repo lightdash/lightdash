@@ -145,7 +145,7 @@ export const AiChartVisualization: FC<Props> = ({
         >
             <VisualizationProvider
                 resultsData={resultsData}
-                chartConfig={chartConfig}
+                chartConfig={chartConfig.echartsConfig}
                 columnOrder={[
                     ...metricQuery.dimensions,
                     ...metricQuery.metrics,
@@ -154,12 +154,12 @@ export const AiChartVisualization: FC<Props> = ({
                     health?.pivotTable.maxColumnLimit ?? 60
                 }
                 initialPivotDimensions={
-                    // TODO :: fix this using schema
-                    message.vizConfigOutput &&
-                    'breakdownByDimension' in message.vizConfigOutput
-                        ? // TODO :: fix this using schema
-                          [
-                              message.vizConfigOutput
+                    (chartConfig.type === AiResultType.VERTICAL_BAR_RESULT ||
+                        chartConfig.type === AiResultType.TIME_SERIES_RESULT) &&
+                    chartConfig.echartsConfig.type === ChartType.CARTESIAN &&
+                    chartConfig.vizTool.vizConfig.breakdownByDimension
+                        ? [
+                              chartConfig.vizTool.vizConfig
                                   .breakdownByDimension as string,
                           ]
                         : undefined
@@ -220,7 +220,8 @@ export const AiChartVisualization: FC<Props> = ({
                                     data-testid="ai-visualization"
                                 />
 
-                                {chartConfig.type === ChartType.CARTESIAN && (
+                                {chartConfig.echartsConfig.type ===
+                                    ChartType.CARTESIAN && (
                                     <SeriesContextMenu
                                         echartSeriesClickEvent={
                                             echartsClickEvent ?? undefined
