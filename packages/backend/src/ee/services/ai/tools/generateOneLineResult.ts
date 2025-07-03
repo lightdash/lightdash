@@ -1,4 +1,5 @@
 import {
+    getTotalFilterRules,
     toolOneLineArgsSchema,
     toolOneLineArgsSchemaTransformed,
 } from '@lightdash/common';
@@ -6,6 +7,7 @@ import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import { CsvService } from '../../../../services/CsvService/CsvService';
 import type {
+    GetExploreFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
     UpdateProgressFn,
@@ -13,8 +15,10 @@ import type {
 } from '../types/aiAgentDependencies';
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { validateFilterRules } from '../utils/validators';
 
 type Dependencies = {
+    getExplore: GetExploreFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     getPrompt: GetPromptFn;
     updatePrompt: UpdatePromptFn;
@@ -22,6 +26,7 @@ type Dependencies = {
 };
 
 export const getGenerateOneLineResult = ({
+    getExplore,
     getPrompt,
     updateProgress,
     runMiniMetricQuery,
@@ -41,22 +46,31 @@ Rules for fetching the result:
 - Only apply sort if needed and make sure sort "fieldId"s are from the selected "Metric" and "Dimension" "fieldId"s.
 `,
         parameters: schema,
-        execute: async (vizConfig) => {
+        execute: async (toolArgs) => {
             try {
                 await updateProgress('🧮 Calculating the result...');
+
+                // TODO: common for all viz tools. find a way to reuse this code.
+                const vizTool =
+                    toolOneLineArgsSchemaTransformed.parse(toolArgs);
+
+                const filterRules = getTotalFilterRules(vizTool.filters);
+                const explore = await getExplore({
+                    exploreName: vizTool.metricQuery.exploreName,
+                });
+                validateFilterRules(explore, filterRules);
+                // end of TODO
 
                 const prompt = await getPrompt();
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,
-                    vizConfigOutput: vizConfig,
+                    vizConfigOutput: toolArgs,
                 });
 
-                const transformedOneLineResult =
-                    toolOneLineArgsSchemaTransformed.parse(vizConfig);
                 const results = await runMiniMetricQuery(
                     {
-                        ...transformedOneLineResult.metricQuery,
-                        filters: transformedOneLineResult.filters,
+                        ...vizTool.metricQuery,
+                        filters: vizTool.filters,
                     },
                     1,
                 );

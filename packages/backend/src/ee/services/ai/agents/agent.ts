@@ -63,6 +63,7 @@ const getAgentTools = (
     });
 
     const generateBarVizConfig = getGenerateBarVizConfig({
+        getExplore: dependencies.getExplore,
         updateProgress: dependencies.updateProgress,
         runMiniMetricQuery: dependencies.runMiniMetricQuery,
         getPrompt: dependencies.getPrompt,
@@ -72,6 +73,7 @@ const getAgentTools = (
     });
 
     const generateTimeSeriesVizConfig = getGenerateTimeSeriesVizConfig({
+        getExplore: dependencies.getExplore,
         updateProgress: dependencies.updateProgress,
         runMiniMetricQuery: dependencies.runMiniMetricQuery,
         getPrompt: dependencies.getPrompt,
@@ -81,6 +83,7 @@ const getAgentTools = (
     });
 
     const generateTableVizConfig = getGenerateTableVizConfig({
+        getExplore: dependencies.getExplore,
         updateProgress: dependencies.updateProgress,
         runMiniMetricQuery: dependencies.runMiniMetricQuery,
         getPrompt: dependencies.getPrompt,
@@ -90,6 +93,7 @@ const getAgentTools = (
     });
 
     const generateOneLineResult = getGenerateOneLineResult({
+        getExplore: dependencies.getExplore,
         updateProgress: dependencies.updateProgress,
         runMiniMetricQuery: dependencies.runMiniMetricQuery,
         getPrompt: dependencies.getPrompt,
