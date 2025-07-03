@@ -252,6 +252,7 @@ export class QueryController extends BaseController {
                 underlyingDataItemId: body.underlyingDataItemId,
                 context: context ?? QueryExecutionContext.API,
                 dateZoom: body.dateZoom,
+                limit: body.limit,
             });
 
         return {
