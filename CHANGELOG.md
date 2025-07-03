@@ -1,3 +1,10 @@
+## [0.1778.1](https://github.com/lightdash/lightdash/compare/0.1778.0...0.1778.1) (2025-07-03)
+
+
+### Bug Fixes
+
+* remove minimum requirement for metrics in tableViz schema ([#15695](https://github.com/lightdash/lightdash/issues/15695)) ([88b4dc3](https://github.com/lightdash/lightdash/commit/88b4dc33774f7829d09414fa7d189af46d20a026)), closes [#15691](https://github.com/lightdash/lightdash/issues/15691)
+
 # [0.1778.0](https://github.com/lightdash/lightdash/compare/0.1777.0...0.1778.0) (2025-07-03)
 
 
