@@ -82,7 +82,6 @@ export const UserBubble: FC<{ message: AiAgentMessageUser<AiAgentUser> }> = ({
                 color="white"
                 style={{
                     overflow: 'unset',
-                    borderStartEndRadius: '0px',
                 }}
             >
                 <MDEditor.Markdown

@@ -1,4 +1,4 @@
-import { formatDistanceToNowStrict, parseISO } from 'date-fns';
+import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useInterval } from 'react-use';
 
@@ -13,10 +13,11 @@ export const useTimeAgo = (
     }, [dateOrString]);
 
     const getTimeAgo = useCallback(() => {
-        return formatDistanceToNowStrict(parsed, {
+        const timeAgo = formatDistanceToNow(parsed, {
             addSuffix: true,
-            roundingMethod: 'floor',
         });
+
+        return timeAgo;
     }, [parsed]);
 
     const [timeAgo, setTimeAgo] = useState<string>(getTimeAgo());
