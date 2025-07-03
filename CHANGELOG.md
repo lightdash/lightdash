@@ -1,3 +1,10 @@
+# [0.1777.0](https://github.com/lightdash/lightdash/compare/0.1776.0...0.1777.0) (2025-07-03)
+
+
+### Features
+
+* add tool call history to AI agent conversation context ([#15613](https://github.com/lightdash/lightdash/issues/15613)) ([e9f41ed](https://github.com/lightdash/lightdash/commit/e9f41ed388afe7ba1483f90ae708bc2e447465d5))
+
 # [0.1776.0](https://github.com/lightdash/lightdash/compare/0.1775.3...0.1776.0) (2025-07-03)
 
 
