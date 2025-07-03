@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
-export const aiToolFindExploresArgsSchema = z.object({});
+export const toolFindExploresArgsSchema = z.object({});
 
-export type ToolFindExploresArgs = z.infer<typeof aiToolFindExploresArgsSchema>;
+export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchema>;
 
 export const isToolFindExploresArgs = (
     toolArgs: unknown,
 ): toolArgs is ToolFindExploresArgs =>
-    aiToolFindExploresArgsSchema.safeParse(toolArgs).success;
+    toolFindExploresArgsSchema.safeParse(toolArgs).success;
