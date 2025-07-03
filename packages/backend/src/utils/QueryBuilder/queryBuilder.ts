@@ -917,7 +917,7 @@ export class MetricQueryBuilder {
                             (pk) =>
                                 `${keysCteName}.${fieldQuoteChar}pk_${pk}${fieldQuoteChar} = ${table.name}.${fieldQuoteChar}${pk}${fieldQuoteChar}`,
                         )
-                        .join(' AND')}\n`,
+                        .join(' AND ')}\n`,
                     dimensionAlias.length > 0
                         ? `GROUP BY ${dimensionAlias
                               .map((val, i) => i + 1)
