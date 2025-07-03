@@ -2060,6 +2060,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         invalidateCache,
         dateZoom,
+        limit,
     }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -2170,7 +2171,7 @@ export class AsyncQueryService extends ProjectService {
             filters,
             metrics: [],
             sorts: [],
-            limit: 500,
+            limit: limit ?? 500,
             tableCalculations: [],
             additionalMetrics: [],
         };

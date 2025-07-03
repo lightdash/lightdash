@@ -73,6 +73,7 @@ export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {
     filters: Filters;
     underlyingDataItemId?: string;
     dateZoom?: DateZoom;
+    limit?: number;
 };
 
 export type ExecuteAsyncQueryReturn = {
