@@ -678,6 +678,17 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Organization.organizationUuid_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                organizationUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_LightdashUser.userUuid-or-firstName-or-lastName_': {
         dataType: 'refAlias',
         type: {
@@ -697,6 +708,10 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 projectUuid: { dataType: 'string', required: true },
+                organization: {
+                    ref: 'Pick_Organization.organizationUuid_',
+                    required: true,
+                },
                 dashboardUuids: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -894,6 +909,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                exp: { dataType: 'double' },
+                iat: { dataType: 'double' },
                 expiresIn: { dataType: 'string' },
                 user: {
                     dataType: 'nestedObjectLiteral',
@@ -4326,8 +4343,8 @@ const models: TsoaRoute.Models = {
                     name: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
                     createdAt: { dataType: 'datetime', required: true },
-                    uuid: { dataType: 'string', required: true },
                     organizationUuid: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
                     integrations: {
                         dataType: 'array',
                         array: {
@@ -4412,8 +4429,8 @@ const models: TsoaRoute.Models = {
                     name: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
                     createdAt: { dataType: 'datetime', required: true },
-                    uuid: { dataType: 'string', required: true },
                     organizationUuid: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
                     integrations: {
                         dataType: 'array',
                         array: {
@@ -5536,7 +5553,14 @@ const models: TsoaRoute.Models = {
     LightdashUser: {
         dataType: 'refObject',
         properties: {
+            isActive: { dataType: 'boolean', required: true },
+            role: { ref: 'OrganizationMemberRole' },
+            organizationCreatedAt: { dataType: 'datetime' },
+            organizationName: { dataType: 'string' },
+            organizationUuid: { dataType: 'string' },
             userUuid: { dataType: 'string', required: true },
+            userId: { dataType: 'double', required: true },
+            type: { dataType: 'enum', enums: ['lightdash'] },
             email: {
                 dataType: 'union',
                 subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
@@ -5544,16 +5568,11 @@ const models: TsoaRoute.Models = {
             },
             firstName: { dataType: 'string', required: true },
             lastName: { dataType: 'string', required: true },
-            organizationUuid: { dataType: 'string' },
-            organizationName: { dataType: 'string' },
-            organizationCreatedAt: { dataType: 'datetime' },
             isTrackingAnonymized: { dataType: 'boolean', required: true },
             isMarketingOptedIn: { dataType: 'boolean', required: true },
             isSetupComplete: { dataType: 'boolean', required: true },
-            role: { ref: 'OrganizationMemberRole' },
             createdAt: { dataType: 'datetime', required: true },
             updatedAt: { dataType: 'datetime', required: true },
-            isActive: { dataType: 'boolean', required: true },
             isPending: { dataType: 'boolean' },
         },
         additionalProperties: true,
@@ -7099,17 +7118,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Organization.organizationUuid_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                organizationUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SqlChart: {
         dataType: 'refAlias',
         type: {
@@ -7568,8 +7576,8 @@ const models: TsoaRoute.Models = {
                     },
                     name: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
-                    uuid: { dataType: 'string', required: true },
                     organizationUuid: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
                     spaceUuid: { dataType: 'string', required: true },
                     pinnedListUuid: {
                         dataType: 'union',
@@ -7754,8 +7762,8 @@ const models: TsoaRoute.Models = {
                     },
                     name: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
-                    uuid: { dataType: 'string', required: true },
                     organizationUuid: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
                     updatedAt: { dataType: 'datetime', required: true },
                     spaceUuid: { dataType: 'string', required: true },
                     pinnedListUuid: {
@@ -7846,8 +7854,8 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 name: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
-                uuid: { dataType: 'string', required: true },
                 organizationUuid: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
                 isPrivate: { dataType: 'boolean', required: true },
                 pinnedListUuid: {
                     dataType: 'union',
@@ -8951,8 +8959,8 @@ const models: TsoaRoute.Models = {
                 },
                 name: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
-                uuid: { dataType: 'string', required: true },
                 organizationUuid: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
                 updatedAt: { dataType: 'datetime', required: true },
                 spaceUuid: { dataType: 'string', required: true },
                 pinnedListUuid: {
@@ -9085,8 +9093,8 @@ const models: TsoaRoute.Models = {
                 },
                 name: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
-                uuid: { dataType: 'string', required: true },
                 organizationUuid: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
                 updatedAt: { dataType: 'datetime', required: true },
                 spaceUuid: { dataType: 'string', required: true },
                 pinnedListUuid: {
@@ -10293,8 +10301,8 @@ const models: TsoaRoute.Models = {
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
-                    uuid: { dataType: 'string', required: true },
                     organizationUuid: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
                     isPrivate: { dataType: 'boolean', required: true },
                     pinnedListUuid: {
                         dataType: 'union',
@@ -11976,8 +11984,8 @@ const models: TsoaRoute.Models = {
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
-                    uuid: { dataType: 'string', required: true },
                     organizationUuid: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
                     isPrivate: { dataType: 'boolean', required: true },
                     pinnedListUuid: {
                         dataType: 'union',
@@ -18160,15 +18168,10 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         projectUuid: {
             in: 'path',
             name: 'projectUuid',
-            required: true,
-            dataType: 'string',
-        },
-        embedToken: {
-            in: 'header',
-            name: 'Lightdash-Embed-Token',
             required: true,
             dataType: 'string',
         },
@@ -18225,15 +18228,10 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         projectUuid: {
             in: 'path',
             name: 'projectUuid',
-            required: true,
-            dataType: 'string',
-        },
-        embedToken: {
-            in: 'header',
-            name: 'Lightdash-Embed-Token',
             required: true,
             dataType: 'string',
         },
@@ -18296,15 +18294,10 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         projectUuid: {
             in: 'path',
             name: 'projectUuid',
-            required: true,
-            dataType: 'string',
-        },
-        embedToken: {
-            in: 'header',
-            name: 'Lightdash-Embed-Token',
             required: true,
             dataType: 'string',
         },
@@ -18376,12 +18369,7 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
-        embedToken: {
-            in: 'header',
-            name: 'Lightdash-Embed-Token',
-            required: true,
-            dataType: 'string',
-        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         projectUuid: {
             in: 'path',
             name: 'projectUuid',
@@ -18457,15 +18445,10 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         projectUuid: {
             in: 'path',
             name: 'projectUuid',
-            required: true,
-            dataType: 'string',
-        },
-        embedToken: {
-            in: 'header',
-            name: 'Lightdash-Embed-Token',
             required: true,
             dataType: 'string',
         },

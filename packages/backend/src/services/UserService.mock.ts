@@ -108,6 +108,7 @@ export const organisation: Organization = {
 
 export const userWithoutOrg: LightdashUser = {
     userUuid: 'newUserUuid',
+    userId: 1,
     email: inviteUser.email,
     firstName: 'firstName',
     lastName: 'lastName',

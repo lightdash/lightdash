@@ -634,6 +634,18 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "Pick_Organization.organizationUuid_": {
+                "properties": {
+                    "organizationUuid": {
+                        "type": "string",
+                        "description": "The unique identifier of the organization",
+                        "format": "uuid"
+                    }
+                },
+                "required": ["organizationUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
                     "userUuid": {
@@ -655,6 +667,9 @@
                     "projectUuid": {
                         "type": "string"
                     },
+                    "organization": {
+                        "$ref": "#/components/schemas/Pick_Organization.organizationUuid_"
+                    },
                     "dashboardUuids": {
                         "items": {
                             "type": "string"
@@ -673,6 +688,7 @@
                 },
                 "required": [
                     "projectUuid",
+                    "organization",
                     "dashboardUuids",
                     "allowAllDashboards",
                     "createdAt",
@@ -856,6 +872,14 @@
             },
             "CreateEmbedJwt": {
                 "properties": {
+                    "exp": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "iat": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "expiresIn": {
                         "type": "string"
                     },
@@ -4897,10 +4921,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "integrations": {
@@ -4944,8 +4968,8 @@
                     "name",
                     "projectUuid",
                     "createdAt",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "integrations",
                     "tags",
                     "updatedAt",
@@ -4987,10 +5011,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "integrations": {
@@ -5034,8 +5058,8 @@
                     "name",
                     "projectUuid",
                     "createdAt",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "integrations",
                     "tags",
                     "updatedAt",
@@ -6164,8 +6188,33 @@
             },
             "LightdashUser": {
                 "properties": {
+                    "isActive": {
+                        "type": "boolean"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                    },
+                    "organizationCreatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "organizationName": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
                     "userUuid": {
                         "type": "string"
+                    },
+                    "userId": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["lightdash"],
+                        "nullable": false
                     },
                     "email": {
                         "type": "string"
@@ -6176,16 +6225,6 @@
                     "lastName": {
                         "type": "string"
                     },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "organizationName": {
-                        "type": "string"
-                    },
-                    "organizationCreatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
                     "isTrackingAnonymized": {
                         "type": "boolean"
                     },
@@ -6195,9 +6234,6 @@
                     "isSetupComplete": {
                         "type": "boolean"
                     },
-                    "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole"
-                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -6206,25 +6242,21 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "isActive": {
-                        "type": "boolean",
-                        "description": "Whether the user can login"
-                    },
                     "isPending": {
-                        "type": "boolean",
-                        "description": "Whether the user doesn't have an authentication method (password or openId)"
+                        "type": "boolean"
                     }
                 },
                 "required": [
+                    "isActive",
                     "userUuid",
+                    "userId",
                     "firstName",
                     "lastName",
                     "isTrackingAnonymized",
                     "isMarketingOptedIn",
                     "isSetupComplete",
                     "createdAt",
-                    "updatedAt",
-                    "isActive"
+                    "updatedAt"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -7756,18 +7788,6 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_Organization.organizationUuid_": {
-                "properties": {
-                    "organizationUuid": {
-                        "type": "string",
-                        "description": "The unique identifier of the organization",
-                        "format": "uuid"
-                    }
-                },
-                "required": ["organizationUuid"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
             "SqlChart": {
                 "properties": {
                     "lastViewedAt": {
@@ -8265,10 +8285,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "spaceUuid": {
@@ -8296,8 +8316,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "spaceUuid",
                     "pinnedListUuid",
                     "slug",
@@ -8441,10 +8461,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "updatedAt": {
@@ -8486,8 +8506,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
@@ -8542,10 +8562,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "isPrivate": {
@@ -8588,8 +8608,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "isPrivate",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -9834,10 +9854,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "updatedAt": {
@@ -9916,8 +9936,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
@@ -9974,10 +9994,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "updatedAt": {
@@ -10047,8 +10067,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "updatedAt",
                     "spaceUuid",
                     "pinnedListUuid",
@@ -11168,10 +11188,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "isPrivate": {
@@ -11200,8 +11220,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "isPrivate",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -12782,10 +12802,10 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
                     "isPrivate": {
@@ -12811,8 +12831,8 @@
                 "required": [
                     "name",
                     "projectUuid",
-                    "uuid",
                     "organizationUuid",
+                    "uuid",
                     "isPrivate",
                     "pinnedListUuid",
                     "pinnedListOrder",

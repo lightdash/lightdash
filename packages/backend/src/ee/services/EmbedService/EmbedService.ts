@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     addDashboardFiltersToMetricQuery,
     AndFilterGroup,
     CommercialFeatureFlags,
@@ -23,6 +24,7 @@ import {
     formatRows,
     getDashboardFiltersForTileAndTables,
     getDimensions,
+    getEmbeddedAuth,
     getFilterInteractivityValue,
     getItemId,
     InteractivityOptions,
@@ -46,10 +48,7 @@ import {
 import { isArray } from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
-import {
-    decodeLightdashJwt,
-    encodeLightdashJwt,
-} from '../../../auth/lightdashJwt';
+import { encodeLightdashJwt } from '../../../auth/lightdashJwt';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -291,7 +290,7 @@ export class EmbedService extends BaseService {
     }
 
     private async getDashboardUuidFromContent(
-        decodedToken: EmbedJwt,
+        decodedToken: CreateEmbedJwt,
         projectUuid: string,
     ) {
         if (isDashboardSlugContent(decodedToken.content)) {
@@ -316,13 +315,14 @@ export class EmbedService extends BaseService {
 
     async getDashboard(
         projectUuid: string,
-        embedToken: string,
+        account: Account,
         // TODO: WHY IS THIS OPTIONAL??
         checkPermissions: boolean = true,
     ): Promise<Dashboard & InteractivityOptions> {
-        const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
+        const { data: decodedToken, source: embedToken } =
+            getEmbeddedAuth(account);
+        const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
-        const decodedToken = decodeLightdashJwt(embedToken, encodedSecret);
         const dashboardUuid = await this.getDashboardUuidFromContent(
             decodedToken,
             projectUuid,
@@ -398,13 +398,13 @@ export class EmbedService extends BaseService {
 
     async getAvailableFiltersForSavedQueries(
         projectUuid: string,
-        embedToken: string,
+        account: Account,
         savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
         checkPermissions: boolean = true,
     ): Promise<DashboardAvailableFilters> {
-        const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
+        const { data: decodedToken } = getEmbeddedAuth(account);
+        const { dashboardUuids, allowAllDashboards } =
             await this.embedModel.get(projectUuid);
-        const decodedToken = decodeLightdashJwt(embedToken, encodedSecret);
 
         if (
             !isFilterInteractivityEnabled(
@@ -524,17 +524,20 @@ export class EmbedService extends BaseService {
         };
     }
 
-    private static getExternalId(decodedToken: EmbedJwt, embedToken: string) {
+    private static getExternalId(
+        decodedToken: CreateEmbedJwt,
+        embedToken: string,
+    ) {
         return (
             decodedToken.user?.externalId ||
-            decodedToken.iat?.toString() ||
+            decodedToken?.iat?.toString() ||
             embedToken
         );
     }
 
     private async _getEmbedUserAttributes(
         organizationUuid: string,
-        embedJwt: EmbedJwt,
+        embedJwt: CreateEmbedJwt,
     ) {
         const orgUserAttributes = await this.userAttributesModel.find({
             organizationUuid,
@@ -555,7 +558,7 @@ export class EmbedService extends BaseService {
                       if (typeof value === 'string') {
                           sanitizedValue = [value];
                       } else if (isArray(value)) {
-                          sanitizedValue = value.map((v) =>
+                          sanitizedValue = (value as unknown[]).map((v) =>
                               typeof v === 'string' ? v : JSON.stringify(v),
                           );
                       } else {
@@ -637,7 +640,7 @@ export class EmbedService extends BaseService {
         metricQuery: MetricQuery;
         explore: Explore;
         queryTags: Record<string, string>;
-        embedJwt: EmbedJwt;
+        embedJwt: CreateEmbedJwt;
         dateZoomGranularity?: DateGranularity;
     }) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -705,7 +708,7 @@ export class EmbedService extends BaseService {
 
     // eslint-disable-next-line class-methods-use-this
     private async _getAppliedDashboardFilters(
-        decodedToken: EmbedJwt,
+        decodedToken: CreateEmbedJwt,
         explore: Explore,
         dashboard: DashboardDAO,
         tileUuid: string,
@@ -736,16 +739,17 @@ export class EmbedService extends BaseService {
 
     async getChartAndResults(
         projectUuid: string,
-        embedToken: string,
+        account: Account,
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
         dateZoomGranularity?: DateGranularity,
         dashboardSorts?: SortField[],
         checkPermissions: boolean = true,
     ) {
-        const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
+        const { data: decodedToken, source: embedToken } =
+            getEmbeddedAuth(account);
+        const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
-        const decodedToken = decodeLightdashJwt(embedToken, encodedSecret);
 
         const dashboardUuid = await this.getDashboardUuidFromContent(
             decodedToken,
@@ -853,15 +857,13 @@ export class EmbedService extends BaseService {
     }
 
     async calculateTotalFromSavedChart(
-        embedToken: string,
+        account: Account,
         projectUuid: string,
         savedChartUuid: string,
         dashboardFilters?: DashboardFilters,
         invalidateCache?: boolean,
     ) {
-        const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
-            await this.embedModel.get(projectUuid);
-        const decodedToken = decodeLightdashJwt(embedToken, encodedSecret);
+        const { data: decodedToken } = getEmbeddedAuth(account);
 
         const dashboardUuid = await this.getDashboardUuidFromContent(
             decodedToken,
@@ -958,7 +960,7 @@ export class EmbedService extends BaseService {
     }
 
     async searchFilterValues({
-        embedToken,
+        account,
         projectUuid,
         filterUuid,
         search,
@@ -966,7 +968,7 @@ export class EmbedService extends BaseService {
         filters,
         forceRefresh,
     }: {
-        embedToken: string;
+        account: Account;
         projectUuid: string;
         filterUuid: string;
         search: string;
@@ -974,9 +976,10 @@ export class EmbedService extends BaseService {
         filters: AndFilterGroup | undefined;
         forceRefresh: boolean;
     }): Promise<FieldValueSearchResult> {
-        const { encodedSecret, dashboardUuids, allowAllDashboards, user } =
+        const { data: decodedToken, source: embedToken } =
+            getEmbeddedAuth(account);
+        const { dashboardUuids, allowAllDashboards } =
             await this.embedModel.get(projectUuid);
-        const decodedToken = decodeLightdashJwt(embedToken, encodedSecret);
         const dashboardUuid = await this.getDashboardUuidFromContent(
             decodedToken,
             projectUuid,

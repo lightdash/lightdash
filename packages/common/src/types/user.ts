@@ -4,31 +4,38 @@ import { type AnyType } from './any';
 import { type OpenIdIdentityIssuerType } from './openIdIdentity';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
 
-export interface LightdashUser {
-    userUuid: string;
-    email: string | undefined;
-    firstName: string;
-    lastName: string;
+export type BaseUser = {
     organizationUuid?: string;
     organizationName?: string;
     organizationCreatedAt?: Date;
+    role?: OrganizationMemberRole;
+    /* Whether the user can login */
+    isActive: boolean;
+};
+
+export interface LightdashUser extends BaseUser {
+    userUuid: string;
+    userId: number;
+    type?: 'lightdash';
+    email: string | undefined;
+    firstName: string;
+    lastName: string;
     isTrackingAnonymized: boolean;
     isMarketingOptedIn: boolean;
     isSetupComplete: boolean;
-    role?: OrganizationMemberRole;
     createdAt: Date;
     updatedAt: Date;
-    /**
-     * Whether the user can login
-     */
-    isActive: boolean;
-    /**
-     * Whether the user doesn't have an authentication method (password or openId)
-     */
+    /* Whether the user doesn't have an authentication method (password or openId) */
     isPending?: boolean;
 }
 
-export type LightdashUserWithOrg = Required<LightdashUser>;
+export type ExternalUser = BaseUser &
+    Partial<LightdashUser> & {
+        externalId: string;
+        type: 'external';
+    };
+
+export type LightdashUserWithOrg = Required<LightdashUser | ExternalUser>;
 
 export const isUserWithOrg = (
     user: LightdashUser,
@@ -43,7 +50,6 @@ export interface LightdashUserWithAbilityRules extends LightdashUser {
 }
 
 export interface SessionUser extends LightdashUserWithAbilityRules {
-    userId: number;
     ability: MemberAbility;
 }
 
@@ -52,12 +58,6 @@ export interface UpdatedByUser {
     firstName: string;
     lastName: string;
 }
-export const isSessionUser = (user: AnyType): user is SessionUser =>
-    typeof user === 'object' &&
-    user !== null &&
-    user.userUuid &&
-    user.userId &&
-    user.openId === undefined;
 
 export interface OpenIdUser {
     openId: {

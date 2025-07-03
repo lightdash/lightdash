@@ -1,18 +1,17 @@
 // organize-imports-ignore
 // eslint-disable-next-line import/order
 import './sentry'; // Sentry has to be initialized before anything else
-
 import {
+    Account,
     AnyType,
     ApiError,
     LightdashError,
     LightdashMode,
-    SessionServiceAccount,
     LightdashVersionHeader,
+    Project,
+    ServiceAccount,
     SessionUser,
     UnexpectedServerError,
-    InvalidUser,
-    ServiceAccount,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
@@ -70,6 +69,7 @@ import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 import PrometheusMetrics from './prometheus';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
+import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -82,10 +82,13 @@ declare global {
         interface Request {
             services: ServiceRepository;
             serviceAccount?: Pick<ServiceAccount, 'organizationUuid'>;
+            // The project associated with this request
+            project?: Pick<Project, 'projectUuid'>;
             /**
              * @deprecated Clients should be used inside services. This will be removed soon.
              */
             clients: ClientRepository;
+            account?: Account;
         }
 
         interface User extends SessionUser {}
@@ -514,6 +517,10 @@ export default class App {
             req.clients = this.clients;
             next();
         });
+
+        // Add JWT parsing here so we can get services off the request
+        // We'll also be able to add the user to Sentry for embedded users.
+        expressApp.use(jwtAuthMiddleware);
 
         expressApp.use((req, res, next) => {
             if (req.user) {
