@@ -1,3 +1,10 @@
+## [0.1780.2](https://github.com/lightdash/lightdash/compare/0.1780.1...0.1780.2) (2025-07-03)
+
+
+### Bug Fixes
+
+* Fix validation modal doesn't update custom metrics ([#15671](https://github.com/lightdash/lightdash/issues/15671)) ([9ce1dca](https://github.com/lightdash/lightdash/commit/9ce1dca498976c566030a2d70d510e2ac1474637)), closes [#15652](https://github.com/lightdash/lightdash/issues/15652)
+
 ## [0.1780.1](https://github.com/lightdash/lightdash/compare/0.1780.0...0.1780.1) (2025-07-03)
 
 
