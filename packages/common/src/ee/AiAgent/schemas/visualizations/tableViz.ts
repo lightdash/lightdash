@@ -14,9 +14,8 @@ export const tableVizConfigSchema = visualizationMetadataSchema
             ),
         metrics: z
             .array(z.string())
-            .min(1)
             .describe(
-                'At least one metric is required. The field ids of the metrics to be calculated for the CSV. They will be grouped by the dimensions.',
+                'The field ids of the metrics to be calculated for the table. They will be grouped by the dimensions.',
             ),
         dimensions: z
             .array(z.string())
@@ -36,7 +35,7 @@ export const tableVizConfigSchema = visualizationMetadataSchema
             .describe('The maximum number of rows in the table.'),
     })
     .describe(
-        'Configuration file for generating a CSV file from a query with metrics and dimensions',
+        'Configuration file for generating a table from a query with metrics and dimensions',
     );
 
 export type TableVizConfigSchemaType = z.infer<typeof tableVizConfigSchema>;
