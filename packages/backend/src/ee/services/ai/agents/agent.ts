@@ -298,10 +298,24 @@ export const streamAgentResponse = async ({
                         });
                 }
             },
-            onFinish: ({ text }) => {
+            onFinish: ({ text, usage, steps }) => {
                 void dependencies.updatePrompt({
                     response: text,
                     promptUuid: args.promptUuid,
+                });
+
+                dependencies.trackEvent({
+                    event: 'ai_agent.response_streamed',
+                    userId: args.userId,
+                    properties: {
+                        organizationId: args.organizationId,
+                        projectId: args.agentSettings.projectUuid,
+                        aiAgentId: args.agentSettings.uuid,
+                        agentName: args.agentSettings.name,
+                        usageTokensCount: usage.totalTokens,
+                        stepsCount: steps.length,
+                        model: args.model.modelId,
+                    },
                 });
             },
             experimental_transform: smoothStream({

@@ -141,13 +141,6 @@ export type ApiAiConversationMessages = {
     results: AiConversationMessage[];
 };
 
-export type ApiAiConversationResponse = {
-    status: 'ok';
-    results: {
-        prompt: AiWebAppPrompt;
-    };
-};
-
 export const isAiConversationMessageComplete = (
     message: AiConversationMessage,
 ): message is AiConversationComplete =>

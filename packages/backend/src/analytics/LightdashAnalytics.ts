@@ -1249,6 +1249,80 @@ export type DeprecatedRouteCalled = BaseTrack & {
     };
 };
 
+export type AiAgentCreatedEvent = BaseTrack & {
+    event: 'ai_agent.created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+        tagsCount: number;
+        integrationsCount: number;
+    };
+};
+
+export type AiAgentDeletedEvent = BaseTrack & {
+    event: 'ai_agent.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+    };
+};
+
+export type AiAgentUpdatedEvent = BaseTrack & {
+    event: 'ai_agent.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | undefined;
+        aiAgentId: string;
+        agentName: string | undefined;
+        tagsCount: number;
+        integrationsCount: number;
+    };
+};
+
+export type AiAgentPromptCreatedEvent = BaseTrack & {
+    event: 'ai_agent_prompt.created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string | undefined;
+        context: 'slack' | 'web_app';
+    };
+};
+
+export type AiAgentPromptFeedbackEvent = BaseTrack & {
+    event: 'ai_agent_prompt.feedback';
+    userId: string | undefined;
+    properties: {
+        organizationId: string | undefined;
+        humanScore: number;
+        messageId: string;
+        context: 'slack' | 'web_app';
+    };
+};
+
+export type AiAgentResponseStreamed = BaseTrack & {
+    event: 'ai_agent.response_streamed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+        usageTokensCount: number;
+        stepsCount: number;
+        model: string;
+    };
+};
+
 export type RenameResourceEvent = BaseTrack & {
     event:
         | 'rename_chart.executed'
@@ -1373,7 +1447,12 @@ type TypedEvent =
     | CategoriesAppliedEvent
     | CustomFieldsReplaced
     | SubtotalQueryEvent
-    | DeprecatedRouteCalled;
+    | DeprecatedRouteCalled
+    | AiAgentCreatedEvent
+    | AiAgentDeletedEvent
+    | AiAgentUpdatedEvent
+    | AiAgentPromptCreatedEvent
+    | AiAgentPromptFeedbackEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {

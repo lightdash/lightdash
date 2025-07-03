@@ -9,6 +9,7 @@ import {
     UpdateSlackResponse,
     UpdateWebAppResponse,
 } from '@lightdash/common';
+import { AiAgentResponseStreamed } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
 import { AiAgentExploreSummary } from './aiAgentExploreSummary';
 
@@ -58,3 +59,5 @@ export type StoreToolResultsFn = (
         result: string;
     }>,
 ) => Promise<void>;
+
+export type TrackEventFn = (event: AiAgentResponseStreamed) => void;
