@@ -1,3 +1,10 @@
+## [0.1780.1](https://github.com/lightdash/lightdash/compare/0.1780.0...0.1780.1) (2025-07-03)
+
+
+### Bug Fixes
+
+* improve chat UI and time formatting ([#15693](https://github.com/lightdash/lightdash/issues/15693)) ([d8cb42b](https://github.com/lightdash/lightdash/commit/d8cb42be01d76300f463706158dc8e626f9138aa))
+
 # [0.1780.0](https://github.com/lightdash/lightdash/compare/0.1779.0...0.1780.0) (2025-07-03)
 
 
