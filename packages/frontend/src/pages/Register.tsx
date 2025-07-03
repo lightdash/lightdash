@@ -87,6 +87,7 @@ const Register: FC = () => {
                     shopUrl: shop,
                 }),
             });
+            console.log('Shopify setup request sent successfully');
 
             window.location.href = '/'; // or /dashboard
         } catch (err) {
