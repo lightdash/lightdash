@@ -1,3 +1,10 @@
+# [0.1776.0](https://github.com/lightdash/lightdash/compare/0.1775.3...0.1776.0) (2025-07-03)
+
+
+### Features
+
+* add findExplores tool and refactor agent settings retrieval ([#15603](https://github.com/lightdash/lightdash/issues/15603)) ([cdd22ac](https://github.com/lightdash/lightdash/commit/cdd22acad0a916eec10d1f631e952c570ed3ac36))
+
 ## [0.1775.3](https://github.com/lightdash/lightdash/compare/0.1775.2...0.1775.3) (2025-07-02)
 
 
