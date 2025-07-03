@@ -1,9 +1,8 @@
 import {
-    AiChartType,
+    AiResultType,
     assertUnreachable,
     ChartType,
     ECHARTS_DEFAULT_COLORS,
-    filtersSchemaTransformed,
     type AiAgentMessageAssistant,
     type ApiAiAgentThreadMessageVizQuery,
     type ApiError,
@@ -97,21 +96,19 @@ export const AiChartVisualization: FC<Props> = ({
         [results, metricQuery, fields],
     );
 
-    const chartConfig = useMemo(
-        () =>
-            getChartConfigFromAiAgentVizConfig({
-                config: message.vizConfigOutput as any, // TODO: fix this using schema parsing
-                rows: results.rows,
-                type: queryExecutionHandle.data.type,
-                metricQuery,
-            }),
-        [
-            message.vizConfigOutput,
-            results.rows,
-            queryExecutionHandle.data.type,
+    const chartConfig = useMemo(() => {
+        return getChartConfigFromAiAgentVizConfig({
+            vizConfigOutput: message.vizConfigOutput,
             metricQuery,
-        ],
-    );
+            rows: results.rows,
+            maxQueryLimit: health?.query.maxLimit,
+        });
+    }, [
+        message.vizConfigOutput,
+        metricQuery,
+        results.rows,
+        health?.query.maxLimit,
+    ]);
 
     const onActiveTabChange = (value: string) => {
         setActiveTab(activeTabsSchema.parse(value));
@@ -148,7 +145,7 @@ export const AiChartVisualization: FC<Props> = ({
         >
             <VisualizationProvider
                 resultsData={resultsData}
-                chartConfig={chartConfig}
+                chartConfig={chartConfig.echartsConfig}
                 columnOrder={[
                     ...metricQuery.dimensions,
                     ...metricQuery.metrics,
@@ -157,12 +154,12 @@ export const AiChartVisualization: FC<Props> = ({
                     health?.pivotTable.maxColumnLimit ?? 60
                 }
                 initialPivotDimensions={
-                    // TODO :: fix this using schema
-                    message.vizConfigOutput &&
-                    'breakdownByDimension' in message.vizConfigOutput
-                        ? // TODO :: fix this using schema
-                          [
-                              message.vizConfigOutput
+                    (chartConfig.type === AiResultType.VERTICAL_BAR_RESULT ||
+                        chartConfig.type === AiResultType.TIME_SERIES_RESULT) &&
+                    chartConfig.echartsConfig.type === ChartType.CARTESIAN &&
+                    chartConfig.vizTool.vizConfig.breakdownByDimension
+                        ? [
+                              chartConfig.vizTool.vizConfig
                                   .breakdownByDimension as string,
                           ]
                         : undefined
@@ -223,7 +220,8 @@ export const AiChartVisualization: FC<Props> = ({
                                     data-testid="ai-visualization"
                                 />
 
-                                {chartConfig.type === ChartType.CARTESIAN && (
+                                {chartConfig.echartsConfig.type ===
+                                    ChartType.CARTESIAN && (
                                     <SeriesContextMenu
                                         echartSeriesClickEvent={
                                             echartsClickEvent ?? undefined
@@ -251,7 +249,7 @@ export const AiChartVisualization: FC<Props> = ({
                             <ErrorBoundary>
                                 {queryExecutionHandle.data &&
                                     queryExecutionHandle.data.type !==
-                                        AiChartType.TABLE && (
+                                        AiResultType.TABLE_RESULT && (
                                         <AgentVisualizationMetricsAndDimensions
                                             metricQuery={
                                                 queryExecutionHandle.data.query

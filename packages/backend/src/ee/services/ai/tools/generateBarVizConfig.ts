@@ -1,6 +1,12 @@
-import { isSlackPrompt, verticalBarVizToolSchema } from '@lightdash/common';
+import {
+    getTotalFilterRules,
+    isSlackPrompt,
+    toolVerticalBarArgsSchema,
+    toolVerticalBarArgsSchemaTransformed,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type {
+    GetExploreFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
     SendFileFn,
@@ -9,24 +15,29 @@ import type {
 } from '../types/aiAgentDependencies';
 import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { renderVerticalBarViz } from '../visualizations/verticalBarViz';
+import { validateFilterRules } from '../utils/validators';
+import { renderVerticalBarViz } from '../visualizations/vizVerticalBar';
 
 type Dependencies = {
+    getExplore: GetExploreFn;
     updateProgress: UpdateProgressFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     getPrompt: GetPromptFn;
     updatePrompt: UpdatePromptFn;
     sendFile: SendFileFn;
+    maxLimit: number;
 };
 
 export const getGenerateBarVizConfig = ({
+    getExplore,
     updateProgress,
     runMiniMetricQuery,
     getPrompt,
     sendFile,
     updatePrompt,
+    maxLimit,
 }: Dependencies) => {
-    const schema = verticalBarVizToolSchema;
+    const schema = toolVerticalBarArgsSchema;
 
     return tool({
         description: `Generate Bar Chart Visualization and show it to the user.
@@ -35,20 +46,32 @@ Rules for generating the bar chart visualization:
 - The dimension and metric "fieldIds" must come from an explore. If you haven't used "findFieldsInExplore" tool, please do so before using this tool.
 - If the data needs to be filtered, generate the filters using the "generateQueryFilters" tool before using this tool.`,
         parameters: schema,
-        execute: async (vizConfig) => {
+        execute: async (toolArgs) => {
             try {
                 await updateProgress('📊 Generating your bar chart...');
+
+                // TODO: common for all viz tools. find a way to reuse this code.
+                const vizTool =
+                    toolVerticalBarArgsSchemaTransformed.parse(toolArgs);
+
+                const filterRules = getTotalFilterRules(vizTool.filters);
+                const explore = await getExplore({
+                    exploreName: vizTool.vizConfig.exploreName,
+                });
+                validateFilterRules(explore, filterRules);
+                // end of TODO
 
                 const prompt = await getPrompt();
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,
-                    vizConfigOutput: vizConfig,
+                    vizConfigOutput: toolArgs,
                 });
 
                 if (isSlackPrompt(prompt)) {
                     const { chartOptions } = await renderVerticalBarViz({
-                        runMetricQuery: runMiniMetricQuery,
-                        vizTool: vizConfig,
+                        runMetricQuery: (q) => runMiniMetricQuery(q, maxLimit),
+                        vizTool,
+                        maxLimit,
                     });
 
                     const file = await renderEcharts(chartOptions);

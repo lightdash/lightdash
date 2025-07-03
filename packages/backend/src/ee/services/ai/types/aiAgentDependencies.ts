@@ -1,5 +1,5 @@
 import {
-    AiMetricQuery,
+    AiMetricQueryWithFilters,
     AiWebAppPrompt,
     AnyType,
     CacheMetadata,
@@ -28,7 +28,10 @@ export type UpdateProgressFn = (progress: string) => Promise<void>;
 
 export type GetPromptFn = () => Promise<SlackPrompt | AiWebAppPrompt>;
 
-export type RunMiniMetricQueryFn = (metricQuery: AiMetricQuery) => Promise<{
+export type RunMiniMetricQueryFn = (
+    metricQuery: AiMetricQueryWithFilters,
+    maxLimit: number,
+) => Promise<{
     rows: Record<string, AnyType>[];
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;

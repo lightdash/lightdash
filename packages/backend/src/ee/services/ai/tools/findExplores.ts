@@ -1,5 +1,5 @@
+import { toolFindExploresArgsSchema } from '@lightdash/common';
 import { tool } from 'ai';
-import { z } from 'zod';
 import type { GetExploresFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
@@ -10,7 +10,7 @@ type Dependencies = {
 export const getFindExplores = ({ getExplores }: Dependencies) => {
     // TODO: empty schema for now, but we should implement hybrid search for this tool
     // and LLM should fill in the schema with possible search queries
-    const schema = z.object({});
+    const schema = toolFindExploresArgsSchema;
 
     return tool({
         description: `Get an information about explores/models you have access to.`,

@@ -1,8 +1,8 @@
 import {
-    AiChartType,
-    AiMetricQuery,
+    AiMetricQueryWithFilters,
+    AiResultType,
     metricQueryTableViz,
-    TableVizTool,
+    ToolTableVizArgsTransformed,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
 import { CsvService } from '../../../../services/CsvService/CsvService';
@@ -14,19 +14,23 @@ export const renderTableViz = async ({
     maxLimit,
 }: {
     runMetricQuery: (
-        metricQuery: AiMetricQuery,
+        metricQuery: AiMetricQueryWithFilters,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
-    vizTool: Pick<TableVizTool, 'vizConfig' | 'filters'>;
+    vizTool: ToolTableVizArgsTransformed;
     maxLimit: number;
 }): Promise<{
-    type: AiChartType.TABLE;
-    metricQuery: AiMetricQuery;
+    type: AiResultType.TABLE_RESULT;
+    metricQuery: AiMetricQueryWithFilters;
     results: Awaited<
         ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
     >;
     csv: string;
 }> => {
-    const query = metricQueryTableViz(vizTool, maxLimit);
+    const query = metricQueryTableViz(
+        vizTool.vizConfig,
+        vizTool.filters,
+        maxLimit,
+    );
     const results = await runMetricQuery(query);
 
     const fields = results.rows[0] ? Object.keys(results.rows[0]) : [];
@@ -35,7 +39,7 @@ export const renderTableViz = async ({
     );
 
     return {
-        type: AiChartType.TABLE,
+        type: AiResultType.TABLE_RESULT,
         metricQuery: query,
         results,
         csv: stringify(rows, { header: true, columns: fields }),

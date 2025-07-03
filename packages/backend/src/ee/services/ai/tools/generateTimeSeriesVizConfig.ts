@@ -1,6 +1,12 @@
-import { isSlackPrompt, timeSeriesVizToolSchema } from '@lightdash/common';
+import {
+    getTotalFilterRules,
+    isSlackPrompt,
+    toolTimeSeriesArgsSchema,
+    toolTimeSeriesArgsSchemaTransformed,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type {
+    GetExploreFn,
     GetPromptFn,
     RunMiniMetricQueryFn,
     SendFileFn,
@@ -9,23 +15,28 @@ import type {
 } from '../types/aiAgentDependencies';
 import { renderEcharts } from '../utils/renderEcharts';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { renderTimeSeriesViz } from '../visualizations/timeSeriesViz';
+import { validateFilterRules } from '../utils/validators';
+import { renderTimeSeriesViz } from '../visualizations/vizTimeSeries';
 
 type Dependencies = {
+    getExplore: GetExploreFn;
     updateProgress: UpdateProgressFn;
     runMiniMetricQuery: RunMiniMetricQueryFn;
     getPrompt: GetPromptFn;
     updatePrompt: UpdatePromptFn;
     sendFile: SendFileFn;
+    maxLimit: number;
 };
 export const getGenerateTimeSeriesVizConfig = ({
+    getExplore,
     updateProgress,
     runMiniMetricQuery,
     getPrompt,
     sendFile,
     updatePrompt,
+    maxLimit,
 }: Dependencies) => {
-    const schema = timeSeriesVizToolSchema;
+    const schema = toolTimeSeriesArgsSchema;
 
     return tool({
         description: `Generate Time Series Chart Visualization and show it to the user.
@@ -39,20 +50,32 @@ Rules for generating the time series chart visualization:
 - The dimension and metric "fieldIds" must come from an explore. If you haven't used "findFieldsInExplore" tool, please do so before using this tool.
 - If the data needs to be filtered, generate the filters using the "generateQueryFilters" tool before using this tool.`,
         parameters: schema,
-        execute: async (vizToolResult) => {
+        execute: async (toolArgs) => {
             try {
                 await updateProgress('📈 Generating your line chart...');
+
+                // TODO: common for all viz tools. find a way to reuse this code.
+                const vizTool =
+                    toolTimeSeriesArgsSchemaTransformed.parse(toolArgs);
+
+                const filterRules = getTotalFilterRules(vizTool.filters);
+                const explore = await getExplore({
+                    exploreName: vizTool.vizConfig.exploreName,
+                });
+                validateFilterRules(explore, filterRules);
+                // end of TODO
 
                 const prompt = await getPrompt();
                 await updatePrompt({
                     promptUuid: prompt.promptUuid,
-                    vizConfigOutput: vizToolResult,
+                    vizConfigOutput: toolArgs,
                 });
 
                 if (isSlackPrompt(prompt)) {
                     const { chartOptions } = await renderTimeSeriesViz({
-                        runMetricQuery: runMiniMetricQuery,
-                        vizTool: vizToolResult,
+                        runMetricQuery: (q) => runMiniMetricQuery(q, maxLimit),
+                        vizTool,
+                        maxLimit,
                     });
 
                     const file = await renderEcharts(chartOptions);

@@ -1,15 +1,14 @@
 import { subject } from '@casl/ability';
 import {
-    AI_DEFAULT_MAX_QUERY_LIMIT,
     AiAgent,
     AiAgentThread,
     AiAgentThreadSummary,
     AiAgentUserPreferences,
-    AiChartType,
     AiConversation,
     AiConversationMessage,
     AiDuplicateSlackPromptError,
-    AiMetricQuery,
+    AiMetricQueryWithFilters,
+    AiResultType,
     AiVizMetadata,
     AiWebAppPrompt,
     AnyType,
@@ -79,9 +78,9 @@ import {
     getFollowUpToolBlocks,
 } from './ai/utils/getSlackBlocks';
 import { validateSelectedFieldsExistence } from './ai/utils/validators';
-import { renderTableViz } from './ai/visualizations/tableViz';
-import { renderTimeSeriesViz } from './ai/visualizations/timeSeriesViz';
-import { renderVerticalBarViz } from './ai/visualizations/verticalBarViz';
+import { renderTableViz } from './ai/visualizations/vizTable';
+import { renderTimeSeriesViz } from './ai/visualizations/vizTimeSeries';
+import { renderVerticalBarViz } from './ai/visualizations/vizVerticalBar';
 import { CommercialCatalogService } from './CommercialCatalogService';
 
 type AiAgentServiceDependencies = {
@@ -156,7 +155,7 @@ export class AiAgentService {
     private async runAiMetricQuery(
         user: SessionUser,
         projectUuid: string,
-        metricQuery: AiMetricQuery,
+        metricQuery: AiMetricQueryWithFilters,
     ) {
         const explore = await this.getExplore(
             user,
@@ -176,6 +175,7 @@ export class AiAgentService {
             user,
             {
                 ...metricQuery,
+                // TODO: add tableCalculations
                 tableCalculations: [],
             },
             projectUuid,
@@ -189,7 +189,7 @@ export class AiAgentService {
     private async executeAsyncAiMetricQuery(
         user: SessionUser,
         projectUuid: string,
-        metricQuery: AiMetricQuery,
+        metricQuery: AiMetricQueryWithFilters,
     ) {
         const explore = await this.getExplore(
             user,
@@ -209,7 +209,11 @@ export class AiAgentService {
             {
                 user,
                 projectUuid,
-                metricQuery: { ...metricQuery, tableCalculations: [] },
+                metricQuery: {
+                    ...metricQuery,
+                    // TODO: add tableCalculations
+                    tableCalculations: [],
+                },
                 context: QueryExecutionContext.AI,
             },
         );
@@ -807,25 +811,31 @@ export class AiAgentService {
         });
 
         switch (parsedVizConfig.type) {
-            case AiChartType.VERTICAL_BAR_CHART:
+            case AiResultType.VERTICAL_BAR_RESULT:
                 return renderVerticalBarViz({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizTool: parsedVizConfig.vizTool,
+                    maxLimit: this.lightdashConfig.query.maxLimit,
                 });
-            case AiChartType.TIME_SERIES_CHART:
+            case AiResultType.TIME_SERIES_RESULT:
                 return renderTimeSeriesViz({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizTool: parsedVizConfig.vizTool,
+                    maxLimit: this.lightdashConfig.query.maxLimit,
                 });
-            case AiChartType.TABLE:
+            case AiResultType.TABLE_RESULT:
                 return renderTableViz({
                     runMetricQuery: (q) =>
                         this.runAiMetricQuery(user, projectUuid, q),
                     vizTool: parsedVizConfig.vizTool,
-                    maxLimit: AI_DEFAULT_MAX_QUERY_LIMIT,
+                    maxLimit: this.lightdashConfig.query.maxLimit,
                 });
+            case AiResultType.ONE_LINE_RESULT:
+                throw new ForbiddenError(
+                    'One line result does not have a visualization',
+                );
             default:
                 return assertUnreachable(parsedVizConfig, 'Invalid viz type');
         }
@@ -1248,6 +1258,7 @@ export class AiAgentService {
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
+                    // TODO: add tableCalculations
                     tableCalculations: [],
                 },
                 exploreName: metricQuery.exploreName,
@@ -1873,7 +1884,12 @@ export class AiAgentService {
         );
 
         const rows = parsedVizConfig
-            ? (await utils.runMiniMetricQuery(parsedVizConfig.metricQuery)).rows
+            ? (
+                  await utils.runMiniMetricQuery(
+                      parsedVizConfig.metricQuery,
+                      this.lightdashConfig.query.maxLimit,
+                  )
+              ).rows
             : undefined;
 
         return {

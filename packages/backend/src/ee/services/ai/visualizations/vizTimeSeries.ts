@@ -1,15 +1,15 @@
 import {
-    AiChartType,
-    AiMetricQuery,
+    AiMetricQueryWithFilters,
+    AiResultType,
     MetricQuery,
-    metricQueryVerticalBarViz,
-    VerticalBarVizTool,
+    metricQueryTimeSeriesViz,
+    ToolTimeSeriesArgsTransformed,
 } from '@lightdash/common';
 import { ProjectService } from '../../../../services/ProjectService/ProjectService';
 import { getPivotedResults } from '../utils/getPivotedResults';
 
-const echartsConfigVerticalBarMetric = async (
-    vizTool: Pick<VerticalBarVizTool, 'vizConfig' | 'filters'>,
+export const echartsConfigTimeSeriesMetric = async (
+    vizTool: ToolTimeSeriesArgsTransformed,
     rows: Record<string, unknown>[],
     fieldsMap: Record<string, unknown>,
     sorts: MetricQuery['sorts'],
@@ -17,6 +17,7 @@ const echartsConfigVerticalBarMetric = async (
     let chartData = rows;
     let metrics = vizTool.vizConfig.yMetrics;
     if (vizTool.vizConfig.breakdownByDimension) {
+        // Sort the pivoted data
         const pivoted = await getPivotedResults(
             rows,
             fieldsMap,
@@ -27,17 +28,11 @@ const echartsConfigVerticalBarMetric = async (
         chartData = pivoted.results;
         metrics = pivoted.metrics;
     }
-    const fields = Object.keys(chartData[0] || {});
+
     return {
-        dataset: {
-            source: chartData,
-            dimensions: fields,
-        },
         ...(vizTool.vizConfig.title
             ? { title: { text: vizTool.vizConfig.title } }
             : {}),
-        animation: false,
-        backgroundColor: '#fff',
         ...(metrics.length > 1
             ? {
                   // This is needed so we don't have overlapping legend and grid
@@ -50,53 +45,59 @@ const echartsConfigVerticalBarMetric = async (
                   },
               }
             : {}),
+        dataset: {
+            source: chartData,
+            dimensions: Object.keys(chartData[0] || {}),
+        },
+        animation: false,
+        backgroundColor: '#fff',
         xAxis: [
             {
-                type: vizTool.vizConfig.xAxisType,
-                ...(vizTool.vizConfig.xAxisLabel
-                    ? { name: vizTool.vizConfig.xAxisLabel }
-                    : {}),
+                type: 'time',
             },
         ],
         yAxis: [
             {
                 type: 'value',
-                ...(vizTool.vizConfig.yAxisLabel
-                    ? { name: vizTool.vizConfig.yAxisLabel }
-                    : {}),
             },
         ],
         series: metrics.map((metric) => ({
-            type: 'bar',
+            type: 'line',
             name: metric,
             encode: {
                 x: vizTool.vizConfig.xDimension,
                 y: metric,
             },
-            ...(vizTool.vizConfig.stackBars ? { stack: 'stack' } : {}),
+            ...(vizTool.vizConfig.lineType === 'area' && { areaStyle: {} }),
         })),
     };
 };
 
-export const renderVerticalBarViz = async ({
+export const renderTimeSeriesViz = async ({
     runMetricQuery,
     vizTool,
+    maxLimit,
 }: {
     runMetricQuery: (
-        metricQuery: AiMetricQuery,
+        metricQuery: AiMetricQueryWithFilters,
     ) => ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>;
-    vizTool: Pick<VerticalBarVizTool, 'vizConfig' | 'filters'>;
+    vizTool: ToolTimeSeriesArgsTransformed;
+    maxLimit: number;
 }): Promise<{
-    type: AiChartType.VERTICAL_BAR_CHART;
+    type: AiResultType.TIME_SERIES_RESULT;
+    metricQuery: AiMetricQueryWithFilters;
     results: Awaited<
         ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
     >;
-    metricQuery: AiMetricQuery;
     chartOptions: object;
 }> => {
-    const metricQuery = metricQueryVerticalBarViz(vizTool);
+    const metricQuery = metricQueryTimeSeriesViz(
+        vizTool.vizConfig,
+        vizTool.filters,
+        maxLimit,
+    );
     const results = await runMetricQuery(metricQuery);
-    const chartOptions = await echartsConfigVerticalBarMetric(
+    const chartOptions = await echartsConfigTimeSeriesMetric(
         vizTool,
         results.rows,
         results.fields,
@@ -104,7 +105,7 @@ export const renderVerticalBarViz = async ({
     );
 
     return {
-        type: AiChartType.VERTICAL_BAR_CHART,
+        type: AiResultType.TIME_SERIES_RESULT,
         metricQuery,
         results,
         chartOptions,
