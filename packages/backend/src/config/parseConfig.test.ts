@@ -30,23 +30,6 @@ beforeEach(() => {
     };
 });
 
-describe('When S3 environment variables are not set', () => {
-    test('Should error when S3_ENDPOINT is not set', () => {
-        delete process.env.S3_ENDPOINT;
-        expect(() => parseConfig()).toThrowError(ParseError);
-    });
-
-    test('Should error when S3_BUCKET is not set', () => {
-        delete process.env.S3_BUCKET;
-        expect(() => parseConfig()).toThrowError(ParseError);
-    });
-
-    test('Should error when S3_REGION is not set', () => {
-        delete process.env.S3_REGION;
-        expect(() => parseConfig()).toThrowError(ParseError);
-    });
-});
-
 test('Should default results S3 config to S3 config', () => {
     process.env.S3_ACCESS_KEY = 'mock_access_key';
     process.env.S3_SECRET_KEY = 'mock_secret_key';

@@ -36,6 +36,15 @@ export const warehouseClientMock: WarehouseClient = {
             },
         },
     }),
+    getAsyncQueryResults: async () => ({
+        queryId: null,
+        queryMetadata: null,
+        totalRows: 0,
+        durationMs: 0,
+        fields: {},
+        pageCount: 0,
+        rows: [],
+    }),
     streamQuery(query, streamCallback) {
         streamCallback({
             fields: {},
@@ -114,6 +123,15 @@ export const bigqueryClientMock: WarehouseClient = {
                 },
             },
         },
+    }),
+    getAsyncQueryResults: async () => ({
+        queryId: null,
+        queryMetadata: null,
+        totalRows: 0,
+        durationMs: 0,
+        fields: {},
+        pageCount: 0,
+        rows: [],
     }),
     streamQuery(query, streamCallback) {
         streamCallback({
