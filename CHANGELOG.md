@@ -1,3 +1,10 @@
+# [0.1780.0](https://github.com/lightdash/lightdash/compare/0.1779.0...0.1780.0) (2025-07-03)
+
+
+### Features
+
+* implement experimental CTEs to prevent metric inflation ([#15590](https://github.com/lightdash/lightdash/issues/15590)) ([4fbcca5](https://github.com/lightdash/lightdash/commit/4fbcca57f8df23cd51513d5749c9a02ad90dc570))
+
 # [0.1779.0](https://github.com/lightdash/lightdash/compare/0.1778.1...0.1779.0) (2025-07-03)
 
 
