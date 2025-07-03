@@ -1345,6 +1345,18 @@ export class AiAgentModel {
             });
     }
 
+    async deleteUserAgentPreferences({
+        userUuid,
+        projectUuid,
+    }: {
+        userUuid: string;
+        projectUuid: string;
+    }): Promise<void> {
+        await this.database(AiAgentUserPreferencesTableName)
+            .where({ user_uuid: userUuid, project_uuid: projectUuid })
+            .delete();
+    }
+
     async createToolCall(data: {
         promptUuid: string;
         toolCallId: string;

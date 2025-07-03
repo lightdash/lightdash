@@ -438,6 +438,25 @@ export class AiAgentUserPreferencesController extends BaseController {
             results: undefined,
         };
     }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete()
+    @OperationId('deleteUserAgentPreferences')
+    async deleteUserAgentPreferences(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.getAiAgentService().deleteUserAgentPreferences(
+            req.user!,
+            projectUuid,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
 }
 
 @Route('/api/v1/projects/{projectUuid}/aiAgents')
