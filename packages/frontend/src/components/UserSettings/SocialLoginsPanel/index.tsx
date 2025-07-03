@@ -35,6 +35,8 @@ const isIssuerTypeAvailable = (
             return health.auth.oidc.enabled;
         case OpenIdIdentityIssuerType.SNOWFLAKE:
             return health.auth.snowflake.enabled;
+        case OpenIdIdentityIssuerType.SLACK:
+            return false;
         default:
             return assertUnreachable(
                 issuerType,
