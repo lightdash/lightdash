@@ -14,6 +14,8 @@ import {
     WarehouseTypes,
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
+    type WarehouseGetAsyncQueryResults,
+    type WarehouseGetAsyncQueryResultsArgs,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import {
@@ -326,6 +328,99 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                   {},
               )
             : {};
+    }
+
+    private async getAsyncStatementResults<
+        TFormattedRow extends Record<string, unknown>,
+    >(
+        connection: Connection,
+        queryId: string,
+        start: number,
+        end: number,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<{
+        rows: TFormattedRow[];
+        fields: Record<string, { type: DimensionType }>;
+        numRows: number;
+    }> {
+        const statement = await connection.getResultsFromQueryId({
+            sqlText: '', // ! This shouldn't be needed but is required by the snowflake sdk, https://github.com/snowflakedb/snowflake-connector-nodejs/issues/978
+            queryId,
+        });
+
+        const rows: TFormattedRow[] = [];
+
+        await new Promise<void>((resolve, reject) => {
+            statement
+                .streamRows({
+                    start,
+                    end,
+                })
+                .on('error', (err) => {
+                    reject(err);
+                })
+                .on('data', (row) => {
+                    const parsedRow = parseRow(row);
+                    const formattedRow = rowFormatter
+                        ? rowFormatter(parsedRow)
+                        : (parsedRow as TFormattedRow);
+
+                    rows.push(formattedRow);
+                })
+                .on('end', () => {
+                    resolve();
+                });
+        });
+
+        return {
+            rows,
+            fields: this.getFieldsFromStatement(statement),
+            numRows: statement.getNumRows(),
+        };
+    }
+
+    async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
+        { sql, page, pageSize, queryId }: WarehouseGetAsyncQueryResultsArgs,
+        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
+    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
+        if (queryId === null) {
+            throw new WarehouseQueryError('Query ID is required');
+        }
+
+        const connection = await this.getConnection();
+
+        try {
+            const start = (page - 1) * pageSize;
+            const end = start + pageSize - 1;
+
+            const results = await this.getAsyncStatementResults(
+                connection,
+                queryId,
+                start,
+                end,
+                rowFormatter,
+            );
+
+            return {
+                fields: results.fields,
+                rows: results.rows,
+                queryId,
+                pageCount: Math.ceil(results.numRows / pageSize),
+                totalRows: results.numRows,
+            };
+        } catch (e) {
+            const error = e as SnowflakeError;
+            throw this.parseError(error, sql);
+        } finally {
+            await new Promise((resolve, reject) => {
+                connection.destroy((err, conn) => {
+                    if (err) {
+                        reject(new WarehouseConnectionError(err.message));
+                    }
+                    resolve(conn);
+                });
+            });
+        }
     }
 
     async executeAsyncQuery(

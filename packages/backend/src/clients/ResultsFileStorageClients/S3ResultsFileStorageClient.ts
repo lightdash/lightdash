@@ -1,7 +1,11 @@
 import { GetObjectCommand, NotFound } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { getErrorMessage, WarehouseResults } from '@lightdash/common';
+import {
+    getErrorMessage,
+    MissingConfigError,
+    WarehouseResults,
+} from '@lightdash/common';
 import fs from 'fs';
 import { PassThrough, Readable, Writable } from 'stream';
 import Logger from '../../logging/logger';
@@ -18,7 +22,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         super(args);
 
         const { lightdashConfig } = args;
-        this.s3ExpiresIn = lightdashConfig.s3.expirationTime;
+        this.s3ExpiresIn = lightdashConfig.s3?.expirationTime;
     }
 
     static sanitizeFileExtension(
@@ -31,6 +35,10 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         return hasExtension ? fileName : `${fileName}.${fileExtension}`;
     }
 
+    get isEnabled() {
+        return !!this.configuration && !!this.s3;
+    }
+
     createUploadStream(
         fileName: string,
         opts: {
@@ -38,6 +46,10 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         },
         attachmentDownloadName?: string,
     ) {
+        if (!this.configuration || !this.s3) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+
         const passThrough = new PassThrough();
 
         const upload = new Upload({
@@ -55,6 +67,10 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
 
         let isClosed = false;
         const close = async () => {
+            if (!this.configuration) {
+                throw new MissingConfigError('S3 configuration is not set');
+            }
+
             if (isClosed) return;
             isClosed = true;
             try {
@@ -115,6 +131,10 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
     }
 
     async getFileUrl(cacheKey: string, fileExtension = 'jsonl') {
+        if (!this.configuration || !this.s3) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+
         const key = S3ResultsFileStorageClient.sanitizeFileExtension(
             cacheKey,
             fileExtension,
@@ -205,6 +225,10 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             attachmentDownloadName?: string;
         },
     ): Promise<string> {
+        if (!this.configuration || !this.s3) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+
         const fileStream = fs.createReadStream(filePath);
 
         const upload = new Upload({

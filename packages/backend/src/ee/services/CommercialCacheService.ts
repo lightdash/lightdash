@@ -31,12 +31,16 @@ export class CommercialCacheService implements ICacheService {
         this.storageClient = storageClient;
     }
 
+    get isEnabled() {
+        return this.lightdashConfig.results.cacheEnabled;
+    }
+
     async findCachedResultsFile(
         projectUuid: string,
         cacheKey: string,
     ): Promise<CacheHitCacheResult | null> {
         // If caching is disabled, return null
-        if (!this.lightdashConfig.results.cacheEnabled) {
+        if (!this.isEnabled) {
             return null;
         }
 

@@ -422,10 +422,7 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
     );
 
     if (!endpoint || !bucket || !region) {
-        console.error(
-            'ERROR: S3 is not configured. Missing S3_ENDPOINT, S3_BUCKET, S3_REGION, read docs for more info: https://docs.lightdash.com/self-host/customize-deployment/environment-variables',
-        );
-        throw new ParseError('Missing S3 configuration');
+        return undefined;
     }
 
     return {
@@ -441,6 +438,11 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
 
 export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
     const baseS3Config = parseBaseS3Config();
+
+    if (!baseS3Config) {
+        return undefined;
+    }
+
     const {
         endpoint: baseEndpoint,
         bucket: baseBucket,
@@ -562,13 +564,13 @@ export type LightdashConfig = {
         overrideColorPalette?: string[];
         overrideColorPaletteName?: string;
     };
-    s3: S3Config;
+    s3?: S3Config;
     headlessBrowser: HeadlessBrowserConfig;
     results: {
         cacheEnabled: boolean;
         autocompleteEnabled: boolean;
         cacheStateTimeSeconds: number;
-        s3: Omit<S3Config, 'expirationTime'>;
+        s3?: Omit<S3Config, 'expirationTime'>;
     };
     slack?: SlackConfig;
     scheduler: {
