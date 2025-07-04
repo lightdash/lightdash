@@ -14,6 +14,19 @@ models:
           - join: plan
             sql_on: ${membership.plan_id} = ${plan.id}
             relationship: many-to-one
+        explores:
+          customers_simple:
+            label: Customers (Simple)
+            description: A simplified view of customers without membership data
+            joins: []
+          customers_with_orders:
+            label: Customers with Orders
+            description: Customers joined with their order history
+            group_label: Customer Analytics
+            joins:
+              - join: orders
+                sql_on: ${customers.customer_id} = ${orders.customer_id}
+                relationship: one-to-many
     description: |
       # Customers
 

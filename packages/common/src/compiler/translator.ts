@@ -682,6 +682,7 @@ export const convertExplores = async (
             // If there are any errors compiling the table return an ExploreError
             try {
                 // base dimensions and metrics
+                // TODO: remove old metrics handling
                 const tableMetrics = metrics.filter((metric) =>
                     modelCanUseMetric(metric.name, model.name, metrics),
                 );
@@ -692,11 +693,6 @@ export const convertExplores = async (
                     lightdashProjectConfig.spotlight,
                     warehouseSqlBuilder.getStartOfWeek(),
                 );
-
-                // add sources
-                if (loadSources && model.patch_path !== null) {
-                    throw new Error('Not Implemented');
-                }
 
                 // add lineage
                 const tableWithLineage: Table = {
@@ -738,7 +734,9 @@ export const convertExplores = async (
     );
 
     const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder);
-    const explores: (Explore | ExploreError)[] = validModels.map((model) => {
+    const explores: (Explore | ExploreError)[] = validModels.reduce<
+        (Explore | ExploreError)[]
+    >((acc, model) => {
         const meta = {
             ...(model.meta || {}),
             ...(model.config?.meta || {}), // Config block takes priority, then meta block
@@ -750,55 +748,99 @@ export const convertExplores = async (
         const tags =
             configTags && configTags.length > 0 ? configTags : model.tags;
 
-        try {
-            return exploreCompiler.compileExplore({
-                name: model.name,
-                label: meta.label || friendlyName(model.name),
-                tags: tags || [],
-                baseTable: model.name,
-                groupLabel: meta.group_label,
-                joinedTables: (meta?.joins || []).map((join) => ({
-                    table: join.join,
-                    sqlOn: join.sql_on,
-                    type: join.type,
-                    alias: join.alias,
-                    label: join.label,
-                    fields: join.fields,
-                    hidden: join.hidden,
-                    always: join.always,
-                    relationship: join.relationship,
-                })),
-                tables: tableLookup,
-                targetDatabase: adapterType,
-                warehouse: model.config?.snowflake_warehouse,
-                databricksCompute: model.config?.databricks_compute,
-                ymlPath: model.patch_path?.split('://')?.[1],
-                sqlPath: model.path,
-                spotlightConfig: lightdashProjectConfig.spotlight,
-                meta,
-            });
-        } catch (e: unknown) {
-            return {
+        // Create an array of explores to generate: base explore + any additional explores
+        const exploresToCreate = [
+            {
                 name: model.name,
                 label: meta.label || friendlyName(model.name),
                 groupLabel: meta.group_label,
+                joins: meta?.joins || [],
+                description: meta.description,
+            },
+            ...(meta.explores
+                ? Object.entries(meta.explores).map(
+                      ([exploreName, exploreConfig]) => ({
+                          name: exploreName,
+                          label:
+                              exploreConfig.label || friendlyName(exploreName),
+                          groupLabel:
+                              exploreConfig.group_label || meta.group_label,
+                          joins: exploreConfig.joins || [],
+                          description: exploreConfig.description,
+                      }),
+                  )
+                : []),
+        ];
 
-                errors: [
-                    {
-                        // TODO improve parsing of error type
-                        type:
-                            e instanceof ParseError
-                                ? InlineErrorType.METADATA_PARSE_ERROR
-                                : InlineErrorType.NO_DIMENSIONS_FOUND,
-                        message:
-                            e instanceof Error
-                                ? e.message
-                                : `Could not convert dbt model: "${model.name}" is not a valid model`,
+        // Multiple explores can be created from a single model. The base explore + additional explores
+        // Properties created from `model` are the same across all explores. e.g. all explores will have the same base table & warehouse
+        // Properties created from `exploreToCreate` are specific to each explore. e.g. each explore can have a different name, label & joins
+        const newExplores = exploresToCreate.map((exploreToCreate) => {
+            try {
+                return exploreCompiler.compileExplore({
+                    name: exploreToCreate.name,
+                    label: exploreToCreate.label,
+                    tags: tags || [],
+                    baseTable: model.name,
+                    groupLabel: exploreToCreate.groupLabel,
+                    joinedTables: exploreToCreate.joins.map((join) => ({
+                        table: join.join,
+                        sqlOn: join.sql_on,
+                        type: join.type,
+                        alias: join.alias,
+                        label: join.label,
+                        fields: join.fields,
+                        hidden: join.hidden,
+                        always: join.always,
+                        relationship: join.relationship,
+                    })),
+                    tables: tableLookup,
+                    targetDatabase: adapterType,
+                    warehouse: model.config?.snowflake_warehouse,
+                    databricksCompute: model.config?.databricks_compute,
+                    ymlPath: model.patch_path?.split('://')?.[1],
+                    sqlPath: model.path,
+                    spotlightConfig: lightdashProjectConfig.spotlight,
+                    meta: {
+                        ...meta,
+                        // Override description for additional explores
+                        ...(exploreToCreate.description !== undefined
+                            ? { description: exploreToCreate.description }
+                            : {}),
                     },
-                ],
-            };
-        }
-    });
+                });
+            } catch (e: unknown) {
+                return {
+                    name: exploreToCreate.name,
+                    label: exploreToCreate.label,
+                    groupLabel: exploreToCreate.groupLabel,
+                    errors: [
+                        {
+                            // TODO improve parsing of error type
+                            type:
+                                e instanceof ParseError
+                                    ? InlineErrorType.METADATA_PARSE_ERROR
+                                    : InlineErrorType.NO_DIMENSIONS_FOUND,
+                            message:
+                                e instanceof Error
+                                    ? e.message
+                                    : `Could not convert ${
+                                          exploreToCreate.name === model.name
+                                              ? 'dbt model'
+                                              : 'additional explore'
+                                      }: "${exploreToCreate.name}" ${
+                                          exploreToCreate.name !== model.name
+                                              ? `from model "${model.name}"`
+                                              : 'is not a valid model'
+                                      }`,
+                        },
+                    ],
+                } as ExploreError;
+            }
+        });
+
+        return [...acc, ...newExplores];
+    }, []);
 
     return [...explores, ...exploreErrors];
 };
