@@ -108,7 +108,7 @@ export const AgentChatInput = ({
                             bottom: 12,
                             right: 12,
                         }}
-                        color="violet"
+                        color="dark.5"
                         disabled={disabled || isComposing}
                         loading={loading}
                         onClick={() => {
@@ -124,7 +124,7 @@ export const AgentChatInput = ({
                 }
             />
 
-            {!disabled || (disabled && disabledReason) ? (
+            {disabled && disabledReason ? (
                 <Paper
                     px="sm"
                     py={rem(4)}
