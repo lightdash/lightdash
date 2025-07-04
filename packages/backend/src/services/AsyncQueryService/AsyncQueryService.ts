@@ -29,6 +29,7 @@ import {
     type ExecuteAsyncUnderlyingDataRequestParams,
     ExpiredError,
     Explore,
+    FeatureFlags,
     FieldType,
     ForbiddenError,
     formatRow,
@@ -62,10 +63,12 @@ import {
     type PivotValuesColumn,
     type Project,
     QueryExecutionContext,
+    type QueryHistory,
     QueryHistoryStatus,
     type ResultColumns,
     ResultRow,
     type RunQueryTags,
+    S3Error,
     SchedulerFormat,
     SessionUser,
     sleep,
@@ -88,6 +91,7 @@ import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClie
 import { measureTime } from '../../logging/measureTime';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { wrapSentryTransaction } from '../../utils';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import {
@@ -242,12 +246,23 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    async getResultsPage(
-        fileName: string,
+    async getResultsPageFromS3(
+        queryUuid: string,
+        fileName: string | null,
         page: number,
         pageSize: number,
         formatter: (row: ResultRow) => ResultRow,
     ) {
+        if (!this.storageClient.isEnabled) {
+            throw new S3Error('S3 is not enabled');
+        }
+
+        if (!fileName) {
+            throw new NotFoundError(
+                `Result file not found for query ${queryUuid}`,
+            );
+        }
+
         const cacheStream = await this.storageClient.getDowloadStream(fileName);
 
         const rows: ResultRow[] = [];
@@ -275,6 +290,37 @@ export class AsyncQueryService extends ProjectService {
         return {
             rows,
         };
+    }
+
+    async getResultsPageFromWarehouse(
+        user: SessionUser,
+        queryHistory: QueryHistory,
+        page: number,
+        pageSize: number,
+        formatter: (row: Record<string, unknown>) => ResultRow,
+    ) {
+        if (!queryHistory.projectUuid) {
+            throw new Error('Project UUID is required');
+        }
+
+        const warehouseConnection = await this._getWarehouseClient(
+            queryHistory.projectUuid,
+            await this.getWarehouseCredentials(
+                queryHistory.projectUuid,
+                user.userUuid,
+            ),
+        );
+
+        return warehouseConnection.warehouseClient.getAsyncQueryResults(
+            {
+                sql: queryHistory.compiledSql,
+                queryId: queryHistory.warehouseQueryId,
+                queryMetadata: queryHistory.warehouseQueryMetadata,
+                page,
+                pageSize,
+            },
+            formatter,
+        );
     }
 
     async cancelAsyncQuery({
@@ -391,12 +437,7 @@ export class AsyncQueryService extends ProjectService {
                 return assertUnreachable(status, 'Unknown query status');
         }
 
-        if (!resultsFileName || !resultsExpiresAt) {
-            throw new NotFoundError(
-                `Result file not found for query ${queryUuid}`,
-            );
-        }
-        if (resultsExpiresAt < new Date()) {
+        if (resultsExpiresAt && resultsExpiresAt < new Date()) {
             // TODO: throw a specific error the FE will respond to
             throw new ExpiredError(
                 `Results expired for file ${resultsFileName} and project ${projectUuid}`,
@@ -423,12 +464,21 @@ export class AsyncQueryService extends ProjectService {
             durationMs,
         } = await measureTime(
             () =>
-                this.getResultsPage(
-                    resultsFileName,
-                    page,
-                    defaultedPageSize,
-                    formatter,
-                ),
+                this.storageClient.isEnabled || this.cacheService?.isEnabled
+                    ? this.getResultsPageFromS3(
+                          queryUuid,
+                          resultsFileName,
+                          page,
+                          defaultedPageSize,
+                          formatter,
+                      )
+                    : this.getResultsPageFromWarehouse(
+                          user,
+                          queryHistory,
+                          page,
+                          defaultedPageSize,
+                          formatter,
+                      ),
             'getCachedResultsPage',
             this.logger,
             context,
@@ -473,7 +523,7 @@ export class AsyncQueryService extends ProjectService {
                 resultsPageExecutionMs: roundedDurationMs,
                 status,
                 cacheMetadata: {
-                    cacheExpiresAt: resultsExpiresAt,
+                    cacheExpiresAt: resultsExpiresAt ?? undefined,
                     cacheKey,
                 },
             },
@@ -952,7 +1002,7 @@ export class AsyncQueryService extends ProjectService {
         warehouseClient: WarehouseClient;
         query: string;
         queryTags: RunQueryTags;
-        write: (rows: Record<string, unknown>[]) => void;
+        write?: (rows: Record<string, unknown>[]) => void;
         pivotConfiguration?: {
             indexColumn: PivotIndexColum;
             valuesColumns: ValuesColumn[];
@@ -998,7 +1048,7 @@ export class AsyncQueryService extends ProjectService {
                       pivotConfiguration;
 
                   if (!groupByColumns || groupByColumns.length === 0) {
-                      write(rows);
+                      write?.(rows);
                       return;
                   }
 
@@ -1007,7 +1057,7 @@ export class AsyncQueryService extends ProjectService {
                       if (currentRowIndex !== row.row_index) {
                           if (currentTransformedRow) {
                               pivotTotalRows += 1;
-                              write([currentTransformedRow]);
+                              write?.([currentTransformedRow]);
                           }
 
                           if (indexColumn) {
@@ -1053,7 +1103,7 @@ export class AsyncQueryService extends ProjectService {
                       unpivotedColumns,
                       fields,
                   );
-                  write(rows);
+                  write?.(rows);
               };
 
         const warehouseResults = await warehouseClient.executeAsyncQuery(
@@ -1075,7 +1125,7 @@ export class AsyncQueryService extends ProjectService {
         // Write the last row
         if (currentTransformedRow) {
             pivotTotalRows += 1;
-            write([currentTransformedRow]);
+            write?.([currentTransformedRow]);
         }
 
         return {
@@ -1133,13 +1183,20 @@ export class AsyncQueryService extends ProjectService {
         try {
             const fileName =
                 QueryHistoryModel.createUniqueResultsFileName(cacheKey);
+
             // Create upload stream for storing results
-            stream = this.storageClient.createUploadStream(
-                S3ResultsFileStorageClient.sanitizeFileExtension(fileName),
-                {
-                    contentType: 'application/jsonl',
-                },
-            );
+            // If S3 is not configured, we don't write to S3
+            stream = this.storageClient.isEnabled
+                ? this.storageClient.createUploadStream(
+                      S3ResultsFileStorageClient.sanitizeFileExtension(
+                          fileName,
+                      ),
+                      {
+                          contentType: 'application/jsonl',
+                      },
+                  )
+                : undefined;
+
             const createdAt = new Date();
             const newExpiresAt = this.getCacheExpiresAt(createdAt);
             this.analytics.track({
@@ -1166,7 +1223,7 @@ export class AsyncQueryService extends ProjectService {
                 warehouseClient,
                 query,
                 queryTags,
-                write: stream.write,
+                write: stream?.write,
                 pivotConfiguration,
             });
 
@@ -1186,21 +1243,23 @@ export class AsyncQueryService extends ProjectService {
                 },
             });
 
-            // Wait for the cache to be written before marking the query as ready
-            await stream.close();
+            if (stream) {
+                // Wait for the file to be written before marking the query as ready
+                await stream.close();
 
-            this.analytics.track({
-                userId: user.userUuid,
-                event: 'results_cache.write',
-                properties: {
-                    queryId: queryHistoryUuid,
-                    projectId: projectUuid,
-                    cacheKey,
-                    totalRowCount: pivotDetails?.totalRows ?? totalRows,
-                    pivotTotalColumnCount: pivotDetails?.totalColumnCount,
-                    isPivoted: pivotDetails !== null,
-                },
-            });
+                this.analytics.track({
+                    userId: user.userUuid,
+                    event: 'results_cache.write',
+                    properties: {
+                        queryId: queryHistoryUuid,
+                        projectId: projectUuid,
+                        cacheKey,
+                        totalRowCount: pivotDetails?.totalRows ?? totalRows,
+                        pivotTotalColumnCount: pivotDetails?.totalColumnCount,
+                        isPivoted: pivotDetails !== null,
+                    },
+                });
+            }
 
             await this.queryHistoryModel.update(
                 queryHistoryUuid,
@@ -1219,10 +1278,10 @@ export class AsyncQueryService extends ProjectService {
                               pivotDetails.valuesColumns.entries(),
                           )
                         : null,
-                    results_file_name: fileName,
-                    results_created_at: createdAt,
-                    results_updated_at: new Date(),
-                    results_expires_at: newExpiresAt,
+                    results_file_name: stream ? fileName : null,
+                    results_created_at: stream ? createdAt : null,
+                    results_updated_at: stream ? new Date() : null,
+                    results_expires_at: stream ? newExpiresAt : null,
                     columns,
                     original_columns: originalColumns,
                 },
@@ -1281,6 +1340,13 @@ export class AsyncQueryService extends ProjectService {
             ? getIntrinsicUserAttributes(user)
             : {};
 
+        const useExperimentalMetricCtes = await isFeatureFlagEnabled(
+            FeatureFlags.ShowQueryWarnings,
+            user,
+            { throwOnTimeout: false },
+            false, // default value
+        );
+
         const fullQuery = await ProjectService._compileQuery(
             metricQuery,
             explore,
@@ -1289,6 +1355,7 @@ export class AsyncQueryService extends ProjectService {
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
             dateZoom,
+            useExperimentalMetricCtes,
         );
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(

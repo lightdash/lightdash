@@ -76,6 +76,8 @@ export const mapDbUserDetailsToLightdashUser = (
     hasAuthentication: boolean,
 ): LightdashUser => ({
     userUuid: user.user_uuid,
+    userId: user.user_id,
+    type: 'lightdash',
     email: user.email,
     firstName: user.first_name,
     lastName: user.last_name,
@@ -562,7 +564,6 @@ export class UserModel {
         });
 
         return {
-            userId: user.user_id,
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
             ...lightdashUser,
@@ -815,7 +816,7 @@ export class UserModel {
     static lightdashUserFromSession(
         sessionUser: SessionUser,
     ): LightdashUserWithAbilityRules {
-        const { userId, ability, ...lightdashUser } = sessionUser;
+        const { ability, ...lightdashUser } = sessionUser;
         return lightdashUser;
     }
 
@@ -836,6 +837,11 @@ export class UserModel {
             throw new ParameterError("Password doesn't meet requirements");
         }
         const user = await this.findSessionUserByUUID(userUuid);
+
+        if (!user?.userId) {
+            throw new NotExistsError('User is missing user_id');
+        }
+
         await this.database(PasswordLoginTableName)
             .insert({
                 user_id: user.userId,

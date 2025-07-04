@@ -1,3 +1,5 @@
+import { AgentToolCallArgsSchema, ToolNameSchema } from '@lightdash/common';
+import { captureException } from '@sentry/react';
 import { processDataStream } from 'ai';
 import { useCallback } from 'react';
 import { useDispatch } from 'react-redux';
@@ -77,14 +79,26 @@ export function useAiAgentThreadStreamMutation() {
                     },
                     onToolCallPart: (toolCall) => {
                         if (abortController.signal.aborted) return;
-                        dispatch(
-                            addToolCall({
-                                threadUuid,
-                                toolCallId: toolCall.toolCallId,
-                                toolName: toolCall.toolName,
-                                args: toolCall.args,
-                            }),
-                        );
+                        try {
+                            const toolName = ToolNameSchema.parse(
+                                toolCall.toolName,
+                            );
+                            const toolArgs = AgentToolCallArgsSchema.parse(
+                                toolCall.args,
+                            );
+
+                            dispatch(
+                                addToolCall({
+                                    threadUuid,
+                                    toolCallId: toolCall.toolCallId,
+                                    toolName,
+                                    toolArgs: toolArgs,
+                                }),
+                            );
+                        } catch (error) {
+                            console.error('Error parsing tool call:', error);
+                            captureException(error);
+                        }
                     },
                     onErrorPart: (error) => {
                         if (abortController.signal.aborted) return;

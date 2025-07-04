@@ -1,0 +1,78 @@
+version: 2
+models:
+  - name: fanouts_users
+    meta: 
+      required_attributes: 
+        is_admin_saas_demo: 'true'
+      primary_key: user_id
+      joins:
+        # Simple 1:1 join: Users → Addresses
+        - join: fanouts_addresses
+          sql_on: ${fanouts_users.user_id} = ${fanouts_addresses.user_id} and fanouts_addresses.valid_to is null 
+          type: left
+          fields: [ address_id, user_id, street_address, city, state, postal_code, country_iso_code, valid_from, valid_to ]
+
+    columns:
+      - name: user_id
+        description: "Unique identifier for this user"
+        meta:
+          dimension:
+            type: string
+          metrics:
+            inflated_user_count:
+              type: count
+              label: "🚨 INFLATED User Count"
+              description: "❌ WRONG: If grain of data is not at user level then this will be
+                inflated"
+            unique_user_count:
+              type: count_distinct
+              label: "✅ FANOUT SAFE Unique User Count"
+              description: "✅ CORRECT: Uses count_distinct so won't inflate"
+
+      - name: account_id
+        description: "Links to the account table"
+        meta:
+          dimension:
+            type: string
+
+      - name: job_title
+        description: "Role within organization"
+        meta:
+          dimension:
+            type: string
+          metrics:
+            unique_job_title_count:
+              type: count_distinct
+              label: "✅ FANOUT SAFE Unique Job Title Count"
+              description: "✅ CORRECT: Uses count_distinct so won't inflate"
+            inflated_job_title_count:
+              type: count
+              label: "🚨 INFLATED Job Title Count"
+              description: "❌ WRONG: this will be incorrect regardless of the grain of the
+                data because job titles are not unique in the users table. "
+
+      - name: is_marketing_opted_in
+        description: "Marketing communication preference (0/1)"
+        meta:
+          dimension:
+            type: boolean
+      - name: email
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: created_at
+        description: ""
+        meta:
+          dimension:
+            type: timestamp
+      - name: first_logged_in_at
+        description: ""
+        meta:
+          dimension:
+            type: timestamp
+      - name: latest_logged_in_at
+        description: ""
+        meta:
+          dimension:
+            type: timestamp

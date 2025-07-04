@@ -24,6 +24,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
+import { useDelayedHover } from '../../../hooks/useDelayedHover';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
 import ChartUpdateModal from '../TileForms/ChartUpdateModal';
@@ -85,6 +86,9 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         setIsDeletingChartThatBelongsToDashboard,
     ] = useState(false);
     const { hovered: containerHovered, ref: containerRef } = useHover();
+    const { isHovered: chartHovered, ...chartHoveredProps } = useDelayedHover({
+        delay: 500,
+    });
     const [titleHovered, setTitleHovered] = useState(false);
     const [isMenuOpen, toggleMenu] = useToggle([false, true]);
 
@@ -204,7 +208,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             {visibleHeaderElement}
                         </Group>
                     )}
-                    {(containerHovered && !titleHovered) ||
+                    {(containerHovered && !titleHovered && !chartHovered) ||
                     isMenuOpen ||
                     lockHeaderVisibility ? (
                         <>
@@ -316,7 +320,15 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 </Group>
             </HeaderContainer>
 
-            <ChartContainer className="non-draggable sentry-block ph-no-capture">
+            <ChartContainer
+                className="non-draggable sentry-block ph-no-capture"
+                onMouseEnter={
+                    hideTitle ? chartHoveredProps.handleMouseEnter : undefined
+                }
+                onMouseLeave={
+                    hideTitle ? chartHoveredProps.handleMouseLeave : undefined
+                }
+            >
                 {children}
             </ChartContainer>
 

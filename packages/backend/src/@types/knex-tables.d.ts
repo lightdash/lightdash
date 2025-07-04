@@ -342,8 +342,8 @@ declare module 'knex/types/tables' {
         [AiAgentIntegrationTableName]: AiAgentIntegrationTable;
         [AiAgentSlackIntegrationTableName]: AiAgentSlackIntegrationTable;
         [AiAgentInstructionVersionsTableName]: AiAgentInstructionVersionsTable;
-        [AiAgentToolCallTableName]: AiAgentToolCallTable;
         [AiAgentUserPreferencesTableName]: AiAgentUserPreferencesTable;
+        [AiAgentToolCallTableName]: AiAgentToolCallTable;
         [AiAgentToolResultTableName]: AiAgentToolResultTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;

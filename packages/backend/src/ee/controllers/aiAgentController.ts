@@ -10,7 +10,6 @@ import {
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiConversationMessages,
-    ApiAiConversationResponse,
     ApiAiConversations,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
@@ -309,6 +308,7 @@ export class AiAgentController extends BaseController {
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
         await this.getAiAgentService().updateHumanScoreForMessage(
+            req.user!,
             messageUuid,
             body.humanScore,
         );
@@ -384,26 +384,6 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('/projects/{projectUuid}/conversations')
-    @OperationId('createAiAgentConversation')
-    async createAiAgentConversation(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Body() body: { question: string },
-    ): Promise<ApiAiConversationResponse> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiAgentService().createWebAppConversation(
-                req.user!,
-                projectUuid,
-                body.question,
-            ),
-        };
-    }
-
     protected getAiAgentService() {
         return this.services.getAiAgentService<AiAgentService>();
     }
@@ -452,6 +432,25 @@ export class AiAgentUserPreferencesController extends BaseController {
             req.user!,
             projectUuid,
             body,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete()
+    @OperationId('deleteUserAgentPreferences')
+    async deleteUserAgentPreferences(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.getAiAgentService().deleteUserAgentPreferences(
+            req.user!,
+            projectUuid,
         );
         return {
             status: 'ok',

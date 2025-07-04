@@ -1,0 +1,200 @@
+version: 2
+models:
+  - name: fanouts_accounts_bridged_fanout
+    description: |
+      This model demonstrates a many-to-many join pattern that creates extreme metric inflation:
+      Accounts → Deals → User_Deals (junction table) → Users
+
+      This creates a complex fanout where:
+      - Each account can have multiple deals
+      - Each deal can have multiple users (through the junction table)
+      - Each user can work on multiple deals (through the junction table)
+      
+      The result is that account records get multiplied by the total number of user-deal combinations,
+      creating extreme fanout that significantly inflates COUNT metrics while leaving COUNT_DISTINCT safe.
+      
+      This demonstrates how many-to-many relationships through junction tables can create 
+      multiplicative fanout effects that are much more severe than simple 1-to-many joins. 
+
+    meta:
+      required_attributes: 
+        is_admin_saas_demo: 'true'
+      sql_filter: ${lightdash.attributes.is_admin_saas_demo} = 'true' or segment !=
+        'Enterprise'
+      joins:
+        # 🚨 INTENTIONAL METRICS INFLATION DEMO 🚨
+
+        # Simple 1-to-many: Accounts → Deals (runs parallel to deals join)
+        - join: fanouts_deals
+          relationship: one-to-many
+          sql_on: ${fanouts_accounts_bridged_fanout.account_id} = ${fanouts_deals.account_id}
+          type: left
+          fields:
+            [
+              deal_id,
+              unique_deal_count,
+              stage,
+              amount,
+              inflated_total_deal_value,
+              inflated_average_deal_value,
+              inflated_deal_count,
+              max_deal_value,
+              min_deal_value,
+              median_deal_value, 
+              created_date
+            ]
+
+        # Many-to-many: Deals → User_Deals (junction table)
+        - join: fanouts_user_deals
+          relationship: one-to-many
+          sql_on: ${fanouts_deals.deal_id} = ${fanouts_user_deals.deal_id}
+          type: left
+          fields:
+            [
+              user_id,
+              role,
+              unique_role_count,
+              inflated_role_count
+            ]
+
+        # Many-to-many completion: User_Deals → Users
+        - join: fanouts_users
+          relationship: many-to-one
+          sql_on: ${fanouts_user_deals.user_id} = ${fanouts_users.user_id}
+          type: left
+          fields:
+            [
+              user_id, 
+              unique_user_count,
+              inflated_user_count,
+              job_title,
+              is_marketing_opted_in,
+              unique_job_title_count,
+              inflated_job_title_count,
+              email,
+              created_at,
+              first_logged_in_at
+            ]
+
+        # Chained many-to-many: Users → Events (builds on the many-to-many join above)
+        - join: fanouts_tracks
+          relationship: one-to-many
+          sql_on: ${fanouts_users.user_id} = ${fanouts_tracks.user_id}
+          type: left
+          fields:
+            [
+              unique_event_count,
+              inflated_event_count,
+              event_name,
+              timestamp,
+              event_id
+            ]
+
+        - join: fanouts_addresses
+          relationship: one-to-one
+          sql_on: ${fanouts_users.user_id} = ${fanouts_addresses.user_id} AND ${fanouts_addresses.valid_to} IS NULL
+          type: left
+          fields: [ street_address, city, state, postal_code, country_iso_code, valid_from, valid_to, unique_city_count, inflated_city_count ]
+
+        - join: fanouts_countries
+          relationship: many-to-one
+          sql_on: ${fanouts_addresses.country_iso_code} = ${fanouts_countries.iso_code}
+          type: left
+          fields: [ country_name, unique_country_count, inflated_country_count ]
+
+        - join: fanouts_sales_targets
+          alias: fanouts_industry_sales_targets
+          relationship: many-to-one 
+          sql_on: |
+            ${fanouts_deals.created_date} BETWEEN ${fanouts_industry_sales_targets.quarter_start_date} AND ${fanouts_industry_sales_targets.quarter_end_date} 
+            AND  
+              (
+                (${fanouts_deals.stage} = 'Won' AND ${fanouts_accounts_bridged_fanout.industry} = ${fanouts_industry_sales_targets.target_value} AND ${fanouts_industry_sales_targets.target_type} = 'industry')
+              )
+          type: left
+          fields:
+            [
+              target_deals,
+              target_amount,
+              quarter_start_date,
+              total_target_deal_count,
+              total_target_deal_amount
+            ]
+        - join: fanouts_sales_targets
+          alias: fanouts_segment_sales_targets
+          relationship: many-to-one 
+          sql_on: |
+            ${fanouts_deals.created_date} BETWEEN ${fanouts_segment_sales_targets.quarter_start_date} AND ${fanouts_segment_sales_targets.quarter_end_date} 
+            AND  
+              (
+                (${fanouts_deals.stage} = 'Won' AND ${fanouts_accounts_bridged_fanout.segment} = ${fanouts_segment_sales_targets.target_value} AND ${fanouts_segment_sales_targets.target_type} = 'segment')
+              )
+          type: left # Since this is a LEFT JOIN, deals that are not 'Won' will appear with NULL sales target data
+          fields:
+            [
+              target_deals,
+              target_amount,
+              quarter_start_date,
+              total_target_deal_count,
+              total_target_deal_amount
+            ]
+    columns:
+      - name: account_id
+        description: "The Account ID from our database"
+        meta:
+          dimension:
+            type: string
+          metrics:
+            unique_accounts:
+              type: count_distinct
+              label: "✅ FANOUT SAFE Unique Account Count"
+              description: "✅ CORRECT: Uses count_distinct so won't inflate"
+
+            # 🚨 INFLATION DEMO METRICS 🚨
+            inflated_account_count:
+              type: count
+              label: "🚨 INFLATED Account Count"
+              description: "❌ WRONG: Uses COUNT instead of COUNT_DISTINCT - will inflate based
+                on the grain of the data"
+
+      - name: account_name
+        description: "Name of this company account"
+        meta:
+          dimension:
+            type: string
+
+      - name: industry
+        description: "Stock market industry for this account"
+        meta:
+          dimension:
+            type: string
+          metrics:
+            unique_industry_count:
+              type: count_distinct
+              label: "✅ SAFE Unique Industry Count"
+              description: "✅ CORRECT: Uses count_distinct so won't inflate regardless of the
+                grain of the data"
+            inflated_industry_count:
+              type: count
+              label: "🚨 ALWAYS INFLATED Industry Count"
+              description: "❌ WRONG: Uses COUNT instead of COUNT_DISTINCT - will always return
+                inflated count because multiple accounts can fall into the same
+                industry."
+
+      - name: segment
+        description: "The market Segment for this account (SMB, Midmarket, Enterprise)"
+        meta:
+          dimension:
+            type: string
+          metrics:
+            unique_segment_count:
+              type: count_distinct
+              label: "✅ SAFE Unique Segment Count"
+              description: "✅ CORRECT: Uses count_distinct so won't inflate regardless of the
+                grain of the data."
+            inflated_segment_count:
+              type: count
+              label: "🚨 ALWAYS INFLATED Segment Count"
+              description: "❌ WRONG: Uses COUNT instead of COUNT_DISTINCT - will always return
+                inflated count because multiple accounts can fall into the same
+                segment."

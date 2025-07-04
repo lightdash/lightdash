@@ -6,23 +6,16 @@ import type {
     ApiSuccessEmpty,
     CacheMetadata,
     ItemsMap,
-    MetricQuery,
 } from '../..';
+import { type AiMetricQuery, type AiResultType } from './types';
 
-/**
- * Supported AI visualization chart types
- */
-// TODO: Think better naming for this or sharing similar names with explorer
-export enum AiChartType {
-    TIME_SERIES_CHART = 'time_series_chart',
-    VERTICAL_BAR_CHART = 'vertical_bar_chart',
-    CSV = 'csv', // TABLE -  this is also table
-}
-
-export type AiMetricQuery = Pick<
-    MetricQuery,
-    'metrics' | 'dimensions' | 'sorts' | 'limit' | 'exploreName' | 'filters'
->;
+export * from './constants';
+export * from './filterExploreByTags';
+export * from './followUpTools';
+export * from './requestTypes';
+export * from './schemas';
+export * from './types';
+export * from './utils';
 
 export const baseAgentSchema = z.object({
     uuid: z.string(),
@@ -214,7 +207,7 @@ export type ApiAiAgentStartThreadResponse = {
 };
 
 export type ApiAiAgentThreadMessageViz = {
-    type: AiChartType;
+    type: AiResultType;
     metricQuery: AiMetricQuery;
     chartOptions?: object;
     results: {
@@ -235,7 +228,7 @@ export type AiVizMetadata = {
 };
 
 export type ApiAiAgentThreadMessageVizQuery = {
-    type: AiChartType;
+    type: AiResultType;
     query: ApiExecuteAsyncMetricQueryResults;
     metadata: AiVizMetadata;
 };
@@ -244,8 +237,6 @@ export type ApiAiAgentThreadMessageVizQueryResponse = {
     status: 'ok';
     results: ApiAiAgentThreadMessageVizQuery;
 };
-
-export * from './filterExploreByTags';
 
 export type AiAgentUserPreferences = {
     defaultAgentUuid: AiAgent['uuid'];

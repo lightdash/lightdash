@@ -104,8 +104,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     slackClient: clients.getSlackClient(),
-                    schedulerClient:
-                        clients.getSchedulerClient() as CommercialSchedulerClient,
                     projectService: repository.getProjectService(),
                     catalogService:
                         repository.getCatalogService() as CommercialCatalogService,

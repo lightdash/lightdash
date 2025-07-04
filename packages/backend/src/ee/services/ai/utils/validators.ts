@@ -1,4 +1,5 @@
 import {
+    AI_DEFAULT_MAX_QUERY_LIMIT,
     CompiledField,
     Explore,
     FilterRule,
@@ -9,6 +10,7 @@ import {
     SupportedDbtAdapter,
     WeekDay,
 } from '@lightdash/common';
+import { serializeData } from './serializeData';
 
 /**
  * Validate that all selected fields exist in the explore
@@ -50,10 +52,7 @@ function validateFilterRule(filterRule: FilterRule, field: CompiledField) {
         throw new Error(`
 Error: ${getErrorMessage(e)}
 Filter Rule:
-
-\`\`\`json
-${JSON.stringify(filterRule, null, 2)}
-\`\`\``);
+${serializeData(filterRule, 'json')}`);
     }
 }
 
@@ -71,15 +70,11 @@ export function validateFilterRules(
 
         if (!field) {
             filterRuleErrors.push(
-                `
-Error: the field with id "${
+                `Error: the field with id "${
                     rule.target.fieldId
                 }" does not exist in the selected explore.
 FilterRule:
-
-\`\`\`json
-${JSON.stringify(rule, null, 2)}
-\`\`\``,
+${serializeData(rule, 'json')}`,
             );
             return;
         }
@@ -102,22 +97,4 @@ Errors:
 
 ${filterRuleErrorStrings}`);
     }
-}
-
-export const AI_DEFAULT_MAX_QUERY_LIMIT = 1000;
-export function getValidAiQueryLimit(
-    limit: number | null,
-    maxLimit: number = AI_DEFAULT_MAX_QUERY_LIMIT, // ! Allow limit override
-) {
-    if (!limit) {
-        return maxLimit;
-    }
-
-    if (limit > maxLimit) {
-        throw new Error(
-            `The limit provided is greater than the maximum allowed limit of ${maxLimit}`,
-        );
-    }
-
-    return limit;
 }

@@ -1,3 +1,80 @@
+# [0.1782.0](https://github.com/lightdash/lightdash/compare/0.1781.0...0.1782.0) (2025-07-03)
+
+
+### Features
+
+* make s3 optional for snowflake ([#15692](https://github.com/lightdash/lightdash/issues/15692)) ([61f434d](https://github.com/lightdash/lightdash/commit/61f434deeefa9239bd2d26b02e1560b6379404bc))
+
+# [0.1781.0](https://github.com/lightdash/lightdash/compare/0.1780.3...0.1781.0) (2025-07-03)
+
+
+### Features
+
+* allow toggling default agent ([#15694](https://github.com/lightdash/lightdash/issues/15694)) ([0d5bf73](https://github.com/lightdash/lightdash/commit/0d5bf73019891666a16f7ca5dd0814913b261545))
+
+## [0.1780.3](https://github.com/lightdash/lightdash/compare/0.1780.2...0.1780.3) (2025-07-03)
+
+
+### Bug Fixes
+
+* Legend scroll arrows don't work when chart title is hidden on a dashboard ([#15685](https://github.com/lightdash/lightdash/issues/15685)) ([37db117](https://github.com/lightdash/lightdash/commit/37db117a9d10d8b2e54c4692a6554f39550c537e)), closes [#15654](https://github.com/lightdash/lightdash/issues/15654)
+
+## [0.1780.2](https://github.com/lightdash/lightdash/compare/0.1780.1...0.1780.2) (2025-07-03)
+
+
+### Bug Fixes
+
+* Fix validation modal doesn't update custom metrics ([#15671](https://github.com/lightdash/lightdash/issues/15671)) ([9ce1dca](https://github.com/lightdash/lightdash/commit/9ce1dca498976c566030a2d70d510e2ac1474637)), closes [#15652](https://github.com/lightdash/lightdash/issues/15652)
+
+## [0.1780.1](https://github.com/lightdash/lightdash/compare/0.1780.0...0.1780.1) (2025-07-03)
+
+
+### Bug Fixes
+
+* improve chat UI and time formatting ([#15693](https://github.com/lightdash/lightdash/issues/15693)) ([d8cb42b](https://github.com/lightdash/lightdash/commit/d8cb42be01d76300f463706158dc8e626f9138aa))
+
+# [0.1780.0](https://github.com/lightdash/lightdash/compare/0.1779.0...0.1780.0) (2025-07-03)
+
+
+### Features
+
+* implement experimental CTEs to prevent metric inflation ([#15590](https://github.com/lightdash/lightdash/issues/15590)) ([4fbcca5](https://github.com/lightdash/lightdash/commit/4fbcca57f8df23cd51513d5749c9a02ad90dc570))
+
+# [0.1779.0](https://github.com/lightdash/lightdash/compare/0.1778.1...0.1779.0) (2025-07-03)
+
+
+### Features
+
+* improve AI Agent streamed tool calls UI ([#15680](https://github.com/lightdash/lightdash/issues/15680)) ([5415814](https://github.com/lightdash/lightdash/commit/541581444def5d982a7742cf9e497773d5205ac6)), closes [#15665](https://github.com/lightdash/lightdash/issues/15665)
+
+## [0.1778.1](https://github.com/lightdash/lightdash/compare/0.1778.0...0.1778.1) (2025-07-03)
+
+
+### Bug Fixes
+
+* remove minimum requirement for metrics in tableViz schema ([#15695](https://github.com/lightdash/lightdash/issues/15695)) ([88b4dc3](https://github.com/lightdash/lightdash/commit/88b4dc33774f7829d09414fa7d189af46d20a026)), closes [#15691](https://github.com/lightdash/lightdash/issues/15691)
+
+# [0.1778.0](https://github.com/lightdash/lightdash/compare/0.1777.0...0.1778.0) (2025-07-03)
+
+
+### Features
+
+* Use JWT Middleware in EmbedController ([#15579](https://github.com/lightdash/lightdash/issues/15579)) ([a499ece](https://github.com/lightdash/lightdash/commit/a499eced6aadd068963a8bbf2319311cf488875e))
+
+# [0.1777.0](https://github.com/lightdash/lightdash/compare/0.1776.0...0.1777.0) (2025-07-03)
+
+
+### Features
+
+* add tool call history to AI agent conversation context ([#15613](https://github.com/lightdash/lightdash/issues/15613)) ([e9f41ed](https://github.com/lightdash/lightdash/commit/e9f41ed388afe7ba1483f90ae708bc2e447465d5))
+
+# [0.1776.0](https://github.com/lightdash/lightdash/compare/0.1775.3...0.1776.0) (2025-07-03)
+
+
+### Features
+
+* add findExplores tool and refactor agent settings retrieval ([#15603](https://github.com/lightdash/lightdash/issues/15603)) ([cdd22ac](https://github.com/lightdash/lightdash/commit/cdd22acad0a916eec10d1f631e952c570ed3ac36))
+
 ## [0.1775.3](https://github.com/lightdash/lightdash/compare/0.1775.2...0.1775.3) (2025-07-02)
 
 

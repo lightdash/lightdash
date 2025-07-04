@@ -1,13 +1,14 @@
 import {
-    AiChartType,
+    AiResultType,
     assertUnreachable,
     CartesianSeriesType,
     ChartType,
+    parseVizConfig,
     type ChartConfig,
-    type CsvFileVizConfigSchemaType,
     type MetricQuery,
     type PivotReference,
     type ResultRow,
+    type TableVizConfigSchemaType,
     type TimeSeriesMetricVizConfigSchemaType,
     type VerticalBarMetricVizConfigSchemaType,
 } from '@lightdash/common';
@@ -163,8 +164,8 @@ const getTimeSeriesMetricEchartsConfig = (
     };
 };
 
-const getCsvMetricEchartsConfig = (
-    _config: CsvFileVizConfigSchemaType,
+const getTableMetricEchartsConfig = (
+    _config: TableVizConfigSchemaType,
     _rows: Record<string, unknown>[],
 ): ChartConfig => {
     return {
@@ -173,35 +174,51 @@ const getCsvMetricEchartsConfig = (
 };
 
 export const getChartConfigFromAiAgentVizConfig = ({
-    config,
-    rows,
-    type,
+    vizConfigOutput,
     metricQuery,
+    rows,
+    maxQueryLimit,
 }: {
+    vizConfigOutput: object | null;
     metricQuery: MetricQuery;
     rows: Record<string, unknown>[];
-} & (
-    | {
-          type: AiChartType.VERTICAL_BAR_CHART;
-          config: VerticalBarMetricVizConfigSchemaType;
-      }
-    | {
-          type: AiChartType.TIME_SERIES_CHART;
-          config: TimeSeriesMetricVizConfigSchemaType;
-      }
-    | {
-          type: AiChartType.CSV;
-          config: CsvFileVizConfigSchemaType;
-      }
-)): ChartConfig => {
-    switch (type) {
-        case AiChartType.VERTICAL_BAR_CHART:
-            return getVerticalBarMetricEchartsConfig(config, metricQuery, rows);
-        case AiChartType.TIME_SERIES_CHART:
-            return getTimeSeriesMetricEchartsConfig(config, metricQuery, rows);
-        case AiChartType.CSV:
-            return getCsvMetricEchartsConfig(config, rows);
+    maxQueryLimit?: number;
+}) => {
+    const parsedConfig = parseVizConfig(vizConfigOutput, maxQueryLimit);
+    if (!parsedConfig) {
+        throw new Error('Invalid viz config');
+    }
+
+    switch (parsedConfig.type) {
+        case AiResultType.VERTICAL_BAR_RESULT:
+            return {
+                ...parsedConfig,
+                echartsConfig: getVerticalBarMetricEchartsConfig(
+                    parsedConfig.vizTool.vizConfig,
+                    metricQuery,
+                    rows,
+                ),
+            };
+        case AiResultType.TIME_SERIES_RESULT:
+            return {
+                ...parsedConfig,
+                echartsConfig: getTimeSeriesMetricEchartsConfig(
+                    parsedConfig.vizTool.vizConfig,
+                    metricQuery,
+                    rows,
+                ),
+            };
+        case AiResultType.TABLE_RESULT:
+            return {
+                ...parsedConfig,
+                echartsConfig: getTableMetricEchartsConfig(
+                    parsedConfig.vizTool.vizConfig,
+                    rows,
+                ),
+            };
+        case AiResultType.ONE_LINE_RESULT:
+            throw new Error('One line result does not have a visualization');
         default:
-            throw assertUnreachable(type, 'Invalid chart type');
+            return assertUnreachable(parsedConfig, 'Invalid chart type');
     }
 };

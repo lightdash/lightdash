@@ -1,0 +1,65 @@
+target_type,target_value,quarter_start_date,target_deals,target_amount
+industry,Financial Services,2023-01-01,15,37500
+industry,Financial Services,2023-04-01,18,45000
+industry,Financial Services,2023-07-01,17,42500
+industry,Financial Services,2023-10-01,20,50000
+industry,Financial Services,2024-01-01,19,47500
+industry,Financial Services,2024-04-01,22,55000
+industry,Financial Services,2024-07-01,21,52500
+industry,Financial Services,2024-10-01,25,62500
+segment,SMB,2023-01-01,8,20000
+segment,SMB,2023-04-01,10,25000
+segment,SMB,2023-07-01,9,22500
+segment,SMB,2023-10-01,12,30000
+segment,SMB,2024-01-01,11,27500
+segment,SMB,2024-04-01,14,35000
+segment,SMB,2024-07-01,13,32500
+segment,SMB,2024-10-01,16,40000
+segment,Midmarket,2023-01-01,12,30000
+segment,Midmarket,2023-04-01,15,37500
+segment,Midmarket,2023-07-01,14,35000
+segment,Midmarket,2023-10-01,18,45000
+segment,Midmarket,2024-01-01,16,40000
+segment,Midmarket,2024-04-01,20,50000
+segment,Midmarket,2024-07-01,19,47500
+segment,Midmarket,2024-10-01,23,57500
+segment,Enterprise,2023-01-01,25,62500
+segment,Enterprise,2023-04-01,30,75000
+segment,Enterprise,2023-07-01,28,70000
+segment,Enterprise,2023-10-01,35,87500
+segment,Enterprise,2024-01-01,32,80000
+segment,Enterprise,2024-04-01,38,95000
+segment,Enterprise,2024-07-01,35,87500
+segment,Enterprise,2024-10-01,42,105000
+industry,Technology,2023-01-01,20,50000
+industry,Technology,2023-04-01,24,60000
+industry,Technology,2023-07-01,22,55000
+industry,Technology,2023-10-01,28,70000
+industry,Technology,2024-01-01,25,62500
+industry,Technology,2024-04-01,30,75000
+industry,Technology,2024-07-01,28,70000
+industry,Technology,2024-10-01,35,87500
+industry,Healthcare,2023-01-01,18,45000
+industry,Healthcare,2023-04-01,22,55000
+industry,Healthcare,2023-07-01,20,50000
+industry,Healthcare,2023-10-01,25,62500
+industry,Healthcare,2024-01-01,23,57500
+industry,Healthcare,2024-04-01,28,70000
+industry,Healthcare,2024-07-01,26,65000
+industry,Healthcare,2024-10-01,32,80000
+country,USA,2023-01-01,25,62500
+country,USA,2023-04-01,30,75000
+country,USA,2023-07-01,28,70000
+country,USA,2023-10-01,35,87500
+country,USA,2024-01-01,32,80000
+country,USA,2024-04-01,38,95000
+country,USA,2024-07-01,35,87500
+country,USA,2024-10-01,42,105000
+country,GBR,2023-01-01,20,50000
+country,GBR,2023-04-01,24,60000
+country,GBR,2023-07-01,22,55000
+country,GBR,2023-10-01,28,70000
+country,GBR,2024-01-01,25,62500
+country,GBR,2024-04-01,30,75000
+country,GBR,2024-07-01,28,70000
+country,GBR,2024-10-01,35,87500

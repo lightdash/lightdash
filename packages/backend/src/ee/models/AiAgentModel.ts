@@ -1118,14 +1118,10 @@ export class AiAgentModel {
             .update({
                 responded_at: this.database.fn.now(),
                 ...(data.response ? { response: data.response } : {}),
-                ...(data.filtersOutput
-                    ? { filters_output: data.filtersOutput }
-                    : {}),
                 ...(data.vizConfigOutput
                     ? { viz_config_output: data.vizConfigOutput }
                     : {}),
                 ...(data.humanScore ? { human_score: data.humanScore } : {}),
-                ...(data.metricQuery ? { metric_query: data.metricQuery } : {}),
             })
             .where({
                 ai_prompt_uuid: data.promptUuid,
@@ -1349,6 +1345,18 @@ export class AiAgentModel {
             });
     }
 
+    async deleteUserAgentPreferences({
+        userUuid,
+        projectUuid,
+    }: {
+        userUuid: string;
+        projectUuid: string;
+    }): Promise<void> {
+        await this.database(AiAgentUserPreferencesTableName)
+            .where({ user_uuid: userUuid, project_uuid: projectUuid })
+            .delete();
+    }
+
     async createToolCall(data: {
         promptUuid: string;
         toolCallId: string;
@@ -1399,5 +1407,57 @@ export class AiAgentModel {
 
             return toolResults.map((tr) => tr.ai_agent_tool_result_uuid);
         });
+    }
+
+    async getToolResultsForPrompt(
+        promptUuid: string,
+    ): Promise<DbAiAgentToolResult[]> {
+        return this.database(AiAgentToolResultTableName)
+            .where('ai_prompt_uuid', promptUuid)
+            .orderBy('created_at', 'asc');
+    }
+
+    async getToolCallsAndResultsForPrompt(promptUuid: string) {
+        const toolCallsAndResults = await this.database(
+            AiAgentToolCallTableName,
+        )
+            .select<
+                Array<
+                    Pick<
+                        DbAiAgentToolCall,
+                        | 'ai_agent_tool_call_uuid'
+                        | 'tool_call_id'
+                        | 'tool_name'
+                        | 'tool_args'
+                        | 'created_at'
+                    > &
+                        Pick<
+                            DbAiAgentToolResult,
+                            'ai_agent_tool_result_uuid' | 'result'
+                        >
+                >
+            >(
+                `${AiAgentToolCallTableName}.ai_agent_tool_call_uuid`,
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiAgentToolCallTableName}.tool_name`,
+                `${AiAgentToolCallTableName}.tool_args`,
+                `${AiAgentToolCallTableName}.created_at`,
+                `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid`,
+                `${AiAgentToolResultTableName}.result`,
+            )
+            // we only want to return tool_calls that have a matching tool_result
+            .innerJoin(
+                AiAgentToolResultTableName,
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiAgentToolResultTableName}.tool_call_id`,
+            )
+            .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
+            .andWhere(
+                `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+                promptUuid,
+            )
+            .orderBy(`${AiAgentToolCallTableName}.created_at`, 'asc');
+
+        return toolCallsAndResults;
     }
 }

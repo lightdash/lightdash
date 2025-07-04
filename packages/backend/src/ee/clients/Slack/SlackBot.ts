@@ -1,6 +1,8 @@
 import {
     AiAgentNotFoundError,
     AiDuplicateSlackPromptError,
+    FollowUpTools,
+    followUpToolsText,
 } from '@lightdash/common';
 import {
     AllMiddlewareArgs,
@@ -16,10 +18,6 @@ import Logger from '../../../logging/logger';
 import { AiAgentModel } from '../../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
-import {
-    FollowUpTools,
-    followUpToolsText,
-} from '../../services/ai/types/followUpTools';
 import { AiAgentService } from '../../services/AiAgentService';
 
 type CommercialSlackBotArguments = SlackBotArguments & {
@@ -111,7 +109,7 @@ export class CommercialSlackBot extends SlackBot {
                         if (!promptUuid) {
                             return;
                         }
-                        await this.aiAgentService.updateHumanScoreForPrompt(
+                        await this.aiAgentService.updateHumanScoreForSlackPrompt(
                             promptUuid,
                             1,
                         );
@@ -156,7 +154,7 @@ export class CommercialSlackBot extends SlackBot {
                         if (!promptUuid) {
                             return;
                         }
-                        await this.aiAgentService.updateHumanScoreForPrompt(
+                        await this.aiAgentService.updateHumanScoreForSlackPrompt(
                             promptUuid,
                             -1,
                         );

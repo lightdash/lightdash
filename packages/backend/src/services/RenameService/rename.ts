@@ -84,14 +84,20 @@ export const createRenameFactory = ({
         replaceString = (str: string) =>
             str.replace(new RegExp(`${from}`, 'g'), `${to}`);
         replaceFieldReference = (str: string) => {
-            /// These are for ${TABLE}.field references like in additionalMetrics
+            // These are for ${TABLE}.field references like in additionalMetrics
+            // We only update here if the str is the same as the expected fromReference
+            // to avoid updating other references
             if (str.startsWith('${TABLE}')) {
+                const strWithoutTable = str.split('.')[1];
                 const fromReferenceWithoutTable = fromReference.split('.')[1];
                 const toReferenceWithoutTable = toReference.split('.')[1];
-                return str.replace(
-                    fromReferenceWithoutTable,
-                    toReferenceWithoutTable,
-                );
+                if (strWithoutTable === fromReferenceWithoutTable) {
+                    return str.replace(
+                        fromReferenceWithoutTable,
+                        toReferenceWithoutTable,
+                    );
+                }
+                return str;
             }
             return replaceReference(str);
         };
@@ -616,6 +622,14 @@ export const getNameChanges = ({
     };
 };
 
+const addSuffixIfPrefix = (value: string, isPrefix: boolean) =>
+    `${value}${isPrefix ? '_' : ''}`;
+
+const buildModelNameChecker = (searchTerms: string[]) => (model: Object) => {
+    const stringified = JSON.stringify(model);
+    return searchTerms.some((term) => term && stringified.includes(term));
+};
+
 export const renameSavedChart = ({
     type,
     chart,
@@ -627,14 +641,18 @@ export const renameSavedChart = ({
     nameChanges: NameChanges;
     validate: boolean;
 }): { updatedChart: SavedChartDAO; hasChanges: boolean } => {
-    let hasChanges = false;
-
     const isPrefix = type === RenameType.MODEL;
-    const containsModelName = (object: Object) =>
-        JSON.stringify(object).includes(
-            `${nameChanges.from}${isPrefix ? '_' : ''}`,
-        );
 
+    const searchTerms = [
+        addSuffixIfPrefix(nameChanges.from, isPrefix),
+        addSuffixIfPrefix(nameChanges.fromReference, isPrefix),
+        // fromFieldName is only available when rename type is FIELD
+        nameChanges.fromFieldName
+            ? addSuffixIfPrefix(nameChanges.fromFieldName, isPrefix)
+            : null,
+    ].filter((s) => s !== null);
+
+    const containsModelName = buildModelNameChecker(searchTerms);
     if (!containsModelName(chart)) {
         // These should be filtered already by model anyway
         return { updatedChart: chart, hasChanges: false };
@@ -649,12 +667,10 @@ export const renameSavedChart = ({
     // Create a shallow copy instead of deep clone
     const updatedChart = { ...chart };
     if (type === RenameType.MODEL && chart.tableName === nameChanges.from) {
-        hasChanges = true;
         updatedChart.tableName = nameChanges.to;
     }
 
     if (containsModelName(chart.metricQuery)) {
-        hasChanges = true;
         updatedChart.metricQuery = renameMetricQuery(
             chart.metricQuery,
             renameMethods,
@@ -662,20 +678,17 @@ export const renameSavedChart = ({
     }
 
     if (containsModelName(chart.chartConfig)) {
-        hasChanges = true;
         updatedChart.chartConfig = renameChartConfigType(
             chart.chartConfig,
             renameMethods,
         );
     }
     if (containsModelName(chart.tableConfig)) {
-        hasChanges = true;
         updatedChart.tableConfig = {
             columnOrder: replaceList(chart.tableConfig.columnOrder),
         };
     }
     if (chart.pivotConfig && containsModelName(chart.pivotConfig)) {
-        hasChanges = true;
         updatedChart.pivotConfig = {
             columns: replaceList(updatedChart.pivotConfig?.columns || []),
         };
@@ -684,6 +697,8 @@ export const renameSavedChart = ({
     if (validate)
         validateRename(chart, updatedChart, chart.name, 'chart', nameChanges);
 
+    // Only mark changes if there was actually an update. There are renameFunctions that won't change the values if not needed
+    const hasChanges = JSON.stringify(chart) !== JSON.stringify(updatedChart);
     return { updatedChart, hasChanges };
 };
 
@@ -697,10 +712,9 @@ export const renameDashboard = (
 
     let hasChanges = false;
 
-    const containsModelName = (object: Object) =>
-        JSON.stringify(object).includes(
-            `${nameChanges.from}${isPrefix ? '_' : ''}`,
-        );
+    const containsModelName = buildModelNameChecker([
+        addSuffixIfPrefix(nameChanges.from, isPrefix),
+    ]);
 
     if (!containsModelName(dashboard)) {
         return { updatedDashboard: dashboard, hasChanges: false };
@@ -742,10 +756,9 @@ export const renameAlert = (
 ): { updatedAlert: SchedulerAndTargets; hasChanges: boolean } => {
     const isPrefix = type === RenameType.MODEL;
 
-    const containsModelName = (object: Object) =>
-        JSON.stringify(object).includes(
-            `${nameChanges.from}${isPrefix ? '_' : ''}`,
-        );
+    const containsModelName = buildModelNameChecker([
+        addSuffixIfPrefix(nameChanges.from, isPrefix),
+    ]);
 
     if (!alert.thresholds) {
         return { updatedAlert: alert, hasChanges: false };
@@ -779,10 +792,9 @@ export const renameDashboardScheduler = (
 ): { updatedDashboardScheduler: SchedulerAndTargets; hasChanges: boolean } => {
     const isPrefix = type === RenameType.MODEL;
 
-    const containsModelName = (object: Object) =>
-        JSON.stringify(object).includes(
-            `${nameChanges.from}${isPrefix ? '_' : ''}`,
-        );
+    const containsModelName = buildModelNameChecker([
+        addSuffixIfPrefix(nameChanges.from, isPrefix),
+    ]);
 
     if (!isDashboardScheduler(dashboardScheduler)) {
         return {

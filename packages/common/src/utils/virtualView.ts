@@ -89,6 +89,15 @@ export const createTemporaryVirtualView = (
             maximumBytesBilled: 0,
         },
         getCatalog: async () => ({}),
+        getAsyncQueryResults: async () => ({
+            queryId: null,
+            queryMetadata: null,
+            totalRows: 0,
+            durationMs: 0,
+            fields: {},
+            pageCount: 0,
+            rows: [],
+        }),
         streamQuery: async () => {},
         executeAsyncQuery: async () => ({
             queryId: null,

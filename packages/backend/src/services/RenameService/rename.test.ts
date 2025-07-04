@@ -34,7 +34,10 @@ import {
 } from './rename';
 import {
     chartMocked,
+    chartWithCustomMetric,
+    chartWithCustomMetricWithSimilarName,
     expectedRenamedChartMocked,
+    expectedRenamedChartWithCustomMetric,
     fieldRename,
     tableRename,
 } from './rename.mock';
@@ -702,6 +705,42 @@ describe('renameSavedChart', () => {
 
         expect(hasChanges).toBe(true);
         expect(updatedChart).toEqual(expectedRenamedChartMocked); // toEqual doesn't check extra `undefined` fields
+    });
+    test('should rename mocked saved chart field with custom metric', () => {
+        const { updatedChart, hasChanges } = renameSavedChart({
+            type: RenameType.FIELD,
+            chart: chartWithCustomMetric,
+            nameChanges: {
+                from: 'customers_Customer_ID',
+                to: 'customers_customer_id',
+                fromReference: 'customers.Customer_ID',
+                toReference: 'customers.customer_id',
+                fromFieldName: 'Customer_ID',
+                toFieldName: 'customer_id',
+            },
+            validate: false,
+        });
+
+        expect(hasChanges).toBe(true);
+        expect(updatedChart).toEqual(expectedRenamedChartWithCustomMetric);
+    });
+    test('should not update chart with custom metric with similar name', () => {
+        const { updatedChart, hasChanges } = renameSavedChart({
+            type: RenameType.FIELD,
+            chart: chartWithCustomMetricWithSimilarName,
+            nameChanges: {
+                from: 'customers_Customer_ID',
+                to: 'customers_customer_id',
+                fromReference: 'customers.Customer_ID',
+                toReference: 'customers.customer_id',
+                fromFieldName: 'Customer_ID',
+                toFieldName: 'customer_id',
+            },
+            validate: false,
+        });
+
+        expect(hasChanges).toBe(false);
+        expect(updatedChart).toEqual(chartWithCustomMetricWithSimilarName);
     });
 
     test('should rename subscriptions saved chart model', () => {

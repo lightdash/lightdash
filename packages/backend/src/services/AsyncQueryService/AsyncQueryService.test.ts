@@ -11,6 +11,7 @@ import {
     type ResultColumns,
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
+import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { S3Client } from '../../clients/Aws/S3Client';
@@ -150,7 +151,19 @@ const getMockedAsyncQueryService = (lightdashConfig: LightdashConfig) =>
         } as unknown as QueryHistoryModel,
         userModel: {} as UserModel,
         savedSqlModel: {} as SavedSqlModel,
-        storageClient: {} as S3ResultsFileStorageClient,
+        storageClient: {
+            isEnabled: true, // ! Hack for current tests that only check for results saved in S3
+            getDowloadStream: jest.fn(() => {
+                const readable = new Readable({
+                    read() {
+                        // Push some mock data and end the stream
+                        this.push('{}');
+                        this.push(null); // End the stream
+                    },
+                });
+                return readable;
+            }),
+        } as unknown as S3ResultsFileStorageClient,
         csvService: {} as CsvService,
     });
 
@@ -752,9 +765,11 @@ describe('AsyncQueryService', () => {
             serviceWithCache.queryHistoryModel.get = jest
                 .fn()
                 .mockResolvedValue(mockQueryHistory);
-            serviceWithCache.getResultsPage = jest.fn().mockResolvedValue({
-                rows: [expectedFormattedRow],
-            });
+            serviceWithCache.getResultsPageFromWarehouse = jest
+                .fn()
+                .mockResolvedValue({
+                    rows: [expectedFormattedRow],
+                });
 
             const result = await serviceWithCache.getAsyncQueryResults({
                 user,
