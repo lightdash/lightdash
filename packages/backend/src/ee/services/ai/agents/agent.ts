@@ -13,7 +13,7 @@ import { getSystemPrompt } from '../prompts/system';
 import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateBarVizConfig } from '../tools/generateBarVizConfig';
-import { getGenerateOneLineResult } from '../tools/generateOneLineResult';
+
 import { getGenerateTableVizConfig } from '../tools/generateTableVizConfig';
 import { getGenerateTimeSeriesVizConfig } from '../tools/generateTimeSeriesVizConfig';
 import type {
@@ -92,21 +92,12 @@ const getAgentTools = (
         maxLimit: args.maxLimit,
     });
 
-    const generateOneLineResult = getGenerateOneLineResult({
-        getExplore: dependencies.getExplore,
-        updateProgress: dependencies.updateProgress,
-        runMiniMetricQuery: dependencies.runMiniMetricQuery,
-        getPrompt: dependencies.getPrompt,
-        updatePrompt: dependencies.updatePrompt,
-    });
-
     const tools = {
         findExplores,
         findFields,
         generateBarVizConfig,
         generateTimeSeriesVizConfig,
         generateTableVizConfig,
-        generateOneLineResult,
     };
 
     return tools;

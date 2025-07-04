@@ -136,8 +136,14 @@ export const AssistantBubble: FC<{
     if (!agentUuid) throw new Error(`Agent Uuid not found`);
 
     const vizConfig = parseVizConfig(message.vizConfigOutput);
+
+    // one line result has been deprecated
+    // and table result with limit 1 should not be displayed as a visualization
     const isVisualizationAvailable =
-        !!vizConfig && vizConfig?.type !== AiResultType.ONE_LINE_RESULT;
+        !!vizConfig &&
+        (vizConfig.type !== AiResultType.TABLE_RESULT ||
+            (vizConfig.type === AiResultType.TABLE_RESULT &&
+                vizConfig.vizTool.vizConfig.limit !== 1));
 
     const queryExecutionHandle = useAiAgentThreadMessageVizQuery(
         {

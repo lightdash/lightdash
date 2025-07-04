@@ -5,6 +5,8 @@ import {
     toolTableVizArgsSchemaTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { stringify } from 'csv-stringify/sync';
+import { CsvService } from '../../../../services/CsvService/CsvService';
 import type {
     GetExploreFn,
     GetPromptFn,
@@ -13,6 +15,7 @@ import type {
     UpdateProgressFn,
     UpdatePromptFn,
 } from '../types/aiAgentDependencies';
+import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateFilterRules } from '../utils/validators';
 import { renderTableViz } from '../visualizations/vizTable';
@@ -38,11 +41,11 @@ export const getGenerateTableVizConfig = ({
     const schema = toolTableVizArgsSchema;
 
     return tool({
-        description: `Use this tool to generate a Table.`,
+        description: `Use this tool to query data to display in a table or summarized if limit is set to 1.`,
         parameters: schema,
         execute: async (toolArgs) => {
             try {
-                await updateProgress('🔢 Generating your table...');
+                await updateProgress('🔢 Querying the data...');
 
                 // TODO: common for all viz tools. find a way to reuse this code.
                 const vizTool =
@@ -61,7 +64,23 @@ export const getGenerateTableVizConfig = ({
                     vizConfigOutput: toolArgs,
                 });
 
-                if (isSlackPrompt(prompt)) {
+                const isLimitOne = vizTool.vizConfig.limit === 1;
+                const isSlack = isSlackPrompt(prompt);
+
+                if (isLimitOne) {
+                    const { csv } = await renderTableViz({
+                        runMetricQuery: (q) => runMiniMetricQuery(q, maxLimit),
+                        vizTool,
+                        maxLimit,
+                    });
+
+                    await updateProgress('✅ Done.');
+                    return `Here's the result:
+${serializeData(csv, 'csv')}`;
+                }
+
+                // For non-limit-1 cases, only run query for Slack prompts
+                if (isSlack) {
                     const { csv } = await renderTableViz({
                         runMetricQuery: (q) => runMiniMetricQuery(q, maxLimit),
                         vizTool,
@@ -69,7 +88,6 @@ export const getGenerateTableVizConfig = ({
                     });
 
                     const file = Buffer.from(csv, 'utf8');
-                    await updateProgress('✅ Done.');
 
                     const sentfileArgs = {
                         channelId: prompt.slackChannelId,
@@ -81,12 +99,13 @@ export const getGenerateTableVizConfig = ({
                         file,
                     };
 
+                    await updateProgress('✅ Done.');
                     await sendFile(sentfileArgs);
                 }
 
                 return `Success`;
             } catch (e) {
-                return toolErrorHandler(e, `Error generating CSV.`);
+                return toolErrorHandler(e, `Error generating table result.`);
             }
         },
     });
