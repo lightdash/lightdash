@@ -224,4 +224,5 @@ export const lightdashConfigMock: LightdashConfig = {
     googleCloudPlatform: {
         projectId: 'test-project-id',
     },
+    updateSetup: {},
 };
