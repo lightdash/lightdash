@@ -44,6 +44,7 @@ export const getGenerateTableVizConfig = ({
         description: `Use this tool to query data to display in a table or summarized if limit is set to 1.`,
         parameters: schema,
         execute: async (toolArgs) => {
+            let isLimitOne = false;
             try {
                 await updateProgress('🔢 Querying the data...');
 
@@ -64,7 +65,7 @@ export const getGenerateTableVizConfig = ({
                     vizConfigOutput: toolArgs,
                 });
 
-                const isLimitOne = vizTool.vizConfig.limit === 1;
+                isLimitOne = vizTool.vizConfig.limit === 1;
                 const isSlack = isSlackPrompt(prompt);
 
                 if (isLimitOne) {
@@ -105,7 +106,12 @@ ${serializeData(csv, 'csv')}`;
 
                 return `Success`;
             } catch (e) {
-                return toolErrorHandler(e, `Error generating table result.`);
+                return toolErrorHandler(
+                    e,
+                    `Error generating ${
+                        isLimitOne ? 'one row' : 'table'
+                    } result.`,
+                );
             }
         },
     });

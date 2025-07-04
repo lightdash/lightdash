@@ -19,6 +19,7 @@ export const parseVizConfig = (
 
     const toolVerticalBarArgsParsed =
         toolVerticalBarArgsSchemaTransformed.safeParse(vizConfigUnknown);
+
     if (toolVerticalBarArgsParsed.success) {
         const vizTool = toolVerticalBarArgsParsed.data;
         const metricQuery = metricQueryVerticalBarViz(
