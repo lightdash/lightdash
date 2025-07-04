@@ -216,8 +216,6 @@ export const getChartConfigFromAiAgentVizConfig = ({
                     rows,
                 ),
             };
-        case AiResultType.ONE_LINE_RESULT:
-            throw new Error('One line result does not have a visualization');
         default:
             return assertUnreachable(parsedConfig, 'Invalid chart type');
     }

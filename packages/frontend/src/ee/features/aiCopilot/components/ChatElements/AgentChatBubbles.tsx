@@ -131,13 +131,23 @@ export const AssistantBubble: FC<{
     isPreview?: boolean;
 }> = memo(({ message, isPreview = false }) => {
     const { agentUuid, projectUuid } = useParams();
-
     if (!projectUuid) throw new Error(`Project Uuid not found`);
     if (!agentUuid) throw new Error(`Agent Uuid not found`);
 
-    const vizConfig = parseVizConfig(message.vizConfigOutput);
+    const vizConfig = useMemo(
+        () => parseVizConfig(message.vizConfigOutput),
+        [message.vizConfigOutput],
+    );
+
+    const hasVizConfig = !!vizConfig;
+    const isChartVisualization =
+        hasVizConfig && vizConfig.type !== AiResultType.TABLE_RESULT;
+    const isTableVisualization =
+        hasVizConfig &&
+        vizConfig.type === AiResultType.TABLE_RESULT &&
+        vizConfig.vizTool.vizConfig.limit !== 1;
     const isVisualizationAvailable =
-        !!vizConfig && vizConfig?.type !== AiResultType.ONE_LINE_RESULT;
+        hasVizConfig && (isChartVisualization || isTableVisualization);
 
     const queryExecutionHandle = useAiAgentThreadMessageVizQuery(
         {
@@ -163,41 +173,29 @@ export const AssistantBubble: FC<{
         message.threadUuid,
     );
 
-    const upVoted = useMemo(
-        () =>
-            typeof message.humanScore === 'number' && message.humanScore === 1,
-        [message.humanScore],
-    );
-    const downVoted = useMemo(
-        () =>
-            typeof message.humanScore === 'number' && message.humanScore === -1,
-        [message.humanScore],
-    );
+    const upVoted = message.humanScore === 1;
+    const downVoted = message.humanScore === -1;
+    const hasRating = upVoted || downVoted;
 
     const handleUpvote = useCallback(() => {
-        if (!projectUuid || message.humanScore !== null) return; // Prevent changes if already rated
+        if (hasRating) return;
         updateFeedbackMutation.mutate({
             messageUuid: message.uuid,
             humanScore: 1,
         });
-    }, [projectUuid, message.uuid, message.humanScore, updateFeedbackMutation]);
+    }, [hasRating, updateFeedbackMutation, message.uuid]);
 
     const handleDownvote = useCallback(() => {
-        if (!projectUuid || message.humanScore !== null) return; // Prevent changes if already rated
+        if (hasRating) return;
         updateFeedbackMutation.mutate({
             messageUuid: message.uuid,
             humanScore: -1,
         });
-    }, [projectUuid, message.uuid, message.humanScore, updateFeedbackMutation]);
-
-    const hasRating =
-        message.humanScore !== undefined && message.humanScore !== null;
+    }, [hasRating, updateFeedbackMutation, message.uuid]);
 
     const isLoading =
         useAiAgentThreadStreaming(message.threadUuid) &&
         isOptimisticMessageStub(message.message);
-
-    if (!projectUuid) throw new Error(`Project Uuid not found`);
 
     return (
         <Stack
