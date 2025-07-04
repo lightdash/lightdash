@@ -9,7 +9,7 @@ import { JobHelpers, Task, TaskList } from 'graphile-worker';
 import moment from 'moment';
 import ExecutionContext from 'node-execution-context';
 import { ExecutionContextInfo } from '../logging/winston';
-import { TypedTask, TypedTaskList } from './types';
+import { TypedTask, type TypedTaskList } from './types';
 
 const getTagsForTask: {
     [K in SchedulerTaskName]: (
@@ -269,7 +269,7 @@ export const traceTask = <T extends SchedulerTaskName>(
  * @param tasks - The list of tasks to trace
  * @returns A list of traced tasks that can be used in a Graphile Worker
  */
-export const traceTasks = (tasks: TypedTaskList) => {
+export const traceTasks = (tasks: Partial<TypedTaskList>) => {
     const tracedTasks = Object.keys(tasks).reduce<TaskList>(
         (accTasks, taskName) => ({
             ...accTasks,

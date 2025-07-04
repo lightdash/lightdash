@@ -1,4 +1,5 @@
 import {
+    ALL_TASK_NAMES,
     AnyType,
     AuthTokenPrefix,
     cleanColorArray,
@@ -11,6 +12,7 @@ import {
     getInvalidHexColors,
     isLightdashMode,
     isOrganizationMemberRole,
+    isSchedulerTaskName,
     LightdashMode,
     OrganizationMemberRole,
     ParameterError,
@@ -19,10 +21,10 @@ import {
     SupportedDbtVersions,
     WarehouseTypes,
     WeekDay,
+    type SchedulerTaskName,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/core';
 import { type ClientAuthMethod } from 'openid-client';
-import { isValid } from 'zod';
 import { VERSION } from '../version';
 import {
     aiCopilotConfigSchema,
@@ -479,6 +481,75 @@ export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
     };
 };
 
+const validateTaskList = (tasks: string[], envVarName: string) => {
+    const validTasks: SchedulerTaskName[] = [];
+    const invalidTasks: string[] = [];
+
+    for (const task of tasks) {
+        if (isSchedulerTaskName(task)) {
+            validTasks.push(task as SchedulerTaskName);
+        } else {
+            invalidTasks.push(task);
+        }
+    }
+
+    if (invalidTasks.length > 0) {
+        console.warn(
+            `Invalid scheduler tasks found in ${envVarName} environment variable: ${invalidTasks.join(
+                ', ',
+            )}. These tasks will be ignored.`,
+        );
+    }
+
+    return validTasks;
+};
+
+const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
+    const includeTasks = getArrayFromCommaSeparatedList(
+        'SCHEDULER_INCLUDE_TASKS',
+    );
+    const excludeTasks = getArrayFromCommaSeparatedList(
+        'SCHEDULER_EXCLUDE_TASKS',
+    );
+
+    // If neither is set, return undefined (run all tasks)
+    if (includeTasks.length === 0 && excludeTasks.length === 0) {
+        return ALL_TASK_NAMES;
+    }
+
+    if (includeTasks.length > 0 && excludeTasks.length > 0) {
+        throw new ParseError(
+            `Cannot set both SCHEDULER_INCLUDE_TASKS and SCHEDULER_EXCLUDE_TASKS environment variables. Please use only one of them.`,
+        );
+    }
+
+    // Validate include tasks
+    const validIncludeTasks = validateTaskList(
+        includeTasks,
+        'SCHEDULER_INCLUDE_TASKS',
+    );
+
+    // Validate exclude tasks
+    const validExcludeTasks = validateTaskList(
+        excludeTasks,
+        'SCHEDULER_EXCLUDE_TASKS',
+    );
+
+    // Handle different scenarios
+    if (validIncludeTasks.length > 0 && validExcludeTasks.length === 0) {
+        return validIncludeTasks;
+    }
+
+    if (validIncludeTasks.length === 0 && validExcludeTasks.length > 0) {
+        // Only exclude set: include all and exclude the ones from the variable
+        return ALL_TASK_NAMES.filter(
+            (task) => !validExcludeTasks.includes(task),
+        );
+    }
+
+    return ALL_TASK_NAMES;
+};
+
 export type LoggingConfig = {
     level: LoggingLevel;
     format: LoggingFormat;
@@ -578,6 +649,7 @@ export type LightdashConfig = {
         concurrency: number;
         jobTimeout: number;
         screenshotTimeout?: number;
+        tasks: Array<SchedulerTaskName>;
     };
     groups: {
         enabled: boolean;
@@ -1227,6 +1299,7 @@ export const parseConfig = (): LightdashConfig => {
             screenshotTimeout: process.env.SCHEDULER_SCREENSHOT_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
+            tasks: parseAndSanitizeSchedulerTasks(),
         },
         groups: {
             enabled: process.env.GROUPS_ENABLED === 'true',
