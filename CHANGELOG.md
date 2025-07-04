@@ -1,3 +1,10 @@
+## [0.1785.1](https://github.com/lightdash/lightdash/compare/0.1785.0...0.1785.1) (2025-07-04)
+
+
+### Bug Fixes
+
+* retain pivotDimension from ai to explore ([#15722](https://github.com/lightdash/lightdash/issues/15722)) ([b9e4778](https://github.com/lightdash/lightdash/commit/b9e4778e0dc671e3b2626e0f6474c4e36ae7a465))
+
 # [0.1785.0](https://github.com/lightdash/lightdash/compare/0.1784.0...0.1785.0) (2025-07-04)
 
 
