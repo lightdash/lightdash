@@ -56,6 +56,11 @@ export enum FeatureFlags {
      * This feature flag is temporary while we work on the new query warnings for metric inflation.
      */
     ShowQueryWarnings = 'show-query-warnings',
+
+    /**
+     * Use workers for async query execution
+     */
+    WorkerQueryExecution = 'worker-query-execution',
 }
 
 export type FeatureFlag = {
