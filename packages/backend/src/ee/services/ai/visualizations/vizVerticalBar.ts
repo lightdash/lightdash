@@ -33,9 +33,7 @@ const echartsConfigVerticalBarMetric = async (
             source: chartData,
             dimensions: fields,
         },
-        ...(vizTool.vizConfig.title
-            ? { title: { text: vizTool.vizConfig.title } }
-            : {}),
+        ...(vizTool.title ? { title: { text: vizTool.title } } : {}),
         animation: false,
         backgroundColor: '#fff',
         ...(metrics.length > 1

@@ -1,14 +1,11 @@
 import { z } from 'zod';
-import { type Filters } from '../../../../types/filter';
 import { FollowUpTools } from '../../followUpTools';
 import { AiResultType } from '../../types';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
-import {
-    timeSeriesMetricVizConfigSchema,
-    type TimeSeriesMetricVizConfigSchemaType,
-} from '../visualizations/timeSeriesViz';
+import visualizationMetadataSchema from '../visualizationMetadata';
+import { timeSeriesMetricVizConfigSchema } from '../visualizations/timeSeriesViz';
 
-export const toolTimeSeriesArgsSchema = z.object({
+export const toolTimeSeriesArgsSchema = visualizationMetadataSchema.extend({
     type: z.literal(AiResultType.TIME_SERIES_RESULT),
     vizConfig: timeSeriesMetricVizConfigSchema,
     filters: filtersSchema
@@ -31,19 +28,10 @@ export const toolTimeSeriesArgsSchema = z.object({
 export type ToolTimeSeriesArgs = z.infer<typeof toolTimeSeriesArgsSchema>;
 
 export const toolTimeSeriesArgsSchemaTransformed =
-    toolTimeSeriesArgsSchema.transform(
-        (
-            data,
-        ): {
-            type: AiResultType.TIME_SERIES_RESULT;
-            vizConfig: TimeSeriesMetricVizConfigSchemaType;
-            filters: Filters;
-            followUpTools: FollowUpTools[];
-        } => ({
-            ...data,
-            filters: filtersSchemaTransformed.parse(data.filters),
-        }),
-    );
+    toolTimeSeriesArgsSchema.transform((data) => ({
+        ...data,
+        filters: filtersSchemaTransformed.parse(data.filters),
+    }));
 
 export type ToolTimeSeriesArgsTransformed = z.infer<
     typeof toolTimeSeriesArgsSchemaTransformed

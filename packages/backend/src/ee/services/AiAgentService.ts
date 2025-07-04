@@ -960,19 +960,6 @@ export class AiAgentService {
             throw new ForbiddenError('Viz config not found for this message');
         }
 
-        const metadata = {
-            title:
-                'title' in message.vizConfigOutput &&
-                typeof message.vizConfigOutput.title === 'string'
-                    ? message.vizConfigOutput.title
-                    : null,
-            description:
-                'description' in message.vizConfigOutput &&
-                typeof message.vizConfigOutput.description === 'string'
-                    ? message.vizConfigOutput.description
-                    : null,
-        } satisfies AiVizMetadata;
-
         const parsedVizConfig = parseVizConfig(
             message.vizConfigOutput,
             this.lightdashConfig.query.maxLimit,
@@ -987,6 +974,11 @@ export class AiAgentService {
             projectUuid,
             parsedVizConfig.metricQuery,
         );
+
+        const metadata = {
+            title: parsedVizConfig.vizTool?.title ?? null,
+            description: parsedVizConfig.vizTool?.description ?? null,
+        } satisfies AiVizMetadata;
 
         this.analytics.track({
             event: 'ai_agent.web_viz_query',
