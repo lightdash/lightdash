@@ -1,3 +1,4 @@
+import { includes } from 'lodash';
 import { type SlackPromptJobPayload } from '../ee';
 import { type SchedulerIndexCatalogJobPayload } from './catalog';
 import { type UploadMetricGsheetPayload } from './gdrive';
@@ -47,6 +48,9 @@ export const SCHEDULER_TASKS = {
     ...EE_SCHEDULER_TASKS,
 } as const;
 
+export const ALL_TASK_NAMES: SchedulerTaskName[] =
+    Object.values(SCHEDULER_TASKS);
+
 // Map each task to its payload type
 export interface TaskPayloadMap {
     [SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY]: ScheduledDeliveryPayload;
@@ -76,3 +80,6 @@ export interface EETaskPayloadMap {
 
 export type SchedulerTaskName =
     typeof SCHEDULER_TASKS[keyof typeof SCHEDULER_TASKS];
+
+export const isSchedulerTaskName = (task: string): task is SchedulerTaskName =>
+    includes(ALL_TASK_NAMES, task); // Had to use includes to avoid type error from Object.values().includes(string) related to union types https://github.com/microsoft/TypeScript/issues/46186
