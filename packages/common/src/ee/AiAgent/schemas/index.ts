@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 import { toolFindExploresArgsSchema } from './tools/toolFindExploresArgs';
 import { toolFindFieldsArgsSchema } from './tools/toolFindFieldsArgs';
-import { toolOneLineArgsSchema } from './tools/toolOneLineArgs';
 import { toolTableVizArgsSchema } from './tools/toolTableVizArgs';
 import { toolTimeSeriesArgsSchema } from './tools/toolTimeSeriesArgs';
 import { toolVerticalBarArgsSchema } from './tools/toolVerticalBarArgs';
@@ -17,7 +16,6 @@ export const AgentToolCallArgsSchema = z.discriminatedUnion('type', [
     toolTableVizArgsSchema,
     toolTimeSeriesArgsSchema,
     toolFindExploresArgsSchema,
-    toolOneLineArgsSchema,
 ]);
 
 export type AgentToolCallArgs = z.infer<typeof AgentToolCallArgsSchema>;

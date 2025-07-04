@@ -87,7 +87,6 @@ const ToolCallDescription: FC<{
                     sql={compiledSql}
                 />
             );
-
         case AiResultType.TABLE_RESULT:
             const tableVizConfigToolArgs = toolArgs;
             return (
@@ -113,8 +112,6 @@ const ToolCallDescription: FC<{
                     sql={compiledSql}
                 />
             );
-        case AiResultType.ONE_LINE_RESULT:
-            return null;
         default:
             return assertUnreachable(toolArgs, `Unknown tool name ${toolName}`);
     }
