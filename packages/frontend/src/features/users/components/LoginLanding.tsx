@@ -57,6 +57,8 @@ const Login: FC<{}> = () => {
             });
         }
     }, [flashMessages.data, showToastError]);
+    const queryParams = new URLSearchParams(location.search);
+    const redirectParam = queryParams.get('redirect');
 
     const [preCheckEmail, setPreCheckEmail] = useState<string>();
     const [isLoginOptionsLoadingDebounced, setIsLoginOptionsLoadingDebounced] =
@@ -64,6 +66,8 @@ const Login: FC<{}> = () => {
 
     const redirectUrl = location.state?.from
         ? `${location.state.from.pathname}${location.state.from.search}`
+        : redirectParam
+        ? redirectParam
         : '/';
 
     const form = useForm<LoginParams>({

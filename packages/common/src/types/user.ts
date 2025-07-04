@@ -68,6 +68,7 @@ export interface OpenIdUser {
         firstName: string | undefined;
         lastName: string | undefined;
         groups?: string[] | undefined;
+        teamId?: string | undefined;
     };
 }
 

@@ -137,6 +137,7 @@ export class OpenIdIdentityModel {
                 user_id: createIdentity.userId,
                 email: createIdentity.email,
                 refresh_token: createIdentity.refreshToken,
+                team_id: createIdentity.teamId,
             })
             .returning('*');
         return this.getIdentityByOpenId(identity.issuer, identity.subject);

@@ -1046,4 +1046,23 @@ export class UserModel {
             .select('openid_identities.issuer_type');
         return rows.map((row) => row.issuer_type);
     }
+
+    async getOpenIdByIssuerType(
+        userUuid: string,
+        issuerType: OpenIdIdentityIssuerType,
+    ) {
+        const rows = await this.database(OpenIdIdentitiesTableName)
+            .leftJoin('users', 'openid_identities.user_id', 'users.user_id')
+            .where('users.user_uuid', userUuid)
+            .where('issuer_type', issuerType)
+            .select('*');
+
+        if (rows.length === 0) {
+            throw new NotFoundError('OpenID identity not found');
+        }
+        if (rows.length > 1) {
+            throw new Error('Multiple OpenID identities found');
+        }
+        return rows[0];
+    }
 }
