@@ -13,7 +13,7 @@ import {
     snowflakeLanguageDefinition,
 } from '@popsql/monaco-sql-languages';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { debounce } from 'lodash';
+import { debounce, isEmpty } from 'lodash';
 import { type editor, type languages } from 'monaco-editor';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
@@ -343,7 +343,10 @@ export const SqlEditor: FC<{
     const transformedData:
         | { database: string; tablesBySchema: TablesBySchema }
         | undefined = useMemo(() => {
-        if (!tablesData) return undefined;
+        if (!tablesData || isEmpty(tablesData)) return undefined;
+        const [database] = Object.keys(tablesData);
+        if (!database) return undefined;
+
         const tablesBySchema = Object.entries(tablesData).flatMap(
             ([, schemas]) =>
                 Object.entries(schemas).map(([schema, tables]) => ({
@@ -352,7 +355,7 @@ export const SqlEditor: FC<{
                 })),
         );
         return {
-            database: Object.keys(tablesData)[0],
+            database,
             tablesBySchema,
         };
     }, [tablesData]);
@@ -435,6 +438,7 @@ export const SqlEditor: FC<{
                 ...currentTableFieldsWithContext,
                 ...(detectedTablesFieldData || []),
             ];
+
             if (tablesList && tablesList.length > 0) {
                 const provider = registerCustomCompletionProvider(
                     monaco,
