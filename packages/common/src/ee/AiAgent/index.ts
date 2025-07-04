@@ -50,6 +50,7 @@ export const baseAgentSchema = z.object({
         .nullable(),
     provider: z.string(),
     model: z.string(),
+    groupAccess: z.array(z.string()).nullable(),
 });
 
 export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
@@ -66,6 +67,7 @@ export type AiAgent = Pick<
     | 'updatedAt'
     | 'instruction'
     | 'imageUrl'
+    | 'groupAccess'
 >;
 
 export type AiAgentSummary = Pick<
@@ -80,6 +82,7 @@ export type AiAgentSummary = Pick<
     | 'updatedAt'
     | 'instruction'
     | 'imageUrl'
+    | 'groupAccess'
 >;
 
 export type AiAgentUser = {
@@ -153,6 +156,7 @@ export type ApiCreateAiAgent = Pick<
     | 'name'
     | 'instruction'
     | 'imageUrl'
+    | 'groupAccess'
 >;
 
 export type ApiUpdateAiAgent = Partial<
@@ -164,6 +168,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'name'
         | 'instruction'
         | 'imageUrl'
+        | 'groupAccess'
     >
 > & {
     uuid: string;
@@ -258,4 +263,11 @@ export type AiAgentToolCall = {
     // TODO: tsoa does not support zod infer schemas - https://github.com/lukeautry/tsoa/issues/1256
     toolName: string; // ToolName zod enum
     toolArgs: object;
+};
+
+export type AiAgentGroupAccess = {
+    groupUuid: string;
+    aiAgentUuid: string;
+    createdAt: Date;
+    updatedAt: Date;
 };
