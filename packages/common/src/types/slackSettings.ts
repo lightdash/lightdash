@@ -12,4 +12,5 @@ export type SlackSettings = {
     slackChannelProjectMappings?: SlackChannelProjectMapping[];
     aiThreadAccessConsent?: boolean;
     hasRequiredScopes: boolean;
+    aiRequireOAuth?: boolean;
 };
