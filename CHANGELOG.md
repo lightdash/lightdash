@@ -1,3 +1,10 @@
+## [0.1782.1](https://github.com/lightdash/lightdash/compare/0.1782.0...0.1782.1) (2025-07-04)
+
+
+### Bug Fixes
+
+* add missing version on jaffle fanout models ([#15716](https://github.com/lightdash/lightdash/issues/15716)) ([8d176fb](https://github.com/lightdash/lightdash/commit/8d176fb0c1f86b61651242838b05d703d7f4286e)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.1782.0](https://github.com/lightdash/lightdash/compare/0.1781.0...0.1782.0) (2025-07-03)
 
 
