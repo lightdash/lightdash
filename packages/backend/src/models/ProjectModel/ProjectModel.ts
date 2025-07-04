@@ -201,6 +201,19 @@ export class ProjectModel {
         };
     }
 
+    async getSingleProjectUuidInInstance(): Promise<string> {
+        const projects = await this.database('projects').select('*');
+        if (projects.length === 0) {
+            throw new NotExistsError('Cannot find project');
+        }
+        if (projects.length > 1) {
+            throw new ParameterError(
+                'There are multiple projects in the instance',
+            );
+        }
+        return projects[0].project_uuid;
+    }
+
     async getAllByOrganizationUuid(
         organizationUuid: string,
     ): Promise<OrganizationProject[]> {
