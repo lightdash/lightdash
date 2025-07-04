@@ -1,3 +1,10 @@
+# [0.1783.0](https://github.com/lightdash/lightdash/compare/0.1782.1...0.1783.0) (2025-07-04)
+
+
+### Features
+
+* allow CLI deploy without credentials ([#15711](https://github.com/lightdash/lightdash/issues/15711)) ([1c894fb](https://github.com/lightdash/lightdash/commit/1c894fb18b776db9fcb958ff70855f6f9d419478)), closes [#15347](https://github.com/lightdash/lightdash/issues/15347)
+
 ## [0.1782.1](https://github.com/lightdash/lightdash/compare/0.1782.0...0.1782.1) (2025-07-04)
 
 
