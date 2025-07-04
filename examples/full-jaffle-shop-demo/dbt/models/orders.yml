@@ -24,6 +24,17 @@ models:
         default_time_dimension:
           field: order_date
           interval: MONTH
+        explores:
+          simple_orders:
+            description: This is a simple explore of the orders table
+            label: Simple Orders
+          orders_and_payments:
+            description: This explore joins the orders and payments tables
+            label: Orders and Payments
+            joins:
+              - join: payments
+                sql_on: ${orders.order_id} = ${payments.order_id}
+                relationship: one-to-many
     columns:
       - name: order_id
         tests:
