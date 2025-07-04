@@ -1,20 +1,14 @@
-import { subject } from '@casl/ability';
 import {
     AllowedEmailDomains,
-
     CreateProject,
-
     isGitProjectType,
-
     NotExistsError,
-
     OrganizationMemberRole,
     ParameterError,
     ProjectType,
     RequestMethod,
     ServiceAccountScope,
     UnexpectedServerError,
-
     UpdateProject,
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
