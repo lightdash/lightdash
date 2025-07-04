@@ -1,3 +1,10 @@
+# [0.1785.0](https://github.com/lightdash/lightdash/compare/0.1784.0...0.1785.0) (2025-07-04)
+
+
+### Features
+
+* always trace AI streams on Sentry ([#15701](https://github.com/lightdash/lightdash/issues/15701)) ([e2324f2](https://github.com/lightdash/lightdash/commit/e2324f2bbacc241d177d6915d529e9fb9a5c8395))
+
 # [0.1784.0](https://github.com/lightdash/lightdash/compare/0.1783.0...0.1784.0) (2025-07-04)
 
 
