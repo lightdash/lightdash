@@ -1,3 +1,4 @@
+import { MissingConfigError } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
 import { LightdashConfig } from '../config/parseConfig';
@@ -92,6 +93,7 @@ interface ServiceManifest {
     supportService: unknown;
     cacheService: unknown;
     serviceAccountService: unknown;
+    instanceConfigurationService: unknown;
 }
 
 /**
@@ -396,17 +398,12 @@ export class ServiceRepository
                     organizationModel: this.models.getOrganizationModel(),
                     projectModel: this.models.getProjectModel(),
                     onboardingModel: this.models.getOnboardingModel(),
-                    inviteLinkModel: this.models.getInviteLinkModel(),
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
                     userModel: this.models.getUserModel(),
                     organizationAllowedEmailDomainsModel:
                         this.models.getOrganizationAllowedEmailDomainsModel(),
                     groupsModel: this.models.getGroupsModel(),
-                    personalAccessTokenModel:
-                        this.models.getPersonalAccessTokenModel(),
-                    emailModel: this.models.getEmailModel(),
-                    projectService: this.getProjectService(),
                 }),
         );
     }
@@ -869,6 +866,12 @@ export class ServiceRepository
         return this.getService('serviceAccountService');
     }
 
+    public getInstanceConfigurationService<
+        InstanceConfigurationServiceImplT,
+    >(): InstanceConfigurationServiceImplT {
+        return this.getService('instanceConfigurationService');
+    }
+
     /**
      * Handles initializing a service, and taking into account service
      * providers + memoization.
@@ -894,7 +897,7 @@ export class ServiceRepository
             } else if (factory != null) {
                 serviceInstance = factory();
             } else {
-                throw new Error(
+                throw new MissingConfigError(
                     `Unable to initialize service '${serviceName}' - no factory or provider.`,
                 );
             }
