@@ -38,9 +38,7 @@ export const getGenerateTableVizConfig = ({
     const schema = toolTableVizArgsSchema;
 
     return tool({
-        description: `Generate a table and show it to the user.
-The dimension and metric "fieldIds" must come from an explore.
-If you haven't used "findFieldsInExplore" tool, please do so before using this tool.`,
+        description: `Use this tool to generate a Table.`,
         parameters: schema,
         execute: async (toolArgs) => {
             try {

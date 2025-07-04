@@ -40,11 +40,7 @@ export const getGenerateBarVizConfig = ({
     const schema = toolVerticalBarArgsSchema;
 
     return tool({
-        description: `Generate Bar Chart Visualization and show it to the user.
-
-Rules for generating the bar chart visualization:
-- The dimension and metric "fieldIds" must come from an explore. If you haven't used "findFieldsInExplore" tool, please do so before using this tool.
-- If the data needs to be filtered, generate the filters using the "generateQueryFilters" tool before using this tool.`,
+        description: `Use this tool to generate a Bar Chart Visualization.`,
         parameters: schema,
         execute: async (toolArgs) => {
             try {

@@ -39,16 +39,7 @@ export const getGenerateTimeSeriesVizConfig = ({
     const schema = toolTimeSeriesArgsSchema;
 
     return tool({
-        description: `Generate Time Series Chart Visualization and show it to the user.
-This tool works well for questions about data over time, e.g. "per day/week/month".
-
-Example questions:
-- "Show me the revenue per day for the last 30 days."
-- "Show me the number of orders per week for the last 6 months."
-
-Rules for generating the time series chart visualization:
-- The dimension and metric "fieldIds" must come from an explore. If you haven't used "findFieldsInExplore" tool, please do so before using this tool.
-- If the data needs to be filtered, generate the filters using the "generateQueryFilters" tool before using this tool.`,
+        description: `Use this tool to generate a Time Series Chart.`,
         parameters: schema,
         execute: async (toolArgs) => {
             try {
