@@ -51,6 +51,10 @@ describe('Embed Auth Middleware', () => {
         getDashboardUuidFromJwt: jest
             .fn()
             .mockResolvedValue('test-dashboard-uuid'),
+        getEmbedUserAttributes: jest.fn().mockResolvedValue({
+            userAttributes: {},
+            intrinsicUserAttributes: {},
+        }),
     };
 
     beforeEach(() => {
@@ -61,7 +65,7 @@ describe('Embed Auth Middleware', () => {
             query: {},
             headers: {},
             services: {
-                getEmbedService: jest.fn(),
+                getEmbedService: jest.fn().mockReturnValue(mockEmbedService),
             } as unknown as express.Request['services'],
         } as Partial<express.Request>;
 
@@ -76,10 +80,6 @@ describe('Embed Auth Middleware', () => {
     describe('Successful authentication scenarios', () => {
         it('should authenticate with embed token from lightdash-embed-token header', async () => {
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
-            mockRequest.services!.getEmbedService = jest
-                .fn()
-                .mockReturnValue(mockEmbedService);
-
             decodeLightdashJwt.mockReturnValue(mockEmbedJwt);
 
             await jwtAuthMiddleware(
@@ -148,9 +148,6 @@ describe('Embed Auth Middleware', () => {
     describe('Error handling scenarios', () => {
         it('should return 403 ForbiddenError when token is expired', async () => {
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
-            mockRequest.services!.getEmbedService = jest
-                .fn()
-                .mockReturnValue(mockEmbedService);
 
             const forbiddenError = new ForbiddenError(
                 'Your embed token has expired.',
@@ -175,9 +172,6 @@ describe('Embed Auth Middleware', () => {
 
         it('should return 403 ParameterError when token is invalid', async () => {
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
-            mockRequest.services!.getEmbedService = jest
-                .fn()
-                .mockReturnValue(mockEmbedService);
 
             const parameterError = new ParameterError(
                 'Invalid embed token: malformed',
@@ -202,9 +196,6 @@ describe('Embed Auth Middleware', () => {
 
         it('should pass unexpected errors to next middleware', async () => {
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
-            mockRequest.services!.getEmbedService = jest
-                .fn()
-                .mockReturnValue(mockEmbedService);
 
             const unexpectedError = new Error('Database connection failed');
             decodeLightdashJwt.mockImplementation(() => {
@@ -224,9 +215,6 @@ describe('Embed Auth Middleware', () => {
 
         it('should handle embed service errors gracefully', async () => {
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
-            mockRequest.services!.getEmbedService = jest
-                .fn()
-                .mockReturnValue(mockEmbedService);
 
             await jwtAuthMiddleware(
                 mockRequest as express.Request,
@@ -253,10 +241,6 @@ describe('Embed Auth Middleware', () => {
             async ({ path, projectUuid }) => {
                 mockRequest.path = path;
                 mockRequest.query = { embedToken: mockEmbedToken };
-
-                mockRequest.services!.getEmbedService = jest
-                    .fn()
-                    .mockReturnValue(mockEmbedService);
 
                 decodeLightdashJwt.mockReturnValue(mockEmbedJwt);
 
@@ -300,10 +284,6 @@ describe('Embed Auth Middleware', () => {
     describe('Token extraction', () => {
         it('should use header token', async () => {
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
-            mockRequest.services!.getEmbedService = jest
-                .fn()
-                .mockReturnValue(mockEmbedService);
-
             decodeLightdashJwt.mockReturnValue(mockEmbedJwt);
 
             await jwtAuthMiddleware(
