@@ -4,38 +4,42 @@ import { type AnyType } from './any';
 import { type OpenIdIdentityIssuerType } from './openIdIdentity';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
 
-export type BaseUser = {
+export type AccountUser = {
+    email: string | undefined;
+    /* Whether the user can login */
+    isActive: boolean;
+    abilityRules: AbilityBuilder<MemberAbility>['rules'];
+    ability: MemberAbility;
+    type: 'lightdash' | 'external';
+};
+
+export interface LightdashUser {
+    userUuid: string;
+    firstName: string;
+    lastName: string;
     organizationUuid?: string;
     organizationName?: string;
     organizationCreatedAt?: Date;
-    role?: OrganizationMemberRole;
-    /* Whether the user can login */
-    isActive: boolean;
-};
-
-export interface LightdashUser extends BaseUser {
-    userUuid: string;
     userId: number;
-    type?: 'lightdash';
-    email: string | undefined;
-    firstName: string;
-    lastName: string;
+    role?: OrganizationMemberRole;
     isTrackingAnonymized: boolean;
     isMarketingOptedIn: boolean;
     isSetupComplete: boolean;
+    email: string | undefined;
+    /* Whether the user can login */
+    isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
     /* Whether the user doesn't have an authentication method (password or openId) */
     isPending?: boolean;
 }
 
-export type ExternalUser = BaseUser &
-    Partial<LightdashUser> & {
-        externalId: string;
-        type: 'external';
-    };
+export interface ExternalUser extends AccountUser {
+    id: string;
+    type: 'external';
+}
 
-export type LightdashUserWithOrg = Required<LightdashUser | ExternalUser>;
+export type LightdashUserWithOrg = Required<LightdashUser>;
 
 export const isUserWithOrg = (
     user: LightdashUser,

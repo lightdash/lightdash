@@ -1,0 +1,1 @@
+export { jwtAuthMiddleware } from './jwtAuthMiddleware';

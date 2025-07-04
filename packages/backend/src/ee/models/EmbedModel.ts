@@ -15,7 +15,17 @@ export class EmbedModel {
         const [embed] = await this.database('embedding')
             .select()
             .leftJoin('users', 'embedding.created_by', 'users.user_uuid')
-            .where('project_uuid', projectUuid);
+            .leftJoin(
+                'projects',
+                'projects.project_uuid',
+                'embedding.project_uuid',
+            )
+            .leftJoin(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .where('embedding.project_uuid', projectUuid);
 
         if (!embed) {
             throw new NotFoundError(
@@ -41,7 +51,8 @@ export class EmbedModel {
         return {
             projectUuid: embed.project_uuid,
             organization: {
-                organizationUuid: embed.user_organization_uuid,
+                organizationUuid: embed.organization_uuid,
+                name: embed.organization_name,
             },
             encodedSecret: embed.encoded_secret,
             dashboardUuids: validDashboardUuids,
