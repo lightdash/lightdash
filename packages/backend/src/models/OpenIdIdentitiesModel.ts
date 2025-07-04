@@ -74,6 +74,27 @@ export class OpenIdIdentityModel {
         return OpenIdIdentityModel._parseDbIdentity(identity);
     }
 
+    async findIdentityByOpenId(
+        issuerType: OpenIdIdentityIssuerType,
+        subject: string,
+        teamId?: string,
+    ): Promise<OpenIdIdentity | null> {
+        const query = this.getOpenIdQueryBuilder()
+            .where('issuer_type', issuerType)
+            .andWhere('subject', subject);
+
+        if (teamId) {
+            void query.andWhere(`${OpenIdIdentitiesTableName}.team_id`, teamId);
+        }
+
+        const [identity] = await query;
+
+        if (identity === undefined) {
+            return null;
+        }
+        return OpenIdIdentityModel._parseDbIdentity(identity);
+    }
+
     async updateIdentityByOpenId({
         email,
         subject,
