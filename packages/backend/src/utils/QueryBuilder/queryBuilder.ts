@@ -1008,7 +1008,7 @@ export class MetricQueryBuilder {
                         return `INNER JOIN ${metricCte.name} ON ${dimensionAlias
                             .map(
                                 (alias) =>
-                                    `${unaffectedMetricsCteName}.${alias} = ${metricCte.name}.${alias} OR ( ${unaffectedMetricsCteName}.${alias} IS NULL AND ${metricCte.name}.${alias} IS NULL )`,
+                                    `( ${unaffectedMetricsCteName}.${alias} = ${metricCte.name}.${alias} OR ( ${unaffectedMetricsCteName}.${alias} IS NULL AND ${metricCte.name}.${alias} IS NULL ) )`,
                             )
                             .join(' AND ')}`;
                     }),
