@@ -11,6 +11,7 @@ export type SlackSettings = {
     appProfilePhotoUrl: string | undefined;
     slackChannelProjectMappings?: SlackChannelProjectMapping[];
     aiThreadAccessConsent?: boolean;
+    aiRequireOAuth?: boolean;
 };
 
 export const slackRequiredScopes = [

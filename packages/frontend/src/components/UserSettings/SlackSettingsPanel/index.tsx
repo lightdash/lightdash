@@ -65,6 +65,8 @@ const formSchema = z.object({
             availableTags: z.array(z.string().min(1)).nullable(),
         }),
     ),
+    aiThreadAccessConsent: z.boolean().optional(),
+    aiRequireOAuth: z.boolean().optional(),
 });
 
 const SlackSettingsPanel: FC = () => {
@@ -99,6 +101,8 @@ const SlackSettingsPanel: FC = () => {
             notificationChannel: null,
             appProfilePhotoUrl: null,
             slackChannelProjectMappings: [],
+            aiThreadAccessConsent: false,
+            aiRequireOAuth: false,
         },
         validate: zodResolver(formSchema),
     });
@@ -115,6 +119,7 @@ const SlackSettingsPanel: FC = () => {
                 slackInstallation.slackChannelProjectMappings ?? [],
             aiThreadAccessConsent:
                 slackInstallation.aiThreadAccessConsent ?? false,
+            aiRequireOAuth: slackInstallation.aiRequireOAuth ?? false,
         };
 
         if (form.initialized) {
@@ -301,6 +306,44 @@ const SlackSettingsPanel: FC = () => {
                                         </Anchor>
                                         .
                                     </Text>
+
+                                    <Stack spacing="sm">
+                                        <Group spacing="two">
+                                            <Title order={6} fw={500}>
+                                                AI Agents OAuth requirement
+                                            </Title>
+
+                                            <Tooltip
+                                                multiline
+                                                variant="xs"
+                                                maw={250}
+                                                label="When enabled, users must authenticate with OAuth to use AI Agent features."
+                                            >
+                                                <MantineIcon
+                                                    icon={IconHelpCircle}
+                                                />
+                                            </Tooltip>
+                                        </Group>
+
+                                        <Text c="dimmed" fz="xs">
+                                            Require OAuth authentication for AI
+                                            Agent functionality in Slack.
+                                        </Text>
+
+                                        <Switch
+                                            label="Require OAuth for AI Agent"
+                                            checked={
+                                                form.values.aiRequireOAuth ??
+                                                false
+                                            }
+                                            onChange={(event) => {
+                                                setFieldValue(
+                                                    'aiRequireOAuth',
+                                                    event.currentTarget.checked,
+                                                );
+                                            }}
+                                        />
+                                    </Stack>
                                 </Stack>
                             )}
                         </Stack>

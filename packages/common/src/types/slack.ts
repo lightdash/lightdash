@@ -24,4 +24,5 @@ export type SlackAppCustomSettings = {
     appProfilePhotoUrl: string | null;
     slackChannelProjectMappings?: SlackChannelProjectMapping[];
     aiThreadAccessConsent?: boolean;
+    aiRequireOAuth?: boolean;
 };

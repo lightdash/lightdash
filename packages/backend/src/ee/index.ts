@@ -311,6 +311,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 schedulerClient:
                     context.clients.getSchedulerClient() as CommercialSchedulerClient,
                 aiAgentModel: context.models.getAiAgentModel(),
+                openIdIdentityModel: context.models.getOpenIdIdentityModel(),
+                userModel: context.models.getUserModel(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>
