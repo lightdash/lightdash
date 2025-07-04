@@ -560,6 +560,10 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         organizationUuid: string,
     ) {
+        if (user.externalId && user.controls) {
+            return user.controls;
+        }
+
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
                 organizationUuid,
@@ -727,7 +731,7 @@ export class ProjectService extends BaseService {
             credentials = await this.refreshCredentials(credentials, userUuid);
 
             userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
-        } else {
+        } else if (userUuid) {
             credentials = await this.refreshCredentials(credentials, userUuid);
         }
 
@@ -2570,22 +2574,8 @@ export class ProjectService extends BaseService {
                             },
                         );
 
-                    const userAttributes =
-                        await this.userAttributesModel.getAttributeValuesForOrgMember(
-                            {
-                                organizationUuid,
-                                userUuid: user.userUuid,
-                            },
-                        );
-
-                    const emailStatus =
-                        await this.emailModel.getPrimaryEmailStatus(
-                            user.userUuid,
-                        );
-                    const intrinsicUserAttributes = emailStatus.isVerified
-                        ? getIntrinsicUserAttributes(user)
-                        : {};
-
+                    const { userAttributes, intrinsicUserAttributes } =
+                        await this.getUserAttributes(user, organizationUuid);
                     const fullQuery = await ProjectService._compileQuery(
                         metricQueryWithLimit,
                         explore,
@@ -3765,11 +3755,14 @@ export class ProjectService extends BaseService {
         if (!explores) {
             return [];
         }
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+        let { userAttributes } = user.controls || {};
+        if (!userAttributes) {
+            userAttributes =
+                await this.userAttributesModel.getAttributeValuesForOrgMember({
+                    organizationUuid,
+                    userUuid: user.userUuid,
+                });
+        }
 
         const allExploreSummaries = explores.reduce<SummaryExplore[]>(
             (acc, explore) => {
@@ -3928,13 +3921,16 @@ export class ProjectService extends BaseService {
                     exploreNames,
                 );
 
-                const userAttributes =
-                    await this.userAttributesModel.getAttributeValuesForOrgMember(
-                        {
-                            organizationUuid: project.organizationUuid,
-                            userUuid: user.userUuid,
-                        },
-                    );
+                let userAttributes = user.controls?.userAttributes;
+                if (!userAttributes) {
+                    userAttributes =
+                        await this.userAttributesModel.getAttributeValuesForOrgMember(
+                            {
+                                organizationUuid: project.organizationUuid,
+                                userUuid: user.userUuid,
+                            },
+                        );
+                }
 
                 return Object.values(explores).reduce<
                     Record<string, Explore | ExploreError>

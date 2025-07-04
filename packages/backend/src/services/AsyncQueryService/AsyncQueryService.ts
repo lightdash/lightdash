@@ -40,8 +40,6 @@ import {
     getFieldQuoteChar,
     getIntrinsicUserAttributes,
     getItemId,
-    getItemLabel,
-    getItemLabelWithoutTableName,
     getItemMap,
     GroupByColumn,
     isCartesianChartConfig,
@@ -395,7 +393,10 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        if (user.userUuid !== queryHistory.createdByUserUuid) {
+        if (
+            queryHistory.createdByUserUuid &&
+            user.userUuid !== queryHistory.createdByUserUuid
+        ) {
             throw new ForbiddenError(
                 'User is not allowed to fetch results for this query',
             );
@@ -1327,18 +1328,23 @@ export class AsyncQueryService extends ProjectService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid: user.organizationUuid,
-                userUuid: user.userUuid,
-            });
+        let { userAttributes, intrinsicUserAttributes } = user.controls || {};
+        if (!userAttributes) {
+            userAttributes =
+                await this.userAttributesModel.getAttributeValuesForOrgMember({
+                    organizationUuid: user.organizationUuid,
+                    userUuid: user.userUuid,
+                });
+        }
 
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
-            user.userUuid,
-        );
-        const intrinsicUserAttributes = emailStatus.isVerified
-            ? getIntrinsicUserAttributes(user)
-            : {};
+        if (!intrinsicUserAttributes) {
+            const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+                user.userUuid,
+            );
+            intrinsicUserAttributes = emailStatus.isVerified
+                ? getIntrinsicUserAttributes(user)
+                : {};
+        }
 
         const useExperimentalMetricCtes = await isFeatureFlagEnabled(
             FeatureFlags.ShowQueryWarnings,
@@ -1508,7 +1514,9 @@ export class AsyncQueryService extends ProjectService {
                         await this.queryHistoryModel.create({
                             projectUuid,
                             organizationUuid,
-                            createdByUserUuid: user.userUuid,
+                            createdByUserUuid: user.externalId
+                                ? null
+                                : user.userUuid,
                             context,
                             fields: fieldsMap,
                             compiledSql: query,
