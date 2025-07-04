@@ -58,8 +58,15 @@
                 "type": "object"
             },
             "ServiceAccountScope": {
-                "enum": ["scim:manage", "org:admin", "org:edit", "org:read"],
-                "type": "string"
+                "type": "string",
+                "enum": [
+                    "project:manage",
+                    "content:manage",
+                    "scim:manage",
+                    "org:read",
+                    "org:edit",
+                    "org:admin"
+                ]
             },
             "ServiceAccount": {
                 "properties": {
@@ -127,7 +134,15 @@
                     },
                     "scopes": {
                         "items": {
-                            "$ref": "#/components/schemas/ServiceAccountScope"
+                            "type": "string",
+                            "enum": [
+                                "project:manage",
+                                "content:manage",
+                                "scim:manage",
+                                "org:read",
+                                "org:edit",
+                                "org:admin"
+                            ]
                         },
                         "type": "array"
                     }
