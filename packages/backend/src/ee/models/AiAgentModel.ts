@@ -19,10 +19,12 @@ import {
     isToolName,
     SlackPrompt,
     ToolName,
+    UnexpectedDatabaseError,
     UpdateSlackResponse,
     UpdateSlackResponseTs,
     UpdateWebAppResponse,
     type AiAgent,
+    type AiAgentGroupAccess,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DbUser, UserTableName } from '../../database/entities/users';
@@ -44,6 +46,7 @@ import {
     DbAiWebAppPrompt,
 } from '../database/entities/ai';
 import {
+    AiAgentGroupAccessTableName,
     AiAgentInstructionVersionsTableName,
     AiAgentIntegrationTableName,
     AiAgentSlackIntegrationTableName,
@@ -102,11 +105,27 @@ export class AiAgentModel {
                      ORDER BY created_at DESC LIMIT 1)
                     `),
                 imageUrl: `${AiAgentTableName}.image_url`,
+                groupAccess: this.database.raw(`
+                    COALESCE(
+                        json_agg(
+                            CASE WHEN ${AiAgentGroupAccessTableName}.group_uuid IS NOT NULL
+                            THEN ${AiAgentGroupAccessTableName}.group_uuid
+                            ELSE NULL
+                            END
+                        ) FILTER (WHERE ${AiAgentGroupAccessTableName}.group_uuid IS NOT NULL),
+                        '[]'::json
+                    )
+                `),
             } satisfies Record<keyof AiAgent, unknown>)
             .leftJoin(
                 AiAgentIntegrationTableName,
                 `${AiAgentTableName}.ai_agent_uuid`,
                 `${AiAgentIntegrationTableName}.ai_agent_uuid`,
+            )
+            .leftJoin(
+                AiAgentGroupAccessTableName,
+                `${AiAgentTableName}.ai_agent_uuid`,
+                `${AiAgentGroupAccessTableName}.ai_agent_uuid`,
             )
             .leftJoin(
                 AiAgentSlackIntegrationTableName,
@@ -169,11 +188,27 @@ export class AiAgentModel {
                      ORDER BY created_at DESC LIMIT 1)
                     `),
                 imageUrl: `${AiAgentTableName}.image_url`,
+                groupAccess: this.database.raw(`
+                    COALESCE(
+                        json_agg(
+                            CASE WHEN ${AiAgentGroupAccessTableName}.group_uuid IS NOT NULL
+                            THEN ${AiAgentGroupAccessTableName}.group_uuid
+                            ELSE NULL
+                            END
+                        ) FILTER (WHERE ${AiAgentGroupAccessTableName}.group_uuid IS NOT NULL),
+                        '[]'::json
+                    )
+                `),
             } satisfies Record<keyof AiAgentSummary, unknown>)
             .leftJoin(
                 AiAgentIntegrationTableName,
                 `${AiAgentTableName}.ai_agent_uuid`,
                 `${AiAgentIntegrationTableName}.ai_agent_uuid`,
+            )
+            .leftJoin(
+                AiAgentGroupAccessTableName,
+                `${AiAgentTableName}.ai_agent_uuid`,
+                `${AiAgentGroupAccessTableName}.ai_agent_uuid`,
             )
             .leftJoin(
                 AiAgentSlackIntegrationTableName,
@@ -235,7 +270,12 @@ export class AiAgentModel {
     async createAgent(
         args: Pick<
             ApiCreateAiAgent,
-            'name' | 'projectUuid' | 'tags' | 'integrations' | 'instruction'
+            | 'name'
+            | 'projectUuid'
+            | 'tags'
+            | 'integrations'
+            | 'instruction'
+            | 'groupAccess'
         > & {
             organizationUuid: string;
         },
@@ -293,6 +333,16 @@ export class AiAgentModel {
                 });
             }
 
+            // Handle group access if provided
+            if (args.groupAccess && args.groupAccess.length > 0) {
+                await trx(AiAgentGroupAccessTableName).insert(
+                    args.groupAccess.map((groupUuid) => ({
+                        ai_agent_uuid: agent.ai_agent_uuid,
+                        group_uuid: groupUuid,
+                    })),
+                );
+            }
+
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
@@ -304,6 +354,7 @@ export class AiAgentModel {
                 updatedAt: agent.updated_at,
                 instruction: args.instruction,
                 imageUrl: agent.image_url,
+                groupAccess: args.groupAccess || [],
             };
         });
     }
@@ -389,6 +440,29 @@ export class AiAgentModel {
                 instruction = result.instruction;
             }
 
+            // Handle group access changes if provided
+            if (args.groupAccess !== undefined) {
+                // Remove all existing group access
+                await trx(AiAgentGroupAccessTableName)
+                    .where('ai_agent_uuid', agent.ai_agent_uuid)
+                    .delete();
+
+                // Add new group access if any provided
+                if (args.groupAccess && args.groupAccess.length > 0) {
+                    await trx(AiAgentGroupAccessTableName).insert(
+                        args.groupAccess.map((groupUuid) => ({
+                            ai_agent_uuid: agent.ai_agent_uuid,
+                            group_uuid: groupUuid,
+                        })),
+                    );
+                }
+            }
+
+            // Get the current group access for the return object
+            const groupAccessRows = await trx(AiAgentGroupAccessTableName)
+                .select('group_uuid')
+                .where('ai_agent_uuid', agent.ai_agent_uuid);
+
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
@@ -400,6 +474,7 @@ export class AiAgentModel {
                 updatedAt: agent.updated_at,
                 instruction,
                 imageUrl: agent.image_url,
+                groupAccess: groupAccessRows.map((row) => row.group_uuid),
             };
         });
     }
@@ -1459,5 +1534,35 @@ export class AiAgentModel {
             .orderBy(`${AiAgentToolCallTableName}.created_at`, 'asc');
 
         return toolCallsAndResults;
+    }
+
+    // TODO: review this
+    async hasUserAccessToAgentViaGroup(
+        userUuid: string,
+        aiAgentUuid: string,
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const userGroupAccess = await this.database
+            .from(AiAgentGroupAccessTableName)
+            .innerJoin(
+                'group_memberships',
+                `${AiAgentGroupAccessTableName}.group_uuid`,
+                'group_memberships.group_uuid',
+            )
+            .innerJoin('users', 'group_memberships.user_id', 'users.user_id')
+            .innerJoin(
+                'organizations',
+                'group_memberships.organization_id',
+                'organizations.organization_id',
+            )
+            .where('users.user_uuid', userUuid)
+            .andWhere(
+                `${AiAgentGroupAccessTableName}.ai_agent_uuid`,
+                aiAgentUuid,
+            )
+            .andWhere('organizations.organization_uuid', organizationUuid)
+            .first();
+
+        return !!userGroupAccess;
     }
 }
