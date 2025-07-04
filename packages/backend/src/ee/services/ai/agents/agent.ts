@@ -40,8 +40,8 @@ const getAgentTelemetryConfig = (
     ({
         functionId,
         isEnabled: true,
-        recordInputs: true,
-        recordOutputs: true,
+        recordInputs: false,
+        recordOutputs: false,
         metadata: {
             agentUuid: agentSettings.uuid,
             threadUuid,
