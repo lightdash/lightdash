@@ -1,9 +1,10 @@
+version: 2
 models:
   - name: fanouts_sales_targets
-    meta: 
-      required_attributes: 
+    meta:
+      required_attributes:
         is_admin_saas_demo: 'true'
-      primary_key: [target_type, target_value, quarter_start_date]
+      primary_key: [ target_type, target_value, quarter_start_date ]
     columns:
       - name: target_type
         description: "The type of target (industry, segment, or country)"
