@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
+import { isEmpty } from 'lodash';
 import { lightdashApi } from '../../../api';
 
 export type GetTableFieldsParams = {
@@ -62,9 +63,11 @@ export const useTableFields = ({
         retry: false,
         enabled: !!tableName,
         select(data) {
-            const fields = Object.entries(data).map<WarehouseTableField>(
-                ([name, type]) => ({ name, type }),
-            );
+            if (!data || isEmpty(data)) return;
+
+            const fields = Object.entries(data)
+                .map<WarehouseTableField>(([name, type]) => ({ name, type }))
+                .filter((field) => field.name && field.name.trim() !== '');
 
             if (!search) return fields;
 
