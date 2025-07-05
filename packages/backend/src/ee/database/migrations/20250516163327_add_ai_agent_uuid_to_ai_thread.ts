@@ -25,6 +25,7 @@ export async function up(knex: Knex): Promise<void> {
 
     for await (const mapping of slackMappings) {
         const [agent] = await knex(AIAgentTableName)
+            // @ts-expect-error minimum_access_role is not in the table at this point in time (see) /ee/database/migrations/20250702125236_add_role_level_access_to_agents.ts
             .insert({
                 project_uuid: mapping.project_uuid,
                 organization_uuid: mapping.organization_uuid,

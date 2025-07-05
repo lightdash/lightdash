@@ -1,3 +1,4 @@
+import { ProjectMemberRole } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const AiAgentTableName = 'ai_agent';
@@ -12,6 +13,7 @@ export type DbAiAgent = {
     tags: string[] | null;
     created_at: Date;
     updated_at: Date;
+    minimum_access_role: ProjectMemberRole | null;
 };
 
 export type AiAgentTable = Knex.CompositeTableType<

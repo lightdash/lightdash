@@ -248,7 +248,10 @@ export class AiAgentModel {
                     organization_uuid: args.organizationUuid,
                     tags: args.tags,
                     description: null,
+                    // FIXME: add image_url from args
                     image_url: null,
+                    // TODO: add minimum_access_role
+                    minimum_access_role: null,
                 })
                 .returning('*');
 
