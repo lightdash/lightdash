@@ -1,3 +1,10 @@
+## [0.1785.2](https://github.com/lightdash/lightdash/compare/0.1785.1...0.1785.2) (2025-07-07)
+
+
+### Bug Fixes
+
+* visualization metadata types ([#15719](https://github.com/lightdash/lightdash/issues/15719)) ([53489de](https://github.com/lightdash/lightdash/commit/53489de83fa4c545f061e095875d162cb92420a2))
+
 ## [0.1785.1](https://github.com/lightdash/lightdash/compare/0.1785.0...0.1785.1) (2025-07-04)
 
 
