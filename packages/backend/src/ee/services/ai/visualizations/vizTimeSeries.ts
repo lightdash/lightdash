@@ -30,9 +30,7 @@ export const echartsConfigTimeSeriesMetric = async (
     }
 
     return {
-        ...(vizTool.vizConfig.title
-            ? { title: { text: vizTool.vizConfig.title } }
-            : {}),
+        ...(vizTool.title ? { title: { text: vizTool.title } } : {}),
         ...(metrics.length > 1
             ? {
                   // This is needed so we don't have overlapping legend and grid

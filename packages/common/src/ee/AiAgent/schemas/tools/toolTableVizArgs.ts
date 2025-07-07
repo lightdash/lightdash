@@ -1,14 +1,11 @@
 import { z } from 'zod';
-import { type Filters } from '../../../../types/filter';
 import { FollowUpTools } from '../../followUpTools';
 import { AiResultType } from '../../types';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
-import {
-    tableVizConfigSchema,
-    type TableVizConfigSchemaType,
-} from '../visualizations';
+import visualizationMetadataSchema from '../visualizationMetadata';
+import { tableVizConfigSchema } from '../visualizations';
 
-export const toolTableVizArgsSchema = z.object({
+export const toolTableVizArgsSchema = visualizationMetadataSchema.extend({
     type: z.literal(AiResultType.TABLE_RESULT),
     vizConfig: tableVizConfigSchema,
     filters: filtersSchema
@@ -31,18 +28,10 @@ export const toolTableVizArgsSchema = z.object({
 export type ToolTableVizArgs = z.infer<typeof toolTableVizArgsSchema>;
 
 export const toolTableVizArgsSchemaTransformed =
-    toolTableVizArgsSchema.transform(
-        (
-            data,
-        ): {
-            type: AiResultType.TABLE_RESULT;
-            vizConfig: TableVizConfigSchemaType;
-            filters: Filters;
-        } => ({
-            ...data,
-            filters: filtersSchemaTransformed.parse(data.filters),
-        }),
-    );
+    toolTableVizArgsSchema.transform((data) => ({
+        ...data,
+        filters: filtersSchemaTransformed.parse(data.filters),
+    }));
 
 export type ToolTableVizArgsTransformed = z.infer<
     typeof toolTableVizArgsSchemaTransformed

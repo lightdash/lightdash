@@ -3,10 +3,9 @@ import type { Filters } from '../../../../types/filter';
 import type { AiMetricQueryWithFilters } from '../../types';
 import { getValidAiQueryLimit } from '../../validators';
 import sortFieldSchema from '../sortField';
-import visualizationMetadataSchema from '../visualizationMetadata';
 
-export const tableVizConfigSchema = visualizationMetadataSchema
-    .extend({
+export const tableVizConfigSchema = z
+    .object({
         exploreName: z
             .string()
             .describe(
