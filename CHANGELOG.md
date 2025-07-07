@@ -1,3 +1,10 @@
+# [0.1786.0](https://github.com/lightdash/lightdash/compare/0.1785.2...0.1786.0) (2025-07-07)
+
+
+### Features
+
+* slack authentication ([#15688](https://github.com/lightdash/lightdash/issues/15688)) ([57e13dc](https://github.com/lightdash/lightdash/commit/57e13dc2afc034a390905d36a2e6b08008ef9293))
+
 ## [0.1785.2](https://github.com/lightdash/lightdash/compare/0.1785.1...0.1785.2) (2025-07-07)
 
 
