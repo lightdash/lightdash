@@ -169,7 +169,7 @@ const testCompile = (): Cypress.Chainable<string> => {
     cy.contains('Step 2/3', { timeout: 60000 });
     cy.contains('Successfully synced dbt project!', { timeout: 60000 });
 
-    cy.contains('selected 11 models');
+    cy.contains('selected 20 models');
     // Configure
     cy.contains('button', 'Save changes').click();
     cy.url().should('include', '/home', { timeout: 30000 });
