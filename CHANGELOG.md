@@ -1,3 +1,10 @@
+## [0.1786.2](https://github.com/lightdash/lightdash/compare/0.1786.1...0.1786.2) (2025-07-07)
+
+
+### Bug Fixes
+
+* **test:** create project tests were failing on redshift ([#15740](https://github.com/lightdash/lightdash/issues/15740)) ([f9e5406](https://github.com/lightdash/lightdash/commit/f9e5406638a0f363251e7d2968bb5d03ee0877d6))
+
 ## [0.1786.1](https://github.com/lightdash/lightdash/compare/0.1786.0...0.1786.1) (2025-07-07)
 
 
