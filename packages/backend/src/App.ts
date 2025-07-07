@@ -73,6 +73,7 @@ import PrometheusMetrics from './prometheus';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
+import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -699,6 +700,9 @@ export default class App {
         if (snowflakePassportStrategy) {
             passport.use('snowflake', snowflakePassportStrategy);
             refresh.use('snowflake', snowflakePassportStrategy);
+        }
+        if (slackPassportStrategy) {
+            passport.use('slack', slackPassportStrategy);
         }
 
         passport.serializeUser((user, done) => {
