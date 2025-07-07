@@ -172,6 +172,10 @@ export const AiChartVisualization: FC<Props> = ({
                                             queryExecutionHandle.data.query
                                                 .fields
                                         }
+                                        fieldsMap={
+                                            queryExecutionHandle.data.query
+                                                .fields
+                                        }
                                     />
                                 )}
 
