@@ -24,7 +24,7 @@ import {
     UUID,
     type ApiCreateProjectResults,
     type ApiSuccess,
-    type CreateProject,
+    type CreateProjectOptionalCredentials,
 } from '@lightdash/common';
 import {
     Body,
@@ -507,7 +507,7 @@ export class OrganizationController extends BaseController {
     @OperationId('CreateProject')
     async createProject(
         @Request() req: express.Request,
-        @Body() body: CreateProject,
+        @Body() body: CreateProjectOptionalCredentials,
     ): Promise<ApiSuccess<ApiCreateProjectResults>> {
         const results = await this.services
             .getProjectService()

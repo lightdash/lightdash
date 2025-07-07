@@ -42,8 +42,13 @@ export const AiChartQuickOptions = ({
     const { agentUuid } = useParams();
 
     const [opened, { open, close }] = useDisclosure(false);
-    const { visualizationConfig, columnOrder, resultsData, chartConfig } =
-        useVisualizationContext();
+    const {
+        visualizationConfig,
+        columnOrder,
+        resultsData,
+        chartConfig,
+        pivotDimensions,
+    } = useVisualizationContext();
     const { mutate: savePromptQuery } = useSavePromptQuery(
         agentUuid!,
         message.threadUuid,
@@ -51,9 +56,8 @@ export const AiChartQuickOptions = ({
     );
     const metricQuery = resultsData?.metricQuery;
     const type = chartConfig.type;
-    const vizConfig = visualizationConfig;
 
-    const isDisabled = !metricQuery || !type || !vizConfig;
+    const isDisabled = !metricQuery || !type || !visualizationConfig;
     const onSaveChart = (savedData: SavedChart) => {
         void savePromptQuery({ savedQueryUuid: savedData.uuid });
         if (
@@ -86,12 +90,7 @@ export const AiChartQuickOptions = ({
             projectUuid,
             columnOrder,
             chartConfig,
-            pivotColumns:
-                vizConfig &&
-                'breakdownByDimension' in vizConfig &&
-                typeof vizConfig.breakdownByDimension === 'string'
-                    ? [vizConfig.breakdownByDimension]
-                    : undefined,
+            pivotColumns: pivotDimensions,
         });
     }, [
         isDisabled,
@@ -99,7 +98,7 @@ export const AiChartQuickOptions = ({
         projectUuid,
         columnOrder,
         chartConfig,
-        vizConfig,
+        pivotDimensions,
     ]);
 
     const onClickExplore = () => {

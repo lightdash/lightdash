@@ -5,9 +5,11 @@ import {
     Account,
     AnyType,
     ApiError,
+    getErrorMessage,
     LightdashError,
     LightdashMode,
     LightdashVersionHeader,
+    MissingConfigError,
     Project,
     ServiceAccount,
     SessionUser,
@@ -70,6 +72,8 @@ import { VERSION } from './version';
 import PrometheusMetrics from './prometheus';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
+import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
+import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -279,9 +283,21 @@ export default class App {
             );
         }
 
-        await this.serviceRepository
-            .getOrganizationService()
-            .initializeInstance();
+        try {
+            const instanceConfigurationService =
+                this.serviceRepository.getInstanceConfigurationService<InstanceConfigurationService>();
+            await instanceConfigurationService.initializeInstance();
+        } catch (e) {
+            if (e instanceof MissingConfigError) {
+                Logger.debug(
+                    `No instance configuration service found: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            } else {
+                throw e;
+            }
+        }
     }
 
     private async initExpress(expressApp: Express) {
@@ -684,6 +700,9 @@ export default class App {
         if (snowflakePassportStrategy) {
             passport.use('snowflake', snowflakePassportStrategy);
             refresh.use('snowflake', snowflakePassportStrategy);
+        }
+        if (slackPassportStrategy) {
+            passport.use('slack', slackPassportStrategy);
         }
 
         passport.serializeUser((user, done) => {

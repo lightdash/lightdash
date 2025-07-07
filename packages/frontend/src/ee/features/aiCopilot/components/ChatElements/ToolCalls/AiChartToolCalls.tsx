@@ -99,7 +99,7 @@ const ToolCallDescription: FC<{
 
             return (
                 <AiChartGenerationToolCallDescription
-                    title={barVizConfigToolArgs.vizConfig.title}
+                    title={barVizConfigToolArgs.title}
                     dimensions={[barVizConfigToolArgs.vizConfig.xDimension]}
                     metrics={barVizConfigToolArgs.vizConfig.yMetrics}
                     breakdownByDimension={
@@ -113,7 +113,7 @@ const ToolCallDescription: FC<{
             const tableVizConfigToolArgs = toolArgs;
             return (
                 <AiChartGenerationToolCallDescription
-                    title={tableVizConfigToolArgs.vizConfig.title}
+                    title={tableVizConfigToolArgs.title}
                     dimensions={
                         tableVizConfigToolArgs.vizConfig.dimensions ?? []
                     }
@@ -125,7 +125,7 @@ const ToolCallDescription: FC<{
             const timeSeriesToolCallArgs = toolArgs;
             return (
                 <AiChartGenerationToolCallDescription
-                    title={timeSeriesToolCallArgs.vizConfig.title}
+                    title={timeSeriesToolCallArgs.title}
                     dimensions={[timeSeriesToolCallArgs.vizConfig.xDimension]}
                     metrics={timeSeriesToolCallArgs.vizConfig.yMetrics}
                     breakdownByDimension={

@@ -1,3 +1,4 @@
+version: 2
 models:
   - name: fanouts_addresses
     description: |
@@ -7,7 +8,7 @@ models:
       - Historical addresses show when they were active
       - This allows for point-in-time analysis and historical reporting
     meta:
-      required_attributes: 
+      required_attributes:
         is_admin_saas_demo: 'true'
       primary_key: address_id
       joins:

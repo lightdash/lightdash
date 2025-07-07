@@ -1,3 +1,88 @@
+## [0.1788.1](https://github.com/lightdash/lightdash/compare/0.1788.0...0.1788.1) (2025-07-07)
+
+
+### Bug Fixes
+
+* opperator precedence in final fanout join ([#15728](https://github.com/lightdash/lightdash/issues/15728)) ([50ce03d](https://github.com/lightdash/lightdash/commit/50ce03d73700312218f7511b049d59f381a0d990))
+
+# [0.1788.0](https://github.com/lightdash/lightdash/compare/0.1787.0...0.1788.0) (2025-07-07)
+
+
+### Features
+
+* add download XSLS option to underlying data modal ([#15702](https://github.com/lightdash/lightdash/issues/15702)) ([50b58fd](https://github.com/lightdash/lightdash/commit/50b58fdf1f7e32395579dd273619ac3ffa8b2270))
+
+# [0.1787.0](https://github.com/lightdash/lightdash/compare/0.1786.2...0.1787.0) (2025-07-07)
+
+
+### Features
+
+* build multiple explores from one model ([#15718](https://github.com/lightdash/lightdash/issues/15718)) ([86208d7](https://github.com/lightdash/lightdash/commit/86208d75fc21c3acc554a86b407590dd780a4821))
+
+## [0.1786.2](https://github.com/lightdash/lightdash/compare/0.1786.1...0.1786.2) (2025-07-07)
+
+
+### Bug Fixes
+
+* **test:** create project tests were failing on redshift ([#15740](https://github.com/lightdash/lightdash/issues/15740)) ([f9e5406](https://github.com/lightdash/lightdash/commit/f9e5406638a0f363251e7d2968bb5d03ee0877d6))
+
+## [0.1786.1](https://github.com/lightdash/lightdash/compare/0.1786.0...0.1786.1) (2025-07-07)
+
+
+### Bug Fixes
+
+* display table label in dashboard filter menu ([#15727](https://github.com/lightdash/lightdash/issues/15727)) ([49c8666](https://github.com/lightdash/lightdash/commit/49c86667eda46f8ae20ac1bbd737d078989e7677))
+* Prevent autocompletion errors when no table names are available ([#15717](https://github.com/lightdash/lightdash/issues/15717)) ([61c461c](https://github.com/lightdash/lightdash/commit/61c461c147761356900b1c170bf4b8faea9168cb))
+
+# [0.1786.0](https://github.com/lightdash/lightdash/compare/0.1785.2...0.1786.0) (2025-07-07)
+
+
+### Features
+
+* slack authentication ([#15688](https://github.com/lightdash/lightdash/issues/15688)) ([57e13dc](https://github.com/lightdash/lightdash/commit/57e13dc2afc034a390905d36a2e6b08008ef9293))
+
+## [0.1785.2](https://github.com/lightdash/lightdash/compare/0.1785.1...0.1785.2) (2025-07-07)
+
+
+### Bug Fixes
+
+* visualization metadata types ([#15719](https://github.com/lightdash/lightdash/issues/15719)) ([53489de](https://github.com/lightdash/lightdash/commit/53489de83fa4c545f061e095875d162cb92420a2))
+
+## [0.1785.1](https://github.com/lightdash/lightdash/compare/0.1785.0...0.1785.1) (2025-07-04)
+
+
+### Bug Fixes
+
+* retain pivotDimension from ai to explore ([#15722](https://github.com/lightdash/lightdash/issues/15722)) ([b9e4778](https://github.com/lightdash/lightdash/commit/b9e4778e0dc671e3b2626e0f6474c4e36ae7a465))
+
+# [0.1785.0](https://github.com/lightdash/lightdash/compare/0.1784.0...0.1785.0) (2025-07-04)
+
+
+### Features
+
+* always trace AI streams on Sentry ([#15701](https://github.com/lightdash/lightdash/issues/15701)) ([e2324f2](https://github.com/lightdash/lightdash/commit/e2324f2bbacc241d177d6915d529e9fb9a5c8395))
+
+# [0.1784.0](https://github.com/lightdash/lightdash/compare/0.1783.0...0.1784.0) (2025-07-04)
+
+
+### Features
+
+* enhance query tags for embed service with detailed context ([#15673](https://github.com/lightdash/lightdash/issues/15673)) ([3be3a35](https://github.com/lightdash/lightdash/commit/3be3a3556e6988475c623cdea3dba4b41c518b30))
+
+# [0.1783.0](https://github.com/lightdash/lightdash/compare/0.1782.1...0.1783.0) (2025-07-04)
+
+
+### Features
+
+* allow CLI deploy without credentials ([#15711](https://github.com/lightdash/lightdash/issues/15711)) ([1c894fb](https://github.com/lightdash/lightdash/commit/1c894fb18b776db9fcb958ff70855f6f9d419478)), closes [#15347](https://github.com/lightdash/lightdash/issues/15347)
+
+## [0.1782.1](https://github.com/lightdash/lightdash/compare/0.1782.0...0.1782.1) (2025-07-04)
+
+
+### Bug Fixes
+
+* add missing version on jaffle fanout models ([#15716](https://github.com/lightdash/lightdash/issues/15716)) ([8d176fb](https://github.com/lightdash/lightdash/commit/8d176fb0c1f86b61651242838b05d703d7f4286e)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.1782.0](https://github.com/lightdash/lightdash/compare/0.1781.0...0.1782.0) (2025-07-03)
 
 

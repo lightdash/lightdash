@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.1782.0",
+    "version": "0.1788.1",
     "private": true,
     "main": "dist/index",
     "license": "MIT",
@@ -122,6 +122,7 @@
         "passport-oauth2": "^1.8.0",
         "passport-oauth2-refresh": "^2.2.0",
         "passport-openidconnect": "^0.1.1",
+        "passport-slack-oauth2": "^1.2.0",
         "passport-strategy": "^1.0.0",
         "pdf-lib": "^1.17.1",
         "pg": "^8.11.3",

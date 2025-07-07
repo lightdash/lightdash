@@ -1,5 +1,6 @@
-import { type ApiError, type WarehouseTableSchema } from '@lightdash/common';
+import { type ApiError } from '@lightdash/common';
 import { useQueries } from '@tanstack/react-query';
+import { isEmpty } from 'lodash';
 import { useMemo } from 'react';
 import {
     fetchTableFields,
@@ -61,7 +62,9 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
             return results
                 .filter((result) => result.isSuccess && result.data)
                 .flatMap((result, index) => {
-                    const data = result.data as WarehouseTableSchema;
+                    const data = result.data;
+                    if (!data || isEmpty(data)) return [];
+
                     // Get the corresponding query meta data
                     const queryMeta = queries[index]?.meta;
                     const table = queryMeta?.tableName || '';

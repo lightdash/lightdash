@@ -1,14 +1,11 @@
 import { z } from 'zod';
-import { type Filters } from '../../../../types/filter';
 import { FollowUpTools } from '../../followUpTools';
 import { AiResultType } from '../../types';
 import { filtersSchema, filtersSchemaTransformed } from '../filters';
-import {
-    verticalBarMetricVizConfigSchema,
-    type VerticalBarMetricVizConfigSchemaType,
-} from '../visualizations';
+import visualizationMetadataSchema from '../visualizationMetadata';
+import { verticalBarMetricVizConfigSchema } from '../visualizations';
 
-export const toolVerticalBarArgsSchema = z.object({
+export const toolVerticalBarArgsSchema = visualizationMetadataSchema.extend({
     type: z.literal(AiResultType.VERTICAL_BAR_RESULT),
     vizConfig: verticalBarMetricVizConfigSchema,
     filters: filtersSchema
@@ -31,19 +28,10 @@ export const toolVerticalBarArgsSchema = z.object({
 export type ToolVerticalBarArgs = z.infer<typeof toolVerticalBarArgsSchema>;
 
 export const toolVerticalBarArgsSchemaTransformed =
-    toolVerticalBarArgsSchema.transform(
-        (
-            data,
-        ): {
-            type: AiResultType.VERTICAL_BAR_RESULT;
-            vizConfig: VerticalBarMetricVizConfigSchemaType;
-            filters: Filters;
-            followUpTools: FollowUpTools[];
-        } => ({
-            ...data,
-            filters: filtersSchemaTransformed.parse(data.filters),
-        }),
-    );
+    toolVerticalBarArgsSchema.transform((data) => ({
+        ...data,
+        filters: filtersSchemaTransformed.parse(data.filters),
+    }));
 
 export type ToolVerticalBarArgsTransformed = z.infer<
     typeof toolVerticalBarArgsSchemaTransformed
