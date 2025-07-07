@@ -35,7 +35,6 @@ import {
     ClientProviderMap,
     ClientRepository,
 } from './clients/ClientRepository';
-import { SlackBot } from './clients/Slack/Slackbot';
 import { LightdashConfig } from './config/parseConfig';
 import {
     apiKeyPassportStrategy,
@@ -74,6 +73,7 @@ import { snowflakePassportStrategy } from './controllers/authentication/strategi
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
+import { SlackClient } from './clients/Slack/SlackClient';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -129,18 +129,17 @@ const schedulerWorkerFactory = (context: {
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
     });
 
-const slackBotFactory = (context: {
+const slackClientFactory = (context: {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     serviceRepository: ServiceRepository;
     models: ModelRepository;
     clients: ClientRepository;
 }) =>
-    new SlackBot({
+    new SlackClient({
         lightdashConfig: context.lightdashConfig,
-        analytics: context.analytics,
         slackAuthenticationModel: context.models.getSlackAuthenticationModel(),
-        unfurlService: context.serviceRepository.getUnfurlService(),
+        analytics: context.analytics,
     });
 
 export type AppArguments = {
@@ -155,7 +154,7 @@ export type AppArguments = {
     clientProviders?: ClientProviderMap;
     modelProviders?: ModelProviderMap;
     utilProviders?: UtilProviderMap;
-    slackBotFactory?: typeof slackBotFactory;
+    slackClientFactory?: typeof slackClientFactory;
     schedulerWorkerFactory?: typeof schedulerWorkerFactory;
     customExpressMiddlewares?: Array<(app: Express) => void>; // Array of custom middleware functions
 };
@@ -181,7 +180,7 @@ export default class App {
 
     private readonly database: Knex;
 
-    private readonly slackBotFactory: typeof slackBotFactory;
+    private readonly slackClientFactory: typeof slackClientFactory;
 
     private readonly schedulerWorkerFactory: typeof schedulerWorkerFactory;
 
@@ -240,7 +239,7 @@ export default class App {
             models: this.models,
             utils: this.utils,
         });
-        this.slackBotFactory = args.slackBotFactory || slackBotFactory;
+        this.slackClientFactory = args.slackClientFactory || slackClientFactory;
         this.schedulerWorkerFactory =
             args.schedulerWorkerFactory || schedulerWorkerFactory;
         this.prometheusMetrics = new PrometheusMetrics(
@@ -530,7 +529,6 @@ export default class App {
          */
         expressApp.use((req, res, next) => {
             req.services = this.serviceRepository;
-            req.clients = this.clients;
             next();
         });
 
@@ -732,14 +730,18 @@ export default class App {
     }
 
     private async initSlack(expressApp: Express) {
-        const slackBot = this.slackBotFactory({
+        const slackClient = this.slackClientFactory({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
             serviceRepository: this.serviceRepository,
             models: this.models,
             clients: this.clients,
         });
-        await slackBot.start(expressApp);
+        await slackClient.start(
+            expressApp,
+            this.serviceRepository.getUnfurlService(),
+            this.serviceRepository.getAiAgentService(),
+        );
     }
 
     private initSchedulerWorker() {

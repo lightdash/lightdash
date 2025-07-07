@@ -8825,7 +8825,7 @@
                 "required": ["name", "id"],
                 "type": "object"
             },
-            "ApiSlackChannelsResponse": {
+            "ApiSuccess_SlackChannel-Array-or-undefined_": {
                 "properties": {
                     "results": {
                         "items": {
@@ -8842,17 +8842,11 @@
                 "required": ["status"],
                 "type": "object"
             },
+            "ApiSlackChannelsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SlackChannel-Array-or-undefined_"
+            },
             "ApiSlackCustomSettingsResponse": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
+                "$ref": "#/components/schemas/ApiSuccessEmpty"
             },
             "SlackChannelProjectMapping": {
                 "properties": {
@@ -8895,6 +8889,75 @@
                 },
                 "required": ["appProfilePhotoUrl", "notificationChannel"],
                 "type": "object"
+            },
+            "SlackSettings": {
+                "properties": {
+                    "hasRequiredScopes": {
+                        "type": "boolean"
+                    },
+                    "aiThreadAccessConsent": {
+                        "type": "boolean"
+                    },
+                    "slackChannelProjectMappings": {
+                        "items": {
+                            "$ref": "#/components/schemas/SlackChannelProjectMapping"
+                        },
+                        "type": "array"
+                    },
+                    "appProfilePhotoUrl": {
+                        "type": "string"
+                    },
+                    "notificationChannel": {
+                        "type": "string"
+                    },
+                    "scopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "appName": {
+                        "type": "string"
+                    },
+                    "slackTeamName": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "hasRequiredScopes",
+                    "scopes",
+                    "createdAt",
+                    "slackTeamName",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_SlackSettings-or-undefined_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SlackSettings"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
+            "ApiSlackGetInstallationResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SlackSettings-or-undefined_"
             },
             "ShareUrl": {
                 "properties": {
@@ -20377,6 +20440,118 @@
                     }
                 },
                 "description": "Check if the user has an OpenID identity for Slack",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/slack": {
+            "get": {
+                "operationId": "getSlackInstallation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSlackGetInstallationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            },
+            "delete": {
+                "operationId": "deleteSlackInstall",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/slack/image/{nanoId}": {
+            "get": {
+                "operationId": "getSlackImage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/slack/install": {
+            "get": {
+                "operationId": "installSlack",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
                 "tags": ["Integrations"],
                 "security": [],
                 "parameters": []
