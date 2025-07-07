@@ -1749,6 +1749,7 @@ export class AiAgentService {
         const exploreBlocks = getExploreBlocks(
             slackPrompt,
             this.lightdashConfig.siteUrl,
+            this.lightdashConfig.query.maxLimit,
         );
         const historyBlocks = getDeepLinkBlocks(
             slackPrompt,

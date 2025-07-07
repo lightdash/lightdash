@@ -1,3 +1,10 @@
+## [0.1788.2](https://github.com/lightdash/lightdash/compare/0.1788.1...0.1788.2) (2025-07-07)
+
+
+### Bug Fixes
+
+* pass maxQueryLimit to getExploreBlocks and parse vizConfig properly ([#15751](https://github.com/lightdash/lightdash/issues/15751)) ([011a4fc](https://github.com/lightdash/lightdash/commit/011a4fc963ef19cc8f5ac072ef9e375d2a997c75))
+
 ## [0.1788.1](https://github.com/lightdash/lightdash/compare/0.1788.0...0.1788.1) (2025-07-07)
 
 
