@@ -1,3 +1,10 @@
+## [0.1788.1](https://github.com/lightdash/lightdash/compare/0.1788.0...0.1788.1) (2025-07-07)
+
+
+### Bug Fixes
+
+* opperator precedence in final fanout join ([#15728](https://github.com/lightdash/lightdash/issues/15728)) ([50ce03d](https://github.com/lightdash/lightdash/commit/50ce03d73700312218f7511b049d59f381a0d990))
+
 # [0.1788.0](https://github.com/lightdash/lightdash/compare/0.1787.0...0.1788.0) (2025-07-07)
 
 
