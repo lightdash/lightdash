@@ -474,7 +474,7 @@ export class CommercialSlackBot extends SlackBot {
                 botId,
             );
         } catch (error) {
-            Logger.warn(
+            Logger.error(
                 'Failed to fetch thread history, using original message only:',
                 error,
             );
